@@ -46,6 +46,13 @@ func New(out io.Writer, level string, knownSecrets ...string) (*slog.Logger, err
 		return value
 	}
 	return slog.New(slog.NewJSONHandler(out, &slog.HandlerOptions{Level: parsed, ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		// The built-in level is a slog.Level (KindAny) with text marshaling.
+		// Preserve this known enum, not arbitrary payload/error objects.
+		if len(groups) == 0 && a.Key == slog.LevelKey {
+			if _, ok := a.Value.Any().(slog.Level); ok {
+				return a
+			}
+		}
 		key := strings.ToLower(a.Key)
 		for _, sensitive := range []string{"password", "secret", "token", "cookie", "authorization", "apikey", "api_key", "recoverycode", "recovery_code", "dsn", "database_url", "redis_url", "signedurl"} {
 			if strings.Contains(key, sensitive) {

@@ -33,6 +33,10 @@ func TestLevelsAndRedaction(t *testing.T) {
 				if json.Unmarshal([]byte(line), &obj) != nil {
 					t.Fatal(line)
 				}
+				severity, ok := obj["level"].(string)
+				if !ok || !strings.Contains("DEBUG INFO WARN ERROR", severity) || severity == "" {
+					t.Fatal("missing structured severity", obj["level"])
+				}
 			}
 			for _, private := range []string{"known-secret-fixture", "opaque-secret", "hidden-password", "key=private"} {
 				if strings.Contains(out.String(), private) {
