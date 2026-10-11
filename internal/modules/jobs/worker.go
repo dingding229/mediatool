@@ -66,6 +66,7 @@ func (w Worker) Run(ctx context.Context) error {
 				timer.Reset(w.PollInterval)
 				continue
 			}
+			w.Logger.Debug("job claimed", "jobId", j.ID, "kind", j.Kind, "queue", w.Queue)
 			w.execute(ctx, *j)
 			timer.Reset(0)
 		}

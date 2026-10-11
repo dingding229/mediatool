@@ -35,6 +35,8 @@ import (
 )
 
 func main() {
+	logger, _ := logging.New(os.Stdout, "info")
+	slog.SetDefault(logger)
 	if err := run(); err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
@@ -76,6 +78,7 @@ func run() error {
 		return err
 	}
 	slog.SetDefault(logger)
+	logger.Debug("runtime configuration validated", "role", *role)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	db, err := database.Open(ctx, c.DatabaseURL)
@@ -166,6 +169,7 @@ func supervise(ctx context.Context, components ...func(context.Context) error) e
 }
 
 func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *integrations.Manager, logger *slog.Logger, queue string) error {
+	logger = logger.With("component", "worker", "queue", queue)
 	w := jobs.Worker{Repository: jobs.Repository{DB: db}, Queue: queue, Owner: "worker-" + jobs.UUID(), PollInterval: c.WorkerPollInterval, Lease: c.WorkerLease, Logger: logger, Handlers: map[string]jobs.Handler{
 		"system.check": func(ctx context.Context, j jobs.Job) error {
 			if db == nil || db.Ping(ctx) != nil {
@@ -200,6 +204,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 				ticker := time.NewTicker(15 * time.Second)
 				defer ticker.Stop()
 				for {
+					logger.Debug("scheduler reconciliation cycle")
 					check, cancel := context.WithTimeout(watchCtx, 2*time.Minute)
 					if err := downloader.Reconcile(check); err != nil && ctx.Err() == nil {
 						logger.Warn("download reconciliation unavailable")
