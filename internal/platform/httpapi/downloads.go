@@ -1,0 +1,90 @@
+package httpapi
+
+import (
+	"errors"
+	"media-tool/internal/modules/acquisition"
+	"media-tool/internal/modules/search"
+	"net/http"
+)
+
+func (a *API) acquisition() *acquisition.Engine {
+	search := a.searchEngine()
+	if search == nil {
+		return nil
+	}
+	return &acquisition.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations, Search: *search}
+}
+func (a *API) listDownloads(w http.ResponseWriter, r *http.Request) {
+	engine := a.acquisition()
+	if engine == nil {
+		fail(w, 503, "downloads_unavailable", "请先配置数据库和业务连接")
+		return
+	}
+	tasks, err := engine.List(r.Context())
+	if err != nil {
+		fail(w, 503, "downloads_unavailable", "下载任务暂不可用")
+		return
+	}
+	write(w, 200, tasks)
+}
+func (a *API) startDownload(w http.ResponseWriter, r *http.Request) {
+	engine := a.acquisition()
+	if engine == nil {
+		fail(w, 503, "downloads_unavailable", "请先配置数据库和业务连接")
+		return
+	}
+	var body struct {
+		ResourceID  string `json:"resourceId"`
+		SearchRunID string `json:"searchRunId"`
+		MediaType   string `json:"mediaType"`
+		TMDBID      int    `json:"tmdbId"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	id, err := engine.StartFromRun(r.Context(), body.SearchRunID, body.ResourceID, body.MediaType, body.TMDBID)
+	if err != nil {
+		if errors.Is(err, search.ErrSnapshotUnavailable) || errors.Is(err, search.ErrSnapshotChanged) || errors.Is(err, search.ErrSnapshotExpired) {
+			fail(w, 409, "search_refresh_required", err.Error())
+			return
+		}
+		if errors.Is(err, acquisition.ErrSourceRecoveryRequired) || errors.Is(err, acquisition.ErrDownloadIdentityConflict) {
+			fail(w, 409, "download_identity_or_source_conflict", err.Error())
+			return
+		}
+		fail(w, 400, "download_create_failed", err.Error())
+		return
+	}
+	write(w, 202, map[string]string{"id": id})
+}
+
+func (a *API) downloadSourcePreview(w http.ResponseWriter, r *http.Request) {
+	engine := a.acquisition()
+	if engine == nil {
+		fail(w, 503, "downloads_unavailable", "业务连接不可用")
+		return
+	}
+	preview, err := engine.SourcePreview(r.Context(), r.PathValue("id"), r.URL.Query().Get("searchRunId"))
+	if err != nil {
+		fail(w, 409, "source_reconfirm_required", err.Error())
+		return
+	}
+	write(w, 200, preview)
+}
+func (a *API) reconfirmDownloadSource(w http.ResponseWriter, r *http.Request) {
+	engine := a.acquisition()
+	if engine == nil {
+		fail(w, 503, "downloads_unavailable", "业务连接不可用")
+		return
+	}
+	var body acquisition.SourceReconfirmInput
+	if !decode(w, r, &body) {
+		return
+	}
+	result, err := engine.ReconfirmSource(r.Context(), r.PathValue("id"), body)
+	if err != nil {
+		fail(w, 409, "source_reconfirm_conflict", err.Error())
+		return
+	}
+	write(w, 202, result)
+}

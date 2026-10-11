@@ -1,0 +1,51 @@
+"""Test isolation guards without connecting to any database or cloud service."""
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+
+class GoIsolationTests(unittest.TestCase):
+    def invoke(self, database="media_tool_test", arguments=()):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            (root / "scripts").mkdir()
+            shutil.copy(Path(__file__).with_name("test-go.sh"), root / "scripts/test-go.sh")
+            (root / ".env").write_text("DATABASE_URL=postgres://fixture@localhost/business\nREDIS_URL=redis://localhost:6379/0\n")
+            (root / ".env.test").write_text(f"TEST_DATABASE_URL=postgres://fixture@localhost/{database}\n")
+            (root / "go").write_text("""#!/usr/bin/env python3
+import json,os,sys,urllib.parse
+print(json.dumps({'args':sys.argv[1:],'db':urllib.parse.urlsplit(os.environ['DATABASE_URL']).path,'redis':urllib.parse.urlsplit(os.environ['TEST_REDIS_URL']).path}))
+""")
+            (root / "go").chmod(0o700)
+            env = os.environ.copy()
+            env["PATH"] = str(root) + os.pathsep + env["PATH"]
+            result = subprocess.run(["bash", str(root / "scripts/test-go.sh"), *arguments], env=env, capture_output=True, text=True)
+            return result
+
+    def test_default_database_overridden_before_migration_and_cache_isolated(self):
+        result = self.invoke()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        migration, test = [json.loads(line) for line in result.stdout.splitlines()]
+        self.assertEqual(migration["args"], ["run", "./cmd/migrate", "-test-only", "-action", "up"])
+        self.assertEqual(test["args"], ["test", "-p", "1", "-race", "-count=1", "./..."])
+        for command in (migration, test):
+            self.assertEqual(command["db"], "/media_tool_test")
+            self.assertEqual(command["redis"], "/15")
+
+    def test_business_database_refused_without_running_go(self):
+        result = self.invoke(database="business")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("only use media_tool_test", result.stderr)
+
+    def test_packages_supported_but_parallel_override_rejected(self):
+        result = self.invoke(arguments=("./internal/platform/secrets",))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout.splitlines()[1])["args"][-1], "./internal/platform/secrets")
+        refused = self.invoke(arguments=("-p=8",))
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertEqual(refused.stdout, "")

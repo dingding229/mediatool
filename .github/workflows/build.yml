@@ -1,0 +1,107 @@
+name: Verify and publish AMD64 to Docker Hub
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mediatool-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+        env:
+          POSTGRES_USER: media_tool
+          POSTGRES_DB: media_tool_test
+          POSTGRES_PASSWORD: ci-postgres-fixture
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U media_tool -d media_tool_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      GOTOOLCHAIN: local
+      TEST_DB_EXEC_MODE: psql
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with: {go-version: '1.26.9', cache: true}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: {node-version: '22', cache: npm, cache-dependency-path: web/package-lock.json}
+      - name: Create isolated test configuration (no production secrets)
+        run: |
+          python3 - <<'PY'
+          import os,secrets
+          from pathlib import Path
+          values={k:secrets.token_hex(32) for k in ('SESSION_SECRET_KEY','APP_SECRET_KEY','STRM_API_KEY')}
+          values.update(DATABASE_URL='postgres://media_tool:ci-postgres-fixture@127.0.0.1:5432/media_tool_test?sslmode=disable',REDIS_URL='redis://127.0.0.1:6379/0')
+          for name,content in [('.env','\n'.join(k+'='+v for k,v in values.items())+'\n'),('.env.test','TEST_DATABASE_URL='+values['DATABASE_URL']+'\n')]:
+            fd=os.open(name,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+            with os.fdopen(fd,'w') as f:f.write(content)
+          PY
+      - run: npm ci --prefix web --no-fund --no-audit
+      - run: npm test --prefix web
+      - run: npm run build --prefix web
+      - run: bash scripts/test-go.sh
+      - run: go vet ./...
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Browser end-to-end tests (unified process)
+        run: |
+          npx --prefix web playwright install --with-deps chrome
+          bash scripts/test-e2e.sh
+  publish:
+    needs: verify
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+      HUB_REPOSITORY: ${{ vars.DOCKERHUB_REPOSITORY }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Validate Docker Hub configuration
+        env:
+          HUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          test -n "$HUB_USERNAME" && test -n "$HUB_TOKEN" && test -n "$HUB_REPOSITORY" || { echo 'Configure Docker Hub Actions variables and secret first.'; exit 1; }
+          [[ "$HUB_REPOSITORY" =~ ^[a-z0-9_-]+/[a-z0-9_-]+$ ]] || exit 1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push linux/amd64 only
+        id: image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ vars.DOCKERHUB_REPOSITORY }}:sha-${{ github.sha }}
+            ${{ vars.DOCKERHUB_REPOSITORY }}:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/dingding229/mediatool
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=min
+      - name: Publish immutable deployment reference
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          echo "### Docker Hub release" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image: \`$HUB_REPOSITORY@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source: \`$GITHUB_SHA\`; platform: \`linux/amd64\`" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Deploy using scripts/update-server.sh, never upload a locally built image.' >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,10 @@
+<script setup lang="ts">
+import { ref,onBeforeUnmount } from 'vue'
+import { post } from '../api/client'
+const password=ref(''),code=ref(''),expires=ref(''),busy=ref(false),error=ref('')
+function clear(){password.value='';code.value='';expires.value='';error.value=''}
+async function generate(){error.value='';busy.value=true;code.value='';try{const result=await post<{recoveryCode:string;expiresAt:string}>('/auth/recovery-code',{currentPassword:password.value});code.value=result.recoveryCode;expires.value=new Date(result.expiresAt).toLocaleString();password.value=''}catch(e){error.value=e instanceof Error?e.message:'恢复码生成失败'}finally{busy.value=false}}
+onBeforeUnmount(clear)
+</script>
+<template><section class="panel account-settings"><div class="panel-title"><h2>密码找回</h2><span class="muted">一次性恢复码</span></div><p class="field-hint">先保存恢复码，忘记密码时可在登录页找回。恢复码 30 天有效，仅展示一次；生成新码会使旧码失效，修改密码也会使恢复码失效。</p><el-alert v-if="error" :title="error" type="error" :closable="false"/><form v-if="!code" class="connection-form" @submit.prevent="generate"><label for="recovery-current-password">验证当前密码</label><el-input id="recovery-current-password" v-model="password" type="password" show-password autocomplete="current-password" :maxlength="512" :disabled="busy"/><el-button native-type="submit" :loading="busy" :disabled="!password" type="primary">生成 / 更换恢复码</el-button></form><div v-else class="recovery-result" role="status"><p><strong>请保存到密码管理器，勿分享给他人。</strong></p><code data-testid="recovery-code">{{code}}</code><p class="field-hint">有效期至 {{expires}}。使用后需登录重新生成。</p><el-button @click="clear">我已保存，关闭显示</el-button></div><p class="field-hint">没有保存恢复码且无法登录？服务器所有者仍可使用离线 admin-reset 工具；应用密钥不能找回密码。</p></section></template>
+<style scoped>.recovery-result{max-width:48rem}.recovery-result code{display:block;padding:1rem;background:var(--surface-soft,#f3f5f7);font-size:14px;line-height:1.8;overflow-wrap:anywhere;user-select:all;border-left:3px solid var(--el-color-primary)}.recovery-result p{line-height:1.7}</style>

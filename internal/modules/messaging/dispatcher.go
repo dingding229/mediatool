@@ -1,0 +1,197 @@
+package messaging
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"media-tool/internal/adapters/telegram"
+	"media-tool/internal/modules/integrations"
+	"media-tool/internal/modules/jobs"
+)
+
+type Dispatcher struct {
+	DB          *pgxpool.Pool
+	Connections *integrations.Manager
+}
+
+var titles = map[string]string{"download.started": "下载已开始", "download.completed": "本地下载完成", "media.imported": "媒体 STRM 已生成", "media.batch_ready": "媒体文件已准备入库", "library.refresh_requested": "Emby 媒体库刷新已请求", "library.visible": "媒体已在Emby库中可见（待客户端播放验收）", "transfer.failed": "媒体上传失败"}
+
+func (d Dispatcher) Prepare(ctx context.Context) error {
+	if _, err := d.DB.Exec(ctx, `UPDATE notification_deliveries SET state='outcome_unknown',last_error='Worker stopped before a confirmed send receipt; manual verification required'WHERE state='sending'AND started_at<now()-interval '2 minutes'`); err != nil {
+		return err
+	}
+	tx, err := d.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	rows, err := tx.Query(ctx, `SELECT id::text,event_type,payload FROM outbox_events WHERE dispatched_at IS NULL ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 100`)
+	if err != nil {
+		return err
+	}
+	type event struct {
+		id, kind string
+		payload  []byte
+	}
+	events := []event{}
+	for rows.Next() {
+		var e event
+		if err = rows.Scan(&e.id, &e.kind, &e.payload); err != nil {
+			rows.Close()
+			return err
+		}
+		events = append(events, e)
+	}
+	rows.Close()
+	if rows.Err() != nil {
+		return rows.Err()
+	}
+	var telegramID string
+	var telegramRevision int64
+	tx.QueryRow(ctx, `SELECT id::text,revision FROM integrations WHERE kind='telegram'AND enabled LIMIT 1`).Scan(&telegramID, &telegramRevision)
+	for _, e := range events {
+		title, notify := titles[e.kind]
+		if notify {
+			var data map[string]any
+			json.Unmarshal(e.payload, &data)
+			name, _ := data["title"].(string)
+			body := title
+			if name != "" {
+				body += "：" + name
+			}
+			if _, err = tx.Exec(ctx, `INSERT INTO notification_messages(id,event_id,title,body)VALUES($1,$2,$3,$4)ON CONFLICT(event_id)DO NOTHING`, jobs.UUID(), e.id, title, body); err != nil {
+				return err
+			}
+			if telegramID != "" {
+				if _, err = tx.Exec(ctx, `INSERT INTO notification_deliveries(id,event_id,integration_id,integration_revision)VALUES($1,$2,$3,$4)ON CONFLICT(event_id,integration_id)WHERE integration_id IS NOT NULL DO NOTHING`, jobs.UUID(), e.id, telegramID, telegramRevision); err != nil {
+					return err
+				}
+			}
+		}
+		if _, err = tx.Exec(ctx, `UPDATE outbox_events SET dispatched_at=now()WHERE id=$1`, e.id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+func (d Dispatcher) Deliver(ctx context.Context) error {
+	tx, err := d.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var id, connectionID, body string
+	var attempts int
+	var savedRevision *int64
+	err = tx.QueryRow(ctx, `SELECT n.id::text,n.integration_id::text,m.body,n.attempts,n.integration_revision FROM notification_deliveries n JOIN notification_messages m ON m.event_id=n.event_id WHERE n.state IN ('pending','retry')AND next_attempt_at<=now() ORDER BY next_attempt_at FOR UPDATE OF n SKIP LOCKED LIMIT 1`).Scan(&id, &connectionID, &body, &attempts, &savedRevision)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE notification_deliveries SET state='sending',attempts=attempts+1,started_at=now() WHERE id=$1`, id); err != nil {
+		return err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return err
+	}
+	client, err := d.Connections.Telegram(ctx)
+	if err != nil {
+		_, err = d.DB.Exec(ctx, `UPDATE notification_deliveries SET state='failed',last_error='Telegram connection unavailable'WHERE id=$1`, id)
+		return err
+	}
+	current, err := d.Connections.Repository.Default(ctx, "telegram")
+	if err != nil || current.Record.ID != connectionID || savedRevision != nil && current.Record.Revision != *savedRevision {
+		_, err = d.DB.Exec(ctx, `UPDATE notification_deliveries SET state='failed',last_error='Telegram target changed; manual retry required'WHERE id=$1`, id)
+		return err
+	}
+	message, retryAfter, sendErr := client.SendText(ctx, body)
+	state, lastError := "sent", ""
+	wait := time.Duration(1<<min(attempts+1, 10)) * time.Second
+	if sendErr != nil {
+		if retryAfter > 0 {
+			state = "retry"
+			wait = time.Duration(retryAfter) * time.Second
+			lastError = "Telegram rate limit"
+		} else if requestErr, ok := sendErr.(*telegram.RequestError); ok && !requestErr.Unknown {
+			state = "failed"
+			lastError = "Telegram explicitly refused delivery"
+			if requestErr.Retryable {
+				state = "retry"
+				lastError = "Telegram temporarily unavailable"
+			}
+		} else {
+			state = "outcome_unknown"
+			lastError = "Delivery result unknown; manual retry may duplicate a message"
+		}
+	}
+	if attempts >= 4 && state == "retry" {
+		state = "failed"
+	}
+	_, err = d.DB.Exec(ctx, `UPDATE notification_deliveries SET state=$2,provider_message_id=NULLIF($3,''),last_error=$4,next_attempt_at=now()+($5::bigint*interval '1 millisecond')WHERE id=$1`, id, state, message, lastError, wait.Milliseconds())
+	return err
+}
+
+type Message struct {
+	ID            string     `json:"id"`
+	Title         string     `json:"title"`
+	Body          string     `json:"body"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	ReadAt        *time.Time `json:"readAt,omitempty"`
+	DeliveryID    *string    `json:"deliveryId,omitempty"`
+	DeliveryError string     `json:"deliveryError"`
+	TelegramState string     `json:"telegramState"`
+}
+
+func (d Dispatcher) List(ctx context.Context) ([]Message, error) {
+	rows, err := d.DB.Query(ctx, `SELECT m.id::text,m.title,m.body,m.created_at,m.read_at,coalesce(n.state,'not_configured'),n.id::text,coalesce(n.last_error,'') FROM notification_messages m LEFT JOIN notification_deliveries n ON n.event_id=m.event_id ORDER BY m.created_at DESC LIMIT 200`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Message{}
+	for rows.Next() {
+		var m Message
+		if err = rows.Scan(&m.ID, &m.Title, &m.Body, &m.CreatedAt, &m.ReadAt, &m.TelegramState, &m.DeliveryID, &m.DeliveryError); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+func (d Dispatcher) Retry(ctx context.Context, id string, acceptDuplicateRisk bool) error {
+	tx, err := d.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var state, connectionID string
+	var revision *int64
+	err = tx.QueryRow(ctx, `SELECT state,integration_id::text,integration_revision FROM notification_deliveries WHERE id=$1 FOR UPDATE`, id).Scan(&state, &connectionID, &revision)
+	if err != nil {
+		return err
+	}
+	if state != "failed" && state != "outcome_unknown" {
+		return errors.New("delivery is not in a manually retryable state")
+	}
+	if state == "outcome_unknown" && !acceptDuplicateRisk {
+		return errors.New("confirm possible duplicate risk before resending unknown outcome")
+	}
+	current, err := d.Connections.Repository.Default(ctx, "telegram")
+	if err != nil || current.Record.ID != connectionID || revision != nil && current.Record.Revision != *revision {
+		return errors.New("Telegram target/credentials changed; do not reuse the old event automatically")
+	}
+	if _, err = tx.Exec(ctx, `UPDATE notification_deliveries SET state='pending',started_at=NULL,next_attempt_at=now(),attempts=0,last_error=''WHERE id=$1`, id); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','notification.retry',jsonb_build_object('deliveryId',$1::text,'duplicateRiskAccepted',$2::boolean))`, id, acceptDuplicateRisk); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}

@@ -1,0 +1,3098 @@
+openapi: 3.1.0
+info:
+  title: Media Tool framework API
+  version: 0.7.0-dev
+  description: 'Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
+    controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
+    pinned public Emby origin. Real-provider acceptance remains separate.'
+servers:
+- url: /
+security:
+- AdminSession: []
+paths:
+  /healthz:
+    get:
+      operationId: liveness
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /readyz:
+    get:
+      operationId: readiness
+      security: []
+      description: 生产要求 PostgreSQL 可用；Redis 作为缓存故障仅降级。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - username
+              - password
+              properties:
+                username:
+                  type: string
+                  maxLength: 128
+                password:
+                  type: string
+                  format: password
+                  maxLength: 128
+      responses:
+        '200':
+          description: 建立八小时 HttpOnly/SameSite 会话；生产 cookie 仅 HTTPS。
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: 账号或密码不正确，未知账号使用相同响应
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          description: 持久化尝试限流或密码计算并发已满
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      description: 使用首次注册的管理员账号密码登录，返回HttpOnly/SameSite会话Cookie；不接受启动Key或BearerKey。 新设置密码为6–20个字符；登录及当前密码允许历史长密码，以避免已有账号被锁定。
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/auth/session:
+    get:
+      operationId: session
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/system/status:
+    get:
+      operationId: systemStatus
+      responses:
+        '200':
+          description: 实际依赖健康，不返回凭据；外部适配器未实测不标记 ready。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SystemStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/system/modules:
+    get:
+      operationId: modules
+      responses:
+        '200':
+          description: 模块建设状态，不表示真实服务已接入。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Module'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/jobs:
+    get:
+      operationId: listJobs
+      responses:
+        '200':
+          description: 最近 100 条 PostgreSQL 任务；空队列返回空数组。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      operationId: createSystemCheck
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - kind
+              properties:
+                kind:
+                  type: string
+                  enum:
+                  - system.check
+      responses:
+        '201':
+          description: 事务创建任务和 Outbox，Worker 启动后领取。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/jobs/events:
+    get:
+      operationId: jobInvalidationEvents
+      description: '每三秒发送 event: tick。仅刷新提示，不是持久化业务事件。 重连后查询 /jobs 恢复状态，原生 EventSource 使用会话 cookie。'
+      responses:
+        '200':
+          description: SSE 流。
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/strm/preview:
+    post:
+      operationId: previewStrm
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileRef'
+      responses:
+        '200':
+          description: 敏感固定链接预览；不是云端直链，也不写入服务器目录。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required:
+                    - url
+                    - content
+                    - warning
+                    properties:
+                      url:
+                        type: string
+                      content:
+                        type: string
+                      warning:
+                        type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/cloudStorage/strm302:
+    get:
+      operationId: resolveStrm
+      security:
+      - PlaybackKey: []
+      parameters:
+      - $ref: '#/components/parameters/CloudPath'
+      - $ref: '#/components/parameters/PickCode'
+      - name: assetId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: File-grant mode; current indexed path is authoritative. Legacy path/pickCode mode remains conditional.
+      description: Legacy global-Key/path links or assetId/file-Key links; file authorization precedes cache. Moved indexed
+        files retain assetId links. Cache is context/version isolated and no reliable expiry means no cache. 302 failure after
+        redirect is not observable server-side. 固定入口总取链默认30秒（PLAYBACK_RESOLVE_TIMEOUT允许5秒到1分钟）；仍核对官方文件身份、实际UA和目标策略，超时返回504。不改变STRM原链接。
+      responses:
+        '200':
+          description: 受控媒体代理返回视频/音频/octet-stream，不回传上游凭据。
+        '206':
+          description: 受控代理的 Range 响应，保留 Content-Range/Accept-Ranges。
+        '302':
+          description: 临时直链，不长期缓存。
+          headers:
+            Location:
+              required: true
+              schema:
+                type: string
+                format: uri
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: 云端文件不存在。
+        '409':
+          description: 直链需要代理但 STRM_PROXY_FALLBACK 与 STRM_FORCE_PROXY 都未启用。
+        '416':
+          description: 上游范围请求无效。
+        '502':
+          description: 上游不可达/认证失败/权限不足/RPC 不兼容/无直链/过期/目标不安全/非媒体响应。
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          description: cloud_resolution_timeout：总取链/网络预算耗尽，无Location、不回退服务器中转；具体固定阶段与requestId在安全日志中可核对。
+    head:
+      operationId: probeStrm
+      security:
+      - PlaybackKey: []
+      parameters:
+      - $ref: '#/components/parameters/CloudPath'
+      - $ref: '#/components/parameters/PickCode'
+      - name: assetId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: File-grant mode; current indexed path is authoritative. Legacy path/pickCode mode remains conditional.
+      responses:
+        '200':
+          description: 受控代理 HEAD，成功响应无主体。
+        '206':
+          description: 受控代理 Range HEAD。
+        '302':
+          description: 与 GET 相同解析逻辑，成功响应无主体。
+        default:
+          description: 与 GET 相同错误语义，HEAD 由 net/http 抑制响应主体。
+  /api/v1/sites:
+    get:
+      operationId: reservedSites
+      responses:
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /api/v1/search:
+    get:
+      operationId: listSearchRuns
+      description: Recent durable searches
+      parameters: []
+      responses:
+        '200':
+          description: Recent durable searches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: createSearchRun
+      description: Queue a multi-account search
+      parameters:
+      - &id001
+        $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          description: Queue a multi-account search
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '202':
+          description: Work accepted; poll its durable state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - keyword
+              - accountIds
+              properties:
+                keyword:
+                  type: string
+                accountIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+              additionalProperties: false
+  /api/v1/subscriptions:
+    get:
+      operationId: listSubscriptions
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned.
+      parameters: []
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      operationId: createSubscription
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned.
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionInput'
+  /api/v1/downloads:
+    get:
+      operationId: listDownloads
+      description: Durable download, seeding and library states
+      parameters: []
+      responses:
+        '200':
+          description: Durable download, seeding and library states
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: createDownload
+      description: Confirm TMDB identity then enqueue qBittorrent download
+      parameters:
+      - *id001
+      responses:
+        '200':
+          description: Confirm TMDB identity then enqueue qBittorrent download
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '202':
+          description: Work accepted; poll its durable state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - resourceId
+              - mediaType
+              - tmdbId
+              properties:
+                searchRunId:
+                  type: string
+                  format: uuid
+                  description: Selected result snapshot; omitted old clients use the latest valid snapshot, never an unproven historical resource row.
+                resourceId:
+                  type: string
+                  format: uuid
+                mediaType:
+                  type: string
+                  enum:
+                  - movie
+                  - series
+                tmdbId:
+                  type: integer
+                  minimum: 1
+              additionalProperties: false
+  /api/v1/cloudStorage:
+    get:
+      operationId: reservedStorage
+      responses:
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /api/v1/notifications:
+    get:
+      operationId: listNotifications
+      description: Site inbox and Telegram delivery state
+      parameters: []
+      responses:
+        '200':
+          description: Site inbox and Telegram delivery state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/cloudStorage/test:
+    post:
+      operationId: testCloudDrive
+      description: 只读验证 CloudDrive2 就绪、认证及路径权限；path 省略时使用配置的第一个根目录。
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                path:
+                  type: string
+      responses:
+        '200':
+          description: data 包含 systemReady、loggedIn、pathReadable 和 file；不包含云盘账号或凭据。
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '502':
+          description: 上游认证、RPC、响应或安全目标校验失败。
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/cloudStorage/diagnose:
+    post:
+      operationId: diagnoseCloudFile
+      description: 验证文件与当前直链访问条件，不读取视频字节。返回模式而非临时 URL。
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileRef'
+      responses:
+        '200':
+          description: data 包含 file、playback(mode/expiresAt/requiresUserAgent/requiresHeaders/targetValidated/mediaBytesChecked=false)、note。
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '502':
+          description: 上游认证、RPC、响应或安全目标校验失败。
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/emby/test:
+    post:
+      operationId: testEmbyPublicInfo
+      description: 检查 Emby 公共信息接口可达；不代表用户权限或真实播放成功。
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: data 包含 reachable、version、clientPlaybackVerified=false、note。
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '502':
+          description: 上游认证、RPC、响应或安全目标校验失败。
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/emby/check:
+    post:
+      operationId: checkEmbyUserItem
+      description: 使用提供的 Emby 用户令牌查询 /Users/Me 和授权媒体；令牌不存储、不记录，也不使用管理员服务令牌替代。
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - itemId
+              - userToken
+              properties:
+                itemId:
+                  type: string
+                mediaSourceId:
+                  type: string
+                userToken:
+                  type: string
+                  writeOnly: true
+      responses:
+        '200':
+          description: data 包含 authenticated、canPlay、sourceMapped、mediaBytesChecked=false。
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '502':
+          description: 上游认证、RPC、响应或安全目标校验失败。
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/integrations:
+    get:
+      operationId: listIntegrations
+      description: Saved encrypted connection metadata
+      parameters: []
+      responses:
+        '200':
+          description: Saved encrypted connection metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: createIntegration
+      description: Create encrypted connection
+      parameters:
+      - *id001
+      responses:
+        '201':
+          description: Connection created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationInput'
+  /api/v1/integrations/{id}:
+    put:
+      operationId: updateIntegration
+      description: Revision-checked update; omitted secret fields are retained
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - *id001
+      responses:
+        '200':
+          description: Revision-checked update; omitted secret fields are retained
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationInput'
+    delete:
+      operationId: deleteIntegration
+      description: Delete unreferenced connection
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - *id001
+      responses:
+        '200':
+          description: Delete unreferenced connection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/integrations/{id}/test:
+    post:
+      operationId: testIntegration
+      description: Read-only connection check
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - *id001
+      responses:
+        '200':
+          description: Read-only connection check
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+  /api/v1/integrations/{id}/115/auth/start:
+    post:
+      operationId: official115AuthorizationStart
+      description: Create a private PKCE QR session for the administrator using their own AppID. Does not enable playback
+        or return tokens.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Private authorization state; access and refresh tokens are never returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      sessionId:
+                        type: string
+                      state:
+                        type: string
+                        enum:
+                        - waiting
+                        - scanned
+                        - exchanging
+                        - authorized
+                        - expired
+                        - cancelled
+                        - failed
+                      qrCodeImage:
+                        type: string
+                        description: Locally generated private PNG data URI, present only on start
+                      expiresAt:
+                        type: string
+                        format: date-time
+        '401':
+          description: Administrator login required
+        '403':
+          description: Same-origin CSRF verification required
+        '409':
+          description: Session expired, replaced, or configuration changed
+        '502':
+          description: Official authorization unavailable; no credentials exposed
+  /api/v1/integrations/{id}/115/auth/poll:
+    post:
+      operationId: official115AuthorizationPoll
+      description: Poll without holding playback locks. Confirmation durably claims the one-shot code before exchange; interrupted
+        claims never replay. Credentials are encrypted and atomically saved after revision, owner-version and cancellation
+        checks. No token returned.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - sessionId
+              properties:
+                sessionId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Private authorization state; access and refresh tokens are never returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      sessionId:
+                        type: string
+                      state:
+                        type: string
+                        enum:
+                        - waiting
+                        - scanned
+                        - exchanging
+                        - authorized
+                        - expired
+                        - cancelled
+                        - failed
+                      qrCodeImage:
+                        type: string
+                        description: Locally generated private PNG data URI, present only on start
+                      expiresAt:
+                        type: string
+                        format: date-time
+        '401':
+          description: Administrator login required
+        '403':
+          description: Same-origin CSRF verification required
+        '409':
+          description: Session expired, replaced, or configuration changed
+        '502':
+          description: Official authorization unavailable; no credentials exposed
+  /api/v1/integrations/{id}/115/auth/cancel:
+    post:
+      operationId: official115AuthorizationCancel
+      description: Cancel the owned pending or exchanging session and clear encrypted verifier/sign data. An in-flight successful
+        exchange cannot overwrite cancellation.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - sessionId
+              properties:
+                sessionId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Private authorization state; access and refresh tokens are never returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      sessionId:
+                        type: string
+                      state:
+                        type: string
+                        enum:
+                        - waiting
+                        - scanned
+                        - exchanging
+                        - authorized
+                        - expired
+                        - cancelled
+                        - failed
+                      qrCodeImage:
+                        type: string
+                        description: Locally generated private PNG data URI, present only on start
+                      expiresAt:
+                        type: string
+                        format: date-time
+        '401':
+          description: Administrator login required
+        '403':
+          description: Same-origin CSRF verification required
+        '409':
+          description: Session expired, replaced, or configuration changed
+        '502':
+          description: Official authorization unavailable; no credentials exposed
+  /api/v1/sites/definitions:
+    get:
+      operationId: listSiteDefinitions
+      description: Imported configuration metadata and compatibility
+      parameters: []
+      responses:
+        '200':
+          description: Imported configuration metadata and compatibility
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/sites/definitions/import:
+    post:
+      operationId: importPinnedDefinitions
+      description: Requires explicit upstream license confirmation; fixed upstream commit
+      parameters:
+      - *id001
+      responses:
+        '200':
+          description: Requires explicit upstream license confirmation; fixed upstream commit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - licenseAccepted
+              properties:
+                licenseAccepted:
+                  type: boolean
+                ids:
+                  type: array
+                  maxItems: 30
+                  uniqueItems: true
+                  items:
+                    type: string
+                    pattern: ^[a-z0-9_]{1,80}$
+                sourceCommit:
+                  type: string
+                  pattern: ^([a-f0-9]{40})?$
+                  description: Optional immutable commit for explicit same-snapshot re-import. Omission resolves main once;
+                    the batch is atomic.
+              additionalProperties: false
+  /api/v1/search/{id}:
+    get:
+      operationId: getSearchRun
+      description: Per-site results and paginated resources without secret download links
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+      responses:
+        '200':
+          description: Per-site results and paginated resources without secret download links
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/metadata/episodes:
+    get:
+      operationId: previewEpisodeMetadata
+      description: 按明确TMDB剧集/季/实际集号只读查询；校验返回身份/季号/缺失集，不写文件/资产。空日期/时长保持未知，重复或未知参数拒绝。
+      parameters:
+      - name: tmdbId
+        in: query
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - name: season
+        in: query
+        required: true
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 999
+      - name: episodes
+        in: query
+        required: true
+        schema:
+          type: string
+          example: 1,3
+          description: 最多100项、1到9999的明确集号，逗号分隔，不自动展开中间集
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 明确季集参数无效/重复
+        '401':
+          description: 需要管理员会话
+        '502':
+          description: 单集元数据未验证，未写入输出
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/metadata/search:
+    get:
+      operationId: searchMetadata
+      description: TMDB media identity candidates
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: mediaType
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - movie
+          - series
+      responses:
+        '200':
+          description: TMDB media identity candidates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/transfers:
+    get:
+      operationId: listTransfers
+      description: Durable upload sessions, stages and errors
+      parameters: []
+      responses:
+        '200':
+          description: Durable upload sessions, stages and errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/media:
+    get:
+      operationId: listMedia
+      description: Indexed media identities and asset counts
+      parameters: []
+      responses:
+        '200':
+          description: Indexed media identities and asset counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/pipeline/{kind}/{id}/retry:
+    post:
+      operationId: retryFailedPipelineJob
+      description: No blind restart of unknown remote upload outcomes
+      parameters:
+      - name: kind
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - *id001
+      responses:
+        '200':
+          description: No blind restart of unknown remote upload outcomes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or unsafe retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+  /api/v1/subscriptions/{id}:
+    put:
+      operationId: updateSubscription
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionInput'
+    delete:
+      operationId: deleteSubscription
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/subscriptions/{id}/evaluate:
+    post:
+      operationId: evaluateSubscription
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                preview:
+                  type: boolean
+                  default: false
+  /api/v1/subscription-runs/{id}:
+    get:
+      operationId: subscriptionRun
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/library/scans:
+    get:
+      operationId: listLibraryScans
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned.
+      parameters: []
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      operationId: startLibraryScan
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned.
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                root:
+                  type: string
+  /api/v1/library/candidates:
+    get:
+      operationId: libraryCandidates
+      description: 提供分页参数时返回{items,total,page,pageSize}；无参数保留旧数组响应。排序含ID作为稳定次序。
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20000
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/library/candidates/{id}/confirm:
+    post:
+      operationId: confirmLibraryCandidate
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned. 非连续集号为每个已声明集生成STRM索引，所有索引共用原文件固定URI并播放整文件，不切片、不自动补中间集；旧错误命名/季集变化须明确迁移预览。
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - mediaType
+              - tmdbId
+              - revision
+              properties:
+                mediaType:
+                  enum:
+                  - movie
+                  - series
+                tmdbId:
+                  type: integer
+                  minimum: 1
+                revision:
+                  type: integer
+                season:
+                  type: integer
+                  minimum: 0
+                episodes:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 1
+  /api/v1/media/assets:
+    get:
+      operationId: listMediaAssets
+      description: 提供分页参数时返回{items,total,page,pageSize}；无参数保留旧数组响应。排序含ID作为稳定次序。
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20000
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      - name: assetId
+        in: query
+        description: 聚焦指定已有资产；不接受空、重复或格式错误的UUID。
+        schema: &id004
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/media/assets/{id}/grant/revoke:
+    post:
+      operationId: revokeFileGrant
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+  /api/v1/media/assets/{id}/grant/rotate:
+    post:
+      operationId: rotateFileGrant
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+  /api/v1/notification-deliveries/{id}/retry:
+    post:
+      operationId: retryNotificationDelivery
+      description: Authenticated management operation; secrets/raw temporary download URLs are not returned.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                acceptDuplicateRisk:
+                  type: boolean
+                  default: false
+  /api/v1/transfers/{id}/control:
+    post:
+      operationId: controlRemoteUpload
+      description: 每个变更RPC受PG互斥锁、控制修订和Worker租约保护；bind需明确sessionId/confirmSessionBinding，且路径大小和远端暂停确认均匹配。未知结果不可自动重复。
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          description: Operation result in data envelope
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Revision, outcome, or safety conflict
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - action
+              properties:
+                action:
+                  enum:
+                  - pause
+                  - resume
+                  - cancel
+                  - reconcile
+                allowRestartIfAbsent:
+                  type: boolean
+                  default: false
+  /api/v1/diagnostics/playback/preflight:
+    get:
+      operationId: playbackPreflight
+      description: 有效配置来源与状态，不返回密钥；不代表远端可达
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 参数无效
+        '409':
+          description: 修订、权限或归属冲突
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/media/assets/{id}/strm:
+    get:
+      operationId: downloadAssetSTRM
+      description: 显式下载托管STRM；包含文件播放凭据，不得记录响应正文
+      responses:
+        '200':
+          description: 私密的文件级STRM
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 参数无效
+        '409':
+          description: 修订、权限或归属冲突
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/media/assets/{id}/validation-ref:
+    get:
+      operationId: assetValidationRef
+      description: 读取当前索引路径，不使用STRM中的旧路径提示
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 参数无效
+        '409':
+          description: 修订、权限或归属冲突
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/media/assets/{id}/identity:
+    post:
+      operationId: correctAssetIdentity
+      description: 修订保护的身份/季集修正；默认不改输出路径。migrateOutputs=true时必须提供identity-preview返回的planDigest，保留assetId/播放Key并在新输出就绪后归档旧托管输出。
+        非连续集号为每个已声明集生成STRM索引，所有索引共用原文件固定URI并播放整文件，不切片、不自动补中间集；旧错误命名/季集变化须明确迁移预览。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 参数无效
+        '409':
+          description: 修订、权限或归属冲突
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mediaType:
+                  type: string
+                  enum:
+                  - movie
+                  - series
+                tmdbId:
+                  type: integer
+                  minimum: 1
+                season:
+                  type: integer
+                  minimum: 0
+                  maximum: 999
+                episodes:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 1
+                    maximum: 9999
+                revision:
+                  type: integer
+                migrateOutputs:
+                  type: boolean
+                  default: false
+                planDigest:
+                  type: string
+                  description: 迁移必需；预览计划变化后必须重新获取
+                  pattern: ^[0-9a-f]{64}$
+  /api/v1/media/assets/{id}/identity-preview:
+    post:
+      operationId: previewAssetIdentityMigration
+      description: 只读预览将生成/归档的相对路径与planDigest，不写文件、不改资产或播放Key；实际确认会重新校验内容及身份。 非连续集号为每个已声明集生成STRM索引，所有索引共用原文件固定URI并播放整文件，不切片、不自动补中间集；旧错误命名/季集变化须明确迁移预览。
+        预览附outputProjectionMode（single_file或explicit_episode_aliases）、wholeFilePlayback=true及declaredEpisodes；操作清单包含每个新索引/字幕/NFO，不返回授权正文。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 参数无效
+        '409':
+          description: 修订、权限或归属冲突
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mediaType:
+                  type: string
+                  enum:
+                  - movie
+                  - series
+                tmdbId:
+                  type: integer
+                  minimum: 1
+                season:
+                  type: integer
+                  minimum: 0
+                  maximum: 999
+                episodes:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 1
+                    maximum: 9999
+                revision:
+                  type: integer
+                migrateOutputs:
+                  type: boolean
+                  default: false
+                planDigest:
+                  type: string
+                  description: 迁移必需；预览计划变化后必须重新获取
+                  pattern: ^[0-9a-f]{64}$
+  /api/v1/library/candidates/batch-confirm:
+    post:
+      operationId: batchConfirmCandidates
+      description: 每批最多20项明确身份，逐项返回成功或失败 非连续集号为每个已声明集生成STRM索引，所有索引共用原文件固定URI并播放整文件，不切片、不自动补中间集；旧错误命名/季集变化须明确迁移预览。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 参数无效
+        '409':
+          description: 修订、权限或归属冲突
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/v1/library/scan-schedules:
+    get:
+      operationId: listScanSchedules
+      description: 列出持久化子目录扫描计划、变化推送状态及待对账时间
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 参数无效
+        '409':
+          description: 修订、权限或归属冲突
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      operationId: saveScanSchedule
+      description: 默认停用；300到604800秒；编辑需revision，根目录不可隐式改换。watchChanges默认false，需同时enabled才订阅CloudDrive2变化；删除事件仅安排对账，不直接删除资产/STRM。
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - intervalSeconds
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                root:
+                  type: string
+                enabled:
+                  type: boolean
+                  default: false
+                watchChanges:
+                  type: boolean
+                  default: false
+                  description: 接收CloudDrive2变化提示，合并触发本范围对账；不支持/断线时保留周期扫描
+                intervalSeconds:
+                  type: integer
+                  minimum: 300
+                  maximum: 604800
+                revision:
+                  type: integer
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 配置或修订无效
+  /api/v1/library/artifact-repairs:
+    get:
+      operationId: listArtifactRepairs
+      description: 只返回待恢复路径和状态，不返回加密内容
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 参数无效
+        '409':
+          description: 修订、权限或归属冲突
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/library/artifact-repairs/{id}/retry:
+    post:
+      operationId: retryArtifactRepair
+      description: 安全恢复，手工修改或归属冲突不会被覆盖
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 参数无效
+        '409':
+          description: 修订、权限或归属冲突
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+  /api/v1/transfers/{id}/sessions:
+    get:
+      operationId: listRemoteUploadSessions
+      description: 完整列举目标路径的活动上传；不将未知列表视为任务不存在
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 参数无效
+        '409':
+          description: 修订、权限或归属冲突
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/auth/setup:
+    get:
+      operationId: administratorSetup
+      security: []
+      description: 公开读取首次注册是否开放；数据库不可用不冒充未注册。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/register:
+    post:
+      operationId: registerFirstAdministrator
+      security: []
+      description: 只允许第一位管理员注册；数据库单例与事务锁保证并发仅一位成功。注册与会话同事务，成功关闭公开注册。首次初始化必须在可信网络完成。
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - username
+              - password
+              - confirmPassword
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 32
+                  pattern: ^[A-Za-z0-9][A-Za-z0-9_.-]{2,31}$
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+                  maxLength: 20
+                confirmPassword:
+                  type: string
+                  format: password
+                  minLength: 6
+                  maxLength: 20
+      responses:
+        '201':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 账号、密码或确认密码无效
+        '403':
+          description: 跨站请求拒绝
+        '409':
+          description: 管理员已注册
+        '429':
+          description: 限流
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/password:
+    post:
+      operationId: changeAdministratorPassword
+      description: 已登录管理员提供当前密码，修改后撤销所有会话；需重新登录。 新设置密码为6–20个字符；登录及当前密码允许历史长密码，以避免已有账号被锁定。
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - currentPassword
+              - newPassword
+              - confirmPassword
+              properties:
+                currentPassword:
+                  type: string
+                  format: password
+                  maxLength: 128
+                newPassword:
+                  type: string
+                  format: password
+                  maxLength: 20
+                  minLength: 6
+                confirmPassword:
+                  type: string
+                  format: password
+                  maxLength: 20
+                  minLength: 6
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 当前密码错误、新密码无效或确认不一致
+        '401':
+          description: 当前会话无效
+        '429':
+          description: 修改尝试限流
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/library/archives:
+    get:
+      operationId: listRetiredArchives
+      description: 只列已完成托管输出迁移归档，包括已清理的审计记录；不扫描任意文件。过期不会自动删除。拒绝空或重复分页参数。
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20000
+          default: 1
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/library/archive-policy:
+    get:
+      operationId: getArchiveRetentionPolicy
+      description: 默认保留30天，automaticCleanup始终false，没有自动清理任务。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      operationId: saveArchiveRetentionPolicy
+      description: 编辑需当前revision。保留1–3650天，不能启用自动删除；已有批准重试也检查当前保留期。
+      parameters:
+      - &id002
+        $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - retentionDays
+              - revision
+              properties:
+                retentionDays:
+                  type: integer
+                  minimum: 1
+                  maximum: 3650
+                revision:
+                  type: integer
+                  minimum: 1
+                automaticCleanup:
+                  type: boolean
+                  const: false
+                  default: false
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '409':
+          description: 策略、归属、预览证明、已有批准或文件状态冲突；请核对后明确重试
+  /api/v1/library/archives/cleanup-preview:
+    post:
+      operationId: previewArchiveCleanup
+      description: 只读预览1–20条明确选定、过期且仍归属本资产的归档；当前托管STRM必须存在且内容匹配。返回planDigest，不写文件/批准，不暴露STRM正文/Key。
+      parameters:
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - archiveIds
+              properties:
+                archiveIds: &id003
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  uniqueItems: true
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '409':
+          description: 策略、归属、预览证明、已有批准或文件状态冲突；请核对后明确重试
+  /api/v1/library/archives/cleanup-confirm:
+    post:
+      operationId: confirmArchiveCleanup
+      description: 此请求为明确物理删除批准。必须携带原预览的planDigest与同一选择；先持久化requestId与逐项批准，再尝试隔离/删除。返回逐项状态，部分冲突不算全部成功。相同requestId和计划回放只查询，不自动继续；不同计划不能复用ID。响应未知先查询原ID。
+      parameters:
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - requestId
+              - archiveIds
+              - planDigest
+              properties:
+                requestId:
+                  type: string
+                  format: uuid
+                archiveIds: *id003
+                planDigest:
+                  type: string
+                  pattern: ^[0-9a-f]{64}$
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '409':
+          description: 策略、归属、预览证明、已有批准或文件状态冲突；请核对后明确重试
+  /api/v1/library/archive-cleanups/{id}:
+    get:
+      operationId: getArchiveCleanupRequestResults
+      description: id是批准requestId，未知有效UUID返回空数组；查询不执行删除。返回每个操作的id、archiveId、state及message。
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/library/archive-cleanups/{id}/retry:
+    post:
+      operationId: retryApprovedArchiveCleanupOperation
+      description: id是逐项cleanupOperationId，而不是requestId。Body={}。仅显式继续已有批准；重新检查保留期、资产/待恢复状态、当前输出与隔离摘要；不自动重放。完成返回completed=true，否则409。
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: []
+              properties: {}
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '409':
+          description: 策略、归属、预览证明、已有批准或文件状态冲突；请核对后明确重试
+  /api/v1/transfers/{id}/output-preview:
+    get:
+      operationId: previewOutputImportRecovery
+      description: 管理员只读原输出核对，返回相对路径、assetId、修订、needsMigration/needsArtifactRecovery/ready和planDigest；不返回URL/Key、源正文或绝对目录。已有布局不一致须先明确迁移。
+      parameters:
+      - &id005
+        name: id
+        in: path
+        required: true
+        schema: *id004
+      responses: &id006
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 预览/控制修订/文件/绑定或已有批准变化，重新核对，不自动重建上传。
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/transfers/{id}/resume-import:
+    post:
+      operationId: approveOutputImportRecovery
+      description: 显式批准专用入库恢复，不创建上传、不改已确认身份/STRM/NFO；同一证明和控制修订批准回放不新增Job。Worker再验摘要，变化需人工核对；成功仅代表持久化/排队，不是播放完成。
+      parameters:
+      - *id005
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - controlRevision
+              - planDigest
+              properties:
+                controlRevision:
+                  type: integer
+                  minimum: 1
+                planDigest:
+                  type: string
+                  pattern: ^[0-9a-f]{64}$
+      responses: *id006
+  /api/v1/downloads/{id}/source-preview:
+    get:
+      summary: Read a guarded download-source reconfirmation plan
+      description: Reads PT torrent metadata and filtered qB state; never submits a torrent. Private URLs and credentials are omitted.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: query
+          name: searchRunId
+          schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Source identity, eligibility, control revision and plan digest}
+        '409': {description: Snapshot or task must be refreshed}
+  /api/v1/downloads/{id}/reconfirm-source:
+    post:
+      summary: Explicitly resume the original pending task from an approved source
+      description: Requires current preview proof and consent; preserves media, downloader and paths. Exact approval replay never resets newer work.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [searchRunId, controlRevision, planDigest, confirmSourceBinding]
+              properties:
+                searchRunId: {type: string, format: uuid}
+                controlRevision: {type: integer, minimum: 1}
+                planDigest: {type: string, minLength: 64, maxLength: 64}
+                confirmSourceBinding: {type: boolean}
+                confirmInitialIdentity: {type: boolean}
+      responses:
+        '202': {description: Original task resumed or exact request already applied}
+        '409': {description: Task, source, rules or downloader observation changed}
+
+  /api/v1/files/roots:
+    get:
+      operationId: listFileRoots
+      description: List explicit enabled cloud/local file roots
+      parameters: []
+      responses:
+        '200':
+          description: Operation response or read-only result
+        '401':
+          description: Administrator session required
+        '409':
+          description: Changed snapshot, conflict, protected path or busy operation
+  /api/v1/files:
+    get:
+      operationId: listManagedFiles
+      description: List one bounded directory inside a configured root
+      parameters: []
+      responses:
+        '200':
+          description: Operation response or read-only result
+        '401':
+          description: Administrator session required
+        '409':
+          description: Changed snapshot, conflict, protected path or busy operation
+  /api/v1/files/operations:
+    get:
+      operationId: listFileOperations
+      description: Read persisted preview/execution/reconciliation history
+      parameters: []
+      responses:
+        '200':
+          description: Operation response or read-only result
+        '401':
+          description: Administrator session required
+        '409':
+          description: Changed snapshot, conflict, protected path or busy operation
+  /api/v1/files/preview:
+    post:
+      operationId: previewFileOperation
+      description: Create an expiring rename/move/organize/mkdir/trash preview; no filesystem writes
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Operation response or read-only result
+        '401':
+          description: Administrator session required
+        '409':
+          description: Changed snapshot, conflict, protected path or busy operation
+  /api/v1/files/operations/{id}/execute:
+    post:
+      operationId: executeFileOperation
+      description: Explicit confirmation plus server plan digest; never automatically replay unknown commits
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Operation response or read-only result
+        '401':
+          description: Administrator session required
+        '409':
+          description: Changed snapshot, conflict, protected path or busy operation
+  /api/v1/files/operations/{id}/reconcile:
+    post:
+      operationId: reconcileFileOperation
+      description: Observe source/target identity and repair journal only; no mutating provider replay
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Operation response or read-only result
+        '401':
+          description: Administrator session required
+        '409':
+          description: Changed snapshot, conflict, protected path or busy operation
+  /api/v1/media/library:
+    get:
+      operationId: listMediaCatalog
+      description: Browse managed assets or configured Emby catalog without private playback sources
+      parameters: []
+      responses:
+        '200':
+          description: Operation response or read-only result
+        '401':
+          description: Administrator session required
+        '409':
+          description: Changed snapshot, conflict, protected path or busy operation
+  /api/v1/media/library/emby/{id}/image:
+    get:
+      operationId: getEmbyCatalogImage
+      description: Authenticated bounded poster proxy; never video or credentials in URLs
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Operation response or read-only result
+        '401':
+          description: Administrator session required
+        '409':
+          description: Changed snapshot, conflict, protected path or busy operation
+  /api/v1/integrations/{id}/secrets/reveal:
+    post:
+      operationId: revealIntegrationSecrets
+      description: Explicit selected-field, revision-bound secret read; no-store and audit names only
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Operation response or read-only result
+        '401':
+          description: Administrator session required
+        '409':
+          description: Changed snapshot, conflict, protected path or busy operation
+components:
+  securitySchemes:
+    AdminSession:
+      type: apiKey
+      in: cookie
+      name: media_tool_session
+    PlaybackKey:
+      type: apiKey
+      in: query
+      name: apiKey
+  parameters:
+    CSRFHeader:
+      name: X-Requested-With
+      in: header
+      required: true
+      schema:
+        type: string
+        const: media-tool
+    CloudPath:
+      name: path
+      in: query
+      required: true
+      schema:
+        type: string
+      description: URL 编码的 CloudDrive2 完整路径，必须处于 STRM_ALLOWED_ROOTS 内。
+    PickCode:
+      name: pickCode
+      in: query
+      required: false
+      schema:
+        type: string
+        pattern: ^[A-Za-z0-9]{1,64}$
+      description: 可选真实 115 PickCode；CloudDrive2 首期仍按 path 解析。
+  schemas:
+    Error:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    FileRef:
+      type: object
+      additionalProperties: false
+      required:
+      - path
+      properties:
+        path:
+          type: string
+          minLength: 1
+        pickCode:
+          type: string
+    Dependency:
+      type: object
+      required:
+      - id
+      - name
+      - state
+      - message
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        state:
+          type: string
+          enum:
+          - ready
+          - configured
+          - not_configured
+          - not_implemented
+          - unavailable
+          - disabled
+        message:
+          type: string
+    SystemStatus:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        environment:
+          type: string
+          enum:
+          - development
+          - production
+        phase:
+          type: string
+        publicUrl:
+          type: string
+        strmEndpoint:
+          type: string
+        allowedRoots:
+          type: array
+          items:
+            type: string
+        databaseConfigured:
+          type: boolean
+        dependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dependency'
+        storageConfigured:
+          type: boolean
+        proxyFallback:
+          type: boolean
+        forceProxy:
+          type: boolean
+        emby302Enabled:
+          type: boolean
+    Module:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        summary:
+          type: string
+        milestone:
+          type: string
+        stage:
+          type: string
+          enum:
+          - planned
+          - partial
+          - foundation
+        features:
+          type: array
+          items:
+            type: string
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - retry
+          - succeeded
+          - failed
+        payload:
+          type: object
+        attempts:
+          type: integer
+        maxAttempts:
+          type: integer
+        lastError:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    Integration:
+      type: object
+      required:
+      - id
+      - kind
+      - name
+      - enabled
+      - settings
+      - secretFields
+      - revision
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - clouddrive2
+          - qbittorrent
+          - emby
+          - tmdb
+          - telegram
+          - ptsite
+        name:
+          type: string
+        enabled:
+          type: boolean
+        settings:
+          type: object
+        secretFields:
+          type: array
+          items:
+            type: string
+        revision:
+          type: integer
+        lastCheckState:
+          type: string
+        lastCheckMessage:
+          type: string
+    IntegrationInput:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - name
+      - enabled
+      - settings
+      properties:
+        kind:
+          type: string
+        name:
+          type: string
+        enabled:
+          type: boolean
+        settings:
+          type: object
+        secrets:
+          type: object
+          additionalProperties:
+            type: string
+          writeOnly: true
+        revision:
+          type: integer
+    SubscriptionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - mediaType
+      - tmdbId
+      - rules
+      properties:
+        mediaType:
+          enum:
+          - movie
+          - series
+        tmdbId:
+          type: integer
+          minimum: 1
+        enabled:
+          type: boolean
+          default: false
+        source:
+          enum:
+          - search
+          - rss
+          - both
+          default: search
+        intervalMinutes:
+          type: integer
+          minimum: 5
+          maximum: 1440
+          default: 30
+        revision:
+          type: integer
+        rules:
+          type: object
+          additionalProperties: false
+          properties:
+            accountIds:
+              type: array
+              minItems: 1
+              maxItems: 10
+              items:
+                type: string
+                format: uuid
+            keyword:
+              type: string
+            include:
+              type: array
+              items:
+                type: string
+            exclude:
+              type: array
+              items:
+                type: string
+            minSize:
+              type: integer
+              minimum: 0
+            maxSize:
+              type: integer
+              minimum: 0
+            minSeeders:
+              type: integer
+              minimum: 0
+            freeOnly:
+              type: boolean
+            allowUnknownHR:
+              type: boolean
+              default: false
+            season:
+              type: integer
+              minimum: 0
+              maximum: 999
+            episodes:
+              type: array
+              items:
+                type: integer
+                minimum: 1
+            includeHistory:
+              type: boolean
+              default: false
+  responses:
+    OK:
+      description: 请求成功，数据包装在 data 字段中。
+    BadRequest:
+      description: 请求无效。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: 凭据不存在、无效或过期。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: 来源或防跨站请求标识无效。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unavailable:
+      description: 依赖未配置、不可用或数据库尚未迁移。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotImplemented:
+      description: 明确保留的接口，业务逻辑尚未实现。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

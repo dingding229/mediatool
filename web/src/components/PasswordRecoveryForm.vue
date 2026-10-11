@@ -1,0 +1,12 @@
+<script setup lang="ts">
+import {ref,onBeforeUnmount} from 'vue'
+import {post} from '../api/client'
+import {PASSWORD_MAX_LENGTH,passwordPolicyError} from '../auth/password-policy'
+const emit=defineEmits<{back:[]}>()
+const username=ref(''),code=ref(''),password=ref(''),confirmation=ref(''),busy=ref(false),error=ref(''),success=ref(false)
+function clear(){code.value='';password.value='';confirmation.value=''}
+async function submit(){error.value='';const issue=passwordPolicyError(password.value);if(issue){error.value=issue;return};if(password.value!==confirmation.value){error.value='两次输入的新密码不一致';return};busy.value=true;try{await post('/auth/recover',{username:username.value.trim(),recoveryCode:code.value,newPassword:password.value,confirmPassword:confirmation.value});clear();success.value=true}catch(e){error.value=e instanceof Error?e.message:'找回密码失败'}finally{busy.value=false}}
+onBeforeUnmount(clear)
+</script>
+<template><h2>找回管理员密码</h2><p class="muted">使用已保存的一次性恢复码。重置后，全部旧会话将失效。</p><el-alert v-if="error" :title="error" type="error" :closable="false" show-icon/><el-alert v-if="success" title="密码已重置，请返回登录并使用新密码。恢复码已失效。" type="success" :closable="false" show-icon/><form v-if="!success" class="recovery-form" @submit.prevent="submit"><label for="recover-username">管理员账号</label><el-input id="recover-username" v-model="username" autocomplete="username" :maxlength="32" :disabled="busy"/><label for="recover-code">一次性恢复码</label><el-input id="recover-code" v-model="code" type="password" show-password autocomplete="off" :maxlength="100" :disabled="busy"/><label for="recover-password">新密码</label><el-input id="recover-password" v-model="password" type="password" show-password autocomplete="new-password" :maxlength="PASSWORD_MAX_LENGTH" :disabled="busy"/><p class="field-hint">6–20个字符，支持空格和中文。</p><label for="recover-confirm">确认新密码</label><el-input id="recover-confirm" v-model="confirmation" type="password" show-password autocomplete="new-password" :maxlength="PASSWORD_MAX_LENGTH" :disabled="busy"/><el-button type="primary" native-type="submit" :loading="busy" :disabled="!username||!code||!password||!confirmation">重置密码</el-button></form><el-button :disabled="busy" class="return-login" @click="emit('back')">返回账号登录</el-button><p class="field-hint">未保存恢复码或已过期，请联系服务器所有者使用离线恢复。不会通过账号名直接重置密码。</p></template>
+<style scoped>.recovery-form{display:grid;gap:10px;margin-top:22px}.recovery-form label{font-weight:600;margin-top:8px}.recovery-form .el-button{margin-top:12px}.return-login{margin:16px 0;width:100%}</style>

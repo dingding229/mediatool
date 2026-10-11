@@ -1,0 +1,9 @@
+{
+  "source": "https://www.clouddrive2.com/api/clouddrive.proto",
+  "version": "1.1.2",
+  "retrieved_at": "2026-10-08",
+  "sha256": "a00b4620cbce0a9bd6009f8e771ba68ea7375080ca7f15f4c7c206310ba2ec9d",
+  "protoc_version": "36.2",
+  "protoc_gen_go": "v1.36.12",
+  "protoc_gen_go_grpc": "v1.6.2"
+}

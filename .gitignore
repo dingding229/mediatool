@@ -1,0 +1,21 @@
+# Secrets and runtime data
+.env
+.env.*
+!.env.example
+/data/
+/bin/
+*.log
+*.test
+coverage.out
+.DS_Store
+# Generated frontend assets (keep a build-independent embed target)
+/internal/platform/webui/assets/*
+!/internal/platform/webui/assets/.gitkeep
+/web/node_modules/
+/web/dist/
+/web/test-results/
+/web/playwright-report/
+
+# Python script caches
+__pycache__/
+*.pyc

@@ -1,0 +1,106 @@
+# The ONLY supported Compose file. Emby and CloudDrive2 are external services.
+name: ${COMPOSE_PROJECT_NAME:-media-tool}
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+services:
+  app:
+    image: ${APP_IMAGE:-dingding229/mediatool:latest}
+    platform: linux/amd64
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_ADDR: 0.0.0.0:8080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      EMBY_GATEWAY_ADDR: 0.0.0.0:8091
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:8080}
+      EMBY_PUBLIC_URL: ${EMBY_PUBLIC_URL:-}
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:-}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?Generate the credential encryption key}
+      STRM_API_KEY: ${STRM_API_KEY:?Generate .env using scripts/init-env.py}
+      DATABASE_URL: postgres://${POSTGRES_USER:-media_tool}:${POSTGRES_PASSWORD:?Generate .env}@postgres:5432/${POSTGRES_DB:-media_tool}?sslmode=disable
+      REDIS_URL: redis://:${REDIS_PASSWORD:?Generate .env}@redis:6379/0
+      STRM_ALLOWED_ROOTS: ${STRM_ALLOWED_ROOTS:-/115/Media}
+      STRM_OUTPUT_DIR: /data/strm
+      STRM_LEGACY_KEY_ENABLED: ${STRM_LEGACY_KEY_ENABLED:-true}
+      STRM_PROXY_FALLBACK: ${STRM_PROXY_FALLBACK:-false}
+      STRM_FORCE_PROXY: ${STRM_FORCE_PROXY:-false}
+      CLOUDDRIVE_ENDPOINT: ${CLOUDDRIVE_ENDPOINT:-}
+      CLOUDDRIVE_TOKEN: ${CLOUDDRIVE_TOKEN:-}
+      CLOUDDRIVE_USERNAME: ${CLOUDDRIVE_USERNAME:-}
+      CLOUDDRIVE_PASSWORD: ${CLOUDDRIVE_PASSWORD:-}
+      CLOUDDRIVE_CA_FILE: ${CLOUDDRIVE_CA_FILE:-}
+      CLOUDDRIVE_REQUEST_TIMEOUT: ${CLOUDDRIVE_REQUEST_TIMEOUT:-10s}
+      CLOUDDRIVE_MAX_LIST_FILES: ${CLOUDDRIVE_MAX_LIST_FILES:-1000}
+      PLAYBACK_RESOLVE_TIMEOUT: ${PLAYBACK_RESOLVE_TIMEOUT:-30s}
+      PLAYBACK_ALLOW_HTTP: ${PLAYBACK_ALLOW_HTTP:-false}
+      PLAYBACK_ALLOWED_HOSTS: ${PLAYBACK_ALLOWED_HOSTS:-}
+      EMBY_DIRECT_PLAY_ONLY: ${EMBY_DIRECT_PLAY_ONLY:-true}
+      EMBY_302_ENABLED: ${EMBY_302_ENABLED:-false}
+      EMBY_STRM_PATH_PREFIX: ${EMBY_STRM_PATH_PREFIX:-}
+      EMBY_STRM_RESOLVER_ORIGINS: ${EMBY_STRM_RESOLVER_ORIGINS:-}
+      EMBY_UPSTREAM_URL: ${EMBY_UPSTREAM_URL:-}
+      EMBY_PROXY_ENABLED: ${EMBY_PROXY_ENABLED:-false}
+      WORKER_POLL_INTERVAL: ${WORKER_POLL_INTERVAL:-2s}
+      WORKER_LEASE: ${WORKER_LEASE:-90s}
+    ports:
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8080}:8080"
+      - "${APP_BIND:-0.0.0.0}:${EMBY_GATEWAY_PORT:-8091}:8091"
+    volumes:
+      - ${STRM_MOUNT:-strm-data}:/data/strm
+      - ${DOWNLOADS_MOUNT:-downloads-data}:/data/downloads:ro
+      - ${LOCAL_FILES_MOUNT:-local-files-data}:/data/files
+    user: "${APP_UID:-65532}:${APP_GID:-65532}"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, /app/media-tool, -role, healthcheck]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    logging: *logging
+    restart: unless-stopped
+  postgres:
+    image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-media_tool}
+      POSTGRES_USER: ${POSTGRES_USER:-media_tool}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Generate .env}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-15432}:5432"
+    volumes: [postgres-data:/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+    restart: unless-stopped
+  redis:
+    image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+    environment: {REDIS_PASSWORD: '${REDIS_PASSWORD:?Generate .env}'}
+    command: [sh, -c, 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"']
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-16379}:6379"
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+    restart: unless-stopped
+volumes:
+  postgres-data: {name: '${POSTGRES_VOLUME_NAME:-media-tool_postgres-data}'}
+  redis-data: {name: '${REDIS_VOLUME_NAME:-media-tool_redis-data}'}
+  strm-data:
+  downloads-data:
+  local-files-data:

@@ -1,0 +1,32 @@
+{
+ "name": "media-tool-web",
+ "private": true,
+ "version": "0.1.0",
+ "type": "module",
+ "engines": {
+  "node": "^22.12.0 || >=24.0.0"
+ },
+ "scripts": {
+  "dev": "vite --host 127.0.0.1",
+  "build": "vue-tsc --noEmit && vite build",
+  "typecheck": "vue-tsc --noEmit",
+  "test": "vitest run",
+  "test:e2e": "playwright test"
+ },
+ "dependencies": {
+  "@element-plus/icons-vue": "2.3.2",
+  "element-plus": "2.14.7",
+  "pinia": "3.0.4",
+  "vue": "3.5.43",
+  "vue-router": "4.6.4"
+ },
+ "devDependencies": {
+  "@playwright/test": "1.64.0",
+  "@types/node": "22.19.15",
+  "@vitejs/plugin-vue": "6.0.9",
+  "typescript": "5.9.3",
+  "vite": "7.3.7",
+  "vitest": "5.0.3",
+  "vue-tsc": "3.3.12"
+ }
+}

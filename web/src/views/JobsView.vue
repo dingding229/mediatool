@@ -1,0 +1,14 @@
+<script setup lang="ts">
+import { ref,onMounted,onUnmounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { Refresh,VideoPlay } from '@element-plus/icons-vue'
+import { request,post } from '../api/client'
+import type { Job } from '../api/types'
+import StatusBadge from '../components/StatusBadge.vue'
+const jobs=ref<Job[]|null>(null),error=ref(''),loading=ref(false),creating=ref(false);let stream:EventSource|undefined;let poll:ReturnType<typeof setInterval>|undefined
+async function refresh(){if(loading.value)return;loading.value=true;try{jobs.value=await request<Job[]>('/jobs');error.value=''}catch(e){error.value=e instanceof Error?e.message:'任务查询失败';jobs.value=null}finally{loading.value=false}}
+async function create(){creating.value=true;try{await post<Job>('/jobs',{kind:'system.check'});ElMessage.success('系统检查已加入持久化队列');await refresh()}catch(e){ElMessage.error(e instanceof Error?e.message:'任务创建失败')}finally{creating.value=false}}
+onMounted(()=>{refresh();stream=new EventSource('/api/v1/jobs/events');stream.addEventListener('tick',refresh);poll=setInterval(refresh,5000)})
+onUnmounted(()=>{stream?.close();if(poll)clearInterval(poll)})
+</script>
+<template><section class="page-heading"><div><h1>后台任务队列</h1><p>任务保存在 PostgreSQL 中，Redis 清空不会丢失任务。</p></div><div class="heading-actions"><el-button :loading="loading" @click="refresh"><Refresh aria-hidden="true"/>刷新</el-button><el-button type="primary" :loading="creating" @click="create"><VideoPlay aria-hidden="true"/>运行系统检查</el-button></div></section><el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="section-gap"/><section class="panel"><div class="panel-title"><h2>最近 100 条任务</h2><span class="muted">SSE 自动刷新 · 5秒轮询回退</span></div><el-table v-if="jobs?.length" :data="jobs" style="width:100%"><el-table-column label="任务" min-width="150"><template #default="scope"><strong>{{scope.row.kind==='system.check'?'系统检查':scope.row.kind}}</strong><small class="table-id">{{scope.row.id}}</small></template></el-table-column><el-table-column label="状态" min-width="130"><template #default="scope"><StatusBadge :state="scope.row.state"/></template></el-table-column><el-table-column label="尝试次数" width="110"><template #default="scope">{{scope.row.attempts}} / {{scope.row.maxAttempts}}</template></el-table-column><el-table-column label="创建时间" min-width="190"><template #default="scope">{{new Date(scope.row.createdAt).toLocaleString('zh-CN')}}</template></el-table-column><el-table-column prop="lastError" label="最近错误" min-width="170"/></el-table><div v-else class="empty-state"><span class="empty-ring" aria-hidden="true"></span><h3>{{jobs===null?'先连接主数据库':'还没有后台任务'}}</h3><p>{{jobs===null?'配置 DATABASE_URL、执行迁移并启动 Worker 后，可运行一次系统检查。':'创建系统检查，验证持久化、领取与完成状态。'}}</p></div></section><section class="note-panel"><strong>已实现的任务能力</strong><p>租约领取、心跳、过期恢复、失败重试和事务 Outbox。已注册系统检查、站点搜索、下载提交、上传以及Emby刷新/确认处理器；上传队列独立，避免阻塞其他任务。</p></section></template>

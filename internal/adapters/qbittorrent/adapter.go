@@ -1,0 +1,211 @@
+package qbittorrent
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
+	"strings"
+	"sync"
+	"time"
+
+	"media-tool/internal/modules/downloads"
+)
+
+var ErrUnavailable = errors.New("qBittorrent request failed; check credentials and connectivity")
+var ErrNotFound = errors.New("torrent not found in qBittorrent")
+
+type Adapter struct {
+	Endpoint, Username, Password string
+	mu                           sync.Mutex
+	client                       *http.Client
+}
+
+var _ downloads.Downloader = (*Adapter)(nil)
+
+func (a *Adapter) init() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.client == nil {
+		jar, _ := cookiejar.New(nil)
+		a.client = &http.Client{Jar: jar, Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	}
+}
+func (a *Adapter) login(ctx context.Context) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	body := url.Values{"username": {a.Username}, "password": {a.Password}}
+	r, err := http.NewRequestWithContext(ctx, "POST", strings.TrimRight(a.Endpoint, "/")+"/api/v2/auth/login", strings.NewReader(body.Encode()))
+	if err != nil {
+		return ErrUnavailable
+	}
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Set("Referer", strings.TrimRight(a.Endpoint, "/"))
+	response, err := a.client.Do(r)
+	if err != nil {
+		return ErrUnavailable
+	}
+	defer response.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(response.Body, 1024))
+	if response.StatusCode != 200 || strings.TrimSpace(string(raw)) != "Ok." {
+		return ErrUnavailable
+	}
+	return nil
+}
+func (a *Adapter) request(ctx context.Context, method, endpoint, contentType string, body []byte) ([]byte, error) {
+	a.init()
+	for attempt := 0; attempt < 2; attempt++ {
+		r, err := http.NewRequestWithContext(ctx, method, strings.TrimRight(a.Endpoint, "/")+"/api/v2/"+endpoint, bytes.NewReader(body))
+		if err != nil {
+			return nil, ErrUnavailable
+		}
+		if contentType != "" {
+			r.Header.Set("Content-Type", contentType)
+		}
+		r.Header.Set("Referer", strings.TrimRight(a.Endpoint, "/"))
+		response, err := a.client.Do(r)
+		if err != nil {
+			return nil, ErrUnavailable
+		}
+		raw, err := io.ReadAll(io.LimitReader(response.Body, 4<<20))
+		response.Body.Close()
+		if response.StatusCode == 403 && attempt == 0 {
+			if err = a.login(ctx); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		if err != nil || response.StatusCode != 200 {
+			return nil, ErrUnavailable
+		}
+		return raw, nil
+	}
+	return nil, ErrUnavailable
+}
+func (a *Adapter) Probe(ctx context.Context) (string, error) {
+	raw, err := a.request(ctx, "GET", "app/version", "", nil)
+	if err != nil {
+		return "", err
+	}
+	v := strings.TrimSpace(string(raw))
+	if !strings.HasPrefix(v, "v4.") && !strings.HasPrefix(v, "v5.") {
+		return "", errors.New("unsupported qBittorrent version")
+	}
+	return v, nil
+}
+func (a *Adapter) Add(ctx context.Context, in downloads.Request) (string, error) {
+	meta, err := downloads.ParseTorrent(in.Torrent)
+	if err != nil {
+		return "", err
+	}
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("torrents", "media-tool.torrent")
+	if err != nil {
+		return "", ErrUnavailable
+	}
+	part.Write(in.Torrent)
+	writer.WriteField("savepath", in.SavePath)
+	writer.WriteField("category", in.Category)
+	if len(in.Tags) > 0 {
+		writer.WriteField("tags", strings.Join(in.Tags, ","))
+	}
+	writer.Close()
+	raw, err := a.request(ctx, "POST", "torrents/add", writer.FormDataContentType(), body.Bytes())
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(string(raw)) != "Ok." {
+		return "", ErrUnavailable
+	}
+	return meta.InfoHash, nil
+}
+func (a *Adapter) Inspect(ctx context.Context, id string) (downloads.Task, error) {
+	raw, err := a.request(ctx, "GET", "torrents/info?"+url.Values{"hashes": {id}}.Encode(), "", nil)
+	if err != nil {
+		return downloads.Task{}, err
+	}
+	var items []struct {
+		Hash, Name, State string
+		Progress          float64
+		SavePath          string `json:"save_path"`
+		ContentPath       string `json:"content_path"`
+		AmountLeft        int64  `json:"amount_left"`
+		CompletionOn      int64  `json:"completion_on"`
+		Size              int64
+		Ratio             float64
+		SeedingTime       int64 `json:"seeding_time"`
+	}
+	if json.Unmarshal(raw, &items) != nil {
+		return downloads.Task{}, ErrUnavailable
+	}
+	if len(items) == 0 {
+		return downloads.Task{}, ErrNotFound
+	}
+	match := -1
+	for index, candidate := range items {
+		if strings.EqualFold(candidate.Hash, id) {
+			if match != -1 {
+				return downloads.Task{}, ErrUnavailable
+			}
+			match = index
+		}
+	}
+	if match < 0 {
+		return downloads.Task{}, ErrUnavailable
+	}
+	it := items[match]
+	return downloads.Task{ID: it.Hash, State: it.State, Name: it.Name, Progress: it.Progress, SavePath: it.SavePath, ContentPath: it.ContentPath, Size: it.Size, Ratio: it.Ratio, SeedingTime: it.SeedingTime, Complete: it.Progress >= 1 && it.AmountLeft == 0 && it.CompletionOn > 0, Seeding: strings.HasSuffix(it.State, "UP") || it.State == "uploading"}, nil
+}
+func (a *Adapter) Files(ctx context.Context, id string) ([]downloads.File, error) {
+	raw, err := a.request(ctx, "GET", "torrents/files?"+url.Values{"hash": {id}}.Encode(), "", nil)
+	if err != nil {
+		return nil, err
+	}
+	var files []downloads.File
+	if json.Unmarshal(raw, &files) != nil {
+		return nil, ErrUnavailable
+	}
+	return files, nil
+}
+func (a *Adapter) SetPaused(ctx context.Context, id string, paused bool) error {
+	version, err := a.Probe(ctx)
+	if err != nil {
+		return err
+	}
+	action := "resume"
+	if paused {
+		action = "pause"
+	}
+	if strings.HasPrefix(version, "v5.") {
+		action = "start"
+		if paused {
+			action = "stop"
+		}
+	}
+	_, err = a.request(ctx, "POST", "torrents/"+action, "application/x-www-form-urlencoded", []byte(url.Values{"hashes": {id}}.Encode()))
+	return err
+}
+
+func (a *Adapter) InspectAliases(ctx context.Context, id string, aliases []string) (downloads.Task, error) {
+	seen := map[string]bool{}
+	for _, candidate := range append([]string{id}, aliases...) {
+		if seen[candidate] || candidate == "" {
+			continue
+		}
+		seen[candidate] = true
+		task, err := a.Inspect(ctx, candidate)
+		if err == nil {
+			return task, nil
+		}
+		if !errors.Is(err, ErrNotFound) {
+			return downloads.Task{}, err
+		}
+	}
+	return downloads.Task{}, ErrNotFound
+}

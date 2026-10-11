@@ -1,0 +1,94 @@
+> **账号登录更新（2026-10-09）：** 首次运行在管理界面注册唯一管理员；注册成功后公开注册关闭。之后使用账号密码登录，旧ADMIN_API_KEY不再生效，旧会话已通过迁移撤销。密码6–20个字符，不生成默认账号。不在聊天提供密码。详见 [管理员账号说明](docs/ADMIN_ACCOUNTS.md)。
+
+# Media Tool
+
+Go + Vue 3 的模块化媒体自动化程序。PostgreSQL保存业务事实/任务/恢复日志，Redis保存可重建缓存；CloudDrive2负责115扫描/上传；播放可使用已授权的115官方开放平台按播放器UA动态取链。STRM只保存固定解析地址，不保存临时CDN链接。
+
+**当前0.8.0-dev，源码迁移24。主要业务已实现；真实115授权、默认Sen UA的网关302/CDN206与非零Range样本已通过，真实PT入库全链路和客户端完整验收仍未完成，不宣称完整1.0。** 不注入模拟账号、示例下载或假直链。
+
+## 能力
+
+- 加密服务连接管理、修订保护、脱敏和审计，普通管理员会话可撤销。
+- pre-dessert-sites固定快照导入，NexusPHP/M-Team核心配置解析、多站搜索。
+- TMDB人工身份确认、qBittorrent下载及共享源文件校验，不移动做种源文件。
+- CloudDrive2远程上传与校验，暂停/恢复/取消/核对/受约束人工绑定会话。
+- 电影/剧集订阅、预演、周期搜索/RSS、首次基线、季集覆盖与去重。
+- 云盘流式索引、缺失两次确认、移动跟踪、分页、批量确认、身份/季集修正、默认停用的子目录扫描计划和CloudDrive2变化推送对账；身份输出迁移需预览后明确确认。
+- 固定assetId+文件级Key的STRM、NFO和本地字幕；加密恢复日志保护STRM/NFO落盘中断及手工文件冲突。
+- 独立Emby根网关、用户权限校验、Range/HEAD、上下文隔离缓存；当前用户严格模式直接使用STRM原链接，禁止转码/媒体中转，旧认证流入口仅兼容模式保留。
+- 自己AppID的115官方PKCE扫码授权、加密Token原子刷新、实际UA取链、同UA最多1KiB CDN验证后302；官方模式失败不偷偷代理。
+- 站内与Telegram通知、明确失败/限流/未知结果、人工重复风险确认。
+- 上传RPC与控制修订/Worker租约互斥；按确认区间去重字节，不把哈希进度当上传。
+- 离线原子主密钥轮换、旧gRPC连接排空回收、备份临时库恢复检查、AMD64 GitHub Actions / Docker Hub 构建发布。
+
+## 开始
+
+已有.env不要重新初始化或替换主密钥。
+
+```bash
+python3 scripts/init-env.py  # 仅首次、没有.env时
+docker compose --env-file .env pull
+docker compose --env-file .env up -d --wait
+```
+
+基础部署管理8080、Emby网关8091。初始化默认只绑定回环；通过 .env 指定管理端口及网关端口；外部Emby/电视需明确配置共享目录与网络/HTTPS访问。提供方凭据在本地“服务连接”填写，不发到聊天。
+
+```bash
+# 连接 NAS 目录：在同一 .env 设置 STRM_MOUNT、DOWNLOADS_MOUNT、LOCAL_FILES_MOUNT 和 UID/GID
+# 不再使用额外 Compose 覆盖文件。
+docker compose --env-file .env up -d --wait
+```
+
+先验证已有115文件播放，再验证一个合法小资源下载入库，最后先预演再启用一个订阅。
+
+## 文档
+
+- [当前状态](docs/IMPLEMENTATION_STATUS.md)
+- [首轮需求与验收证据矩阵](docs/FIRST_ROUND_ACCEPTANCE.md)
+- [115官方播放与授权](docs/OFFICIAL_115_PLAYBACK.md)
+- [自有文件真实上传验证](docs/OWNED_UPLOAD_VALIDATION.md)
+- [严格直链与STRM原链接](docs/DIRECT_PLAY_ONLY.md)
+- [CloudDrive2变化触发扫描](docs/CLOUD_CHANGE_SCANNING.md)
+- [安全输出迁移与字幕清单](docs/OUTPUT_MIGRATION.md)
+- [单集元数据与多集覆盖](docs/EPISODE_METADATA.md)
+- [兼容模式历史HLS限制](docs/HLS_STARTUP_RELIABILITY.md)
+- [剩余范围与完成门槛](docs/REMAINING_PLAN.md)
+- [配置与使用](docs/ALPHA_QUICKSTART.md)
+- [本轮可靠性、测试与主密钥轮换](docs/OFFLINE_HARDENING.md)
+- [原开发计划](docs/DEVELOPMENT_PLAN.md)
+- [架构](docs/ARCHITECTURE.md)
+- [执行记录](docs/WORK_LOG.md)
+- [Docker部署](deploy/README.md)
+- [OpenAPI](api/openapi.yaml)
+
+## 验证
+
+```bash
+# 隔离media_tool_test，不可指向业务库；必须-p1避免各包TRUNCATE互相干扰
+bash scripts/test-go.sh  # 显式覆盖为media_tool_test、迁移test-only、Redis DB15、-p 1
+go vet ./...
+python3 -m unittest discover -s scripts -p 'test_*.py'
+npm run test --prefix web
+npm run build --prefix web
+bash scripts/test-e2e.sh  # 仅隔离media_tool_test/18084，不在业务库注册测试管理员
+```
+
+报告不含真实密钥。APP_SECRET_KEY独立安全备份，不能只改环境变量而不轮换数据库ciphertext。临时CDN地址不写入STRM；索引可见和100%进度都不等于真实客户端播放成功。
+
+- [PT配置兼容与固定快照恢复](docs/PT_CONFIG_COMPATIBILITY.md)
+
+输出迁移归档可在“云盘索引 → 旧输出归档”查看。默认保留30天且**不自动删除**；物理清理须只读预览后明确批准。安全范围、请求结果核对与中断恢复见[归档管理说明](docs/ARCHIVE_CLEANUP.md)。
+
+固定STRM冷取链默认总预算30秒（可配置5秒–1分钟），官方API连接池复用；超时明确返回504而不回退媒体中转。分阶段安全日志、取消/缓存边界及验收范围见[取链可靠性说明](docs/PLAYBACK_RESOLUTION.md)。
+
+非连续剧集合集生成各个明确集号的STRM索引，所有索引共用同一固定链接、播放完整原文件，不补缺集或伪称单集切片。已有输出须明确预览迁移；实际Emby兼容证据见[多集投影说明](docs/EMBY_EPISODE_PROJECTION.md)。
+
+跨版本未完成任务遇到旧布局时暂停等待核对，不混用新旧STRM。明确迁移后可批准“不重新上传”的专用入库恢复；说明与边界见[输出入库恢复](docs/OUTPUT_IMPORT_RECOVERY.md)。
+
+## 单容器程序与 Docker Hub 发布
+
+唯一官方部署文件：`docker-compose.yml`；仅 `app`、`postgres`、`redis` 三个服务。一个主程序进程承担管理端、302、三个队列和调度，启动自动迁移。
+GitHub Actions 运行测试后仅发布 AMD64 到 `dingding229/mediatool`。服务器用 `scripts/update-server.sh` 拉取不可变 SHA / 摘要镜像，禁止直接上传本地构建镜像。
+内置 slog JSON 日志可设置 `LOG_LEVEL=debug|info|warn|error`，Docker 有界轮转。
+系统设置可生成一次性恢复码，登录页支持找回密码；没有有效恢复码需要服务器所有者离线恢复。
+详细部署和安全注意事项见 `deploy/README.md`，本轮计划见 `docs/UNIFIED_DEPLOYMENT_PLAN.md`。
