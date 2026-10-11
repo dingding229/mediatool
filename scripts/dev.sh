@@ -10,6 +10,7 @@ export APP_PUBLIC_URL=http://localhost:5173
 export APP_ENV=development
 export APP_ADDR=127.0.0.1:8080
 if [[ ! -d web/node_modules ]]; then npm ci --prefix web --no-fund; fi
+mkdir -p bin
 go build -o bin/media-tool ./cmd/media-tool
 ./bin/media-tool &
 backend_pid=$!

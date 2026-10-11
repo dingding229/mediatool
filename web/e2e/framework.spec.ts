@@ -745,6 +745,7 @@ test('media catalog browses managed and Emby content without exposing playback c
 })
 
 test('recovery code finds a password, revokes sessions and cannot be reused',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'})
  await login(page)
  await page.getByRole('link',{name:'系统设置',exact:true}).click()
  await page.getByLabel('验证当前密码',{exact:true}).fill(password)
@@ -758,7 +759,8 @@ test('recovery code finds a password, revokes sessions and cannot be reused',asy
  await page.screenshot({path:resolve(screenshots,'recovery-settings-desktop.png'),fullPage:true})
  await page.setViewportSize({width:375,height:812})
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
- await page.screenshot({path:resolve(screenshots,'recovery-settings-mobile.png'),fullPage:true})
+ await page.getByRole('heading',{name:'密码找回',exact:true}).scrollIntoViewIfNeeded()
+ await page.screenshot({path:resolve(screenshots,'recovery-settings-mobile.png'),fullPage:false})
  await page.getByRole('button',{name:'退出',exact:true}).click()
  await page.getByRole('button',{name:'忘记密码？使用恢复码',exact:true}).click()
  await expect(page.getByRole('heading',{name:'找回管理员密码'})).toBeVisible()
