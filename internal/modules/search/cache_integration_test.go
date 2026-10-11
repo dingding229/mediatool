@@ -83,6 +83,20 @@ func TestPostgresRedisSearchCacheScopeAndInvalidation(t *testing.T) {
 	if id != run || !hit {
 		t.Fatal("positive cache missed", id, hit)
 	}
+	db.Exec(ctx, `UPDATE search_runs SET state='partial' WHERE id=$1`, run)
+	db.Exec(ctx, `UPDATE search_site_results SET state='partial',message='仅声明单页' WHERE run_id=$1`, run)
+	engine.rememberCache(ctx, run)
+	id, hit, err = engine.StartCached(ctx, "Owned Movie", []string{account.ID}, false)
+	if err != nil || !hit || id != run {
+		t.Fatal("declared partial result not cacheable", id, hit, err)
+	}
+	db.Exec(ctx, `UPDATE search_site_results SET state='failed' WHERE run_id=$1`, run)
+	rc.Del(ctx, key)
+	engine.rememberCache(ctx, run)
+	if rc.Exists(ctx, key).Val() != 0 {
+		t.Fatal("failed auth cached")
+	}
+	db.Exec(ctx, `UPDATE search_site_results SET state='partial' WHERE run_id=$1`, run)
 	different, _, err := engine.cacheKey(ctx, "Another Movie", []string{account.ID})
 	if err != nil || different == key {
 		t.Fatal("query not partitioned")
