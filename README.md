@@ -4,7 +4,7 @@
 
 Go + Vue 3 的模块化媒体自动化程序。PostgreSQL保存业务事实/任务/恢复日志，Redis保存可重建缓存；CloudDrive2负责115扫描/上传；播放可使用已授权的115官方开放平台按播放器UA动态取链。STRM只保存固定解析地址，不保存临时CDN链接。
 
-**当前0.8.0-dev，源码迁移24。主要业务已实现；真实115授权、默认Sen UA的网关302/CDN206与非零Range样本已通过，真实PT入库全链路和客户端完整验收仍未完成，不宣称完整1.0。** 不注入模拟账号、示例下载或假直链。
+**当前0.9.0-dev，源码迁移27。主要业务已实现；真实115授权、默认Sen UA的网关302/CDN206与非零Range样本已通过，真实PT入库全链路和客户端完整验收仍未完成，不宣称完整1.0。** 不注入模拟账号、示例下载或假直链。
 
 ## 能力
 
@@ -26,9 +26,9 @@ Go + Vue 3 的模块化媒体自动化程序。PostgreSQL保存业务事实/任�
 已有.env不要重新初始化或替换主密钥。
 
 ```bash
-python3 scripts/init-env.py  # 仅首次、没有.env时
-docker compose --env-file .env pull
-docker compose --env-file .env up -d --wait
+python3 scripts/init-compose.py  # 仅首次，用直接私密Compose；已有密钥不能替换
+docker compose pull
+docker compose up -d --wait
 ```
 
 基础部署管理8080、Emby网关8091。初始化默认只绑定回环；通过 .env 指定管理端口及网关端口；外部Emby/电视需明确配置共享目录与网络/HTTPS访问。提供方凭据在本地“服务连接”填写，不发到聊天。
@@ -36,7 +36,7 @@ docker compose --env-file .env up -d --wait
 ```bash
 # 连接 NAS 目录：在同一 .env 设置 STRM_MOUNT、DOWNLOADS_MOUNT、LOCAL_FILES_MOUNT 和 UID/GID
 # 不再使用额外 Compose 覆盖文件。
-docker compose --env-file .env up -d --wait
+docker compose up -d --wait
 ```
 
 先验证已有115文件播放，再验证一个合法小资源下载入库，最后先预演再启用一个订阅。
@@ -90,5 +90,7 @@ bash scripts/test-e2e.sh  # 仅隔离media_tool_test/18084，不在业务库注�
 唯一官方部署文件：`docker-compose.yml`；仅 `app`、`postgres`、`redis` 三个服务。一个主程序进程承担管理端、302、三个队列和调度，启动自动迁移。
 GitHub Actions 运行测试后仅发布 AMD64 到 `dingding229/mediatool`。服务器用 `scripts/update-server.sh` 拉取不可变 SHA / 摘要镜像，禁止直接上传本地构建镜像。
 内置 slog JSON 日志可设置 `LOG_LEVEL=debug|info|warn|error`，Docker 有界轮转。
-系统设置可生成一次性恢复码，登录页支持找回密码；没有有效恢复码需要服务器所有者离线恢复。
+后台密码找回已移除：部署所有者创建空 password 文件并重启，在私密启动日志读取一次性临时密码，登录必须更换新密码。
 详细部署和安全注意事项见 `deploy/README.md`，本轮计划见 `docs/UNIFIED_DEPLOYMENT_PLAN.md`。
+
+本轮入口与部署详见 `docs/WORKBENCH_RELEASE_GUIDE.md`、恢复/数据保护详见 `docs/WORKBENCH_SECURITY.md`，插件合约详见 `docs/EXTENSIONS.md`。
