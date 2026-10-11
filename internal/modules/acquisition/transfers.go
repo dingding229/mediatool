@@ -401,6 +401,10 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 		}
 		preliminary[0].Path = path.Join("Movies", folder, strings.TrimSuffix(safeName(path.Base(relative)), path.Ext(relative))+".strm")
 	}
+	preliminary, err = library.ApplyOutputTemplates(ctx, e.DB, cloudPath, fileID, details.Media, preliminary)
+	if err != nil {
+		return err
+	}
 	guard, err := e.DB.Begin(ctx)
 	if err != nil {
 		return err
@@ -487,6 +491,10 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 		projections[0].Path = path.Join("Movies", folder, strings.TrimSuffix(safeName(path.Base(relative)), path.Ext(relative))+".strm")
 	}
 
+	projections, err = library.ApplyOutputTemplates(ctx, e.DB, cloudPath, assetID, details.Media, projections)
+	if err != nil {
+		return err
+	}
 	intents, err := library.StageOutputProjections(ctx, journal, tx, e.Connections.Config.STRMOutputDir, assetID, details.Media, season, projections, []byte(link+"\n"), playbackgrants.SecretFreeKeyRef(grantID))
 	if err != nil {
 		if errors.Is(err, library.ErrOutputLayoutRequired) {

@@ -27,6 +27,9 @@ func (l *Local) safe(raw string) error {
 	if err != nil {
 		return err
 	}
+	if privateLocalPath(clean) {
+		return ErrProtected
+	}
 	if clean == "." {
 		return nil
 	}
@@ -78,6 +81,9 @@ func (l *Local) List(ctx context.Context, p string) ([]File, error) {
 	}
 	out := []File{}
 	for _, entry := range entries {
+		if privateLocalPath(path.Join(p, entry.Name())) {
+			continue
+		}
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}

@@ -13,6 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
+	"media-tool/internal/modules/releasename"
+	"media-tool/internal/modules/settings"
 )
 
 type Engine struct {
@@ -153,6 +155,49 @@ func (e Engine) Preview(ctx context.Context, in Input) (Plan, error) {
 		return Plan{}, err
 	}
 	defer b.Close()
+	if (in.Operation == "organize" || in.Operation == "rename") && in.Name == "" && in.Template == "" {
+		source, findErr := b.Find(ctx, in.Source)
+		if findErr != nil {
+			return Plan{}, findErr
+		}
+		if !source.Directory {
+			hint := releasename.Parse(source.Name)
+			if in.Title != "" {
+				hint.Title = in.Title
+			}
+			if in.Year != "" {
+				hint.Year = in.Year
+			}
+			if in.MediaType != "" {
+				hint.MediaType = in.MediaType
+			}
+			if in.Season != 0 {
+				hint.Season = in.Season
+			}
+			if in.Episode != 0 {
+				hint.Episode = in.Episode
+			}
+			if in.Resolution != "" {
+				hint.Resolution = in.Resolution
+			}
+			in.Title, in.Year, in.MediaType, in.Season, in.Episode = hint.Title, hint.Year, hint.MediaType, hint.Season, hint.Episode
+			prefs, prefErr := (settings.Repository{DB: e.DB}).Get(ctx)
+			if prefErr != nil {
+				return Plan{}, ErrUnavailable
+			}
+			template := prefs.Value.MovieTemplate
+			if hint.MediaType == "series" {
+				template = prefs.Value.SeriesTemplate
+			}
+			if hint.MediaType == "unknown" {
+				return Plan{}, ErrInvalid
+			}
+			in.Name, err = releasename.Render(template, hint, source.Name)
+			if err != nil {
+				return Plan{}, ErrInvalid
+			}
+		}
+	}
 	p, err := BuildPlan(ctx, b, root, in, jobs.UUID())
 	if err != nil {
 		return p, err
@@ -278,8 +323,21 @@ func (e Engine) claim(ctx context.Context, p Plan) error {
 	return tx.Commit(ctx)
 }
 func (e Engine) finish(ctx context.Context, id, state, message string, completed int) error {
-	_, err := e.DB.Exec(ctx, `UPDATE file_operations SET state=$2,message=$3,completed_steps=$4,updated_at=now() WHERE id=$1`, id, state, message, completed)
-	return err
+	tx, err := e.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `UPDATE file_operations SET state=$2,message=$3,completed_steps=$4,updated_at=now() WHERE id=$1`, id, state, message, completed); err != nil {
+		return err
+	}
+	if state == "succeeded" {
+		_, err = tx.Exec(ctx, `INSERT INTO jobs(id,kind,payload,idempotency_key) SELECT $1,'plugin.dispatch',jsonb_build_object('operationId',$2::text),$3 WHERE EXISTS(SELECT 1 FROM extension_plugins WHERE enabled AND manifest->'capabilities' ? 'media.organized') ON CONFLICT(idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING`, jobs.UUID(), id, "plugin.organized:"+id)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }
 func (e Engine) Execute(ctx context.Context, id, digest string, confirm bool) (Result, error) {
 	if !confirm || digest == "" {

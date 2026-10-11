@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/sites"
@@ -18,6 +19,7 @@ import (
 )
 
 type Engine struct {
+	Redis       *redis.Client
 	DB          *pgxpool.Pool
 	Vault       *secrets.Vault
 	Connections *integrations.Manager
@@ -53,12 +55,12 @@ type Resource struct {
 }
 
 func (e Engine) Start(ctx context.Context, keyword string, accountIDs []string) (string, error) {
-	return e.start(ctx, keyword, accountIDs, true)
+	return e.start(ctx, keyword, accountIDs, true, "")
 }
 func (e Engine) StartInline(ctx context.Context, keyword string, accountIDs []string) (string, error) {
-	return e.start(ctx, keyword, accountIDs, false)
+	return e.start(ctx, keyword, accountIDs, false, "")
 }
-func (e Engine) start(ctx context.Context, keyword string, accountIDs []string, enqueue bool) (string, error) {
+func (e Engine) start(ctx context.Context, keyword string, accountIDs []string, enqueue bool, cacheKey string) (string, error) {
 	if keyword == "" || len(keyword) > 200 {
 		return "", errors.New("enter a keyword up to 200 characters")
 	}
@@ -83,7 +85,7 @@ func (e Engine) start(ctx context.Context, keyword string, accountIDs []string, 
 	defer tx.Rollback(ctx)
 	id := jobs.UUID()
 	accounts, _ := json.Marshal(accountIDs)
-	if _, err = tx.Exec(ctx, `INSERT INTO search_runs(id,keyword,account_ids)VALUES($1,$2,$3)`, id, keyword, accounts); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO search_runs(id,keyword,account_ids,cache_key)VALUES($1,$2,$3,$4)`, id, keyword, accounts, cacheKey); err != nil {
 		return "", err
 	}
 	for _, account := range accountIDs {
@@ -224,6 +226,9 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) error {
 		state = "partial"
 	}
 	_, err := e.DB.Exec(ctx, `UPDATE search_runs SET state=$2,finished_at=now() WHERE id=$1`, payload.RunID, state)
+	if err == nil {
+		e.rememberCache(ctx, payload.RunID)
+	}
 	return err
 }
 func (e Engine) runSite(ctx context.Context, runID, keyword, accountID string) {

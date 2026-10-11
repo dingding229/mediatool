@@ -9,7 +9,7 @@
   server at /root/docker/mediatool using the published immutable Hub image.
   Never substitute local image archives or another registry. Report blockers
   honestly instead of claiming deployment when publication/testing is incomplete.
-- Credentials stay in .env/Actions Secrets, never source, logs or chat. Do not
+- Deployment parameters are direct values in the operator-private docker-compose.yml (no .env interpolation). Never commit the initialized Compose or production credentials. Actions credentials stay in Secrets. The only log exception is the owner-triggered one-time temporary password printed to startup stdout; it must never enter the web log store or database browser. Do not
   reuse credentials from other projects. Preserve 115 authorization, accounts,
   master key, STRM bodies, media and database volumes.
 - Do not run database-mutating integration/E2E suites concurrently. They may use

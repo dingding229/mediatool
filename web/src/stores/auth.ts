@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { request,post,APIError } from '../api/client'
-export interface Administrator{id:string;username:string}
+export interface Administrator{id:string;username:string;mustChangePassword?:boolean}
 interface AuthResponse{authenticated:boolean;account:Administrator}
 export const useAuthStore=defineStore('auth',()=>{
  const authenticated=ref(false),checked=ref(false),account=ref<Administrator|null>(null)

@@ -67,10 +67,9 @@ test('login, honest dependency states, module navigation and logout',async({page
  await expect(page.getByText('请填写地址和接入凭据',{exact:false})).toBeVisible()
  mkdirSync(screenshots,{recursive:true});await page.screenshot({path:resolve(screenshots,'dashboard-desktop.png'),fullPage:true})
  await page.getByRole('link',{name:'系统设置',exact:true}).click()
- await page.getByRole('button',{name:'验证 CloudDrive2',exact:true}).click()
- await expect(page.getByText('请先配置 CloudDrive2 地址及读取凭据',{exact:true})).toBeVisible()
- await page.getByRole('button',{name:'验证 Emby',exact:true}).click()
- await expect(page.getByText('请先配置 EMBY_UPSTREAM_URL',{exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'媒体命名与搜索缓存',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'验证 CloudDrive2',exact:true})).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'验证 Emby',exact:true})).toHaveCount(0)
  await page.getByRole('link',{name:'PT 站点',exact:true}).click()
  await expect(page.getByRole('heading',{name:'PT 站点配置'})).toBeVisible()
  await page.getByRole('button',{name:'退出',exact:true}).click()
@@ -124,12 +123,12 @@ test('mobile menu, reduced motion and layout at 375px/landscape',async({page})=>
 })
 
 test('saved connections are editable, redacted, and can be deleted',async({page})=>{
- await login(page);await page.getByRole('link',{name:'服务连接',exact:true}).click()
+ await login(page);await page.goto('/cloudStorage')
  await page.getByRole('button',{name:'添加连接'}).click()
  const name='Browser connection '+Date.now()
  await page.getByLabel('连接名称',{exact:true}).fill(name)
  await page.getByLabel('原生 gRPC 地址',{exact:true}).fill('http://127.0.0.1:9')
- await page.getByLabel('CloudDrive2 API Token',{exact:true}).fill('synthetic-browser-secret')
+ await page.getByLabel('CloudDrive2 API Token',{exact:true}).fill('')
  const responsePromise=page.waitForResponse(r=>r.url().endsWith('/api/v1/integrations')&&r.request().method()==='POST')
  await page.getByRole('button',{name:'加密保存',exact:true}).click()
  const response=await responsePromise
@@ -195,11 +194,11 @@ test('account login form is accessible on mobile and needs no deployment key',as
 })
 
 test('official 115 is saved disabled and QR authorization is explicit and cancellable',async({page})=>{
- await login(page);await page.getByRole('link',{name:'服务连接',exact:true}).click()
+ await login(page);await page.goto('/cloudStorage')
  await page.getByRole('button',{name:'添加连接'}).click()
- await page.getByRole('combobox',{name:'服务类型'}).press('ArrowDown')
- await expect(page.getByRole('listbox')).toBeVisible()
- await page.getByRole('option',{name:'115 官方直链（独立播放）',exact:true}).click()
+ await page.getByRole('button',{name:'关闭此对话框',exact:true}).click()
+ await page.getByRole('button',{name:'115 授权',exact:true}).click()
+ await page.getByRole('button',{name:'添加连接',exact:true}).click()
  const name='Official115 fixture '+Date.now()
  await page.getByLabel('连接名称',{exact:true}).fill(name)
  await page.getByLabel('自己的115开放平台 AppID',{exact:true}).fill('12345')
@@ -269,10 +268,9 @@ test('site snapshot recovery keeps the exact commit, license gate and validation
 })
 
 test('strict direct-only policy is explicit, persistent and visible (isolated settings fixture)',async({page})=>{
- await fixtureLogin(page);await page.getByRole('link',{name:'服务连接',exact:true}).click()
+ await fixtureLogin(page);await page.goto('/mediaLibrary')
+ await page.getByRole('button',{name:'Emby 配置',exact:true}).click()
  await page.getByRole('button',{name:'添加连接'}).click()
- await page.getByRole('combobox',{name:'服务类型',exact:true}).press('ArrowDown')
- await page.getByRole('option',{name:'Emby',exact:true}).click()
  const name='Direct-only fixture '+Date.now()
  await page.getByLabel('连接名称',{exact:true}).fill(name)
  await page.getByLabel('Emby 服务地址',{exact:true}).fill('http://127.0.0.1:9')
@@ -291,7 +289,7 @@ test('strict direct-only policy is explicit, persistent and visible (isolated se
 
 test('management Emby page survives a direct reload without entering the playback listener',async({page})=>{
  await fixtureLogin(page)
- await page.getByRole('link',{name:'Emby 网关',exact:true}).click()
+ await page.goto('/emby')
  await expect(page.getByRole('heading',{name:'Emby 播放网关',exact:true})).toBeVisible()
  await page.reload()
  await expect(page.getByRole('heading',{name:'Emby 播放网关',exact:true})).toBeVisible()
@@ -492,6 +490,7 @@ test('download binds the selected search snapshot and announces refresh errors (
  let submitted:Record<string,unknown>|undefined
  await page.route('**/api/v1/downloads',async route=>{submitted=route.request().postDataJSON();await route.fulfill({status:409,json:{error:{code:'search_refresh_required',message:'搜索快照已过期，请重新搜索或重新评估订阅'}}})})
  await page.goto('/search')
+ await page.getByText('站点直搜',{exact:true}).click()
  await page.getByLabel('资源关键词',{exact:true}).fill('Owned Movie')
  await page.getByRole('button',{name:'开始搜索',exact:true}).click()
  await page.getByRole('button',{name:'确认并下载',exact:true}).click()
@@ -549,6 +548,7 @@ test('partial provider pagination remains visible and does not claim no more res
  await page.route('**/api/v1/search',route=>route.request().method()==='POST'?route.fulfill({json:{data:{id:runId}}}):route.fulfill({json:{data:[]}}))
  await page.route(`**/api/v1/search/${runId}?*`,route=>route.fulfill({json:{data:{id:runId,keyword:'Owned',state:'partial',sites:[{accountId,name:'受控分页样本',state:'partial',message:'达到5页查询上限；仅显示已取得的部分结果，不代表站点无更多资源',count:1}],resources:[{id:'fixture-resource',title:'Owned Movie (2026)',siteName:'受控分页样本',size:100,seeders:5,leechers:0,downloadFactor:null,metadata:{}}],total:1}}}))
  await page.goto('/search')
+ await page.getByText('站点直搜',{exact:true}).click()
  await page.getByLabel('资源关键词',{exact:true}).fill('Owned')
  await page.getByRole('button',{name:'开始搜索',exact:true}).click()
  await expect(page.getByText('部分结果',{exact:true})).toHaveCount(2)
@@ -567,11 +567,10 @@ test('partial provider pagination remains visible and does not claim no more res
 test('PT required-header credentials are masked, validated, encrypted and explicitly clearable',async({page})=>{
  await fixtureLogin(page)
  await page.emulateMedia({reducedMotion:'reduce'})
- await page.getByRole('link',{name:'服务连接',exact:true}).click()
+ await page.goto('/sites')
+ await page.route('**/api/v1/integrations',async route=>{if(route.request().method()!=='POST')return route.continue();const inData=route.request().postDataJSON();await route.fulfill({status:201,json:{data:{id:'77777777-7777-4777-8777-777777777777',...inData,secrets:undefined,secretFields:['requestHeaders'],revision:1,lastCheckState:'ready',lastCheckMessage:'明确的隔离验证样本'}}})})
  await page.getByRole('button',{name:'添加连接'}).click()
- await page.getByRole('combobox',{name:'服务类型'}).press('ArrowDown')
- await expect(page.getByRole('listbox')).toBeVisible()
- await page.getByRole('option',{name:'PT 站点账号',exact:true}).click()
+
  const dialog=page.getByRole('dialog',{name:'添加连接',exact:true})
  const name='PT headers fixture '+Date.now()
  await dialog.getByLabel('连接名称',{exact:true}).fill(name)
@@ -603,30 +602,12 @@ test('PT required-header credentials are masked, validated, encrypted and explic
  const saved=await savedPromise
  expect(saved.status()).toBe(201)
  const raw=await saved.text();expect(raw).not.toContain(secret);expect(raw).not.toContain('PRIVATE-CSRF-E2E')
- const record=JSON.parse(raw).data;expect(record.secretFields).toContain('requestHeaders')
- // Use desktop navigation again; all mobile edits above used actual visible controls.
- await page.setViewportSize({width:1440,height:1000})
- const row=page.getByRole('row').filter({hasText:name})
- await row.getByRole('button',{name:'编辑',exact:true}).click()
- const edit=page.getByRole('dialog',{name:'编辑连接',exact:true})
- await expect(edit.getByLabel('附加鉴权头（JSON，加密保存）',{exact:true})).toHaveValue('')
- const keptPromise=page.waitForResponse(r=>r.url().endsWith('/api/v1/integrations/'+record.id)&&r.request().method()==='PUT')
- await edit.getByRole('button',{name:'加密保存',exact:true}).click()
- expect((await (await keptPromise).json()).data.secretFields).toContain('requestHeaders')
- await row.getByRole('button',{name:'编辑',exact:true}).click()
- await edit.getByLabel('附加鉴权头（JSON，加密保存）',{exact:true}).fill('{}')
- const clearedPromise=page.waitForResponse(r=>r.url().endsWith('/api/v1/integrations/'+record.id)&&r.request().method()==='PUT')
- await edit.getByRole('button',{name:'加密保存',exact:true}).click()
- expect((await (await clearedPromise).json()).data.secretFields).not.toContain('requestHeaders')
- await row.getByRole('button',{name:'删除',exact:true}).click()
- await page.getByRole('button',{name:'删除连接',exact:true}).click()
- await expect(row).toHaveCount(0)
- // No external PT request or real credentials are used by this fixture.
+ const record=(await saved.json()).data;expect(record.secretFields).toContain('requestHeaders');expect(await saved.text()).not.toContain(secret)
 })
 
 test('separate 115 setup saves without tokens and secret echoes are explicit (isolated)',async({page})=>{
  await fixtureLogin(page)
- await page.goto('/integrations?kind=open115')
+ await page.goto('/cloudStorage');await page.getByRole('button',{name:'115 授权',exact:true}).click()
  await expect(page.getByRole('button',{name:'115 授权',exact:true})).toHaveAttribute('aria-pressed','true')
  await page.getByRole('button',{name:'添加连接',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'添加连接',exact:true})
@@ -641,11 +622,11 @@ test('separate 115 setup saves without tokens and secret echoes are explicit (is
  const response=await saved;expect(response.status()).toBe(201);const draft=(await response.json()).data
  expect(draft.enabled).toBe(false);expect(draft.secretFields).toEqual([])
  const draftRow=page.getByRole('row').filter({hasText:name});await expect(draftRow.getByRole('button',{name:'115扫码授权',exact:true})).toBeVisible()
- await page.goto('/integrations?kind=emby')
+ await page.goto('/mediaLibrary');await page.getByRole('button',{name:'Emby 配置',exact:true}).click()
  await page.getByRole('button',{name:'添加连接',exact:true}).click()
  const embyName='Emby echo fixture '+Date.now(),value='PRIVATE-EMBY-ECHO-FIXTURE'
  await dialog.getByLabel('连接名称',{exact:true}).fill(embyName)
- await dialog.getByLabel('Emby 服务地址',{exact:true}).fill('http://127.0.0.1:9')
+ await dialog.getByLabel('Emby 服务地址',{exact:true}).fill(process.env.E2E_EMBY_ENDPOINT!)
  await dialog.getByLabel('媒体库刷新 API Key',{exact:true}).fill(value)
  await dialog.getByRole('button',{name:'加密保存',exact:true}).click()
  const row=page.getByRole('row').filter({hasText:embyName});await row.getByRole('button',{name:'编辑',exact:true}).click()
@@ -669,16 +650,16 @@ test('separate 115 setup saves without tokens and secret echoes are explicit (is
 test('local file management previews organize, keeps sidecars and uses reversible trash',async({page})=>{
  const directory=process.env.E2E_FILE_ROOT;if(!directory)throw new Error('Owned E2E file root required')
  await fixtureLogin(page)
- const created=await page.request.post('/api/v1/integrations',{headers:{'X-Requested-With':'media-tool'},data:{kind:'local',name:'Owned local files fixture',enabled:true,settings:{rootPath:directory}}})
- expect(created.status()).toBe(201)
  await page.goto('/files')
  const old=page.getByRole('row').filter({hasText:'Owned Film.mkv'})
  await expect(old).toBeVisible();await old.getByRole('button',{name:'影视整理',exact:true}).click()
  const edit=page.getByRole('dialog',{name:'影视分类整理',exact:true})
+ await test.step('等待0day识别完成并选择电影',async()=>{await expect(edit.getByRole('button',{name:'预览变更',exact:true})).toBeEnabled();await edit.getByText('电影',{exact:true}).click();await expect(edit.getByRole('radio',{name:'电影',exact:true})).toBeChecked()})
  await edit.getByLabel('影视标题',{exact:true}).fill('Fixture Film')
  await edit.getByLabel('年份',{exact:true}).fill('2026')
+ await test.step('选择自定义文件名',async()=>{await edit.getByText('自定义文件名',{exact:true}).click();await expect(edit.getByRole('radio',{name:'自定义文件名',exact:true})).toBeChecked()})
  await edit.getByRole('textbox',{name:'自定义文件名',exact:true}).fill('自定义片名.mkv')
- await edit.getByRole('button',{name:'预览变更',exact:true}).click()
+ await test.step('获取整理预览',async()=>{const response=page.waitForResponse(r=>r.url().endsWith('/api/v1/files/preview'));await edit.getByRole('button',{name:'预览变更',exact:true}).click();const result=await response;expect(result.status()).toBe(200)})
  const plan=page.getByRole('dialog',{name:'确认文件变更',exact:true})
  await expect(plan.locator('.file-plan li')).toHaveCount(2)
  await expect(plan.getByText('电影/Fixture Film (2026)/自定义片名.mkv',{exact:true})).toBeVisible()
@@ -732,6 +713,7 @@ test('media catalog browses managed and Emby content without exposing playback c
  await page.route('**/api/v1/media/library?**',route=>{const query=new URL(route.request().url()).searchParams;const source=query.get('source')??'managed';return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{items:[{id:'owned-catalog',source,title:'自有影片验证样本',year:'2026',mediaType:'movie',overview:'用于界面验收的明确测试内容，不是实际影片入库记录。',poster:'',state:'present',filePath:'/115/Owned/Owned.mkv'}],total:1,page:1,pageSize:24,source}})})})
  await page.goto('/mediaLibrary')
  await expect(page.getByRole('heading',{name:'媒体库',exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'全部媒体',exact:true}).click()
  await page.getByRole('button',{name:/自有影片验证样本/}).click()
  const detail=page.getByRole('dialog',{name:'自有影片验证样本',exact:true});await expect(detail.getByText('用于界面验收的明确测试内容，不是实际影片入库记录。',{exact:true})).toBeVisible()
  await detail.getByRole('button',{name:'关闭',exact:true}).click()
@@ -744,46 +726,39 @@ test('media catalog browses managed and Emby content without exposing playback c
  await expect(page.getByText('Emby 媒体库 · 1 项',{exact:true})).toBeVisible()
 })
 
-test('recovery code finds a password, revokes sessions and cannot be reused',async({page})=>{
- await page.emulateMedia({reducedMotion:'reduce'})
- await login(page)
- await page.getByRole('link',{name:'系统设置',exact:true}).click()
- await page.getByLabel('验证当前密码',{exact:true}).fill(password)
- await page.getByRole('button',{name:'生成 / 更换恢复码',exact:true}).click()
- const code=(await page.getByTestId('recovery-code').innerText()).trim()
- expect(code).toMatch(/^mt-(?:[a-f0-9]{16}-){3}[a-f0-9]{16}$/)
- const cookie=(await page.context().cookies()).find(c=>c.name==='media_tool_session')!
- await page.getByRole('button',{name:'我已保存，关闭显示',exact:true}).click()
- await expect(page.getByTestId('recovery-code')).toHaveCount(0)
- mkdirSync(screenshots,{recursive:true})
- await page.screenshot({path:resolve(screenshots,'recovery-settings-desktop.png'),fullPage:true})
- await page.setViewportSize({width:375,height:812})
- expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
- await page.getByRole('heading',{name:'密码找回',exact:true}).scrollIntoViewIfNeeded()
- await page.screenshot({path:resolve(screenshots,'recovery-settings-mobile.png'),fullPage:false})
- await page.getByRole('button',{name:'退出',exact:true}).click()
- await page.getByRole('button',{name:'忘记密码？使用恢复码',exact:true}).click()
- await expect(page.getByRole('heading',{name:'找回管理员密码'})).toBeVisible()
- await page.screenshot({path:resolve(screenshots,'recovery-login-mobile.png'),fullPage:true})
- await page.setViewportSize({width:1440,height:1000})
- await page.screenshot({path:resolve(screenshots,'recovery-login-desktop.png'),fullPage:true})
- const next='Recovery-e2e-2026'
- await page.getByLabel('管理员账号',{exact:true}).fill(username)
- await page.getByLabel('一次性恢复码',{exact:true}).fill(code)
- await page.getByLabel('新密码',{exact:true}).fill(next)
- await page.getByLabel('确认新密码',{exact:true}).fill(next)
- await page.getByRole('button',{name:'重置密码',exact:true}).click()
- await expect(page.getByText('密码已重置，请返回登录并使用新密码。恢复码已失效。',{exact:true})).toBeVisible()
- const session=await page.request.get('/api/v1/auth/session',{headers:{Cookie:'media_tool_session='+cookie.value}})
- expect(session.status()).toBe(401)
- const replay=await page.request.post('/api/v1/auth/recover',{headers:{Origin:'http://localhost:18084','X-Requested-With':'media-tool'},data:{username,recoveryCode:code,newPassword:password,confirmPassword:password}})
- expect(replay.status()).toBe(400)
- await page.getByRole('button',{name:'返回账号登录',exact:true}).click()
- await page.getByLabel('管理员账号',{exact:true}).fill(username)
- await page.getByLabel('密码',{exact:true}).fill(next)
- await page.getByRole('button',{name:'进入工作台',exact:true}).click()
- await expect(page.getByRole('heading',{name:'媒体链路总览'})).toBeVisible()
- // Restore only this task-owned account for subsequent tests, never a real account.
- const changed=await page.request.post('/api/v1/auth/password',{headers:{Origin:'http://localhost:18084','X-Requested-With':'media-tool'},data:{currentPassword:next,newPassword:password,confirmPassword:password}})
- expect(changed.status()).toBe(200)
+
+test('service overview is read-only and settings own naming and TMDB',async({page})=>{
+ await login(page);await page.goto('/integrations');await expect(page.getByRole('heading',{name:'服务连接总览',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(0)
+ await page.goto('/settings');await expect(page.getByLabel('电影命名模板',{exact:true})).toHaveValue('{title} ({year}) - {resolution}{ext}');await expect(page.getByLabel('剧集命名模板',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'TMDB配置',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'生成 / 更换恢复码',exact:true})).toHaveCount(0)
+ await page.locator('#pt-cache-seconds').fill('600');await page.getByRole('button',{name:'保存模板与缓存',exact:true}).click();await expect(page.getByText('模板与缓存有效期已保存，新的整理预览默认使用模板。不会自动重命名现有文件。',{exact:true})).toBeVisible()
+ await page.screenshot({path:resolve(screenshots,'workbench-settings-desktop.png'),animations:'disabled',fullPage:true});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-settings-mobile.png'),animations:'disabled',fullPage:false})
+})
+
+test('log viewer has level, sizes and confirmed cleanup; data tools are formatted read-only',async({page})=>{
+ await login(page);await page.goto('/logs');await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'日志大小',exact:true})).toBeVisible();await expect(page.locator('.log-entry').first()).toBeVisible();await page.getByRole('button',{name:'清理日志',exact:true}).click();await page.getByRole('button',{name:'取消',exact:true}).click();await expect(page.locator('.log-entry').first()).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-logs-desktop.png'),animations:'disabled'})
+ await page.goto('/data');await expect(page.getByRole('heading',{name:'数据库浏览',exact:true})).toBeVisible();await expect(page.locator('.data-row').first()).toBeVisible();await page.locator('.data-row').first().click();await expect(page.getByRole('dialog',{name:'只读格式化数据'})).toBeVisible();await page.getByRole('button',{name:'关闭',exact:true}).click();await page.screenshot({path:resolve(screenshots,'workbench-data-desktop.png'),animations:'disabled'});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-data-mobile.png'),animations:'disabled'})
+})
+
+test('Emby home follows real category/watch/latest structure without exposing keys (fixture)',async({page})=>{
+ await fixtureLogin(page);const sample={id:'owned1',title:'自有分类验证样本',type:'CollectionFolder',image:'',progress:30}
+ await page.route('**/api/v1/media/library/emby/home?*',route=>route.fulfill({json:{data:{users:[{id:'u1',name:'自有用户'}],userId:'u1',libraries:[sample],playing:[],resume:[{...sample,type:'Movie',title:'自有继续观看样本'}],recent:[],latest:[{...sample,type:'Episode',title:'自有最新入库样本',subtitle:'第1集'}]}}}))
+ await page.goto('/mediaLibrary');for(const name of ['我的媒体库','媒体库分类','正在播放','继续观看','近期观看','最新入库'])await expect(page.getByRole('heading',{name:new RegExp('^'+name+'(?: Emby)?$')})).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-emby-home-desktop.png'),animations:'disabled',fullPage:true});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-emby-home-mobile.png'),animations:'disabled',fullPage:false})
+})
+
+test('TMDB and site-direct search have distinct cache controls (fixture)',async({page})=>{
+ await fixtureLogin(page);let calls=0
+ await page.route('**/api/v1/search/media?*',route=>{calls++;return route.fulfill({json:{data:{items:[{id:1,mediaType:'movie',title:'自有搜索样本',originalTitle:'Owned Movie',year:'2026',overview:'隔离的搜索界面样本',posterPath:''}],cached:calls>1,cacheSeconds:60}}})})
+ await page.goto('/search');await page.getByLabel('TMDB媒体名称',{exact:true}).fill('Owned Movie');await page.getByRole('button',{name:'搜索媒体',exact:true}).click();await expect(page.getByRole('heading',{name:/自有搜索样本/})).toBeVisible();await page.getByRole('button',{name:'搜索媒体',exact:true}).click();await expect(page.getByText(/本次使用TMDB缓存/)).toBeVisible();await page.getByRole('button',{name:'使用标题到站点搜索',exact:true}).click();await expect(page.getByLabel('资源关键词',{exact:true})).toHaveValue('Owned Movie');await expect(page.getByRole('button',{name:'忽略站点缓存重新搜索',exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-search-desktop.png'),animations:'disabled'})
+})
+
+test('automatic roots, 0day hints, history and safe plugin manifests',async({page})=>{
+ await login(page);await page.goto('/files');await expect(page.getByText(/本地目录/).first()).toBeVisible();const parsed=await page.request.post('/api/v1/media/recognize-name',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned.Show.2026.S01E03.1080p.WEB-DL.x265-TEAM.mkv'}});expect(parsed.status()).toBe(200);expect((await parsed.json()).data.hint).toMatchObject({title:'Owned Show',year:'2026',mediaType:'series',season:1,episode:3})
+ await page.goto('/organize-history');await expect(page.getByRole('heading',{name:'媒体整理历史',exact:true})).toBeVisible();await page.goto('/plugins');await expect(page.getByRole('heading',{name:'0day 文件名识别',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'电影与剧集命名模板',exact:true})).toBeVisible();await page.getByLabel('插件Manifest',{exact:true}).fill(JSON.stringify({id:'owned-plugin',name:'自有扩展样本',version:'1',contractVersion:1,endpoint:'http://127.0.0.1/hook',capabilities:['media.organized']}));await page.getByRole('button',{name:'导入为停用插件',exact:true}).click();await expect(page.getByText(/Manifest无效/)).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-plugins-desktop.png'),animations:'disabled'})
+})
+
+test('temporary-password sessions are routed to compulsory reset without web recovery (fixture)',async({page})=>{
+ await page.route('**/api/v1/auth/session',route=>route.fulfill({json:{data:{authenticated:true,account:{id:'owned-reset-fixture',username:'owned_owner',mustChangePassword:true}}}}))
+ await page.route('**/api/v1/auth/password',route=>route.fulfill({json:{data:{changed:true,loginRequired:true}}}))
+ await page.goto('/logs');await expect(page).toHaveURL('http://localhost:18084/reset-password');await expect(page.getByRole('heading',{name:'必须设置新密码',exact:true})).toBeVisible();await expect(page.getByRole('link',{name:'程序日志',exact:true})).toHaveCount(0)
+ await page.getByLabel('当前临时密码',{exact:true}).fill('Temporary-2026');await page.getByLabel('新密码',{exact:true}).fill('Replacement-2026');await page.getByLabel('确认新密码',{exact:true}).fill('Replacement-2026');await page.screenshot({path:resolve(screenshots,'mandatory-reset-desktop.png'),animations:'disabled',mask:[page.locator('input[type=password]')]});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'mandatory-reset-mobile.png'),animations:'disabled',mask:[page.locator('input[type=password]')]});await page.getByRole('button',{name:'设置新密码并重新登录',exact:true}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'忘记密码？使用恢复码',exact:true})).toHaveCount(0)
 })

@@ -25,4 +25,4 @@ worker:
 migrate:
 	bash scripts/load-env.sh go run ./cmd/migrate
 compose-check:
-	docker compose --env-file .env -f docker-compose.yml config --quiet
+	docker compose -f docker-compose.yml config --quiet

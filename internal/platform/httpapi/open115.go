@@ -59,6 +59,13 @@ func (a *API) do115Poll(w http.ResponseWriter, r *http.Request, stop bool) {
 		officialAuthError(w, err)
 		return
 	}
+	if result.State == "authorized" && !stop {
+		check, err := a.Deps.Integrations.Test(ctx, r.PathValue("id"))
+		if err != nil || !check.Passed {
+			fail(w, 502, "authorization_validation_failed", "授权已保存但自动验证未通过，请检查云盘配置及网络")
+			return
+		}
+	}
 	write(w, 200, result)
 }
 func officialAuthError(w http.ResponseWriter, err error) {

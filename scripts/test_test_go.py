@@ -14,6 +14,7 @@ class GoIsolationTests(unittest.TestCase):
             root = Path(root)
             (root / "scripts").mkdir()
             shutil.copy(Path(__file__).with_name("test-go.sh"), root / "scripts/test-go.sh")
+            shutil.copy(Path(__file__).with_name("test-lock.py"), root / "scripts/test-lock.py")
             (root / ".env").write_text("DATABASE_URL=postgres://fixture@localhost/business\nREDIS_URL=redis://localhost:6379/0\n")
             (root / ".env.test").write_text(f"TEST_DATABASE_URL=postgres://fixture@localhost/{database}\n")
             (root / "go").write_text("""#!/usr/bin/env python3

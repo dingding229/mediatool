@@ -6,7 +6,7 @@ const props=defineProps<{ modelValue:boolean; integrationId:string }>()
 const emit=defineEmits<{ 'update:modelValue':[boolean]; authorized:[] }>()
 const session=ref<Authorization|null>(null), busy=ref(false), error=ref(''), status=ref('')
 let generation=0, timer:ReturnType<typeof setTimeout>|undefined
-const labels:Record<string,string>={waiting:'等待115 App扫码',scanned:'已扫码，请在115 App中确认授权',exchanging:'已确认，正在加密保存授权结果',authorized:'授权已加密保存，请验证并显式启用官方直链',expired:'二维码已过期，请重新生成',cancelled:'已取消授权',failed:'授权未完成，请重新生成二维码'}
+const labels:Record<string,string>={waiting:'等待115 App扫码',scanned:'已扫码，请在115 App中确认授权',exchanging:'已确认，正在加密保存授权结果',authorized:'授权已加密保存并自动验证，请显式启用官方直链',expired:'二维码已过期，请重新生成',cancelled:'已取消授权',failed:'授权未完成，请重新生成二维码'}
 function message(e:unknown){return e instanceof Error?e.message:'115官方授权暂不可用'}
 async function poll(id:string, version:number){
  if(version!==generation || !props.modelValue)return

@@ -14,7 +14,7 @@ func (a *API) searchEngine() *search.Engine {
 	if a.Deps.Integrations == nil {
 		return nil
 	}
-	return &search.Engine{DB: a.Deps.DB, Vault: a.Deps.Integrations.Repository.Vault, Connections: a.Deps.Integrations}
+	return &search.Engine{DB: a.Deps.DB, Vault: a.Deps.Integrations.Repository.Vault, Connections: a.Deps.Integrations, Redis: a.Deps.Redis}
 }
 func (a *API) listDefinitions(w http.ResponseWriter, r *http.Request) {
 	if !a.integrationReady(w) {
@@ -69,16 +69,17 @@ func (a *API) startSearch(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Keyword    string   `json:"keyword"`
 		AccountIDs []string `json:"accountIds"`
+		Refresh    bool     `json:"refresh"`
 	}
 	if !decode(w, r, &body) {
 		return
 	}
-	id, err := engine.Start(r.Context(), body.Keyword, body.AccountIDs)
+	id, cached, err := engine.StartCached(r.Context(), body.Keyword, body.AccountIDs, body.Refresh)
 	if err != nil {
 		fail(w, 400, "search_create_failed", err.Error())
 		return
 	}
-	write(w, 202, map[string]string{"id": id})
+	write(w, 202, map[string]any{"id": id, "cached": cached})
 }
 func (a *API) listSearches(w http.ResponseWriter, r *http.Request) {
 	engine := a.searchEngine()

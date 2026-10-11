@@ -22,6 +22,7 @@ import (
 	"media-tool/internal/modules/system"
 	"media-tool/internal/platform/auth"
 	"media-tool/internal/platform/config"
+	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/requestbudget"
 	"media-tool/internal/platform/webui"
 	"net/http"
@@ -35,6 +36,7 @@ type SessionReader interface {
 	Session(context.Context, []byte) (accounts.Account, error)
 }
 type Dependencies struct {
+	Logs         *logging.Store
 	AuthSessions SessionReader
 	Integrations *integrations.Manager
 	DB           *pgxpool.Pool
@@ -90,14 +92,32 @@ func New(c config.Config, d Dependencies) http.Handler {
 		a.Gateway = emby.NewGateway(emby.GatewayOptions{Identities: a.EmbyIdentities, Upstream: target, PublicOrigin: embyPublicOrigin(c.EmbyPublicURL), Enable302: c.Emby302Enabled, DirectPlayOnly: c.EmbyDirectPlayOnly, LegacyEnabled: c.LegacyPlaybackEnabled, OwnedAsset: a.ownedAsset, Builder: a.Builder, STRMOutputDir: c.STRMOutputDir, STRMPathPrefix: c.EmbySTRMPathPrefix, ResolverOrigins: c.EmbyResolverOrigins, Playback: a.Engine})
 	}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/media/emby/items/{id}", a.protected(a.catalogItem))
+	mux.HandleFunc("GET /api/v1/media/tmdb/image", a.protected(a.tmdbPoster))
+	mux.HandleFunc("GET /api/v1/media/library/emby/home", a.protected(a.catalogHome))
+	mux.HandleFunc("GET /api/v1/plugins", a.protected(a.pluginList))
+	mux.HandleFunc("POST /api/v1/plugins", a.protected(a.pluginSave))
+	mux.HandleFunc("DELETE /api/v1/plugins/{id}", a.protected(a.pluginDelete))
+	mux.HandleFunc("GET /api/v1/media/organize-history", a.protected(a.organizeHistory))
+	mux.HandleFunc("GET /api/v1/search/media", a.protected(a.tmdbMediaSearch))
+	mux.HandleFunc("GET /api/v1/settings/application", a.protected(a.getApplicationSettings))
+	mux.HandleFunc("PUT /api/v1/settings/application", a.protected(a.saveApplicationSettings))
+	mux.HandleFunc("POST /api/v1/media/recognize-name", a.protected(a.parseReleaseName))
+	mux.HandleFunc("GET /api/v1/logs/summary", a.protected(a.logsSummary))
+	mux.HandleFunc("GET /api/v1/logs", a.protected(a.readLogs))
+	mux.HandleFunc("POST /api/v1/logs/clear", a.protected(a.clearLogs))
+	mux.HandleFunc("POST /api/v1/logs/level", a.protected(a.setLogLevel))
+	mux.HandleFunc("GET /api/v1/data/postgres/tables", a.protected(a.dataTables))
+	mux.HandleFunc("GET /api/v1/data/postgres/tables/{table}", a.protected(a.dataRows))
+	mux.HandleFunc("GET /api/v1/data/redis/keys", a.protected(a.redisKeys))
+	mux.HandleFunc("GET /api/v1/data/redis/value", a.protected(a.redisValue))
+
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { write(w, 200, map[string]string{"status": "alive"}) })
 	mux.HandleFunc("GET /readyz", a.ready)
 	mux.HandleFunc("GET /api/v1/auth/setup", a.authSetup)
 	mux.HandleFunc("POST /api/v1/auth/register", a.register)
 	mux.HandleFunc("POST /api/v1/auth/password", a.protected(a.changeAccountPassword))
 	mux.HandleFunc("POST /api/v1/auth/login", a.login)
-	mux.HandleFunc("POST /api/v1/auth/recover", a.recoverPassword)
-	mux.HandleFunc("POST /api/v1/auth/recovery-code", a.protected(a.issueRecoveryCode))
 	mux.HandleFunc("POST /api/v1/auth/logout", a.protected(a.logout))
 	mux.HandleFunc("GET /api/v1/auth/session", a.protected(a.accountSession))
 	mux.HandleFunc("GET /api/v1/system/status", a.protected(a.status))
@@ -207,12 +227,17 @@ func New(c config.Config, d Dependencies) http.Handler {
 }
 func (a *API) protected(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !a.authorized(r) {
+		account, err := a.sessionAccount(r)
+		if err != nil {
 			fail(w, 401, "unauthorized", "请使用管理员账号密码登录")
 			return
 		}
 		if r.Method != "GET" && r.Method != "HEAD" && !a.Auth.SameOrigin(r) {
 			fail(w, 403, "csrf_rejected", "请求来源或防跨站请求标识无效")
+			return
+		}
+		if account.MustChangePassword && r.URL.Path != "/api/v1/auth/password" && r.URL.Path != "/api/v1/auth/logout" && r.URL.Path != "/api/v1/auth/session" {
+			fail(w, 403, "password_change_required", "请先重置临时密码，再访问工作台")
 			return
 		}
 		next(w, r)
@@ -396,7 +421,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.7.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.9.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

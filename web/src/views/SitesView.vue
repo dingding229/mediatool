@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConnectionPanel from '../components/ConnectionPanel.vue'
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { post, request } from '../api/client'
@@ -106,7 +107,7 @@ onMounted(refresh)
       </article>
     </div>
   </section>
-</template>
+<ConnectionPanel :allowed-kinds="['ptsite']" title="PT 站点账号"/></template>
 
 <style scoped>
 .snapshot-error { color: var(--el-color-danger); font-size: 13px; line-height: 1.6; }

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.8.0-dev
+  version: 0.9.0-dev
   description: 'Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -27,55 +27,104 @@ paths:
           $ref: '#/components/responses/OK'
         '503':
           $ref: '#/components/responses/Unavailable'
-  /api/v1/auth/recovery-code:
-    post:
-      operationId: issueRecoveryCode
-      description: 验证当前密码后生成一次性恢复码，仅显示一次、30天有效；替换旧码。需管理会话、同源 CSRF 及持久化限流。
-      parameters:
-      - $ref: '#/components/parameters/CSRFHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [currentPassword]
-              properties:
-                currentPassword: {type: string, format: password, maxLength: 512}
+  /api/v1/settings/application:
+    get:
+      operationId: getApplicationSettings
+      description: 读取命名模板、缓存有效期和Emby用户选择
       responses:
-        '200': {description: 'no-store: recoveryCode、expiresAt、shownOnce'}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '401': {description: 必须登录管理员}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '429': {description: 持久化限流或密码计算并发已满}
-        '503': {$ref: '#/components/responses/Unavailable'}
-  /api/v1/auth/recover:
-    post:
-      operationId: recoverPassword
-      security: []
-      description: 账号与有效恢复码重置6–20字符密码，事务消耗恢复码并撤销全部旧会话。不区分不存在账号和错误/过期/已使用恢复码。
-      parameters:
-      - $ref: '#/components/parameters/CSRFHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [username, recoveryCode, newPassword, confirmPassword]
-              properties:
-                username: {type: string, maxLength: 32}
-                recoveryCode: {type: string, format: password, maxLength: 100}
-                newPassword: {type: string, format: password, minLength: 6, maxLength: 20}
-                confirmPassword: {type: string, format: password, minLength: 6, maxLength: 20}
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/logs/summary:
+    get:
+      operationId: logSummary
+      description: 文件日志大小、轮转上限和当前级别；不含恢复控制台密码
       responses:
-        '200': {description: 密码已更新；需重新登录，恢复码失效}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '429': {description: 持久化限流或密码计算并发已满}
-        '503': {$ref: '#/components/responses/Unavailable'}
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/logs:
+    get:
+      operationId: readLogs
+      description: 最近100条脱敏JSON日志，可用level及limit筛选
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/logs/clear:
+    post:
+      operationId: clearLogs
+      description: 需confirm=true；清理文件日志，不删数据库审计或Docker控制台
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/logs/level:
+    post:
+      operationId: setLogLevel
+      description: debug/info/warn/error，运行时切换默认值在Compose
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/data/postgres/tables:
+    get:
+      operationId: postgresTables
+      description: 公共业务表列表，管理员只读
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/data/postgres/tables/{table}:
+    get:
+      operationId: postgresRows
+      description: 有界分页、只读事务、字段敏感信息隐藏
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/data/redis/keys:
+    get:
+      operationId: redisKeys
+      description: SCAN游标分页，只读类型/TTL/大小
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/data/redis/value:
+    get:
+      operationId: redisValue
+      description: 有界格式化内容，敏感键、签名URL和认证数据隐藏
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/media/recognize-name:
+    post:
+      operationId: recognizeRelease
+      description: Scene/0day文件名线索，不直接确认TMDB身份
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/media/organize-history:
+    get:
+      operationId: organizeHistory
+      description: 真实整理执行、源/目标和对账状态的分页历史
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/media/library/emby/home:
+    get:
+      operationId: embyHome
+      description: 选定用户范围的分类、播放、继续/近期观看和最新媒体；后端使用API Key
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/search/media:
+    get:
+      operationId: searchTMDB
+      description: 电影/剧集关键词与年份筛选，返回缓存命中，缓存按配置修订隔离
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/plugins:
+    get:
+      operationId: listPlugins
+      description: 内置能力与停用/启用的受约束HTTPS扩展Manifest
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
   /api/v1/auth/login:
     post:
       operationId: login

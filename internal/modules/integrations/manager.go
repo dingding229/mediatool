@@ -129,6 +129,19 @@ func (m *Manager) Test(ctx context.Context, id string) (CheckResult, error) {
 	if err != nil {
 		return CheckResult{}, err
 	}
+	result, err := m.ProbeCredentials(ctx, c)
+	if err != nil {
+		return result, err
+	}
+	if err = m.Repository.RecordCheck(ctx, id, c.Record.Revision, result.State, result.Message); err != nil {
+		return CheckResult{}, ErrUnavailable
+	}
+	return result, nil
+}
+
+// ProbeCredentials validates prospective credentials before saving them.
+func (m *Manager) ProbeCredentials(ctx context.Context, c Credentials) (CheckResult, error) {
+	var err error
 	bounded, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	message := "连接检查失败，请检查设置、凭据或网络"
@@ -145,7 +158,7 @@ func (m *Manager) Test(ctx context.Context, id string) (CheckResult, error) {
 			message = "本地目录可读取；文件操作仅限此根目录"
 		}
 	case "open115":
-		err = m.officialCall(bounded, c.Record.ID, false, func(token string) error { return m.officialClient().Probe(bounded, token) })
+		err = m.officialClient().Probe(bounded, c.Values["accessToken"])
 		if err == nil {
 			message = "115官方授权有效；播放将按播放器UA取链，真实302和CDN读取仍需播放验证"
 		}
@@ -178,7 +191,7 @@ func (m *Manager) Test(ctx context.Context, id string) (CheckResult, error) {
 			message = "qBittorrent 已连接（" + version + "）；请另行检查共享下载目录"
 		}
 	case "tmdb":
-		err = (tmdb.Client{Token: c.Values["token"], Language: c.String("language")}).Probe(bounded)
+		err = (tmdb.Client{Token: c.Values["token"], Language: c.String("language"), HTTP: m.OutboundHTTP}).Probe(bounded)
 		if err == nil {
 			message = "TMDB Token 有效，可查询媒体信息"
 		}
@@ -188,25 +201,30 @@ func (m *Manager) Test(ctx context.Context, id string) (CheckResult, error) {
 			message = "Telegram 机器人和接收目标有效；本次检查未发送通知"
 		}
 	case "emby":
-		request, reqErr := http.NewRequestWithContext(bounded, "GET", strings.TrimRight(c.String("endpoint"), "/")+"/System/Info/Public", nil)
+		request, reqErr := http.NewRequestWithContext(bounded, "GET", strings.TrimRight(c.String("endpoint"), "/")+"/Users", nil)
 		err = reqErr
 		if err == nil {
-			response, requestErr := (&http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}).Do(request)
+			request.Header.Set("X-Emby-Token", c.Values["apiKey"])
+			client := m.OutboundHTTP
+			if client == nil {
+				client = &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+			}
+			response, requestErr := client.Do(request)
 			err = requestErr
 			if err == nil {
 				defer response.Body.Close()
-				var info struct {
+				var info []struct {
 					ID string `json:"Id"`
 				}
-				if response.StatusCode != 200 || json.NewDecoder(io.LimitReader(response.Body, 64<<10)).Decode(&info) != nil || info.ID == "" {
+				if response.StatusCode != 200 || json.NewDecoder(io.LimitReader(response.Body, 64<<10)).Decode(&info) != nil || len(info) == 0 {
 					err = errors.New("invalid Emby response")
 				} else {
-					message = "Emby 公共信息接口可达；用户权限和视频播放仍需验证"
+					message = "Emby API Key 与用户列表可读取；真实播放需另行验收"
 				}
 			}
 		}
 	case "ptsite":
-		client, siteErr := m.siteClient(ctx, id, false)
+		client, siteErr := m.siteCredentials(ctx, c)
 		err = siteErr
 		if err == nil {
 			err = client.Test(bounded)
@@ -222,9 +240,6 @@ func (m *Manager) Test(ctx context.Context, id string) (CheckResult, error) {
 	}
 	if err != nil && c.Record.Kind == "clouddrive2" && errors.Is(err, storage.ErrUnauthenticated) {
 		message = "CloudDrive2 凭据无效或过期"
-	}
-	if updateErr := m.Repository.RecordCheck(ctx, id, c.Record.Revision, state, message); updateErr != nil {
-		return CheckResult{}, ErrUnavailable
 	}
 	return CheckResult{Passed: err == nil, Message: message, State: state}, nil
 }
@@ -314,6 +329,10 @@ func (m *Manager) siteClient(ctx context.Context, id string, requireEnabled bool
 	if c.Record.Kind != "ptsite" || requireEnabled && !c.Record.Enabled {
 		return sites.Client{}, errors.New("integration is not an enabled PT account")
 	}
+	return m.siteCredentials(ctx, c)
+}
+func (m *Manager) siteCredentials(ctx context.Context, c Credentials) (sites.Client, error) {
+	id := c.Record.ID
 	definition, err := (sites.Repository{DB: m.Repository.DB}).Get(ctx, c.String("definitionId"))
 	if err != nil {
 		return sites.Client{}, err

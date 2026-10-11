@@ -8,13 +8,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
+	"io"
 	"log/slog"
 	"media-tool/internal/adapters/clouddrive2"
 	"media-tool/internal/modules/acquisition"
+	"media-tool/internal/modules/filemanager"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/library"
 	"media-tool/internal/modules/messaging"
+	"media-tool/internal/modules/plugins"
 	"media-tool/internal/modules/search"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
@@ -24,6 +27,7 @@ import (
 	"media-tool/internal/platform/database"
 	"media-tool/internal/platform/httpapi"
 	"media-tool/internal/platform/logging"
+	"media-tool/internal/platform/ownerrecovery"
 	"media-tool/internal/platform/schema"
 	"media-tool/internal/platform/secrets"
 	"net"
@@ -73,7 +77,12 @@ func run() error {
 		slog.Info("single STRM written; URL and playback credentials are not printed")
 		return nil
 	}
-	logger, err := logging.New(os.Stdout, c.LogLevel, c.SessionKey, c.STRMKey, c.SecretKey, c.CloudDrivePassword, c.CloudDriveToken, c.DatabaseURL, c.RedisURL)
+	logStore, err := logging.Open(c.LogDir, c.LogLevel)
+	if err != nil {
+		return err
+	}
+	defer logStore.Close()
+	logger, err := logging.NewControlled(io.MultiWriter(os.Stdout, logStore), c.LogLevel, &logStore.Level, c.SessionKey, c.STRMKey, c.SecretKey, c.CloudDrivePassword, c.CloudDriveToken, c.DatabaseURL, c.RedisURL)
 	if err != nil {
 		return err
 	}
@@ -106,9 +115,9 @@ func run() error {
 	}
 	switch *role {
 	case "worker":
-		return runWorker(ctx, c, db, manager, logger, *queue)
+		return runWorker(ctx, c, db, manager, logger, *queue, rc)
 	case "server":
-		return runServer(ctx, c, db, rc, manager, logger)
+		return runServer(ctx, c, db, rc, manager, logger, logStore)
 	case "all":
 		if db == nil || rc == nil || manager == nil {
 			return errors.New("unified runtime requires PostgreSQL, Redis and APP_SECRET_KEY")
@@ -119,12 +128,21 @@ func run() error {
 		if err != nil {
 			return err
 		}
+		if err = filemanager.RegisterLocal(ctx, manager, c.LocalBrowseRoots); err != nil {
+			return errors.New("automatic local roots unavailable")
+		}
 		logger.Info("startup migrations complete")
+		recoveryCtx, recoveryCancel := context.WithTimeout(ctx, 30*time.Second)
+		_, err = ownerrecovery.Apply(recoveryCtx, db, c.PasswordResetFile, os.Stdout)
+		recoveryCancel()
+		if err != nil {
+			return err
+		}
 		return supervise(ctx,
-			func(ctx context.Context) error { return runServer(ctx, c, db, rc, manager, logger) },
-			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "default") },
-			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "transfer") },
-			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "library") },
+			func(ctx context.Context) error { return runServer(ctx, c, db, rc, manager, logger, logStore) },
+			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "default", rc) },
+			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "transfer", rc) },
+			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "library", rc) },
 		)
 
 	default:
@@ -168,7 +186,7 @@ func supervise(ctx context.Context, components ...func(context.Context) error) e
 	return group.Wait()
 }
 
-func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *integrations.Manager, logger *slog.Logger, queue string) error {
+func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *integrations.Manager, logger *slog.Logger, queue string, rc *redis.Client) error {
 	logger = logger.With("component", "worker", "queue", queue)
 	w := jobs.Worker{Repository: jobs.Repository{DB: db}, Queue: queue, Owner: "worker-" + jobs.UUID(), PollInterval: c.WorkerPollInterval, Lease: c.WorkerLease, Logger: logger, Handlers: map[string]jobs.Handler{
 		"system.check": func(ctx context.Context, j jobs.Job) error {
@@ -179,8 +197,9 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		},
 	}}
 	if manager != nil {
-		engine := search.Engine{DB: db, Vault: manager.Repository.Vault, Connections: manager}
+		engine := search.Engine{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc}
 		w.Handlers["search.run"] = engine.Process
+		w.Handlers["plugin.dispatch"] = (plugins.Registry{DB: db}).Process
 		subscriptionEngine := subscriptions.Engine{DB: db, Connections: manager}
 		w.Handlers["subscription.evaluate"] = subscriptionEngine.Process
 		libraryEngine := library.Engine{DB: db, Connections: manager}
@@ -233,7 +252,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 
 }
 
-func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis.Client, manager *integrations.Manager, logger *slog.Logger) error {
+func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis.Client, manager *integrations.Manager, logger *slog.Logger, logStore *logging.Store) error {
 	var resolver storage.PlaybackResolver
 	if manager != nil {
 		resolver = integrations.DynamicStorage{Manager: manager}
@@ -245,7 +264,7 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 		defer adapter.Close()
 		resolver = adapter
 	}
-	handler := httpapi.New(c, httpapi.Dependencies{Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger})
+	handler := httpapi.New(c, httpapi.Dependencies{Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore})
 	server := &http.Server{Addr: c.Address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
 	listener, err := net.Listen("tcp", c.Address)
 	if err != nil {

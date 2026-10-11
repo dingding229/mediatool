@@ -38,6 +38,7 @@ type Page struct {
 	Page     int    `json:"page"`
 	PageSize int    `json:"pageSize"`
 	Source   string `json:"source"`
+	ParentID string `json:"parentId,omitempty"`
 }
 type Engine struct {
 	DB          *pgxpool.Pool
@@ -45,7 +46,13 @@ type Engine struct {
 }
 
 func (e Engine) List(ctx context.Context, source, q, kind string, page, size int) (Page, error) {
-	out := Page{Items: []Item{}, Source: source, Page: page, PageSize: size}
+	return e.ListParent(ctx, source, q, kind, "", page, size)
+}
+func (e Engine) ListParent(ctx context.Context, source, q, kind, parent string, page, size int) (Page, error) {
+	if parent != "" && !safeID.MatchString(parent) {
+		return Page{}, ErrInvalid
+	}
+	out := Page{Items: []Item{}, Source: source, Page: page, PageSize: size, ParentID: parent}
 	if len(q) > 200 || page < 1 || page > 10000 || size < 1 || size > 100 || kind != "" && kind != "movie" && kind != "series" {
 		return out, ErrInvalid
 	}
@@ -67,7 +74,7 @@ func (e Engine) List(ctx context.Context, source, q, kind string, page, size int
 			return out, ErrUnavailable
 		}
 		if safePoster.MatchString(poster) {
-			item.Poster = "https://image.tmdb.org/t/p/w342" + poster
+			item.Poster = "/api/v1/media/tmdb/image?path=" + url.QueryEscape(poster)
 		}
 		out.Items = append(out.Items, item)
 	}
@@ -121,6 +128,9 @@ func (e Engine) embyList(ctx context.Context, out Page, q, kind string) (Page, e
 		types = "Series,Episode"
 	}
 	query := url.Values{"Recursive": {"true"}, "IncludeItemTypes": {types}, "Limit": {strconv.Itoa(out.PageSize)}, "StartIndex": {strconv.Itoa((out.Page - 1) * out.PageSize)}, "SearchTerm": {q}, "Fields": {"Overview"}, "SortBy": {"SortName"}, "SortOrder": {"Ascending"}}
+	if out.ParentID != "" {
+		query.Set("ParentId", out.ParentID)
+	}
 	response, err := e.embyRequest(ctx, "/Items", query)
 	if err != nil {
 		return out, err

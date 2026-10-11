@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"media-tool/internal/modules/releasename"
 	"path"
 	"regexp"
 	"strings"
@@ -145,7 +146,8 @@ func FileName(in Input, source File) (string, error) {
 		}
 		extension := path.Ext(source.Name)
 		original := strings.TrimSuffix(source.Name, extension)
-		vars := map[string]string{"original": original, "title": in.Title, "year": in.Year, "ext": extension, "resolution": in.Resolution}
+		hint := releasename.Parse(source.Name)
+		vars := map[string]string{"source": hint.Source, "codec": hint.Codec, "group": hint.Group, "original": original, "title": in.Title, "year": in.Year, "ext": extension, "resolution": in.Resolution}
 		if in.Season < 0 || in.Season > 999 || in.Episode < 0 || in.Episode > 9999 {
 			return "", ErrInvalid
 		}

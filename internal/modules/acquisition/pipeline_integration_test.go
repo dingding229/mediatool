@@ -169,9 +169,17 @@ func TestPostgresPipelineSearchDownloadUploadSTRMAndNotification(t *testing.T) {
 			return
 		}
 		if r.URL.Path == "/Items" {
-			json.NewEncoder(w).Encode(map[string]any{"Items": []map[string]any{{"Id": "owned-library-item", "Path": "/strm/Movies/Owned Film (2026)/Owned.Film.strm", "MediaSources": []map[string]string{{"Id": "owned-source", "Path": "/strm/Movies/Owned Film (2026)/Owned.Film.strm"}}}}})
+			var asset string
+			if err := db.QueryRow(r.Context(), `SELECT asset_id::text FROM strm_entries LIMIT 1`).Scan(&asset); err != nil {
+				t.Error(err)
+				w.WriteHeader(500)
+				return
+			}
+			expected := fmt.Sprintf("/strm/Movies/Owned Film (2026)/Owned Film (2026) [%s].strm", asset[:8])
+			json.NewEncoder(w).Encode(map[string]any{"Items": []map[string]any{{"Id": "owned-library-item", "Path": expected, "MediaSources": []map[string]string{{"Id": "owned-source", "Path": expected}}}}})
 			return
 		}
+
 		w.WriteHeader(404)
 	}))
 	defer emby.Close()

@@ -13,6 +13,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/playbackgrants"
+	"media-tool/internal/modules/releasename"
 )
 
 type Candidate struct {
@@ -171,6 +172,10 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 	if err != nil {
 		return "", err
 	}
+	projections, err = ApplyOutputTemplates(ctx, e.DB, cloudPath, assetID, item, projections)
+	if err != nil {
+		return "", err
+	}
 	intents, err := StageOutputProjections(ctx, journal, tx, rootDir, assetID, item, seasonValue, projections, []byte(link+"\n"), playbackgrants.SecretFreeKeyRef(grantID))
 	if err != nil {
 		return "", err
@@ -222,6 +227,10 @@ func (e Engine) Suggest(ctx context.Context, id string) ([]metadata.Item, error)
 	}
 	query := path.Base(path.Dir(filename))
 	query = regexp.MustCompile(`\([^)]*\)|\[[^]]*\]`).ReplaceAllString(query, "")
+	hint := releasename.Parse(path.Base(filename))
+	if hint.Title != "" && hint.MediaType != "unknown" {
+		query = hint.Title
+	}
 	client, err := e.Connections.TMDB(ctx)
 	if err != nil {
 		return nil, err

@@ -19,10 +19,11 @@ var ErrUnavailable = errors.New("administrator database unavailable")
 var usernamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{2,31}$`)
 
 type Account struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Version  int64  `json:"-"`
-	Hash     string `json:"-"`
+	ID                 string `json:"id"`
+	Username           string `json:"username"`
+	MustChangePassword bool   `json:"mustChangePassword"`
+	Version            int64  `json:"-"`
+	Hash               string `json:"-"`
 }
 type Repository struct{ DB *pgxpool.Pool }
 
@@ -92,7 +93,8 @@ func (r Repository) Authenticate(ctx context.Context, username, password string)
 	}
 	value, formatErr := NormalizeUsername(username)
 	var a Account
-	err := r.DB.QueryRow(ctx, `SELECT id::text,username,password_hash,credential_version FROM administrator_accounts WHERE username=$1`, value).Scan(&a.ID, &a.Username, &a.Hash, &a.Version)
+	var valid bool
+	err := r.DB.QueryRow(ctx, `SELECT id::text,username,password_hash,credential_version,must_change_password,coalesce(temporary_password_expires_at>now(),true) FROM administrator_accounts WHERE username=$1`, value).Scan(&a.ID, &a.Username, &a.Hash, &a.Version, &a.MustChangePassword, &valid)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return Account{}, ErrUnavailable
 	}
@@ -101,7 +103,7 @@ func (r Repository) Authenticate(ctx context.Context, username, password string)
 		encoded = auth.DummyPasswordHash
 	}
 	matches := auth.VerifyPassword(encoded, password)
-	if formatErr != nil || err != nil || !matches {
+	if formatErr != nil || err != nil || !matches || !valid {
 		return Account{}, ErrCredentials
 	}
 	a.Hash = ""
@@ -144,7 +146,7 @@ func (r Repository) Session(ctx context.Context, digest []byte) (Account, error)
 		return Account{}, ErrUnavailable
 	}
 	var a Account
-	err := r.DB.QueryRow(ctx, `SELECT a.id::text,a.username,a.credential_version FROM administrator_sessions s JOIN administrator_accounts a ON a.id=s.account_id WHERE s.token_digest=$1 AND s.revoked_at IS NULL AND s.expires_at>now()AND s.credential_version=a.credential_version`, digest).Scan(&a.ID, &a.Username, &a.Version)
+	err := r.DB.QueryRow(ctx, `SELECT a.id::text,a.username,a.credential_version,a.must_change_password FROM administrator_sessions s JOIN administrator_accounts a ON a.id=s.account_id WHERE s.token_digest=$1 AND s.revoked_at IS NULL AND s.expires_at>now()AND s.credential_version=a.credential_version AND coalesce(a.temporary_password_expires_at>now(),true)`, digest).Scan(&a.ID, &a.Username, &a.Version, &a.MustChangePassword)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, ErrCredentials
 	}
@@ -173,7 +175,7 @@ func (r Repository) ChangePassword(ctx context.Context, a Account, current, next
 		return ErrUnavailable
 	}
 	defer tx.Rollback(ctx)
-	tag, err := tx.Exec(ctx, `UPDATE administrator_accounts SET password_hash=$2,credential_version=credential_version+1,updated_at=now()WHERE id=$1 AND credential_version=$3`, a.ID, hash, a.Version)
+	tag, err := tx.Exec(ctx, `UPDATE administrator_accounts SET password_hash=$2,credential_version=credential_version+1,must_change_password=false,temporary_password_expires_at=NULL,updated_at=now()WHERE id=$1 AND credential_version=$3`, a.ID, hash, a.Version)
 	if err != nil {
 		return ErrUnavailable
 	}

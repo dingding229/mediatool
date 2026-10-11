@@ -41,16 +41,80 @@ func (a *API) saveIntegration(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
 	defer cancel()
 	id := r.PathValue("id")
 	if id == "" {
 		in.Revision = 0
 	}
+	if in.Kind == "local" {
+		fail(w, 400, "automatic_local_root", "本地目录已自动发现，无需添加连接")
+		return
+	}
+	if err := integrations.Validate(in); err != nil {
+		integrationError(w, err)
+		return
+	}
+	values := map[string]string{}
+	if id != "" {
+		old, err := a.Deps.Integrations.Repository.Get(ctx, id)
+		if err != nil {
+			integrationError(w, err)
+			return
+		}
+		if old.Record.Revision != in.Revision {
+			fail(w, 409, "integration_changed", "连接已更新，请刷新")
+			return
+		}
+		if old.Record.Settings["endpoint"] != in.Settings["endpoint"] {
+			for k, v := range old.Values {
+				if v != "" {
+					if _, provided := in.Secrets[k]; !provided {
+						fail(w, 400, "endpoint_credentials_required", "更换地址前必须明确替换或清除旧凭据")
+						return
+					}
+				}
+			}
+		}
+		if in.Kind == "open115" && old.Record.Settings["appId"] != in.Settings["appId"] {
+			old.Values = map[string]string{}
+		}
+		for k, v := range old.Values {
+			values[k] = v
+		}
+	}
+	for k, v := range in.Secrets {
+		if v == "" {
+			delete(values, k)
+		} else {
+			values[k] = v
+		}
+	}
+	draft := !in.Enabled && len(values) == 0 || in.Kind == "open115" && values["accessToken"] == ""
+	var result integrations.CheckResult
+	if !draft {
+		candidate := integrations.Credentials{Record: integrations.Record{ID: id, Kind: in.Kind, Name: in.Name, Settings: in.Settings, Enabled: in.Enabled}, Values: values}
+		var err error
+		result, err = a.Deps.Integrations.ProbeCredentials(ctx, candidate)
+		if err != nil || !result.Passed {
+			fail(w, 400, "connection_validation_failed", "保存前连接验证失败："+result.Message)
+			return
+		}
+	}
 	record, err := a.Deps.Integrations.Repository.Save(ctx, id, in)
 	if err != nil {
 		integrationError(w, err)
 		return
+	}
+	if !draft {
+		if err = a.Deps.Integrations.Repository.RecordCheck(ctx, record.ID, record.Revision, result.State, result.Message); err != nil {
+			fail(w, 503, "validation_record_failed", "配置已保存但验证结果记录失败，请刷新核对")
+			return
+		}
+		current, err := a.Deps.Integrations.Repository.Get(ctx, record.ID)
+		if err == nil {
+			record = current.Record
+		}
 	}
 	status := 200
 	if id == "" {
@@ -99,19 +163,7 @@ func (a *API) metadataSearch(w http.ResponseWriter, r *http.Request) {
 	if !a.integrationReady(w) {
 		return
 	}
-	client, err := a.Deps.Integrations.TMDB(r.Context())
-	if err != nil {
-		fail(w, 503, "tmdb_not_configured", "请在连接管理中配置并启用 TMDB")
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-	defer cancel()
-	items, err := client.Search(ctx, r.URL.Query().Get("mediaType"), r.URL.Query().Get("q"))
-	if err != nil {
-		fail(w, 502, "metadata_search_failed", "媒体查询失败，请检查 TMDB Token、类型和网络")
-		return
-	}
-	write(w, 200, items)
+	a.tmdbMediaSearch(w, r)
 }
 
 func (a *API) metadataEpisodes(w http.ResponseWriter, r *http.Request) {

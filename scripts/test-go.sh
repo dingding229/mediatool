@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+if [[ "${MEDIA_TOOL_TEST_LOCKED:-}" != 1 ]];then exec python3 scripts/test-lock.py "$0" "$@";fi
 # Deliberately replace the normal deployment database BEFORE migrating.
 set -a; source .env; source .env.test; set +a
 export DATABASE_URL="${TEST_DATABASE_URL:?An isolated TEST_DATABASE_URL is required}"

@@ -3,7 +3,7 @@
 import json,os,secrets,subprocess,time
 from pathlib import Path
 root=Path(__file__).resolve().parent.parent
-compose=['docker','compose','--env-file',str(root/'.env'),'-f',str(root/'docker-compose.yml')]
+compose=['docker','compose','-f',str(root/'docker-compose.yml')]
 backup=root/'data/backups'/('media-tool-'+time.strftime('%Y%m%d-%H%M%S')+'.dump')
 backup.parent.mkdir(parents=True,exist_ok=True)
 fd=os.open(backup,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)

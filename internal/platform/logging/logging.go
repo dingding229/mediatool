@@ -28,6 +28,9 @@ func ParseLevel(value string) (slog.Level, error) {
 	}
 }
 func New(out io.Writer, level string, knownSecrets ...string) (*slog.Logger, error) {
+	return NewControlled(out, level, nil, knownSecrets...)
+}
+func NewControlled(out io.Writer, level string, control *slog.LevelVar, knownSecrets ...string) (*slog.Logger, error) {
 	parsed, err := ParseLevel(level)
 	if err != nil {
 		return nil, err
@@ -45,7 +48,12 @@ func New(out io.Writer, level string, knownSecrets ...string) (*slog.Logger, err
 		}
 		return value
 	}
-	return slog.New(slog.NewJSONHandler(out, &slog.HandlerOptions{Level: parsed, ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+	var threshold slog.Leveler = parsed
+	if control != nil {
+		control.Set(parsed)
+		threshold = control
+	}
+	return slog.New(slog.NewJSONHandler(out, &slog.HandlerOptions{Level: threshold, ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 		// The built-in level is a slog.Level (KindAny) with text marshaling.
 		// Preserve this known enum, not arbitrary payload/error objects.
 		if len(groups) == 0 && a.Key == slog.LevelKey {

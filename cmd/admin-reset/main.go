@@ -57,7 +57,7 @@ func run() error {
 	}
 	defer tx.Rollback(ctx)
 	var id string
-	if err = tx.QueryRow(ctx, `UPDATE administrator_accounts SET password_hash=$2,credential_version=credential_version+1,updated_at=now()WHERE username=$1 RETURNING id::text`, name, hash).Scan(&id); err != nil {
+	if err = tx.QueryRow(ctx, `UPDATE administrator_accounts SET password_hash=$2,credential_version=credential_version+1,must_change_password=false,temporary_password_expires_at=NULL,updated_at=now()WHERE username=$1 RETURNING id::text`, name, hash).Scan(&id); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, `UPDATE administrator_sessions SET revoked_at=now()WHERE account_id=$1 AND revoked_at IS NULL`, id); err != nil {
