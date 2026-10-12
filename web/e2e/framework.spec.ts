@@ -1,6 +1,7 @@
 import { test,expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { navigationItems } from '../src/navigation/items'
 const root=resolve(import.meta.dirname,'../..')
 if(process.env.E2E_ISOLATED!=='1'||process.env.E2E_BASE_URL!=='http://localhost:18084')throw new Error('Use bash scripts/test-e2e.sh; account tests must not register an administrator in the business database.')
 const username=process.env.E2E_ADMIN_USERNAME!,password=process.env.E2E_ADMIN_PASSWORD!
@@ -29,6 +30,14 @@ test.afterEach(async({page},info)=>{
  console.info(JSON.stringify(diagnostic))
  await info.attach('isolated-transport-diagnostic',{body:JSON.stringify(diagnostic),contentType:'application/json'})
 })
+async function navigate(page:import('@playwright/test').Page,name:string){
+ const item=navigationItems.find(item=>item.name===name);if(!item)throw new Error('Unknown navigation target: '+name)
+ let menu=page.getByRole('navigation',{name:'功能导航'})
+ if(!await menu.isVisible())await page.getByRole('button',{name:'打开导航',exact:true}).click()
+ const toggle=menu.getByRole('button',{name:item.group,exact:true})
+ if(await toggle.getAttribute('aria-expanded')!=='true')await toggle.click()
+ await menu.getByRole('link',{name,exact:true}).click()
+}
 async function login(page:import('@playwright/test').Page){
  await page.goto('/login')
  await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible()
@@ -66,18 +75,18 @@ test('login, honest dependency states, module navigation and logout',async({page
  await expect(page.getByText('数据库连接可用',{exact:true})).toBeVisible()
  await expect(page.getByText('请填写地址和接入凭据',{exact:false})).toBeVisible()
  mkdirSync(screenshots,{recursive:true});await page.screenshot({path:resolve(screenshots,'dashboard-desktop.png'),fullPage:true})
- await page.getByRole('link',{name:'系统设置',exact:true}).click()
+ await navigate(page,'系统设置')
  await expect(page.getByRole('heading',{name:'媒体命名与搜索缓存',exact:true})).toBeVisible()
  await expect(page.getByRole('button',{name:'验证 CloudDrive2',exact:true})).toHaveCount(0)
  await expect(page.getByRole('button',{name:'验证 Emby',exact:true})).toHaveCount(0)
- await page.getByRole('link',{name:'PT 站点',exact:true}).click()
+ await navigate(page,'PT 站点')
  await expect(page.getByRole('heading',{name:'PT 站点配置'})).toBeVisible()
  await page.getByRole('button',{name:'退出',exact:true}).click()
  await expect(page.getByRole('heading',{name:'进入管理工作台'})).toBeVisible()
  expect(errors).toEqual([])
 })
 test('STRM preview encodes cloud path and download has one stable URL',async({page})=>{
- await login(page);await page.getByRole('link',{name:'STRM 管理',exact:true}).click()
+ await login(page);await navigate(page,'STRM 管理')
  const path='/115/Media/电影/幽灵公主 (1997)/电影 & 特别版#1.mkv'
  await page.getByLabel('CloudDrive2 完整路径',{exact:false}).fill(path)
  await page.getByRole('button',{name:'生成固定链接'}).click()
@@ -100,7 +109,7 @@ test('STRM preview encodes cloud path and download has one stable URL',async({pa
  await expect(page.getByText('path traversal is not allowed')).toBeVisible()
 })
 test('persistent queue runs system check with live isolated worker',async({page})=>{
- await login(page);await page.getByRole('link',{name:'任务队列',exact:true}).click()
+ await login(page);await navigate(page,'任务队列')
  await page.getByRole('button',{name:'运行系统检查'}).click()
  await expect(page.getByText('系统检查已加入持久化队列',{exact:true})).toBeVisible()
  try{await expect(page.getByText('已完成',{exact:true}).first()).toBeVisible({timeout:15000})}catch(error){
@@ -114,7 +123,7 @@ test('mobile menu, reduced motion and layout at 375px/landscape',async({page})=>
  await page.setViewportSize({width:375,height:812});await page.emulateMedia({reducedMotion:'reduce'});await login(page)
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  await page.getByRole('button',{name:'打开导航'}).click()
- await page.getByRole('link',{name:'STRM 管理',exact:true}).click()
+ await navigate(page,'STRM 管理')
  await expect(page.getByRole('heading',{name:'STRM 固定链接'})).toBeVisible()
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  await page.screenshot({path:resolve(screenshots,'strm-mobile.png'),fullPage:true})
@@ -147,14 +156,14 @@ test('saved connections are editable, redacted, and can be deleted',async({page}
 })
 
 test('subscriptions and scanner pages expose real configuration gates',async({page})=>{
- await login(page);await page.getByRole('link',{name:'资源订阅',exact:true}).click()
+ await login(page);await navigate(page,'资源订阅')
  await expect(page.getByRole('heading',{name:'资源订阅',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'创建订阅',exact:true}).click()
  await expect(page.getByRole('button',{name:'保存订阅',exact:true})).toBeDisabled()
  await expect(page.getByText('保存后启用自动下载',{exact:true})).toBeVisible()
  await page.keyboard.press('Escape')
  await expect(page.getByRole('button',{name:'保存订阅',exact:true})).not.toBeVisible()
- await page.getByRole('link',{name:'云盘索引',exact:true}).click()
+ await navigate(page,'云盘索引')
  await expect(page.getByRole('heading',{name:/^已入库文件/})).toBeVisible()
  await page.getByRole('button',{name:'开始扫描',exact:true}).click()
  await expect(page.getByText('configure a primary CloudDrive2 connection',{exact:true})).toBeVisible()
@@ -171,7 +180,7 @@ test('logout revokes a previously captured signed cookie',async({page,request})=
 
 test('scan schedule dialog is default-off and pagination requests are bounded',async({page})=>{
  await page.emulateMedia({reducedMotion:'reduce'});await login(page);const response=page.waitForResponse(r=>r.url().includes('/library/candidates?page=1&pageSize=50'))
- await page.getByRole('link',{name:'云盘索引',exact:true}).click();expect((await response).status()).toBe(200)
+ await navigate(page,'云盘索引');expect((await response).status()).toBe(200)
  await page.getByRole('button',{name:'新增定时扫描'}).click();const dialog=page.getByRole('dialog');await expect(dialog.getByRole('switch',{name:'启用定时扫描'})).not.toBeChecked();await expect(dialog.getByRole('switch',{name:'启用CloudDrive2文件变化推送'})).not.toBeChecked()
  await dialog.getByRole('button',{name:'保存定时扫描'}).click();await expect(page.getByText('请先在服务连接中配置并启用 CloudDrive2',{exact:true})).toBeVisible()
  await dialog.getByRole('button',{name:'取消',exact:true}).click();await expect(dialog).not.toBeVisible();await page.screenshot({path:resolve(screenshots,'library-desktop.png'),fullPage:true});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
@@ -180,13 +189,13 @@ test('scan schedule dialog is default-off and pagination requests are bounded',a
 
 test('wrong credentials are rejected and password change revokes captured sessions',async({page,request})=>{
  const wrong=await request.post('/api/v1/auth/login',{headers:{'X-Requested-With':'media-tool'},data:{username,password:'Wrong-strong-password-2026'}});expect(wrong.status()).toBe(401)
- await login(page);const captured=(await page.context().cookies()).find(c=>c.name==='media_tool_session')!;await page.getByRole('link',{name:'系统设置',exact:true}).click()
+ await login(page);const captured=(await page.context().cookies()).find(c=>c.name==='media_tool_session')!;await navigate(page,'系统设置')
  const next=password+'-new';await page.getByLabel('当前密码',{exact:true}).fill(password);await page.getByLabel('新密码',{exact:true}).fill(next);await page.getByLabel('确认新密码',{exact:true}).fill(next);await page.getByRole('button',{name:'修改密码并重新登录'}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible()
  const replay=await request.get('/api/v1/auth/session',{headers:{Cookie:'media_tool_session='+captured.value}});expect(replay.status()).toBe(401)
  const old=await request.post('/api/v1/auth/login',{headers:{'X-Requested-With':'media-tool'},data:{username,password}});expect(old.status()).toBe(401)
  await page.getByLabel('管理员账号',{exact:true}).fill(username);await page.getByLabel('密码',{exact:true}).fill(next);await page.getByRole('button',{name:'进入工作台',exact:true}).click();await expect(page.getByRole('heading',{name:'媒体链路总览'})).toBeVisible()
  // Restore only the synthetic test account, never a user's administrator.
- await page.getByRole('link',{name:'系统设置',exact:true}).click();await page.getByLabel('当前密码',{exact:true}).fill(next);await page.getByLabel('新密码',{exact:true}).fill(password);await page.getByLabel('确认新密码',{exact:true}).fill(password);await page.getByRole('button',{name:'修改密码并重新登录'}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible()
+ await navigate(page,'系统设置');await page.getByLabel('当前密码',{exact:true}).fill(next);await page.getByLabel('新密码',{exact:true}).fill(password);await page.getByLabel('确认新密码',{exact:true}).fill(password);await page.getByRole('button',{name:'修改密码并重新登录'}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible()
 })
 
 test('account login form is accessible on mobile and needs no deployment key',async({page})=>{
@@ -235,7 +244,7 @@ test('site snapshot recovery keeps the exact commit, license gate and validation
  const payloads:Array<{ids:string[];sourceCommit?:string;licenseAccepted:boolean}>=[]
  await page.route('**/api/v1/sites/definitions',route=>route.fulfill({json:{data:[{id:'owned_snapshot',name:'自有快照样本',schema:'NexusPHP',sourceCommit:commit,compatibility:{state:'partial',notes:['原条件优先级缺失，需要同快照重新导入（fixture）'],accountVerified:false}}]}}))
  await page.route('**/api/v1/sites/definitions/import',async route=>{payloads.push(route.request().postDataJSON());await route.fulfill({json:{data:[]}})})
- await fixtureLogin(page);await page.getByRole('link',{name:'PT 站点',exact:true}).click()
+ await fixtureLogin(page);await navigate(page,'PT 站点')
  await expect(page.getByRole('heading',{name:'PT 站点配置'})).toBeVisible()
  const restore=page.getByRole('button',{name:'按此快照重新导入',exact:true})
  await expect(restore).toBeDisabled()
@@ -304,7 +313,7 @@ test('output identity migration needs read-only preview and explicit archive con
  await page.route('**/api/v1/metadata/search?*',route=>route.fulfill({json:{data:[{id:10,mediaType:'movie',title:'自有新电影',year:'2026'}]}}))
  await page.route(`**/api/v1/media/assets/${asset}/identity-preview`,route=>route.fulfill({json:{data:preview}}))
  await page.route(`**/api/v1/media/assets/${asset}/identity`,async route=>{applied.push(route.request().postDataJSON());await route.fulfill({json:{data:{corrected:true}}})})
- await fixtureLogin(page);await page.getByRole('link',{name:'云盘索引',exact:true}).click()
+ await fixtureLogin(page);await navigate(page,'云盘索引')
  const row=page.getByRole('row').filter({hasText:'自有电影'})
  await row.getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
  const dialog=page.getByRole('dialog')
@@ -342,7 +351,7 @@ test('episode metadata preview is read-only, explicit and cleared when season co
  await page.route('**/api/v1/metadata/search?*',route=>route.fulfill({json:{data:[{id:99,mediaType:'series',title:'自有剧集',year:'2025'}]}}))
  await page.route('**/api/v1/metadata/episodes?*',async route=>{previewQueries.push(route.request().url());await route.fulfill({json:{data:[{id:991,seriesId:99,season:1,number:1,title:'自有单集第一集',overview:'单集简介样本',airDate:'2026-01-01',runtimeMinutes:25},{id:993,seriesId:99,season:1,number:3,title:'自有单集第三集',overview:'第三集简介样本'}]}})})
  await page.route(`**/api/v1/media/assets/${asset}/identity`,async route=>{writes++;await route.fulfill({json:{data:{corrected:true}}})})
- await fixtureLogin(page);await page.getByRole('link',{name:'云盘索引',exact:true}).click()
+ await fixtureLogin(page);await navigate(page,'云盘索引')
  await page.getByRole('row').filter({hasText:'自有剧集'}).getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
  const dialog=page.getByRole('dialog')
  await dialog.getByRole('button',{name:'查询TMDB'}).click()
@@ -370,7 +379,7 @@ test('expired archive cleanup is preview-only until typed explicit confirmation 
  await page.route('**/api/v1/library/archives?page=*',route=>route.fulfill({json:{data:{items:[entry],total:1,page:1,pageSize:50}}}))
  await page.route('**/api/v1/library/archives/cleanup-preview',route=>route.fulfill({json:{data:{planDigest:'b'.repeat(64),policy:{retentionDays:30,revision:1,automaticCleanup:false},items:[entry],sourceFilesUntouched:true,physicalDeletion:true}}}))
  await page.route('**/api/v1/library/archives/cleanup-confirm',async route=>{confirmations.push(route.request().postDataJSON());entry.state='removed';entry.deletedAt='2026-10-10T00:00:00Z';await route.fulfill({json:{data:[{id:'owned-cleanup',archiveId:archive,state:'removed',message:''}]}})})
- await fixtureLogin(page);await page.getByRole('link',{name:'云盘索引',exact:true}).click()
+ await fixtureLogin(page);await navigate(page,'云盘索引')
  await expect(page.getByRole('heading',{name:'旧输出归档',exact:false})).toBeVisible()
  const row=page.getByRole('row').filter({hasText:'旧输出.strm'})
  // Element Plus hides native selection checkbox: click its visible label.
@@ -403,7 +412,7 @@ test('unknown archive response retains its request and needs explicit reconcilia
  await page.route('**/api/v1/library/archives/cleanup-preview',route=>route.fulfill({json:{data:{planDigest:'c'.repeat(64),policy:{retentionDays:30,revision:1,automaticCleanup:false},items:[entry],sourceFilesUntouched:true,physicalDeletion:true}}}))
  await page.route('**/api/v1/library/archives/cleanup-confirm',async route=>{confirmations.push(route.request().postDataJSON());await route.fulfill({json:{data:confirmations.length===1?[]:[{id:'owned-cleanup',archiveId:archive,state:'conflict',message:'needs manual recovery'}]}})})
  await page.route('**/api/v1/library/archive-cleanups/*',route=>route.fulfill({json:{data:[]}}))
- await fixtureLogin(page);await page.getByRole('link',{name:'云盘索引',exact:true}).click()
+ await fixtureLogin(page);await navigate(page,'云盘索引')
  await page.getByRole('row').filter({hasText:'待核对.strm'}).locator('.el-checkbox').click()
  await page.getByRole('button',{name:'预览清理所选 1',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'确认物理清理归档',exact:true})
@@ -432,7 +441,7 @@ test('sparse episode migration previews explicit aliases and whole-file playback
  await page.route('**/api/v1/metadata/search?*',route=>route.fulfill({json:{data:[{id:99,mediaType:'series',title:'自有剧集',year:'2025'}]}}))
  await page.route(`**/api/v1/media/assets/${asset}/identity-preview`,route=>route.fulfill({json:{data:preview}}))
  await page.route(`**/api/v1/media/assets/${asset}/identity`,async route=>{applied.push(route.request().postDataJSON());await route.fulfill({json:{data:{corrected:true}}})})
- await fixtureLogin(page);await page.getByRole('link',{name:'云盘索引',exact:true}).click()
+ await fixtureLogin(page);await navigate(page,'云盘索引')
  await page.getByRole('row').filter({hasText:'自有非连续合集'}).getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'修正媒体身份与季集',exact:true})
  await dialog.getByRole('button',{name:'查询TMDB'}).click();await dialog.getByRole('row').filter({hasText:'自有剧集'}).click()
@@ -459,7 +468,7 @@ test('blocked legacy imports require read-only review before import-only approva
  await page.route('**/api/v1/transfers',route=>route.fulfill({json:{data:[{id:transfer,assetId:asset,taskId:'owned-task',destination:'/115/Owned.S01E01E03.mkv',state:'needs_output_reconciliation',phase:'output_layout',bytes:5,total:5,message:'需明确核对输出布局',controlRevision:1}]}}))
  await page.route(`**/api/v1/transfers/${transfer}/output-preview`,route=>route.fulfill({json:{data:{transferId:transfer,assetId:asset,controlRevision:1,assetRevision:migrated?2:1,state:'needs_output_reconciliation',existingPaths:migrated?['TV/Owned/S01E01.strm','TV/Owned/S01E03.strm']:['TV/Owned/S01E01E03.strm'],expectedPaths:['TV/Owned/S01E01.strm','TV/Owned/S01E03.strm'],needsMigration:!migrated,needsArtifactRecovery:false,ready:migrated,planDigest:migrated?'e'.repeat(64):'',message:migrated?'现有输出布局一致，可恢复入库':'旧布局会补出未声明集号，先明确迁移',noUploadRecreation:true,sourceFilesPreserved:true}}}))
  await page.route(`**/api/v1/transfers/${transfer}/resume-import`,async route=>{approvals.push(route.request().postDataJSON());await route.fulfill({json:{data:{approved:true,uploadRestarted:false}}})})
- await fixtureLogin(page);await page.getByRole('link',{name:'下载与传输',exact:true}).click()
+ await fixtureLogin(page);await navigate(page,'下载与传输')
  const row=page.getByRole('row').filter({hasText:'Owned.S01E01E03.mkv'})
  await expect(row.getByRole('button',{name:'恢复',exact:true})).toHaveCount(0)
  await row.getByRole('button',{name:'核对入库恢复',exact:true}).click()
@@ -791,7 +800,7 @@ test('mobile navigation traps focus, closes with Escape and restores its trigger
  await page.screenshot({path:resolve(screenshots,'ui-navigation-mobile.png'),animations:'disabled'})
  await page.keyboard.press('Escape');await expect(drawer).toBeHidden();await expect(trigger).toBeFocused()
  await page.keyboard.press('Control+k');await expect(page.getByRole('dialog',{name:'快速前往',exact:true})).toBeVisible();await page.keyboard.press('Escape')
- await trigger.click();await drawer.getByRole('link',{name:'程序日志',exact:true}).click();await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible();await expect(drawer).toBeHidden()
+ await trigger.click();await drawer.getByRole('button',{name:'系统运维',exact:true}).click();await drawer.getByRole('link',{name:'程序日志',exact:true}).click();await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible();await expect(drawer).toBeHidden()
 })
 
 test('TMDB errors and empty results are visible in media search (UI fixture)',async({page})=>{
@@ -824,4 +833,37 @@ test('media-library refresh targets home and configuration deep links keep their
  await page.goto('/mediaLibrary?connectionKind=emby');await expect(page.getByRole('heading',{name:'Emby媒体库连接',exact:true})).toBeVisible()
  await expect(page.getByRole('button',{name:'Emby 配置',exact:true})).toHaveAttribute('aria-pressed','true')
  await expect(page.getByRole('heading',{name:/^我的媒体库/})).toHaveCount(0)
+})
+
+
+test('sidebar groups start collapsed and support keyboard disclosure without auto-opening routes',async({page})=>{
+ await fixtureLogin(page);const nav=page.getByRole('navigation',{name:'功能导航'})
+ for(const name of ['媒体浏览','资源获取','文件与入库','系统运维'])await expect(nav.getByRole('button',{name,exact:true})).toHaveAttribute('aria-expanded','false')
+ await expect(nav.getByRole('link')).toHaveCount(0)
+ const browse=nav.getByRole('button',{name:'媒体浏览',exact:true});await expect(browse).toHaveClass(/has-current/)
+ await browse.focus();await page.keyboard.press('Enter');await expect(browse).toHaveAttribute('aria-expanded','true');await expect(nav.getByRole('link',{name:'媒体库',exact:true})).toBeVisible()
+ await page.keyboard.press('Tab');await expect(nav.getByRole('link',{name:'总览',exact:true})).toBeFocused()
+ await browse.focus();await page.keyboard.press('Space');await expect(browse).toHaveAttribute('aria-expanded','false');await expect(nav.getByRole('link')).toHaveCount(0)
+ await page.keyboard.press('Tab');await expect(nav.getByRole('button',{name:'资源获取',exact:true})).toBeFocused()
+ await navigate(page,'程序日志');await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible()
+ const operate=nav.getByRole('button',{name:'系统运维',exact:true});await expect(operate).toHaveAttribute('aria-expanded','true');await operate.click()
+ await expect(operate).toHaveClass(/has-current/);await expect(nav.getByRole('link')).toHaveCount(0)
+ await page.reload();await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible()
+ for(const name of ['媒体浏览','资源获取','文件与入库','系统运维'])await expect(nav.getByRole('button',{name,exact:true})).toHaveAttribute('aria-expanded','false')
+ await page.screenshot({path:resolve(screenshots,'navigation-collapsed-desktop.png'),animations:'disabled'})
+})
+
+test('desktop and mobile share disclosure state with unique controlled panels',async({page})=>{
+ await fixtureLogin(page);const desktop=page.getByRole('complementary',{name:'主导航'})
+ await desktop.getByRole('button',{name:'媒体浏览',exact:true}).click();await desktop.getByRole('button',{name:'文件与入库',exact:true}).click()
+ await page.setViewportSize({width:375,height:812});await page.getByRole('button',{name:'打开导航',exact:true}).click()
+ const drawer=page.getByRole('dialog',{name:'主导航',exact:true});await expect(drawer.getByRole('button',{name:'媒体浏览',exact:true})).toHaveAttribute('aria-expanded','true')
+ const organize=drawer.getByRole('button',{name:'文件与入库',exact:true});await expect(organize).toHaveAttribute('aria-expanded','true')
+ const target=await organize.getAttribute('aria-controls');expect(target).toBeTruthy();expect(await page.locator(`[id="${target}"]`).count()).toBe(1)
+ await organize.click();await expect(drawer.getByRole('link',{name:'文件管理',exact:true})).toHaveCount(0)
+ await page.screenshot({path:resolve(screenshots,'navigation-dropdown-mobile.png'),animations:'disabled'})
+ await page.keyboard.press('Escape');await page.setViewportSize({width:1440,height:1000})
+ await expect(desktop.getByRole('button',{name:'文件与入库',exact:true})).toHaveAttribute('aria-expanded','false')
+ await expect(desktop.getByRole('button',{name:'媒体浏览',exact:true})).toHaveAttribute('aria-expanded','true')
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
 })

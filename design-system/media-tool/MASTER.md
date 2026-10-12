@@ -47,6 +47,12 @@ Base 16px; operational body 13–14px; secondary metadata 11–12px. Page headin
 
 All existing routes and ownership rules remain. One canonical navigation model
 powers the desktop menu, mobile drawer, page location and quick navigation.
+Sidebar groups are native-button disclosures, initially **all collapsed**, with
+unique controlled panel IDs. Their temporary state is shared across desktop and
+mobile; navigating keeps the state, reloading clears it. The current group is
+marked but is **never automatically expanded**. Hidden children are removed from
+keyboard order and the accessibility tree.
+
 Quick navigation is **not media search**: name/keyword filtering only, Ctrl/⌘ K,
 arrow selection, Enter navigation, Escape dismissal and explicit empty results.
 

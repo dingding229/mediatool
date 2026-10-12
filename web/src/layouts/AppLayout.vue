@@ -9,6 +9,7 @@ import NavigationMenu from '../components/NavigationMenu.vue'
 import QuickNavigator from '../components/QuickNavigator.vue'
 const route = useRoute(), router = useRouter(), auth = useAuthStore(), system = useSystemStore()
 const menuOpen = ref(false), navigatorOpen = ref(false), main = ref<HTMLElement>()
+const expandedGroups = ref<string[]>([])
 const current = computed(() => navigationLocation(route.path))
 let mobile: MediaQueryList | undefined
 function onResize() { if (!mobile?.matches) menuOpen.value = false }
@@ -29,11 +30,11 @@ async function logout() { await auth.logout(); await router.push('/login') }
     <a href="#main-content" class="skip-link">跳到主要内容</a>
     <aside class="sidebar" aria-label="主导航">
       <RouterLink to="/dashboard" class="brand"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span><span>Media Tool<small>你的媒体自动化工作台</small></span></RouterLink>
-      <NavigationMenu />
+      <NavigationMenu v-model:expanded="expandedGroups" />
       <div class="sidebar-note"><span class="sidebar-system-dot" aria-hidden="true"></span><span>媒体自动化<span class="build-label">{{ system.status?.version ?? '读取版本中' }}</span></span></div>
     </aside>
     <el-drawer v-model="menuOpen" direction="ltr" size="280px" title="主导航" class="navigation-drawer" :close-on-click-modal="true">
-      <NavigationMenu @navigate="menuOpen=false" />
+      <NavigationMenu v-model:expanded="expandedGroups" @navigate="menuOpen=false" />
     </el-drawer>
     <div class="main-shell">
       <header class="topbar">
