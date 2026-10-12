@@ -52,7 +52,7 @@ func TestSandboxRequiresEntrypointAndBoundsMemoryAndTime(t *testing.T) {
 	bounded, cancel := context.WithTimeout(ctx, 40*time.Millisecond)
 	defer cancel()
 	start := time.Now()
-	_, e := executeWASM(bounded, loop, settingsManifest(t), Event{Kind: "plugin.test"}, nil, nil)
+	_, e := executeWASM(bounded, loop, Manifest{ID: "owned-loop", Runtime: "wasm"}, Event{Kind: "plugin.test"}, nil, nil)
 	if e == nil || time.Since(start) > time.Second || !errors.Is(bounded.Err(), context.DeadlineExceeded) {
 		t.Fatal("loop not interrupted", e, time.Since(start))
 	}
