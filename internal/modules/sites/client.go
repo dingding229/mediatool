@@ -237,7 +237,7 @@ func (c Client) callWithTarget(ctx context.Context, rule Map, vars map[string]st
 	return raw, parser, nil
 }
 func (c Client) vars(keyword string, page int) map[string]string {
-	return map[string]string{"keyword": keyword, "page": text(page), "userId": c.Account.UserID, "passkey": c.Account.Passkey}
+	return map[string]string{"domain": c.Config.Domain, "api": c.Config.API, "keyword": keyword, "page": text(page), "userId": c.Account.UserID, "passkey": c.Account.Passkey}
 }
 func (c Client) Test(ctx context.Context) error {
 	rule := c.Config.Requests["user_basic_info"]

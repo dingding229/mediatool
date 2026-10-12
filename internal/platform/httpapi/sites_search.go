@@ -100,9 +100,49 @@ func (a *API) getSearch(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "search_unavailable", "请先连接数据库")
 		return
 	}
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	run, err := engine.Get(r.Context(), r.PathValue("id"), page, limit)
+	q := r.URL.Query()
+	page, limit := 1, 50
+	for key, target := range map[string]*int{"page": &page, "limit": &limit} {
+		if raw := q.Get(key); raw != "" {
+			n, err := strconv.Atoi(raw)
+			if err != nil || n < 1 {
+				fail(w, 400, "invalid_filters", "分页参数无效")
+				return
+			}
+			*target = n
+		}
+	}
+	if raw := q.Get("freeOnly"); raw != "" && raw != "true" && raw != "false" {
+		fail(w, 400, "invalid_filters", "免费筛选参数无效")
+		return
+	}
+
+	f := search.Filter{Resolution: q.Get("resolution"), Source: q.Get("source"), Codec: q.Get("codec"), AccountID: q.Get("accountId"), FreeOnly: q.Get("freeOnly") == "true"}
+	for key, target := range map[string]*int64{"minSize": &f.MinSize, "maxSize": &f.MaxSize} {
+		if raw := q.Get(key); raw != "" {
+			n, e := strconv.ParseInt(raw, 10, 64)
+			if e != nil {
+				fail(w, 400, "invalid_filters", "文件大小筛选无效")
+				return
+			}
+			*target = n
+		}
+	}
+	if raw := q.Get("minSeeders"); raw != "" {
+		n, e := strconv.Atoi(raw)
+		if e != nil {
+			fail(w, 400, "invalid_filters", "做种人数筛选无效")
+			return
+		}
+		f.MinSeeders = n
+	}
+	if f.Validate() != nil || page < 1 || page > 10000 || limit < 1 || limit > 200 {
+		fail(w, 400, "invalid_filters", "筛选或分页参数无效")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	run, err := engine.GetFiltered(ctx, r.PathValue("id"), page, limit, f)
 	if err != nil {
 		if errors.Is(err, search.ErrSnapshotUnavailable) {
 			fail(w, 409, "search_refresh_required", err.Error())

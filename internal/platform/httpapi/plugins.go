@@ -4,11 +4,19 @@ import (
 	"context"
 	"media-tool/internal/modules/plugins"
 	"net/http"
+	"strconv"
 	"time"
 )
 
+func (a *API) pluginRegistry() plugins.Registry {
+	r := plugins.Registry{DB: a.Deps.DB}
+	if a.Deps.Integrations != nil {
+		r.Vault = a.Deps.Integrations.Repository.Vault
+	}
+	return r
+}
 func (a *API) pluginList(w http.ResponseWriter, r *http.Request) {
-	items, err := (plugins.Registry{DB: a.Deps.DB}).List(r.Context())
+	items, err := (a.pluginRegistry()).List(r.Context())
 	if err != nil {
 		fail(w, 503, "plugins_unavailable", "扩展列表不可用")
 		return
@@ -25,7 +33,7 @@ func (a *API) pluginSave(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	if err := (plugins.Registry{DB: a.Deps.DB}).Save(r.Context(), in.Manifest, in.Enabled, in.Consent, in.Revision); err != nil {
+	if err := (a.pluginRegistry()).Save(r.Context(), in.Manifest, in.Enabled, in.Consent, in.Revision); err != nil {
 		fail(w, 400, "invalid_plugin", "Manifest无效、修订已变化或未明确授权数据传输；新插件必须停用导入")
 		return
 	}
@@ -33,7 +41,16 @@ func (a *API) pluginSave(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]bool{"saved": true})
 }
 func (a *API) pluginDelete(w http.ResponseWriter, r *http.Request) {
-	if err := (plugins.Registry{DB: a.Deps.DB}).Delete(r.Context(), r.PathValue("id")); err != nil {
+	if r.URL.Query().Get("confirm") != "true" {
+		fail(w, 400, "plugin_confirmation_required", "请明确确认卸载插件及设置/执行记录")
+		return
+	}
+	revision, e := strconv.ParseInt(r.URL.Query().Get("revision"), 10, 64)
+	if e != nil {
+		fail(w, 400, "invalid_revision", "请刷新插件修订再卸载")
+		return
+	}
+	if err := (a.pluginRegistry()).DeleteRevision(r.Context(), r.PathValue("id"), revision); err != nil {
 		fail(w, 400, "invalid_plugin", "内置插件不可删除，ID无效或删除未确认")
 		return
 	}

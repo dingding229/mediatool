@@ -199,7 +199,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 	if manager != nil {
 		engine := search.Engine{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc}
 		w.Handlers["search.run"] = engine.Process
-		w.Handlers["plugin.dispatch"] = (plugins.Registry{DB: db}).Process
+		w.Handlers["plugin.dispatch"] = (plugins.Registry{DB: db, Vault: manager.Repository.Vault}).Process
 		subscriptionEngine := subscriptions.Engine{DB: db, Connections: manager}
 		w.Handlers["subscription.evaluate"] = subscriptionEngine.Process
 		libraryEngine := library.Engine{DB: db, Connections: manager}

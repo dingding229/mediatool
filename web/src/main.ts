@@ -4,6 +4,7 @@ import { ElAlert, ElButton, ElInput, ElSkeleton, ElTable, ElTableColumn,ElDialog
 import { ElLoading } from 'element-plus'
 import 'element-plus/dist/index.css'
 import './style.css'
+import {initializePWA} from './pwa/install'
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
@@ -12,3 +13,4 @@ for (const [name,component] of Object.entries({ElAlert,ElButton,ElInput,ElSkelet
 window.addEventListener('media-tool:session-expired',()=>{const auth=useAuthStore();auth.authenticated=false;auth.checked=true;router.replace('/login')})
 app.directive('loading', ElLoading.directive)
 app.mount('#app')
+initializePWA()

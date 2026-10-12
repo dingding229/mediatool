@@ -764,7 +764,7 @@ test('TMDB and site-direct search have distinct cache controls (fixture)',async(
 
 test('automatic roots, 0day hints, history and safe plugin manifests',async({page})=>{
  await login(page);await page.goto('/files');await expect(page.getByText(/本地目录/).first()).toBeVisible();const parsed=await page.request.post('/api/v1/media/recognize-name',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned.Show.2026.S01E03.1080p.WEB-DL.x265-TEAM.mkv'}});expect(parsed.status()).toBe(200);expect((await parsed.json()).data.hint).toMatchObject({title:'Owned Show',year:'2026',mediaType:'series',season:1,episode:3})
- await page.goto('/organize-history');await expect(page.getByRole('heading',{name:'媒体整理历史',exact:true})).toBeVisible();await page.goto('/plugins');await expect(page.getByRole('heading',{name:'0day 文件名识别',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'电影与剧集命名模板',exact:true})).toBeVisible();await page.getByLabel('插件Manifest',{exact:true}).fill(JSON.stringify({id:'owned-plugin',name:'自有扩展样本',version:'1',contractVersion:1,endpoint:'http://127.0.0.1/hook',capabilities:['media.organized']}));await page.getByRole('button',{name:'导入为停用插件',exact:true}).click();await expect(page.getByText(/Manifest无效/)).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-plugins-desktop.png'),animations:'disabled'})
+ await page.goto('/organize-history');await expect(page.getByRole('heading',{name:'媒体整理历史',exact:true})).toBeVisible();await page.goto('/plugins');await expect(page.getByRole('heading',{name:'0day 文件名识别',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'电影与剧集命名模板',exact:true})).toBeVisible();await page.getByText('兼容入口：导入扩展 Manifest',{exact:true}).click();await page.getByLabel('插件Manifest',{exact:true}).fill(JSON.stringify({id:'owned-plugin',name:'自有扩展样本',version:'1',contractVersion:1,endpoint:'http://127.0.0.1/hook',capabilities:['media.organized']}));await page.getByRole('button',{name:'导入为停用插件',exact:true}).click();await expect(page.getByText(/Manifest无效/)).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-plugins-desktop.png'),animations:'disabled'})
 })
 
 test('temporary-password sessions are routed to compulsory reset without web recovery (fixture)',async({page})=>{
@@ -897,4 +897,60 @@ test('log query failures are visible and do not present stale content as current
  await page.route('**/api/v1/logs/query?*',route=>route.fulfill(failed?{status:503,json:{error:{code:'logs_unavailable',message:'自有日志读取失败'}}}:{json:{data:{items:[{time:'2026-10-12T07:00:00+08:00',level:'INFO',msg:'自有旧快照'}],total:1,modules:['app'],before:'2026-10-12T00:00:00Z',truncated:false,page:1,pageSize:100}}}))
  await page.goto('/logs');await expect(page.getByText('自有旧快照',{exact:true})).toBeVisible();failed=true;await page.getByRole('button',{name:'刷新日志',exact:true}).click()
  await expect(page.getByText('自有日志读取失败',{exact:true})).toBeVisible();await expect(page.getByText('自有旧快照',{exact:true})).toHaveCount(0)
+})
+
+test('ZIP plugins install, configure encrypted fields, explicitly run, record and uninstall (isolated)',async({page})=>{
+ await fixtureLogin(page);await page.goto('/plugins')
+ await page.getByLabel('选择ZIP插件包',{exact:true}).setInputFiles(resolve(root,'examples/plugins/filename-rules.zip'))
+ await page.getByRole('button',{name:'预览插件包',exact:true}).click()
+ const preview=page.getByRole('dialog',{name:'插件包安装预览',exact:true});await expect(preview).toBeVisible()
+ await preview.getByRole('button',{name:'确认安装或升级',exact:true}).click()
+ const card=page.locator('.plugin-grid article').filter({has:page.getByRole('heading',{name:'示例文件名规则',exact:true})})
+ await expect(card).toBeVisible();await expect(card.getByRole('button',{name:'测试',exact:true})).toBeDisabled()
+ await card.getByRole('button',{name:'设置',exact:true}).click()
+ await page.getByLabel('标题前缀',{exact:true}).fill('Owned ')
+ await page.getByLabel('插件自己的测试密钥',{exact:true}).fill('owned-secret-e2e-only')
+ await page.getByRole('button',{name:'保存插件设置',exact:true}).click()
+ const config=await page.request.get('/api/v1/plugins/example-filename-rules/settings');expect(config.status()).toBe(200);const data=(await config.json()).data;expect(data.secretFields).toContain('apiKey');expect(JSON.stringify(data)).not.toContain('owned-secret-e2e-only')
+ await card.getByRole('button',{name:'授权并启用',exact:true}).click()
+ await page.getByRole('dialog',{name:'启用插件',exact:true}).getByRole('button',{name:'授权并启用',exact:true}).click()
+ await expect(card.getByRole('button',{name:'测试',exact:true})).toBeEnabled();await card.getByRole('button',{name:'测试',exact:true}).click()
+ await page.getByLabel('测试文件名',{exact:true}).fill('Example.Show.2026.S01E03.mkv');await page.getByRole('button',{name:'执行测试',exact:true}).click();await page.getByRole('dialog',{name:'测试插件',exact:true}).getByRole('button',{name:'确认测试',exact:true}).click()
+ const testDialog=page.getByRole('dialog',{name:'测试插件（不修改媒体）',exact:true});await expect(testDialog.locator('pre')).toContainText('Owned Show');await expect(testDialog.locator('pre')).toContainText('"mediaModified": false')
+ await page.screenshot({path:resolve(screenshots,'zip-plugin-test.png'),animations:'disabled'});await testDialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
+ await card.getByRole('button',{name:'记录',exact:true}).click();const history=page.getByRole('dialog',{name:'插件最近执行记录',exact:true});await expect(history).toContainText('succeeded');await history.getByRole('button',{name:'关闭此对话框',exact:true}).click()
+ await card.getByRole('button',{name:'卸载',exact:true}).click();await page.getByRole('dialog',{name:'卸载插件',exact:true}).getByRole('button',{name:'确认卸载',exact:true}).click();await expect(card).toHaveCount(0)
+})
+
+test('PT metrics show actual coverage, zero and unknown separately, with mobile layout (fixture)',async({page})=>{
+ await page.route('**/api/v1/sites/metrics',route=>route.fulfill({json:{data:[{accountId:'owned',name:'Owned PT',enabled:true,metrics:{uploaded:1099511627776,downloaded:1073741824,ratio:1024,bonus:1234.5,level:'Owned User',seeding:0,seedingBytes:0},collectedAt:'2026-10-12T08:00:00Z',attemptedAt:'2026-10-12T08:00:00Z',state:'partial',message:'',stale:false},{accountId:'unknown',name:'Unknown PT',enabled:true,metrics:null,collectedAt:null,attemptedAt:null,state:'not_synced',message:'',stale:false}]}}))
+ await fixtureLogin(page);await page.goto('/sites');await expect(page.getByRole('heading',{name:'站点最新数据',exact:true})).toBeVisible();await expect(page.locator('.metrics-overview').first()).toContainText('1 / 2');await expect(page.locator('.site-metric-row').filter({hasText:'Owned PT'})).toContainText('1.00 TiB');await expect(page.locator('.site-metric-row').filter({hasText:'Unknown PT'})).toContainText('—');await page.screenshot({path:resolve(screenshots,'pt-metrics-desktop.png'),animations:'disabled'});await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await page.screenshot({path:resolve(screenshots,'pt-metrics-mobile.png'),animations:'disabled'});await page.getByLabel('搜索站点名称',{exact:true}).fill('Unknown');await expect(page.locator('.site-metric-row')).toHaveCount(1)
+})
+
+test('database dark console supports simple mode and formatted row detail (fixture)',async({page})=>{
+ await page.route('**/api/v1/data/postgres/tables',route=>route.fulfill({json:{data:[{name:'owned_records',estimatedRows:1}]}}));await page.route('**/api/v1/data/postgres/tables/owned_records?*',route=>route.fulfill({json:{data:{items:[{id:'owned',state:'succeeded',payload:{hello:'world',apiKey:'[已隐藏]'}}],total:1}}}))
+ await fixtureLogin(page);await page.goto('/data');await expect(page.locator('.data-row')).toHaveCount(1);await page.locator('label[for="data-simple"]').click();await page.locator('.data-row').click();const dialog=page.getByRole('dialog').filter({has:page.locator('pre')});await expect(dialog).toContainText('"hello": "world"');await page.screenshot({path:resolve(screenshots,'database-console-desktop.png'),animations:'disabled'});await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await page.getByLabel('筛选当前页数据',{exact:true}).fill('absent');await expect(page.locator('.data-row')).toHaveCount(0)
+})
+
+test('automatic media search retains movie and series with matching numeric IDs (fixture)',async({page})=>{
+ const queries:string[]=[];await page.route('**/api/v1/search/media?*',route=>{queries.push(new URL(route.request().url()).searchParams.get('mediaType')||'');return route.fulfill({json:{data:{items:[{id:11,mediaType:'movie',title:'Owned Film',originalTitle:'Owned Film',year:2026},{id:11,mediaType:'series',title:'Owned Series',originalTitle:'Owned Series',year:2026}],cached:false,recognitionHint:{title:'Owned',year:'2026'}}}})})
+ await fixtureLogin(page);await page.goto('/search');await page.getByText('TMDB 媒体搜索',{exact:true}).click();await page.getByLabel('TMDB媒体名称',{exact:true}).fill('Owned.2026.1080p.WEB-DL.mkv');await page.getByRole('button',{name:'搜索媒体',exact:true}).click();await expect(page.getByRole('heading',{name:/^Owned Film 2026 · 电影$/})).toBeVisible();await expect(page.getByRole('heading',{name:/^Owned Series 2026 · 剧集$/})).toBeVisible();expect(queries).toContain('auto');await page.screenshot({path:resolve(screenshots,'auto-media-search.png'),animations:'disabled'})
+})
+
+test('PWA registration, public-only cache, headers and generic offline page (localhost secure context)',async({page,context})=>{
+ await fixtureLogin(page);await page.goto('/settings');await expect(page.getByRole('heading',{name:'移动端应用 / PWA',exact:true})).toBeVisible()
+ await page.evaluate(async()=>{await navigator.serviceWorker.ready});await page.reload();await expect(page.getByRole('heading',{name:'移动端应用 / PWA',exact:true})).toBeVisible()
+ const sw=await page.request.get('/sw.js');expect(sw.headers()['cache-control']).toBe('no-cache');expect(sw.headers()['service-worker-allowed']).toBe('/');expect(await sw.text()).not.toContain('__BUILD_ID__')
+ const manifest=await page.request.get('/manifest.webmanifest');expect((await manifest.json()).display).toBe('standalone')
+ const keys=await page.evaluate(async()=>{const out:string[]=[];for(const name of await caches.keys()){if(name.startsWith('media-tool-public-'))for(const request of await (await caches.open(name)).keys())out.push(new URL(request.url).pathname)}return out});expect(keys).toContain('/offline.html');expect(keys.every(key=>key.startsWith('/assets/')||key.startsWith('/pwa/')||key==='/offline.html')).toBe(true)
+ await context.setOffline(true);await page.goto('/data');await expect(page.getByRole('heading',{name:'当前处于离线状态',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'数据库浏览',exact:true})).toHaveCount(0);await context.setOffline(false)
+})
+
+test('site-result filters issue server query and preserve selection binding (fixture)',async({page})=>{
+ const seen:string[]=[]
+ await page.route('**/api/v1/search',route=>route.fulfill({json:{data:[{id:'owned-filter-run',keyword:'Owned',state:'succeeded',sites:[],resources:[],total:65}]}}))
+ await page.route('**/api/v1/search/owned-filter-run?*',route=>{const q=new URL(route.request().url()).searchParams;seen.push(q.toString());return route.fulfill({json:{data:{id:'owned-filter-run',keyword:'Owned',state:'succeeded',sites:[{accountId:'owned-site',name:'Owned PT',state:'succeeded',message:'',count:65}],resources:[{id:'original-resource-id',title:'Owned.Film.2026.2160p.WEB-DL.x265',siteName:'Owned PT',size:1073741824,seeders:11,leechers:0,downloadFactor:0,metadata:{attributes:{resolution:'2160p',codec:'h265',source:'web-dl'}}}],total:q.get('resolution')==='2160p'?12:65}}})})
+ await fixtureLogin(page);await page.goto('/search');await page.getByText('站点直搜',{exact:true}).click();await page.getByRole('button',{name:'查看结果',exact:true}).click();await expect(page.getByText('Owned.Film.2026.2160p.WEB-DL.x265',{exact:true})).toBeVisible()
+ await page.locator('.el-select').filter({has:page.getByRole('combobox',{name:'资源分辨率',exact:true})}).click();await page.getByRole('option',{name:'2160p',exact:true}).click();await expect(page.getByText(/共 12 条匹配/)).toBeVisible();expect(seen.some(q=>new URLSearchParams(q).get('resolution')==='2160p'&&new URLSearchParams(q).get('page')==='1')).toBe(true)
+ await page.screenshot({path:resolve(screenshots,'site-resource-filters.png'),animations:'disabled'})
 })

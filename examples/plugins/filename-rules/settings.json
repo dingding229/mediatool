@@ -1,0 +1,4 @@
+[
+  {"key": "prefix", "label": "标题前缀", "type": "string", "default": ""},
+  {"key": "apiKey", "label": "插件自己的测试密钥", "type": "password"}
+]

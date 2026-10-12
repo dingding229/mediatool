@@ -95,6 +95,11 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/media/emby/items/{id}", a.protected(a.catalogItem))
 	mux.HandleFunc("GET /api/v1/media/tmdb/image", a.protected(a.tmdbPoster))
 	mux.HandleFunc("GET /api/v1/media/library/emby/home", a.protected(a.catalogHome))
+	mux.HandleFunc("POST /api/v1/plugins/package", a.protected(a.pluginPackage))
+	mux.HandleFunc("GET /api/v1/plugins/{id}/settings", a.protected(a.pluginSettings))
+	mux.HandleFunc("PUT /api/v1/plugins/{id}/settings", a.protected(a.savePluginSettings))
+	mux.HandleFunc("POST /api/v1/plugins/{id}/test", a.protected(a.testPlugin))
+	mux.HandleFunc("GET /api/v1/plugins/{id}/runs", a.protected(a.pluginRuns))
 	mux.HandleFunc("GET /api/v1/plugins", a.protected(a.pluginList))
 	mux.HandleFunc("POST /api/v1/plugins", a.protected(a.pluginSave))
 	mux.HandleFunc("DELETE /api/v1/plugins/{id}", a.protected(a.pluginDelete))
@@ -155,6 +160,8 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/emby/check", a.protected(a.checkEmbyItem))
 	mux.HandleFunc("GET "+strm.Endpoint, a.resolve)
 	mux.HandleFunc("GET /api/v1/sites", a.protected(a.listDefinitions))
+	mux.HandleFunc("GET /api/v1/sites/metrics", a.protected(a.siteMetrics))
+	mux.HandleFunc("POST /api/v1/sites/metrics/sync", a.protected(a.syncSiteMetrics))
 	mux.HandleFunc("GET /api/v1/sites/definitions", a.protected(a.listDefinitions))
 	mux.HandleFunc("POST /api/v1/sites/definitions/import", a.protected(a.importDefinitions))
 	mux.HandleFunc("GET /api/v1/search", a.protected(a.listSearches))
@@ -422,7 +429,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.9.2-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.10.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

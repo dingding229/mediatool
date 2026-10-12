@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"media-tool/internal/modules/metadata"
+	"media-tool/internal/modules/releasename"
 	"media-tool/internal/modules/settings"
 	"net/http"
 	"strconv"
@@ -18,8 +19,11 @@ func (a *API) tmdbMediaSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q, kind, year := strings.TrimSpace(r.URL.Query().Get("q")), r.URL.Query().Get("mediaType"), r.URL.Query().Get("year")
-	if len(q) == 0 || len(q) > 200 || kind != "movie" && kind != "series" {
-		fail(w, 400, "invalid_media_search", "输入媒体名称并选择电影或剧集")
+	if kind == "" {
+		kind = "auto"
+	}
+	if len(q) == 0 || len(q) > 200 || kind != "movie" && kind != "series" && kind != "auto" {
+		fail(w, 400, "invalid_media_search", "输入媒体名称；类型支持自动、电影或剧集")
 		return
 	}
 	if year != "" {
@@ -27,6 +31,14 @@ func (a *API) tmdbMediaSearch(w http.ResponseWriter, r *http.Request) {
 		if err != nil || n < 1800 || n > 2199 {
 			fail(w, 400, "invalid_year", "年份无效")
 			return
+		}
+	}
+	hint := releasename.Parse(q)
+	originalQuery := q
+	if kind == "auto" && (hint.Year != "" || hint.Season > 0 || hint.Resolution != "") && hint.Title != "" {
+		q = hint.Title
+		if year == "" {
+			year = hint.Year
 		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -41,7 +53,7 @@ func (a *API) tmdbMediaSearch(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "tmdb_not_configured", "请在系统设置添加并启用TMDB")
 		return
 	}
-	raw, _ := json.Marshal([]any{q, kind, year, profile.Record.ID, profile.Record.Revision, profile.String("language"), prefs.Revision})
+	raw, _ := json.Marshal([]any{"auto-search-v2", q, kind, year, profile.Record.ID, profile.Record.Revision, profile.String("language"), prefs.Revision})
 	sum := sha256.Sum256(raw)
 	key := "media-tool:tmdb-cache:" + hex.EncodeToString(sum[:])
 	items := []metadata.Item{}
@@ -89,5 +101,5 @@ func (a *API) tmdbMediaSearch(w http.ResponseWriter, r *http.Request) {
 		write(w, 200, items)
 		return
 	}
-	write(w, 200, map[string]any{"items": items, "cached": cached, "cacheSeconds": prefs.Value.TMDBCacheSeconds, "mediaType": kind, "query": q})
+	write(w, 200, map[string]any{"items": items, "cached": cached, "cacheSeconds": prefs.Value.TMDBCacheSeconds, "mediaType": kind, "query": q, "originalQuery": originalQuery, "recognitionHint": hint})
 }

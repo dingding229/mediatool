@@ -117,7 +117,7 @@ func (e Engine) Rows(ctx context.Context, name string, page, size int) (map[stri
 	if !found {
 		return nil, ErrInvalid
 	}
-	tx, err := e.DB.BeginTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly})
+	tx, err := e.DB.BeginTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly, IsoLevel: pgx.RepeatableRead})
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (e Engine) Rows(ctx context.Context, name string, page, size int) (map[stri
 	if _, err = tx.Exec(ctx, `SELECT set_config('statement_timeout','2500ms',true)`); err != nil {
 		return nil, err
 	}
-	rows, err := tx.Query(ctx, "SELECT * FROM "+pgx.Identifier{"public", name}.Sanitize()+" LIMIT $1 OFFSET $2", size, (page-1)*size)
+	rows, err := tx.Query(ctx, "SELECT * FROM "+pgx.Identifier{"public", name}.Sanitize()+" ORDER BY ctid LIMIT $1 OFFSET $2", size, (page-1)*size)
 	if err != nil {
 		return nil, err
 	}

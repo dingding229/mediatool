@@ -1,0 +1,63 @@
+package search
+
+import (
+	"fmt"
+	"media-tool/internal/modules/sites"
+	"testing"
+)
+
+func TestFrozenResourceFilters(t *testing.T) {
+	zero := float64(0)
+	r := Resource{Title: "Owned.Show.2026.S01E03.4K.WEB.DL.x265-GRP", AccountID: "owned", Size: 1 << 30, Seeders: 5, DownloadFactor: &zero}
+	if !(Filter{Resolution: "2160p", Codec: "h265", Source: "web-dl", FreeOnly: true, MinSeeders: 2, MinSize: 1 << 29, AccountID: "owned"}).Match(r) {
+		t.Fatal(attrs(r.Title))
+	}
+	for _, f := range []Filter{{Resolution: "1080p"}, {Codec: "h264"}, {AccountID: "other"}, {MinSeeders: 6}, {MaxSize: 10}, {Resolution: "unknown"}} {
+		if f.Match(r) {
+			t.Fatal(f)
+		}
+	}
+	r.Title = "No Attributes"
+	if !(Filter{Resolution: "unknown"}).Match(r) {
+		t.Fatal("unknown")
+	}
+	r.DownloadFactor = nil
+	if (Filter{FreeOnly: true}).Match(r) {
+		t.Fatal("missing free factor")
+	}
+	if (Filter{MinSize: 10, MaxSize: 1}).Validate() == nil {
+		t.Fatal("invalid range")
+	}
+}
+
+func TestPostgresFiltersCoverWholeSnapshotAndPreserveResourceIdentity(t *testing.T) {
+	ctx, engine, account, newRun := snapshotSearchFixture(t)
+	runID := newRun()
+	free := float64(0)
+	list := []sites.Resource{}
+	for i := range 65 {
+		resolution := "1080p"
+		if i < 12 {
+			resolution = "2160p"
+		}
+		list = append(list, sites.Resource{TorrentID: fmt.Sprint(i), Title: fmt.Sprintf("Owned.Film.2026.%s.WEB-DL.x265-%02d", resolution, i), Size: 1 << 30, Seeders: i, DownloadFactor: &free, DownloadURL: fmt.Sprintf("https://owned.invalid/download.php?id=%d", i)})
+	}
+	if err := engine.SaveResources(ctx, runID, account, list); err != nil {
+		t.Fatal(err)
+	}
+	full, err := engine.GetFiltered(ctx, runID, 1, 50, Filter{})
+	if err != nil || full.Total != 65 || len(full.Resources) != 50 {
+		t.Fatal(full.Total, len(full.Resources), err)
+	}
+	filtered, err := engine.GetFiltered(ctx, runID, 1, 5, Filter{Resolution: "2160p", Codec: "h265", FreeOnly: true})
+	if err != nil || filtered.Total != 12 || len(filtered.Resources) != 5 {
+		t.Fatal(filtered.Total, len(filtered.Resources), err)
+	}
+	if filtered.Resources[0].TorrentID != "11" || filtered.Resources[0].ID == "" {
+		t.Fatal("resource binding changed", filtered.Resources[0])
+	}
+	last, err := engine.GetFiltered(ctx, runID, 3, 5, Filter{Resolution: "2160p"})
+	if err != nil || last.Total != 12 || len(last.Resources) != 2 {
+		t.Fatal(last.Total, len(last.Resources), err)
+	}
+}

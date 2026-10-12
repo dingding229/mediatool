@@ -42,7 +42,14 @@ func Handler() http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		if name == "sw.js" || name == "manifest.webmanifest" || name == "offline.html" || strings.HasPrefix(name, "pwa/") {
+			w.Header().Set("Cache-Control", "no-cache")
+		} else {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		if name == "sw.js" {
+			w.Header().Set("Service-Worker-Allowed", "/")
+		}
 		server.ServeHTTP(w, r)
 	})
 }

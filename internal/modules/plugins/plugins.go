@@ -12,6 +12,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/playback"
 	"media-tool/internal/modules/releasename"
+	"media-tool/internal/platform/secrets"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -23,31 +24,37 @@ var ErrInvalid = errors.New("invalid extension manifest")
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9-]{2,63}$`)
 
 type Manifest struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Version      string   `json:"version"`
-	Contract     int      `json:"contractVersion"`
-	Endpoint     string   `json:"endpoint"`
-	Capabilities []string `json:"capabilities"`
+	ID           string         `json:"id"`
+	Name         string         `json:"name"`
+	Version      string         `json:"version"`
+	Contract     int            `json:"contractVersion"`
+	Endpoint     string         `json:"endpoint"`
+	Capabilities []string       `json:"capabilities"`
+	Runtime      string         `json:"runtime,omitempty"`
+	Settings     []SettingField `json:"settings,omitempty"`
+	Rules        []NameRule     `json:"rules,omitempty"`
 }
 type Record struct {
-	Manifest Manifest `json:"manifest"`
-	Enabled  bool     `json:"enabled"`
-	Builtin  bool     `json:"builtin"`
-	Revision int64    `json:"revision"`
+	Manifest      Manifest `json:"manifest"`
+	Enabled       bool     `json:"enabled"`
+	Builtin       bool     `json:"builtin"`
+	Revision      int64    `json:"revision"`
+	PackageDigest string   `json:"packageDigest,omitempty"`
 }
 type Event struct {
-	Version int            `json:"contractVersion"`
-	Kind    string         `json:"kind"`
-	Data    map[string]any `json:"data"`
+	Version  int               `json:"contractVersion"`
+	Kind     string            `json:"kind"`
+	Data     map[string]any    `json:"data"`
+	Settings map[string]string `json:"settings,omitempty"`
 }
 type Extension interface {
 	Manifest() Manifest
 	Handle(context.Context, Event) (json.RawMessage, error)
 }
 type Registry struct {
-	DB   *pgxpool.Pool
-	HTTP *http.Client
+	DB    *pgxpool.Pool
+	HTTP  *http.Client
+	Vault *secrets.Vault
 }
 
 func builtins() []Record {
@@ -55,6 +62,15 @@ func builtins() []Record {
 }
 func Validate(m Manifest) error {
 	if !identifier.MatchString(m.ID) || m.ID == "release-name" || m.ID == "naming-template" || m.Contract != 1 || len(m.Name) < 1 || len(m.Name) > 120 || len(m.Version) < 1 || len(m.Version) > 40 || len(m.Capabilities) == 0 || len(m.Capabilities) > 2 {
+		return ErrInvalid
+	}
+	if validateFields(m.Settings) != nil {
+		return ErrInvalid
+	}
+	if m.Runtime == "rules" {
+		return validateRules(m)
+	}
+	if m.Runtime != "" && m.Runtime != "webhook" || len(m.Rules) > 0 {
 		return ErrInvalid
 	}
 	u, err := url.Parse(m.Endpoint)
@@ -78,7 +94,7 @@ func (r Registry) List(ctx context.Context) ([]Record, error) {
 	if r.DB == nil {
 		return out, nil
 	}
-	rows, err := r.DB.Query(ctx, `SELECT manifest,enabled,revision FROM extension_plugins ORDER BY id`)
+	rows, err := r.DB.Query(ctx, `SELECT manifest,enabled,revision,package_digest FROM extension_plugins ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +102,7 @@ func (r Registry) List(ctx context.Context) ([]Record, error) {
 	for rows.Next() {
 		var raw []byte
 		var item Record
-		if err = rows.Scan(&raw, &item.Enabled, &item.Revision); err != nil {
+		if err = rows.Scan(&raw, &item.Enabled, &item.Revision, &item.PackageDigest); err != nil {
 			return nil, err
 		}
 		if json.Unmarshal(raw, &item.Manifest) != nil {
@@ -97,8 +113,33 @@ func (r Registry) List(ctx context.Context) ([]Record, error) {
 	return out, rows.Err()
 }
 func (r Registry) Save(ctx context.Context, m Manifest, enabled, consent bool, revision int64) error {
-	if Validate(m) != nil || enabled && !consent || r.DB == nil {
+	if Validate(m) != nil || enabled && m.Runtime != "rules" && !consent || r.DB == nil {
 		return ErrInvalid
+	}
+	if revision > 0 {
+		var raw []byte
+		var current int64
+		if e := r.DB.QueryRow(ctx, `SELECT manifest,revision FROM extension_plugins WHERE id=$1`, m.ID).Scan(&raw, &current); e != nil || current != revision {
+			return ErrInvalid
+		}
+		var stored Manifest
+		if json.Unmarshal(raw, &stored) != nil {
+			return ErrInvalid
+		}
+		left, _ := json.Marshal(stored)
+		right, _ := json.Marshal(m)
+		if !bytes.Equal(left, right) {
+			return ErrInvalid
+		}
+	}
+	if enabled {
+		values, _, rev, e := r.Settings(ctx, m.ID)
+		if e != nil || rev != revision {
+			return ErrInvalid
+		}
+		if _, e = ValidateSettings(m.Settings, values, true); e != nil {
+			return e
+		}
 	}
 	raw, _ := json.Marshal(m)
 	if revision == 0 {
@@ -118,16 +159,70 @@ func (r Registry) Save(ctx context.Context, m Manifest, enabled, consent bool, r
 	return nil
 }
 func (r Registry) Delete(ctx context.Context, id string) error {
-	if !identifier.MatchString(id) || id == "release-name" || id == "naming-template" {
+	if r.DB == nil || !identifier.MatchString(id) || id == "release-name" || id == "naming-template" {
 		return ErrInvalid
 	}
 	_, err := r.DB.Exec(ctx, `DELETE FROM extension_plugins WHERE id=$1`, id)
 	return err
 }
-func (r Registry) invoke(ctx context.Context, m Manifest, event Event) (json.RawMessage, error) {
+func (r Registry) invoke(ctx context.Context, m Manifest, event Event) (output json.RawMessage, callErr error) {
 	if Validate(m) != nil {
 		return nil, ErrInvalid
 	}
+	values := map[string]string{}
+	if r.DB != nil {
+		var raw, cipher []byte
+		var enabled bool
+		if e := r.DB.QueryRow(ctx, `SELECT manifest,config_ciphertext,enabled FROM extension_plugins WHERE id=$1`, m.ID).Scan(&raw, &cipher, &enabled); e != nil || !enabled {
+			return nil, ErrInvalid
+		}
+		var stored Manifest
+		if json.Unmarshal(raw, &stored) != nil {
+			return nil, ErrInvalid
+		}
+		left, _ := json.Marshal(stored)
+		right, _ := json.Marshal(m)
+		if !bytes.Equal(left, right) {
+			return nil, ErrInvalid
+		}
+		if len(cipher) > 0 {
+			if r.Vault == nil {
+				return nil, ErrInvalid
+			}
+			v, e := r.Vault.Open("plugin:"+m.ID, cipher)
+			if e != nil {
+				return nil, e
+			}
+			values = v
+		}
+		v, e := ValidateSettings(m.Settings, values, true)
+		if e != nil {
+			return nil, e
+		}
+		values = v
+	}
+	if _, e := ValidateSettings(m.Settings, values, true); e != nil {
+		return nil, e
+	}
+	defer func() {
+		if callErr == nil {
+			output, callErr = redactOutput(output, m, values)
+		}
+		bounded, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
+		defer cancel()
+		state, message := "succeeded", "插件执行完成"
+		if callErr != nil {
+			state, message = "failed", "插件执行未取得有效结果；不会自动重发"
+			if m.Runtime != "rules" {
+				state = "outcome_unknown"
+			}
+		}
+		r.recordRun(bounded, m.ID, event.Kind, state, message)
+	}()
+	if m.Runtime == "rules" {
+		return rulesOutput(m, event, values)
+	}
+	event.Settings = values
 	bounded, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	policy := playback.Policy{}

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.9.2-dev
+  version: 0.10.0-dev
   description: 'Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -129,7 +129,12 @@ paths:
   /api/v1/search/media:
     get:
       operationId: searchTMDB
-      description: 电影/剧集关键词与年份筛选，返回缓存命中，缓存按配置修订隔离
+      description: 默认auto使用TMDB multi搜索电影和剧集（不含人物）；0day提取标题/年份线索；缓存按类型/配置区分
+      parameters:
+      - {name: mediaType, in: query, schema: {type: string, enum: [auto, movie, series], default: auto}}
+      - {name: q, in: query, required: true, schema: {type: string, maxLength: 200}}
+      - {name: year, in: query, schema: {type: string}}
+      - {name: refresh, in: query, schema: {type: boolean}}
       responses:
         '200':
           $ref: '#/components/responses/OK'
@@ -140,6 +145,118 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/OK'
+  /api/v1/plugins/package:
+    post:
+      operationId: installPluginZIP
+      description: 2MiB声明式ZIP；preview=true预览；确认同包digest、confirm=true、revision（新包0），升级默认停用。
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      - {name: preview, in: query, schema: {type: boolean}}
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [package]
+              properties:
+                package: {type: string, format: binary}
+                digest: {type: string}
+                confirm: {type: string, enum: ['true']}
+                revision: {type: string}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {description: 安装修订冲突或未确认}
+  /api/v1/plugins/{id}/settings:
+    get:
+      operationId: readPluginSettings
+      description: 非秘密设置与已设置秘密键列表；秘密不回显
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+    put:
+      operationId: writePluginSettings
+      description: 加密保存；秘密空值保留、clear明确清除；保存后停用
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      - {name: id, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, values]
+              properties:
+                revision: {type: integer, minimum: 1}
+                values: {type: object, additionalProperties: {type: string}}
+                clear: {type: array, items: {type: string}}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+        '409': {description: 设置无效或修订冲突}
+  /api/v1/plugins/{id}/test:
+    post:
+      operationId: testPlugin
+      description: 明确confirm=true；测试不修改媒体，结果脱敏，不自动重发
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      - {name: id, in: path, required: true, schema: {type: string}}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirm]
+              properties:
+                confirm: {type: boolean, const: true}
+                filename: {type: string, maxLength: 1024}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+        '502': {description: 未启用或执行失败}
+  /api/v1/plugins/{id}/runs:
+    get:
+      operationId: listPluginRuns
+      description: 最近100次执行，失败/unknown不表示自动重试
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+  /api/v1/plugins/{id}:
+    delete:
+      operationId: uninstallPlugin
+      description: 删除插件配置/执行记录，不删除媒体
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      - {name: id, in: path, required: true, schema: {type: string}}
+      - {name: confirm, in: query, required: true, schema: {type: boolean, const: true}}
+      - {name: revision, in: query, required: true, schema: {type: integer, minimum: 1}}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+        '409': {description: 修订冲突}
+  /api/v1/sites/metrics:
+    get:
+      operationId: readSiteMetrics
+      description: 最近成功统计，未知null；账号/定义改变及采集失败标记旧快照
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+  /api/v1/sites/metrics/sync:
+    post:
+      operationId: syncSiteMetrics
+      description: 单站或最多16启用站，75秒总预算/每站15秒；失败保留快照，配置改变不写旧数据
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountId: {type: string}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+        '503': {description: 存储不可用或结果未确认}
   /api/v1/auth/login:
     post:
       operationId: login
@@ -1366,6 +1483,14 @@ paths:
           type: integer
           minimum: 1
           maximum: 200
+      - {name: resolution, in: query, schema: {type: string}}
+      - {name: source, in: query, schema: {type: string}}
+      - {name: codec, in: query, schema: {type: string}}
+      - {name: accountId, in: query, schema: {type: string}}
+      - {name: minSize, in: query, schema: {type: integer, minimum: 0}}
+      - {name: maxSize, in: query, schema: {type: integer, minimum: 0}}
+      - {name: minSeeders, in: query, schema: {type: integer, minimum: 0}}
+      - {name: freeOnly, in: query, schema: {type: boolean}}
       responses:
         '200':
           description: Per-site results and paginated resources without secret download links

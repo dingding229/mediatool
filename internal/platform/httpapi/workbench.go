@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"media-tool/internal/modules/dataview"
-	"media-tool/internal/modules/plugins"
 	"media-tool/internal/modules/settings"
 	"media-tool/internal/platform/logging"
 	"net/http"
@@ -52,7 +51,7 @@ func (a *API) parseReleaseName(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_name", "文件名无效")
 		return
 	}
-	hint, messages := (plugins.Registry{DB: a.Deps.DB}).Recognize(r.Context(), in.Name)
+	hint, messages := (a.pluginRegistry()).Recognize(r.Context(), in.Name)
 	write(w, 200, map[string]any{"hint": hint, "pluginMessages": messages})
 }
 func (a *API) logsSummary(w http.ResponseWriter, r *http.Request) {

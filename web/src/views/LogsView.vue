@@ -46,7 +46,7 @@ onUnmounted(()=>{++epoch;controller?.abort();if(timer)clearTimeout(timer)})
   <header class="log-toolbar">
    <div class="log-title"><h1>程序日志</h1><span>系统日志控制台</span></div>
    <div class="log-actions">
-    <div class="clean-toggle"><el-switch id="log-clean-mode" v-model="clean" aria-label="清爽模式"/><label for="log-clean-mode">清爽模式</label></div>
+    <div class="clean-toggle"><el-switch id="log-clean-mode" v-model="clean" aria-label="简约模式"/><label for="log-clean-mode">简约模式</label></div>
     <el-button class="log-icon" :icon="Refresh" :loading="busy" aria-label="刷新日志" title="刷新日志" @click="refresh"/>
     <el-button class="log-icon" :icon="Delete" type="danger" plain aria-label="清理日志" title="清理日志" :disabled="busy" @click="clear"/>
     <el-button class="log-icon" :icon="CopyDocument" aria-label="复制当前页日志" title="复制当前页脱敏日志" :disabled="!rows.length||busy" @click="copy"/>

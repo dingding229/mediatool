@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SiteMetrics from '../components/SiteMetrics.vue'
 import ConnectionPanel from '../components/ConnectionPanel.vue'
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -55,6 +56,7 @@ onMounted(refresh)
     <el-button :loading="loading" @click="refresh">刷新</el-button>
   </section>
   <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
+  <SiteMetrics/>
   <section class="panel section-gap">
     <div class="panel-title"><h2>导入 pre-dessert-sites</h2><span class="muted">配置保存在数据库，不打包进镜像</span></div>
     <div class="connection-form">

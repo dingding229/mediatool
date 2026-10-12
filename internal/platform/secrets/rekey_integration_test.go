@@ -180,7 +180,7 @@ func TestPostgresRekeyIncludesScopedSearchSnapshots(t *testing.T) {
 	}
 	for _, dry := range []bool{true, false} {
 		counts, err := Rekey(ctx, db, old, next, dry)
-		if err != nil || counts["search_run_resources"] != 1 || len(counts) != 9 {
+		if err != nil || counts["search_run_resources"] != 1 || len(counts) != len(CipherColumns) {
 			t.Fatal("run-scoped hint omitted from master-key rotation", counts, err)
 		}
 		var cipher []byte

@@ -65,6 +65,7 @@ type record struct {
 	FirstAirDate  string `json:"first_air_date"`
 	Overview      string
 	PosterPath    string `json:"poster_path"`
+	MediaType     string `json:"media_type"`
 }
 
 func convert(r record, kind string) metadata.Item {
@@ -83,10 +84,14 @@ func (c Client) Search(ctx context.Context, kind, query string) ([]metadata.Item
 		return nil, errors.New("enter a media search term")
 	}
 	path := "/search/movie"
+	if kind == "auto" || kind == "" {
+		path = "/search/multi"
+		kind = "auto"
+	}
 	if kind == "series" {
 		path = "/search/tv"
-	} else if kind != "movie" {
-		return nil, errors.New("media type must be movie or series")
+	} else if kind != "movie" && kind != "auto" {
+		return nil, errors.New("media type must be auto, movie or series")
 	}
 	var result struct{ Results []record }
 	if err := c.get(ctx, path, url.Values{"query": {query}, "include_adult": {"false"}}, &result); err != nil {
@@ -94,7 +99,18 @@ func (c Client) Search(ctx context.Context, kind, query string) ([]metadata.Item
 	}
 	out := []metadata.Item{}
 	for _, r := range result.Results {
-		out = append(out, convert(r, kind))
+		resolved := kind
+		if kind == "auto" {
+			switch r.MediaType {
+			case "movie":
+				resolved = "movie"
+			case "tv":
+				resolved = "series"
+			default:
+				continue
+			}
+		}
+		out = append(out, convert(r, resolved))
 	}
 	return out, nil
 }
