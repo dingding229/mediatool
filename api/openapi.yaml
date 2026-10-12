@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.10.0-dev
+  version: 0.11.0-dev
   description: 'Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -148,7 +148,7 @@ paths:
   /api/v1/plugins/package:
     post:
       operationId: installPluginZIP
-      description: 2MiB声明式ZIP；preview=true预览；确认同包digest、confirm=true、revision（新包0），升级默认停用。
+      description: 8MiB ZIP（展开24MiB），支持rules/webhook/WASM及UI；同摘要和revision确认安装，默认停用。
       parameters:
       - $ref: '#/components/parameters/CSRFHeader'
       - {name: preview, in: query, schema: {type: boolean}}
@@ -171,7 +171,7 @@ paths:
   /api/v1/plugins/{id}/settings:
     get:
       operationId: readPluginSettings
-      description: 非秘密设置与已设置秘密键列表；秘密不回显
+      description: 管理员原始设置，存储仍加密
       parameters:
       - {name: id, in: path, required: true, schema: {type: string}}
       responses:
@@ -199,7 +199,7 @@ paths:
   /api/v1/plugins/{id}/test:
     post:
       operationId: testPlugin
-      description: 明确confirm=true；测试不修改媒体，结果脱敏，不自动重发
+      description: 明确confirm=true；测试不写媒体，管理员原始结果，无自动重发
       parameters:
       - $ref: '#/components/parameters/CSRFHeader'
       - {name: id, in: path, required: true, schema: {type: string}}
@@ -257,6 +257,225 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/OK'}
         '503': {description: 存储不可用或结果未确认}
+  /api/v1/plugin-market/repositories:
+    get:
+      operationId: get__api_v1_plugin_market_repositories
+      description: 插件仓库列表/添加
+      parameters: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
+    post:
+      operationId: post__api_v1_plugin_market_repositories
+      description: 插件仓库列表/添加
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
+  /api/v1/plugin-market/repositories/{id}:
+    delete:
+      operationId: delete__api_v1_plugin_market_repositories_id
+      description: 确认删除自定义仓库
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
+  /api/v1/plugin-market/repositories/{id}/catalog:
+    get:
+      operationId: get__api_v1_plugin_market_repositories_id_catalog
+      description: 有界HTTPS公开清单
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
+  /api/v1/plugin-market/package:
+    post:
+      operationId: post__api_v1_plugin_market_package
+      description: 同摘要及身份预览/确认升级
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
+  /api/v1/plugins/{id}/state:
+    get:
+      operationId: get__api_v1_plugins_id_state
+      description: 管理员原始实例数据/状态
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
+  /api/v1/plugins/{id}/data:
+    delete:
+      operationId: delete__api_v1_plugins_id_data
+      description: 确认清理实例数据并停用
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
+  /api/v1/plugins/{id}/clone:
+    post:
+      operationId: post__api_v1_plugins_id_clone
+      description: 停用分身：代码/配置复制，数据服务独立
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
+  /api/v1/plugins/{id}/ui:
+    get:
+      operationId: get__api_v1_plugins_id_ui
+      description: 隔离自定义UI，no-store/无网络/无同源
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
+  /api/v1/plugins/{id}/view/{kind}/{key}:
+    get:
+      operationId: get__api_v1_plugins_id_view_kind_key
+      description: 声明页面/仪表盘/API/命令，写操作确认
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: kind
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
+    post:
+      operationId: post__api_v1_plugins_id_view_kind_key
+      description: 声明页面/仪表盘/API/命令，写操作确认
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: kind
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
+  /api/v1/plugins/{id}/services/{key}:
+    post:
+      operationId: post__api_v1_plugins_id_services_key
+      description: 当前修订服务单次触发
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          description: 需要管理员会话
+        '409':
+          description: 确认/修订/能力冲突
   /api/v1/auth/login:
     post:
       operationId: login

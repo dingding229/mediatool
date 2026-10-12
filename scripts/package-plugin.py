@@ -8,10 +8,10 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('source', type=Path)
 parser.add_argument('output', type=Path)
 args = parser.parse_args()
-allowed = {'manifest.json', 'settings.json', 'rules.json', 'README.md'}
+allowed = {'manifest.json', 'settings.json', 'rules.json', 'README.md', 'plugin.wasm', 'ui.html'}
 files = sorted(args.source.iterdir())
 if not files or any(p.is_symlink() or not p.is_file() or p.name not in allowed for p in files):
-    parser.error('Only root manifest/settings/rules/README regular files are supported')
+    parser.error('Only supported root manifest/settings/rules/README/WASM/UI regular files are supported')
 if not (args.source / 'manifest.json').is_file():
     parser.error('manifest.json required')
 args.output.parent.mkdir(parents=True, exist_ok=True)

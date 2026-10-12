@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+	cleanupPlugins := flag.Bool("cleanup-test-plugins", false, "clear only isolated test plugin fixtures before a new suite")
 	testOnly := flag.Bool("test-only", false, "refuse databases other than media_tool_test")
 	action := flag.String("action", "up", "up, status, or down (destructive)")
 	flag.Parse()
@@ -31,6 +32,9 @@ func main() {
 	defer cancel()
 	if err = db.PingContext(ctx); err != nil {
 		slog.Error("database unavailable")
+		os.Exit(1)
+	}
+	if *cleanupPlugins && !*testOnly {
 		os.Exit(1)
 	}
 	if *testOnly {
@@ -54,6 +58,9 @@ func main() {
 	default:
 		slog.Error("unknown migration action")
 		os.Exit(1)
+	}
+	if err == nil && *cleanupPlugins {
+		_, err = db.ExecContext(ctx, `TRUNCATE extension_plugins CASCADE`)
 	}
 	if err != nil {
 		slog.Error("migration failed (details intentionally omitted; verify schema and connectivity)")

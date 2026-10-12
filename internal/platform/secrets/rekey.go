@@ -13,6 +13,7 @@ type CipherColumn struct {
 }
 
 var CipherColumns = []CipherColumn{
+	{Table: "extension_plugins", Column: "plugin_data_ciphertext", AADPrefix: "plugin-data:", AllowEmpty: true},
 	{Table: "extension_plugins", Column: "config_ciphertext", AADPrefix: "plugin:", AllowEmpty: true},
 	{Table: "integrations", Column: "credentials_ciphertext"},
 	{Table: "resources", Column: "download_hint_ciphertext"},
@@ -40,7 +41,11 @@ func Rekey(ctx context.Context, db *pgxpool.Pool, old, next *Vault, dryRun bool)
 		if _, err = tx.Exec(ctx, "LOCK TABLE "+table+" IN ACCESS EXCLUSIVE MODE"); err != nil {
 			return nil, err
 		}
-		counts[spec.Table] = 0
+		countsKey := spec.Table
+		if _, exists := counts[countsKey]; exists {
+			countsKey += "." + spec.Column
+		}
+		counts[countsKey] = 0
 		condition := column + " IS NOT NULL"
 		if spec.AllowEmpty {
 			condition += " AND octet_length(" + column + ")>0"
@@ -84,7 +89,7 @@ func Rekey(ctx context.Context, db *pgxpool.Pool, old, next *Vault, dryRun bool)
 				if _, err = tx.Exec(ctx, "UPDATE "+table+" SET "+column+"=$2 WHERE id::text=$1", item.id, encrypted); err != nil {
 					return nil, err
 				}
-				counts[spec.Table]++
+				counts[countsKey]++
 				last = item.id
 			}
 		}

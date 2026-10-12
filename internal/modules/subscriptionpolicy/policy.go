@@ -4,6 +4,7 @@ package subscriptionpolicy
 
 import (
 	"media-tool/internal/modules/metadata"
+	"media-tool/internal/modules/releaseattrs"
 	"media-tool/internal/modules/search"
 	"regexp"
 	"strings"
@@ -11,6 +12,9 @@ import (
 )
 
 type Rules struct {
+	Resolution     string   `json:"resolution,omitempty"`
+	Source         string   `json:"source,omitempty"`
+	Codec          string   `json:"codec,omitempty"`
 	AccountIDs     []string `json:"accountIds"`
 	Keyword        string   `json:"keyword"`
 	Include        []string `json:"include"`
@@ -71,8 +75,14 @@ func TitleMatches(title string, item metadata.Item) bool {
 	}
 	return true
 }
-func Filter(resource search.Resource, item metadata.Item, rules Rules) (bool, []string) {
+func Evaluate(resource search.Resource, item metadata.Item, rules Rules) (bool, []string, []RuleCheck) {
 	reasons := []string{}
+	checks := AttributeChecks(resource.Title, rules)
+	for _, check := range checks {
+		if check.State == "rejected" {
+			reasons = append(reasons, check.Message)
+		}
+	}
 	lower := strings.ToLower(resource.Title)
 	if !TitleMatches(resource.Title, item) {
 		reasons = append(reasons, "标题/年份无法精确对应已选择媒体，需要人工确认")
@@ -104,5 +114,40 @@ func Filter(resource search.Resource, item metadata.Item, rules Rules) (bool, []
 	} else if !ok && !rules.AllowUnknownHR {
 		reasons = append(reasons, "H&R信息未知，需要人工确认或明确允许未知信息")
 	}
-	return len(reasons) == 0, reasons
+	return len(reasons) == 0, reasons, checks
+}
+
+type RuleCheck struct {
+	Key      string `json:"key"`
+	Label    string `json:"label"`
+	Expected string `json:"expected"`
+	Actual   string `json:"actual"`
+	State    string `json:"state"`
+	Message  string `json:"message"`
+}
+
+func AttributeChecks(title string, rules Rules) []RuleCheck {
+	attrs := releaseattrs.Parse(title)
+	checks := []RuleCheck{}
+	for _, field := range []struct{ key, label, want string }{{"resolution", "分辨率", rules.Resolution}, {"source", "来源", rules.Source}, {"codec", "编码", rules.Codec}} {
+		actual := attrs[field.key]
+		check := RuleCheck{Key: field.key, Label: field.label, Expected: field.want, Actual: actual, State: "not_configured", Message: "未限制"}
+		if field.want != "" {
+			check.State = "matched"
+			check.Message = field.label + "匹配：" + actual
+			if actual == "" {
+				check.State = "rejected"
+				check.Message = field.label + "未知，不满足明确筛选"
+			} else if actual != field.want {
+				check.State = "rejected"
+				check.Message = field.label + "不匹配：需要" + field.want + "，识别为" + actual
+			}
+		}
+		checks = append(checks, check)
+	}
+	return checks
+}
+func Filter(resource search.Resource, item metadata.Item, rules Rules) (bool, []string) {
+	matched, reasons, _ := Evaluate(resource, item, rules)
+	return matched, reasons
 }

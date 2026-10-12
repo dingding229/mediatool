@@ -1,0 +1,48 @@
+{
+  "id": "example-automation",
+  "name": "自动化插件示例",
+  "version": "1.0.0",
+  "author": "Media Tool",
+  "description": "可运行Go/WASM插件，展示初始化、定时任务、命令、页面、API、仪表盘及持久数据。",
+  "contractVersion": 1,
+  "runtime": "wasm",
+  "capabilities": [
+    "plugin.framework"
+  ],
+  "commands": [
+    {
+      "id": "increment",
+      "name": "增加计数",
+      "description": "只更新本插件的数据，不修改媒体。"
+    }
+  ],
+  "services": [
+    {
+      "id": "counter-tick",
+      "name": "定时计数",
+      "intervalSeconds": 60
+    }
+  ],
+  "routes": [
+    {
+      "path": "status",
+      "method": "GET"
+    }
+  ],
+  "pages": [
+    {
+      "id": "overview",
+      "title": "示例工作台"
+    }
+  ],
+  "dashboard": true,
+  "settings": [
+    {
+      "key": "name",
+      "label": "工作台标题",
+      "type": "string",
+      "default": "自动化插件示例"
+    }
+  ],
+  "customUI": true
+}

@@ -17,8 +17,8 @@ import (
 	"time"
 )
 
-const MaxPackageBytes = 2 << 20
-const MaxUnpackedBytes = 4 << 20
+const MaxPackageBytes = 8 << 20
+const MaxUnpackedBytes = 24 << 20
 
 type SettingField struct {
 	Key      string   `json:"key"`
@@ -35,6 +35,8 @@ type NameRule struct {
 	MediaType string `json:"mediaType,omitempty"`
 }
 type Package struct {
+	UI       string   `json:"-"`
+	Module   []byte   `json:"-"`
 	Manifest Manifest `json:"manifest"`
 	Digest   string   `json:"digest"`
 	Files    []string `json:"files"`
@@ -58,7 +60,7 @@ func ParsePackage(data []byte) (Package, error) {
 		if name != path.Clean(name) || strings.ContainsAny(name, "\\\x00\r\n") || strings.HasPrefix(name, "/") || strings.HasPrefix(name, "../") || seen[name] || !file.Mode().IsRegular() {
 			return out, ErrInvalid
 		}
-		if name != "manifest.json" && name != "settings.json" && name != "rules.json" && name != "README.md" {
+		if name != "manifest.json" && name != "settings.json" && name != "rules.json" && name != "README.md" && name != "plugin.wasm" && name != "ui.html" {
 			return out, ErrInvalid
 		}
 		seen[name] = true
@@ -92,6 +94,18 @@ func ParsePackage(data []byte) (Package, error) {
 		}
 	}
 	if Validate(out.Manifest) != nil {
+		return out, ErrInvalid
+	}
+	out.UI = string(contents["ui.html"])
+	if len(out.UI) > 256<<10 || len(out.UI) > 0 && !out.Manifest.CustomUI || out.Manifest.CustomUI && (out.Manifest.Runtime != "wasm" || len(out.UI) == 0) {
+		return out, ErrInvalid
+	}
+	out.Module = contents["plugin.wasm"]
+	if out.Manifest.Runtime == "wasm" {
+		if ValidateModule(context.Background(), out.Module) != nil {
+			return out, ErrInvalid
+		}
+	} else if len(out.Module) > 0 {
 		return out, ErrInvalid
 	}
 	out.Readme = string(contents["README.md"])
@@ -135,7 +149,7 @@ func validateFields(fields []SettingField) error {
 		}
 		seen[f.Key] = true
 		switch f.Type {
-		case "string", "password", "boolean", "number", "select":
+		case "string", "password", "boolean", "number", "select", "textarea", "date":
 		default:
 			return ErrInvalid
 		}
@@ -262,7 +276,7 @@ func (r Registry) Install(ctx context.Context, p Package, revision int64) error 
 	raw, _ := json.Marshal(p.Manifest)
 	files, _ := json.Marshal(p.Files)
 	if revision == 0 {
-		_, e = tx.Exec(ctx, `INSERT INTO extension_plugins(id,name,version,manifest,package_digest,package_files)VALUES($1,$2,$3,$4,$5,$6)`, p.Manifest.ID, p.Manifest.Name, p.Manifest.Version, raw, p.Digest, files)
+		_, e = tx.Exec(ctx, `INSERT INTO extension_plugins(id,name,version,manifest,package_digest,package_files,wasm_module,readme,ui_html)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, p.Manifest.ID, p.Manifest.Name, p.Manifest.Version, raw, p.Digest, files, p.Module, p.Readme, p.UI)
 	} else {
 		var encrypted, oldRaw []byte
 		if e = tx.QueryRow(ctx, `SELECT config_ciphertext,manifest FROM extension_plugins WHERE id=$1 AND revision=$2 FOR UPDATE`, p.Manifest.ID, revision).Scan(&encrypted, &oldRaw); e != nil {
@@ -303,7 +317,7 @@ func (r Registry) Install(ctx context.Context, p Package, revision int64) error 
 				return e
 			}
 		}
-		tag, err := tx.Exec(ctx, `UPDATE extension_plugins SET name=$2,version=$3,manifest=$4,enabled=false,package_digest=$5,package_files=$6,config_ciphertext=$7,revision=revision+1,updated_at=now()WHERE id=$1 AND revision=$8`, p.Manifest.ID, p.Manifest.Name, p.Manifest.Version, raw, p.Digest, files, cipher, revision)
+		tag, err := tx.Exec(ctx, `UPDATE extension_plugins SET name=$2,version=$3,manifest=$4,enabled=false,package_digest=$5,package_files=$6,config_ciphertext=$7,revision=revision+1,wasm_module=$9,readme=$10,ui_html=$11,updated_at=now()WHERE id=$1 AND revision=$8`, p.Manifest.ID, p.Manifest.Name, p.Manifest.Version, raw, p.Digest, files, cipher, revision, p.Module, p.Readme, p.UI)
 		e = err
 		if e == nil && tag.RowsAffected() != 1 {
 			return ErrInvalid
@@ -430,6 +444,9 @@ func (r Registry) Test(ctx context.Context, id, filename string) (json.RawMessag
 		}
 		bounded, stop := context.WithTimeout(ctx, 4*time.Second)
 		defer stop()
+		if item.Manifest.Runtime == "wasm" {
+			event.Kind = "plugin.test"
+		}
 		return r.invoke(bounded, item.Manifest, event)
 	}
 	return nil, fmt.Errorf("plugin unavailable")

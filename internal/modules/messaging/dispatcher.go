@@ -18,7 +18,7 @@ type Dispatcher struct {
 	Connections *integrations.Manager
 }
 
-var titles = map[string]string{"download.started": "下载已开始", "download.completed": "本地下载完成", "media.imported": "媒体 STRM 已生成", "media.batch_ready": "媒体文件已准备入库", "library.refresh_requested": "Emby 媒体库刷新已请求", "library.visible": "媒体已在Emby库中可见（待客户端播放验收）", "transfer.failed": "媒体上传失败"}
+var titles = map[string]string{"plugin.notice": "插件通知", "download.started": "下载已开始", "download.completed": "本地下载完成", "media.imported": "媒体 STRM 已生成", "media.batch_ready": "媒体文件已准备入库", "library.refresh_requested": "Emby 媒体库刷新已请求", "library.visible": "媒体已在Emby库中可见（待客户端播放验收）", "transfer.failed": "媒体上传失败"}
 
 func (d Dispatcher) Prepare(ctx context.Context) error {
 	if _, err := d.DB.Exec(ctx, `UPDATE notification_deliveries SET state='outcome_unknown',last_error='Worker stopped before a confirmed send receipt; manual verification required'WHERE state='sending'AND started_at<now()-interval '2 minutes'`); err != nil {
@@ -62,6 +62,12 @@ func (d Dispatcher) Prepare(ctx context.Context) error {
 			body := title
 			if name != "" {
 				body += "：" + name
+			}
+			if e.kind == "plugin.notice" {
+				title = name
+				if message, ok := data["message"].(string); ok {
+					body = message
+				}
 			}
 			if _, err = tx.Exec(ctx, `INSERT INTO notification_messages(id,event_id,title,body)VALUES($1,$2,$3,$4)ON CONFLICT(event_id)DO NOTHING`, jobs.UUID(), e.id, title, body); err != nil {
 				return err

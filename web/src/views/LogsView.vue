@@ -7,6 +7,7 @@ import { formatLogTime, logLevel, logSource, logFields, inlineLogFields, logText
 import type { LogRecord } from '../logs/format'
 interface Summary { totalBytes:number; limitBytes:number; level:string; files:Array<{name:string;size:number;modified:string}> }
 interface LogPage { items:LogRecord[]; total:number; page:number; pageSize:number; modules:string[]; before:string; truncated:boolean; maxFileBytes:number; maxRecords:number }
+const linkOpen=ref(false),linkRow=ref<LogRecord|null>(null)
 const summary=ref<Summary|null>(null),rows=ref<LogRecord[]>([]),level=ref(''),module=ref(''),keyword=ref(''),range=ref<Date[]|null>(null)
 const busy=ref(false),summaryBusy=ref(false),error=ref(''),clean=ref(false),settingsOpen=ref(false),copyOpen=ref(false),copyContent=ref('')
 const page=ref(1),pageSize=ref(200),total=ref(0),modules=ref<string[]>([]),before=ref(''),truncated=ref(false),expanded=ref(new Set<number>())
@@ -32,7 +33,7 @@ async function change(value:string){try{await post('/logs/level',{level:value});
 function toggle(index:number){if(expanded.value.has(index))expanded.value.delete(index);else expanded.value.add(index)}
 async function copy(){
  const text=logText(rows.value,clean.value)
- try{if(!navigator.clipboard?.writeText)throw new Error('unavailable');await navigator.clipboard.writeText(text);ElMessage.success('当前页脱敏日志已复制')}
+ try{if(!navigator.clipboard?.writeText)throw new Error('unavailable');await navigator.clipboard.writeText(text);ElMessage.success('当前页原始日志已复制')}
  catch{copyContent.value=text;copyOpen.value=true}
 }
 function download(){
@@ -49,8 +50,8 @@ onUnmounted(()=>{++epoch;controller?.abort();if(timer)clearTimeout(timer)})
     <div class="clean-toggle"><el-switch id="log-clean-mode" v-model="clean" aria-label="简约模式"/><label for="log-clean-mode">简约模式</label></div>
     <el-button class="log-icon" :icon="Refresh" :loading="busy" aria-label="刷新日志" title="刷新日志" @click="refresh"/>
     <el-button class="log-icon" :icon="Delete" type="danger" plain aria-label="清理日志" title="清理日志" :disabled="busy" @click="clear"/>
-    <el-button class="log-icon" :icon="CopyDocument" aria-label="复制当前页日志" title="复制当前页脱敏日志" :disabled="!rows.length||busy" @click="copy"/>
-    <el-button class="log-icon" :icon="Download" aria-label="下载当前页日志" title="下载当前页脱敏日志" :disabled="!rows.length||busy" @click="download"/>
+    <el-button class="log-icon" :icon="CopyDocument" aria-label="复制当前页日志" title="复制当前页原始日志" :disabled="!rows.length||busy" @click="copy"/>
+    <el-button class="log-icon" :icon="Download" aria-label="下载当前页日志" title="下载当前页原始日志" :disabled="!rows.length||busy" @click="download"/>
     <el-button class="log-icon" :icon="Setting" aria-label="日志设置" title="大小、文件与运行级别" @click="settingsOpen=true;loadSummary()"/>
    </div>
   </header>
@@ -61,13 +62,13 @@ onUnmounted(()=>{++epoch;controller?.abort();if(timer)clearTimeout(timer)})
    <div class="log-filter"><label for="log-time-start">时间范围</label><el-date-picker :id="['log-time-start','log-time-end']" v-model="range" type="datetimerange" start-placeholder="开始时间" end-placeholder="结束时间" range-separator="至" aria-label="日志时间范围" @change="refresh"/></div>
   </form>
   <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon/>
-  <div class="log-window-note"><span>仅显示脱敏文件日志 · 本地时区 · 最新写入在前</span><span v-if="summary">{{bytes(summary.totalBytes)}} / {{bytes(summary.limitBytes)}}</span></div>
+  <div class="log-window-note"><span>仅已登录管理员可见原始日志（含完整链接），请勿公开分享 · 本地时区 · 最新写入在前</span><span v-if="summary">{{bytes(summary.totalBytes)}} / {{bytes(summary.limitBytes)}}</span></div>
   <div class="log-console" :class="{'is-clean':clean}" tabindex="0" aria-label="日志内容" :aria-busy="busy">
    <div v-if="busy" class="console-state" role="status">正在读取日志…</div>
    <div v-else-if="error" class="console-state">读取失败，请使用上方刷新按钮重试。</div>
    <div v-else-if="!rows.length" class="console-state">没有符合筛选条件的日志</div>
    <template v-else><article v-for="(row,index) in rows" :key="index" class="log-entry log-row">
-    <div class="log-line"><time :datetime="row.time">{{formatLogTime(row.time)}}</time><span class="severity" :class="logLevel(row.level)">{{logLevel(row.level)}}</span><div class="log-message"><span>{{row.msg}}</span><span v-if="!clean" class="log-inline-fields"> {{inlineLogFields(row)}}</span><span v-if="!clean&&logSource(row)" class="log-source"> {{logSource(row)}}</span></div>
+    <el-button v-if="row.url||row.location" size="small" text @click.stop="linkRow=row;linkOpen=true">查看请求与跳转链接</el-button><div class="log-line"><time :datetime="row.time">{{formatLogTime(row.time)}}</time><span class="severity" :class="logLevel(row.level)">{{logLevel(row.level)}}</span><div class="log-message"><span>{{row.msg}}</span><span v-if="!clean" class="log-inline-fields"> {{inlineLogFields(row)}}</span><span v-if="!clean&&logSource(row)" class="log-source"> {{logSource(row)}}</span></div>
      <button v-if="!clean" class="log-detail-toggle" :aria-label="`查看第${index+1}条日志详情`" :aria-expanded="expanded.has(index)" @click="toggle(index)"><ArrowDown :class="{'is-open':expanded.has(index)}" aria-hidden="true"/></button>
     </div>
     <div v-if="!clean&&expanded.has(index)" class="log-details"><span class="log-detail-label">模块 {{row.module||'app'}} · 来源 {{logSource(row)||'旧日志未记录来源'}}</span><pre>{{JSON.stringify(logFields(row),null,2)}}</pre></div>
@@ -76,8 +77,8 @@ onUnmounted(()=>{++epoch;controller?.abort();if(timer)clearTimeout(timer)})
   <footer class="log-pagination"><div class="log-window-scope"><strong>当前检索窗口共 {{total}} 条</strong><span v-if="truncated">仅检索每文件末尾 2 MiB、最多 20000 条；不代表全部保留日志。</span><span v-else>分页复用查询截止时间；大量写入、轮转或清理后可刷新重读。</span></div><div class="log-pager-controls"><div class="page-size-control"><label for="log-page-size">每页行数</label><el-select id="log-page-size" v-model="pageSize" aria-label="日志每页行数" @change="refresh"><el-option v-for="n in [50,100,200]" :key="n" :label="String(n)" :value="n"/></el-select></div><el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" :pager-count="5" layout="prev,pager,next" :disabled="busy" @current-change="load"/></div></footer>
  </section>
  <el-drawer v-model="settingsOpen" title="日志设置" size="min(480px,95vw)" class="log-settings"><div v-loading="summaryBusy"><section class="log-size-info"><h2>日志大小</h2><strong>{{summary?bytes(summary.totalBytes):'—'}}</strong><p>上限 {{summary?bytes(summary.limitBytes):'—'}} · 自动轮转</p></section><label for="runtime-log-level" class="runtime-level-label">本次运行日志级别</label><el-select id="runtime-log-level" :model-value="summary?.level" @change="change"><el-option v-for="x in ['debug','info','warn','error']" :key="x" :label="x.toUpperCase()" :value="x"/></el-select><p class="field-hint">永久默认值在 Compose 配置。更改不回填过去的日志。恢复临时密码不进入此页面。</p><h2>保留文件</h2><div v-for="file in summary?.files" :key="file.name" class="log-retained-file"><strong>{{file.name}}</strong><span>{{bytes(file.size)}}</span><time>{{formatLogTime(file.modified)}}</time></div></div></el-drawer>
- <el-dialog v-model="copyOpen" title="复制脱敏日志" width="min(740px,94vw)"><p class="field-hint">当前浏览器不支持直接写入剪贴板，请选中下方文本并复制。</p><el-input v-model="copyContent" type="textarea" readonly :rows="12" aria-label="待复制日志"/><template #footer><el-button @click="copyOpen=false">关闭</el-button></template></el-dialog>
-</template>
+ <el-dialog v-model="copyOpen" title="复制原始日志" width="min(740px,94vw)"><p class="field-hint">当前浏览器不支持直接写入剪贴板，请选中下方文本并复制。</p><el-input v-model="copyContent" type="textarea" readonly :rows="12" aria-label="待复制日志"/><template #footer><el-button @click="copyOpen=false">关闭</el-button></template></el-dialog>
+<el-dialog v-model="linkOpen" title="完整请求与302链接" width="min(900px,94vw)"><p>原始请求</p><el-input :model-value="String(linkRow?.url??'')" readonly type="textarea" :rows="3"/><p>跳转目标 / Location</p><el-input :model-value="String(linkRow?.location??'无跳转')" readonly type="textarea" :rows="3"/><p>请求ID {{linkRow?.requestId}} · 状态 {{linkRow?.status}} · 耗时 {{linkRow?.durationMs}} ms</p><p class="field-hint">链接含完整参数，仅管理员可见，请勿公开分享。查看不会发起媒体请求。</p></el-dialog></template>
 <style scoped>
 .log-workspace{background:var(--panel-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;min-width:0}
 .log-toolbar{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;gap:16px}

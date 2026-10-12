@@ -20,7 +20,7 @@ test_db_exec(){
   docker exec -i "${TEST_POSTGRES_CONTAINER:-media-tool-postgres-1}" sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d media_tool_test -c "$1"' sh "$1" >/dev/null
  fi
 }
-go run ./cmd/migrate -test-only >/dev/null
+go run ./cmd/migrate -test-only -cleanup-test-plugins >/dev/null
 test_db_exec 'TRUNCATE subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,administrator_accounts,administrator_auth_limits CASCADE'
 
 private=$(mktemp -d)

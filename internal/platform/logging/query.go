@@ -162,7 +162,7 @@ func (s *Store) Query(ctx context.Context, q Query) (QueryResult, error) {
 			return out, err
 		}
 		scanner := bufio.NewScanner(io.LimitReader(file.file, file.size-offset))
-		scanner.Buffer(make([]byte, 4096), 64<<10)
+		scanner.Buffer(make([]byte, 4096), 1<<20)
 		remaining := LogQueryMaxRecords - len(window)
 		records := make([]map[string]any, 0, min(remaining, 256))
 		next := 0

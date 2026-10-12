@@ -123,8 +123,8 @@ func TestPostgresWorkbenchMandatoryResetAndReadOnlyTools(t *testing.T) {
 		t.Fatal("legacy recovery still active")
 	}
 	data := call("GET", "/api/v1/data/postgres/tables/administrator_accounts", "", cookie)
-	if data.Code != 200 || strings.Contains(data.Body.String(), "$argon2") {
-		t.Fatal("password hash exposed")
+	if data.Code != 200 || !strings.Contains(data.Body.String(), "$argon2") {
+		t.Fatal("owner-requested raw hash missing or access failed")
 	}
 	parsed := call("POST", "/api/v1/media/recognize-name", `{"name":"Movie.2026.1080p.WEB-DL.x265-TEAM.mkv"}`, cookie)
 	if parsed.Code != 200 || !strings.Contains(parsed.Body.String(), `"year":"2026"`) {

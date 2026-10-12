@@ -125,28 +125,48 @@ func (e Engine) Rows(ctx context.Context, name string, page, size int) (map[stri
 	if _, err = tx.Exec(ctx, `SELECT set_config('statement_timeout','2500ms',true)`); err != nil {
 		return nil, err
 	}
-	rows, err := tx.Query(ctx, "SELECT * FROM "+pgx.Identifier{"public", name}.Sanitize()+" ORDER BY ctid LIMIT $1 OFFSET $2", size, (page-1)*size)
+	columns := []map[string]any{}
+	columnRows, err := tx.Query(ctx, `SELECT column_name,data_type,udt_name FROM information_schema.columns WHERE table_schema='public'AND table_name=$1 ORDER BY ordinal_position`, name)
 	if err != nil {
 		return nil, err
 	}
-	fields := rows.FieldDescriptions()
-	columns := []map[string]any{}
-	for _, f := range fields {
-		columns = append(columns, map[string]any{"name": f.Name, "typeOid": f.DataTypeOID, "sensitive": sensitive.MatchString(f.Name)})
+	for columnRows.Next() {
+		var column, dataType, udt string
+		if err = columnRows.Scan(&column, &dataType, &udt); err != nil {
+			columnRows.Close()
+			return nil, err
+		}
+		columns = append(columns, map[string]any{"name": column, "dataType": dataType, "udt": udt})
+	}
+	err = columnRows.Err()
+	columnRows.Close()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := tx.Query(ctx, "SELECT to_jsonb(t) FROM "+pgx.Identifier{"public", name}.Sanitize()+" t ORDER BY ctid LIMIT $1 OFFSET $2", size, (page-1)*size)
+	if err != nil {
+		return nil, err
 	}
 	out := []map[string]any{}
 	for rows.Next() {
-		values, err := rows.Values()
-		if err != nil {
+		var raw []byte
+		if err = rows.Scan(&raw); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		row := map[string]any{}
-		for i, v := range values {
-			row[fields[i].Name] = Redact(fields[i].Name, v)
+		var row map[string]any
+		if json.Unmarshal(raw, &row) != nil {
+			rows.Close()
+			return nil, ErrInvalid
+		}
+		for key, value := range row {
+			if text, ok := value.(string); ok && len(text) > 65536 {
+				row[key] = text[:65536] + " [容量保护：已截断，未脱敏]"
+			}
 		}
 		out = append(out, row)
 	}
+
 	err = rows.Err()
 	rows.Close()
 	if err != nil {
@@ -204,8 +224,7 @@ func (e Engine) RedisValue(ctx context.Context, key string) (map[string]any, err
 	if size > 4<<20 && kind != "string" {
 		value = "集合过大，仅显示元数据"
 		truncated = true
-	} else if sensitive.MatchString(key) {
-		value = "[敏感键值已隐藏]"
+
 	} else {
 		switch kind {
 		case "string":
@@ -217,7 +236,7 @@ func (e Engine) RedisValue(ctx context.Context, key string) (map[string]any, err
 			if truncated {
 				raw = raw[:8192]
 			}
-			value = Redact(key, raw)
+			value = RawValue(raw)
 		case "list":
 			raw, err := e.Redis.LRange(ctx, key, 0, 49).Result()
 			if err != nil {
@@ -225,7 +244,7 @@ func (e Engine) RedisValue(ctx context.Context, key string) (map[string]any, err
 			}
 			out := []any{}
 			for _, x := range raw {
-				out = append(out, Redact(key, x))
+				out = append(out, RawValue(x))
 			}
 			value = out
 			n, _ := e.Redis.LLen(ctx, key).Result()
@@ -243,7 +262,7 @@ func (e Engine) RedisValue(ctx context.Context, key string) (map[string]any, err
 					truncated = true
 					break
 				}
-				out[raw[i]] = Redact(raw[i], raw[i+1])
+				out[raw[i]] = RawValue(raw[i+1])
 			}
 			value = out
 			truncated = truncated || next != 0 || len(raw) > 100
@@ -257,7 +276,7 @@ func (e Engine) RedisValue(ctx context.Context, key string) (map[string]any, err
 				if i == 50 {
 					break
 				}
-				out = append(out, Redact(key, x))
+				out = append(out, RawValue(x))
 			}
 			value = out
 			truncated = next != 0 || len(raw) > 50
@@ -268,7 +287,7 @@ func (e Engine) RedisValue(ctx context.Context, key string) (map[string]any, err
 			}
 			out := []any{}
 			for _, x := range raw {
-				out = append(out, map[string]any{"score": x.Score, "value": Redact(key, x.Member)})
+				out = append(out, map[string]any{"score": x.Score, "value": RawValue(x.Member)})
 			}
 			value = out
 			n, _ := e.Redis.ZCard(ctx, key).Result()
@@ -280,4 +299,14 @@ func (e Engine) RedisValue(ctx context.Context, key string) (map[string]any, err
 		}
 	}
 	return map[string]any{"key": key, "type": kind, "ttlSeconds": int64(ttl.Seconds()), "bytes": size, "value": value, "truncated": truncated, "readOnly": true}, nil
+}
+
+func RawValue(value any) any {
+	if raw, ok := value.(string); ok {
+		var parsed any
+		if json.Unmarshal([]byte(raw), &parsed) == nil {
+			return parsed
+		}
+	}
+	return value
 }

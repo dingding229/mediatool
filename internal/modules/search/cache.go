@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"media-tool/internal/modules/settings"
 	"media-tool/internal/modules/sites"
+	"media-tool/internal/platform/trace"
 	"sort"
 	"time"
 )
@@ -53,10 +54,12 @@ func (e Engine) StartCached(ctx context.Context, keyword string, ids []string, r
 		if err == nil {
 			run, err := e.Get(ctx, id, 1, 50)
 			if err == nil && (run.State == "succeeded" || run.State == "partial") && run.FinishedAt != nil && time.Since(*run.FinishedAt) < ttl {
+				trace.Info(ctx, "search", "搜索命中缓存", "searchRunId", id, "keyword", keyword, "accounts", ids)
 				return id, true, nil
 			}
 		}
 	}
+	trace.Info(ctx, "search", "创建站点搜索", "keyword", keyword, "accounts", ids, "refresh", refresh)
 	id, err := e.start(ctx, keyword, ids, true, key)
 	return id, false, err
 }

@@ -15,6 +15,7 @@ ARG TARGETOS=linux
 ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/media-tool ./cmd/media-tool && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate && \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/backup-verify ./cmd/backup-verify && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/rekey ./cmd/rekey && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/admin-reset ./cmd/admin-reset && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/cloud-upload-smoke ./cmd/cloud-upload-smoke && \
@@ -26,6 +27,7 @@ RUN apk add --no-cache ca-certificates && addgroup -S -g 65532 app && adduser -S
 WORKDIR /app
 COPY --from=backend /out/media-tool /app/media-tool
 COPY --from=backend /out/migrate /app/migrate
+COPY --from=backend /out/backup-verify /app/backup-verify
 COPY --from=backend /out/rekey /app/rekey
 COPY --from=backend /out/admin-reset /app/admin-reset
 COPY --from=backend /out/cloud-upload-smoke /app/cloud-upload-smoke

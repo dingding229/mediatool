@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"media-tool/internal/platform/trace"
 	"net/http"
 	"net/url"
 	"strings"
@@ -191,7 +192,14 @@ func (c Client) callWithTarget(ctx context.Context, rule Map, vars map[string]st
 		}
 		return nil
 	}
+	began := time.Now()
+	trace.Info(ctx, "sites", "站点请求开始", "accountId", c.Account.ID, "url", request.URL.String(), "method", method)
 	response, err := copy.Do(request)
+	status := 0
+	if response != nil {
+		status = response.StatusCode
+	}
+	trace.Info(ctx, "sites", "站点请求结束", "accountId", c.Account.ID, "url", request.URL.String(), "status", status, "durationMs", time.Since(began).Milliseconds(), "success", err == nil, "error", err)
 	if err != nil {
 		return nil, "", ErrRequest
 	}
@@ -281,6 +289,9 @@ func (c Client) Search(ctx context.Context, q SearchQuery) ([]Resource, error) {
 }
 
 func (c Client) searchPage(ctx context.Context, q SearchQuery) (SearchPageResult, error) {
+	return c.searchPageLink(ctx, q, nil, true)
+}
+func (c Client) searchPageLink(ctx context.Context, q SearchQuery, next *url.URL, authenticate bool) (SearchPageResult, error) {
 	result := SearchPageResult{Resources: []Resource{}}
 	if q.Page < 1 {
 		q.Page = 1
@@ -294,10 +305,28 @@ func (c Client) searchPage(ctx context.Context, q SearchQuery) (SearchPageResult
 	if _, _, err := requestPayload(rule, vars, custom); err != nil {
 		return result, err
 	}
-	if err := c.Test(ctx); err != nil {
-		return result, err
+	if authenticate {
+		if err := c.Test(ctx); err != nil {
+			return result, err
+		}
 	}
-	raw, mode, err := c.call(ctx, rule, vars, custom)
+	requestRule := rule
+	if next != nil {
+		if text(rule["method"]) != "" && text(rule["method"]) != "GET" {
+			return result, ErrConfig
+		}
+		if _, ok := rule["body"]; ok {
+			return result, ErrConfig
+		}
+		if _, ok := rule["form_data"]; ok {
+			return result, ErrConfig
+		}
+		requestRule = clone(rule)
+		requestRule["path"] = next.String()
+		delete(requestRule, "params")
+	}
+	var target *url.URL
+	raw, mode, err := c.callWithTarget(ctx, requestRule, vars, custom, &target)
 	if err != nil {
 		return result, err
 	}
@@ -322,6 +351,11 @@ func (c Client) searchPage(ctx context.Context, q SearchQuery) (SearchPageResult
 	}
 	if err != nil {
 		return result, err
+	}
+	result.Target = target
+	result.Next, result.LinkPagination, result.LinkEnd, result.LinkError = c.linkNavigation(d, rule, vars, target)
+	if d.html != nil && nexusCompatible(c.Config) && target.Path == "/torrents.php" && !result.LinkPagination && len(list) == 0 {
+		return result, ErrSearchResponse
 	}
 	result.RawRows = len(list)
 	out := []Resource{}

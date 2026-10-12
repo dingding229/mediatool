@@ -31,7 +31,7 @@ print(json.dumps({'args':sys.argv[1:],'db':urllib.parse.urlsplit(os.environ['DAT
         result = self.invoke()
         self.assertEqual(result.returncode, 0, result.stderr)
         migration, test = [json.loads(line) for line in result.stdout.splitlines()]
-        self.assertEqual(migration["args"], ["run", "./cmd/migrate", "-test-only", "-action", "up"])
+        self.assertEqual(migration["args"], ["run", "./cmd/migrate", "-test-only", "-action", "up", "-cleanup-test-plugins"])
         self.assertEqual(test["args"], ["test", "-p", "1", "-race", "-count=1", "./..."])
         for command in (migration, test):
             self.assertEqual(command["db"], "/media_tool_test")

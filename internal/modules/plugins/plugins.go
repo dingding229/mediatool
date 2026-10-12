@@ -24,6 +24,22 @@ var ErrInvalid = errors.New("invalid extension manifest")
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9-]{2,63}$`)
 
 type Manifest struct {
+	SourcePluginID string `json:"sourcePluginId,omitempty"`
+
+	CustomUI bool `json:"customUI,omitempty"`
+
+	Events      []string `json:"events,omitempty"`
+	Permissions []string `json:"permissions,omitempty"`
+
+	Author      string        `json:"author,omitempty"`
+	Description string        `json:"description,omitempty"`
+	Commands    []Command     `json:"commands,omitempty"`
+	Services    []Service     `json:"services,omitempty"`
+	Routes      []PluginRoute `json:"routes,omitempty"`
+	Pages       []PluginPage  `json:"pages,omitempty"`
+	Dashboard   bool          `json:"dashboard,omitempty"`
+	Outbound    []string      `json:"outbound,omitempty"`
+
 	ID           string         `json:"id"`
 	Name         string         `json:"name"`
 	Version      string         `json:"version"`
@@ -52,6 +68,8 @@ type Extension interface {
 	Handle(context.Context, Event) (json.RawMessage, error)
 }
 type Registry struct {
+	Host HostFunc
+
 	DB    *pgxpool.Pool
 	HTTP  *http.Client
 	Vault *secrets.Vault
@@ -61,11 +79,20 @@ func builtins() []Record {
 	return []Record{{Manifest: Manifest{ID: "release-name", Name: "0day 文件名识别", Version: "1.0.0", Contract: 1, Capabilities: []string{"media.recognize"}}, Enabled: true, Builtin: true, Revision: 1}, {Manifest: Manifest{ID: "naming-template", Name: "电影与剧集命名模板", Version: "1.0.0", Contract: 1, Capabilities: []string{"media.naming"}}, Enabled: true, Builtin: true, Revision: 1}}
 }
 func Validate(m Manifest) error {
-	if !identifier.MatchString(m.ID) || m.ID == "release-name" || m.ID == "naming-template" || m.Contract != 1 || len(m.Name) < 1 || len(m.Name) > 120 || len(m.Version) < 1 || len(m.Version) > 40 || len(m.Capabilities) == 0 || len(m.Capabilities) > 2 {
+	if validateFramework(m) != nil {
+		return ErrInvalid
+	}
+	if !identifier.MatchString(m.ID) || m.ID == "release-name" || m.ID == "naming-template" || m.Contract != 1 || len(m.Name) < 1 || len(m.Name) > 120 || len(m.Version) < 1 || len(m.Version) > 40 || len(m.Capabilities) == 0 || len(m.Capabilities) > 10 {
 		return ErrInvalid
 	}
 	if validateFields(m.Settings) != nil {
 		return ErrInvalid
+	}
+	if m.Runtime == "wasm" {
+		if m.Endpoint != "" || len(m.Rules) > 0 {
+			return ErrInvalid
+		}
+		return nil
 	}
 	if m.Runtime == "rules" {
 		return validateRules(m)
@@ -137,6 +164,13 @@ func (r Registry) Save(ctx context.Context, m Manifest, enabled, consent bool, r
 		if e != nil || rev != revision {
 			return ErrInvalid
 		}
+		if m.Runtime == "wasm" {
+			for _, service := range m.Services {
+				if _, err := nextService(service, values, time.Now()); err != nil {
+					return err
+				}
+			}
+		}
 		if _, e = ValidateSettings(m.Settings, values, true); e != nil {
 			return e
 		}
@@ -156,6 +190,16 @@ func (r Registry) Save(ctx context.Context, m Manifest, enabled, consent bool, r
 	if tag.RowsAffected() != 1 {
 		return ErrInvalid
 	}
+	if m.Runtime == "wasm" {
+		kind := "plugin.stop"
+		if enabled {
+			kind = "plugin.init"
+		}
+		if _, e := r.Invoke(ctx, m.ID, kind, map[string]any{}, !enabled); e != nil && enabled {
+			r.DB.Exec(ctx, `UPDATE extension_plugins SET enabled=false,revision=revision+1 WHERE id=$1 AND revision=$2`, m.ID, revision+1)
+			return e
+		}
+	}
 	return nil
 }
 func (r Registry) Delete(ctx context.Context, id string) error {
@@ -166,6 +210,9 @@ func (r Registry) Delete(ctx context.Context, id string) error {
 	return err
 }
 func (r Registry) invoke(ctx context.Context, m Manifest, event Event) (output json.RawMessage, callErr error) {
+	if m.Runtime == "wasm" {
+		return r.invokeFramework(ctx, m, event, false)
+	}
 	if Validate(m) != nil {
 		return nil, ErrInvalid
 	}
@@ -205,9 +252,7 @@ func (r Registry) invoke(ctx context.Context, m Manifest, event Event) (output j
 		return nil, e
 	}
 	defer func() {
-		if callErr == nil {
-			output, callErr = redactOutput(output, m, values)
-		}
+
 		bounded, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
 		defer cancel()
 		state, message := "succeeded", "插件执行完成"

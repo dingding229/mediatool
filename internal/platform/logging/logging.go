@@ -93,3 +93,23 @@ func NewControlled(out io.Writer, level string, control *slog.LevelVar, knownSec
 		return a
 	}})), nil
 }
+
+// NewRawControlled is used only for the owner-requested private administrator
+// log store/stdout. Access checks and 0600 retention files remain mandatory.
+func NewRawControlled(out io.Writer, level string, control *slog.LevelVar) (*slog.Logger, error) {
+	parsed, err := ParseLevel(level)
+	if err != nil {
+		return nil, err
+	}
+	var threshold slog.Leveler = parsed
+	if control != nil {
+		control.Set(parsed)
+		threshold = control
+	}
+	return slog.New(slog.NewJSONHandler(out, &slog.HandlerOptions{Level: threshold, AddSource: true, ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+		if a.Value.Kind() == slog.KindString && len(a.Value.String()) > 65536 {
+			a.Value = slog.StringValue(a.Value.String()[:65536] + " [容量保护：已截断]")
+		}
+		return a
+	}})), nil
+}

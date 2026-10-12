@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-func TestAccessMetricsCountStatusAndBytesWithoutCredentials(t *testing.T) {
+func TestAccessMetricsRawURLAndLocationWithoutCollectingHeadersOrBodies(t *testing.T) {
 	var logs bytes.Buffer
 	api := &API{Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
 	handler := api.middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,8 +39,8 @@ func TestAccessMetricsCountStatusAndBytesWithoutCredentials(t *testing.T) {
 	if metric["status"] != float64(206) || metric["responseBytes"] != float64(11) || metric["path"] != "/emby/videos/11/hls1/main/0.ts" {
 		t.Fatal("missing HTTP facts", metric)
 	}
-	if strings.Contains(logs.String(), "NEVER-LOG") || strings.Contains(logs.String(), "api_key") || strings.Contains(logs.String(), "owned-bytes") {
-		t.Fatal("credentials/query/body leaked")
+	if !strings.Contains(logs.String(), "NEVER-LOG-TOKEN") || !strings.Contains(logs.String(), "NEVER-LOG-SIGN") || strings.Contains(logs.String(), "NEVER-LOG-AUTH") || strings.Contains(logs.String(), "NEVER-LOG-COOKIE") || strings.Contains(logs.String(), "owned-bytes") {
+		t.Fatal("raw URL missing or unrequested header/body collected")
 	}
 }
 func TestAccessMetricsPreserveWriterInterfacesAndFlush(t *testing.T) {
@@ -152,7 +152,7 @@ func TestResolveStageAccessLogsAreRequestCorrelatedAndNeverContainSecrets(t *tes
 	r.Header.Set("Authorization", "PRIVATE-BEARER")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, r)
-	if w.Code != 504 || strings.Contains(logs.String(), "PRIVATE") || strings.Contains(logs.String(), c.STRMKey) {
+	if w.Code != 504 || strings.Contains(logs.String(), "PRIVATE-BEARER") || strings.Contains(logs.String(), "PRIVATE-SIGNATURE") || !strings.Contains(logs.String(), "PRIVATE-UA") || !strings.Contains(logs.String(), c.STRMKey) {
 		t.Fatal("timeout or stage redaction changed", w.Code)
 	}
 	id := w.Header().Get("X-Request-ID")

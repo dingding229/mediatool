@@ -9,16 +9,18 @@ import (
 )
 
 type Metrics struct {
-	Name         string   `json:"username,omitempty"`
-	Uploaded     *int64   `json:"uploaded"`
-	Downloaded   *int64   `json:"downloaded"`
-	Ratio        *float64 `json:"ratio"`
-	Bonus        *float64 `json:"bonus"`
-	Level        string   `json:"level,omitempty"`
-	Seeding      *int64   `json:"seeding"`
-	SeedingBytes *int64   `json:"seedingBytes"`
-	Partial      bool     `json:"partial"`
-	Notes        []string `json:"notes"`
+	Name            string   `json:"username,omitempty"`
+	Uploaded        *int64   `json:"uploaded"`
+	Downloaded      *int64   `json:"downloaded"`
+	Ratio           *float64 `json:"ratio"`
+	Bonus           *float64 `json:"bonus"`
+	Level           string   `json:"level,omitempty"`
+	Seeding         *int64   `json:"seeding"`
+	SeedingBytes    *int64   `json:"seedingBytes"`
+	SeedingPages    int      `json:"seedingPages"`
+	SeedingComplete bool     `json:"seedingComplete"`
+	Partial         bool     `json:"partial"`
+	Notes           []string `json:"notes"`
 }
 
 func metricNumber(v any) (float64, bool) {
@@ -103,46 +105,17 @@ func (c Client) Metrics(ctx context.Context) (Metrics, error) {
 		}
 	}
 	if seed := c.Config.Requests["seeding_statistics"]; seed != nil && vars["userId"] != "" {
-		raw, mode, e := c.call(ctx, seed, vars, nil)
-		if e == nil {
-			doc, e := parseDocument(raw, mode)
-			if e == nil {
-				list := object(seed["list"])
-				scopes, e := doc.values(text(list["selector"]), nil)
-				if e == nil {
-					count := int64(len(scopes))
-					sum := int64(0)
-					valid := true
-					for _, scope := range scopes {
-						v, e := mapFields(doc, Map{"size": object(seed["fields"])["size"]}, scope, vars)
-						n := metricBytes(v["size"])
-						if e != nil || n == nil || sum > math.MaxInt64-*n {
-							valid = false
-							break
-						}
-						sum += *n
-					}
-					next := object(list["next_page"])
-					more := false
-					if len(next) > 0 {
-						v, e := mapFields(doc, Map{"next": next}, nil, vars)
-						more = e != nil || !blank(v["next"])
-					}
-					if !more && count > 0 && valid {
-						m.Seeding = &count
-						if valid {
-							m.SeedingBytes = &sum
-						}
-					} else {
-						m.Notes = append(m.Notes, "做种列表可能分页或无法证明空列表；未将不完整数量当总数")
-					}
-				}
-			}
-		}
-		if e != nil {
-			m.Notes = append(m.Notes, "做种统计读取失败")
+		count, size, pages, complete, note := c.collectSeeding(ctx, seed, vars)
+		m.SeedingPages = pages
+		m.SeedingComplete = complete
+		if complete {
+			m.Seeding = &count
+			m.SeedingBytes = &size
+		} else {
+			m.Notes = append(m.Notes, note)
 		}
 	}
+
 	m.Partial = m.Uploaded == nil || m.Downloaded == nil || m.Ratio == nil || m.Bonus == nil || m.Level == "" || m.Seeding == nil || m.SeedingBytes == nil || len(m.Notes) > 0
 	if m.Uploaded == nil && m.Downloaded == nil && m.Bonus == nil && m.Name == "" {
 		return m, errors.New("站点指标未取得；站点定义或挑战需要适配")

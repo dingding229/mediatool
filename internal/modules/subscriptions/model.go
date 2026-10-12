@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"media-tool/internal/modules/metadata"
+	"media-tool/internal/modules/releaseattrs"
 	"media-tool/internal/modules/search"
 	"media-tool/internal/modules/subscriptionpolicy"
 )
@@ -23,6 +24,12 @@ type Input struct {
 }
 
 func Validate(in Input) error {
+	for key, value := range map[string]string{"resolution": in.Rules.Resolution, "source": in.Rules.Source, "codec": in.Rules.Codec} {
+		if !releaseattrs.Valid(key, value) {
+			return errors.New("无效的结构化订阅筛选；请使用已支持的分辨率、来源和编码")
+		}
+	}
+
 	if in.MediaType != "movie" && in.MediaType != "series" || in.TMDBID <= 0 {
 		return errors.New("select a movie or series identity")
 	}

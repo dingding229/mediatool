@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue'
+import { computed, useId,ref,onMounted } from 'vue'
+import {request}from'../api/client'
 import { useRoute } from 'vue-router'
 import { ArrowRight } from '@element-plus/icons-vue'
 import { navigationGroups, navigationLocation } from '../navigation/items'
 import { toggleNavigationGroup } from '../navigation/expansion'
+const plugins=ref<any[]>([])
+onMounted(async()=>{try{plugins.value=(await request<any[]>('/plugins')).filter(x=>x.enabled&&x.manifest.pages?.length)}catch{}})
 const route = useRoute(), instanceId = useId()
 const expanded = defineModel<string[]>('expanded', { default: () => [] })
 const current = computed(() => navigationLocation(route.path))
@@ -29,5 +32,6 @@ defineEmits<{ navigate: [] }>()
         </RouterLink>
       </div>
     </section>
+    <section v-if="plugins.length" class="nav-group" aria-label="插件应用"><h2 class="nav-group-label"><button class="nav-group-toggle" type="button" :aria-expanded="expanded.includes('plugin-apps')" :aria-controls="`${instanceId}-plugin-apps`" @click="expanded=toggleNavigationGroup(expanded,'plugin-apps')"><span>插件应用</span><ArrowRight class="nav-group-chevron" :class="{'is-expanded':expanded.includes('plugin-apps')}" aria-hidden="true"/></button></h2><div :id="`${instanceId}-plugin-apps`" class="nav-group-items" :hidden="!expanded.includes('plugin-apps')"><template v-for="plugin in plugins" :key="plugin.manifest.id"><RouterLink v-for="page in plugin.manifest.pages" :key="page.id" :to="`/plugins/${plugin.manifest.id}/${page.id}`" class="nav-item" @click="$emit('navigate')">{{plugin.manifest.name}} · {{page.title}}</RouterLink></template></div></section>
   </nav>
 </template>

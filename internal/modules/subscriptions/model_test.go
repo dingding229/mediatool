@@ -50,3 +50,20 @@ func TestManifestPackCoverageAndUnknownEpisode(t *testing.T) {
 		t.Fatal("guessed unknown episode")
 	}
 }
+
+func TestStructuredSubscriptionInputRejectsUnknownAndSupportsOldRecords(t *testing.T) {
+	in := Input{MediaType: "movie", TMDBID: 1, Source: "search", IntervalMinutes: 30, Rules: Rules{AccountIDs: []string{"owned"}}}
+	if Validate(in) != nil {
+		t.Fatal("old record changed")
+	}
+	in.Rules.Resolution = "2160p"
+	in.Rules.Source = "web-dl"
+	in.Rules.Codec = "h265"
+	if Validate(in) != nil {
+		t.Fatal("valid filters")
+	}
+	in.Rules.Resolution = "unknown"
+	if Validate(in) == nil {
+		t.Fatal("unknown is not a proved subscription attribute")
+	}
+}

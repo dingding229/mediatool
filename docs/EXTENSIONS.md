@@ -1,3 +1,6 @@
+> 0.11插件框架已加入Go/WASM运行、市场、页面/API/定时服务等，当前文档见PLUGIN_FRAMEWORK.md。
+> 以下是早期v1规则/HTTPS合约历史说明；其中“仅声明式/不执行代码”和秘密回显描述由0.11及最新用户要求取代。
+
 # 插件扩展合约 v1
 
 本程序不下载安装Python插件、不执行任意Go共享库或shell。内置插件提供0day解析及安全命名；后续Go模块可实现 `plugins.Extension` 接口，外部扩展支持ZIP插件包；旧JSON Manifest入口保留兼容。

@@ -16,6 +16,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/sites"
 	"media-tool/internal/platform/secrets"
+	"media-tool/internal/platform/trace"
 )
 
 type Engine struct {
@@ -261,6 +262,8 @@ func (e Engine) runSite(ctx context.Context, runID, keyword, accountID string) {
 	} else if !result.Complete {
 		state = "partial"
 		switch result.Reason {
+		case "invalid_next_page":
+			message = "下一页链接不满足同源同查询边界；只保留已取得结果"
 		case "single_page_contract":
 			message = "站点定义仅声明单页请求；本次只查询该页，未声明其他页面已检索"
 		case "page_limit":
@@ -275,6 +278,7 @@ func (e Engine) runSite(ctx context.Context, runID, keyword, accountID string) {
 			message = "搜索结果未完整取得，请核对站点分页与接口版本"
 		}
 	}
+	trace.Info(ctx, "search", "站点搜索结果", "searchRunId", runID, "accountId", accountID, "state", state, "pages", result.Pages, "complete", result.Complete, "reason", result.Reason, "message", message)
 	count := len(result.Resources)
 	if err != nil {
 		count = 0

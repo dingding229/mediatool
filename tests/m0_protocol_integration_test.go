@@ -209,7 +209,7 @@ func TestProtocolFixtureSTRMCloudGRPCEmbyAndMediaFlow(t *testing.T) {
 	if err != nil || inspection.MediaBytesChecked {
 		t.Fatal(err)
 	}
-	if strings.Contains(logs.String(), cfg.STRMKey) || strings.Contains(logs.String(), "user-test-token") || strings.Contains(logs.String(), "ephemeral=") {
-		t.Fatal("logs leaked test credentials")
+	if !strings.Contains(logs.String(), cfg.STRMKey) || !strings.Contains(logs.String(), "ephemeral=") {
+		t.Fatal("raw request/302 logs missing")
 	}
 }

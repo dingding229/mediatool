@@ -24,6 +24,7 @@ import (
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/requestbudget"
+	"media-tool/internal/platform/trace"
 	"media-tool/internal/platform/webui"
 	"net/http"
 	"net/url"
@@ -100,6 +101,18 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("PUT /api/v1/plugins/{id}/settings", a.protected(a.savePluginSettings))
 	mux.HandleFunc("POST /api/v1/plugins/{id}/test", a.protected(a.testPlugin))
 	mux.HandleFunc("GET /api/v1/plugins/{id}/runs", a.protected(a.pluginRuns))
+	mux.HandleFunc("GET /api/v1/plugin-market/repositories", a.protected(a.pluginRepositories))
+	mux.HandleFunc("POST /api/v1/plugin-market/repositories", a.protected(a.addPluginRepository))
+	mux.HandleFunc("DELETE /api/v1/plugin-market/repositories/{id}", a.protected(a.deletePluginRepository))
+	mux.HandleFunc("GET /api/v1/plugin-market/repositories/{id}/catalog", a.protected(a.pluginMarket))
+	mux.HandleFunc("POST /api/v1/plugin-market/package", a.protected(a.marketPreview))
+	mux.HandleFunc("POST /api/v1/plugins/{id}/clone", a.protected(a.clonePlugin))
+	mux.HandleFunc("GET /api/v1/plugins/{id}/ui", a.protected(a.pluginUI))
+	mux.HandleFunc("GET /api/v1/plugins/{id}/state", a.protected(a.pluginState))
+	mux.HandleFunc("DELETE /api/v1/plugins/{id}/data", a.protected(a.clearPluginData))
+	mux.HandleFunc("GET /api/v1/plugins/{id}/view/{kind}/{key}", a.protected(a.pluginFrameworkCall))
+	mux.HandleFunc("POST /api/v1/plugins/{id}/view/{kind}/{key}", a.protected(a.pluginFrameworkCall))
+	mux.HandleFunc("POST /api/v1/plugins/{id}/services/{key}", a.protected(a.pluginServiceRun))
 	mux.HandleFunc("GET /api/v1/plugins", a.protected(a.pluginList))
 	mux.HandleFunc("POST /api/v1/plugins", a.protected(a.pluginSave))
 	mux.HandleFunc("DELETE /api/v1/plugins/{id}", a.protected(a.pluginDelete))
@@ -257,8 +270,9 @@ func (a *API) middleware(next http.Handler) http.Handler {
 		rand.Read(nonce)
 		id := hex.EncodeToString(nonce)
 		w.Header().Set("X-Request-ID", id)
+		r = r.WithContext(trace.With(r.Context(), a.Deps.Logger.With("requestId", id)))
 		r = r.WithContext(storage.WithResolveObserver(r.Context(), func(event storage.ResolveObservation) {
-			fields := []any{"requestId", id, "stage", string(event.Stage), "outcome", event.Outcome, "durationMs", event.DurationMillis}
+			fields := []any{"module", "playback", "requestId", id, "stage", string(event.Stage), "outcome", event.Outcome, "durationMs", event.DurationMillis}
 			if event.ProviderCode != 0 {
 				fields = append(fields, "providerCode", event.ProviderCode)
 			}
@@ -297,8 +311,21 @@ func (a *API) middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 		metrics := httpsnoop.CaptureMetrics(guarded, w, r)
-		// Never log RawQuery, Authorization, Cookie, payloads or signed URLs.
-		fields := []any{"method", r.Method, "path", r.URL.Path, "status", metrics.Code, "responseBytes", metrics.Written, "durationMs", metrics.Duration.Milliseconds(), "requestId", id}
+		// Owner explicitly requested raw request and redirect URLs in private logs.
+		// Login bodies, Cookie and Authorization headers are still not collected.
+		module := "httpapi"
+		if strings.Contains(r.URL.Path, "strm302") || strings.Contains(r.URL.Path, "PlaybackInfo") || strings.Contains(strings.ToLower(r.URL.Path), "/videos/") {
+			module = "playback"
+		}
+		requestURL := *r.URL
+		if requestURL.Host == "" {
+			requestURL.Host = r.Host
+			requestURL.Scheme = "http"
+			if r.TLS != nil {
+				requestURL.Scheme = "https"
+			}
+		}
+		fields := []any{"module", module, "url", requestURL.String(), "userAgent", r.UserAgent(), "range", r.Header.Get("Range"), "location", w.Header().Get("Location"), "method", r.Method, "path", r.URL.Path, "status", metrics.Code, "responseBytes", metrics.Written, "durationMs", metrics.Duration.Milliseconds(), "requestId", id}
 		// These headers are fixed server enums. No provider URLs, raw queries,
 		// client credentials or client-supplied UA enter access logs.
 		for _, key := range []string{"X-Media-Gateway", "X-Media-Gateway-Reason", "X-Media-Delivery", "X-Media-Delivery-Reason"} {
@@ -429,7 +456,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.10.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.11.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

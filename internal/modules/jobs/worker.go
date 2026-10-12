@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"media-tool/internal/platform/trace"
 	"time"
 )
 
@@ -66,7 +67,7 @@ func (w Worker) Run(ctx context.Context) error {
 				timer.Reset(w.PollInterval)
 				continue
 			}
-			w.Logger.Debug("job claimed", "jobId", j.ID, "kind", j.Kind, "queue", w.Queue)
+			w.Logger.Info("job claimed", "jobId", j.ID, "kind", j.Kind, "queue", w.Queue)
 			w.execute(ctx, *j)
 			timer.Reset(0)
 		}
@@ -106,7 +107,7 @@ func (w Worker) execute(parent context.Context, j Job) {
 		if !ok {
 			return errors.New("job handler not registered")
 		}
-		return handler(ctx, j)
+		return handler(trace.With(ctx, w.Logger.With("jobId", j.ID, "queue", w.Queue, "kind", j.Kind)), j)
 	}()
 	canceled := ctx.Err() != nil
 	cancel()
@@ -120,7 +121,7 @@ func (w Worker) execute(parent context.Context, j Job) {
 		w.Logger.Warn("job completion not committed", "jobId", j.ID)
 		return
 	}
-	w.Logger.Info("job finished", "jobId", j.ID, "kind", j.Kind, "success", workErr == nil)
+	w.Logger.Info("job finished", "jobId", j.ID, "kind", j.Kind, "success", workErr == nil, "error", workErr)
 }
 
 func queueName(q string) string {

@@ -57,3 +57,15 @@ func TestGroupsAndKnownSecrets(t *testing.T) {
 		t.Fatal("group leaked")
 	}
 }
+
+func TestOwnerRequestedRawPrivateLogsPreserveURLsAndValues(t *testing.T) {
+	var out bytes.Buffer
+	logger, e := NewRawControlled(&out, "debug", nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	logger.Info("302", "module", "playback", "url", "https://owned.example/strm?apiKey=fixture-only", "location", "https://cdn.example/file?sign=fixture-sign", "apiKey", "fixture-key")
+	if !strings.Contains(out.String(), "fixture-sign") || !strings.Contains(out.String(), "fixture-key") || !strings.Contains(out.String(), "fixture-only") {
+		t.Fatal(out.String())
+	}
+}

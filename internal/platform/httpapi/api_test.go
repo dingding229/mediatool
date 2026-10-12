@@ -112,14 +112,14 @@ func TestPreviewStrictJSON(t *testing.T) {
 		t.Fatal(w.Code)
 	}
 }
-func TestMissingStorageAndNoCredentialLogging(t *testing.T) {
+func TestMissingStorageKeepsOwnerRequestedRawURLLogging(t *testing.T) {
 	h, logs := testHandler(nil)
 	w := invoke(h, "GET", linkTarget(), "", "")
 	if w.Code != 503 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if strings.Contains(logs.String(), cfg().STRMKey) || strings.Contains(logs.String(), "apiKey") {
-		t.Fatal("logs leaked playback key")
+	if !strings.Contains(logs.String(), cfg().STRMKey) || !strings.Contains(logs.String(), "apiKey") {
+		t.Fatal("private raw request log missing")
 	}
 }
 func TestRedirectAndHEAD(t *testing.T) {

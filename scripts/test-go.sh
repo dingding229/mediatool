@@ -22,5 +22,5 @@ for package in "$@"; do
  if [[ "$package" == -* ]]; then echo 'Pass package paths only, not test flags.' >&2; exit 1; fi
 done
 if [[ "$#" -eq 0 ]]; then set -- ./...; fi
-go run ./cmd/migrate -test-only -action up
+go run ./cmd/migrate -test-only -action up -cleanup-test-plugins
 exec go test -p 1 -race -count=1 "$@"

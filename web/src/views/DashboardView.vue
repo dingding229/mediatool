@@ -4,6 +4,7 @@ import { Refresh, ArrowRight, Connection, Operation, Warning, Search, FolderOpen
 import { useSystemStore } from '../stores/system'
 import { request } from '../api/client'
 import type { Job } from '../api/types'
+import PluginDashboards from '../components/PluginDashboards.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 const system = useSystemStore(), jobs = ref<Job[] | null>(null), jobsError = ref(''), busy = ref(false), updatedAt = ref('')
 const connected = computed(() => system.status?.dependencies.filter(dep => dep.state === 'ready').length)
@@ -42,4 +43,5 @@ onMounted(refresh)
     <section class="panel recent-jobs"><div class="panel-title"><div><span class="section-kicker">ACTIVITY</span><h2>最近任务</h2></div><RouterLink to="/jobs" class="inline-link">查看队列<ArrowRight aria-hidden="true" /></RouterLink></div><el-skeleton v-if="busy && jobs === null" :rows="4" animated /><div v-else-if="jobs === null" class="empty-state compact"><Operation class="empty-icon" aria-hidden="true" /><h3>任务暂时不可用</h3><p>{{ jobsError }}</p><el-button @click="refresh">重新查询</el-button></div><div v-else-if="jobs.length === 0" class="empty-state compact"><Operation class="empty-icon" aria-hidden="true" /><h3>还没有任务记录</h3><p>开始搜索资源，或运行一次系统检查，任务进度将在这里显示。</p><RouterLink to="/jobs" class="inline-link">运行系统检查<ArrowRight aria-hidden="true" /></RouterLink></div><div v-else class="job-list"><div v-for="job in jobs.slice(0,5)" :key="job.id" class="job-row"><div><strong>{{ jobNames[job.kind] ?? job.kind }}</strong><small>{{ new Date(job.createdAt).toLocaleString('zh-CN') }}</small></div><StatusBadge :state="job.state" /></div></div></section>
   </div>
   <section class="panel pipeline-panel"><div class="panel-title"><div><span class="section-kicker">WORKFLOW</span><h2>资源到播放的路径</h2></div><span class="muted">按需开始，无需按顺序操作</span></div><div class="workflow-grid"><RouterLink v-for="(step,index) in steps" :key="step.to" :to="step.to" class="workflow-step"><span class="workflow-number">0{{ index+1 }}</span><component :is="step.icon" aria-hidden="true" /><h3>{{ step.title }}</h3><p>{{ step.detail }}</p><ArrowRight class="workflow-arrow" aria-hidden="true" /></RouterLink></div></section>
+<PluginDashboards/>
 </template>

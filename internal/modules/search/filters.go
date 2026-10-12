@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"media-tool/internal/modules/releasename"
+	"media-tool/internal/modules/releaseattrs"
 	"strings"
 )
 
@@ -19,28 +19,8 @@ type Filter struct {
 	FreeOnly   bool   `json:"freeOnly"`
 }
 
-func attrs(title string) map[string]string {
-	h := releasename.Parse(title + ".mkv")
-	r := strings.ToLower(h.Resolution)
-	if r == "4k" {
-		r = "2160p"
-	}
-	if r == "8k" {
-		r = "4320p"
-	}
-	c := strings.ToLower(h.Codec)
-	switch c {
-	case "h264", "h.264", "x264":
-		c = "h264"
-	case "h265", "h.265", "x265", "hevc":
-		c = "h265"
-	}
-	src := strings.ToLower(h.Source)
-	if strings.NewReplacer("-", "", ".", "", "_", "", " ", "").Replace(src) == "webdl" {
-		src = "web-dl"
-	}
-	return map[string]string{"resolution": r, "source": src, "codec": c}
-}
+func attrs(title string) map[string]string { return releaseattrs.Parse(title) }
+
 func (f Filter) Validate() error {
 	if f.MinSize < 0 || f.MaxSize < 0 || f.MinSize > 1<<60 || f.MaxSize > 1<<60 || f.MaxSize > 0 && f.MinSize > f.MaxSize || f.MinSeeders < 0 || f.MinSeeders > 1000000 || len(f.AccountID) > 80 {
 		return errors.New("invalid filters")

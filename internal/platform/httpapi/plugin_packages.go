@@ -3,11 +3,9 @@ package httpapi
 import (
 	"encoding/json"
 	"io"
-	"media-tool/internal/modules/dataview"
 	"media-tool/internal/modules/plugins"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 func (a *API) pluginPackage(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +60,6 @@ func (a *API) pluginSettings(w http.ResponseWriter, r *http.Request) {
 		if values[key] != "" {
 			masked = append(masked, key)
 		}
-		delete(values, key)
 	}
 
 	write(w, 200, map[string]any{"values": values, "secretFields": masked, "revision": rev})
@@ -103,41 +100,8 @@ func (a *API) testPlugin(w http.ResponseWriter, r *http.Request) {
 	if len(raw) > 0 {
 		json.Unmarshal(raw, &data)
 	}
-	values, _, _, _ := a.pluginRegistry().Settings(r.Context(), r.PathValue("id"))
-	items, _ := a.pluginRegistry().List(r.Context())
-	secrets := []string{}
-	for _, item := range items {
-		if item.Manifest.ID == r.PathValue("id") {
-			for _, f := range item.Manifest.Settings {
-				if plugins.SecretField(f) && values[f.Key] != "" {
-					secrets = append(secrets, values[f.Key])
-				}
-			}
-		}
-	}
-	var clean func(any) any
-	clean = func(v any) any {
-		switch x := v.(type) {
-		case string:
-			for _, secret := range secrets {
-				x = strings.ReplaceAll(x, secret, "[插件秘密已隐藏]")
-			}
-			return x
-		case map[string]any:
-			for k, v := range x {
-				x[k] = clean(v)
-			}
-			return x
-		case []any:
-			for i, v := range x {
-				x[i] = clean(v)
-			}
-			return x
-		default:
-			return x
-		}
-	}
-	write(w, 200, map[string]any{"result": dataview.Redact("result", clean(data)), "mediaModified": false})
+
+	write(w, 200, map[string]any{"result": data, "mediaModified": false})
 }
 func (a *API) pluginRuns(w http.ResponseWriter, r *http.Request) {
 	if a.Deps.DB == nil {

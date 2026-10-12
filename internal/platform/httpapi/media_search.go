@@ -8,6 +8,7 @@ import (
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/releasename"
 	"media-tool/internal/modules/settings"
+	"media-tool/internal/platform/trace"
 	"net/http"
 	"strconv"
 	"strings"
@@ -92,6 +93,7 @@ func (a *API) tmdbMediaSearch(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	trace.Info(r.Context(), "search", "TMDB媒体搜索完成", "keyword", originalQuery, "normalizedKeyword", q, "mediaType", kind, "year", year, "cached", cached, "count", len(items))
 	if r.URL.Path == "/api/v1/metadata/search" {
 		if cached {
 			w.Header().Set("X-Media-Cache", "hit")

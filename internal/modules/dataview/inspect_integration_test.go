@@ -65,8 +65,8 @@ func TestPostgresAndRedisReadOnlyData(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw, _ = json.Marshal(value)
-	if strings.Contains(string(raw), "hidden-key") || strings.Contains(string(raw), "sign=private") {
-		t.Fatal("Redis leak")
+	if !strings.Contains(string(raw), "hidden-key") || !strings.Contains(string(raw), "sign=private") {
+		t.Fatal("administrator raw data missing")
 	}
 	if _, err = e.RedisKeys(ctx, "invalid", "*"); err == nil {
 		t.Fatal("bad cursor")

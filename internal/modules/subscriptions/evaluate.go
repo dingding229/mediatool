@@ -12,16 +12,19 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/search"
 	"media-tool/internal/modules/sites"
+	"media-tool/internal/modules/subscriptionpolicy"
+	"media-tool/internal/platform/trace"
 )
 
 type DecisionRecord struct {
-	ID             string   `json:"id"`
-	ResourceID     *string  `json:"resourceId,omitempty"`
-	Title          string   `json:"title"`
-	Action         string   `json:"action"`
-	Reasons        []string `json:"reasons"`
-	Episodes       []int    `json:"episodes"`
-	DownloadTaskID *string  `json:"downloadTaskId,omitempty"`
+	Checks         []subscriptionpolicy.RuleCheck `json:"checks"`
+	ID             string                         `json:"id"`
+	ResourceID     *string                        `json:"resourceId,omitempty"`
+	Title          string                         `json:"title"`
+	Action         string                         `json:"action"`
+	Reasons        []string                       `json:"reasons"`
+	Episodes       []int                          `json:"episodes"`
+	DownloadTaskID *string                        `json:"downloadTaskId,omitempty"`
 }
 type RunRecord struct {
 	ID             string           `json:"id"`
@@ -37,19 +40,20 @@ func (e Engine) Run(ctx context.Context, id string) (RunRecord, error) {
 		return run, err
 	}
 	run.Decisions = []DecisionRecord{}
-	rows, err := e.DB.Query(ctx, `SELECT id::text,resource_id::text,title,action,reasons,covered_episodes,download_task_id::text FROM subscription_decisions WHERE run_id=$1 ORDER BY created_at,id`, id)
+	rows, err := e.DB.Query(ctx, `SELECT id::text,resource_id::text,title,action,reasons,covered_episodes,download_task_id::text,rule_checks FROM subscription_decisions WHERE run_id=$1 ORDER BY created_at,id`, id)
 	if err != nil {
 		return run, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var decision DecisionRecord
-		var reasons, episodes []byte
-		if err = rows.Scan(&decision.ID, &decision.ResourceID, &decision.Title, &decision.Action, &reasons, &episodes, &decision.DownloadTaskID); err != nil {
+		var reasons, episodes, checks []byte
+		if err = rows.Scan(&decision.ID, &decision.ResourceID, &decision.Title, &decision.Action, &reasons, &episodes, &decision.DownloadTaskID, &checks); err != nil {
 			return run, err
 		}
 		json.Unmarshal(reasons, &decision.Reasons)
 		json.Unmarshal(episodes, &decision.Episodes)
+		json.Unmarshal(checks, &decision.Checks)
 		run.Decisions = append(run.Decisions, decision)
 	}
 	return run, rows.Err()
@@ -77,6 +81,7 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		return err
 	}
 	defer lockConn.Release()
+	trace.Info(ctx, "subscriptions", "订阅评估开始", "subscriptionId", record.ID, "subscriptionRunId", run.ID, "title", record.Title, "preview", run.Preview, "rules", record.Rules)
 	lockKey := record.Media.MediaType + ":" + strconv.Itoa(record.Media.ID)
 	if _, err = lockConn.Exec(ctx, `SELECT pg_advisory_lock(hashtextextended($1,0))`, "subscription-media:"+lockKey); err != nil {
 		return err
@@ -240,7 +245,7 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 			continue
 		}
 		action := "skipped"
-		matched, reasons := Filter(resource, record.Media, record.Rules)
+		matched, reasons, checks := subscriptionpolicy.Evaluate(resource, record.Media, record.Rules)
 		episodes := []int{}
 		hash := ""
 		taskID := ""
@@ -319,7 +324,8 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 				}
 			}
 		}
-		if err = e.decision(ctx, run.ID, resource, action, reasons, episodes, taskID); err != nil {
+		trace.Info(ctx, "subscriptions", "订阅资源决策", "subscriptionId", record.ID, "subscriptionRunId", run.ID, "resourceId", resource.ID, "title", resource.Title, "action", action, "reasons", reasons, "checks", checks, "preview", run.Preview)
+		if err = e.decision(ctx, run.ID, resource, action, reasons, episodes, taskID, checks); err != nil {
 			return err
 		}
 	}
@@ -367,14 +373,15 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 	}
 	return tx.Commit(ctx)
 }
-func (e Engine) decision(ctx context.Context, runID string, resource search.Resource, action string, reasons []string, episodes []int, taskID string) error {
+func (e Engine) decision(ctx context.Context, runID string, resource search.Resource, action string, reasons []string, episodes []int, taskID string, checks []subscriptionpolicy.RuleCheck) error {
 	raw, _ := json.Marshal(reasons)
 	coverage, _ := json.Marshal(episodes)
 	var task any
 	if taskID != "" {
 		task = taskID
 	}
-	_, err := e.DB.Exec(ctx, `INSERT INTO subscription_decisions(id,run_id,resource_id,title,action,reasons,covered_episodes,download_task_id)VALUES($1,$2,$3,$4,$5,$6,$7,$8)ON CONFLICT(run_id,resource_id)DO NOTHING`, jobs.UUID(), runID, resource.ID, resource.Title, action, raw, coverage, task)
+	checkRaw, _ := json.Marshal(checks)
+	_, err := e.DB.Exec(ctx, `INSERT INTO subscription_decisions(id,run_id,resource_id,title,action,reasons,covered_episodes,download_task_id,rule_checks)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)ON CONFLICT(run_id,resource_id)DO NOTHING`, jobs.UUID(), runID, resource.ID, resource.Title, action, raw, coverage, task, checkRaw)
 	return err
 }
 func (e Engine) coverage(ctx context.Context, record Record) (map[int]bool, bool, error) {

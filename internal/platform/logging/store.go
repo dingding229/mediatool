@@ -113,7 +113,7 @@ func (s *Store) Write(p []byte) (int, error) {
 	if s.file == nil {
 		return 0, errors.New("log closed")
 	}
-	if len(p) > 64<<10 {
+	if len(p) > 1<<20 {
 		return 0, errors.New("log record too large")
 	}
 	if s.size+int64(len(p)) > MaxLogFileBytes {
@@ -179,7 +179,7 @@ func (s *Store) Read(level string, limit int) ([]map[string]any, error) {
 		offset := max(int64(0), stat.Size()-(2<<20))
 		f.Seek(offset, io.SeekStart)
 		scanner := bufio.NewScanner(io.LimitReader(f, 2<<20))
-		scanner.Buffer(make([]byte, 4096), 64<<10)
+		scanner.Buffer(make([]byte, 4096), 1<<20)
 		records := []map[string]any{}
 		first := true
 		for scanner.Scan() {

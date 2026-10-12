@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"media-tool/internal/modules/plugins"
+	"media-tool/internal/platform/pluginhost"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,6 +13,7 @@ func (a *API) pluginRegistry() plugins.Registry {
 	r := plugins.Registry{DB: a.Deps.DB}
 	if a.Deps.Integrations != nil {
 		r.Vault = a.Deps.Integrations.Repository.Vault
+		r.Host = pluginhost.New(a.Deps.DB, a.Deps.Integrations)
 	}
 	return r
 }

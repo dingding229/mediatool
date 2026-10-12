@@ -28,8 +28,10 @@ import (
 	"media-tool/internal/platform/httpapi"
 	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/ownerrecovery"
+	"media-tool/internal/platform/pluginhost"
 	"media-tool/internal/platform/schema"
 	"media-tool/internal/platform/secrets"
+	"media-tool/internal/platform/trace"
 	"net"
 	"net/http"
 	"os"
@@ -82,7 +84,7 @@ func run() error {
 		return err
 	}
 	defer logStore.Close()
-	logger, err := logging.NewControlled(io.MultiWriter(os.Stdout, logStore), c.LogLevel, &logStore.Level, c.SessionKey, c.STRMKey, c.SecretKey, c.CloudDrivePassword, c.CloudDriveToken, c.DatabaseURL, c.RedisURL)
+	logger, err := logging.NewRawControlled(io.MultiWriter(os.Stdout, logStore), c.LogLevel, &logStore.Level)
 	if err != nil {
 		return err
 	}
@@ -199,7 +201,9 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 	if manager != nil {
 		engine := search.Engine{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc}
 		w.Handlers["search.run"] = engine.Process
-		w.Handlers["plugin.dispatch"] = (plugins.Registry{DB: db, Vault: manager.Repository.Vault}).Process
+		pluginRegistry := plugins.Registry{DB: db, Vault: manager.Repository.Vault, Host: pluginhost.New(db, manager)}
+		w.Handlers["plugin.service"] = pluginRegistry.ProcessService
+		w.Handlers["plugin.dispatch"] = pluginRegistry.Process
 		subscriptionEngine := subscriptions.Engine{DB: db, Connections: manager}
 		w.Handlers["subscription.evaluate"] = subscriptionEngine.Process
 		libraryEngine := library.Engine{DB: db, Connections: manager}
@@ -225,10 +229,13 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 				for {
 					logger.Debug("scheduler reconciliation cycle")
 					check, cancel := context.WithTimeout(watchCtx, 2*time.Minute)
+					check = trace.With(check, logger)
 					if err := downloader.Reconcile(check); err != nil && ctx.Err() == nil {
 						logger.Warn("download reconciliation unavailable")
 					}
 					if queue == "default" {
+						pluginRegistry.Schedule(check)
+						pluginRegistry.DispatchEvents(check)
 						subscriptionEngine.Schedule(check)
 						libraryEngine.Schedule(check)
 						libraryEngine.RecoverArtifacts(check)
