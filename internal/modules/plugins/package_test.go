@@ -26,19 +26,35 @@ func zipFixture(t *testing.T, files map[string][]byte) []byte {
 	w.Close()
 	return b.Bytes()
 }
-func rulesManifest() Manifest {
-	return Manifest{ID: "owned-rules", Name: "Owned rule", Version: "1", Contract: 1, Runtime: "rules", Capabilities: []string{"media.recognize"}, Rules: []NameRule{{Pattern: `^Owned\.(?P<title>.+)\.S\d+E\d+\.mkv$`, Title: "{{setting:prefix}}${title}", MediaType: "series"}}, Settings: []SettingField{{Key: "prefix", Label: "Prefix", Type: "string", Default: "Owned "}, {Key: "apiKey", Label: "Own plugin key", Type: "password"}}}
+func settingsManifest(t *testing.T) Manifest {
+	m := wasmFixture(t).Manifest
+	m.CustomUI = false
+	m.Settings = []SettingField{{Key: "name", Label: "Title", Type: "string", Default: "Owned"}, {Key: "apiKey", Label: "Own plugin key", Type: "password"}}
+	return m
 }
-func TestZIPPackagesRejectUnsafeEntriesAndExecuteRules(t *testing.T) {
-	m := rulesManifest()
+func TestZIPPackagesRequireExecutableCodeAndRejectUnsafeEntries(t *testing.T) {
+	m := settingsManifest(t)
 	raw, _ := json.Marshal(m)
-	p, e := ParsePackage(zipFixture(t, map[string][]byte{"manifest.json": raw, "README.md": []byte("owned fixture")}))
+	p, e := ParsePackage(zipFixture(t, map[string][]byte{"manifest.json": raw, "plugin.wasm": wasmFixture(t).Module, "README.md": []byte("owned fixture")}))
 	if e != nil || p.Digest == "" {
 		t.Fatal(p, e)
 	}
-	out, e := rulesOutput(m, Event{Kind: "media.recognize", Data: map[string]any{"filename": "Owned.Show.S01E03.mkv"}}, map[string]string{"prefix": "Test "})
-	if e != nil || !bytes.Contains(out, []byte(`"title":"Test Show"`)) {
-		t.Fatal(string(out), e)
+	for _, runtime := range []string{"", "rules", "webhook"} {
+		old := m
+		old.Runtime = runtime
+		manifest, _ := json.Marshal(old)
+		if _, err := ParsePackage(zipFixture(t, map[string][]byte{"manifest.json": manifest, "plugin.wasm": wasmFixture(t).Module})); err == nil {
+			t.Fatal("legacy runtime", runtime)
+		}
+	}
+	for _, extra := range []string{`"endpoint":"https://owned.example"`, `"rules":[]`} {
+		bad := append(append([]byte{}, raw[:len(raw)-1]...), []byte(","+extra+"}")...)
+		if _, err := ParsePackage(zipFixture(t, map[string][]byte{"manifest.json": bad, "plugin.wasm": wasmFixture(t).Module})); err == nil {
+			t.Fatal("legacy manifest field", extra)
+		}
+	}
+	if _, err := ParsePackage(zipFixture(t, map[string][]byte{"manifest.json": raw})); err == nil {
+		t.Fatal("manifest-only accepted")
 	}
 	for _, name := range []string{"../manifest.json", "/manifest.json", "folder/../manifest.json", "module.py", "module.wasm", "manifest.json/", "..\\manifest.json"} {
 		if _, e = ParsePackage(zipFixture(t, map[string][]byte{"manifest.json": raw, name: []byte("bad")})); e == nil {
@@ -68,13 +84,10 @@ func TestZIPPackagesRejectUnsafeEntriesAndExecuteRules(t *testing.T) {
 	if _, e = ParsePackage(b.Bytes()); e == nil {
 		t.Fatal("symlink")
 	}
-	m.Rules[0].Title = "{{setting:apiKey}}"
-	if Validate(m) == nil {
-		t.Fatal("secret injected into title")
-	}
+
 }
 func TestPluginSettingSchema(t *testing.T) {
-	m := rulesManifest()
+	m := settingsManifest(t)
 	for _, v := range []map[string]string{{"unknown": "x"}, {"apiKey": string([]byte{0})}} {
 		if _, e := ValidateSettings(m.Settings, v, false); e == nil {
 			t.Fatal(v)
@@ -92,7 +105,7 @@ func TestPluginSettingSchema(t *testing.T) {
 			t.Fatal("invalid default", field)
 		}
 	}
-	m = rulesManifest()
+	m = settingsManifest(t)
 	m.Settings[1].Default = "plaintext-secret"
 	if Validate(m) == nil {
 		t.Fatal("secret default")
@@ -114,15 +127,29 @@ func TestPostgresZIPPluginLifecycleEncryptedConfig(t *testing.T) {
 		t.Fatal(e)
 	}
 	r := Registry{DB: db, Vault: vault}
-	m := rulesManifest()
+	m := settingsManifest(t)
 	db.Exec(ctx, `DELETE FROM extension_plugins WHERE id=$1`, m.ID)
 	defer db.Exec(ctx, `DELETE FROM extension_plugins WHERE id=$1`, m.ID)
 	raw, _ := json.Marshal(m)
-	p, e := ParsePackage(zipFixture(t, map[string][]byte{"manifest.json": raw}))
-	if e != nil || r.Install(ctx, p, 0) != nil {
+	p, e := ParsePackage(zipFixture(t, map[string][]byte{"manifest.json": raw, "plugin.wasm": wasmFixture(t).Module}))
+	if e != nil {
 		t.Fatal(e)
 	}
-	if e = r.SaveSettings(ctx, m.ID, map[string]string{"prefix": "Fixture ", "apiKey": "owned-secret-fixture"}, nil, 1); e != nil {
+	if r.Save(ctx, m, false, false, 0) == nil {
+		t.Fatal("manifest-only install accepted")
+	}
+	bad := p
+	bad.Module = []byte("not executable WASM")
+	if r.Install(ctx, bad, 0) == nil {
+		t.Fatal("direct invalid-module install accepted")
+	}
+	if _, e = db.Exec(ctx, `INSERT INTO extension_plugins(id,name,version,manifest)VALUES('owned-invalid-wasm','Owned','1',$1)`, raw); e == nil {
+		t.Fatal("database accepted plugin without code")
+	}
+	if e = r.Install(ctx, p, 0); e != nil {
+		t.Fatal(e)
+	}
+	if e = r.SaveSettings(ctx, m.ID, map[string]string{"name": "Fixture Title", "apiKey": "owned-secret-fixture"}, nil, 1); e != nil {
 		t.Fatal(e)
 	}
 	values, _, rev, e := r.Settings(ctx, m.ID)
@@ -134,21 +161,21 @@ func TestPostgresZIPPluginLifecycleEncryptedConfig(t *testing.T) {
 	if bytes.Contains(encrypted, []byte("owned-secret-fixture")) {
 		t.Fatal("unencrypted")
 	}
-	if e = r.Save(ctx, m, true, false, rev); e != nil {
+	if e = r.Save(ctx, m, true, true, rev); e != nil {
 		t.Fatal(e)
 	}
 	out, e := r.Test(ctx, m.ID, "Owned.Show.S01E03.mkv")
-	if e != nil || !bytes.Contains(out, []byte("Fixture Show")) {
+	if e != nil || !bytes.Contains(out, []byte("WASM")) {
 		t.Fatal(string(out), e)
 	}
 	var count int
 	db.QueryRow(ctx, `SELECT count(*)FROM extension_runs WHERE plugin_id=$1 AND state='succeeded'`, m.ID).Scan(&count)
-	if count != 1 {
+	if count != 2 {
 		t.Fatal(count)
 	}
 	m.Version = "2"
 	raw, _ = json.Marshal(m)
-	p, e = ParsePackage(zipFixture(t, map[string][]byte{"manifest.json": raw}))
+	p, e = ParsePackage(zipFixture(t, map[string][]byte{"manifest.json": raw, "plugin.wasm": wasmFixture(t).Module}))
 	if e != nil || r.Install(ctx, p, 3) != nil {
 		t.Fatal(e)
 	}
@@ -162,7 +189,7 @@ func TestPostgresZIPPluginLifecycleEncryptedConfig(t *testing.T) {
 		}
 	}
 	values, _, rev, e = r.Settings(ctx, m.ID)
-	if e != nil || values["prefix"] != "Fixture " || rev != 4 {
+	if e != nil || values["name"] != "Fixture Title" || rev != 4 {
 		t.Fatal(values, rev, e)
 	}
 	if _, e = r.Test(ctx, m.ID, "Owned.Show.S01E03.mkv"); e == nil {
@@ -179,12 +206,4 @@ func TestPostgresZIPPluginLifecycleEncryptedConfig(t *testing.T) {
 		t.Fatal(e)
 	}
 	time.Sleep(time.Millisecond)
-}
-
-func TestOutputRedactionUsesInvocationSettingsSnapshot(t *testing.T) {
-	m := rulesManifest()
-	raw, e := redactOutput(json.RawMessage(`{"title":"prefix-owned-secret-suffix","owned-secret":"owned-secret"}`), m, map[string]string{"apiKey": "owned-secret"})
-	if e != nil || bytes.Contains(raw, []byte("owned-secret")) {
-		t.Fatal(string(raw), e)
-	}
 }

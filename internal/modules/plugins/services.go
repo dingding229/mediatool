@@ -51,8 +51,8 @@ func (r Registry) Schedule(ctx context.Context) error {
 		return e
 	}
 	for _, x := range list {
-		if x.m.Runtime != "wasm" {
-			continue
+		if Validate(x.m) != nil {
+			return ErrInvalid
 		}
 		values, _, revision, e := r.Settings(ctx, x.id)
 		if e != nil || revision != x.revision {

@@ -11,7 +11,7 @@ import (
 func (a *API) pluginPackage(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, plugins.MaxPackageBytes+(128<<10))
 	if r.ParseMultipartForm(plugins.MaxPackageBytes) != nil {
-		fail(w, 400, "invalid_package", "ZIP超过2MiB或上传格式无效")
+		fail(w, 400, "invalid_package", "ZIP超过8MiB或上传格式无效")
 		return
 	}
 	if r.MultipartForm != nil {
@@ -30,7 +30,7 @@ func (a *API) pluginPackage(w http.ResponseWriter, r *http.Request) {
 	}
 	p, e := plugins.ParsePackage(raw)
 	if e != nil {
-		fail(w, 400, "invalid_package", "插件包无效：仅支持manifest/settings/rules/README，禁止链接、越界路径及未知代码")
+		fail(w, 400, "invalid_package", "插件包无效：必须包含manifest.json与有效plugin.wasm；不支持旧Webhook/rules格式、链接或越界路径")
 		return
 	}
 	if r.URL.Query().Get("preview") == "true" {

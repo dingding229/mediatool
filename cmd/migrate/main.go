@@ -48,6 +48,17 @@ func main() {
 	if err = goose.SetDialect("postgres"); err != nil {
 		panic(err)
 	}
+	if *cleanupPlugins && *action == "up" {
+		var exists bool
+		if err = db.QueryRowContext(ctx, `SELECT to_regclass('public.extension_plugins') IS NOT NULL`).Scan(&exists); err != nil {
+			os.Exit(1)
+		}
+		if exists {
+			if _, err = db.ExecContext(ctx, `TRUNCATE extension_plugins CASCADE`); err != nil {
+				os.Exit(1)
+			}
+		}
+	}
 	switch *action {
 	case "up":
 		err = goose.UpContext(ctx, db, ".")
@@ -59,9 +70,7 @@ func main() {
 		slog.Error("unknown migration action")
 		os.Exit(1)
 	}
-	if err == nil && *cleanupPlugins {
-		_, err = db.ExecContext(ctx, `TRUNCATE extension_plugins CASCADE`)
-	}
+
 	if err != nil {
 		slog.Error("migration failed (details intentionally omitted; verify schema and connectivity)")
 		os.Exit(1)

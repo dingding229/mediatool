@@ -9,3 +9,5 @@ web/test-results
 web/playwright-report
 internal/platform/webui/assets/assets
 internal/platform/webui/assets/index.html
+
+examples/sites

@@ -56,6 +56,7 @@ func main() {
 		result["environmentDenied"] = os.Getenv("APP_SECRET_KEY") == ""
 		result["message"] = "WASM沙箱测试通过，不修改媒体"
 		result["count"] = count
+		result["mediaModified"] = false
 	default:
 		result["title"] = in.Event.Settings["name"]
 		result["description"] = "示例插件的独立页面，数据由Go/WASM逻辑返回。"

@@ -36,7 +36,7 @@ func (a *API) pluginSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := (a.pluginRegistry()).Save(r.Context(), in.Manifest, in.Enabled, in.Consent, in.Revision); err != nil {
-		fail(w, 400, "invalid_plugin", "Manifest无效、修订已变化或未明确授权数据传输；新插件必须停用导入")
+		fail(w, 400, "invalid_plugin", "仅可启停已安装的WASM插件；修订已变化或尚未明确授权。请通过ZIP安装新插件")
 		return
 	}
 	a.Deps.Logger.Info("extension configuration saved", "pluginId", in.Manifest.ID, "enabled", in.Enabled)
@@ -53,7 +53,7 @@ func (a *API) pluginDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := (a.pluginRegistry()).DeleteRevision(r.Context(), r.PathValue("id"), revision); err != nil {
-		fail(w, 400, "invalid_plugin", "内置插件不可删除，ID无效或删除未确认")
+		fail(w, 400, "invalid_plugin", "插件ID无效、修订已变化或删除未确认")
 		return
 	}
 	write(w, 200, map[string]bool{"deleted": true})

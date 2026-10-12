@@ -1,8 +1,0 @@
-{
-  "id": "example-filename-rules",
-  "name": "示例文件名规则",
-  "version": "1.0.0",
-  "contractVersion": 1,
-  "runtime": "rules",
-  "capabilities": ["media.recognize"]
-}

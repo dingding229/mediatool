@@ -42,6 +42,11 @@
       "label": "工作台标题",
       "type": "string",
       "default": "自动化插件示例"
+    },
+    {
+      "key": "apiKey",
+      "label": "插件自己的测试密钥",
+      "type": "password"
     }
   ],
   "customUI": true

@@ -28,12 +28,6 @@ type SettingField struct {
 	Default  string   `json:"default,omitempty"`
 	Options  []string `json:"options,omitempty"`
 }
-type NameRule struct {
-	Pattern   string `json:"pattern"`
-	Title     string `json:"title,omitempty"`
-	Year      string `json:"year,omitempty"`
-	MediaType string `json:"mediaType,omitempty"`
-}
 type Package struct {
 	UI       string   `json:"-"`
 	Module   []byte   `json:"-"`
@@ -60,7 +54,7 @@ func ParsePackage(data []byte) (Package, error) {
 		if name != path.Clean(name) || strings.ContainsAny(name, "\\\x00\r\n") || strings.HasPrefix(name, "/") || strings.HasPrefix(name, "../") || seen[name] || !file.Mode().IsRegular() {
 			return out, ErrInvalid
 		}
-		if name != "manifest.json" && name != "settings.json" && name != "rules.json" && name != "README.md" && name != "plugin.wasm" && name != "ui.html" {
+		if name != "manifest.json" && name != "settings.json" && name != "README.md" && name != "plugin.wasm" && name != "ui.html" {
 			return out, ErrInvalid
 		}
 		seen[name] = true
@@ -88,11 +82,6 @@ func ParsePackage(data []byte) (Package, error) {
 			return out, ErrInvalid
 		}
 	}
-	if raw, ok := contents["rules.json"]; ok {
-		if len(out.Manifest.Rules) > 0 || strictJSON(raw, &out.Manifest.Rules) != nil {
-			return out, ErrInvalid
-		}
-	}
 	if Validate(out.Manifest) != nil {
 		return out, ErrInvalid
 	}
@@ -101,11 +90,7 @@ func ParsePackage(data []byte) (Package, error) {
 		return out, ErrInvalid
 	}
 	out.Module = contents["plugin.wasm"]
-	if out.Manifest.Runtime == "wasm" {
-		if ValidateModule(context.Background(), out.Module) != nil {
-			return out, ErrInvalid
-		}
-	} else if len(out.Module) > 0 {
+	if ValidateModule(context.Background(), out.Module) != nil {
 		return out, ErrInvalid
 	}
 	out.Readme = string(contents["README.md"])
@@ -211,61 +196,8 @@ func ValidateSettings(fields []SettingField, in map[string]string, require bool)
 	}
 	return out, nil
 }
-func rulesOutput(m Manifest, event Event, settings map[string]string) (json.RawMessage, error) {
-	name, _ := event.Data["filename"].(string)
-	if event.Kind != "media.recognize" || len(name) > 1024 {
-		return nil, ErrInvalid
-	}
-	for _, rule := range m.Rules {
-		rx, e := regexp.Compile(rule.Pattern)
-		if e != nil {
-			return nil, ErrInvalid
-		}
-		matches := rx.FindStringSubmatchIndex(name)
-		if matches == nil {
-			continue
-		}
-		out := map[string]string{}
-		for k, v := range map[string]string{"title": rule.Title, "year": rule.Year, "mediaType": rule.MediaType} {
-			if v != "" {
-				value := string(rx.ExpandString(nil, v, name, matches))
-				for key, x := range settings {
-					value = strings.ReplaceAll(value, "{{setting:"+key+"}}", x)
-				}
-				if len(value) > 200 || strings.ContainsAny(value, "/\\\r\n\x00") {
-					return nil, ErrInvalid
-				}
-				out[k] = value
-			}
-		}
-		return json.Marshal(out)
-	}
-	return json.RawMessage(`{}`), nil
-}
-func validateRules(m Manifest) error {
-	if m.Runtime != "rules" {
-		return nil
-	}
-	if m.Endpoint != "" || len(m.Rules) < 1 || len(m.Rules) > 32 || len(m.Capabilities) != 1 || m.Capabilities[0] != "media.recognize" {
-		return ErrInvalid
-	}
-	for _, r := range m.Rules {
-		for _, f := range m.Settings {
-			if SecretField(f) && strings.Contains(r.Title+r.Year, "{{setting:"+f.Key+"}}") {
-				return ErrInvalid
-			}
-		}
-		if len(r.Pattern) > 512 || len(r.Title) > 200 || len(r.Year) > 80 || r.MediaType != "" && r.MediaType != "movie" && r.MediaType != "series" {
-			return ErrInvalid
-		}
-		if _, e := regexp.Compile(r.Pattern); e != nil {
-			return ErrInvalid
-		}
-	}
-	return nil
-}
 func (r Registry) Install(ctx context.Context, p Package, revision int64) error {
-	if r.DB == nil || Validate(p.Manifest) != nil || len(p.Digest) != 64 {
+	if r.DB == nil || Validate(p.Manifest) != nil || ValidateModule(ctx, p.Module) != nil || len(p.Digest) != 64 {
 		return ErrInvalid
 	}
 	tx, e := r.DB.Begin(ctx)
@@ -371,7 +303,7 @@ func (r Registry) SaveSettings(ctx context.Context, id string, in map[string]str
 	}
 	var m Manifest
 	for _, item := range list {
-		if item.Manifest.ID == id && !item.Builtin {
+		if item.Manifest.ID == id {
 			m = item.Manifest
 		}
 	}
@@ -430,23 +362,15 @@ func (r Registry) Test(ctx context.Context, id, filename string) (json.RawMessag
 		return nil, e
 	}
 	for _, item := range items {
-		if item.Manifest.ID != id || item.Builtin {
+		if item.Manifest.ID != id {
 			continue
 		}
 		if !item.Enabled {
 			return nil, ErrInvalid
 		}
-		kind := "media.recognize"
-		event := Event{Version: 1, Kind: kind, Data: map[string]any{"filename": filename, "test": true}}
-		if !contains(item.Manifest.Capabilities, kind) {
-			event.Kind = "media.organized"
-			event.Data = map[string]any{"test": true, "eventId": "manual-test", "items": []any{}}
-		}
+		event := Event{Version: 1, Kind: "plugin.test", Data: map[string]any{"filename": filename, "test": true}}
 		bounded, stop := context.WithTimeout(ctx, 4*time.Second)
 		defer stop()
-		if item.Manifest.Runtime == "wasm" {
-			event.Kind = "plugin.test"
-		}
 		return r.invoke(bounded, item.Manifest, event)
 	}
 	return nil, fmt.Errorf("plugin unavailable")
@@ -464,49 +388,4 @@ func (r Registry) DeleteRevision(ctx context.Context, id string, revision int64)
 		return ErrInvalid
 	}
 	return nil
-}
-
-// Sanitize using the exact settings snapshot used for invocation, even when an
-// administrator changes/clears configuration while a remote hook is in flight.
-func redactOutput(raw json.RawMessage, m Manifest, values map[string]string) (json.RawMessage, error) {
-	var data any
-	if len(raw) == 0 {
-		return raw, nil
-	}
-	if json.Unmarshal(raw, &data) != nil {
-		return nil, ErrInvalid
-	}
-	secrets := []string{}
-	for _, f := range m.Settings {
-		if SecretField(f) && values[f.Key] != "" {
-			secrets = append(secrets, values[f.Key])
-		}
-	}
-	cleanText := func(s string) string {
-		for _, value := range secrets {
-			s = strings.ReplaceAll(s, value, "[插件秘密已隐藏]")
-		}
-		return s
-	}
-	var clean func(any) any
-	clean = func(v any) any {
-		switch x := v.(type) {
-		case string:
-			return cleanText(x)
-		case map[string]any:
-			out := map[string]any{}
-			for k, value := range x {
-				out[cleanText(k)] = clean(value)
-			}
-			return out
-		case []any:
-			for i, value := range x {
-				x[i] = clean(value)
-			}
-			return x
-		default:
-			return x
-		}
-	}
-	return json.Marshal(clean(data))
 }

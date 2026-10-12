@@ -6,6 +6,7 @@
 服务启用后每60秒运行一次；停用/升级/保存设置后不会继续执行旧修订任务。
 
 构建：`GOOS=wasip1 GOARCH=wasm go build -o /tmp/plugin.wasm ./examples/plugins/automation`。
-将 manifest.json、README.md 和 plugin.wasm 放到ZIP根目录。
+将 manifest.json、README.md、ui.html 和 plugin.wasm 放到ZIP根目录（manifest声明customUI时必须包含ui.html）。
+推荐使用 `python3 scripts/build-plugin-example.py` 确定性构建，开发接口与运行方式见 docs/PLUGIN_DEVELOPMENT.md。
 
 这不是MoviePilot Python包。通过 plugin-sdk/go 提供的Host/HTTP接口申请宿主能力，必须在manifest声明并由管理员授权。

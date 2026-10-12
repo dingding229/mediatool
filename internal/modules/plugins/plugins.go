@@ -1,5 +1,5 @@
-// Package plugins exposes a versioned capability/event contract. Extensions are
-// declarative HTTPS webhooks, not downloaded Go binaries or shell commands.
+// Package plugins runs installed WASI code in a capability-limited WASM sandbox.
+// Filename recognition and naming templates are core application features.
 package plugins
 
 import (
@@ -8,13 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"io"
 	"media-tool/internal/modules/jobs"
-	"media-tool/internal/modules/playback"
 	"media-tool/internal/modules/releasename"
 	"media-tool/internal/platform/secrets"
-	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -44,16 +40,13 @@ type Manifest struct {
 	Name         string         `json:"name"`
 	Version      string         `json:"version"`
 	Contract     int            `json:"contractVersion"`
-	Endpoint     string         `json:"endpoint"`
 	Capabilities []string       `json:"capabilities"`
 	Runtime      string         `json:"runtime,omitempty"`
 	Settings     []SettingField `json:"settings,omitempty"`
-	Rules        []NameRule     `json:"rules,omitempty"`
 }
 type Record struct {
 	Manifest      Manifest `json:"manifest"`
 	Enabled       bool     `json:"enabled"`
-	Builtin       bool     `json:"builtin"`
 	Revision      int64    `json:"revision"`
 	PackageDigest string   `json:"packageDigest,omitempty"`
 }
@@ -71,13 +64,9 @@ type Registry struct {
 	Host HostFunc
 
 	DB    *pgxpool.Pool
-	HTTP  *http.Client
 	Vault *secrets.Vault
 }
 
-func builtins() []Record {
-	return []Record{{Manifest: Manifest{ID: "release-name", Name: "0day 文件名识别", Version: "1.0.0", Contract: 1, Capabilities: []string{"media.recognize"}}, Enabled: true, Builtin: true, Revision: 1}, {Manifest: Manifest{ID: "naming-template", Name: "电影与剧集命名模板", Version: "1.0.0", Contract: 1, Capabilities: []string{"media.naming"}}, Enabled: true, Builtin: true, Revision: 1}}
-}
 func Validate(m Manifest) error {
 	if validateFramework(m) != nil {
 		return ErrInvalid
@@ -88,36 +77,14 @@ func Validate(m Manifest) error {
 	if validateFields(m.Settings) != nil {
 		return ErrInvalid
 	}
-	if m.Runtime == "wasm" {
-		if m.Endpoint != "" || len(m.Rules) > 0 {
-			return ErrInvalid
-		}
-		return nil
-	}
-	if m.Runtime == "rules" {
-		return validateRules(m)
-	}
-	if m.Runtime != "" && m.Runtime != "webhook" || len(m.Rules) > 0 {
+	if m.Runtime != "wasm" {
 		return ErrInvalid
-	}
-	u, err := url.Parse(m.Endpoint)
-	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-		return ErrInvalid
-	}
-	if _, err = (playback.Policy{}).Syntax(m.Endpoint); err != nil {
-		return ErrInvalid
-	}
-	seen := map[string]bool{}
-	for _, c := range m.Capabilities {
-		if seen[c] || c != "media.recognize" && c != "media.organized" {
-			return ErrInvalid
-		}
-		seen[c] = true
 	}
 	return nil
 }
+
 func (r Registry) List(ctx context.Context) ([]Record, error) {
-	out := builtins()
+	out := []Record{}
 	if r.DB == nil {
 		return out, nil
 	}
@@ -132,7 +99,7 @@ func (r Registry) List(ctx context.Context) ([]Record, error) {
 		if err = rows.Scan(&raw, &item.Enabled, &item.Revision, &item.PackageDigest); err != nil {
 			return nil, err
 		}
-		if json.Unmarshal(raw, &item.Manifest) != nil {
+		if strictJSON(raw, &item.Manifest) != nil || Validate(item.Manifest) != nil {
 			return nil, ErrInvalid
 		}
 		out = append(out, item)
@@ -140,13 +107,13 @@ func (r Registry) List(ctx context.Context) ([]Record, error) {
 	return out, rows.Err()
 }
 func (r Registry) Save(ctx context.Context, m Manifest, enabled, consent bool, revision int64) error {
-	if Validate(m) != nil || enabled && m.Runtime != "rules" && !consent || r.DB == nil {
+	if Validate(m) != nil || enabled && !consent || r.DB == nil || revision < 1 {
 		return ErrInvalid
 	}
 	if revision > 0 {
 		var raw []byte
 		var current int64
-		if e := r.DB.QueryRow(ctx, `SELECT manifest,revision FROM extension_plugins WHERE id=$1`, m.ID).Scan(&raw, &current); e != nil || current != revision {
+		if e := r.DB.QueryRow(ctx, `SELECT manifest,revision FROM extension_plugins WHERE id=$1 AND octet_length(wasm_module)>=8`, m.ID).Scan(&raw, &current); e != nil || current != revision {
 			return ErrInvalid
 		}
 		var stored Manifest
@@ -176,13 +143,7 @@ func (r Registry) Save(ctx context.Context, m Manifest, enabled, consent bool, r
 		}
 	}
 	raw, _ := json.Marshal(m)
-	if revision == 0 {
-		if enabled {
-			return ErrInvalid
-		}
-		_, err := r.DB.Exec(ctx, `INSERT INTO extension_plugins(id,name,version,manifest)VALUES($1,$2,$3,$4)`, m.ID, m.Name, m.Version, raw)
-		return err
-	}
+
 	tag, err := r.DB.Exec(ctx, `UPDATE extension_plugins SET name=$2,version=$3,manifest=$4,enabled=$5,revision=revision+1,updated_at=now() WHERE id=$1 AND revision=$6`, m.ID, m.Name, m.Version, raw, enabled, revision)
 	if err != nil {
 		return err
@@ -209,99 +170,13 @@ func (r Registry) Delete(ctx context.Context, id string) error {
 	_, err := r.DB.Exec(ctx, `DELETE FROM extension_plugins WHERE id=$1`, id)
 	return err
 }
-func (r Registry) invoke(ctx context.Context, m Manifest, event Event) (output json.RawMessage, callErr error) {
-	if m.Runtime == "wasm" {
-		return r.invokeFramework(ctx, m, event, false)
-	}
+func (r Registry) invoke(ctx context.Context, m Manifest, event Event) (json.RawMessage, error) {
 	if Validate(m) != nil {
 		return nil, ErrInvalid
 	}
-	values := map[string]string{}
-	if r.DB != nil {
-		var raw, cipher []byte
-		var enabled bool
-		if e := r.DB.QueryRow(ctx, `SELECT manifest,config_ciphertext,enabled FROM extension_plugins WHERE id=$1`, m.ID).Scan(&raw, &cipher, &enabled); e != nil || !enabled {
-			return nil, ErrInvalid
-		}
-		var stored Manifest
-		if json.Unmarshal(raw, &stored) != nil {
-			return nil, ErrInvalid
-		}
-		left, _ := json.Marshal(stored)
-		right, _ := json.Marshal(m)
-		if !bytes.Equal(left, right) {
-			return nil, ErrInvalid
-		}
-		if len(cipher) > 0 {
-			if r.Vault == nil {
-				return nil, ErrInvalid
-			}
-			v, e := r.Vault.Open("plugin:"+m.ID, cipher)
-			if e != nil {
-				return nil, e
-			}
-			values = v
-		}
-		v, e := ValidateSettings(m.Settings, values, true)
-		if e != nil {
-			return nil, e
-		}
-		values = v
-	}
-	if _, e := ValidateSettings(m.Settings, values, true); e != nil {
-		return nil, e
-	}
-	defer func() {
-
-		bounded, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
-		defer cancel()
-		state, message := "succeeded", "插件执行完成"
-		if callErr != nil {
-			state, message = "failed", "插件执行未取得有效结果；不会自动重发"
-			if m.Runtime != "rules" {
-				state = "outcome_unknown"
-			}
-		}
-		r.recordRun(bounded, m.ID, event.Kind, state, message)
-	}()
-	if m.Runtime == "rules" {
-		return rulesOutput(m, event, values)
-	}
-	event.Settings = values
-	bounded, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-	policy := playback.Policy{}
-	if err := policy.Check(bounded, m.Endpoint); err != nil {
-		return nil, ErrInvalid
-	}
-	payload, err := json.Marshal(event)
-	if err != nil || len(payload) > 32<<10 {
-		return nil, ErrInvalid
-	}
-	req, err := http.NewRequestWithContext(bounded, "POST", m.Endpoint, bytes.NewReader(payload))
-	if err != nil {
-		return nil, ErrInvalid
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "MediaTool-Extension/1")
-	client := r.HTTP
-	if client == nil {
-		client = &http.Client{Timeout: 3 * time.Second, Transport: &http.Transport{Proxy: nil, DialContext: policy.DialContext, TLSHandshakeTimeout: 2 * time.Second}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	}
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, errors.New("extension request unavailable")
-	}
-	defer res.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(res.Body, (64<<10)+1))
-	if err != nil || len(raw) > 64<<10 || res.StatusCode != 200 {
-		return nil, errors.New("extension response invalid")
-	}
-	if len(raw) > 0 && !json.Valid(raw) {
-		return nil, ErrInvalid
-	}
-	return raw, nil
+	return r.invokeFramework(ctx, m, event, false)
 }
+
 func (r Registry) Recognize(ctx context.Context, name string) (releasename.Hint, []string) {
 	hint := releasename.Parse(name)
 	messages := []string{}
@@ -311,7 +186,7 @@ func (r Registry) Recognize(ctx context.Context, name string) (releasename.Hint,
 	}
 	calls := 0
 	for _, item := range items {
-		if item.Builtin || !item.Enabled || !contains(item.Manifest.Capabilities, "media.recognize") {
+		if !item.Enabled || !contains(item.Manifest.Capabilities, "media.recognize") {
 			continue
 		}
 		calls++
@@ -353,7 +228,7 @@ func (r Registry) Organized(ctx context.Context, event Event) {
 	}
 	count := 0
 	for _, item := range items {
-		if !item.Enabled || item.Builtin || !contains(item.Manifest.Capabilities, "media.organized") {
+		if !item.Enabled || !contains(item.Manifest.Capabilities, "media.organized") {
 			continue
 		}
 		count++

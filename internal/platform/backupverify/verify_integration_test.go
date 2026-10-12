@@ -2,6 +2,8 @@ package backupverify
 
 import (
 	"context"
+	"encoding/json"
+	"media-tool/internal/modules/plugins"
 	"media-tool/internal/platform/database"
 	"media-tool/internal/platform/secrets"
 	"os"
@@ -47,12 +49,22 @@ func TestPostgresCloneGuardAndCompleteRekeyMigrationImmutability(t *testing.T) {
 	vault, _ := secrets.New(strings.Repeat("9", 64))
 	cipher, _ := vault.Seal("plugin:restore-fixture", map[string]string{"apiKey": "owned"})
 	state, _ := vault.Seal("plugin-data:restore-fixture", map[string]string{"data": "{\"count\":1}"})
-	_, e = db.Exec(ctx, `INSERT INTO extension_plugins(id,name,version,manifest,config_ciphertext,plugin_data_ciphertext)VALUES('restore-fixture','Owned','1','{}',$1,$2)`, cipher, state)
+	packageRaw, e := os.ReadFile("../../../examples/plugins/automation.zip")
+	if e != nil {
+		t.Fatal(e)
+	}
+	fixture, e := plugins.ParsePackage(packageRaw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	fixture.Manifest.ID = "restore-fixture"
+	manifest, _ := json.Marshal(fixture.Manifest)
+	_, e = db.Exec(ctx, `INSERT INTO extension_plugins(id,name,version,manifest,config_ciphertext,plugin_data_ciphertext,wasm_module)VALUES('restore-fixture','Owned','1',$1,$2,$3,$4)`, manifest, cipher, state, fixture.Module)
 	if e != nil {
 		t.Fatal(e)
 	}
 	report, e := Verify(ctx, db, dsn, "media_tool_test", strings.Repeat("9", 64), true)
-	if e != nil || !report.DryRunCiphertextsUnchanged || !report.SecondMigrationIdempotent || !report.LegacyBusinessColumnsPreserved || report.FinalVersion != 31 || len(report.CipherRows) != len(secrets.CipherColumns) {
+	if e != nil || !report.DryRunCiphertextsUnchanged || !report.SecondMigrationIdempotent || !report.LegacyBusinessColumnsPreserved || report.FinalVersion != 32 || len(report.CipherRows) != len(secrets.CipherColumns) {
 		t.Fatal(report, e)
 	}
 	var after []byte

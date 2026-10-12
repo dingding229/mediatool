@@ -1,4 +1,4 @@
-# 功能型插件框架（0.11）
+# 可执行沙箱插件框架（0.11.1）
 
 ## 参考与功能范围
 
@@ -20,7 +20,7 @@ get_api/get_command→插件实例命名空间内管理员路由/命令；get_se
 ## 执行与权限
 
 Go/WASI代码在同一app进程的wazero解释器运行；64MiB内存、4秒执行、256KiB输出、默认无文件/环境/网络。
-ZIP最多8MiB、展开24MiB，16个根目录文件，只允许manifest/settings/rules/README/plugin.wasm/ui.html。
+ZIP最多8MiB、展开24MiB，16个根目录文件，必须包含manifest.json和有效plugin.wasm，允许settings.json/README.md/ui.html。仅支持WASM代码；不兼容旧Webhook/rules/空runtime或手填Manifest。0day识别和命名模板是核心功能，不在插件列表。开发和MoviePilot接口映射见PLUGIN_DEVELOPMENT.md。
 WASM只允许WASI和mediatool/mediatool_host导入，异常/未知结果不自动重复调用。
 
 manifest.outbound列出HTTPS公有origin；明确授权后才提供HTTP host请求，最多3次，每次3秒，拒绝

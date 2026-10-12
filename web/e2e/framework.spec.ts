@@ -764,7 +764,8 @@ test('TMDB and site-direct search have distinct cache controls (fixture)',async(
 
 test('automatic roots, 0day hints, history and safe plugin manifests',async({page})=>{
  await login(page);await page.goto('/files');await expect(page.getByText(/本地目录/).first()).toBeVisible();const parsed=await page.request.post('/api/v1/media/recognize-name',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned.Show.2026.S01E03.1080p.WEB-DL.x265-TEAM.mkv'}});expect(parsed.status()).toBe(200);expect((await parsed.json()).data.hint).toMatchObject({title:'Owned Show',year:'2026',mediaType:'series',season:1,episode:3})
- await page.goto('/organize-history');await expect(page.getByRole('heading',{name:'媒体整理历史',exact:true})).toBeVisible();await page.goto('/plugins');await expect(page.getByRole('heading',{name:'0day 文件名识别',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'电影与剧集命名模板',exact:true})).toBeVisible();await page.getByText('兼容入口：导入扩展 Manifest',{exact:true}).click();await page.getByLabel('插件Manifest',{exact:true}).fill(JSON.stringify({id:'owned-plugin',name:'自有扩展样本',version:'1',contractVersion:1,endpoint:'http://127.0.0.1/hook',capabilities:['media.organized']}));await page.getByRole('button',{name:'导入为停用插件',exact:true}).click();await expect(page.getByText(/Manifest无效/)).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-plugins-desktop.png'),animations:'disabled'})
+ await page.goto('/organize-history');await expect(page.getByRole('heading',{name:'媒体整理历史',exact:true})).toBeVisible();await page.goto('/plugins');await expect(page.getByRole('heading',{name:'尚未安装插件',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'0day 文件名识别',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'电影与剧集命名模板',exact:true})).toHaveCount(0);await expect(page.getByText('兼容入口：导入扩展 Manifest',{exact:true})).toHaveCount(0)
+ const rejected=await page.request.post('/api/v1/plugins',{headers:{'X-Requested-With':'media-tool'},data:{manifest:{id:'owned-plugin',name:'Owned',version:'1',contractVersion:1,runtime:'webhook',endpoint:'https://owned.example',capabilities:['media.organized']},enabled:false,consent:false,revision:0}});expect(rejected.status()).toBe(400);await page.screenshot({path:resolve(screenshots,'workbench-plugins-desktop.png'),animations:'disabled'})
 })
 
 test('temporary-password sessions are routed to compulsory reset without web recovery (fixture)',async({page})=>{
@@ -901,22 +902,22 @@ test('log query failures are visible and do not present stale content as current
 
 test('ZIP plugins install, configure encrypted fields, explicitly run, record and uninstall (isolated)',async({page})=>{
  await fixtureLogin(page);await page.goto('/plugins')
- await page.getByLabel('选择ZIP插件包',{exact:true}).setInputFiles(resolve(root,'examples/plugins/filename-rules.zip'))
+ await page.getByLabel('选择ZIP插件包',{exact:true}).setInputFiles(resolve(root,'examples/plugins/automation.zip'))
  await page.getByRole('button',{name:'预览插件包',exact:true}).click()
  const preview=page.getByRole('dialog',{name:'插件包安装预览',exact:true});await expect(preview).toBeVisible()
  await preview.getByRole('button',{name:'确认安装或升级',exact:true}).click()
- const card=page.locator('.plugin-grid article').filter({has:page.getByRole('heading',{name:'示例文件名规则',exact:true})})
+ const card=page.locator('.plugin-grid article').filter({has:page.getByRole('heading',{name:'自动化插件示例',exact:true})})
  await expect(card).toBeVisible();await expect(card.getByRole('button',{name:'测试',exact:true})).toBeDisabled()
  await card.getByRole('button',{name:'设置',exact:true}).click()
- await page.getByLabel('标题前缀',{exact:true}).fill('Owned ')
+ await page.getByLabel('工作台标题',{exact:true}).fill('Owned Title')
  await page.getByLabel('插件自己的测试密钥',{exact:true}).fill('owned-secret-e2e-only')
- await page.getByRole('button',{name:'保存插件设置',exact:true}).click();await expect(page.getByRole('dialog',{name:'示例文件名规则 插件设置',exact:true})).toBeHidden()
- const config=await page.request.get('/api/v1/plugins/example-filename-rules/settings');expect(config.status()).toBe(200);const data=(await config.json()).data;expect(data.secretFields).toContain('apiKey');expect(data.values.apiKey).toBe('owned-secret-e2e-only')
+ await page.getByRole('button',{name:'保存插件设置',exact:true}).click();await expect(page.getByRole('dialog',{name:'自动化插件示例 插件设置',exact:true})).toBeHidden()
+ const config=await page.request.get('/api/v1/plugins/example-automation/settings');expect(config.status()).toBe(200);const data=(await config.json()).data;expect(data.secretFields).toContain('apiKey');expect(data.values.apiKey).toBe('owned-secret-e2e-only')
  await card.getByRole('button',{name:'授权并启用',exact:true}).click()
  await page.getByRole('dialog',{name:'启用插件',exact:true}).getByRole('button',{name:'授权并启用',exact:true}).click()
  await expect(card.getByRole('button',{name:'测试',exact:true})).toBeEnabled();await card.getByRole('button',{name:'测试',exact:true}).click()
  await page.getByLabel('测试文件名',{exact:true}).fill('Example.Show.2026.S01E03.mkv');await page.getByRole('button',{name:'执行测试',exact:true}).click();await page.getByRole('dialog',{name:'测试插件',exact:true}).getByRole('button',{name:'确认测试',exact:true}).click()
- const testDialog=page.getByRole('dialog',{name:'测试插件（不修改媒体）',exact:true});await expect(testDialog.locator('pre')).toContainText('Owned Show');await expect(testDialog.locator('pre')).toContainText('"mediaModified": false')
+ const testDialog=page.getByRole('dialog',{name:'测试插件（不修改媒体）',exact:true});await expect(testDialog.locator('pre')).toContainText('WASM沙箱测试通过');await expect(testDialog.locator('pre')).toContainText('"mediaModified": false')
  await page.screenshot({path:resolve(screenshots,'zip-plugin-test.png'),animations:'disabled'});await testDialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
  await card.getByRole('button',{name:'记录',exact:true}).click();const history=page.getByRole('dialog',{name:'插件最近执行记录',exact:true});await expect(history).toContainText('succeeded');await history.getByRole('button',{name:'关闭此对话框',exact:true}).click()
  await card.getByRole('button',{name:'卸载',exact:true}).click();await page.getByRole('dialog',{name:'卸载插件',exact:true}).getByRole('button',{name:'确认卸载',exact:true}).click();await expect(card).toHaveCount(0)

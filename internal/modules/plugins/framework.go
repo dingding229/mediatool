@@ -59,7 +59,7 @@ func validateFramework(m Manifest) error {
 	if len(m.Commands) > 16 || len(m.Services) > 8 || len(m.Routes) > 16 || len(m.Pages) > 8 || len(m.Outbound) > 8 || len(m.Events) > 20 || len(m.Permissions) > 8 {
 		return ErrInvalid
 	}
-	if m.Runtime != "wasm" && len(m.Commands)+len(m.Services)+len(m.Routes)+len(m.Pages)+len(m.Outbound)+len(m.Events)+len(m.Permissions) > 0 {
+	if m.Runtime != "wasm" {
 		return ErrInvalid
 	}
 	permissionKeys := map[string]bool{}
@@ -164,9 +164,16 @@ func ValidateModule(ctx context.Context, module []byte) error {
 		return ErrInvalid
 	}
 	defer compiled.Close(ctx)
+	start := compiled.ExportedFunctions()["_start"]
+	if start == nil || len(start.ParamTypes()) != 0 || len(start.ResultTypes()) != 0 {
+		return ErrInvalid
+	}
+	if len(compiled.ImportedMemories()) != 0 {
+		return ErrInvalid
+	}
 	for _, f := range compiled.ImportedFunctions() {
-		ns, _, _ := f.Import()
-		if ns != "wasi_snapshot_preview1" && ns != "mediatool" && ns != "mediatool_host" {
+		ns, name, _ := f.Import()
+		if ns != "wasi_snapshot_preview1" && !(ns == "mediatool" && name == "http_request") && !(ns == "mediatool_host" && name == "request") {
 			return ErrInvalid
 		}
 	}
@@ -332,7 +339,7 @@ func (r Registry) Invoke(ctx context.Context, id, kind string, payload map[strin
 		return nil, e
 	}
 	for _, item := range list {
-		if item.Manifest.ID == id && !item.Builtin {
+		if item.Manifest.ID == id {
 			if !item.Enabled && !allowDisabled {
 				return nil, ErrInvalid
 			}
