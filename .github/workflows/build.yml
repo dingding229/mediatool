@@ -57,7 +57,7 @@ jobs:
       - run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Browser end-to-end tests (unified process)
         run: |
-          npx --prefix web playwright install --with-deps chrome
+          npx --prefix web playwright install --with-deps --only-shell chromium
           bash scripts/test-e2e.sh
   publish:
     needs: verify

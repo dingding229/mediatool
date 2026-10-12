@@ -1,33 +1,53 @@
 <script setup lang="ts">
-import { computed,onMounted,ref } from 'vue'
-import { useRoute,useRouter } from 'vue-router'
-import { Monitor,Connection,Search,Collection,Download,FolderOpened,Link,VideoPlay,Bell,Operation,Setting,Close,Menu as MenuIcon,SwitchButton } from '@element-plus/icons-vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Search, Menu as MenuIcon, SwitchButton, Bell, ArrowRight } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { useSystemStore } from '../stores/system'
-const route=useRoute(),router=useRouter(),auth=useAuthStore(),system=useSystemStore(),menuOpen=ref(false)
-const nav=[{id:'dashboard',name:'总览',icon:Monitor},{id:'sites',name:'PT 站点',icon:Connection},{id:'search',name:'资源搜索',icon:Search},{id:'subscriptions',name:'资源订阅',icon:Collection},{id:'downloads',name:'下载与传输',icon:Download},{id:'files',name:'文件管理',icon:FolderOpened},{id:'mediaLibrary',name:'媒体库',icon:Collection},{id:'cloudStorage',name:'云盘索引',icon:FolderOpened},{id:'strm',name:'STRM 管理',icon:Link},{id:'notifications',name:'通知中心',icon:Bell},{id:'jobs',name:'任务队列',icon:Operation},{id:'integrations',name:'服务连接',icon:Connection},{id:'organize-history',name:'整理历史',icon:FolderOpened},{id:'plugins',name:'插件扩展',icon:Operation},{id:'logs',name:'程序日志',icon:Operation},{id:'data',name:'数据库浏览',icon:Collection},{id:'settings',name:'系统设置',icon:Setting}]
-const currentTitle=computed(()=>nav.find(item=>item.id===route.name)?.name??(route.path.startsWith('/integrations')?'服务连接':'媒体管理'))
-onMounted(()=>system.refresh())
-async function logout(){await auth.logout();await router.push('/login')}
+import { navigationLocation } from '../navigation/items'
+import NavigationMenu from '../components/NavigationMenu.vue'
+import QuickNavigator from '../components/QuickNavigator.vue'
+const route = useRoute(), router = useRouter(), auth = useAuthStore(), system = useSystemStore()
+const menuOpen = ref(false), navigatorOpen = ref(false), main = ref<HTMLElement>()
+const current = computed(() => navigationLocation(route.path))
+let mobile: MediaQueryList | undefined
+function onResize() { if (!mobile?.matches) menuOpen.value = false }
+function shortcut(event: KeyboardEvent) {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !menuOpen.value) {
+    if (Array.from(document.querySelectorAll('.el-overlay')).some(node => node.getClientRects().length > 0) && !navigatorOpen.value) return
+    event.preventDefault(); navigatorOpen.value = !navigatorOpen.value
+  }
+}
+watch(() => route.path, () => { menuOpen.value = false; main.value?.focus({ preventScroll: true }) })
+watch(() => current.value?.name, name => { document.title = `${name ?? '媒体管理'} · Media Tool` }, { immediate: true })
+onMounted(() => { if (route.name !== 'dashboard' && !system.status) system.refresh(); mobile = window.matchMedia('(max-width: 900px)'); mobile.addEventListener('change', onResize); window.addEventListener('keydown', shortcut) })
+onUnmounted(() => { mobile?.removeEventListener('change', onResize); window.removeEventListener('keydown', shortcut) })
+async function logout() { await auth.logout(); await router.push('/login') }
 </script>
 <template>
- <div class="app-shell">
-  <div v-if="menuOpen" class="menu-scrim" @click="menuOpen=false"></div>
-  <aside class="sidebar" :class="{'is-open':menuOpen}" aria-label="主导航">
-   <RouterLink to="/dashboard" class="brand" @click="menuOpen=false"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span><span>Media Tool<small>媒体自动化工作台</small></span></RouterLink>
-   <button class="mobile-close icon-button" aria-label="关闭导航" @click="menuOpen=false"><Close /></button>
-   <nav><RouterLink v-for="item in nav" :key="item.id" :to="`/${item.id}`" class="nav-item" :class="{'router-link-active':item.id==='integrations'&&route.path.startsWith('/integrations')}" @click="menuOpen=false"><component :is="item.icon" aria-hidden="true"/><span>{{item.name}}</span></RouterLink></nav>
-   <div class="sidebar-note"><span class="note-line"></span><strong>先建立可靠链路</strong><p>订阅 → 下载 → 云盘 → 媒体库</p><span class="build-label">{{system.status?.version??'工程框架'}}</span></div>
-  </aside>
-  <div class="main-shell">
-   <header class="topbar"><div class="topbar-heading"><button class="mobile-menu icon-button" aria-label="打开导航" @click="menuOpen=true"><MenuIcon/></button><span>工作台</span><span class="topbar-divider">/</span><strong>{{currentTitle}}</strong></div><div class="topbar-actions"><span class="environment">{{system.status?.environment==='production'?'生产环境':'开发环境'}}</span><button class="text-button logout-button" @click="logout"><SwitchButton aria-hidden="true"/><span>退出</span></button></div></header>
-   <main id="main-content" class="page-content"><RouterView /></main>
-   <footer class="app-footer"><span>数据来自实际服务状态，不展示模拟媒体记录。</span><span>Go · Vue · PostgreSQL · Redis</span></footer>
+  <div class="app-shell">
+    <a href="#main-content" class="skip-link">跳到主要内容</a>
+    <aside class="sidebar" aria-label="主导航">
+      <RouterLink to="/dashboard" class="brand"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span><span>Media Tool<small>你的媒体自动化工作台</small></span></RouterLink>
+      <NavigationMenu />
+      <div class="sidebar-note"><span class="sidebar-system-dot" aria-hidden="true"></span><span>媒体自动化<span class="build-label">{{ system.status?.version ?? '读取版本中' }}</span></span></div>
+    </aside>
+    <el-drawer v-model="menuOpen" direction="ltr" size="280px" title="主导航" class="navigation-drawer" :close-on-click-modal="true">
+      <NavigationMenu @navigate="menuOpen=false" />
+    </el-drawer>
+    <div class="main-shell">
+      <header class="topbar">
+        <div class="topbar-heading"><button class="mobile-menu icon-button" aria-label="打开导航" :aria-expanded="menuOpen" @click="menuOpen=true"><MenuIcon aria-hidden="true" /></button><span>{{ current?.group ?? '工作台' }}</span><ArrowRight class="topbar-divider" aria-hidden="true" /><strong>{{ current?.name ?? '媒体管理' }}</strong></div>
+        <div class="topbar-actions">
+          <button class="quick-trigger" aria-label="快速前往" @click="navigatorOpen=true"><Search aria-hidden="true" /><span>快速前往</span><kbd>⌘ / Ctrl K</kbd></button>
+          <RouterLink to="/notifications" class="icon-button notification-link" aria-label="查看通知"><Bell aria-hidden="true" /></RouterLink>
+          <span class="environment">{{ system.status?.environment === 'production' ? '生产环境' : system.status ? '开发环境' : '读取状态中' }}</span>
+          <button class="text-button logout-button" @click="logout"><SwitchButton aria-hidden="true" /><span>退出</span></button>
+        </div>
+      </header>
+      <main id="main-content" ref="main" tabindex="-1" class="page-content"><RouterView /></main>
+      <footer class="app-footer"><span>Media Tool · 资源到播放，一站整理</span><span>仅展示真实服务数据</span></footer>
+    </div>
+    <QuickNavigator v-model="navigatorOpen" />
   </div>
- </div>
 </template>
-<style scoped>
-.sidebar nav{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
-.sidebar .brand,.sidebar-note{flex-shrink:0}
-.sidebar-note{margin-top:18px;padding-top:10px}
-</style>

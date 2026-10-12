@@ -27,7 +27,7 @@ const stateLabel=(state:string)=>({preview:'待确认',running:'执行中',succe
 onMounted(refresh)
 </script>
 <template>
- <section class="page-heading"><div><h1>文件管理</h1><p>浏览 115 云盘和本地目录，预览后再重命名、分类移动或移入回收目录。</p></div><el-button :icon="Refresh" :loading="loading" @click="refresh">刷新</el-button></section>
+ <section class="page-heading"><div><span class="page-kicker">ORGANIZE / 文件管理</span><h1>文件管理</h1><p>浏览 115 云盘和本地目录，预览后再重命名、分类移动或移入回收目录。</p></div><el-button :icon="Refresh" :loading="loading" @click="refresh">刷新</el-button></section>
  <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon/>
  <section class="panel file-panel">
   <div class="file-toolbar"><el-select v-model="connection" aria-label="文件根目录" placeholder="选择已启用的文件根目录" @change="changeRoot"><el-option v-for="root in roots" :key="root.id" :value="root.id" :label="`${root.kind==='cloud'?'云盘 / 115':'本地'} · ${root.name}`"/></el-select><el-button :icon="ArrowUp" :disabled="directory==='.'||loading" @click="parent">上级目录</el-button><el-button :icon="Plus" :disabled="!connection||loading" @click="openAction('mkdir')">新建文件夹</el-button><el-input v-model="filter" aria-label="筛选当前页文件" placeholder="筛选当前页文件" clearable/></div>

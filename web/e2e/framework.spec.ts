@@ -258,9 +258,8 @@ test('site snapshot recovery keeps the exact commit, license gate and validation
  await expect(page.getByText('已原子导入固定快照，账号实测仍需单独验证',{exact:true}).first()).toBeHidden()
  await page.screenshot({path:resolve(screenshots,'sites-snapshot-recovery.png'),fullPage:true,animations:'disabled'})
  await page.setViewportSize({width:375,height:812})
- // Resizing starts the existing sidebar transition; verify the settled page,
- // not an intermediate frame with the off-canvas menu over the form.
- await expect.poll(async()=>{const box=await page.getByRole('complementary',{name:'主导航'}).boundingBox();return box!==null&&box.x+box.width<=0}).toBe(true)
+ // Desktop navigation is removed from the mobile accessibility tree.
+ await expect(page.getByRole('complementary',{name:'主导航'})).toBeHidden()
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  await expect(page.getByLabel('来源提交（可选）',{exact:true})).toBeInViewport()
  await expect(page.getByRole('button',{name:'按此快照重新导入',exact:true})).toBeVisible()
@@ -648,6 +647,9 @@ test('separate 115 setup saves without tokens and secret echoes are explicit (is
 })
 
 test('local file management previews organize, keeps sidecars and uses reversible trash',async({page})=>{
+ // Four real isolated file operations plus desktop/mobile screenshots; retain
+ // explicit dialog-close checks instead of force-clicking through transitions.
+ test.setTimeout(60000)
  const directory=process.env.E2E_FILE_ROOT;if(!directory)throw new Error('Owned E2E file root required')
  await fixtureLogin(page)
  await page.goto('/files')
@@ -696,7 +698,7 @@ test('local file management previews organize, keeps sidecars and uses reversibl
  await video.getByRole('button',{name:'移入回收目录',exact:true}).click()
  await page.getByRole('dialog',{name:'移入回收目录',exact:true}).getByRole('button',{name:'预览变更',exact:true}).click()
  await plan.getByRole('button',{name:'确认执行文件变更',exact:true}).click()
- await expect(video).toHaveCount(0)
+ await expect(video).toHaveCount(0);await expect(plan).not.toBeVisible()
  await page.getByRole('button',{name:'查看回收目录',exact:true}).click()
  const folder=page.locator('.file-name').filter({hasText:/^[0-9a-f-]{36}$/}).first();await folder.click()
  const recycled=page.getByRole('row').filter({hasText:'自定义片名.mkv'});await expect(recycled).toBeVisible()
@@ -761,4 +763,65 @@ test('temporary-password sessions are routed to compulsory reset without web rec
  await page.route('**/api/v1/auth/password',route=>route.fulfill({json:{data:{changed:true,loginRequired:true}}}))
  await page.goto('/logs');await expect(page).toHaveURL('http://localhost:18084/reset-password');await expect(page.getByRole('heading',{name:'必须设置新密码',exact:true})).toBeVisible();await expect(page.getByRole('link',{name:'程序日志',exact:true})).toHaveCount(0)
  await page.getByLabel('当前临时密码',{exact:true}).fill('Temporary-2026');await page.getByLabel('新密码',{exact:true}).fill('Replacement-2026');await page.getByLabel('确认新密码',{exact:true}).fill('Replacement-2026');await page.screenshot({path:resolve(screenshots,'mandatory-reset-desktop.png'),animations:'disabled',mask:[page.locator('input[type=password]')]});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'mandatory-reset-mobile.png'),animations:'disabled',mask:[page.locator('input[type=password]')]});await page.getByRole('button',{name:'设置新密码并重新登录',exact:true}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'忘记密码？使用恢复码',exact:true})).toHaveCount(0)
+})
+
+
+test('grouped navigation, quick jump and keyboard-only return (UI)',async({page})=>{
+ await fixtureLogin(page)
+ const navigation=page.getByRole('navigation',{name:'功能导航'})
+ for(const name of ['媒体浏览','资源获取','文件与入库','系统运维'])await expect(navigation.getByRole('heading',{name,exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'模块建设进度',exact:true})).toHaveCount(0)
+ await expect(page).toHaveTitle('总览 · Media Tool')
+ await page.getByRole('button',{name:'快速前往',exact:true}).click()
+ const dialog=page.getByRole('dialog',{name:'快速前往',exact:true}),input=dialog.getByRole('combobox',{name:'搜索功能入口'})
+ await expect(input).toBeFocused();await input.fill('Redis');await expect(dialog.getByRole('option')).toHaveCount(1)
+ await input.press('Enter');await expect(page.getByRole('heading',{name:'数据库浏览',exact:true})).toBeVisible();await expect(dialog).toBeHidden()
+ await page.keyboard.press('Control+k');await expect(input).toBeFocused();await input.fill('not-a-real-feature');await expect(dialog.getByText('没有匹配的功能，请尝试其他关键词。')).toBeVisible()
+ await input.press('Enter');await expect(dialog).toBeVisible();await page.keyboard.press('Escape');await expect(dialog).toBeHidden()
+ await page.getByRole('button',{name:'快速前往',exact:true}).focus();await page.keyboard.press('Enter');await expect(input).toBeFocused()
+ await input.fill('命名模板');await input.press('ArrowDown');await input.press('ArrowUp');await input.press('Enter');await expect(page).toHaveURL(/\/settings$/)
+ await expect(page.getByLabel('电影命名模板',{exact:true})).toBeVisible()
+})
+
+test('mobile navigation traps focus, closes with Escape and restores its trigger (UI)',async({page})=>{
+ await page.setViewportSize({width:375,height:812});await fixtureLogin(page)
+ const trigger=page.getByRole('button',{name:'打开导航',exact:true});await trigger.click()
+ const drawer=page.getByRole('dialog',{name:'主导航',exact:true});await expect(drawer).toBeVisible();await expect(trigger).toHaveAttribute('aria-expanded','true')
+ for(let i=0;i<24;i++){await page.keyboard.press('Tab');expect(await drawer.evaluate(el=>el.contains(document.activeElement))).toBe(true)}
+ await page.screenshot({path:resolve(screenshots,'ui-navigation-mobile.png'),animations:'disabled'})
+ await page.keyboard.press('Escape');await expect(drawer).toBeHidden();await expect(trigger).toBeFocused()
+ await page.keyboard.press('Control+k');await expect(page.getByRole('dialog',{name:'快速前往',exact:true})).toBeVisible();await page.keyboard.press('Escape')
+ await trigger.click();await drawer.getByRole('link',{name:'程序日志',exact:true}).click();await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible();await expect(drawer).toBeHidden()
+})
+
+test('TMDB errors and empty results are visible in media search (UI fixture)',async({page})=>{
+ await fixtureLogin(page);let fail=true
+ await page.route('**/api/v1/search/media?*',route=>route.fulfill(fail?{status:503,json:{error:{code:'provider_unavailable',message:'自有测试：TMDB暂时不可用'}}}:{json:{data:{items:[],cached:false}}}))
+ await page.goto('/search');await page.getByLabel('TMDB媒体名称',{exact:true}).fill('Empty fixture');await page.getByRole('button',{name:'搜索媒体',exact:true}).click()
+ await expect(page.getByText('自有测试：TMDB暂时不可用',{exact:true})).toBeVisible()
+ fail=false;await page.getByRole('button',{name:'搜索媒体',exact:true}).click();await expect(page.getByText('没有找到匹配作品，请换个名称或调整年份。',{exact:true})).toBeVisible()
+ await page.screenshot({path:resolve(screenshots,'ui-search-empty.png'),animations:'disabled'})
+})
+
+test('workbench layouts fit desktop, tablet and mobile with reduced motion (UI)',async({page})=>{
+ await fixtureLogin(page);await page.emulateMedia({reducedMotion:'reduce'})
+ for(const width of [375,768,1024,1440]){
+  await page.setViewportSize({width,height:1000})
+  for(const path of ['/dashboard','/search','/files','/mediaLibrary','/logs','/data','/settings','/integrations']){
+   await page.goto(path);await expect(page.locator('main h1').first()).toBeVisible()
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${path} at ${width}px`).toBe(true)
+  }
+  await page.goto('/dashboard');await expect(page.getByText('已连接依赖',{exact:true})).toBeVisible()
+  await page.screenshot({path:resolve(screenshots,`ui-dashboard-${width}.png`),animations:'disabled',fullPage:width>=1024})
+ }
+})
+
+test('media-library refresh targets home and configuration deep links keep their owner (UI fixture)',async({page})=>{
+ await fixtureLogin(page);let homeCalls=0
+ await page.route('**/api/v1/media/library/emby/home?*',route=>{homeCalls++;return route.fulfill({json:{data:{users:[{id:'owned-user',name:'自有测试用户'}],userId:'owned-user',libraries:[],playing:[],resume:[],recent:[],latest:[]}}})})
+ await page.goto('/mediaLibrary');await expect.poll(()=>homeCalls).toBe(1)
+ await page.getByRole('button',{name:'刷新媒体库',exact:true}).click();await expect.poll(()=>homeCalls).toBe(2)
+ await page.goto('/mediaLibrary?connectionKind=emby');await expect(page.getByRole('heading',{name:'Emby媒体库连接',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'Emby 配置',exact:true})).toHaveAttribute('aria-pressed','true')
+ await expect(page.getByRole('heading',{name:/^我的媒体库/})).toHaveCount(0)
 })

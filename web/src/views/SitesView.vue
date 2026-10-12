@@ -51,7 +51,7 @@ onMounted(refresh)
 
 <template>
   <section class="page-heading">
-    <div><h1>PT 站点配置</h1><p>兼容上游配置并记录快照。解析支持不等于账号实测通过。</p></div>
+    <div><span class="page-kicker">ACQUIRE / PT 站点</span><h1>PT 站点配置</h1><p>兼容上游配置并记录快照。解析支持不等于账号实测通过。</p></div>
     <el-button :loading="loading" @click="refresh">刷新</el-button>
   </section>
   <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
@@ -68,7 +68,7 @@ onMounted(refresh)
       <el-checkbox v-model="accepted">我已阅读上游许可证，确认具备本次配置使用授权</el-checkbox>
       <div class="heading-actions snapshot-actions">
         <el-button type="primary" :loading="importing" :disabled="!accepted || !!formError" @click="sync()">同步固定快照</el-button>
-        <RouterLink to="/integrations" class="inline-link">配置站点账号</RouterLink>
+        <a href="#pt-connections" class="inline-link">配置站点账号</a>
       </div>
     </div>
   </section>
@@ -107,7 +107,7 @@ onMounted(refresh)
       </article>
     </div>
   </section>
-<ConnectionPanel :allowed-kinds="['ptsite']" title="PT 站点账号"/></template>
+<div id="pt-connections" class="anchor-section"><ConnectionPanel :allowed-kinds="['ptsite']" title="PT 站点账号"/></div></template>
 
 <style scoped>
 .snapshot-error { color: var(--el-color-danger); font-size: 13px; line-height: 1.6; }
