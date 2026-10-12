@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.9.1-dev
+  version: 0.9.2-dev
   description: 'Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -48,6 +48,21 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/OK'
+  /api/v1/logs/query:
+    get:
+      operationId: queryLogs
+      description: >-
+        分页查询脱敏文件日志。keyword（至多200字）、level、module、from/to/before（RFC3339）、
+        page（1-10000）、pageSize（1-200）。返回items/total/modules/before/truncated。
+        total仅代表每文件最近2MiB且至多20000条的扫描窗口，不代表全部保留日志。
+        before为查询截止时间；分页复用该时间可排除新写日志，大量写入、轮转或清理仍可能使窗口变化。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          description: 筛选、时间范围或页码无效
+        '503':
+          $ref: '#/components/responses/Unavailable'
   /api/v1/logs/clear:
     post:
       operationId: clearLogs

@@ -1,11 +1,12 @@
 // Package logging provides the application's built-in structured log system.
-// JSON goes to stdout; Docker's bounded json-file driver owns disk rotation.
+// JSON is shared with stdout and the bounded file store used by the admin console.
 package logging
 
 import (
 	"errors"
 	"io"
 	"log/slog"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -53,7 +54,23 @@ func NewControlled(out io.Writer, level string, control *slog.LevelVar, knownSec
 		control.Set(parsed)
 		threshold = control
 	}
-	return slog.New(slog.NewJSONHandler(out, &slog.HandlerOptions{Level: threshold, ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+	return slog.New(slog.NewJSONHandler(out, &slog.HandlerOptions{Level: threshold, AddSource: true, ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		if len(groups) == 0 && a.Key == slog.SourceKey {
+			if source, ok := a.Value.Any().(*slog.Source); ok {
+				if source == nil || source.File == "" || source.Line <= 0 {
+					return slog.Attr{}
+				}
+				file := filepath.ToSlash(source.File)
+				if index := strings.Index(file, "/internal/"); index >= 0 {
+					file = file[index+1:]
+				} else if index := strings.Index(file, "/cmd/"); index >= 0 {
+					file = file[index+1:]
+				} else {
+					file = filepath.Base(file)
+				}
+				return slog.Group(a.Key, slog.String("file", clean(file)), slog.Int("line", source.Line))
+			}
+		}
 		// The built-in level is a slog.Level (KindAny) with text marshaling.
 		// Preserve this known enum, not arbitrary payload/error objects.
 		if len(groups) == 0 && a.Key == slog.LevelKey {

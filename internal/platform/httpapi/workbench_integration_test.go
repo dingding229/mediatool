@@ -77,7 +77,7 @@ func TestPostgresWorkbenchMandatoryResetAndReadOnlyTools(t *testing.T) {
 		t.Fatal("temp login", login.Code)
 	}
 	cookie := login.Result().Cookies()[0]
-	for _, path := range []string{"/api/v1/settings/application", "/api/v1/logs", "/api/v1/data/postgres/tables", "/api/v1/integrations", "/api/v1/files/roots"} {
+	for _, path := range []string{"/api/v1/settings/application", "/api/v1/logs", "/api/v1/logs/query", "/api/v1/data/postgres/tables", "/api/v1/integrations", "/api/v1/files/roots"} {
 		if w := call("GET", path, "", cookie); w.Code != 403 {
 			t.Fatal("mandatory reset bypass", path, w.Code)
 		}
@@ -92,7 +92,7 @@ func TestPostgresWorkbenchMandatoryResetAndReadOnlyTools(t *testing.T) {
 	body, _ = json.Marshal(map[string]string{"username": "reset_admin", "password": "Updated-2026"})
 	login = call("POST", "/api/v1/auth/login", string(body), nil)
 	cookie = login.Result().Cookies()[0]
-	for _, path := range []string{"/api/v1/settings/application", "/api/v1/logs/summary", "/api/v1/data/postgres/tables", "/api/v1/plugins"} {
+	for _, path := range []string{"/api/v1/settings/application", "/api/v1/logs/summary", "/api/v1/logs/query", "/api/v1/data/postgres/tables", "/api/v1/plugins"} {
 		if w := call("GET", path, "", cookie); w.Code != 200 {
 			t.Fatal(path, w.Code, w.Body.String())
 		}
@@ -103,6 +103,18 @@ func TestPostgresWorkbenchMandatoryResetAndReadOnlyTools(t *testing.T) {
 	logger.Warn("owned warning")
 	if w := call("GET", "/api/v1/logs?level=warn", "", cookie); w.Code != 200 || !strings.Contains(w.Body.String(), "owned warning") {
 		t.Fatal("log filter")
+	}
+
+	if w := call("GET", "/api/v1/logs/query?level=warn&keyword=owned&pageSize=50&page=1", "", cookie); w.Code != 200 || !strings.Contains(w.Body.String(), "owned warning") || !strings.Contains(w.Body.String(), `"total":1`) {
+		t.Fatal("query filters", w.Code, w.Body.String())
+	}
+	for _, query := range []string{"page=0", "pageSize=201", "from=bad", "from=2026-10-12T00:00:00Z&to=2026-10-11T00:00:00Z", "before=2999-01-01T00:00:00Z", "level=invalid"} {
+		if w := call("GET", "/api/v1/logs/query?"+query, "", cookie); w.Code != 400 {
+			t.Fatal("invalid log query", query, w.Code)
+		}
+	}
+	if w := call("GET", "/api/v1/logs/query", "", nil); w.Code != 401 {
+		t.Fatal("anonymous query", w.Code)
 	}
 	if w := call("POST", "/api/v1/auth/recover", `{}`, nil); w.Code != 404 {
 		t.Fatal("legacy recovery still active")

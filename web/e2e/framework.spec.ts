@@ -746,7 +746,7 @@ test('service overview is read-only and settings own naming and TMDB',async({pag
 })
 
 test('log viewer has level, sizes and confirmed cleanup; data tools are formatted read-only',async({page})=>{
- await login(page);await page.goto('/logs');await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'日志大小',exact:true})).toBeVisible();await expect(page.locator('.log-entry').first()).toBeVisible();await page.getByRole('button',{name:'清理日志',exact:true}).click();await page.getByRole('button',{name:'取消',exact:true}).click();await expect(page.locator('.log-entry').first()).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-logs-desktop.png'),animations:'disabled'})
+ await login(page);await page.goto('/logs');await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible();await page.getByRole('button',{name:'日志设置',exact:true}).click();await expect(page.getByRole('heading',{name:'日志大小',exact:true})).toBeVisible();await page.getByRole('dialog',{name:'日志设置',exact:true}).getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(page.locator('.log-entry').first()).toBeVisible();await page.getByRole('button',{name:'清理日志',exact:true}).click();await page.getByRole('button',{name:'取消',exact:true}).click();await expect(page.locator('.log-entry').first()).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-logs-desktop.png'),animations:'disabled'})
  await page.goto('/data');await expect(page.getByRole('heading',{name:'数据库浏览',exact:true})).toBeVisible();await expect(page.locator('.data-row').first()).toBeVisible();await page.locator('.data-row').first().click();await expect(page.getByRole('dialog',{name:'只读格式化数据'})).toBeVisible();await page.getByRole('button',{name:'关闭',exact:true}).click();await page.screenshot({path:resolve(screenshots,'workbench-data-desktop.png'),animations:'disabled'});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-data-mobile.png'),animations:'disabled'})
 })
 
@@ -866,4 +866,35 @@ test('desktop and mobile share disclosure state with unique controlled panels',a
  await expect(desktop.getByRole('button',{name:'文件与入库',exact:true})).toHaveAttribute('aria-expanded','false')
  await expect(desktop.getByRole('button',{name:'媒体浏览',exact:true})).toHaveAttribute('aria-expanded','true')
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
+})
+
+
+test('console logs use server filtering, bounded pagination, compact mode and explicit details (fixture)',async({page})=>{
+ await fixtureLogin(page);await page.addInitScript(()=>Object.defineProperty(navigator,'clipboard',{value:undefined,configurable:true}));const queries:Array<Record<string,string>>=[]
+ await page.route('**/api/v1/logs/summary',route=>route.fulfill({json:{data:{totalBytes:4096,limitBytes:52428800,level:'info',files:[{name:'current.jsonl',size:4096,modified:'2026-10-12T07:00:00+08:00'}]}}}))
+ await page.route('**/api/v1/logs/query?*',async route=>{
+  const params=Object.fromEntries(new URL(route.request().url()).searchParams);queries.push(params)
+  const items=params.keyword==='none'?[]:[{time:'2026-10-12T07:41:04.123456789+08:00',level:'INFO',msg:params.page==='2'?'第二页自有日志':'自有控制台样本',module:'search',source:{file:'internal/modules/search/run.go',line:61},requestId:'owned-request',durationMs:26}, {time:'2026-10-12T07:40:53+08:00',level:'ERROR',msg:'自有错误样本',module:'tmdb',error:'[details omitted]'}]
+  await route.fulfill({json:{data:{items,total:items.length?201:0,page:Number(params.page),pageSize:Number(params.pageSize),modules:['search','tmdb'],before:'2026-10-12T00:00:00Z',truncated:true,maxFileBytes:2097152,maxRecords:20000}}})
+ })
+ await page.goto('/logs');await expect(page.getByText('自有控制台样本',{exact:true})).toBeVisible();await expect(page.locator('.log-console')).toHaveCSS('background-color','rgb(21, 27, 35)')
+ await page.getByRole('button',{name:'查看第1条日志详情',exact:true}).click({timeout:5000});await expect(page.locator('.log-details pre')).toContainText('owned-request')
+ await page.locator('label[for=log-clean-mode]').click({timeout:5000});await expect(page.locator('.log-source')).toHaveCount(0);await expect(page.locator('.log-details')).toHaveCount(0)
+ await page.locator('label[for=log-clean-mode]').click({timeout:5000});await page.getByRole('button',{name:'下一页',exact:true}).click({timeout:5000});await expect(page.getByText('第二页自有日志',{exact:true})).toBeVisible();expect(queries.at(-1)).toMatchObject({page:'2',before:'2026-10-12T00:00:00Z'})
+ await page.getByLabel('日志关键词',{exact:true}).fill('owned');await expect.poll(()=>queries.at(-1)?.keyword).toBe('owned');expect(queries.at(-1)?.page).toBe('1');expect(queries.at(-1)?.before).toBeUndefined()
+ await page.getByRole('combobox',{name:'日志级别筛选'}).focus();await page.keyboard.press('Enter');await page.getByRole('option',{name:'ERROR',exact:true}).click();await expect.poll(()=>queries.at(-1)?.level).toBe('error')
+ await page.getByRole('combobox',{name:'日志模块筛选'}).focus();await page.keyboard.press('Enter');await page.getByRole('option',{name:'tmdb',exact:true}).click();await expect.poll(()=>queries.at(-1)?.module).toBe('tmdb')
+ await page.getByRole('region',{name:'系统日志控制台',exact:true}).getByPlaceholder('开始时间',{exact:true}).fill('2026-10-12 00:00:00');await page.getByRole('region',{name:'系统日志控制台',exact:true}).getByPlaceholder('结束时间',{exact:true}).fill('2026-10-12 23:59:59');await page.getByRole('region',{name:'系统日志控制台',exact:true}).getByPlaceholder('结束时间',{exact:true}).press('Enter');await page.keyboard.press('Tab');await expect.poll(()=>queries.at(-1)?.from).toBeTruthy();expect(queries.at(-1)?.to).toBeTruthy();await page.keyboard.press('Escape')
+ await expect(page.getByText('仅检索每文件末尾 2 MiB、最多 20000 条；不代表全部保留日志。',{exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'复制当前页日志',exact:true}).click();const copy=page.getByRole('dialog',{name:'复制脱敏日志',exact:true});await expect(copy).toBeVisible();await expect(copy.getByLabel('待复制日志')).toHaveValue(/自有控制台样本/);await copy.getByRole('button',{name:'关闭',exact:true}).click();await expect(copy).toBeHidden()
+ await page.screenshot({path:resolve(screenshots,'console-log-desktop.png'),animations:'disabled'})
+ await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'console-log-mobile.png'),animations:'disabled'})
+ await page.getByLabel('日志关键词',{exact:true}).fill('none');await expect(page.getByText('没有符合筛选条件的日志',{exact:true})).toBeVisible()
+})
+
+test('log query failures are visible and do not present stale content as current (fixture)',async({page})=>{
+ await fixtureLogin(page);let failed=false
+ await page.route('**/api/v1/logs/query?*',route=>route.fulfill(failed?{status:503,json:{error:{code:'logs_unavailable',message:'自有日志读取失败'}}}:{json:{data:{items:[{time:'2026-10-12T07:00:00+08:00',level:'INFO',msg:'自有旧快照'}],total:1,modules:['app'],before:'2026-10-12T00:00:00Z',truncated:false,page:1,pageSize:100}}}))
+ await page.goto('/logs');await expect(page.getByText('自有旧快照',{exact:true})).toBeVisible();failed=true;await page.getByRole('button',{name:'刷新日志',exact:true}).click()
+ await expect(page.getByText('自有日志读取失败',{exact:true})).toBeVisible();await expect(page.getByText('自有旧快照',{exact:true})).toHaveCount(0)
 })

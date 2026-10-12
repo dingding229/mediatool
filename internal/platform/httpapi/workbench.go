@@ -6,6 +6,7 @@ import (
 	"media-tool/internal/modules/dataview"
 	"media-tool/internal/modules/plugins"
 	"media-tool/internal/modules/settings"
+	"media-tool/internal/platform/logging"
 	"net/http"
 	"strconv"
 	"time"
@@ -86,6 +87,48 @@ func (a *API) readLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, v)
+}
+func (a *API) queryLogs(w http.ResponseWriter, r *http.Request) {
+	if a.Deps.Logs == nil {
+		fail(w, 503, "logs_unavailable", "日志存储未启动")
+		return
+	}
+	values := r.URL.Query()
+	q := logging.Query{Keyword: values.Get("keyword"), Level: values.Get("level"), Module: values.Get("module"), Page: 1, PageSize: 100}
+	for key, target := range map[string]*int{"page": &q.Page, "pageSize": &q.PageSize} {
+		if raw := values.Get(key); raw != "" {
+			n, err := strconv.Atoi(raw)
+			if err != nil {
+				fail(w, 400, "invalid_log_query", "日志页码或条数无效")
+				return
+			}
+			*target = n
+		}
+	}
+	for key, target := range map[string]*time.Time{"from": &q.From, "to": &q.To, "before": &q.Before} {
+		if raw := values.Get(key); raw != "" {
+			v, err := time.Parse(time.RFC3339Nano, raw)
+			if err != nil {
+				fail(w, 400, "invalid_log_query", "日志时间格式无效")
+				return
+			}
+			*target = v
+		}
+	}
+	if err := q.Validate(); err != nil {
+		fail(w, 400, "invalid_log_query", "日志筛选、时间范围或页码无效")
+		return
+	}
+	if !q.Before.IsZero() && q.Before.After(time.Now().Add(time.Minute)) {
+		fail(w, 400, "invalid_log_query", "日志查询截止时间无效")
+		return
+	}
+	result, err := a.Deps.Logs.Query(r.Context(), q)
+	if err != nil {
+		fail(w, 503, "logs_unavailable", "日志读取失败，请刷新重试")
+		return
+	}
+	write(w, 200, result)
 }
 func (a *API) clearLogs(w http.ResponseWriter, r *http.Request) {
 	var in struct {
