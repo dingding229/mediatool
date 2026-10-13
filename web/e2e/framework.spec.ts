@@ -927,4 +927,5 @@ test('raw administrator log URLs have dedicated full request and 302 target view
 test('PT metrics seed-site total counts sites rather than torrents (fixture)',async({page})=>{
  await page.route('**/api/v1/sites/metrics',route=>route.fulfill({json:{data:[{accountId:'one',name:'HDSKY',enabled:true,metrics:{uploaded:10,downloaded:1,seeding:50,seedingBytes:100},stale:false,state:'succeeded'},{accountId:'two',name:'SSD',enabled:true,metrics:{uploaded:20,downloaded:2,seeding:4,seedingBytes:20},stale:false,state:'succeeded'}]}}))
  await fixtureLogin(page);await page.goto('/sites');const box=page.locator('.metrics-overview article').filter({hasText:'种站点数'});await expect(box.locator('strong')).toHaveText('2');await expect(page.getByText('总做种数',{exact:true})).toHaveCount(0)
+ await page.route('**/api/v1/sites/metrics',route=>route.fulfill({json:{data:[{accountId:'one',name:'HDSKY',enabled:true,metrics:{uploaded:10,downloaded:1,seeding:50},stale:true,state:'failed'}]}}));await page.reload();await expect(page.locator('.metrics-overview article').filter({hasText:'种站点数'}).locator('strong')).toHaveText('—')
 })
