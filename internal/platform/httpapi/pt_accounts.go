@@ -10,7 +10,41 @@ import (
 )
 
 func (a *API) ptTemplates(w http.ResponseWriter, r *http.Request) {
-	write(w, 200, map[string]any{"templates": sites.GoTemplateCatalog()})
+	if !a.integrationReady(w) {
+		return
+	}
+	loaded, err := (sites.Repository{DB: a.Deps.DB}).LoadedGoTemplates(r.Context())
+	if err != nil {
+		fail(w, 503, "templates_unavailable", "模板状态不可用")
+		return
+	}
+	write(w, 200, map[string]any{"templates": sites.GoTemplateCatalog(loaded)})
+}
+func (a *API) loadPTTemplates(w http.ResponseWriter, r *http.Request) {
+	if !a.integrationReady(w) {
+		return
+	}
+	var in struct {
+		IDs []string `json:"ids"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if len(in.IDs) == 0 || len(in.IDs) > len(sites.GoTemplates()) {
+		fail(w, 400, "invalid_templates", "请选择站点模板")
+		return
+	}
+	for _, id := range in.IDs {
+		if _, ok := sites.GoTemplate(id); !ok {
+			fail(w, 400, "invalid_templates", "未知站点模板")
+			return
+		}
+	}
+	if err := (sites.Repository{DB: a.Deps.DB}).LoadGoTemplates(r.Context(), in.IDs); err != nil {
+		fail(w, 503, "templates_unavailable", "模板加载失败")
+		return
+	}
+	a.ptTemplates(w, r)
 }
 func (a *API) ptUA(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]string{"userAgent": r.UserAgent()})
@@ -98,8 +132,13 @@ func (a *API) savePTAccount(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, "duplicate_site", "该站点已添加，请编辑现有站点")
 		return
 	}
-	if e = (sites.Repository{DB: a.Deps.DB}).RegisterGoTemplates(ctx); e != nil {
-		fail(w, 503, "templates_unavailable", "内置模板不可用")
+	loaded, e := (sites.Repository{DB: a.Deps.DB}).LoadedGoTemplates(ctx)
+	if e != nil {
+		fail(w, 503, "templates_unavailable", "模板状态不可用")
+		return
+	}
+	if !loaded[t.ID] {
+		fail(w, 400, "template_not_loaded", "请先在站点模板页面加载该模板")
 		return
 	}
 	d, e := (sites.Repository{DB: a.Deps.DB}).Get(ctx, t.ID)

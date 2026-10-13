@@ -17,6 +17,8 @@ github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XL
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dingding229/mediatool-site v0.0.0-20261013040647-3e25bffaabc0 h1:bwDeEtXlHLwM2Zt6uLuetW1XsM0v4uWa6SoArbPJB64=
 github.com/dingding229/mediatool-site v0.0.0-20261013040647-3e25bffaabc0/go.mod h1:3JW8lsY4a1VvCoIe0LiZwkOjeCDtdJlxQPY+Y6fzxQQ=
+github.com/dingding229/mediatool-site v0.0.0-20261013062435-1d86700ecc35 h1:WeJxjMwiTbJSKsm4A3Vi1K1M87+YvmOLxzvC/ewx04s=
+github.com/dingding229/mediatool-site v0.0.0-20261013062435-1d86700ecc35/go.mod h1:3JW8lsY4a1VvCoIe0LiZwkOjeCDtdJlxQPY+Y6fzxQQ=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeORc=

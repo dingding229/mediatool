@@ -52,6 +52,9 @@ func TestPostgresPTTemplateAccountValidatesAutoRSSDuplicatesAndEcho(t *testing.T
 		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
 	})}
 	a := API{Deps: Dependencies{DB: db, Integrations: manager}}
+	if e = (sites.Repository{DB: db}).LoadGoTemplates(ctx, []string{"hdsky"}); e != nil {
+		t.Fatal(e)
+	}
 	post := func(id string, revision int64) *httptest.ResponseRecorder {
 		raw, _ := json.Marshal(map[string]any{"definitionId": "hdsky", "values": map[string]string{"cookie": "owned-cookie", "userAgent": "Owned-UA"}, "revision": revision})
 		r := httptest.NewRequest("POST", "/pt/accounts", strings.NewReader(string(raw)))
@@ -96,10 +99,9 @@ func TestPostgresPTTemplateAccountValidatesAutoRSSDuplicatesAndEcho(t *testing.T
 	if e = (sites.Repository{DB: db}).RegisterGoTemplates(ctx); e != nil {
 		t.Fatal(e)
 	}
-	var count int
-	db.QueryRow(ctx, `SELECT count(*) FROM site_definitions WHERE source_repository=$1 AND definition->>'templateVersion'='2'`, sites.NativeRepository).Scan(&count)
-	if count != 6 {
-		t.Fatal(count)
+	loaded, e := (sites.Repository{DB: db}).LoadedGoTemplates(ctx)
+	if e != nil || !loaded["hdsky"] {
+		t.Fatal(loaded, e)
 	}
 }
 
@@ -120,6 +122,9 @@ func TestPostgresGoRegistrationIsIdempotentAndSiteUniqueAtStorage(t *testing.T) 
 		t.Fatal(name)
 	}
 	r := sites.Repository{DB: db}
+	if e = r.LoadGoTemplates(ctx, []string{"hdsky"}); e != nil {
+		t.Fatal(e)
+	}
 	if e = r.RegisterGoTemplates(ctx); e != nil {
 		t.Fatal(e)
 	}

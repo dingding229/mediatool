@@ -240,8 +240,21 @@ test('official 115 is saved disabled and QR authorization is explicit and cancel
  await page.getByRole('button',{name:'删除连接',exact:true}).click()
 })
 
-test('Go templates are a standalone English-only page with no source/import controls',async({page})=>{
- await fixtureLogin(page);await page.goto('/site-templates');await expect(page.getByRole('heading',{name:'站点模板',exact:true})).toBeVisible()
+test('Go template catalog supports selective loading, version, icon and website',async({page})=>{
+ await page.route('https://**/favicon.ico',route=>route.abort())
+ await fixtureLogin(page);await page.goto('/site-templates',{waitUntil:'domcontentloaded'});await expect(page.getByRole('heading',{name:'站点模板',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'加载所选模板',exact:true})).toBeDisabled()
+ await page.getByText('选择 HDSKY',{exact:true}).click();await expect(page.getByRole('checkbox',{name:'选择 HDSKY',exact:true})).toBeChecked()
+ await page.getByText('选择 OURBITS',{exact:true}).click();await expect(page.getByRole('checkbox',{name:'选择 OURBITS',exact:true})).toBeChecked()
+ const loadedReply=page.waitForResponse(r=>r.url().endsWith('/pt/templates/load'))
+ await page.getByRole('button',{name:'加载所选模板（2）',exact:true}).click()
+ expect((await loadedReply).status()).toBe(200)
+ const catalog=(await(await page.request.get('/api/v1/pt/templates')).json()).data.templates
+ expect(catalog.filter((x:any)=>x.loaded).map((x:any)=>x.id).sort()).toEqual(['hdsky','ourbits'])
+ expect(catalog.every((x:any)=>x.version==='1.1.0'&&x.iconUrl===x.domain+'/favicon.ico')).toBe(true)
+ await page.reload({waitUntil:'domcontentloaded'});await expect(page.locator('article').filter({has:page.getByRole('heading',{name:'HDSKY',exact:true})}).getByRole('checkbox')).toBeDisabled()
+ await expect(page.getByRole('checkbox',{name:'选择 SSD',exact:true})).toBeEnabled()
+ await expect(page.getByRole('link',{name:'https://hdsky.me',exact:true})).toHaveAttribute('href','https://hdsky.me')
  for(const name of ['HDSKY','OURBITS','CHDBITS','SSD','TTG','UBITS'])await expect(page.getByRole('heading',{name,exact:true})).toBeVisible()
  for(const text of ['来源提交','已导入配置','mediatool-site','天空','我堡','春天'])await expect(page.getByText(text,{exact:true})).toHaveCount(0)
  await page.screenshot({path:resolve(screenshots,'go-templates-desktop.png'),fullPage:true,animations:'disabled'});await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true)
@@ -546,12 +559,13 @@ test('partial provider pagination remains visible and does not claim no more res
 })
 
 test('PT account form uses template identity, UA, echo and disallows duplicates (fixture)',async({page})=>{
- const accounts=[{id:'owned-pt',definitionId:'hdsky',name:'HDSKY',revision:1,settings:{userAgent:'Owned-UA',rssState:'ready'},values:{cookie:'owned-cookie-e2e',rssUrl:'https://owned.invalid/rss?passkey=owned'}}]
+ await page.route('**/api/v1/pt/templates',route=>route.fulfill({json:{data:{templates:[{id:'hdsky',name:'HDSKY',domain:'https://hdsky.me'},{id:'ourbits',name:'OURBITS',domain:'https://ourbits.club'}].map(x=>({...x,loaded:true,fields:[{key:'cookie',label:'Cookie',required:true},{key:'userAgent',label:'User-Agent',required:true}]}))}}}))
+ const accounts=[{id:'owned-pt',definitionId:'hdsky',name:'HDSKY',revision:1,settings:{userAgent:'Owned-UA',rssState:'ready'},values:{cookie:'owned-cookie-e2e',passkey:'owned-mobile-passkey-'.repeat(8),rssUrl:'https://owned.invalid/rss?passkey=owned'}}]
  let saved:any
  await page.route('**/api/v1/pt/accounts',async route=>{if(route.request().method()==='POST'){saved=route.request().postDataJSON();await route.fulfill({json:{data:{saved:true,rssState:'ready',rssMessage:'RSS已自动获取'}}})}else await route.fulfill({json:{data:accounts}})})
  await page.route('**/api/v1/sites/metrics',route=>route.fulfill({json:{data:[{accountId:'owned-pt',name:'HDSKY',enabled:true,metrics:null,state:'not_synced',stale:false}]}}))
  await fixtureLogin(page);await page.goto('/sites');await expect(page.getByText('已保存连接',{exact:true})).toHaveCount(0)
- await page.getByRole('button',{name:'编辑站点',exact:true}).click();const edit=page.getByRole('dialog',{name:'编辑站点',exact:true});await expect(edit.getByLabel('Cookie（必填）',{exact:true})).toHaveValue('owned-cookie-e2e');await expect(edit.getByLabel('User-Agent（必填）',{exact:true})).toHaveValue('Owned-UA');await expect(edit.getByLabel('RSS订阅URL',{exact:true})).toHaveValue('https://owned.invalid/rss?passkey=owned');await edit.getByRole('button',{name:'关闭此对话框',exact:true}).click()
+ await page.getByRole('button',{name:'编辑站点',exact:true}).click();const edit=page.getByRole('dialog',{name:'编辑站点',exact:true});await expect(edit.getByLabel('Cookie（必填）',{exact:true})).toHaveValue('owned-cookie-e2e');await expect(edit.getByLabel('User-Agent（必填）',{exact:true})).toHaveValue('Owned-UA');await expect(edit.getByLabel('RSS订阅URL',{exact:true})).toHaveValue('https://owned.invalid/rss?passkey=owned');await expect(edit.getByLabel('Passkey',{exact:true})).toHaveValue('owned-mobile-passkey-'.repeat(8));await page.setViewportSize({width:390,height:844});await expect(edit.locator('pre')).toHaveCount(0);expect(await edit.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await edit.getByLabel('Passkey',{exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:resolve(screenshots,'pt-passkey-mobile.png'),animations:'disabled'});await edit.getByRole('button',{name:'关闭此对话框',exact:true}).click()
  await page.getByRole('button',{name:'添加站点',exact:true}).click();const dialog=page.getByRole('dialog',{name:'添加站点',exact:true});await dialog.locator('.el-select').click()
  await expect(page.getByRole('option',{name:'HDSKY',exact:true})).toHaveAttribute('aria-disabled','true');await page.getByRole('option',{name:'OURBITS',exact:true}).click()
  await expect(dialog.getByLabel('站点名称',{exact:true})).toHaveValue('OURBITS');await expect(dialog.getByLabel('站点访问地址',{exact:true})).toHaveValue('https://ourbits.club')
@@ -901,6 +915,12 @@ test('site-result filters issue server query and preserve selection binding (fix
  await page.route('**/api/v1/search/owned-filter-run?*',route=>{const q=new URL(route.request().url()).searchParams;seen.push(q.toString());return route.fulfill({json:{data:{id:'owned-filter-run',keyword:'Owned',state:'succeeded',sites:[{accountId:'owned-site',name:'Owned PT',state:'succeeded',message:'',count:65}],resources:[{id:'original-resource-id',title:'Owned.Film.2026.2160p.WEB-DL.x265',siteName:'Owned PT',size:1073741824,seeders:11,leechers:0,downloadFactor:0,metadata:{attributes:{resolution:'2160p',codec:'h265',source:'web-dl'}}}],total:q.get('resolution')==='2160p'?12:65}}})})
  await fixtureLogin(page);await page.goto('/search');await page.getByText('站点直搜',{exact:true}).click();await page.getByRole('button',{name:'查看结果',exact:true}).click();await expect(page.getByText('Owned.Film.2026.2160p.WEB-DL.x265',{exact:true})).toBeVisible()
  await page.locator('.el-select').filter({has:page.getByRole('combobox',{name:'资源分辨率',exact:true})}).click();await page.getByRole('option',{name:'2160p',exact:true}).click();await expect(page.getByText(/共 12 条匹配/)).toBeVisible();expect(seen.some(q=>new URLSearchParams(q).get('resolution')==='2160p'&&new URLSearchParams(q).get('page')==='1')).toBe(true)
+ for(const label of ['最少做种人数','最小资源大小','最大资源大小','仅免费'])await expect(page.getByLabel(label,{exact:true})).toHaveCount(0)
+ await page.getByLabel('资源关键字筛选',{exact:true}).fill('film x265')
+ await expect.poll(()=>seen.some(q=>new URLSearchParams(q).get('keyword')==='film x265')).toBe(true)
+ await page.locator('.el-select').filter({has:page.getByRole('combobox',{name:'资源排序',exact:true})}).click();await page.getByRole('option',{name:'文件大小 · 从小到大',exact:true}).click()
+ await expect.poll(()=>seen.some(q=>new URLSearchParams(q).get('sort')==='size_asc'&&new URLSearchParams(q).get('page')==='1')).toBe(true)
+ await page.getByRole('button',{name:'确认并下载',exact:true}).click();await expect(page.getByRole('dialog',{name:'确认媒体身份与下载',exact:true})).toContainText('Owned.Film');await page.getByRole('button',{name:'关闭此对话框',exact:true}).click()
  await page.screenshot({path:resolve(screenshots,'site-resource-filters.png'),animations:'disabled'})
 })
 
@@ -924,8 +944,8 @@ test('raw administrator log URLs have dedicated full request and 302 target view
  await page.route('**/api/v1/logs/query?*',route=>route.fulfill({json:{data:{items:[{time:'2026-10-12T10:00:00Z',level:'INFO',module:'playback',msg:'HTTP request',url:'https://owned.example/strm?apiKey=owned-fixture-key',location:'https://cdnfhnfile.115cdn.net/owned?sign=owned-fixture-sign',status:302,durationMs:12,requestId:'owned-request'}],total:1,page:1,pageSize:200,modules:['playback'],before:'2026-10-12T11:00:00Z',truncated:false}}}));await fixtureLogin(page);await page.goto('/logs');await page.getByRole('button',{name:'查看请求与跳转链接',exact:true}).click();const dialog=page.getByRole('dialog',{name:'完整请求与302链接',exact:true});await expect(dialog).toBeVisible();await expect(dialog.locator('textarea').nth(0)).toHaveValue('https://owned.example/strm?apiKey=owned-fixture-key');await expect(dialog.locator('textarea').nth(1)).toHaveValue('https://cdnfhnfile.115cdn.net/owned?sign=owned-fixture-sign');await page.screenshot({path:resolve(screenshots,'raw-playback-url-dialog.png'),animations:'disabled'})
 })
 
-test('PT metrics seed-site total counts sites rather than torrents (fixture)',async({page})=>{
+test('PT site total counts all added sites regardless of metrics or status (fixture)',async({page})=>{
  await page.route('**/api/v1/sites/metrics',route=>route.fulfill({json:{data:[{accountId:'one',name:'HDSKY',enabled:true,metrics:{uploaded:10,downloaded:1,seeding:50,seedingBytes:100},stale:false,state:'succeeded'},{accountId:'two',name:'SSD',enabled:true,metrics:{uploaded:20,downloaded:2,seeding:4,seedingBytes:20},stale:false,state:'succeeded'}]}}))
- await fixtureLogin(page);await page.goto('/sites');const box=page.locator('.metrics-overview article').filter({hasText:'种站点数'});await expect(box.locator('strong')).toHaveText('2');await expect(page.getByText('总做种数',{exact:true})).toHaveCount(0)
- await page.route('**/api/v1/sites/metrics',route=>route.fulfill({json:{data:[{accountId:'one',name:'HDSKY',enabled:true,metrics:{uploaded:10,downloaded:1,seeding:50},stale:true,state:'failed'}]}}));await page.reload();await expect(page.locator('.metrics-overview article').filter({hasText:'种站点数'}).locator('strong')).toHaveText('—')
+ await fixtureLogin(page);await page.goto('/sites');const box=page.locator('.metrics-overview article').filter({hasText:'已添加站点数'});await expect(box.locator('strong')).toHaveText('2');await expect(page.getByText('总做种数',{exact:true})).toHaveCount(0)
+ await page.route('**/api/v1/sites/metrics',route=>route.fulfill({json:{data:[{accountId:'one',name:'HDSKY',enabled:true,metrics:{uploaded:10,downloaded:1,seeding:50},stale:true,state:'failed'},{accountId:'disabled',name:'SSD',enabled:false,metrics:null,state:'not_synced'}]}}));await page.reload();await expect(page.locator('.metrics-overview article').filter({hasText:'已添加站点数'}).locator('strong')).toHaveText('2');await page.getByLabel('搜索站点名称',{exact:true}).fill('HDSKY');await expect(page.locator('.metrics-overview article').filter({hasText:'已添加站点数'}).locator('strong')).toHaveText('2')
 })

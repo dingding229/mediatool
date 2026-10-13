@@ -84,7 +84,7 @@ func (a *API) getSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := search.Filter{Resolution: q.Get("resolution"), Source: q.Get("source"), Codec: q.Get("codec"), AccountID: q.Get("accountId"), FreeOnly: q.Get("freeOnly") == "true"}
+	f := search.Filter{Keyword: q.Get("keyword"), Sort: q.Get("sort"), Resolution: q.Get("resolution"), Source: q.Get("source"), Codec: q.Get("codec"), AccountID: q.Get("accountId"), FreeOnly: q.Get("freeOnly") == "true"}
 	for key, target := range map[string]*int64{"minSize": &f.MinSize, "maxSize": &f.MaxSize} {
 		if raw := q.Get(key); raw != "" {
 			n, e := strconv.ParseInt(raw, 10, 64)

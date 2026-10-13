@@ -54,6 +54,11 @@ func (a *API) saveIntegration(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Kind == "ptsite" {
 		if t, ok := sites.GoTemplate(func() string { v, _ := in.Settings["definitionId"].(string); return v }()); ok {
+			loaded, err := (sites.Repository{DB: a.Deps.DB}).LoadedGoTemplates(ctx)
+			if err != nil || !loaded[t.ID] {
+				fail(w, 400, "template_not_loaded", "请先加载站点模板")
+				return
+			}
 			in.Name = t.Name
 			in.Enabled = true
 			in.Settings["endpoint"] = t.Domain

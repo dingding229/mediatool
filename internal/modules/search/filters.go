@@ -6,9 +6,12 @@ import (
 	"errors"
 	"media-tool/internal/modules/releaseattrs"
 	"strings"
+	"unicode/utf8"
 )
 
 type Filter struct {
+	Keyword    string `json:"keyword"`
+	Sort       string `json:"sort"`
 	Resolution string `json:"resolution"`
 	Source     string `json:"source"`
 	Codec      string `json:"codec"`
@@ -22,6 +25,13 @@ type Filter struct {
 func attrs(title string) map[string]string { return releaseattrs.Parse(title) }
 
 func (f Filter) Validate() error {
+	if len(f.Keyword) > 512 || !utf8.ValidString(f.Keyword) || strings.ContainsAny(f.Keyword, "\x00\r\n") {
+		return errors.New("invalid keyword")
+	}
+	if _, ok := sortOrders[f.Sort]; !ok {
+		return errors.New("invalid sort")
+	}
+
 	if f.MinSize < 0 || f.MaxSize < 0 || f.MinSize > 1<<60 || f.MaxSize > 1<<60 || f.MaxSize > 0 && f.MinSize > f.MaxSize || f.MinSeeders < 0 || f.MinSeeders > 1000000 || len(f.AccountID) > 80 {
 		return errors.New("invalid filters")
 	}
@@ -33,6 +43,15 @@ func (f Filter) Validate() error {
 	return nil
 }
 func (f Filter) Match(r Resource) bool {
+	if f.Keyword != "" {
+		subtitle, _ := r.Metadata["subtitle"].(string)
+		haystack := strings.ToLower(r.Title + " " + subtitle)
+		for _, word := range strings.Fields(strings.ToLower(f.Keyword)) {
+			if !strings.Contains(haystack, word) {
+				return false
+			}
+		}
+	}
 	a := attrs(r.Title)
 	for key, want := range map[string]string{"resolution": f.Resolution, "source": f.Source, "codec": f.Codec} {
 		if want == "unknown" && a[key] != "" || want != "" && want != "unknown" && a[key] != strings.ToLower(want) {
@@ -40,6 +59,15 @@ func (f Filter) Match(r Resource) bool {
 		}
 	}
 	return (f.AccountID == "" || r.AccountID == f.AccountID) && r.Size >= f.MinSize && (f.MaxSize == 0 || r.Size <= f.MaxSize) && r.Seeders >= f.MinSeeders && (!f.FreeOnly || r.DownloadFactor != nil && *r.DownloadFactor == 0)
+}
+
+// Only constant whitelist SQL fragments are interpolated; user input never becomes SQL.
+var sortOrders = map[string]string{
+	"":             "(public_snapshot->>'seeders')::integer DESC",
+	"seeders_desc": "(public_snapshot->>'seeders')::integer DESC",
+	"seeders_asc":  "(public_snapshot->>'seeders')::integer ASC",
+	"size_desc":    "(public_snapshot->>'size')::bigint DESC",
+	"size_asc":     "(public_snapshot->>'size')::bigint ASC",
 }
 
 // GetFiltered enumerates the entire frozen result snapshot, not only one page.
@@ -55,7 +83,7 @@ func (e Engine) GetFiltered(ctx context.Context, id string, page, limit int, f F
 	if err != nil {
 		return run, err
 	}
-	rows, err := e.DB.Query(ctx, `SELECT public_snapshot FROM search_run_resources WHERE run_id=$1 ORDER BY (public_snapshot->>'seeders')::integer DESC,public_snapshot->>'title',resource_id`, id)
+	rows, err := e.DB.Query(ctx, `SELECT public_snapshot FROM search_run_resources WHERE run_id=$1 ORDER BY `+sortOrders[f.Sort]+`,public_snapshot->>'title',resource_id`, id)
 	if err != nil {
 		return run, err
 	}

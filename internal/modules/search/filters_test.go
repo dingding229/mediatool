@@ -3,6 +3,7 @@ package search
 import (
 	"fmt"
 	"media-tool/internal/modules/sites"
+	"strings"
 	"testing"
 )
 
@@ -40,7 +41,7 @@ func TestPostgresFiltersCoverWholeSnapshotAndPreserveResourceIdentity(t *testing
 		if i < 12 {
 			resolution = "2160p"
 		}
-		list = append(list, sites.Resource{TorrentID: fmt.Sprint(i), Title: fmt.Sprintf("Owned.Film.2026.%s.WEB-DL.x265-%02d", resolution, i), Size: 1 << 30, Seeders: i, DownloadFactor: &free, DownloadURL: fmt.Sprintf("https://owned.invalid/download.php?id=%d", i)})
+		list = append(list, sites.Resource{TorrentID: fmt.Sprint(i), Title: fmt.Sprintf("Owned.Film.2026.%s.WEB-DL.x265-%02d", resolution, i), Size: int64(i+1) << 30, Seeders: i, DownloadFactor: &free, DownloadURL: fmt.Sprintf("https://owned.invalid/download.php?id=%d", i)})
 	}
 	if err := engine.SaveResources(ctx, runID, account, list); err != nil {
 		t.Fatal(err)
@@ -59,5 +60,34 @@ func TestPostgresFiltersCoverWholeSnapshotAndPreserveResourceIdentity(t *testing
 	last, err := engine.GetFiltered(ctx, runID, 3, 5, Filter{Resolution: "2160p"})
 	if err != nil || last.Total != 12 || len(last.Resources) != 2 {
 		t.Fatal(last.Total, len(last.Resources), err)
+	}
+	for _, sort := range []string{"seeders_asc", "seeders_desc", "size_asc", "size_desc"} {
+		first, err := engine.GetFiltered(ctx, runID, 1, 5, Filter{Sort: sort, Keyword: "owned film"})
+		second, err2 := engine.GetFiltered(ctx, runID, 2, 5, Filter{Sort: sort, Keyword: "owned film"})
+		wantFirst, wantSecond := "0", "5"
+		if strings.HasSuffix(sort, "desc") {
+			wantFirst, wantSecond = "64", "59"
+		}
+		if err != nil || err2 != nil || first.Total != 65 || second.Total != 65 || first.Resources[0].TorrentID != wantFirst || second.Resources[0].TorrentID != wantSecond {
+			t.Fatal(sort, first, second, err, err2)
+		}
+	}
+
+}
+
+func TestKeywordAndSortValidation(t *testing.T) {
+	r := Resource{Title: "Owned.Show.2026.1080p", Metadata: map[string]any{"subtitle": "中文 标题"}}
+	for _, f := range []Filter{{Keyword: "OWNED show"}, {Keyword: "中文 标题"}, {Keyword: "  show  ", Sort: "size_asc"}} {
+		if f.Validate() != nil || !f.Match(r) {
+			t.Fatal(f)
+		}
+	}
+	if (Filter{Keyword: "other"}).Match(r) {
+		t.Fatal("unmatched keyword")
+	}
+	for _, f := range []Filter{{Sort: "size desc;drop table"}, {Keyword: "bad\x00"}, {Keyword: strings.Repeat("x", 513)}} {
+		if f.Validate() == nil {
+			t.Fatal(f)
+		}
 	}
 }

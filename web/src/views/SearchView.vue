@@ -1,58 +1,707 @@
 <script setup lang="ts">
-import { ref,onMounted,onUnmounted } from 'vue'
-import { Search, Film } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { request,post } from '../api/client'
-import StatusBadge from '../components/StatusBadge.vue'
-interface Account{id:string;kind:string;name:string;enabled:boolean}
-interface Resource{id:string;title:string;siteName:string;size:number;seeders:number;leechers:number;downloadFactor:number|null;metadata:{subtitle?:string;attributes?:{resolution:string;source:string;codec:string}}}
-interface Run{id:string;keyword:string;state:string;sites:{accountId:string;name:string;state:string;message:string;count:number}[];resources:Resource[];total:number}
-interface Media{posterPath?:string;overview?:string;id:number;mediaType:string;title:string;year:string;originalTitle:string}
-const tmdbSearched=ref(false),posterErrors=ref(new Set<string>())
-const resourceFilters=ref({resolution:'',source:'',codec:'',accountId:'',minSeeders:0,freeOnly:false,minSize:0,maxSize:0})
-const mode=ref('media'),foundMedia=ref<Media[]>([]),foundCached=ref(false),tmdbSearching=ref(false),tmdbQuery=ref(''),tmdbKind=ref('auto'),tmdbYear=ref(''),searchCached=ref(false)
-const accounts=ref<Account[]>([]),selected=ref<string[]>([]),keyword=ref(''),run=ref<Run|null>(null),history=ref<Run[]>([]),busy=ref(false),error=ref(''),page=ref(1)
-const selectedRunId=ref(''),downloadError=ref('')
-const dialog=ref(false),resource=ref<Resource|null>(null),mediaType=ref('auto'),mediaQuery=ref(''),media=ref<Media[]>([]),chosen=ref<Media|null>(null),metadataBusy=ref(false),downloading=ref(false)
-let timer:ReturnType<typeof setInterval>|undefined
-let resultEpoch=0,resultController:AbortController|undefined,resultLoading=false
-async function load(){try{accounts.value=(await request<Account[]>('/integrations')).filter(a=>a.kind==='ptsite'&&a.enabled);selected.value=accounts.value.map(a=>a.id);history.value=await request<Run[]>('/search')}catch(e){error.value=e instanceof Error?e.message:'初始化失败'}}
-async function search(force=false){busy.value=true;error.value='';run.value=null;page.value=1;try{const created=await post<{id:string;cached:boolean}>('/search',{keyword:keyword.value,accountIds:selected.value,refresh:force});searchCached.value=created.cached;await refresh(created.id);history.value=await request<Run[]>('/search')}catch(e){error.value=e instanceof Error?e.message:'搜索启动失败'}finally{busy.value=false}}
-async function refresh(id=run.value?.id){if(!id)return;const epoch=++resultEpoch;resultController?.abort();resultController=new AbortController();resultLoading=true;error.value='';try{const result=await request<Run>(`/search/${id}?page=${page.value}&limit=50&${new URLSearchParams(Object.fromEntries(Object.entries(resourceFilters.value).map(([k,v])=>[k,String(v)])))}`,{signal:resultController.signal});if(epoch===resultEpoch)run.value=result}catch(e){if(epoch!==resultEpoch||e instanceof DOMException&&e.name==='AbortError')return;error.value=e instanceof Error?e.message:'搜索状态查询失败'}finally{if(epoch===resultEpoch)resultLoading=false}}
-function openDownload(item:Resource){selectedRunId.value=run.value?.id??'';downloadError.value='';resource.value=item;mediaQuery.value=keyword.value;media.value=[];chosen.value=null;dialog.value=true}
-async function findMedia(force:boolean){if(tmdbSearching.value)return;tmdbSearching.value=true;error.value='';foundMedia.value=[];foundCached.value=false;tmdbSearched.value=false;posterErrors.value.clear();try{const out=await request<{items:Media[];cached:boolean}>(`/search/media?mediaType=${tmdbKind.value}&q=${encodeURIComponent(tmdbQuery.value)}&year=${encodeURIComponent(tmdbYear.value)}&refresh=${force}`);foundMedia.value=out.items;foundCached.value=out.cached;tmdbSearched.value=true}catch(e){error.value=e instanceof Error?e.message:'TMDB搜索失败'}finally{tmdbSearching.value=false}}
-async function lookup(){metadataBusy.value=true;chosen.value=null;try{media.value=await request<Media[]>(`/metadata/search?mediaType=${mediaType.value}&q=${encodeURIComponent(mediaQuery.value)}`)}catch(e){ElMessage.error(e instanceof Error?e.message:'TMDB 查询失败')}finally{metadataBusy.value=false}}
-async function download(){if(!resource.value||!chosen.value)return;downloading.value=true;try{await post('/downloads',{searchRunId:selectedRunId.value,resourceId:resource.value.id,mediaType:chosen.value.mediaType,tmdbId:chosen.value.id});dialog.value=false;ElMessage.success('下载任务已持久化。可在下载与传输查看进度。')}catch(e){downloadError.value=e instanceof Error?e.message:'下载任务创建失败';ElMessage.error(downloadError.value)}finally{downloading.value=false}}
-function size(n:number){return n>=1024**3?(n/1024**3).toFixed(2)+' GiB':(n/1024**2).toFixed(1)+' MiB'}
-onMounted(()=>{load();timer=setInterval(()=>{if(!resultLoading&&run.value&&['pending','running'].includes(run.value.state))refresh()},2000)})
-onUnmounted(()=>{++resultEpoch;resultController?.abort();if(timer)clearInterval(timer)})
+import { ref, onMounted, onUnmounted } from "vue";
+import { Search, Film } from "@element-plus/icons-vue";
+import { ElMessage } from "element-plus";
+import { request, post } from "../api/client";
+import StatusBadge from "../components/StatusBadge.vue";
+interface Account {
+  id: string;
+  kind: string;
+  name: string;
+  enabled: boolean;
+}
+interface Resource {
+  id: string;
+  title: string;
+  siteName: string;
+  size: number;
+  seeders: number;
+  leechers: number;
+  downloadFactor: number | null;
+  metadata: {
+    subtitle?: string;
+    attributes?: { resolution: string; source: string; codec: string };
+  };
+}
+interface Run {
+  id: string;
+  keyword: string;
+  state: string;
+  sites: {
+    accountId: string;
+    name: string;
+    state: string;
+    message: string;
+    count: number;
+  }[];
+  resources: Resource[];
+  total: number;
+}
+interface Media {
+  posterPath?: string;
+  overview?: string;
+  id: number;
+  mediaType: string;
+  title: string;
+  year: string;
+  originalTitle: string;
+}
+const tmdbSearched = ref(false),
+  posterErrors = ref(new Set<string>());
+const resourceFilters = ref({
+  resolution: "",
+  source: "",
+  codec: "",
+  accountId: "",
+  keyword: "",
+  sort: "seeders_desc",
+});
+const mode = ref("media"),
+  foundMedia = ref<Media[]>([]),
+  foundCached = ref(false),
+  tmdbSearching = ref(false),
+  tmdbQuery = ref(""),
+  tmdbKind = ref("auto"),
+  tmdbYear = ref(""),
+  searchCached = ref(false);
+const accounts = ref<Account[]>([]),
+  selected = ref<string[]>([]),
+  keyword = ref(""),
+  run = ref<Run | null>(null),
+  history = ref<Run[]>([]),
+  busy = ref(false),
+  error = ref(""),
+  page = ref(1);
+const selectedRunId = ref(""),
+  downloadError = ref("");
+const dialog = ref(false),
+  resource = ref<Resource | null>(null),
+  mediaType = ref("auto"),
+  mediaQuery = ref(""),
+  media = ref<Media[]>([]),
+  chosen = ref<Media | null>(null),
+  metadataBusy = ref(false),
+  downloading = ref(false);
+let filterTimer: ReturnType<typeof setTimeout> | undefined;
+function applyFilter() {
+  clearTimeout(filterTimer);
+  page.value = 1;
+  refresh();
+}
+function queueFilter() {
+  clearTimeout(filterTimer);
+  filterTimer = setTimeout(applyFilter, 350);
+}
+let timer: ReturnType<typeof setInterval> | undefined;
+let resultEpoch = 0,
+  resultController: AbortController | undefined,
+  resultLoading = false;
+async function load() {
+  try {
+    accounts.value = (await request<Account[]>("/integrations")).filter(
+      (a) => a.kind === "ptsite" && a.enabled,
+    );
+    selected.value = accounts.value.map((a) => a.id);
+    history.value = await request<Run[]>("/search");
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "初始化失败";
+  }
+}
+async function search(force = false) {
+  busy.value = true;
+  error.value = "";
+  run.value = null;
+  page.value = 1;
+  try {
+    const created = await post<{ id: string; cached: boolean }>("/search", {
+      keyword: keyword.value,
+      accountIds: selected.value,
+      refresh: force,
+    });
+    searchCached.value = created.cached;
+    await refresh(created.id);
+    history.value = await request<Run[]>("/search");
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "搜索启动失败";
+  } finally {
+    busy.value = false;
+  }
+}
+async function refresh(id = run.value?.id) {
+  if (!id) return;
+  const epoch = ++resultEpoch;
+  resultController?.abort();
+  resultController = new AbortController();
+  resultLoading = true;
+  error.value = "";
+  try {
+    const result = await request<Run>(
+      `/search/${id}?page=${page.value}&limit=50&${new URLSearchParams(Object.fromEntries(Object.entries(resourceFilters.value).map(([k, v]) => [k, String(v)])))}`,
+      { signal: resultController.signal },
+    );
+    if (epoch === resultEpoch) run.value = result;
+  } catch (e) {
+    if (
+      epoch !== resultEpoch ||
+      (e instanceof DOMException && e.name === "AbortError")
+    )
+      return;
+    error.value = e instanceof Error ? e.message : "搜索状态查询失败";
+  } finally {
+    if (epoch === resultEpoch) resultLoading = false;
+  }
+}
+function openDownload(item: Resource) {
+  selectedRunId.value = run.value?.id ?? "";
+  downloadError.value = "";
+  resource.value = item;
+  mediaQuery.value = keyword.value;
+  media.value = [];
+  chosen.value = null;
+  dialog.value = true;
+}
+async function findMedia(force: boolean) {
+  if (tmdbSearching.value) return;
+  tmdbSearching.value = true;
+  error.value = "";
+  foundMedia.value = [];
+  foundCached.value = false;
+  tmdbSearched.value = false;
+  posterErrors.value.clear();
+  try {
+    const out = await request<{ items: Media[]; cached: boolean }>(
+      `/search/media?mediaType=${tmdbKind.value}&q=${encodeURIComponent(tmdbQuery.value)}&year=${encodeURIComponent(tmdbYear.value)}&refresh=${force}`,
+    );
+    foundMedia.value = out.items;
+    foundCached.value = out.cached;
+    tmdbSearched.value = true;
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "TMDB搜索失败";
+  } finally {
+    tmdbSearching.value = false;
+  }
+}
+async function lookup() {
+  metadataBusy.value = true;
+  chosen.value = null;
+  try {
+    media.value = await request<Media[]>(
+      `/metadata/search?mediaType=${mediaType.value}&q=${encodeURIComponent(mediaQuery.value)}`,
+    );
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : "TMDB 查询失败");
+  } finally {
+    metadataBusy.value = false;
+  }
+}
+async function download() {
+  if (!resource.value || !chosen.value) return;
+  downloading.value = true;
+  try {
+    await post("/downloads", {
+      searchRunId: selectedRunId.value,
+      resourceId: resource.value.id,
+      mediaType: chosen.value.mediaType,
+      tmdbId: chosen.value.id,
+    });
+    dialog.value = false;
+    ElMessage.success("下载任务已持久化。可在下载与传输查看进度。");
+  } catch (e) {
+    downloadError.value = e instanceof Error ? e.message : "下载任务创建失败";
+    ElMessage.error(downloadError.value);
+  } finally {
+    downloading.value = false;
+  }
+}
+function size(n: number) {
+  return n >= 1024 ** 3
+    ? (n / 1024 ** 3).toFixed(2) + " GiB"
+    : (n / 1024 ** 2).toFixed(1) + " MiB";
+}
+onMounted(() => {
+  load();
+  timer = setInterval(() => {
+    if (
+      !resultLoading &&
+      run.value &&
+      ["pending", "running"].includes(run.value.state)
+    )
+      refresh();
+  }, 2000);
+});
+onUnmounted(() => {
+  clearTimeout(filterTimer);
+  ++resultEpoch;
+  resultController?.abort();
+  if (timer) clearInterval(timer);
+});
 </script>
-<template><section class="page-heading"><div><span class="page-kicker">ACQUIRE / 资源搜索</span><h1>资源搜索</h1><p>按站点显示结果与失败原因。选择下载前确认 TMDB 媒体身份。</p></div><RouterLink to="/sites" class="inline-link">管理PT站点账号</RouterLink></section><el-alert v-if="error" :title="error" type="error" :closable="false" show-icon/><section class="search-mode-tabs"><el-radio-group v-model="mode" aria-label="搜索方式"><el-radio-button value="media">TMDB 媒体搜索</el-radio-button><el-radio-button value="site">站点直搜</el-radio-button></el-radio-group></section>
-<section v-if="mode==='media'" class="panel section-gap">
-  <div class="panel-title"><div><span class="section-kicker">DISCOVER</span><h2>先找到你想看的作品</h2></div><span class="muted">TMDB 元数据</span></div>
-  <form class="tmdb-search" @submit.prevent="findMedia(false)">
-    <label class="search-field" for="tmdb-media-query">媒体名称<el-input id="tmdb-media-query" v-model="tmdbQuery" aria-label="TMDB媒体名称" placeholder="电影或剧集名称" :prefix-icon="Search" clearable/></label>
-    <label class="search-field" for="tmdb-media-kind">类型<el-select id="tmdb-media-kind" v-model="tmdbKind" aria-label="TMDB媒体类型"><el-option label="自动识别" value="auto"/><el-option label="电影" value="movie"/><el-option label="剧集" value="series"/></el-select></label>
-    <label class="search-field" for="tmdb-media-year">年份（可选）<el-input id="tmdb-media-year" v-model="tmdbYear" aria-label="TMDB年份" placeholder="例如 2024" :maxlength="4" inputmode="numeric"/></label>
-    <div class="search-submit-row"><el-button type="primary" native-type="submit" :loading="tmdbSearching" :disabled="!tmdbQuery.trim()">搜索媒体</el-button><el-button :disabled="tmdbSearching||!tmdbQuery.trim()" @click="findMedia(true)">忽略TMDB缓存</el-button></div>
-  </form>
-  <p class="field-hint">{{foundCached?'本次使用TMDB缓存':'TMDB查询与PT资源搜索独立，不会自动下载'}}。缓存有效期可在系统设置修改。</p>
-  <el-skeleton v-if="tmdbSearching" :rows="4" animated aria-label="正在搜索媒体"/>
-  <template v-else-if="tmdbSearched"><div class="search-results-heading"><h2>匹配作品</h2><span class="muted">{{foundMedia.length}} 项 · {{foundCached?'缓存结果':'本次查询'}}</span></div>
-    <div class="tmdb-results"><article v-for="item in foundMedia" :key="item.mediaType+item.id" class="tmdb-media"><div class="tmdb-poster"><img v-if="item.posterPath&&!posterErrors.has(item.mediaType+item.id)" :src="'/api/v1/media/tmdb/image?path='+encodeURIComponent(item.posterPath)" :alt="item.title" loading="lazy" @error="posterErrors.add(item.mediaType+item.id)"/><Film v-else aria-label="暂无海报"/></div><div><h2>{{item.title}}<small>{{item.year||'年份未知'}} · {{item.mediaType==='movie'?'电影':'剧集'}}</small></h2><p>{{item.originalTitle}}</p><p class="field-hint">{{item.overview||'暂无简介'}}</p><el-button @click="keyword=item.originalTitle||item.title;mode='site'">使用标题到站点搜索</el-button></div></article></div>
-    <el-empty v-if="!foundMedia.length" description="没有找到匹配作品，请换个名称或调整年份。"/>
+<template>
+  <section class="page-heading">
+    <div>
+      <span class="page-kicker">ACQUIRE / 资源搜索</span>
+      <h1>资源搜索</h1>
+      <p>按站点显示结果与失败原因。选择下载前确认 TMDB 媒体身份。</p>
+    </div>
+    <RouterLink to="/sites" class="inline-link">管理PT站点账号</RouterLink>
+  </section>
+  <el-alert
+    v-if="error"
+    :title="error"
+    type="error"
+    :closable="false"
+    show-icon
+  />
+  <section class="search-mode-tabs">
+    <el-radio-group v-model="mode" aria-label="搜索方式"
+      ><el-radio-button value="media">TMDB 媒体搜索</el-radio-button
+      ><el-radio-button value="site">站点直搜</el-radio-button></el-radio-group
+    >
+  </section>
+  <section v-if="mode === 'media'" class="panel section-gap">
+    <div class="panel-title">
+      <div>
+        <span class="section-kicker">DISCOVER</span>
+        <h2>先找到你想看的作品</h2>
+      </div>
+      <span class="muted">TMDB 元数据</span>
+    </div>
+    <form class="tmdb-search" @submit.prevent="findMedia(false)">
+      <label class="search-field" for="tmdb-media-query"
+        >媒体名称<el-input
+          id="tmdb-media-query"
+          v-model="tmdbQuery"
+          aria-label="TMDB媒体名称"
+          placeholder="电影或剧集名称"
+          :prefix-icon="Search"
+          clearable
+      /></label>
+      <label class="search-field" for="tmdb-media-kind"
+        >类型<el-select
+          id="tmdb-media-kind"
+          v-model="tmdbKind"
+          aria-label="TMDB媒体类型"
+          ><el-option label="自动识别" value="auto" /><el-option
+            label="电影"
+            value="movie" /><el-option label="剧集" value="series" /></el-select
+      ></label>
+      <label class="search-field" for="tmdb-media-year"
+        >年份（可选）<el-input
+          id="tmdb-media-year"
+          v-model="tmdbYear"
+          aria-label="TMDB年份"
+          placeholder="例如 2024"
+          :maxlength="4"
+          inputmode="numeric"
+      /></label>
+      <div class="search-submit-row">
+        <el-button
+          type="primary"
+          native-type="submit"
+          :loading="tmdbSearching"
+          :disabled="!tmdbQuery.trim()"
+          >搜索媒体</el-button
+        ><el-button
+          :disabled="tmdbSearching || !tmdbQuery.trim()"
+          @click="findMedia(true)"
+          >忽略TMDB缓存</el-button
+        >
+      </div>
+    </form>
+    <p class="field-hint">
+      {{
+        foundCached
+          ? "本次使用TMDB缓存"
+          : "TMDB查询与PT资源搜索独立，不会自动下载"
+      }}。缓存有效期可在系统设置修改。
+    </p>
+    <el-skeleton
+      v-if="tmdbSearching"
+      :rows="4"
+      animated
+      aria-label="正在搜索媒体"
+    />
+    <template v-else-if="tmdbSearched"
+      ><div class="search-results-heading">
+        <h2>匹配作品</h2>
+        <span class="muted"
+          >{{ foundMedia.length }} 项 ·
+          {{ foundCached ? "缓存结果" : "本次查询" }}</span
+        >
+      </div>
+      <div class="tmdb-results">
+        <article
+          v-for="item in foundMedia"
+          :key="item.mediaType + item.id"
+          class="tmdb-media"
+        >
+          <div class="tmdb-poster">
+            <img
+              v-if="
+                item.posterPath && !posterErrors.has(item.mediaType + item.id)
+              "
+              :src="
+                '/api/v1/media/tmdb/image?path=' +
+                encodeURIComponent(item.posterPath)
+              "
+              :alt="item.title"
+              loading="lazy"
+              @error="posterErrors.add(item.mediaType + item.id)"
+            /><Film v-else aria-label="暂无海报" />
+          </div>
+          <div>
+            <h2>
+              {{ item.title
+              }}<small
+                >{{ item.year || "年份未知" }} ·
+                {{ item.mediaType === "movie" ? "电影" : "剧集" }}</small
+              >
+            </h2>
+            <p>{{ item.originalTitle }}</p>
+            <p class="field-hint">{{ item.overview || "暂无简介" }}</p>
+            <el-button
+              @click="
+                keyword = item.originalTitle || item.title;
+                mode = 'site';
+              "
+              >使用标题到站点搜索</el-button
+            >
+          </div>
+        </article>
+      </div>
+      <el-empty
+        v-if="!foundMedia.length"
+        description="没有找到匹配作品，请换个名称或调整年份。"
+      />
+    </template>
+    <div v-else-if="!error" class="search-welcome">
+      <Film aria-hidden="true" />
+      <h3>发现作品，再选择资源</h3>
+      <p>输入片名查看媒体信息；选定作品后，可使用标题到 PT 站点搜索。</p>
+    </div>
+  </section>
+  <template v-if="mode === 'site'">
+    <section class="panel section-gap">
+      <form @submit.prevent="search(false)" class="search-form">
+        <el-input
+          v-model="keyword"
+          placeholder="电影名称、剧集名称或发布关键词"
+          aria-label="资源关键词"
+          size="large"
+        /><el-button
+          type="primary"
+          native-type="submit"
+          :loading="busy"
+          :disabled="!keyword.trim() || selected.length === 0"
+          >开始搜索</el-button
+        >
+      </form>
+      <p class="field-hint">
+        {{
+          searchCached
+            ? "本次复用有效的搜索快照"
+            : "按所选站点直搜，错误与挑战会如实显示"
+        }}
+      </p>
+      <el-button
+        :disabled="busy || !keyword.trim() || !selected.length"
+        @click="search(true)"
+        >忽略站点缓存重新搜索</el-button
+      >
+      <div class="account-selection">
+        <el-checkbox-group v-model="selected"
+          ><el-checkbox
+            v-for="account in accounts"
+            :key="account.id"
+            :value="account.id"
+            >{{ account.name }}</el-checkbox
+          ></el-checkbox-group
+        >
+        <p v-if="accounts.length === 0" class="field-hint">
+          请先导入站点配置，再添加并启用 PT 账号。
+        </p>
+      </div>
+      <div v-if="run" class="site-progress">
+        <div v-for="site in run.sites" :key="site.accountId">
+          <strong>{{ site.name }}</strong
+          ><StatusBadge
+            :state="site.state"
+            :label="site.state === 'partial' ? '部分结果' : undefined"
+          /><span class="muted">{{
+            site.message || `${site.count} 个结果`
+          }}</span>
+        </div>
+      </div>
+    </section>
+    <section v-if="run" class="panel">
+      <div class="resource-filter-grid">
+        <div>
+          <label>分辨率</label
+          ><el-select
+            v-model="resourceFilters.resolution"
+            aria-label="资源分辨率"
+            @change="
+              page = 1;
+              refresh();
+            "
+            ><el-option label="全部" value="" /><el-option
+              v-for="x in [
+                '480p',
+                '720p',
+                '1080p',
+                '2160p',
+                '4320p',
+                'unknown',
+              ]"
+              :key="x"
+              :label="x === 'unknown' ? '未知' : x"
+              :value="x"
+          /></el-select>
+        </div>
+        <div>
+          <label>来源</label
+          ><el-select
+            v-model="resourceFilters.source"
+            aria-label="资源来源"
+            @change="
+              page = 1;
+              refresh();
+            "
+            ><el-option label="全部" value="" /><el-option
+              v-for="x in [
+                'web-dl',
+                'webrip',
+                'bluray',
+                'remux',
+                'hdtv',
+                'unknown',
+              ]"
+              :key="x"
+              :label="x"
+              :value="x"
+          /></el-select>
+        </div>
+        <div>
+          <label>编码</label
+          ><el-select
+            v-model="resourceFilters.codec"
+            aria-label="资源编码"
+            @change="
+              page = 1;
+              refresh();
+            "
+            ><el-option label="全部" value="" /><el-option
+              v-for="x in ['h264', 'h265', 'av1', 'unknown']"
+              :key="x"
+              :label="x"
+              :value="x"
+          /></el-select>
+        </div>
+        <div>
+          <label>站点</label
+          ><el-select
+            v-model="resourceFilters.accountId"
+            aria-label="结果站点"
+            @change="
+              page = 1;
+              refresh();
+            "
+            ><el-option label="全部" value="" /><el-option
+              v-for="x in run.sites"
+              :key="x.accountId"
+              :label="x.name"
+              :value="x.accountId"
+          /></el-select>
+        </div>
+        <div>
+          <label>关键字筛选</label
+          ><el-input
+            v-model="resourceFilters.keyword"
+            aria-label="资源关键字筛选"
+            placeholder="筛选标题或副标题，空格分隔多个关键字"
+            clearable
+            :maxlength="128"
+            @input="queueFilter"
+            @keyup.enter="applyFilter"
+          />
+        </div>
+        <div>
+          <label>排序</label
+          ><el-select
+            v-model="resourceFilters.sort"
+            aria-label="资源排序"
+            @change="applyFilter"
+            ><el-option
+              label="做种人数 · 从多到少"
+              value="seeders_desc" /><el-option
+              label="做种人数 · 从少到多"
+              value="seeders_asc" /><el-option
+              label="文件大小 · 从大到小"
+              value="size_desc" /><el-option
+              label="文件大小 · 从小到大"
+              value="size_asc"
+          /></el-select>
+        </div>
+      </div>
+      <p class="field-hint">
+        筛选整个已取得快照，共
+        {{ run.total }} 条匹配；标题识别属性仅为线索。部分结果仍按站点提示核对。
+      </p>
+      <el-alert
+        v-if="run.state === 'partial'"
+        title="这里只展示已取得的部分结果。请查看各站点原因，缩小关键词或核对分页配置；没有显示不等于站点没有资源。"
+        type="warning"
+        :closable="false"
+        role="status"
+      />
+      <div class="panel-title">
+        <h2>搜索结果</h2>
+        <StatusBadge
+          :state="run.state"
+          :label="run.state === 'partial' ? '部分结果' : undefined"
+        />
+      </div>
+      <el-table
+        :data="run.resources"
+        :empty-text="
+          ['pending', 'running'].includes(run.state)
+            ? 'Worker 正在查询站点…'
+            : '没有匹配资源；如有站点失败，请先检查上方原因。'
+        "
+        ><el-table-column label="资源" min-width="290"
+          ><template #default="scope"
+            ><strong>{{ scope.row.title }}</strong>
+            <p class="field-hint">{{ scope.row.metadata?.subtitle }}</p>
+            <small
+              >{{ scope.row.siteName }} ·
+              {{ scope.row.metadata?.attributes?.resolution || "分辨率未知" }} ·
+              {{ scope.row.metadata?.attributes?.codec || "编码未知" }}</small
+            ></template
+          ></el-table-column
+        ><el-table-column label="大小" width="110"
+          ><template #default="scope">{{
+            size(scope.row.size)
+          }}</template></el-table-column
+        ><el-table-column
+          prop="seeders"
+          label="做种"
+          width="70"
+        /><el-table-column label="下载系数" width="110"
+          ><template #default="scope">{{
+            scope.row.downloadFactor === null
+              ? "未知"
+              : scope.row.downloadFactor === 0
+                ? "免费"
+                : scope.row.downloadFactor
+          }}</template></el-table-column
+        ><el-table-column label="操作" width="140"
+          ><template #default="scope"
+            ><el-button type="primary" plain @click="openDownload(scope.row)"
+              >确认并下载</el-button
+            ></template
+          ></el-table-column
+        ></el-table
+      ><el-pagination
+        v-if="run.total > 50"
+        v-model:current-page="page"
+        :page-size="50"
+        :total="run.total"
+        layout="prev,pager,next"
+        @current-change="refresh()"
+      />
+    </section>
+    <section v-else class="panel">
+      <h2>最近搜索</h2>
+      <div v-for="item in history" :key="item.id" class="job-row">
+        <span>{{ item.keyword }}</span
+        ><StatusBadge
+          :state="item.state"
+          :label="item.state === 'partial' ? '部分结果' : undefined"
+        /><el-button @click="refresh(item.id)">查看结果</el-button>
+      </div>
+      <p v-if="history.length === 0" class="field-hint">
+        尚无搜索记录。真实请求会交给持久化 Worker 执行。
+      </p>
+    </section>
   </template>
-  <div v-else-if="!error" class="search-welcome"><Film aria-hidden="true"/><h3>发现作品，再选择资源</h3><p>输入片名查看媒体信息；选定作品后，可使用标题到 PT 站点搜索。</p></div>
-</section>
-<template v-if="mode==='site'">
-<section class="panel section-gap"><form @submit.prevent="search(false)" class="search-form"><el-input v-model="keyword" placeholder="电影名称、剧集名称或发布关键词" aria-label="资源关键词" size="large"/><el-button type="primary" native-type="submit" :loading="busy" :disabled="!keyword.trim()||selected.length===0">开始搜索</el-button></form><p class="field-hint">{{searchCached?'本次复用有效的搜索快照':'按所选站点直搜，错误与挑战会如实显示'}}</p><el-button :disabled="busy||!keyword.trim()||!selected.length" @click="search(true)">忽略站点缓存重新搜索</el-button><div class="account-selection"><el-checkbox-group v-model="selected"><el-checkbox v-for="account in accounts" :key="account.id" :value="account.id">{{account.name}}</el-checkbox></el-checkbox-group><p v-if="accounts.length===0" class="field-hint">请先导入站点配置，再添加并启用 PT 账号。</p></div><div v-if="run" class="site-progress"><div v-for="site in run.sites" :key="site.accountId"><strong>{{site.name}}</strong><StatusBadge :state="site.state" :label="site.state==='partial'?'部分结果':undefined"/><span class="muted">{{site.message||`${site.count} 个结果`}}</span></div></div></section><section v-if="run" class="panel"><div class="resource-filter-grid">
-<div><label>分辨率</label><el-select v-model="resourceFilters.resolution" aria-label="资源分辨率" @change="page=1;refresh()"><el-option label="全部" value=""/><el-option v-for="x in ['480p','720p','1080p','2160p','4320p','unknown']" :key="x" :label="x==='unknown'?'未知':x" :value="x"/></el-select></div>
-<div><label>来源</label><el-select v-model="resourceFilters.source" aria-label="资源来源" @change="page=1;refresh()"><el-option label="全部" value=""/><el-option v-for="x in ['web-dl','webrip','bluray','remux','hdtv','unknown']" :key="x" :label="x" :value="x"/></el-select></div>
-<div><label>编码</label><el-select v-model="resourceFilters.codec" aria-label="资源编码" @change="page=1;refresh()"><el-option label="全部" value=""/><el-option v-for="x in ['h264','h265','av1','unknown']" :key="x" :label="x" :value="x"/></el-select></div>
-<div><label>站点</label><el-select v-model="resourceFilters.accountId" aria-label="结果站点" @change="page=1;refresh()"><el-option label="全部" value=""/><el-option v-for="x in run.sites" :key="x.accountId" :label="x.name" :value="x.accountId"/></el-select></div>
-<div><label>最少做种人数</label><el-input-number v-model="resourceFilters.minSeeders" :min="0" :max="1000000" aria-label="最少做种人数" @change="page=1;refresh()"/></div>
-<div><label>最小大小（字节）</label><el-input-number v-model="resourceFilters.minSize" :min="0" :max="Number.MAX_SAFE_INTEGER" aria-label="最小资源大小" @change="page=1;refresh()"/></div><div><label>最大大小（字节，0不限）</label><el-input-number v-model="resourceFilters.maxSize" :min="0" :max="Number.MAX_SAFE_INTEGER" aria-label="最大资源大小" @change="page=1;refresh()"/></div><el-checkbox v-model="resourceFilters.freeOnly" @change="page=1;refresh()">仅免费</el-checkbox></div><p class="field-hint">筛选整个已取得快照，共 {{run.total}} 条匹配；标题识别属性仅为线索。部分结果仍按站点提示核对。</p><el-alert v-if="run.state==='partial'" title="这里只展示已取得的部分结果。请查看各站点原因，缩小关键词或核对分页配置；没有显示不等于站点没有资源。" type="warning" :closable="false" role="status"/><div class="panel-title"><h2>搜索结果</h2><StatusBadge :state="run.state" :label="run.state==='partial'?'部分结果':undefined"/></div><el-table :data="run.resources" :empty-text="['pending','running'].includes(run.state)?'Worker 正在查询站点…':'没有匹配资源；如有站点失败，请先检查上方原因。'"><el-table-column label="资源" min-width="290"><template #default="scope"><strong>{{scope.row.title}}</strong><p class="field-hint">{{scope.row.metadata?.subtitle}}</p><small>{{scope.row.siteName}} · {{scope.row.metadata?.attributes?.resolution||'分辨率未知'}} · {{scope.row.metadata?.attributes?.codec||'编码未知'}}</small></template></el-table-column><el-table-column label="大小" width="110"><template #default="scope">{{size(scope.row.size)}}</template></el-table-column><el-table-column prop="seeders" label="做种" width="70"/><el-table-column label="下载系数" width="110"><template #default="scope">{{scope.row.downloadFactor===null?'未知':scope.row.downloadFactor===0?'免费':scope.row.downloadFactor}}</template></el-table-column><el-table-column label="操作" width="140"><template #default="scope"><el-button type="primary" plain @click="openDownload(scope.row)">确认并下载</el-button></template></el-table-column></el-table><el-pagination v-if="run.total>50" v-model:current-page="page" :page-size="50" :total="run.total" layout="prev,pager,next" @current-change="refresh()"/></section><section v-else class="panel"><h2>最近搜索</h2><div v-for="item in history" :key="item.id" class="job-row"><span>{{item.keyword}}</span><StatusBadge :state="item.state" :label="item.state==='partial'?'部分结果':undefined"/><el-button @click="refresh(item.id)">查看结果</el-button></div><p v-if="history.length===0" class="field-hint">尚无搜索记录。真实请求会交给持久化 Worker 执行。</p></section>
+  <el-dialog
+    v-model="dialog"
+    title="确认媒体身份与下载"
+    width="min(760px,94vw)"
+    :close-on-click-modal="false"
+    ><p class="field-hint">{{ resource?.title }}</p>
+    <el-alert
+      title="下载后保留原文件做种；上传与入库状态独立。匹配不确定时不要选择相似标题。"
+      type="info"
+      :closable="false"
+    />
+    <div class="search-form">
+      <el-select v-model="mediaType" aria-label="媒体类型"
+        ><el-option label="自动识别" value="auto" /><el-option
+          label="电影"
+          value="movie" /><el-option label="剧集" value="series" /></el-select
+      ><el-input v-model="mediaQuery" aria-label="TMDB关键词" /><el-button
+        :loading="metadataBusy"
+        @click="lookup"
+        >查询 TMDB</el-button
+      >
+    </div>
+    <el-table
+      :data="media"
+      highlight-current-row
+      @current-change="chosen = $event"
+      ><el-table-column prop="title" label="标题" /><el-table-column
+        prop="year"
+        label="年份"
+        width="90" /><el-table-column
+        prop="originalTitle"
+        label="原名" /><el-table-column prop="id" label="TMDB ID" width="100"
+    /></el-table>
+    <p class="field-hint">
+      下载使用打开弹窗时选中的搜索快照；过期或站点配置变化时请重新搜索。
+    </p>
+    <el-alert
+      v-if="downloadError"
+      :title="downloadError"
+      type="error"
+      :closable="false"
+      role="alert"
+    />
+    <p class="field-hint">
+      当前确认：{{
+        chosen ? `${chosen.title} (${chosen.year})` : "请点击正确的媒体条目"
+      }}
+    </p>
+    <el-button
+      type="primary"
+      :loading="downloading"
+      :disabled="!chosen"
+      @click="download"
+      >创建下载任务</el-button
+    ></el-dialog
+  >
 </template>
-<el-dialog v-model="dialog" title="确认媒体身份与下载" width="min(760px,94vw)" :close-on-click-modal="false"><p class="field-hint">{{resource?.title}}</p><el-alert title="下载后保留原文件做种；上传与入库状态独立。匹配不确定时不要选择相似标题。" type="info" :closable="false"/><div class="search-form"><el-select v-model="mediaType" aria-label="媒体类型"><el-option label="自动识别" value="auto"/><el-option label="电影" value="movie"/><el-option label="剧集" value="series"/></el-select><el-input v-model="mediaQuery" aria-label="TMDB关键词"/><el-button :loading="metadataBusy" @click="lookup">查询 TMDB</el-button></div><el-table :data="media" highlight-current-row @current-change="chosen=$event"><el-table-column prop="title" label="标题"/><el-table-column prop="year" label="年份" width="90"/><el-table-column prop="originalTitle" label="原名"/><el-table-column prop="id" label="TMDB ID" width="100"/></el-table><p class="field-hint">下载使用打开弹窗时选中的搜索快照；过期或站点配置变化时请重新搜索。</p><el-alert v-if="downloadError" :title="downloadError" type="error" :closable="false" role="alert"/><p class="field-hint">当前确认：{{chosen?`${chosen.title} (${chosen.year})`:'请点击正确的媒体条目'}}</p><el-button type="primary" :loading="downloading" :disabled="!chosen" @click="download">创建下载任务</el-button></el-dialog></template>
 
-<style scoped>.resource-filter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}.resource-filter-grid label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}.resource-filter-grid .el-select,.resource-filter-grid .el-input-number{width:100%}@media(max-width:680px){.resource-filter-grid{grid-template-columns:1fr 1fr}}</style>
+<style scoped>
+.resource-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.resource-filter-grid label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.resource-filter-grid .el-select,
+.resource-filter-grid .el-input-number {
+  width: 100%;
+}
+@media (max-width: 680px) {
+  .resource-filter-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+</style>

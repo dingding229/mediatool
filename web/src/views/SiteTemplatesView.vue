@@ -1,7 +1,177 @@
 <script setup lang="ts">
-import {ref,onMounted} from 'vue';import {request}from'../api/client'
-const templates=ref<{id:string;name:string}[]>([]),loading=ref(true),error=ref('')
-onMounted(async()=>{try{templates.value=(await request<{templates:{id:string;name:string}[]}>('/pt/templates')).templates}catch(e){error.value=String(e)}finally{loading.value=false}})
+import { computed, onMounted, ref } from "vue";
+import { ElMessage } from "element-plus";
+import { request, post } from "../api/client";
+interface Site {
+  id: string;
+  name: string;
+  domain: string;
+  version: string;
+  iconUrl: string;
+  loaded: boolean;
+}
+const templates = ref<Site[]>([]);
+const selected = ref<string[]>([]);
+const loading = ref(true);
+const saving = ref(false);
+const error = ref("");
+const iconErrors = ref(new Set<string>());
+const available = computed(() =>
+  templates.value.filter((site) => !site.loaded),
+);
+async function load() {
+  try {
+    templates.value = (
+      await request<{ templates: Site[] }>("/pt/templates")
+    ).templates;
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    loading.value = false;
+  }
+}
+async function loadSelected() {
+  if (!selected.value.length) return;
+  saving.value = true;
+  error.value = "";
+  try {
+    templates.value = (
+      await post<{ templates: Site[] }>("/pt/templates/load", {
+        ids: selected.value,
+      })
+    ).templates;
+    selected.value = [];
+    ElMessage.success("所选站点模板已加载，可在PT站点中添加账号");
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    saving.value = false;
+  }
+}
+onMounted(load);
 </script>
-<template><section class="page-heading"><div><h1>站点模板</h1><p>内置 Go 模板，全部自动加载。</p></div></section><el-alert v-if="error" :title="error" type="error" :closable="false"/><el-skeleton v-if="loading" :rows="3" animated/><section v-else class="template-grid"><article v-for="site in templates" :key="site.id" class="panel"><h2>{{site.name}}</h2></article></section></template>
-<style scoped>.template-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}.template-grid h2{margin:0}</style>
+<template>
+  <section class="page-heading">
+    <div>
+      <h1>站点模板</h1>
+      <p>
+        勾选需要的站点模板后加载，再到 PT
+        站点添加账号。已添加账号的模板将自动保留。
+      </p>
+    </div>
+    <el-button
+      type="primary"
+      :disabled="!selected.length"
+      :loading="saving"
+      @click="loadSelected"
+      >加载所选模板{{
+        selected.length ? `（${selected.length}）` : ""
+      }}</el-button
+    >
+  </section>
+  <el-alert v-if="error" :title="error" type="error" :closable="false" />
+  <el-skeleton v-if="loading" :rows="3" animated />
+  <template v-else>
+    <p class="field-hint">
+      {{ templates.filter((site) => site.loaded).length }} 个已加载 ·
+      {{ available.length }} 个可选择
+    </p>
+    <el-checkbox-group
+      v-model="selected"
+      aria-label="选择站点模板"
+      class="template-grid"
+    >
+      <article
+        v-for="site in templates"
+        :key="site.id"
+        class="panel template-card"
+        :class="{ chosen: selected.includes(site.id) }"
+      >
+        <header>
+          <img
+            v-if="!iconErrors.has(site.id)"
+            :src="site.iconUrl"
+            :alt="`${site.name}图标`"
+            width="40"
+            height="40"
+            loading="lazy"
+            referrerpolicy="no-referrer"
+            @error="iconErrors.add(site.id)"
+          />
+          <span v-else class="site-fallback" aria-hidden="true">{{
+            site.name.slice(0, 2)
+          }}</span>
+          <div>
+            <h2>{{ site.name }}</h2>
+            <span class="field-hint">v{{ site.version }}</span>
+          </div>
+        </header>
+        <a
+          :href="site.domain"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="site-url"
+          >{{ site.domain }}</a
+        >
+        <el-checkbox :value="site.id" :disabled="site.loaded || saving">{{
+          site.loaded ? "已加载" : `选择 ${site.name}`
+        }}</el-checkbox>
+      </article>
+    </el-checkbox-group>
+  </template>
+</template>
+<style scoped>
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+.template-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.template-card.chosen {
+  border-color: var(--accent);
+}
+.template-card header {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.template-card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.template-card img,
+.site-fallback {
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+.site-fallback {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.site-url {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.template-card :deep(.el-checkbox) {
+  min-height: 44px;
+}
+@media (max-width: 600px) {
+  .template-grid {
+    grid-template-columns: 1fr;
+  }
+  .page-heading {
+    align-items: stretch;
+    gap: 16px;
+  }
+}
+</style>

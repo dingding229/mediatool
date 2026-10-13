@@ -21,7 +21,7 @@ test_db_exec(){
  fi
 }
 go run ./cmd/migrate -test-only -cleanup-test-plugins >/dev/null
-test_db_exec 'TRUNCATE subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,administrator_accounts,administrator_auth_limits CASCADE'
+test_db_exec 'TRUNCATE site_template_loads,subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,administrator_accounts,administrator_auth_limits CASCADE'
 
 private=$(mktemp -d)
 pids=()
@@ -50,4 +50,4 @@ go build -o "$private/media-tool" ./cmd/media-tool
 
 for ((i=0;i<60;i++));do if curl -fsS --max-time 2 "$E2E_BASE_URL/readyz" >/dev/null 2>&1;then break;fi;sleep .5;done
 curl -fsS --max-time 2 "$E2E_BASE_URL/readyz" >/dev/null
-npm run test:e2e --prefix web
+npm run test:e2e --prefix web -- "$@"
