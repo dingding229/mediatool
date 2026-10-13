@@ -1,7 +1,7 @@
 {
   "templateVersion": 1,
   "id": "ubits",
-  "name": "UBits（精简模板）",
+  "name": "UBits",
   "domain": "https://ubits.club",
   "schema": "NexusPHP",
   "encoding": "UTF-8",

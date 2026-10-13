@@ -1,7 +1,7 @@
 {
   "templateVersion": 1,
   "id": "hdsky",
-  "name": "HDSKY 天空（精简模板）",
+  "name": "HDSKY 天空",
   "domain": "https://hdsky.me",
   "schema": "NexusPHP",
   "encoding": "UTF-8",

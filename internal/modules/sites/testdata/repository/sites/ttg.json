@@ -1,7 +1,7 @@
 {
   "templateVersion": 1,
   "id": "ttg",
-  "name": "听听歌（精简模板）",
+  "name": "听听歌",
   "domain": "https://totheglory.im",
   "schema": "ttg",
   "encoding": "UTF-8",

@@ -36,4 +36,4 @@ go run ./cmd/site-compat-audit -directory <原生仓库目录> -source-commit <�
 
 审计只证明格式/解析支持，不证明账号、促销或站点页面可用。TTG仍保留专用框架实测提示。原STRM→115 CDN302、不转码/中转策略不变。
 
-本轮模板仓库固定提交：`f7bbf0418338c4be8c66310e29ecef92783fbecc`。
+本轮模板仓库固定提交：`f28a0b70a3541ad740adb4aa3dae4b722a6df90b`。

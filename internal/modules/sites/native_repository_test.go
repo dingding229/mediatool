@@ -131,3 +131,29 @@ func TestNativeImportBadHashAndMissingIDNeverWrite(t *testing.T) {
 		t.Fatal("missing catalog ID", e, fetches)
 	}
 }
+
+func TestPublishedTemplateNamesHaveNoDisplaySuffix(t *testing.T) {
+	raw, e := os.ReadFile("testdata/repository/index.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	catalog, e := ParseCatalog(raw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	expected := map[string]string{"hdsky": "HDSKY 天空", "ourbits": "我堡", "ptchdbits": "彩虹岛", "ssd": "春天", "ttg": "听听歌", "ubits": "UBits"}
+	for _, entry := range catalog.Templates {
+		data, e := os.ReadFile("testdata/repository/" + entry.File)
+		if e != nil {
+			t.Fatal(e)
+		}
+		cfg, e := Decode(data, nil)
+		if e != nil || cfg.Name != expected[entry.ID] || entry.Name != cfg.Name {
+			t.Fatal(entry.ID, cfg.Name, entry.Name, e)
+		}
+		sum := sha256.Sum256(data)
+		if hex.EncodeToString(sum[:]) != entry.SHA256 {
+			t.Fatal("display metadata and digest disagree", entry.ID)
+		}
+	}
+}

@@ -4,44 +4,44 @@
   "templates": [
     {
       "id": "hdsky",
-      "name": "HDSKY 天空（精简模板）",
+      "name": "HDSKY 天空",
       "file": "sites/hdsky.json",
-      "sha256": "422ac376a92352dd1b242c2d1c96c7d180f2f85a0908674f7dc2cc3ec96da7d5",
+      "sha256": "fc801b05eb167d3edfe92c9a9c78d7a8fbd8d43c0281dcf5c7c70f693d821dbd",
       "templateVersion": 1
     },
     {
       "id": "ourbits",
-      "name": "我堡（精简模板）",
+      "name": "我堡",
       "file": "sites/ourbits.json",
-      "sha256": "95147b7279071206efd69630397ef5de60768e13716afa76b6ca83cb780cf314",
+      "sha256": "8cda8dfc5897748a963b37624ef99c4097588d24a7d15646ea1d49e6ae4d61c5",
       "templateVersion": 1
     },
     {
       "id": "ptchdbits",
-      "name": "彩虹岛（精简模板）",
+      "name": "彩虹岛",
       "file": "sites/ptchdbits.json",
-      "sha256": "e15e5772ebb9773cec0d7809d02d6f5ebe1dd230aff6a85e0f4b7c609e4299a8",
+      "sha256": "5dd2fa2a94f6d6b3754961add45b511fb978060dd67fb35aa68be10543d93590",
       "templateVersion": 1
     },
     {
       "id": "ssd",
-      "name": "春天（精简模板）",
+      "name": "春天",
       "file": "sites/ssd.json",
-      "sha256": "fe773eed8f4119d46757c01877da9230e1512a6161efe82a62548880e484cfe2",
+      "sha256": "36311f148efd565fb341798610a5ffa4f57c60314093d59a1c83e083d107fdcf",
       "templateVersion": 1
     },
     {
       "id": "ttg",
-      "name": "听听歌（精简模板）",
+      "name": "听听歌",
       "file": "sites/ttg.json",
-      "sha256": "37ccc28f39f90cd9c54b1a0e39c0e7d66bbeb1b2125df88a428eaa328ba6920d",
+      "sha256": "7c362131a3f52b9edbf0f72b2d58215c223e17fbcd93f5de81399a6408dd8a1e",
       "templateVersion": 1
     },
     {
       "id": "ubits",
-      "name": "UBits（精简模板）",
+      "name": "UBits",
       "file": "sites/ubits.json",
-      "sha256": "3e848c9f5fc4ec5b638511824a033f08dfa1fb3fe44ddcd19c9f327ac55fab75",
+      "sha256": "54f8568d13dcb9197a28b18b6153cc2078b88737173b9a7590e011792d977aef",
       "templateVersion": 1
     }
   ]

@@ -1,7 +1,7 @@
 {
   "templateVersion": 1,
   "id": "ourbits",
-  "name": "我堡（精简模板）",
+  "name": "我堡",
   "domain": "https://ourbits.club",
   "schema": "NexusPHP",
   "encoding": "UTF-8",
