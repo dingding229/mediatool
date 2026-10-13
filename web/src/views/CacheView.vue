@@ -2,10 +2,13 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Refresh, Delete } from "@element-plus/icons-vue";
+import {tmdbImage} from "../utils/tmdb-image";
+import StatusBadge from "../components/StatusBadge.vue";
 import { request, post } from "../api/client";
 interface Entry {
   id: string;
-  key: string;
+  posterPath?:string;
+  createdAt?:string;
   query: string;
   state: string;
   bytes: number;
@@ -15,6 +18,7 @@ interface Entry {
 }
 const props = defineProps<{ kind: "tmdb" | "search" }>(),
   name = computed(() => (props.kind === "tmdb" ? "TMDB缓存" : "搜索缓存"));
+const posterErrors=ref(new Set<string>());
 const list = ref<Entry[]>([]),
   total = ref(0),
   page = ref(1),
@@ -69,7 +73,7 @@ async function remove(row: Entry) {
   const kind = props.kind;
   try {
     await ElMessageBox.confirm(
-      "只删除此缓存项，不删除搜索历史或业务数据。",
+      kind==='search'?"从搜索缓存移除此记录并停止复用，不删除底层结果、下载记录或业务数据。":"只删除此TMDB缓存项，不删除业务数据。",
       "删除缓存项",
       { type: "warning" },
     );
@@ -86,7 +90,7 @@ async function clear() {
   const kind = props.kind;
   try {
     await ElMessageBox.confirm(
-      `清理全部${name.value}？不会删除搜索历史、其他类缓存或业务数据。`,
+      `清理全部${name.value}？${kind==='search'?'隐藏现有搜索记录并停止缓存复用，保留底层结果和下载证明。':'不删除其他类缓存或业务数据。'}`,
       "清理此类缓存",
       { type: "warning", confirmButtonText: "确认清理" },
     );
@@ -125,8 +129,8 @@ onMounted(load);
         {{
           kind === "tmdb"
             ? "媒体查询与详情的结果缓存"
-            : "已取得站点搜索快照的缓存索引"
-        }}，自动到期，不等同数据库搜索历史。
+            : "最近搜索取得的真实结果和记录"
+        }}{{kind==='tmdb'?'，按系统设置自动到期。':'；索引到期后仍可查看历史结果。'}}
       </p>
     </div>
     <div class="heading-actions">
@@ -167,13 +171,13 @@ onMounted(load);
   />
   <section class="panel">
     <el-table
+      class="cache-desktop"
       :data="list"
       v-loading="busy"
       empty-text="暂无缓存，完成媒体或站点搜索后会自动记录"
       ><el-table-column label="内容" min-width="250"
         ><template #default="{ row }"
-          ><strong>{{ row.query || "旧缓存／快照不可用" }}</strong>
-          <p class="field-hint cache-key">{{ row.key }}</p></template
+          ><div class="cache-content"><img v-if="tmdbImage(row.posterPath) && !posterErrors.has(row.id)" :src="tmdbImage(row.posterPath)" :alt="row.query+'海报'" loading="lazy" @error="posterErrors.add(row.id)"/><div v-else class="cache-poster" aria-hidden="true">影</div><div><strong>{{row.query || '媒体查询'}}</strong><p v-if="row.createdAt" class="field-hint">{{new Date(row.createdAt).toLocaleString('zh-CN')}}</p><StatusBadge :state="row.state"/></div></div></template
         ></el-table-column
       ><el-table-column
         prop="count"
@@ -181,7 +185,7 @@ onMounted(load);
         width="100"
       /><el-table-column label="剩余时间" width="140"
         ><template #default="{ row }">{{
-          row.ttlSeconds < 0 ? "无自动到期" : row.ttlSeconds + " 秒"
+          kind==='search' && row.ttlSeconds===0 ? "历史结果" : row.ttlSeconds < 0 ? "无自动到期" : row.ttlSeconds + " 秒"
         }}</template></el-table-column
       ><el-table-column label="大小" width="120"
         ><template #default="{ row }">{{
@@ -189,13 +193,14 @@ onMounted(load);
         }}</template></el-table-column
       ><el-table-column label="操作" width="170"
         ><template #default="{ row }"
-          ><el-button @click="inspect(row)">查看</el-button
-          ><el-button text type="danger" @click="remove(row)"
+          ><RouterLink v-if="kind==='search'" :to="{path:'/search',query:{run:row.id}}">查看结果</RouterLink><el-button v-else @click="inspect(row)">查看</el-button><el-button text type="danger" @click="remove(row)"
             >删除</el-button
           ></template
         ></el-table-column
       ></el-table
-    ><el-pagination
+>
+    <div class="cache-mobile"><article v-for="row in list" :key="row.id"><div class="cache-content"><img v-if="tmdbImage(row.posterPath) && !posterErrors.has(row.id)" :src="tmdbImage(row.posterPath)" :alt="row.query+'海报'" loading="lazy" @error="posterErrors.add(row.id)"/><div v-else class="cache-poster" aria-hidden="true">影</div><div><strong>{{row.query || '媒体查询'}}</strong><p class="field-hint">{{row.count}} 个结果 · {{row.ttlSeconds>0 ? row.ttlSeconds+' 秒' : '历史结果'}}</p><StatusBadge :state="row.state"/></div></div><div class="cache-mobile-actions"><RouterLink v-if="kind==='search'" :to="{path:'/search',query:{run:row.id}}">查看结果</RouterLink><el-button v-else @click="inspect(row)">查看</el-button><el-button text type="danger" @click="remove(row)">删除</el-button></div></article><p v-if="!list.length" class="field-hint">暂无缓存，完成媒体或站点搜索后会自动记录。</p></div>
+    <el-pagination
       v-if="total > 30"
       v-model:current-page="page"
       :total="total"
@@ -205,13 +210,14 @@ onMounted(load);
     />
   </section>
   <el-dialog v-model="dialog" title="缓存内容" width="min(900px,94vw)"
-    ><p class="field-hint">{{ detail?.key }}</p>
+    ><p class="field-hint">{{ detail?.query }}</p>
     <pre class="cache-json">{{
       JSON.stringify(detail?.data ?? detail, null, 2)
     }}</pre>
   </el-dialog>
 </template>
 <style scoped>
+.cache-mobile{display:none}.cache-mobile article{padding:16px 0;border-bottom:1px solid var(--border)}.cache-mobile article:last-child{border-bottom:0}.cache-mobile-actions{display:flex;justify-content:flex-end;gap:16px;align-items:center;margin-top:12px}.cache-mobile-actions a{min-height:44px;display:flex;align-items:center}
 .cache-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -227,6 +233,7 @@ onMounted(load);
 .cache-summary strong {
   font-size: 26px;
 }
+.cache-content{display:flex;gap:16px;align-items:center}.cache-content img,.cache-poster{width:44px;height:66px;flex:0 0 44px;object-fit:cover;border-radius:4px}.cache-poster{display:grid;place-items:center;background:var(--canvas);color:var(--muted)}
 .cache-key {
   overflow-wrap: anywhere;
 }
@@ -241,6 +248,7 @@ onMounted(load);
   border-radius: 12px;
 }
 @media (max-width: 680px) {
+ .cache-desktop{display:none}.cache-mobile{display:block}
   .cache-summary {
     grid-template-columns: 1fr;
   }

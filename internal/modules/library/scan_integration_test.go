@@ -160,7 +160,7 @@ func TestPostgresCloudScanConfirmationFileGrantAndMissingSafety(t *testing.T) {
 	if after != link {
 		t.Fatal("identity edit rotated playback grant")
 	}
-	schedule, err := engine.SaveSchedule(ctx, ScheduleConfig{Interval: 300})
+	schedule, err := engine.SaveSchedule(ctx, ScheduleConfig{Cron: "*/5 * * * *"})
 	if err != nil || schedule.Enabled {
 		t.Fatal("schedule not default off", err)
 	}
@@ -174,6 +174,7 @@ func TestPostgresCloudScanConfirmationFileGrantAndMissingSafety(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.Exec(ctx, `UPDATE library_scan_schedules SET next_run_at=now()-interval '1 minute' WHERE id=$1`, schedule.ID)
 	if err = engine.Schedule(ctx); err != nil {
 		t.Fatal(err)
 	}

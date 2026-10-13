@@ -42,3 +42,24 @@ func TestSameOrigin(t *testing.T) {
 		t.Fatal("same-origin rejected")
 	}
 }
+
+func TestExplicitProxyOrigins(t *testing.T) {
+	a := Auth{Origin: "http://127.0.0.1:8080", AllowedOrigins: []string{"https://media.example.com"}}
+	r := httptest.NewRequest("POST", "/", nil)
+	r.Header.Set("X-Requested-With", "media-tool")
+	r.Header.Set("Origin", "https://media.example.com")
+	if !a.SameOrigin(r) {
+		t.Fatal("configured proxy origin rejected")
+	}
+	r.Header.Del("X-Requested-With")
+	if a.SameOrigin(r) {
+		t.Fatal("missing CSRF header accepted")
+	}
+	r.Header.Set("X-Requested-With", "media-tool")
+	r.Header.Set("Origin", "https://evil.example.com")
+	r.Header.Set("X-Forwarded-Host", "media.example.com")
+	r.Header.Set("X-Forwarded-Proto", "https")
+	if a.SameOrigin(r) {
+		t.Fatal("forwarded headers bypassed origin check")
+	}
+}

@@ -45,14 +45,26 @@ func (a *Adapter) login(ctx context.Context) error {
 		return ErrUnavailable
 	}
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	r.Header.Set("Referer", strings.TrimRight(a.Endpoint, "/"))
+	r.Header.Set("Referer", strings.TrimRight(a.Endpoint, "/")+"/")
+	r.Header.Set("Origin", strings.TrimRight(a.Endpoint, "/"))
 	response, err := a.client.Do(r)
 	if err != nil {
 		return ErrUnavailable
 	}
 	defer response.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(response.Body, 1024))
-	if response.StatusCode != 200 || strings.TrimSpace(string(raw)) != "Ok." {
+	if response.StatusCode != http.StatusNoContent && (response.StatusCode != 200 || strings.TrimSpace(string(raw)) != "Ok.") {
+		return ErrUnavailable
+	}
+	authenticated := false
+	if a.client.Jar != nil {
+		for _, cookie := range a.client.Jar.Cookies(r.URL) {
+			if (cookie.Name == "SID" || strings.HasPrefix(cookie.Name, "QBT_SID_")) && cookie.Value != "" {
+				authenticated = true
+			}
+		}
+	}
+	if !authenticated {
 		return ErrUnavailable
 	}
 	return nil
@@ -67,20 +79,21 @@ func (a *Adapter) request(ctx context.Context, method, endpoint, contentType str
 		if contentType != "" {
 			r.Header.Set("Content-Type", contentType)
 		}
-		r.Header.Set("Referer", strings.TrimRight(a.Endpoint, "/"))
+		r.Header.Set("Referer", strings.TrimRight(a.Endpoint, "/")+"/")
+		r.Header.Set("Origin", strings.TrimRight(a.Endpoint, "/"))
 		response, err := a.client.Do(r)
 		if err != nil {
 			return nil, ErrUnavailable
 		}
 		raw, err := io.ReadAll(io.LimitReader(response.Body, 4<<20))
 		response.Body.Close()
-		if response.StatusCode == 403 && attempt == 0 {
+		if (response.StatusCode == 403 || response.StatusCode == 401) && attempt == 0 {
 			if err = a.login(ctx); err != nil {
 				return nil, err
 			}
 			continue
 		}
-		if err != nil || response.StatusCode != 200 {
+		if err != nil || (response.StatusCode != 200 && response.StatusCode != http.StatusNoContent) {
 			return nil, ErrUnavailable
 		}
 		return raw, nil
@@ -121,7 +134,14 @@ func (a *Adapter) Add(ctx context.Context, in downloads.Request) (string, error)
 		return "", err
 	}
 	if strings.TrimSpace(string(raw)) != "Ok." {
-		return "", ErrUnavailable
+		var result struct {
+			Success int      `json:"success_count"`
+			Failure int      `json:"failure_count"`
+			IDs     []string `json:"added_torrent_ids"`
+		}
+		if json.Unmarshal(raw, &result) != nil || result.Success != 1 || result.Failure != 0 || len(result.IDs) != 1 || !strings.EqualFold(result.IDs[0], meta.InfoHash) {
+			return "", ErrUnavailable
+		}
 	}
 	return meta.InfoHash, nil
 }

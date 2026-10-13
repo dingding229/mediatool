@@ -100,7 +100,7 @@ func TestPostgresSchedulePersistentDeduplicatedAndConfigGuard(t *testing.T) {
 		t.Fatal(s, err)
 	}
 	old := s
-	s.IntervalMinutes = 14
+	s.Cron = "* * * * *"
 	if _, err = e.SaveSchedule(ctx, s); !errors.Is(err, ErrInvalidSchedule) {
 		t.Fatal(err)
 	}

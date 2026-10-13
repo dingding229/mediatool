@@ -68,7 +68,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 	if d.Logger == nil {
 		d.Logger = slog.Default()
 	}
-	a := &API{Config: c, Deps: d, Auth: auth.Auth{Key: c.SessionKey, Origin: c.PublicURL, Secure: c.Environment == "production"}, Builder: strm.Builder{BaseURL: c.PublicURL, APIKey: c.STRMKey, AllowedRoots: c.STRMAllowedRoots}}
+	a := &API{Config: c, Deps: d, Auth: auth.Auth{Key: c.SessionKey, Origin: c.PublicURL, AllowedOrigins: c.AuthAllowedOrigins, Secure: c.Environment == "production"}, Builder: strm.Builder{BaseURL: c.PublicURL, APIKey: c.STRMKey, AllowedRoots: c.STRMAllowedRoots}}
 	a.EmbyIdentities = emby.NewMemoryIdentityStore()
 	if d.Redis != nil {
 		a.EmbyIdentities = &emby.RedisIdentityStore{Redis: d.Redis}
@@ -193,6 +193,8 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/sites/definitions", a.protected(a.listDefinitions))
 	mux.HandleFunc("GET /api/v1/search", a.protected(a.listSearches))
 	mux.HandleFunc("POST /api/v1/search", a.protected(a.startSearch))
+	mux.HandleFunc("POST /api/v1/search/{id}/media", a.protected(a.saveSearchMedia))
+	mux.HandleFunc("GET /api/v1/system/runtime", a.protected(a.runtimeSummary))
 	mux.HandleFunc("GET /api/v1/search/{id}", a.protected(a.getSearch))
 	mux.HandleFunc("GET /api/v1/downloads", a.protected(a.listDownloads))
 	mux.HandleFunc("POST /api/v1/downloads", a.protected(a.startDownload))
@@ -470,7 +472,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.16.1-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.17.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

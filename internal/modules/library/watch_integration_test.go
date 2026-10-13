@@ -50,19 +50,19 @@ func TestCloudHintsAreDurableScopedDebouncedAndNeverDeleteIndex(t *testing.T) {
 		db.Exec(ctx, `DELETE FROM integrations WHERE id=$1`, c.ID)
 	}()
 	e := Engine{DB: db, Connections: m}
-	a, err := e.SaveSchedule(ctx, ScheduleConfig{Root: "/115/ChangesFixture/A", Enabled: true, Interval: 3600, WatchChanges: true})
+	a, err := e.SaveSchedule(ctx, ScheduleConfig{Root: "/115/ChangesFixture/A", Enabled: true, Cron: "*/5 * * * *", WatchChanges: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := e.SaveSchedule(ctx, ScheduleConfig{Root: "/115/ChangesFixture/B", Enabled: true, Interval: 3600, WatchChanges: true})
+	b, err := e.SaveSchedule(ctx, ScheduleConfig{Root: "/115/ChangesFixture/B", Enabled: true, Cron: "*/5 * * * *", WatchChanges: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	off, err := e.SaveSchedule(ctx, ScheduleConfig{Root: "/115/ChangesFixture/Off", Enabled: false, Interval: 3600, WatchChanges: true})
+	off, err := e.SaveSchedule(ctx, ScheduleConfig{Root: "/115/ChangesFixture/Off", Enabled: false, Cron: "*/5 * * * *", WatchChanges: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	periodic, err := e.SaveSchedule(ctx, ScheduleConfig{Root: "/115/ChangesFixture/Periodic", Enabled: true, Interval: 3600})
+	periodic, err := e.SaveSchedule(ctx, ScheduleConfig{Root: "/115/ChangesFixture/Periodic", Enabled: true, Cron: "*/5 * * * *"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +258,7 @@ func TestUnsupportedPushDoesNotStartUnrequestedScanAndKeepsPeriodicSchedule(t *t
 	if err = e.WatchWindow(ctx); err != nil {
 		t.Fatal("no opt-in unexpectedly called RPC", err)
 	}
-	s, err := e.SaveSchedule(ctx, ScheduleConfig{Enabled: true, Interval: 300, WatchChanges: true})
+	s, err := e.SaveSchedule(ctx, ScheduleConfig{Enabled: true, Cron: "*/5 * * * *", WatchChanges: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,6 +269,7 @@ func TestUnsupportedPushDoesNotStartUnrequestedScanAndKeepsPeriodicSchedule(t *t
 	if err != nil || len(list) != 1 || list[0].WatchState != "unsupported" || list[0].ChangeScanAfter != nil {
 		t.Fatal("unsupported stream created dirty hint", list, err)
 	}
+	db.Exec(ctx, `UPDATE library_scan_schedules SET next_run_at=now()-interval '1 minute' WHERE id=$1`, s.ID)
 	if err = e.Schedule(ctx); err != nil {
 		t.Fatal("periodic reconciliation stopped", err)
 	}

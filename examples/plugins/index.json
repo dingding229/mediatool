@@ -8,7 +8,7 @@
       "author": "Media Tool",
       "description": "可运行Go/WASM插件，展示初始化、定时任务、命令、页面、API、仪表盘及持久数据。",
       "packageUrl": "automation.zip",
-      "digest": "272c57ef951e38f9a7ed3a16211d94f3a4dfb66eb9ee2cf3acf0b1a7072c9ba1"
+      "digest": "29b189f08a3ae15f228ece495299b1963d89377df0939f8dad2e27318ed924c2"
     }
   ]
 }

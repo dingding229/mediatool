@@ -17,8 +17,9 @@ const CookieName = "media_tool_session"
 const Lifetime = 8 * time.Hour
 
 type Auth struct {
-	Key, Origin string
-	Secure      bool
+	Key, Origin    string
+	AllowedOrigins []string
+	Secure         bool
 }
 
 func Match(secret, supplied string) bool {
@@ -33,7 +34,16 @@ func (a Auth) Authorized(r *http.Request) bool {
 func (a Auth) SameOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	if origin != "" && origin != a.Origin {
-		return false
+		allowed := false
+		for _, candidate := range a.AllowedOrigins {
+			if origin == candidate {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return false
+		}
 	}
 	return r.Header.Get("X-Requested-With") == "media-tool"
 }

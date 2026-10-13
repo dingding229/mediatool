@@ -26,14 +26,15 @@ type Engine struct {
 	Connections *integrations.Manager
 }
 type Run struct {
-	ID         string       `json:"id"`
-	Keyword    string       `json:"keyword"`
-	State      string       `json:"state"`
-	CreatedAt  time.Time    `json:"createdAt"`
-	FinishedAt *time.Time   `json:"finishedAt,omitempty"`
-	Sites      []SiteResult `json:"sites"`
-	Resources  []Resource   `json:"resources"`
-	Total      int          `json:"total"`
+	Media      json.RawMessage `json:"media"`
+	ID         string          `json:"id"`
+	Keyword    string          `json:"keyword"`
+	State      string          `json:"state"`
+	CreatedAt  time.Time       `json:"createdAt"`
+	FinishedAt *time.Time      `json:"finishedAt,omitempty"`
+	Sites      []SiteResult    `json:"sites"`
+	Resources  []Resource      `json:"resources"`
+	Total      int             `json:"total"`
 }
 type SiteResult struct {
 	AccountID string `json:"accountId"`
@@ -103,7 +104,7 @@ func (e Engine) start(ctx context.Context, keyword string, accountIDs []string, 
 	return id, tx.Commit(ctx)
 }
 func (e Engine) List(ctx context.Context) ([]Run, error) {
-	rows, err := e.DB.Query(ctx, `SELECT id::text,keyword,state,created_at,finished_at FROM search_runs ORDER BY created_at DESC LIMIT 50`)
+	rows, err := e.DB.Query(ctx, `SELECT id::text,keyword,state,created_at,finished_at,media_context,(SELECT count(*) FROM search_run_resources WHERE run_id=r.id) FROM search_runs r WHERE NOT cache_hidden ORDER BY created_at DESC LIMIT 50`)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +112,7 @@ func (e Engine) List(ctx context.Context) ([]Run, error) {
 	out := []Run{}
 	for rows.Next() {
 		var run Run
-		if err = rows.Scan(&run.ID, &run.Keyword, &run.State, &run.CreatedAt, &run.FinishedAt); err != nil {
+		if err = rows.Scan(&run.ID, &run.Keyword, &run.State, &run.CreatedAt, &run.FinishedAt, &run.Media, &run.Total); err != nil {
 			return nil, err
 		}
 		out = append(out, run)
@@ -120,7 +121,7 @@ func (e Engine) List(ctx context.Context) ([]Run, error) {
 }
 func (e Engine) Get(ctx context.Context, id string, page, limit int) (Run, error) {
 	var run Run
-	err := e.DB.QueryRow(ctx, `SELECT id::text,keyword,state,created_at,finished_at FROM search_runs WHERE id=$1`, id).Scan(&run.ID, &run.Keyword, &run.State, &run.CreatedAt, &run.FinishedAt)
+	err := e.DB.QueryRow(ctx, `SELECT id::text,keyword,state,created_at,finished_at,media_context FROM search_runs WHERE id=$1`, id).Scan(&run.ID, &run.Keyword, &run.State, &run.CreatedAt, &run.FinishedAt, &run.Media)
 	if err != nil {
 		return run, errors.New("search run unavailable")
 	}

@@ -19,14 +19,16 @@ type Store struct {
 	DB    *pgxpool.Pool
 }
 type Entry struct {
-	ID         string `json:"id"`
-	Key        string `json:"key"`
-	Bytes      int    `json:"bytes"`
-	TTLSeconds int64  `json:"ttlSeconds"`
-	Query      string `json:"query"`
-	State      string `json:"state"`
-	Count      int    `json:"count"`
-	Data       any    `json:"data,omitempty"`
+	PosterPath string    `json:"posterPath,omitempty"`
+	CreatedAt  time.Time `json:"createdAt"`
+	ID         string    `json:"id"`
+	Key        string    `json:"-"`
+	Bytes      int       `json:"bytes"`
+	TTLSeconds int64     `json:"ttlSeconds"`
+	Query      string    `json:"query"`
+	State      string    `json:"state"`
+	Count      int       `json:"count"`
+	Data       any       `json:"data,omitempty"`
 }
 
 var hexID = regexp.MustCompile(`^[a-f0-9]{64}$`)
@@ -73,6 +75,9 @@ func (s Store) List(ctx context.Context, kind string, page, limit int) ([]Entry,
 	if page < 1 || page > 10000 || limit < 1 || limit > 100 {
 		return nil, 0, false, ErrInvalid
 	}
+	if kind == "search" {
+		return s.searchList(ctx, page, limit)
+	}
 	keys, truncated, e := s.keys(ctx, kind)
 	if e != nil {
 		return nil, 0, false, e
@@ -94,6 +99,9 @@ func (s Store) List(ctx context.Context, kind string, page, limit int) ([]Entry,
 	return out, len(keys), truncated, nil
 }
 func (s Store) Get(ctx context.Context, kind, id string, detail bool) (Entry, error) {
+	if kind == "search" {
+		return s.searchEntry(ctx, id, detail)
+	}
 	p, e := prefix(kind)
 	if e != nil || !hexID.MatchString(id) {
 		return Entry{}, ErrInvalid
@@ -136,19 +144,27 @@ func (s Store) Get(ctx context.Context, kind, id string, detail bool) (Entry, er
 		}
 		if m, ok := data.(map[string]any); ok {
 			x.Query, _ = m["query"].(string)
+			if created, ok := m["createdAt"].(string); ok {
+				x.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
+			}
+			if item, ok := m["item"].(map[string]any); ok {
+				x.PosterPath, _ = item["posterPath"].(string)
+			}
+			if items, ok := m["items"].([]any); ok {
+				for _, v := range items {
+					if item, ok := v.(map[string]any); ok {
+						if poster, ok := item["posterPath"].(string); ok && poster != "" {
+							x.PosterPath = poster
+							break
+						}
+					}
+				}
+			}
 			if items, ok := m["items"].([]any); ok {
 				x.Count = len(items)
 			}
 			if m["item"] != nil {
 				x.Count = 1
-			}
-		} else if items, ok := data.([]any); ok {
-			x.Count = len(items)
-			x.State = "legacy_cached"
-			if len(items) > 0 {
-				if first, ok := items[0].(map[string]any); ok {
-					x.Query, _ = first["title"].(string)
-				}
 			}
 		}
 		if detail {
@@ -170,6 +186,19 @@ func (s Store) Get(ctx context.Context, kind, id string, detail bool) (Entry, er
 	return x, nil
 }
 func (s Store) Delete(ctx context.Context, kind, id string) error {
+	if kind == "search" {
+		if !uuidID.MatchString(id) {
+			return ErrInvalid
+		}
+		var key string
+		if err := s.DB.QueryRow(ctx, `UPDATE search_runs SET cache_hidden=true WHERE id=$1 RETURNING coalesce(cache_key,'')`, id).Scan(&key); err != nil {
+			return err
+		}
+		if key != "" {
+			return s.Redis.Del(ctx, key).Err()
+		}
+		return nil
+	}
 	p, e := prefix(kind)
 	if e != nil || !hexID.MatchString(id) {
 		return ErrInvalid
@@ -177,6 +206,23 @@ func (s Store) Delete(ctx context.Context, kind, id string) error {
 	return s.Redis.Del(ctx, p+id).Err()
 }
 func (s Store) Clear(ctx context.Context, kind string) (int, bool, error) {
+	if kind == "search" {
+		// Retain resources, proof snapshots and business links; hide only entries visible now.
+		tag, err := s.DB.Exec(ctx, `UPDATE search_runs SET cache_hidden=true WHERE NOT cache_hidden`)
+		if err != nil {
+			return 0, false, err
+		}
+		keys, truncated, err := s.keys(ctx, kind)
+		if err != nil {
+			return int(tag.RowsAffected()), true, err
+		}
+		for _, key := range keys {
+			if err = s.Redis.Del(ctx, key).Err(); err != nil {
+				return int(tag.RowsAffected()), true, err
+			}
+		}
+		return int(tag.RowsAffected()), truncated, nil
+	}
 	keys, truncated, e := s.keys(ctx, kind)
 	if e != nil {
 		return 0, false, e

@@ -23,11 +23,12 @@ test_db_exec(){
 go run ./cmd/migrate -test-only -cleanup-test-plugins >/dev/null
 test_db_exec 'TRUNCATE site_template_loads,subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,administrator_accounts,administrator_auth_limits CASCADE'
 
-test_db_exec "UPDATE site_metric_schedule SET enabled=false,interval_minutes=60,revision=1,next_run_at=now()+interval '1 hour',last_dispatched_at=NULL WHERE singleton"
+test_db_exec "INSERT INTO site_metric_schedule(singleton,enabled,cron_expression,revision,next_run_at) VALUES(true,false,'0 * * * *',1,now()+interval '1 hour') ON CONFLICT(singleton) DO UPDATE SET enabled=false,cron_expression='0 * * * *',revision=1,next_run_at=now()+interval '1 hour',last_dispatched_at=NULL"
 private=$(mktemp -d)
 pids=()
 cleanup(){ for pid in "${pids[@]}";do kill "$pid" 2>/dev/null||true;done;for pid in "${pids[@]}";do wait "$pid" 2>/dev/null||true;done;test_db_exec 'TRUNCATE administrator_accounts,administrator_auth_limits CASCADE' >/dev/null 2>&1 || true; rm -rf "$private"; }
 trap cleanup EXIT INT TERM
+export AUTH_ALLOWED_ORIGINS=https://proxy.fixture.invalid
 export APP_ENV=development APP_ADDR=127.0.0.1:18084 APP_PUBLIC_URL=http://localhost:18084 EMBY_GATEWAY_ADDR=127.0.0.1:18085
 export APP_SECRET_KEY="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
 export SESSION_SECRET_KEY="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { useRouter } from "vue-router";
-import { Search, Collection, InfoFilled } from "@element-plus/icons-vue";
+
+import { Search, InfoFilled } from "@element-plus/icons-vue";
 import { tmdbImage } from "../utils/tmdb-image";
 import { request } from "../api/client";
 export interface SearchMedia {
@@ -15,8 +15,8 @@ export interface SearchMedia {
   backdropPath?: string;
   genres?: string[];
 }
-const props = defineProps<{ keyword: string; initial?: SearchMedia | null }>(),
-  router = useRouter();
+const props = defineProps<{ keyword: string; initial?: SearchMedia | null }>();
+const emit=defineEmits<{selected:[media:SearchMedia]}>();
 const item = ref<SearchMedia | null>(null),
   candidates = ref<SearchMedia[]>([]),
   selecting = ref(false),
@@ -38,7 +38,7 @@ async function select(media: SearchMedia) {
     const out = await request<{ item: SearchMedia }>(
       `/metadata/details?mediaType=${media.mediaType}&tmdbId=${media.id}`,
     );
-    if (current === sequence) item.value = out.item;
+    if (current === sequence) {item.value = out.item;emit("selected",out.item);}
   } catch (e) {
     if (current === sequence) error.value = String(e);
   } finally {
@@ -87,29 +87,12 @@ watch(
   },
   { immediate: true },
 );
-function subscribe() {
-  if (item.value)
-    router.push({
-      path: "/subscriptions",
-      query: {
-        create: "1",
-        mediaType: item.value.mediaType,
-        tmdbId: String(item.value.id),
-      },
-    });
-}
 </script>
 <template>
   <section
     v-if="item"
     class="media-context"
-    :style="
-      image(item.backdropPath, 'w1280')
-        ? {
-            backgroundImage: `linear-gradient(90deg,rgba(18,38,42,.32),rgba(18,38,42,.12)),url(${image(item.backdropPath, 'w1280')})`,
-          }
-        : {}
-    "
+
   >
     <img
       v-if="image(item.posterPath) && !posterError"
@@ -137,9 +120,7 @@ function subscribe() {
       </p>
       <p class="field-hint">TMDB ID：{{ item.id }}</p>
       <div class="context-actions">
-        <el-button type="primary" :icon="Collection" @click="subscribe"
-          >订阅</el-button
-        ><el-button :icon="InfoFilled" @click="details = true"
+        <el-button :icon="InfoFilled" @click="details = true"
           >查看详情</el-button
         >
       </div>
@@ -154,7 +135,7 @@ function subscribe() {
       <span class="section-kicker">MEDIA CONTEXT</span>
       <h2>为“{{ keyword }}”选择媒体信息</h2>
       <p class="field-hint">
-        站点关键词不能证明媒体身份，先选择TMDB作品再展示海报、简介和订阅入口。
+        站点关键词不能证明媒体身份，先选择TMDB作品再展示海报、简介和详情。
       </p>
       <p v-if="error" role="alert">{{ error }}</p>
     </div>
@@ -296,3 +277,5 @@ function subscribe() {
   }
 }
 </style>
+
+<style scoped>.media-context{background:none!important;color:var(--text);padding:0;display:flex;gap:20px;margin:24px 0;align-items:flex-start}.context-poster{width:88px!important;height:132px!important;flex:0 0 88px;object-fit:cover;border-radius:6px}.context-copy{background:none!important;padding:0!important;min-width:0;color:var(--text)!important}.context-overview{color:var(--muted)!important}.context-copy h2,.context-copy p,.context-copy .section-kicker{color:var(--text)!important}.context-actions{margin:8px 0}.context-title{gap:12px}.context-copy h2{font-size:23px}@media(max-width:600px){.context-poster{width:64px!important;height:96px!important;flex-basis:64px}.media-context{gap:12px}.context-copy h2{font-size:18px}}</style>

@@ -183,8 +183,7 @@ onUnmounted(() => {
 <template>
   <section class="page-heading">
     <div>
-      <span class="page-kicker">ACQUIRE / 下载与传输</span
-      ><span class="page-kicker">ACQUIRE / 任务流</span>
+      <span class="page-kicker">ACQUIRE / 下载与传输</span>
       <h1>下载与传输</h1>
       <p>下载、做种、上传和入库分开记录，原文件不会因入库而被移动。</p>
     </div>
@@ -208,9 +207,9 @@ onUnmounted(() => {
     :closable="false"
     show-icon
   />
-  <section class="panel">
+  <section class="panel download-section">
     <div class="panel-title">
-      <h2>下载任务</h2>
+      <div><span class="section-kicker">01 / 下载与做种</span><h2>下载任务</h2><p class="field-hint">下载进度与做种状态独立展示，原文件保留在下载器中。</p></div>
       <RouterLink to="/search" class="inline-link">搜索并创建下载</RouterLink>
     </div>
     <el-table
@@ -252,9 +251,9 @@ onUnmounted(() => {
       ></el-table
     >
   </section>
-  <section class="panel section-gap">
+  <section class="panel transfer-section">
     <div class="panel-title">
-      <h2>115上传与入库</h2>
+      <div><span class="section-kicker">02 / 上传与入库</span><h2>115上传与入库</h2><p class="field-hint">上传、文件校验和媒体入库按阶段记录。</p></div>
       <span class="muted">使用可恢复的CloudDrive2上传会话</span>
     </div>
     <el-table
@@ -332,10 +331,11 @@ onUnmounted(() => {
   /><DownloadSourceDialog
     ref="sourceRecovery"
     @completed="refresh"
-  /><ConnectionPanel :allowed-kinds="['qbittorrent']" title="下载器配置" />
+  /><section class="downloader-section"><ConnectionPanel :allowed-kinds="['qbittorrent']" title="下载器配置" /></section>
 </template>
 
 <style scoped>
+.download-section,.transfer-section,.note-panel,.downloader-section{margin-bottom:28px}.downloader-section{padding-top:24px;border-top:1px solid var(--border)}
 .download-overview {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

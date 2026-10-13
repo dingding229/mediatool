@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"github.com/robfig/cron/v3"
 	"golang.org/x/sync/errgroup"
 	"io"
 	"log/slog"
@@ -31,6 +32,7 @@ import (
 	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/ownerrecovery"
 	"media-tool/internal/platform/pluginhost"
+	"media-tool/internal/platform/scheduling"
 	"media-tool/internal/platform/schema"
 	"media-tool/internal/platform/secrets"
 	"media-tool/internal/platform/trace"
@@ -227,41 +229,54 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 			watchDone := make(chan struct{})
 			go func() { defer close(watchDone); libraryEngine.RunChangeWatcher(watchCtx, logger) }()
 			defer func() { watchCancel(); <-watchDone }()
-			schedulerDone := make(chan struct{})
-			defer func() { watchCancel(); <-schedulerDone }()
-			go func() {
-				defer close(schedulerDone)
-				ticker := time.NewTicker(15 * time.Second)
-				defer ticker.Stop()
-				for {
-					logger.Debug("scheduler reconciliation cycle")
-					check, cancel := context.WithTimeout(watchCtx, 2*time.Minute)
-					check = trace.With(check, logger)
-					if err := downloader.Reconcile(check); err != nil && ctx.Err() == nil {
-						logger.Warn("download reconciliation unavailable")
+			cronLogger := scheduling.Logger{Log: logger.With("module", "scheduler")}
+			scheduler := cron.New(cron.WithSeconds(), cron.WithLogger(cronLogger), cron.WithChain(cron.Recover(cronLogger), cron.SkipIfStillRunning(cronLogger)))
+			_, scheduleErr := scheduler.AddFunc("*/15 * * * * *", func() {
+				logger.Debug("scheduler reconciliation cycle")
+				check, cancel := context.WithTimeout(watchCtx, 2*time.Minute)
+				defer cancel()
+				check = trace.With(check, logger)
+				if err := downloader.Reconcile(check); err != nil && ctx.Err() == nil {
+					logger.Warn("download reconciliation unavailable")
+				}
+				if queue == "default" {
+					if err := metricEngine.Schedule(check); err != nil {
+						logger.Warn("site metrics schedule unavailable", "error", err)
 					}
-					if queue == "default" {
-						if err := metricEngine.Schedule(check); err != nil {
-							logger.Warn("site metrics schedule unavailable", "error", err)
-						}
-						pluginRegistry.Schedule(check)
-						pluginRegistry.DispatchEvents(check)
-						subscriptionEngine.Schedule(check)
-						libraryEngine.Schedule(check)
-						libraryEngine.RecoverArtifacts(check)
-						downloader.PrepareTransfers(check)
-						dispatcher := messaging.Dispatcher{DB: db, Connections: manager}
-						dispatcher.Prepare(check)
-						dispatcher.Deliver(check)
+					if err := pluginRegistry.Schedule(check); err != nil {
+						logger.Warn("plugin schedule unavailable", "error", err)
 					}
-					cancel()
-					select {
-					case <-watchCtx.Done():
-						return
-					case <-ticker.C:
+					if err := pluginRegistry.DispatchEvents(check); err != nil {
+						logger.Warn("plugin events unavailable", "error", err)
+					}
+					if err := subscriptionEngine.Schedule(check); err != nil {
+						logger.Warn("subscription schedule unavailable", "error", err)
+					}
+					if err := libraryEngine.Schedule(check); err != nil {
+						logger.Warn("library schedule unavailable", "error", err)
+					}
+					if err := libraryEngine.RecoverArtifacts(check); err != nil {
+						logger.Warn("artifact recovery unavailable", "error", err)
+					}
+					if err := downloader.PrepareTransfers(check); err != nil {
+						logger.Warn("transfer preparation unavailable", "error", err)
+					}
+					dispatcher := messaging.Dispatcher{DB: db, Connections: manager}
+					if err := dispatcher.Prepare(check); err != nil {
+						logger.Warn("notification preparation unavailable", "error", err)
+					}
+					if err := dispatcher.Deliver(check); err != nil {
+						logger.Warn("notification delivery unavailable", "error", err)
 					}
 				}
-			}()
+				cancel()
+			})
+			if scheduleErr != nil {
+				return scheduleErr
+			}
+			scheduler.Start()
+			defer func() { <-scheduler.Stop().Done() }()
+
 		}
 	}
 	logger.Info("worker starting", "queue", queue)

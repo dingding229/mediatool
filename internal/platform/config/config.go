@@ -22,6 +22,8 @@ type Config struct {
 	LogDir                                                   string
 	PasswordResetFile                                        string
 	LocalBrowseRoots                                         []string
+	AuthAllowedOrigins                                       []string
+	HostProcDir                                              string
 	LogLevel                                                 string
 	EmbyGatewayAddress                                       string
 	EmbyPublicURL                                            string
@@ -58,6 +60,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	c := Config{
 		LogDir: get("APP_LOG_DIR", "./data/logs"), PasswordResetFile: get("PASSWORD_RESET_FILE", "./data/password"), LocalBrowseRoots: strings.Split(get("LOCAL_BROWSE_ROOTS", "./data"), ","),
 		LogLevel:      get("LOG_LEVEL", "info"),
+		HostProcDir:   get("HOST_PROC_DIR", "/proc"),
 		EmbyPublicURL: get("EMBY_PUBLIC_URL", ""), EmbyGatewayAddress: get("EMBY_GATEWAY_ADDR", "127.0.0.1:8091"), Environment: get("APP_ENV", "development"), Address: get("APP_ADDR", "127.0.0.1:8080"),
 		PublicURL: get("APP_PUBLIC_URL", "http://localhost:8080"), SessionKey: secret("SESSION_SECRET_KEY"), STRMKey: get("STRM_API_KEY", ""),
 		SecretKey: secret("APP_SECRET_KEY"), DatabaseURL: get("DATABASE_URL", ""), RedisURL: get("REDIS_URL", ""), STRMOutputDir: get("STRM_OUTPUT_DIR", "./data/strm"),
@@ -104,6 +107,20 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		return c, errors.New("production APP_PUBLIC_URL requires https")
 	}
 	c.PublicURL = strings.TrimRight(c.PublicURL, "/")
+	for _, raw := range strings.Split(get("AUTH_ALLOWED_ORIGINS", ""), ",") {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		if err := validURL(raw); err != nil {
+			return c, fmt.Errorf("AUTH_ALLOWED_ORIGINS: %w", err)
+		}
+		u, _ := url.Parse(raw)
+		if u.Path != "" && u.Path != "/" {
+			return c, errors.New("AUTH_ALLOWED_ORIGINS must contain origins without paths")
+		}
+		c.AuthAllowedOrigins = append(c.AuthAllowedOrigins, strings.TrimRight(raw, "/"))
+	}
 	for _, r := range strings.Split(get("STRM_ALLOWED_ROOTS", "/115/Media"), ",") {
 		r = strings.TrimSpace(r)
 		if !strings.HasPrefix(r, "/") || strings.Contains(r, "\\") || strings.ContainsAny(r, "\x00\r\n") {

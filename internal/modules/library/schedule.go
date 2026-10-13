@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
+	"media-tool/internal/platform/scheduling"
 	"path"
 	"strings"
 	"time"
@@ -15,7 +16,8 @@ type ScheduleConfig struct {
 	ID              string     `json:"id"`
 	Root            string     `json:"root"`
 	Enabled         bool       `json:"enabled"`
-	Interval        int        `json:"intervalSeconds"`
+	Interval        int        `json:"-"`
+	Cron            string     `json:"cron"`
 	Revision        int64      `json:"revision"`
 	NextRun         time.Time  `json:"nextRunAt"`
 	LastError       string     `json:"lastError"`
@@ -27,8 +29,9 @@ type ScheduleConfig struct {
 }
 
 func (e Engine) SaveSchedule(ctx context.Context, in ScheduleConfig) (ScheduleConfig, error) {
-	if in.Interval < 300 || in.Interval > 604800 {
-		return in, errors.New("scan interval must be between 5 minutes and 7 days")
+	next, cronErr := scheduling.Next(in.Cron, time.Now(), 5*time.Minute)
+	if cronErr != nil {
+		return in, cronErr
 	}
 	c, err := e.Connections.Repository.Default(ctx, "clouddrive2")
 	if err != nil {
@@ -55,9 +58,9 @@ func (e Engine) SaveSchedule(ctx context.Context, in ScheduleConfig) (ScheduleCo
 	defer tx.Rollback(ctx)
 	if in.ID == "" {
 		in.ID = jobs.UUID()
-		err = tx.QueryRow(ctx, `INSERT INTO library_scan_schedules(id,integration_id,root,enabled,interval_seconds,watch_changes,watch_state)VALUES($1,$2,$3,$4,$5,$6,CASE WHEN $4 AND $6 THEN 'waiting' ELSE 'disabled' END)RETURNING revision,next_run_at,change_scan_after,last_change_at,watch_state,watch_message`, in.ID, c.Record.ID, in.Root, in.Enabled, in.Interval, in.WatchChanges).Scan(&in.Revision, &in.NextRun, &in.ChangeScanAfter, &in.LastChangeAt, &in.WatchState, &in.WatchMessage)
+		err = tx.QueryRow(ctx, `INSERT INTO library_scan_schedules(id,integration_id,root,enabled,cron_expression,watch_changes,watch_state)VALUES($1,$2,$3,$4,$5,$6,CASE WHEN $4 AND $6 THEN 'waiting' ELSE 'disabled' END)RETURNING revision,next_run_at,change_scan_after,last_change_at,watch_state,watch_message`, in.ID, c.Record.ID, in.Root, in.Enabled, in.Cron, in.WatchChanges).Scan(&in.Revision, &in.NextRun, &in.ChangeScanAfter, &in.LastChangeAt, &in.WatchState, &in.WatchMessage)
 	} else {
-		err = tx.QueryRow(ctx, `UPDATE library_scan_schedules SET enabled=$3,interval_seconds=$4,revision=revision+1,next_run_at=now(),watch_changes=$7,change_scan_after=CASE WHEN $3 AND $7 THEN change_scan_after ELSE NULL END,watch_state=CASE WHEN $3 AND $7 THEN 'waiting' ELSE 'disabled' END,watch_message='',updated_at=now()WHERE id=$1 AND revision=$2 AND integration_id=$5 AND root=$6 RETURNING revision,next_run_at,change_scan_after,last_change_at,watch_state,watch_message`, in.ID, in.Revision, in.Enabled, in.Interval, c.Record.ID, in.Root, in.WatchChanges).Scan(&in.Revision, &in.NextRun, &in.ChangeScanAfter, &in.LastChangeAt, &in.WatchState, &in.WatchMessage)
+		err = tx.QueryRow(ctx, `UPDATE library_scan_schedules SET enabled=$3,cron_expression=$4,revision=revision+1,next_run_at=now(),watch_changes=$7,change_scan_after=CASE WHEN $3 AND $7 THEN change_scan_after ELSE NULL END,watch_state=CASE WHEN $3 AND $7 THEN 'waiting' ELSE 'disabled' END,watch_message='',updated_at=now()WHERE id=$1 AND revision=$2 AND integration_id=$5 AND root=$6 RETURNING revision,next_run_at,change_scan_after,last_change_at,watch_state,watch_message`, in.ID, in.Revision, in.Enabled, in.Cron, c.Record.ID, in.Root, in.WatchChanges).Scan(&in.Revision, &in.NextRun, &in.ChangeScanAfter, &in.LastChangeAt, &in.WatchState, &in.WatchMessage)
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		return in, errors.New("schedule changed; reload before editing")
@@ -69,10 +72,14 @@ func (e Engine) SaveSchedule(ctx context.Context, in ScheduleConfig) (ScheduleCo
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','library.schedule',$1)`, raw); err != nil {
 		return in, err
 	}
+	if _, err = tx.Exec(ctx, `UPDATE library_scan_schedules SET next_run_at=$2 WHERE id=$1`, in.ID, next); err != nil {
+		return in, err
+	}
+	in.NextRun = next
 	return in, tx.Commit(ctx)
 }
 func (e Engine) Schedules(ctx context.Context) ([]ScheduleConfig, error) {
-	rows, err := e.DB.Query(ctx, `SELECT id::text,root,enabled,interval_seconds,revision,next_run_at,last_error,watch_changes,change_scan_after,last_change_at,watch_state,watch_message FROM library_scan_schedules ORDER BY root`)
+	rows, err := e.DB.Query(ctx, `SELECT id::text,root,enabled,cron_expression,revision,next_run_at,last_error,watch_changes,change_scan_after,last_change_at,watch_state,watch_message FROM library_scan_schedules ORDER BY root`)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +87,7 @@ func (e Engine) Schedules(ctx context.Context) ([]ScheduleConfig, error) {
 	out := []ScheduleConfig{}
 	for rows.Next() {
 		var in ScheduleConfig
-		if err = rows.Scan(&in.ID, &in.Root, &in.Enabled, &in.Interval, &in.Revision, &in.NextRun, &in.LastError, &in.WatchChanges, &in.ChangeScanAfter, &in.LastChangeAt, &in.WatchState, &in.WatchMessage); err != nil {
+		if err = rows.Scan(&in.ID, &in.Root, &in.Enabled, &in.Cron, &in.Revision, &in.NextRun, &in.LastError, &in.WatchChanges, &in.ChangeScanAfter, &in.LastChangeAt, &in.WatchState, &in.WatchMessage); err != nil {
 			return nil, err
 		}
 		out = append(out, in)
@@ -96,19 +103,19 @@ func (e Engine) Schedule(ctx context.Context) error {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	rows, err := tx.Query(ctx, `SELECT s.id::text,s.integration_id::text,s.root,s.interval_seconds,coalesce(s.watch_changes AND s.change_scan_after<=now(),false) FROM library_scan_schedules s JOIN integrations i ON i.id=s.integration_id WHERE s.enabled AND i.enabled AND (s.next_run_at<=now() OR (s.watch_changes AND s.change_scan_after<=now())) ORDER BY s.next_run_at LIMIT 10 FOR UPDATE OF s SKIP LOCKED`)
+	rows, err := tx.Query(ctx, `SELECT s.id::text,s.integration_id::text,s.root,s.cron_expression,coalesce(s.watch_changes AND s.change_scan_after<=now(),false) FROM library_scan_schedules s JOIN integrations i ON i.id=s.integration_id WHERE s.enabled AND i.enabled AND (s.next_run_at<=now() OR (s.watch_changes AND s.change_scan_after<=now())) ORDER BY s.next_run_at LIMIT 10 FOR UPDATE OF s SKIP LOCKED`)
 	if err != nil {
 		return err
 	}
 	type due struct {
 		id, connection, root string
-		interval             int
+		cron                 string
 		dirty                bool
 	}
 	list := []due{}
 	for rows.Next() {
 		var s due
-		if err = rows.Scan(&s.id, &s.connection, &s.root, &s.interval, &s.dirty); err != nil {
+		if err = rows.Scan(&s.id, &s.connection, &s.root, &s.cron, &s.dirty); err != nil {
 			rows.Close()
 			return err
 		}
@@ -120,6 +127,10 @@ func (e Engine) Schedule(ctx context.Context) error {
 		return err
 	}
 	for _, s := range list {
+		nextRun, cronErr := scheduling.Next(s.cron, time.Now(), 5*time.Minute)
+		if cronErr != nil {
+			return cronErr
+		}
 		c, loadErr := e.Connections.Repository.Default(ctx, "clouddrive2")
 		message := ""
 		var scan *string
@@ -152,7 +163,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 				}
 			}
 		}
-		if _, err = tx.Exec(ctx, `UPDATE library_scan_schedules SET next_run_at=now()+$2*interval '1 second',last_scan_id=coalesce($3,last_scan_id),last_error=$4,change_scan_after=CASE WHEN $4='' THEN NULL ELSE change_scan_after END,updated_at=now()WHERE id=$1`, s.id, s.interval, scan, message); err != nil {
+		if _, err = tx.Exec(ctx, `UPDATE library_scan_schedules SET next_run_at=$2,last_scan_id=coalesce($3,last_scan_id),last_error=$4,change_scan_after=CASE WHEN $4='' THEN NULL ELSE change_scan_after END,updated_at=now()WHERE id=$1`, s.id, nextRun, scan, message); err != nil {
 			return err
 		}
 	}

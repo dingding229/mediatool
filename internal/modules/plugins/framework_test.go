@@ -159,14 +159,14 @@ func TestPostgresCloneStateAndPermissionsIsolation(t *testing.T) {
 
 func TestCronAndConfiguredIntervalsHaveBoundedSchedules(t *testing.T) {
 	now := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
-	next, e := nextService(Service{Cron: "CRON_TZ=Asia/Shanghai 0 9 * * *"}, nil, now)
+	next, e := nextService(Service{Cron: "0 9 * * *"}, nil, now)
 	if e != nil || !next.Equal(time.Date(2026, 10, 12, 1, 0, 0, 0, time.UTC)) {
 		t.Fatal(next, e)
 	}
 	if _, e = nextService(Service{Cron: "@every 1s"}, nil, now); e == nil {
 		t.Fatal("fast cron")
 	}
-	next, e = nextService(Service{IntervalSeconds: 60, ScheduleSetting: "interval"}, map[string]string{"interval": "120"}, now)
+	next, e = nextService(Service{Cron: "* * * * *", ScheduleSetting: "cron"}, map[string]string{"cron": "*/2 * * * *"}, now)
 	if e != nil || next.Sub(now) != 2*time.Minute {
 		t.Fatal(next, e)
 	}

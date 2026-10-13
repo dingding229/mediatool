@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { useRoute } from "vue-router";
+import PromotionBadge from "../components/PromotionBadge.vue";
+import RecentSearches from "../components/RecentSearches.vue";
 import { computed, ref, onMounted, onUnmounted } from "vue";
 import { Search, Film } from "@element-plus/icons-vue";
 import { ElMessage, type TableInstance } from "element-plus";
 import { request, post } from "../api/client";
-import { resourceSources } from "../utils/resource-source";
+import { resourceSources, sourceLabel } from "../utils/resource-source";
 import SearchMediaContext from "../components/SearchMediaContext.vue";
 import { tmdbImage } from "../utils/tmdb-image";
 import StatusBadge from "../components/StatusBadge.vue";
@@ -39,6 +42,7 @@ interface Run {
   }[];
   resources: Resource[];
   total: number;
+  media?: Media;
 }
 interface Media {
   posterPath?: string;
@@ -47,14 +51,17 @@ interface Media {
   mediaType: string;
   title: string;
   year: string;
-  originalTitle: string;
+  originalTitle?: string;
 }
+const codecLabel=(value?:string)=>value && value!=='unknown' ? value.toUpperCase() : '编码未知';
+const persistedMedia=new Set<string>();
+async function persistMedia(item:Media){if(run.value){const key=`${run.value.id}:${item.mediaType}:${item.id}`;if(persistedMedia.has(key))return;persistedMedia.add(key);try{await post(`/search/${run.value.id}/media`,{id:item.id,mediaType:item.mediaType});await load()}catch{persistedMedia.delete(key)}}}
 const activeMedia = ref<Media | null>(null),
   contextRunID = ref("");
-function useMedia(item: Media) {
+async function useMedia(item: Media) {
   activeMedia.value = item;
-  keyword.value = item.originalTitle || item.title;
-  mode.value = "site";
+  keyword.value = item.title;
+  await search(false);
 }
 const tmdbSearched = ref(false),
   posterErrors = ref(new Set<string>());
@@ -102,7 +109,6 @@ const mode = ref("media"),
   tmdbYear = ref(""),
   searchCached = ref(false);
 const accounts = ref<Account[]>([]),
-  selected = ref<string[]>([]),
   keyword = ref(""),
   run = ref<Run | null>(null),
   history = ref<Run[]>([]),
@@ -138,7 +144,6 @@ async function load() {
     accounts.value = (await request<Account[]>("/integrations")).filter(
       (a) => a.kind === "ptsite" && a.enabled,
     );
-    selected.value = accounts.value.map((a) => a.id);
     history.value = await request<Run[]>("/search");
   } catch (e) {
     error.value = e instanceof Error ? e.message : "初始化失败";
@@ -159,11 +164,11 @@ async function search(force = false) {
   try {
     const created = await post<{ id: string; cached: boolean }>("/search", {
       keyword: keyword.value,
-      accountIds: selected.value,
       refresh: force,
     });
     searchCached.value = created.cached;
     contextRunID.value = created.id;
+    if(activeMedia.value) {try{await post(`/search/${created.id}/media`,{id:activeMedia.value.id,mediaType:activeMedia.value.mediaType})}catch{ElMessage.warning("搜索已启动，媒体海报暂未保存，可稍后重新匹配")}}
     await refresh(created.id);
     history.value = await request<Run[]>("/search");
   } catch (e) {
@@ -183,7 +188,7 @@ function filterParams() {
 }
 async function refresh(id = run.value?.id) {
   if (!id) return;
-  if (id !== contextRunID.value) activeMedia.value = null;
+  if (id !== contextRunID.value) {const media=history.value.find(x=>x.id===id)?.media;activeMedia.value=media?.id && ['movie','series'].includes(media.mediaType) ? media : null;}
   const epoch = ++resultEpoch;
   resultController?.abort();
   resultController = new AbortController();
@@ -273,8 +278,9 @@ function size(n: number) {
     ? (n / 1024 ** 3).toFixed(2) + " GiB"
     : (n / 1024 ** 2).toFixed(1) + " MiB";
 }
+const route=useRoute();
 onMounted(() => {
-  load();
+  load().then(()=>{if(typeof route.query.run==='string')refresh(route.query.run)});
   timer = setInterval(() => {
     if (
       !resultLoading &&
@@ -404,15 +410,13 @@ onUnmounted(() => {
           </div>
           <div>
             <h2>
-              {{ item.title
-              }}<small
+<button type="button" class="media-title" :disabled="busy || !accounts.length" @click="useMedia(item)">{{ item.title }}</button><small
                 >{{ item.year || "年份未知" }} ·
-                {{ item.mediaType === "movie" ? "电影" : "剧集" }}</small
-              >
+                {{ item.mediaType === "movie" ? "电影" : "剧集" }}</small              >
             </h2>
             <p>{{ item.originalTitle }}</p>
             <p class="field-hint">{{ item.overview || "暂无简介" }}</p>
-            <el-button @click="useMedia(item)">使用标题到站点搜索</el-button>
+
           </div>
         </article>
       </div>
@@ -421,20 +425,17 @@ onUnmounted(() => {
         description="没有找到匹配作品，请换个名称或调整年份。"
       />
     </template>
-    <div v-else-if="!error" class="search-welcome">
-      <Film aria-hidden="true" />
-      <h3>发现作品，再选择资源</h3>
-      <p>输入片名查看媒体信息；选定作品后，可使用标题到 PT 站点搜索。</p>
-    </div>
+    <RecentSearches v-else-if="!error" :items="history" @select="page=1;refresh($event)" />
   </section>
-  <template v-if="mode === 'site'">
+  <template v-if="mode === 'site' || run">
     <SearchMediaContext
       v-if="run"
       :key="run.id"
       :keyword="run.keyword"
       :initial="activeMedia"
+      @selected="persistMedia"
     />
-    <section class="panel section-gap">
+    <section v-if="mode==='site'" class="panel section-gap">
       <form @submit.prevent="search(false)" class="search-form">
         <el-input
           v-model="keyword"
@@ -445,7 +446,7 @@ onUnmounted(() => {
           type="primary"
           native-type="submit"
           :loading="busy"
-          :disabled="!keyword.trim() || selected.length === 0"
+          :disabled="!keyword.trim() || accounts.length === 0"
           >开始搜索</el-button
         >
       </form>
@@ -453,27 +454,15 @@ onUnmounted(() => {
         {{
           searchCached
             ? "本次复用有效的搜索快照"
-            : "按所选站点直搜，错误与挑战会如实显示"
+            : "按全部启用站点直搜，错误与挑战会如实显示"
         }}
       </p>
       <el-button
-        :disabled="busy || !keyword.trim() || !selected.length"
+        :disabled="busy || !keyword.trim() || !accounts.length"
         @click="search(true)"
         >忽略站点缓存重新搜索</el-button
       >
-      <div class="account-selection">
-        <el-checkbox-group v-model="selected"
-          ><el-checkbox
-            v-for="account in accounts"
-            :key="account.id"
-            :value="account.id"
-            >{{ account.name }}</el-checkbox
-          ></el-checkbox-group
-        >
-        <p v-if="accounts.length === 0" class="field-hint">
-          请先导入站点配置，再添加并启用 PT 账号。
-        </p>
-      </div>
+      <p class="field-hint">默认搜索全部 {{accounts.length}} 个已启用 PT 站点。</p>
       <div v-if="run" class="site-progress">
         <div v-for="site in run.sites" :key="site.accountId">
           <strong>{{ site.name }}</strong
@@ -555,7 +544,7 @@ onUnmounted(() => {
             ><el-option
               v-for="x in ['h264', 'h265', 'av1', 'unknown']"
               :key="x"
-              :label="x"
+              :label="x==='unknown' ? '未知' : x.toUpperCase()"
               :value="x"
           /></el-select>
         </div>
@@ -625,11 +614,7 @@ onUnmounted(() => {
           ><template #default="scope"
             ><strong>{{ scope.row.title }}</strong>
             <p class="field-hint">{{ scope.row.metadata?.subtitle }}</p>
-            <small
-              >{{ scope.row.siteName }} ·
-              {{ scope.row.metadata?.attributes?.resolution || "分辨率未知" }} ·
-              {{ scope.row.metadata?.attributes?.codec || "编码未知" }}</small
-            ></template
+            <small>{{scope.row.siteName}} · {{codecLabel(scope.row.metadata?.attributes?.codec)}} · {{sourceLabel(scope.row.metadata?.attributes?.source)}} · {{scope.row.metadata?.attributes?.resolution || '分辨率未知'}}</small></template
           ></el-table-column
         ><el-table-column
           prop="size"
@@ -666,14 +651,7 @@ onUnmounted(() => {
               做种人数
             </button></template
           ></el-table-column
-        ><el-table-column label="下载系数" width="110"
-          ><template #default="scope">{{
-            scope.row.downloadFactor === null
-              ? "未知"
-              : scope.row.downloadFactor === 0
-                ? "免费"
-                : scope.row.downloadFactor
-          }}</template></el-table-column
+        ><el-table-column label="促销" width="110"><template #default="scope"><PromotionBadge :factor="scope.row.downloadFactor"/></template></el-table-column
         ><el-table-column label="操作" width="140"
           ><template #default="scope"
             ><el-button type="primary" plain @click="openDownload(scope.row)"
@@ -690,26 +668,7 @@ onUnmounted(() => {
         @current-change="refresh()"
       />
     </section>
-    <section v-else class="panel search-history">
-      <h2>最近搜索</h2>
-      <div v-for="item in history" :key="item.id" class="search-history-row">
-        <span class="history-keyword">{{ item.keyword }}</span
-        ><span class="history-status"
-          ><StatusBadge
-            :state="item.state"
-            :label="item.state === 'partial' ? '部分结果' : undefined" /></span
-        ><el-button
-          @click="
-            page = 1;
-            refresh(item.id);
-          "
-          >查看结果</el-button
-        >
-      </div>
-      <p v-if="history.length === 0" class="field-hint">
-        尚无搜索记录。真实请求会交给持久化 Worker 执行。
-      </p>
-    </section>
+    <section v-else class="panel search-history"><RecentSearches :items="history" @select="page=1;refresh($event)"/></section>
   </template>
   <el-dialog
     v-model="dialog"
@@ -845,3 +804,7 @@ onUnmounted(() => {
   }
 }
 </style>
+
+<style scoped>.media-title{background:none;border:0;padding:0;text-align:left;font:inherit;font-weight:700;color:var(--primary);cursor:pointer;min-height:44px}.media-title:hover{text-decoration:underline}.media-title:disabled{color:var(--muted);cursor:wait}</style>
+
+<style scoped>.tmdb-media{background:none;border:0;padding:16px 0;border-bottom:1px solid var(--border);border-radius:0}.tmdb-poster{width:88px;height:132px}.tmdb-media h2{margin-top:0}@media(max-width:600px){.tmdb-poster{width:64px;height:96px}}</style>

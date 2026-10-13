@@ -5,7 +5,7 @@ import { Timer } from "@element-plus/icons-vue";
 import { request } from "../api/client";
 interface Schedule {
   enabled: boolean;
-  intervalMinutes: number;
+  cron: string;
   revision: number;
   nextRunAt: string;
   lastDispatchedAt: string | null;
@@ -15,7 +15,7 @@ const schedule = ref<Schedule | null>(null),
   busy = ref(false),
   error = ref(""),
   enabled = ref(true),
-  minutes = ref(60),
+  cron = ref("0 * * * *"),
   revision = ref(0);
 let timer: ReturnType<typeof setInterval> | undefined;
 async function load() {
@@ -33,7 +33,7 @@ async function edit() {
   busy.value = false;
   if (!schedule.value || error.value) return;
   enabled.value = schedule.value.enabled;
-  minutes.value = schedule.value.intervalMinutes;
+  cron.value = schedule.value.cron;
   revision.value = schedule.value.revision;
   dialog.value = true;
 }
@@ -45,7 +45,7 @@ async function save() {
       method: "PUT",
       body: JSON.stringify({
         enabled: enabled.value,
-        intervalMinutes: minutes.value,
+        cron: cron.value,
         revision: revision.value,
       }),
     });
@@ -71,7 +71,7 @@ onUnmounted(() => clearInterval(timer));
       <p v-if="schedule" class="field-hint">
         <strong>{{
           schedule.enabled
-            ? `自动刷新 · 每 ${schedule.intervalMinutes} 分钟`
+            ? `自动刷新 · ${schedule.cron} · Asia/Shanghai`
             : "自动刷新已关闭"
         }}</strong
         ><span v-if="schedule.enabled">
@@ -102,19 +102,8 @@ onUnmounted(() => clearInterval(timer));
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <form class="schedule-form" @submit.prevent="save">
       <el-checkbox v-model="enabled" :disabled="busy">启用定时刷新</el-checkbox
-      ><label for="metrics-interval">刷新间隔（分钟）</label
-      ><el-input-number
-        id="metrics-interval"
-        v-model="minutes"
-        aria-label="刷新间隔（分钟）"
-        :min="15"
-        :max="10080"
-        :precision="0"
-        :disabled="busy"
-      />
-      <p class="field-hint">
-        15分钟～7天。保存后按新间隔调度，仅采集启用的PT站点；采集失败保留最近成功数据。同一站点不会重复并发采集。
-      </p>
+      ><label for="metrics-cron">Cron 表达式</label><el-input id="metrics-cron" v-model="cron" aria-label="站点刷新Cron" :disabled="busy" placeholder="0 * * * *"/>
+      <p class="field-hint">五字段：分 时 日 月 周。时区 Asia/Shanghai，最少15分钟。例如 0 * * * * 每小时，0 9,21 * * * 每天9点和21点。仅刷新启用的站点，不重复并发采集。</p>
       <el-button type="primary" native-type="submit" :loading="busy"
         >保存定时刷新</el-button
       >

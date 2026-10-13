@@ -22,3 +22,5 @@
   docker prune, no business-volume deletion, and retain recent rollback backups.
 
 - Site templates are compiled Go definitions from the pinned github.com/dingding229/mediatool-site module and load only after administrator selection. On upgrade/startup refresh selected definitions and retain templates used by existing PT accounts; never auto-load the entire catalog. Never download pre-dessert-sites/common inheritance, dynamically compile remote Go, or expose source/commit choices in the template UI. Preserve accounts/credentials when changing definition sources, and invalidate prior definition fingerprints.
+
+- Development updates do not maintain compatibility with obsolete data/plugin formats. This is not authorization to erase live credentials, 115 authorization, media, or unrelated services.

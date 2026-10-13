@@ -54,6 +54,10 @@ func (e Engine) StartCached(ctx context.Context, keyword string, ids []string, r
 		if err == nil {
 			run, err := e.Get(ctx, id, 1, 50)
 			if err == nil && (run.State == "succeeded" || run.State == "partial") && run.FinishedAt != nil && time.Since(*run.FinishedAt) < ttl {
+				var visible bool
+				if err := e.DB.QueryRow(ctx, `SELECT NOT cache_hidden FROM search_runs WHERE id=$1`, id).Scan(&visible); err != nil || !visible {
+					return e.startUncached(ctx, keyword, ids, key)
+				}
 				trace.Info(ctx, "search", "搜索命中缓存", "searchRunId", id, "keyword", keyword, "accounts", ids)
 				return id, true, nil
 			}
@@ -68,7 +72,7 @@ func (e Engine) rememberCache(ctx context.Context, id string) {
 		return
 	}
 	var key string
-	err := e.DB.QueryRow(ctx, `SELECT coalesce(cache_key,'') FROM search_runs WHERE id=$1 AND state IN('succeeded','partial') AND NOT EXISTS(SELECT 1 FROM search_site_results WHERE run_id=$1 AND state NOT IN('succeeded','partial'))`, id).Scan(&key)
+	err := e.DB.QueryRow(ctx, `SELECT coalesce(cache_key,'') FROM search_runs WHERE id=$1 AND state IN('succeeded','partial') AND NOT cache_hidden AND NOT EXISTS(SELECT 1 FROM search_site_results WHERE run_id=$1 AND state NOT IN('succeeded','partial'))`, id).Scan(&key)
 	if err != nil || key == "" {
 		return
 	}
@@ -79,4 +83,9 @@ func (e Engine) rememberCache(ctx context.Context, id string) {
 	bounded, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer cancel()
 	e.Redis.Set(bounded, key, id, time.Duration(prefs.Value.SearchCacheSeconds)*time.Second)
+}
+
+func (e Engine) startUncached(ctx context.Context, keyword string, ids []string, key string) (string, bool, error) {
+	id, err := e.start(ctx, keyword, ids, true, key)
+	return id, false, err
 }

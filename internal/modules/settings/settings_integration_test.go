@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestPostgresGlobalSubscriptionIntervalAtomicAndPreservesIdentity(t *testing.T) {
+func TestPostgresGlobalSubscriptionCronAtomicAndPreservesIdentity(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
 		t.Skip("isolated database")
@@ -36,7 +36,7 @@ func TestPostgresGlobalSubscriptionIntervalAtomicAndPreservesIdentity(t *testing
 		t.Fatal(err)
 	}
 	value := before.Value
-	value.SubscriptionIntervalMinutes = 45
+	value.SubscriptionCron = "0 9,21 * * *"
 	record, err := repo.Save(ctx, value, before.Revision)
 	if err != nil {
 		t.Fatal(err)
@@ -45,13 +45,13 @@ func TestPostgresGlobalSubscriptionIntervalAtomicAndPreservesIdentity(t *testing
 	var enabled bool
 	var rules, identity string
 	db.QueryRow(ctx, `SELECT interval_seconds,enabled,rules::text,identity::text FROM subscriptions WHERE title='Owned interval fixture'`).Scan(&interval, &enabled, &rules, &identity)
-	if interval != 2700 || enabled || rules == "{}" || identity == "{}" {
+	if interval != 1800 || enabled || rules == "{}" || identity == "{}" {
 		t.Fatal(interval, enabled, rules, identity)
 	}
 	if _, err = repo.Save(ctx, before.Value, before.Revision); err != ErrRevision {
 		t.Fatal("lost update accepted", err)
 	}
-	if record.Value.SubscriptionIntervalMinutes != 45 {
+	if record.Value.SubscriptionCron != "0 9,21 * * *" {
 		t.Fatal(record)
 	}
 }

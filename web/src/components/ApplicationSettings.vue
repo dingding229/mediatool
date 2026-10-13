@@ -6,7 +6,7 @@ interface Settings {
   seriesTemplate: string;
   searchCacheSeconds: number;
   tmdbCacheSeconds: number;
-  subscriptionIntervalMinutes: number;
+  subscriptionCron: string;
   embyUserId: string;
 }
 const record = ref<{ value: Settings; revision: number } | null>(null),
@@ -31,7 +31,7 @@ async function save() {
       body: JSON.stringify(record.value),
     });
     message.value =
-      "模板、订阅间隔与缓存有效期已保存，新的整理预览默认使用模板。不会自动重命名现有文件。";
+      "模板、订阅Cron与缓存有效期已保存，新的整理预览默认使用模板。不会自动重命名现有文件。";
   } catch (e) {
     error.value = e instanceof Error ? e.message : "保存失败";
   } finally {
@@ -107,17 +107,7 @@ onMounted(load);
       <fieldset>
         <legend>订阅调度</legend>
         <div class="connection-form">
-          <label for="subscription-interval-minutes">订阅刷新间隔（分钟）</label
-          ><el-input-number
-            id="subscription-interval-minutes"
-            v-model="record.value.subscriptionIntervalMinutes"
-            :min="5"
-            :max="1440"
-            :precision="0"
-          />
-          <p class="field-hint">
-            所有订阅统一使用此间隔，5分钟～1天。修改会更新已有订阅的下次调度时间，不会启用停用的订阅或重复已有下载。
-          </p>
+          <label for="subscription-cron">订阅 Cron 表达式</label><el-input id="subscription-cron" v-model="record.value.subscriptionCron" placeholder="*/30 * * * *"/><p class="field-hint">五字段：分 时 日 月 周，时区 Asia/Shanghai，最少5分钟。所有订阅统一按日历时间调度；修改不会启用停用的订阅。</p>
         </div>
       </fieldset>
       <div class="settings-save">

@@ -20,7 +20,7 @@
     {
       "id": "counter-tick",
       "name": "定时计数",
-      "intervalSeconds": 60
+      "cron": "* * * * *"
     }
   ],
   "routes": [

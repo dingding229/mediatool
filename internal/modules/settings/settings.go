@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"media-tool/internal/platform/scheduling"
 	"regexp"
 	"strings"
+	"time"
 )
 
 var ErrInvalid = errors.New("invalid application settings")
@@ -17,7 +19,8 @@ type Value struct {
 	SeriesTemplate              string `json:"seriesTemplate"`
 	SearchCacheSeconds          int    `json:"searchCacheSeconds"`
 	TMDBCacheSeconds            int    `json:"tmdbCacheSeconds"`
-	SubscriptionIntervalMinutes int    `json:"subscriptionIntervalMinutes"`
+	SubscriptionIntervalMinutes int    `json:"-"`
+	SubscriptionCron            string `json:"subscriptionCron"`
 	EmbyUserID                  string `json:"embyUserId"`
 }
 type Record struct {
@@ -27,7 +30,7 @@ type Record struct {
 type Repository struct{ DB *pgxpool.Pool }
 
 func Defaults() Value {
-	return Value{MovieTemplate: "{title} ({year}) - {resolution}{ext}", SeriesTemplate: "{title} - S{season}E{episode} - {resolution}{ext}", SearchCacheSeconds: 900, TMDBCacheSeconds: 86400, SubscriptionIntervalMinutes: 30}
+	return Value{MovieTemplate: "{title} ({year}) - {resolution}{ext}", SeriesTemplate: "{title} - S{season}E{episode} - {resolution}{ext}", SearchCacheSeconds: 900, TMDBCacheSeconds: 86400, SubscriptionIntervalMinutes: 30, SubscriptionCron: "*/30 * * * *"}
 }
 
 var token = regexp.MustCompile(`\{([A-Za-z]+)\}`)
@@ -52,7 +55,7 @@ func Validate(v Value) error {
 	if !strings.Contains(v.SeriesTemplate, "{season}") || !strings.Contains(v.SeriesTemplate, "{episode}") {
 		return ErrInvalid
 	}
-	if v.SubscriptionIntervalMinutes < 5 || v.SubscriptionIntervalMinutes > 1440 {
+	if _, err := scheduling.Next(v.SubscriptionCron, time.Now(), 5*time.Minute); err != nil {
 		return ErrInvalid
 	}
 	if v.SearchCacheSeconds < 0 || v.SearchCacheSeconds > 86400 || v.TMDBCacheSeconds < 0 || v.TMDBCacheSeconds > 2592000 || len(v.EmbyUserID) > 100 || v.EmbyUserID != "" && !regexp.MustCompile(`^[A-Za-z0-9_-]+$`).MatchString(v.EmbyUserID) {
@@ -84,6 +87,14 @@ func (r Repository) Save(ctx context.Context, v Value, revision int64) (Record, 
 		return Record{}, err
 	}
 	defer tx.Rollback(ctx)
+	var previous []byte
+	if err = tx.QueryRow(ctx, `SELECT value FROM application_settings WHERE singleton FOR UPDATE`).Scan(&previous); err != nil {
+		return Record{}, err
+	}
+	var prior Value
+	if err = json.Unmarshal(previous, &prior); err != nil {
+		return Record{}, err
+	}
 	tag, err := tx.Exec(ctx, `UPDATE application_settings SET value=$1,revision=revision+1,updated_at=now() WHERE singleton AND revision=$2`, raw, revision)
 	if err != nil {
 		return Record{}, err
@@ -91,8 +102,12 @@ func (r Repository) Save(ctx context.Context, v Value, revision int64) (Record, 
 	if tag.RowsAffected() != 1 {
 		return Record{}, ErrRevision
 	}
-	if _, err = tx.Exec(ctx, `UPDATE subscriptions SET interval_seconds=$1,revision=revision+1,next_run_at=CASE WHEN enabled THEN now()+make_interval(mins=>$2) ELSE next_run_at END,updated_at=now() WHERE interval_seconds<>$1`, v.SubscriptionIntervalMinutes*60, v.SubscriptionIntervalMinutes); err != nil {
-		return Record{}, err
+	if prior.SubscriptionCron != v.SubscriptionCron {
+		next, _ := scheduling.Next(v.SubscriptionCron, time.Now(), 5*time.Minute)
+		if _, err = tx.Exec(ctx, `UPDATE subscriptions SET revision=revision+1,next_run_at=CASE WHEN enabled THEN $1 ELSE next_run_at END,updated_at=now()`, next); err != nil {
+			return Record{}, err
+		}
+
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return Record{}, err

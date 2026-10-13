@@ -13,6 +13,9 @@ services:
       APP_ENV: development
       APP_ADDR: 0.0.0.0:8080
       APP_PUBLIC_URL: http://localhost:8080
+      AUTH_ALLOWED_ORIGINS: "" # 显式填写反代域名，例如 https://media.example.com
+      HOST_PROC_DIR: /host/proc
+      TZ: Asia/Shanghai
       EMBY_GATEWAY_ADDR: 0.0.0.0:8091
       EMBY_PUBLIC_URL: ""
       APP_SECRET_KEY: CHANGE_ME_APP_SECRET_KEY
@@ -42,7 +45,7 @@ services:
       WORKER_LEASE: 90s
     ports: ["127.0.0.1:8080:8080", "127.0.0.1:8091:8091"]
     # 可直接换为 /your/host/data:/data；不需要在后台绑定本地目录。
-    volumes: [app-data:/data, downloads-data:/data/downloads:ro]
+    volumes: [app-data:/data, downloads-data:/data/downloads:ro, /proc/loadavg:/host/proc/loadavg:ro, /proc/meminfo:/host/proc/meminfo:ro, /proc/uptime:/host/proc/uptime:ro]
     user: "65532:65532"
     read_only: true
     tmpfs: [/tmp]

@@ -12,7 +12,6 @@ import { useAuthStore } from "../stores/auth";
 import { useSystemStore } from "../stores/system";
 import { navigationLocation } from "../navigation/items";
 import NavigationMenu from "../components/NavigationMenu.vue";
-import AcquireWorkspaceNav from "../components/AcquireWorkspaceNav.vue";
 import QuickNavigator from "../components/QuickNavigator.vue";
 const route = useRoute(),
   router = useRouter(),
@@ -148,9 +147,7 @@ async function logout() {
         </div>
       </header>
       <main id="main-content" ref="main" tabindex="-1" class="page-content">
-        <AcquireWorkspaceNav
-          v-if="current?.group === '资源获取'"
-        /><RouterView />
+        <RouterView />
       </main>
       <footer class="app-footer">
         <span>Media Tool · 资源到播放，一站整理</span

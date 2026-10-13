@@ -3,11 +3,10 @@ package plugins
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"github.com/jackc/pgx/v5"
-	"github.com/robfig/cron/v3"
 	"media-tool/internal/modules/jobs"
-	"strconv"
+	"media-tool/internal/platform/scheduling"
+
 	"time"
 	_ "time/tzdata"
 )
@@ -180,32 +179,7 @@ func (r Registry) ProcessService(ctx context.Context, job jobs.Job) error {
 
 func nextService(s Service, values map[string]string, now time.Time) (time.Time, error) {
 	if s.ScheduleSetting != "" && values[s.ScheduleSetting] != "" {
-		if s.Cron != "" {
-			s.Cron = values[s.ScheduleSetting]
-		} else {
-			n, e := strconv.Atoi(values[s.ScheduleSetting])
-			if e != nil {
-				return time.Time{}, ErrInvalid
-			}
-			s.IntervalSeconds = n
-		}
+		s.Cron = values[s.ScheduleSetting]
 	}
-	if s.Cron != "" {
-		if len(s.Cron) > 120 {
-			return time.Time{}, ErrInvalid
-		}
-		schedule, e := cron.ParseStandard(s.Cron)
-		if e != nil {
-			return time.Time{}, ErrInvalid
-		}
-		next := schedule.Next(now)
-		if next.IsZero() || schedule.Next(next).Sub(next) < time.Minute {
-			return time.Time{}, errors.New("插件Cron不得快于每分钟或无法产生有效时间")
-		}
-		return next, nil
-	}
-	if s.IntervalSeconds < 60 || s.IntervalSeconds > 604800 {
-		return time.Time{}, ErrInvalid
-	}
-	return now.Add(time.Duration(s.IntervalSeconds) * time.Second), nil
+	return scheduling.Next(s.Cron, now, time.Minute)
 }

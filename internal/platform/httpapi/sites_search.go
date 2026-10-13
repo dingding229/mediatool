@@ -42,6 +42,18 @@ func (a *API) startSearch(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &body) {
 		return
 	}
+	// Interactive search always covers every enabled account. Subscription searches retain their own scope.
+	accounts, err := a.Deps.Integrations.Repository.List(r.Context())
+	if err != nil {
+		fail(w, 503, "sites_unavailable", "站点账号不可用")
+		return
+	}
+	body.AccountIDs = nil
+	for _, account := range accounts {
+		if account.Kind == "ptsite" && account.Enabled {
+			body.AccountIDs = append(body.AccountIDs, account.ID)
+		}
+	}
 	id, cached, err := engine.StartCached(r.Context(), body.Keyword, body.AccountIDs, body.Refresh)
 	if err != nil {
 		fail(w, 400, "search_create_failed", err.Error())

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"media-tool/internal/platform/scheduling"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -110,8 +111,9 @@ func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
 		return Record{}, err
 	}
 	defer tx.Rollback(ctx)
-	// Serialize interval assignment with system-setting updates, including new rows.
-	if err = tx.QueryRow(ctx, `SELECT (value->>'subscriptionIntervalMinutes')::integer FROM application_settings WHERE singleton FOR SHARE`).Scan(&in.IntervalMinutes); err != nil {
+	var cronExpression string
+	// Serialize cron assignment with system-setting updates, including new rows.
+	if err = tx.QueryRow(ctx, `SELECT value->>'subscriptionCron' FROM application_settings WHERE singleton FOR SHARE`).Scan(&cronExpression); err != nil {
 		return Record{}, err
 	}
 	if id == "" {
@@ -135,6 +137,10 @@ func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
 	}
 	audit, _ := json.Marshal(map[string]string{"subscriptionId": id})
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','subscription.save',$1)`, audit); err != nil {
+		return Record{}, err
+	}
+	next, _ := scheduling.Next(cronExpression, time.Now(), 5*time.Minute)
+	if _, err = tx.Exec(ctx, `UPDATE subscriptions SET next_run_at=$2 WHERE id=$1`, id, next); err != nil {
 		return Record{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -164,7 +170,15 @@ func (e Engine) Queue(ctx context.Context, id string, preview bool) (string, err
 	if _, err = tx.Exec(ctx, `INSERT INTO jobs(id,kind,payload,idempotency_key,max_attempts)VALUES($1,'subscription.evaluate',$2,$3,5)`, jobs.UUID(), payload, "subscription.evaluate:"+runID); err != nil {
 		return "", err
 	}
-	if _, err = tx.Exec(ctx, `UPDATE subscriptions SET next_run_at=now()+($2::integer*interval '1 second'),last_state='pending',last_message=''WHERE id=$1`, id, record.IntervalMinutes*60); err != nil {
+	prefs, err := (settings.Repository{DB: e.DB}).Get(ctx)
+	if err != nil {
+		return "", err
+	}
+	next, err := scheduling.Next(prefs.Value.SubscriptionCron, time.Now(), 5*time.Minute)
+	if err != nil {
+		return "", err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE subscriptions SET next_run_at=$2,last_state='pending',last_message=''WHERE id=$1`, id, next); err != nil {
 		return "", err
 	}
 	return runID, tx.Commit(ctx)

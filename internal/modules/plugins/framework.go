@@ -34,9 +34,8 @@ type Service struct {
 	Cron            string `json:"cron,omitempty"`
 	ScheduleSetting string `json:"scheduleSetting,omitempty"`
 
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	IntervalSeconds int    `json:"intervalSeconds"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 type PluginPage struct {
 	ID    string `json:"id"`
@@ -86,7 +85,7 @@ func validateFramework(m Manifest) error {
 	}
 	keys = map[string]bool{}
 	for _, s := range m.Services {
-		if !identifier.MatchString(s.ID) || keys[s.ID] || len(s.Name) < 1 || len(s.Name) > 100 || s.Cron == "" && (s.IntervalSeconds < 60 || s.IntervalSeconds > 604800) {
+		if !identifier.MatchString(s.ID) || keys[s.ID] || len(s.Name) < 1 || len(s.Name) > 100 || s.Cron == "" {
 			return ErrInvalid
 		}
 		if s.Cron != "" {

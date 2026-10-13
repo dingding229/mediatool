@@ -6,16 +6,19 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
+	"media-tool/internal/platform/scheduling"
 	"media-tool/internal/platform/trace"
 	"time"
 )
 
 var ErrScheduleChanged = errors.New("schedule revision changed")
-var ErrInvalidSchedule = errors.New("refresh interval must be 15 minutes to 7 days")
+var ErrInvalidSchedule = errors.New("请输入有效 cron，刷新不得快于每15分钟")
 
 type ScheduleConfig struct {
 	Enabled          bool       `json:"enabled"`
-	IntervalMinutes  int        `json:"intervalMinutes"`
+	IntervalMinutes  int        `json:"-"`
+	Cron             string     `json:"cron"`
+	Timezone         string     `json:"timezone"`
 	Revision         int64      `json:"revision"`
 	NextRunAt        time.Time  `json:"nextRunAt"`
 	LastDispatchedAt *time.Time `json:"lastDispatchedAt"`
@@ -23,21 +26,23 @@ type ScheduleConfig struct {
 
 func (e Engine) GetSchedule(ctx context.Context) (ScheduleConfig, error) {
 	var s ScheduleConfig
-	err := e.DB.QueryRow(ctx, `SELECT enabled,interval_minutes,revision,next_run_at,last_dispatched_at FROM site_metric_schedule WHERE singleton`).Scan(&s.Enabled, &s.IntervalMinutes, &s.Revision, &s.NextRunAt, &s.LastDispatchedAt)
+	err := e.DB.QueryRow(ctx, `SELECT enabled,cron_expression,revision,next_run_at,last_dispatched_at FROM site_metric_schedule WHERE singleton`).Scan(&s.Enabled, &s.Cron, &s.Revision, &s.NextRunAt, &s.LastDispatchedAt)
+	s.Timezone = scheduling.Timezone
 	return s, err
 }
 func (e Engine) SaveSchedule(ctx context.Context, s ScheduleConfig) (ScheduleConfig, error) {
-	if s.IntervalMinutes < 15 || s.IntervalMinutes > 10080 {
+	next, err := scheduling.Next(s.Cron, time.Now(), 15*time.Minute)
+	if err != nil {
 		return s, ErrInvalidSchedule
 	}
-	tag, err := e.DB.Exec(ctx, `UPDATE site_metric_schedule SET enabled=$1,interval_minutes=$2,revision=revision+1,next_run_at=now()+make_interval(mins=>$2) WHERE singleton AND revision=$3`, s.Enabled, s.IntervalMinutes, s.Revision)
+	tag, err := e.DB.Exec(ctx, `UPDATE site_metric_schedule SET enabled=$1,cron_expression=$2,revision=revision+1,next_run_at=$4 WHERE singleton AND revision=$3`, s.Enabled, s.Cron, s.Revision, next)
 	if err != nil {
 		return s, err
 	}
 	if tag.RowsAffected() != 1 {
 		return s, ErrScheduleChanged
 	}
-	trace.Info(ctx, "sites", "站点定时刷新设置已更新", "enabled", s.Enabled, "intervalMinutes", s.IntervalMinutes)
+	trace.Info(ctx, "sites", "站点定时刷新设置已更新", "enabled", s.Enabled, "cron", s.Cron)
 	return e.GetSchedule(ctx)
 }
 func (e Engine) Schedule(ctx context.Context) error {
@@ -47,7 +52,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 	}
 	defer tx.Rollback(ctx)
 	var s ScheduleConfig
-	err = tx.QueryRow(ctx, `SELECT interval_minutes,revision FROM site_metric_schedule WHERE singleton AND enabled AND next_run_at<=now() FOR UPDATE SKIP LOCKED`).Scan(&s.IntervalMinutes, &s.Revision)
+	err = tx.QueryRow(ctx, `SELECT cron_expression,revision FROM site_metric_schedule WHERE singleton AND enabled AND next_run_at<=now() FOR UPDATE SKIP LOCKED`).Scan(&s.Cron, &s.Revision)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
@@ -82,7 +87,11 @@ func (e Engine) Schedule(ctx context.Context) error {
 			return err
 		}
 	}
-	if _, err = tx.Exec(ctx, `UPDATE site_metric_schedule SET next_run_at=now()+make_interval(mins=>interval_minutes),last_dispatched_at=now() WHERE singleton`); err != nil {
+	next, err := scheduling.Next(s.Cron, time.Now(), 15*time.Minute)
+	if err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE site_metric_schedule SET next_run_at=$1,last_dispatched_at=now() WHERE singleton`, next); err != nil {
 		return err
 	}
 	if err = tx.Commit(ctx); err == nil {

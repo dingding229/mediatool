@@ -21,7 +21,7 @@ ZIP根目录必须有`manifest.json`和`plugin.wasm`；允许附加`settings.jso
 | get_dashboard() | plugin.dashboard，manifest.dashboard | 代码生成首页卡片内容 |
 | get_command() | plugin.command，manifest.commands | 管理员确认后执行代码 |
 | get_api() | plugin.api，manifest.routes | 实例命名空间内的会话保护API |
-| get_service() | plugin.service，manifest.services | 主程序调度声明的周期任务/Cron；代码执行实际工作 |
+| get_service() | plugin.service，manifest.services | 主程序以五字段Cron调度（Asia/Shanghai）；代码执行实际工作，不支持intervalSeconds或@every |
 | 事件注册 | manifest.events，实际事件kind | Outbox投递并执行插件代码，不自动重放未知结果 |
 | stop_service() | plugin.stop，宿主修订门禁 | 停用时执行清理代码，旧修订待执行服务取消 |
 | save_data/get_data | 输入data/输出data | 实例专属加密JSON；命令/服务可以持久写入 |
