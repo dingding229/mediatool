@@ -173,6 +173,9 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/emby/check", a.protected(a.checkEmbyItem))
 	mux.HandleFunc("GET "+strm.Endpoint, a.resolve)
 	mux.HandleFunc("GET /api/v1/sites", a.protected(a.listDefinitions))
+	mux.HandleFunc("GET /api/v1/sites/metrics/schedule", a.protected(a.getSiteMetricSchedule))
+	mux.HandleFunc("PUT /api/v1/sites/metrics/schedule", a.protected(a.saveSiteMetricSchedule))
+	mux.HandleFunc("GET /api/v1/pt/templates/{id}/icon", a.ptTemplateIcon)
 	mux.HandleFunc("GET /api/v1/sites/metrics", a.protected(a.siteMetrics))
 	mux.HandleFunc("POST /api/v1/sites/metrics/sync", a.protected(a.syncSiteMetrics))
 	mux.HandleFunc("GET /api/v1/pt/templates", a.protected(a.ptTemplates))
@@ -461,7 +464,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.14.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.14.1-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

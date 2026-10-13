@@ -19,6 +19,7 @@ import (
 	"media-tool/internal/modules/messaging"
 	"media-tool/internal/modules/plugins"
 	"media-tool/internal/modules/search"
+	"media-tool/internal/modules/sitemetrics"
 	"media-tool/internal/modules/sites"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
@@ -208,6 +209,8 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		pluginRegistry := plugins.Registry{DB: db, Vault: manager.Repository.Vault, Host: pluginhost.New(db, manager)}
 		w.Handlers["plugin.service"] = pluginRegistry.ProcessService
 		w.Handlers["plugin.dispatch"] = pluginRegistry.Process
+		metricEngine := sitemetrics.Engine{DB: db, Connections: manager}
+		w.Handlers["site.metrics.refresh"] = metricEngine.Process
 		subscriptionEngine := subscriptions.Engine{DB: db, Connections: manager}
 		w.Handlers["subscription.evaluate"] = subscriptionEngine.Process
 		libraryEngine := library.Engine{DB: db, Connections: manager}
@@ -238,6 +241,9 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 						logger.Warn("download reconciliation unavailable")
 					}
 					if queue == "default" {
+						if err := metricEngine.Schedule(check); err != nil {
+							logger.Warn("site metrics schedule unavailable", "error", err)
+						}
 						pluginRegistry.Schedule(check)
 						pluginRegistry.DispatchEvents(check)
 						subscriptionEngine.Schedule(check)

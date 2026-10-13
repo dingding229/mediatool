@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { request, post } from "../api/client";
 import {
   Upload,
@@ -8,6 +8,7 @@ import {
   Refresh,
   Search,
 } from "@element-plus/icons-vue";
+import SiteMetricSchedule from "./SiteMetricSchedule.vue";
 import StatusBadge from "./StatusBadge.vue";
 interface Metric {
   uploaded: number | null;
@@ -21,6 +22,7 @@ interface Metric {
   notes?: string[];
 }
 interface Row {
+  iconUrl?: string;
   accountId: string;
   name: string;
   enabled: boolean;
@@ -31,6 +33,7 @@ interface Row {
   message: string;
   stale: boolean;
 }
+const iconErrors = ref(new Set<string>());
 const emit = defineEmits<{ edit: [id: string] }>();
 const rows = ref<Row[]>([]),
   q = ref(""),
@@ -85,9 +88,10 @@ async function sync(id = "") {
   try {
     const result = await post<{
       attempted: number;
+      failed?: number;
       remainingMayExist: boolean;
     }>("/sites/metrics/sync", { accountId: id });
-    note.value = `本次尝试${result.attempted}个账号；请核对每站结果。${result.remainingMayExist ? "最多16站，请单站同步其余账号。" : ""}`;
+    note.value = `本次尝试${result.attempted}个账号${result.failed ? `，${result.failed}个采集失败` : ""}；请核对每站结果。${result.remainingMayExist ? "最多16站，请单站同步其余账号。" : ""}`;
     await load();
   } catch (e) {
     error.value = e instanceof Error ? e.message : "同步失败";
@@ -96,7 +100,14 @@ async function sync(id = "") {
     busy.value = false;
   }
 }
-onMounted(load);
+let refreshTimer: ReturnType<typeof setInterval> | undefined;
+onMounted(() => {
+  load();
+  refreshTimer = setInterval(() => {
+    if (!document.hidden && !busy.value) load();
+  }, 30000);
+});
+onUnmounted(() => clearInterval(refreshTimer));
 </script>
 <template>
   <section class="metrics-overview">
@@ -116,6 +127,7 @@ onMounted(load);
     </article>
   </section>
   <section class="panel site-metrics-panel">
+    <SiteMetricSchedule />
     <div class="panel-title">
       <div>
         <h2>站点最新数据</h2>
@@ -144,7 +156,18 @@ onMounted(load);
       class="site-metric-row"
     >
       <div class="metric-site-name">
-        <span class="site-avatar">{{ row.name.slice(0, 2) }}</span>
+        <span class="site-avatar"
+          ><img
+            v-if="row.iconUrl && !iconErrors.has(row.accountId)"
+            :src="row.iconUrl"
+            alt=""
+            aria-hidden="true"
+            width="32"
+            height="32"
+            loading="lazy"
+            @error="iconErrors.add(row.accountId)"
+          /><template v-else>{{ row.name.slice(0, 2) }}</template></span
+        >
         <div>
           <h3>{{ row.name }}</h3>
           <p>
@@ -258,6 +281,9 @@ onMounted(load);
   display: flex;
   align-items: center;
   gap: 14px;
+}
+.site-avatar img {
+  object-fit: contain;
 }
 .site-avatar {
   display: grid;

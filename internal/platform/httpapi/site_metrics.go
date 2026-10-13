@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"media-tool/internal/modules/sitemetrics"
 	"media-tool/internal/modules/sites"
 	"net/http"
 	"time"
@@ -30,14 +31,16 @@ func (a *API) siteMetrics(w http.ResponseWriter, r *http.Request) {
 			fail(w, 503, "metrics_unavailable", "指标读取失败")
 			return
 		}
+		iconURL := ""
 		var m any
 		json.Unmarshal(raw, &m)
 		if cfg, e := sites.DecodeStored(definition, common); e == nil {
 			if t, ok := sites.GoTemplate(cfg.ID); ok {
 				name = t.Name
+				iconURL = "/api/v1/pt/templates/" + t.ID + "/icon?v=" + t.Version
 			}
 		}
-		out = append(out, map[string]any{"accountId": id, "name": name, "enabled": enabled, "metrics": m, "collectedAt": collected, "attemptedAt": attempted, "state": state, "message": message, "stale": collected != nil && (rev != saved || state == "failed" || fingerprint != sites.DefinitionFingerprint(definition, common, sourceCommit))})
+		out = append(out, map[string]any{"accountId": id, "name": name, "iconUrl": iconURL, "enabled": enabled, "metrics": m, "collectedAt": collected, "attemptedAt": attempted, "state": state, "message": message, "stale": collected != nil && (rev != saved || state == "failed" || fingerprint != sites.DefinitionFingerprint(definition, common, sourceCommit))})
 	}
 	if rows.Err() != nil {
 		fail(w, 503, "metrics_unavailable", "指标读取失败")
@@ -62,7 +65,7 @@ func (a *API) syncSiteMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 75*time.Second)
 	defer cancel()
-	done := 0
+	done, failed := 0, 0
 	for _, p := range profiles {
 		if p.Kind != "ptsite" || !p.Enabled || in.AccountID != "" && in.AccountID != p.ID {
 			continue
@@ -71,68 +74,25 @@ func (a *API) syncSiteMetrics(w http.ResponseWriter, r *http.Request) {
 		if done > 16 {
 			break
 		}
-		started := time.Now()
-		bounded, stop := context.WithTimeout(ctx, 15*time.Second)
-		client, e := a.Deps.Integrations.Site(bounded, p.ID)
-		var m sites.Metrics
-		if e == nil {
-			m, e = client.Metrics(bounded)
-		}
-		stop()
-		revision, fingerprint := p.Revision, ""
-		if client.SourceRevision > 0 {
-			revision, fingerprint = client.SourceRevision, client.DefinitionFingerprint
-		}
-		err = a.saveSiteMetrics(ctx, p.ID, revision, fingerprint, started, m, e)
-		if errors.Is(err, errMetricsChanged) {
+		err = (sitemetrics.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations}).Collect(ctx, p.ID)
+		if errors.Is(err, sitemetrics.ErrBusy) || errors.Is(err, sitemetrics.ErrChanged) {
 			continue
 		}
-
+		if errors.Is(err, sitemetrics.ErrCollection) {
+			failed++
+			continue
+		}
 		if err != nil {
-			fail(w, 503, "metrics_save_failed", "采集结果保存失败，请刷新核对")
+			fail(w, 503, "metrics_save_failed", "采集或保存失败，请刷新核对站点结果")
 			return
 		}
 	}
-	write(w, 200, map[string]any{"attempted": min(done, 16), "remainingMayExist": done > 16})
+	write(w, 200, map[string]any{"failed": failed, "attempted": min(done, 16), "remainingMayExist": done > 16})
 }
 
-var errMetricsChanged = errors.New("site configuration changed while collecting metrics")
+var errMetricsChanged = sitemetrics.ErrChanged
 
-// The short save transaction locks the current account/definition, not the network
-// call. Outdated or slower collections cannot overwrite newer snapshots.
+// Wrapper retained for HTTP-layer regression tests; all collectors use the shared module.
 func (a *API) saveSiteMetrics(ctx context.Context, id string, revision int64, fingerprint string, started time.Time, m sites.Metrics, collectionErr error) error {
-	tx, err := a.Deps.DB.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	var current int64
-	var enabled bool
-	var definitionID string
-	if err = tx.QueryRow(ctx, `SELECT revision,enabled,coalesce(settings->>'definitionId','') FROM integrations WHERE id=$1 AND kind='ptsite' FOR SHARE`, id).Scan(&current, &enabled, &definitionID); err != nil {
-		return errMetricsChanged
-	}
-	if !enabled || current != revision {
-		return errMetricsChanged
-	}
-	if fingerprint != "" {
-		var raw, common []byte
-		var commit string
-		if err = tx.QueryRow(ctx, `SELECT definition,common_definition,source_commit FROM site_definitions WHERE id=$1 FOR SHARE`, definitionID).Scan(&raw, &common, &commit); err != nil {
-			return errMetricsChanged
-		}
-		if fingerprint != sites.DefinitionFingerprint(raw, common, commit) {
-			return errMetricsChanged
-		}
-	}
-	if collectionErr != nil {
-		_, err = tx.Exec(ctx, `INSERT INTO site_metrics(account_id,state,message,account_revision,attempted_at) VALUES($1,'failed','采集失败：请检查站点登录、挑战和字段适配',$2,$3) ON CONFLICT(account_id) DO UPDATE SET state='failed',message=excluded.message,attempted_at=excluded.attempted_at WHERE site_metrics.attempted_at<=excluded.attempted_at`, id, revision, started)
-	} else {
-		raw, _ := json.Marshal(m)
-		_, err = tx.Exec(ctx, `INSERT INTO site_metrics(account_id,metrics,collected_at,attempted_at,state,account_revision,definition_fingerprint,message) VALUES($1,$2,now(),$3,$4,$5,$6,'') ON CONFLICT(account_id) DO UPDATE SET metrics=excluded.metrics,collected_at=now(),attempted_at=excluded.attempted_at,state=excluded.state,account_revision=excluded.account_revision,definition_fingerprint=excluded.definition_fingerprint,message='' WHERE site_metrics.attempted_at<=excluded.attempted_at`, id, raw, started, sites.MetricsState(m), revision, fingerprint)
-	}
-	if err != nil {
-		return err
-	}
-	return tx.Commit(ctx)
+	return (sitemetrics.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations}).Save(ctx, id, revision, fingerprint, started, m, collectionErr)
 }

@@ -23,6 +23,7 @@ test_db_exec(){
 go run ./cmd/migrate -test-only -cleanup-test-plugins >/dev/null
 test_db_exec 'TRUNCATE site_template_loads,subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,administrator_accounts,administrator_auth_limits CASCADE'
 
+test_db_exec "UPDATE site_metric_schedule SET enabled=false,interval_minutes=60,revision=1,next_run_at=now()+interval '1 hour',last_dispatched_at=NULL WHERE singleton"
 private=$(mktemp -d)
 pids=()
 cleanup(){ for pid in "${pids[@]}";do kill "$pid" 2>/dev/null||true;done;for pid in "${pids[@]}";do wait "$pid" 2>/dev/null||true;done;test_db_exec 'TRUNCATE administrator_accounts,administrator_auth_limits CASCADE' >/dev/null 2>&1 || true; rm -rf "$private"; }

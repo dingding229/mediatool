@@ -131,7 +131,7 @@ func (r Repository) LoadedGoTemplates(ctx context.Context) (map[string]bool, err
 func GoTemplateCatalog(loaded map[string]bool) []map[string]any {
 	out := []map[string]any{}
 	for _, t := range GoTemplates() {
-		out = append(out, map[string]any{"id": t.ID, "name": t.Name, "domain": t.Domain, "version": t.Version, "iconUrl": t.IconURL, "fields": t.Fields, "loaded": loaded[t.ID]})
+		out = append(out, map[string]any{"id": t.ID, "name": t.Name, "domain": t.Domain, "version": t.Version, "iconUrl": "/api/v1/pt/templates/" + t.ID + "/icon?v=" + t.Version, "fields": t.Fields, "loaded": loaded[t.ID]})
 	}
 	return out
 }

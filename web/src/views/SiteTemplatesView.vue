@@ -19,6 +19,17 @@ const iconErrors = ref(new Set<string>());
 const available = computed(() =>
   templates.value.filter((site) => !site.loaded),
 );
+const allSelected = computed(
+  () =>
+    available.value.length > 0 &&
+    selected.value.length === available.value.length,
+);
+const partlySelected = computed(
+  () => selected.value.length > 0 && !allSelected.value,
+);
+function selectAll(value: boolean) {
+  selected.value = value ? available.value.map((site) => site.id) : [];
+}
 async function load() {
   try {
     templates.value = (
@@ -72,6 +83,20 @@ onMounted(load);
   <el-alert v-if="error" :title="error" type="error" :closable="false" />
   <el-skeleton v-if="loading" :rows="3" animated />
   <template v-else>
+    <div class="template-toolbar">
+      <el-checkbox
+        :model-value="allSelected"
+        :indeterminate="partlySelected"
+        :disabled="saving || !available.length"
+        @change="selectAll(Boolean($event))"
+        >全选可加载模板</el-checkbox
+      ><el-button
+        text
+        :disabled="saving || !selected.length"
+        @click="selectAll(false)"
+        >取消全选</el-button
+      >
+    </div>
     <p class="field-hint">
       {{ templates.filter((site) => site.loaded).length }} 个已加载 ·
       {{ available.length }} 个可选择
@@ -121,6 +146,16 @@ onMounted(load);
   </template>
 </template>
 <style scoped>
+.template-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.template-toolbar :deep(.el-checkbox) {
+  min-height: 44px;
+}
 .template-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -168,6 +203,16 @@ onMounted(load);
   min-height: 44px;
 }
 @media (max-width: 600px) {
+  .template-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .template-toolbar :deep(.el-checkbox) {
+    min-height: 44px;
+  }
   .template-grid {
     grid-template-columns: 1fr;
   }
