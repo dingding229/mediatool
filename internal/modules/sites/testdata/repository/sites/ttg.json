@@ -1,9 +1,13 @@
 {
-  "id": "hdsky",
-  "name": "HDSKY 天空（精简模板）",
-  "domain": "https://hdsky.me",
-  "schema": "NexusPHP",
+  "templateVersion": 1,
+  "id": "ttg",
+  "name": "听听歌（精简模板）",
+  "domain": "https://totheglory.im",
+  "schema": "ttg",
   "encoding": "UTF-8",
+  "meta": {
+    "has_hr": true
+  },
   "requests": {
     "user_basic_info": {
       "parser": "XPath",
@@ -67,32 +71,16 @@
           ]
         },
         "uploaded": {
-          "selector": "*",
-          "selection": "html",
+          "selector": "//font[contains(text(), '上传量')]/following-sibling::font[1]/a/text()",
           "filters": [
-            {
-              "name": "re_search",
-              "args": [
-                "[^总]上[传傳]量?[:：_<>/a-zA-Z-=''\\s#;]+([\\d,.\\s]+(?i)[KMGTPI]*B)",
-                1
-              ]
-            },
             {
               "name": "byte_size"
             }
           ]
         },
         "downloaded": {
-          "selector": "*",
-          "selection": "html",
+          "selector": "//font[contains(text(), '下载量')]/following-sibling::font[1]/a/text()",
           "filters": [
-            {
-              "name": "re_search",
-              "args": [
-                "[^总子影力]下[载載]量?[:：_<>/a-zA-Z-=''\\s#;]+([\\d,.\\s]+(?i)[KMGTPI]*B)",
-                1
-              ]
-            },
             {
               "name": "byte_size"
             }
@@ -239,23 +227,26 @@
     "search": {
       "parser": "CssSelector",
       "method": "GET",
-      "path": "/torrents.php",
+      "path": "/browse.php",
       "params": {
-        "search": [
+        "c": [
+          "M"
+        ],
+        "search_field": [
           "{keyword}"
         ]
       },
       "list": {
-        "selector": "table.torrents tr:has(table.torrentname)",
+        "selector": "table#torrent_table tr[id]",
+        "container": "table#torrent_table",
         "next_page": {
-          "selector": "a[href*=\"torrents.php\"][rel=\"next\"], a[href*=\"torrents.php\"]:contains(\"下一页\"), a[href*=\"torrents.php\"]:contains(\"下一頁\")",
+          "selector": "a[rel='next'][href], a[href]:contains('下一页'), a[href]:contains('下一頁'), a[href]:contains('Next'), a[href]:contains('next')",
           "attribute": "href"
-        },
-        "container": "table.torrents"
+        }
       },
       "fields": {
         "id": {
-          "selector": "a[href*='details.php?id=']",
+          "selector": "div.name_left > a",
           "attribute": "href",
           "filters": [
             {
@@ -268,26 +259,28 @@
           ]
         },
         "title": {
-          "any": [
+          "selector": "div.name_left > a > b",
+          "remove": "span",
+          "filters": [
             {
-              "selector": "a[title][href*='details.php?id=']",
-              "attribute": "title"
-            },
-            {
-              "selector": "a[href*='details.php?id=']"
+              "name": "split",
+              "args": [
+                "\n",
+                0
+              ]
             }
           ]
         },
         "details": {
-          "selector": "a[href*='details.php?id=']",
+          "selector": "div.name_left > a",
           "attribute": "href"
         },
         "download": {
-          "selector": "form[action*='/download.php?id=']",
-          "attribute": "action"
+          "selector": "a.dl_a",
+          "attribute": "href"
         },
         "size": {
-          "selector": "td:nth-child(5):not(.embedded)",
+          "selector": "td:nth-child(7)",
           "filters": [
             {
               "name": "byte_size"
@@ -295,16 +288,16 @@
           ]
         },
         "seeders": {
-          "selector": "td:nth-child(6):not(.embedded)"
+          "selector": "td:nth-child(9) > b > a >font"
         },
         "leechers": {
-          "selector": "td:nth-child(7):not(.embedded)"
+          "selector": "td:nth-child(9) > b:nth-child(2) > a"
         },
         "downloadvolumefactor": {
           "any": [
             {
-              "selector": "img.pro_free,img.pro_free2up",
-              "attribute": "class",
+              "selector": "img[alt='free']",
+              "attribute": "alt",
               "filters": [
                 {
                   "name": "not_blank",
@@ -316,8 +309,8 @@
               ]
             },
             {
-              "selector": "img.pro_50pctdown,img.pro_50pctdown2up",
-              "attribute": "class",
+              "selector": "img[alt='50%']",
+              "attribute": "alt",
               "filters": [
                 {
                   "name": "not_blank",
@@ -329,8 +322,8 @@
               ]
             },
             {
-              "selector": "img.pro_30pctdown",
-              "attribute": "class",
+              "selector": "img[alt='30%']",
+              "attribute": "alt",
               "filters": [
                 {
                   "name": "not_blank",
@@ -344,48 +337,60 @@
           ]
         },
         "description": {
-          "any": [
-            {
-              "selector": "td:nth-child(2) > table.torrentname > tbody > tr > td.embedded > span:not(.optiontag)",
-              "remove": "img,a,b"
-            },
-            {
-              "selector": "td:nth-child(2) > table.torrentname > tr > td.embedded > span:not(.optiontag)",
-              "remove": "img,a,b"
-            }
-          ],
+          "remove": "span,a,img,font,b",
           "filters": [
             {
-              "name": "replace",
+              "name": "split",
               "args": [
-                "[优惠剩余时间：]",
-                ""
+                "\n",
+                -1
               ]
+            }
+          ],
+          "any": [
+            {
+              "selector": "div.name_left > a > b > font > span"
+            },
+            {
+              "selector": "div.name_left > a > b > span"
             }
           ]
         },
         "labels": {
-          "array": true,
-          "selector": "td:nth-child(2) > table.torrentname > tbody > tr > td.embedded > span.optiontag, td:nth-child(2) > table.torrentname > tr > td.embedded > span.optiontag"
+          "selector": "div.name_left > span > b",
+          "array": true
+        },
+        "hr_days": {
+          "selector": "td:nth-child(2) > div.name_left > img:nth-child(6)",
+          "attribute": "title",
+          "filters": [
+            {
+              "name": "re_search",
+              "args": [
+                "(?i)(?:\\bH\\s*&?\\s*R\\b|\\bhit[ -]*and[ -]*run\\b|保种|做种|考核)[^\\d]{0,80}(\\d+)",
+                1
+              ]
+            }
+          ]
         }
       }
     },
     "seeding_statistics": {
       "parser": "XPath",
       "method": "GET",
-      "path": "/getusertorrentlistajax.php?userid={userId}&type=seeding",
+      "path": "/userdetails.php?id={userId}",
       "headers": {
         "Referer": "{domain}/userdetails.php?id={userId}"
       },
       "list": {
-        "selector": "//tr[position()>1]",
+        "selector": "//td[contains(text(), '当前上传')]/following-sibling::td//table//tr[position()>1]",
         "next_page": {
-          "selector": "//a[contains(.//text(), '下一页') or contains(.//text(), '下一頁')]/@href"
+          "selector": "//a[contains(text(), '下一页') or contains(text(), '下一頁')]/@href"
         }
       },
       "fields": {
         "size": {
-          "selector": "/td[3]",
+          "selector": "/td[4]",
           "filters": [
             {
               "name": "byte_size"

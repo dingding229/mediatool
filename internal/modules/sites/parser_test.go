@@ -10,14 +10,13 @@ import (
 	"testing"
 )
 
-func TestInheritanceDisabledFieldsAndExtraction(t *testing.T) {
-	common := []byte(`{"requests":{"search":{"parser":"CssSelector","method":"GET","path":"/torrents.php","params":{"search":["{keyword}"]},"list":{"selector":"tr.resource"},"fields":{"id":{"selector":"a","attribute":"data-id"},"title":{"selector":"a"},"size":{"selector":"td.size","filters":[{"name":"byte_size"}]},"seeders":{"selector":"td.seeds"},"download":{"selector":"a.download","attribute":"href"}}},"user_basic_info":{"parser":"XPath","method":"GET","path":"/","fields":{"is_login":{"selector":"//a[contains(@href,'logout')]","filters":[{"name":"not_blank"}]}}}}}`)
-	raw := []byte(`{"id":"fixture","name":"Fixture","domain":"https://site.example.com","schema":"NexusPHP","requests":{"search":{"fields":{"title":{"selector":"a.title","attribute":"title"}}}}}`)
-	config, err := Decode(raw, common)
+func TestStandaloneDefinitionExtractionAndLegacyInheritanceRejected(t *testing.T) {
+	raw := []byte(`{"templateVersion":1,"id":"fixture","name":"Fixture","domain":"https://site.example.com","schema":"NexusPHP","requests":{"search":{"parser":"CssSelector","path":"/torrents.php","list":{"selector":"tr.resource"},"fields":{"id":{"selector":"a","attribute":"data-id"},"title":{"selector":"a.title","attribute":"title"},"size":{"selector":"td.size","filters":[{"name":"byte_size"}]}}}}}`)
+	config, err := Decode(raw, []byte(`{}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	d, err := parseDocument([]byte(`<table><tr class="resource"><td><a class="title" data-id="123" title="Movie 2026">text</a><a class="download" href="/download.php?id=123">download</a></td><td class="size">1.5 GiB</td><td class="seeds">12</td></tr></table>`), "CssSelector")
+	d, err := parseDocument([]byte(`<table><tr class="resource"><td><a class="title" data-id="123" title="Movie 2026">text</a></td><td class="size">1.5 GiB</td></tr></table>`), "CssSelector")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,16 +28,12 @@ func TestInheritanceDisabledFieldsAndExtraction(t *testing.T) {
 	if err != nil || text(fields["title"]) != "Movie 2026" || int64(numeric(fields["size"])) != 1610612736 {
 		t.Fatal(fields, err)
 	}
-	override := []byte(`{"id":"api","domain":"https://api.example.com","schema":"NexusPHP","requests":{"search":{"parser":"JsonPath","disabled_extends":{"params":true},"fields":{"id":{"selector":"id"}}}}}`)
-	api, err := Decode(override, common)
-	if err != nil {
-		t.Fatal(err)
+	if _, err = Decode(raw, []byte(`{"requests":{}}`)); err == nil {
+		t.Fatal("common inheritance accepted")
 	}
-	if _, ok := api.Requests["search"]["params"]; ok {
-		t.Fatal("disabled inheritance ignored")
-	}
-	if len(object(api.Requests["search"]["fields"])) != 1 {
-		t.Fatal("CSS fields leaked into JSON parser")
+	legacy := []byte(`{"templateVersion":1,"id":"api","domain":"https://api.example.com","requests":{"search":{"disabled_extends":{"params":true}}}}`)
+	if _, err = Decode(legacy, []byte(`{}`)); err == nil {
+		t.Fatal("legacy request accepted")
 	}
 }
 func TestAPIAuthenticationSearchAndDownload(t *testing.T) {

@@ -1,12 +1,15 @@
 {
-  "id": "ttg",
-  "name": "听听歌（精简模板）",
-  "domain": "https://totheglory.im",
-  "schema": "ttg",
+  "templateVersion": 1,
+  "id": "ptchdbits",
+  "name": "彩虹岛（精简模板）",
+  "domain": "https://ptchdbits.co",
+  "schema": "NexusPHP",
   "encoding": "UTF-8",
-  "meta": {
-    "has_hr": true
-  },
+  "additional_domain": [
+    "https://bj.chddiy.xyz",
+    "https://js.chddiy.xyz",
+    "https://hn.chddiy.xyz"
+  ],
   "requests": {
     "user_basic_info": {
       "parser": "XPath",
@@ -70,16 +73,32 @@
           ]
         },
         "uploaded": {
-          "selector": "//font[contains(text(), '上传量')]/following-sibling::font[1]/a/text()",
+          "selector": "*",
+          "selection": "html",
           "filters": [
+            {
+              "name": "re_search",
+              "args": [
+                "[^总]上[传傳]量?[:：_<>/a-zA-Z-=''\\s#;]+([\\d,.\\s]+(?i)[KMGTPI]*B)",
+                1
+              ]
+            },
             {
               "name": "byte_size"
             }
           ]
         },
         "downloaded": {
-          "selector": "//font[contains(text(), '下载量')]/following-sibling::font[1]/a/text()",
+          "selector": "*",
+          "selection": "html",
           "filters": [
+            {
+              "name": "re_search",
+              "args": [
+                "[^总子影力]下[载載]量?[:：_<>/a-zA-Z-=''\\s#;]+([\\d,.\\s]+(?i)[KMGTPI]*B)",
+                1
+              ]
+            },
             {
               "name": "byte_size"
             }
@@ -226,18 +245,15 @@
     "search": {
       "parser": "CssSelector",
       "method": "GET",
-      "path": "/browse.php",
+      "path": "/torrents.php",
       "params": {
-        "c": [
-          "M"
-        ],
-        "search_field": [
+        "search": [
           "{keyword}"
         ]
       },
       "list": {
-        "selector": "table#torrent_table tr[id]",
-        "container": "table#torrent_table",
+        "selector": "table.torrents tr:has(table.torrentname)",
+        "container": "table.torrents",
         "next_page": {
           "selector": "a[rel='next'][href], a[href]:contains('下一页'), a[href]:contains('下一頁'), a[href]:contains('Next'), a[href]:contains('next')",
           "attribute": "href"
@@ -245,7 +261,7 @@
       },
       "fields": {
         "id": {
-          "selector": "div.name_left > a",
+          "selector": "a[href*='details.php?id=']",
           "attribute": "href",
           "filters": [
             {
@@ -258,28 +274,18 @@
           ]
         },
         "title": {
-          "selector": "div.name_left > a > b",
-          "remove": "span",
-          "filters": [
-            {
-              "name": "split",
-              "args": [
-                "\n",
-                0
-              ]
-            }
-          ]
+          "selector": "table.torrentname tr > td.embedded > a > b"
         },
         "details": {
-          "selector": "div.name_left > a",
+          "selector": "a[href*='details.php?id=']",
           "attribute": "href"
         },
         "download": {
-          "selector": "a.dl_a",
+          "selector": "a[href*='download.php?id=']",
           "attribute": "href"
         },
         "size": {
-          "selector": "td:nth-child(7)",
+          "selector": "td:nth-child(5):not(.embedded)",
           "filters": [
             {
               "name": "byte_size"
@@ -287,16 +293,16 @@
           ]
         },
         "seeders": {
-          "selector": "td:nth-child(9) > b > a >font"
+          "selector": "td:nth-child(6):not(.embedded)"
         },
         "leechers": {
-          "selector": "td:nth-child(9) > b:nth-child(2) > a"
+          "selector": "td:nth-child(7):not(.embedded)"
         },
         "downloadvolumefactor": {
           "any": [
             {
-              "selector": "img[alt='free']",
-              "attribute": "alt",
+              "selector": "img.pro_free,img.pro_free2up",
+              "attribute": "class",
               "filters": [
                 {
                   "name": "not_blank",
@@ -308,8 +314,8 @@
               ]
             },
             {
-              "selector": "img[alt='50%']",
-              "attribute": "alt",
+              "selector": "img.pro_50pctdown,img.pro_50pctdown2up",
+              "attribute": "class",
               "filters": [
                 {
                   "name": "not_blank",
@@ -321,8 +327,8 @@
               ]
             },
             {
-              "selector": "img[alt='30%']",
-              "attribute": "alt",
+              "selector": "img.pro_30pctdown",
+              "attribute": "class",
               "filters": [
                 {
                   "name": "not_blank",
@@ -336,7 +342,8 @@
           ]
         },
         "description": {
-          "remove": "span,a,img,font,b",
+          "selector": "font.subtitle",
+          "remove": "div",
           "filters": [
             {
               "name": "split",
@@ -345,29 +352,20 @@
                 -1
               ]
             }
-          ],
-          "any": [
-            {
-              "selector": "div.name_left > a > b > font > span"
-            },
-            {
-              "selector": "div.name_left > a > b > span"
-            }
           ]
         },
         "labels": {
-          "selector": "div.name_left > span > b",
+          "selector": "font.subtitle > div[style] > div.tag",
           "array": true
         },
         "hr_days": {
-          "selector": "td:nth-child(2) > div.name_left > img:nth-child(6)",
-          "attribute": "title",
+          "selector": "div.circle > div.circle-text",
           "filters": [
             {
               "name": "re_search",
               "args": [
-                "(?i)(?:\\bH\\s*&?\\s*R\\b|\\bhit[ -]*and[ -]*run\\b|保种|做种|考核)[^\\d]{0,80}(\\d+)",
-                1
+                "\\d+",
+                0
               ]
             }
           ]
@@ -377,19 +375,19 @@
     "seeding_statistics": {
       "parser": "XPath",
       "method": "GET",
-      "path": "/userdetails.php?id={userId}",
+      "path": "/getusertorrentlistajax.php?userid={userId}&type=seeding",
       "headers": {
         "Referer": "{domain}/userdetails.php?id={userId}"
       },
       "list": {
-        "selector": "//td[contains(text(), '当前上传')]/following-sibling::td//table//tr[position()>1]",
+        "selector": "//tr[position()>1]",
         "next_page": {
-          "selector": "//a[contains(text(), '下一页') or contains(text(), '下一頁')]/@href"
+          "selector": "//a[contains(.//text(), '下一页') or contains(.//text(), '下一頁')]/@href"
         }
       },
       "fields": {
         "size": {
-          "selector": "/td[4]",
+          "selector": ".//td[3]",
           "filters": [
             {
               "name": "byte_size"

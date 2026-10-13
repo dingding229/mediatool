@@ -19,6 +19,7 @@ function requestCategory(raw:string){
  return 'ui_or_asset'
 }
 test.beforeEach(async({page})=>{
+ await page.route('**/api/v1/sites/catalog**',route=>route.fulfill({json:{data:{catalogVersion:1,repository:'dingding229/mediatool-site',sourceCommit:'a'.repeat(40),templates:['hdsky','ptchdbits','ssd','ourbits','ubits','ttg'].map(id=>({id,name:id,file:`sites/${id}.json`,sha256:'b'.repeat(64),templateVersion:1}))}}}))
  const began=Date.now(),events:Array<{category:string;elapsedMs:number;status?:number;failureClass?:string}>=[]
  transportDiagnostics.set(page,events)
  page.on('response',response=>{if(events.length<100)events.push({category:requestCategory(response.url()),elapsedMs:Date.now()-began,status:response.status()})})
@@ -242,7 +243,7 @@ test('official 115 is saved disabled and QR authorization is explicit and cancel
 test('site snapshot recovery keeps the exact commit, license gate and validation (fixture)',async({page})=>{
  const commit='a'.repeat(40)
  const payloads:Array<{ids:string[];sourceCommit?:string;licenseAccepted:boolean}>=[]
- await page.route('**/api/v1/sites/definitions',route=>route.fulfill({json:{data:[{id:'owned_snapshot',name:'自有快照样本',schema:'NexusPHP',sourceCommit:commit,compatibility:{state:'partial',notes:['原条件优先级缺失，需要同快照重新导入（fixture）'],accountVerified:false}}]}}))
+ await page.route('**/api/v1/sites/definitions',route=>route.fulfill({json:{data:[{id:'owned_snapshot',name:'自有快照样本',schema:'NexusPHP',sourceRepository:'dingding229/mediatool-site',sourceCommit:commit,compatibility:{state:'partial',notes:['原条件优先级缺失，需要同快照重新导入（fixture）'],accountVerified:false}}]}}))
  await page.route('**/api/v1/sites/definitions/import',async route=>{payloads.push(route.request().postDataJSON());await route.fulfill({json:{data:[]}})})
  await fixtureLogin(page);await navigate(page,'PT 站点')
  await expect(page.getByRole('heading',{name:'PT 站点配置'})).toBeVisible()
@@ -250,8 +251,8 @@ test('site snapshot recovery keeps the exact commit, license gate and validation
  await expect(restore).toBeDisabled()
  // Element Plus visually hides its native checkbox; click the visible label,
  // exactly like a user, and verify the native checked state (no force bypass).
- await page.getByText('我已阅读上游许可证，确认具备本次配置使用授权',{exact:true}).click()
- await expect(page.getByRole('checkbox',{name:'我已阅读上游许可证，确认具备本次配置使用授权'})).toBeChecked()
+ await page.getByText('我已阅读模板仓库许可，确认具备本次使用授权',{exact:true}).click()
+ await expect(page.getByRole('checkbox',{name:'我已阅读模板仓库许可，确认具备本次使用授权'})).toBeChecked()
  await expect(restore).toBeEnabled();await restore.click()
  await expect(page.getByText('已原子导入固定快照，账号实测仍需单独验证',{exact:true})).toBeVisible()
  expect(payloads[0]).toEqual({ids:['owned_snapshot'],sourceCommit:commit,licenseAccepted:true})
@@ -270,7 +271,7 @@ test('site snapshot recovery keeps the exact commit, license gate and validation
  // Desktop navigation is removed from the mobile accessibility tree.
  await expect(page.getByRole('complementary',{name:'主导航'})).toBeHidden()
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
- await expect(page.getByLabel('来源提交（可选）',{exact:true})).toBeInViewport()
+ await page.getByLabel('来源提交（可选）',{exact:true}).scrollIntoViewIfNeeded();await expect(page.getByLabel('来源提交（可选）',{exact:true})).toBeInViewport()
  await expect(page.getByRole('button',{name:'按此快照重新导入',exact:true})).toBeVisible()
  await page.screenshot({path:resolve(screenshots,'sites-snapshot-mobile.png'),fullPage:true,animations:'disabled'})
 })
@@ -974,4 +975,18 @@ test('subscription structured filters persist and preview displays individual re
 
 test('raw administrator log URLs have dedicated full request and 302 target view (fixture)',async({page})=>{
  await page.route('**/api/v1/logs/query?*',route=>route.fulfill({json:{data:{items:[{time:'2026-10-12T10:00:00Z',level:'INFO',module:'playback',msg:'HTTP request',url:'https://owned.example/strm?apiKey=owned-fixture-key',location:'https://cdnfhnfile.115cdn.net/owned?sign=owned-fixture-sign',status:302,durationMs:12,requestId:'owned-request'}],total:1,page:1,pageSize:200,modules:['playback'],before:'2026-10-12T11:00:00Z',truncated:false}}}));await fixtureLogin(page);await page.goto('/logs');await page.getByRole('button',{name:'查看请求与跳转链接',exact:true}).click();const dialog=page.getByRole('dialog',{name:'完整请求与302链接',exact:true});await expect(dialog).toBeVisible();await expect(dialog.locator('textarea').nth(0)).toHaveValue('https://owned.example/strm?apiKey=owned-fixture-key');await expect(dialog.locator('textarea').nth(1)).toHaveValue('https://cdnfhnfile.115cdn.net/owned?sign=owned-fixture-sign');await page.screenshot({path:resolve(screenshots,'raw-playback-url-dialog.png'),animations:'disabled'})
+})
+
+test('native site repository catalog is built-in and old provenance cannot restore (fixture)',async({page})=>{
+ const commit='a'.repeat(40)
+ await page.route('**/api/v1/sites/definitions',route=>route.fulfill({json:{data:[{id:'hdsky',name:'旧HDSKY',schema:'hdsky',sourceRepository:'',sourceCommit:commit,compatibility:{state:'unsupported',notes:['旧来源模板已停用'],accountVerified:false}}]}}))
+ await fixtureLogin(page);await page.goto('/sites');await expect(page.getByRole('heading',{name:'内置站点模板仓库',exact:true})).toBeVisible()
+ await expect(page.getByRole('link',{name:'dingding229/mediatool-site',exact:true})).toBeVisible()
+ await expect(page.getByRole('group',{name:'选择原生站点模板'})).toBeVisible()
+ await page.getByText('我已阅读模板仓库许可，确认具备本次使用授权',{exact:true}).click()
+ await expect(page.getByRole('button',{name:'按此快照重新导入',exact:true})).toBeDisabled()
+ await expect(page.getByText('导入 pre-dessert-sites',{exact:true})).toHaveCount(0)
+ await page.screenshot({path:resolve(screenshots,'native-site-repository-desktop.png'),fullPage:true,animations:'disabled'})
+ await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true)
+ await page.screenshot({path:resolve(screenshots,'native-site-repository-mobile.png'),fullPage:true,animations:'disabled'})
 })

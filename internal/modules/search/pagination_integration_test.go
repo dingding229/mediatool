@@ -54,8 +54,8 @@ func TestPostgresProviderPagesAreCollectedAndPartialOutcomeIsNotFailedOrComplete
 			if _, err := engine.DB.Exec(ctx, `UPDATE integrations SET settings=jsonb_set(settings,'{endpoint}',to_jsonb($2::text)) WHERE id=$1`, account, server.URL); err != nil {
 				t.Fatal(err)
 			}
-			definition := fmt.Sprintf(`{"id":"owned_snapshot","name":"Owned","schema":"mTorrent","domain":%q,"api":%q,"requests":{"profile":{"parser":"JsonPath","path":"/profile","fields":{"username":{"selector":"data.username"}}},"search":{"parser":"JsonPath","method":"POST","path":"/search","body":{"mode":"owned-mode","keyword":"{keyword}","page":"{page}"},"list":{"selector":"data.items"},"fields":{"id":{"selector":"id"},"title":{"selector":"name"}}}}}`, server.URL, server.URL)
-			if _, err := engine.DB.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition)VALUES('owned_snapshot','Owned','mTorrent','fixture',$1,'{}')`, json.RawMessage(definition)); err != nil {
+			definition := fmt.Sprintf(`{"templateVersion":1,"id":"owned_snapshot","name":"Owned","schema":"mTorrent","domain":%q,"api":%q,"requests":{"profile":{"parser":"JsonPath","path":"/profile","fields":{"username":{"selector":"data.username"}}},"search":{"parser":"JsonPath","method":"POST","path":"/search","body":{"mode":"owned-mode","keyword":"{keyword}","page":"{page}"},"list":{"selector":"data.items"},"fields":{"id":{"selector":"id"},"title":{"selector":"name"}}}}}`, server.URL, server.URL)
+			if _, err := engine.DB.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition,source_repository)VALUES('owned_snapshot','Owned','mTorrent','fixture',$1,'{}','dingding229/mediatool-site')`, json.RawMessage(definition)); err != nil {
 				t.Fatal(err)
 			}
 			// mTorrent authentication requirements belong to the account, not defaults.
@@ -151,7 +151,7 @@ func TestPostgresUnsupportedExecutionCannotProduceSuccessfulEmptySearchProof(t *
 			if _, err = repo.Save(ctx, account, integrations.Input{Kind: "ptsite", Name: current.Record.Name, Enabled: true, Revision: current.Record.Revision, Settings: current.Record.Settings, Secrets: map[string]string{"cookie": "owned=PRIVATE-COOKIE"}}); err != nil {
 				t.Fatal(err)
 			}
-			if _, err = engine.DB.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition)VALUES('owned_snapshot','Owned','NexusPHP','fixture',$1,'{}')`, json.RawMessage(raw)); err != nil {
+			if _, err = engine.DB.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition,source_repository)VALUES('owned_snapshot','Owned','NexusPHP','fixture',$1,'{}','dingding229/mediatool-site')`, json.RawMessage(raw)); err != nil {
 				t.Fatal(err)
 			}
 			manager := integrations.NewManager(repo, config.Config{})

@@ -13,8 +13,8 @@ func TestAuditIsStaticAndDoesNotExposeURLsOrDefinitions(t *testing.T) {
 	os.MkdirAll(filepath.Join(root, "commons"), 0o700)
 	os.Mkdir(filepath.Join(root, "sites"), 0o700)
 	os.WriteFile(filepath.Join(root, "commons/NexusPHP.json"), []byte(`{}`), 0o600)
-	os.WriteFile(filepath.Join(root, "sites/owned.json"), []byte(`{"id":"owned","domain":"https://fixture-private-domain.invalid","schema":"NexusPHP"}`), 0o600)
-	os.WriteFile(filepath.Join(root, "sites/bad.json"), []byte(`{"id":"different","domain":"https://other.invalid"}`), 0o600)
+	os.WriteFile(filepath.Join(root, "sites/owned.json"), []byte(`{"templateVersion":1,"id":"owned","domain":"https://fixture-private-domain.invalid","schema":"NexusPHP"}`), 0o600)
+	os.WriteFile(filepath.Join(root, "sites/bad.json"), []byte(`{"templateVersion":1,"id":"different","domain":"https://other.invalid"}`), 0o600)
 	result, err := audit(root, strings.Repeat("a", 40))
 	if err != nil {
 		t.Fatal(err)
@@ -41,8 +41,8 @@ func TestAuditReportsFixedIssueCodesAndDefinitionCountsWithoutRawRules(t *testin
 	}
 	fixtures := map[string]string{
 		"commons/NexusPHP.json": `{}`,
-		"sites/owned.json":      `{"id":"owned","domain":"https://PRIVATE-DOMAIN.invalid","schema":"NexusPHP","requests":{"search":{"chrome":true,"parser":"PRIVATE-PARSER","body":{"secret":"PRIVATE-BODY"},"fields":{"PRIVATE-FIELD":{"selector":"PRIVATE-SELECTOR","filters":[{"name":"timezone","args":["+19"]},{"name":"timezone","args":["+8"]},{"name":"PRIVATE-FILTER"}]}}}}}`,
-		"sites/clean.json":      `{"id":"clean","domain":"https://PRIVATE-OTHER.invalid","schema":"NexusPHP","requests":{"search":{"parser":"JsonPath","body":{"filters":[{"name":"PRIVATE-BODY-FILTER"}]}}}}`,
+		"sites/owned.json":      `{"templateVersion":1,"id":"owned","domain":"https://PRIVATE-DOMAIN.invalid","schema":"NexusPHP","requests":{"search":{"chrome":true,"parser":"PRIVATE-PARSER","body":{"secret":"PRIVATE-BODY"},"fields":{"PRIVATE-FIELD":{"selector":"PRIVATE-SELECTOR","filters":[{"name":"timezone","args":["+19"]},{"name":"timezone","args":["+8"]},{"name":"PRIVATE-FILTER"}]}}}}}`,
+		"sites/clean.json":      `{"templateVersion":1,"id":"clean","domain":"https://PRIVATE-OTHER.invalid","schema":"NexusPHP","requests":{"search":{"parser":"JsonPath","body":{"filters":[{"name":"PRIVATE-BODY-FILTER"}]}}}}`,
 	}
 	for path, body := range fixtures {
 		if err := os.WriteFile(filepath.Join(root, path), []byte(body), 0o600); err != nil {

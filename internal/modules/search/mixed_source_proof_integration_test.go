@@ -32,7 +32,7 @@ func TestPostgresMixedEmptyCollectionsCannotReplaceEarlierSourceProof(t *testing
 			if change == "account_revision" {
 				_, err = engine.DB.Exec(ctx, `UPDATE integrations SET revision=revision+1 WHERE id=$1`, account)
 			} else {
-				_, err = engine.DB.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition)VALUES('owned_snapshot','Owned','NexusPHP','changed-after-empty-search','{}','{}')`)
+				_, err = engine.DB.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition,source_repository)VALUES('owned_snapshot','Owned','NexusPHP','changed-after-empty-search','{}','{}','dingding229/mediatool-site')`)
 			}
 			if err != nil {
 				t.Fatal(err)
@@ -170,7 +170,7 @@ func TestPostgresCommittingSourceValidationKeepsOriginAndCollectionLocks(t *test
 		t.Run(target, func(t *testing.T) {
 			ctx, engine, account, newRun := snapshotSearchFixture(t)
 			run := newRun()
-			if _, err := engine.DB.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition)VALUES('owned_snapshot','Owned','NexusPHP','fixture','{}','{}')`); err != nil {
+			if _, err := engine.DB.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition,source_repository)VALUES('owned_snapshot','Owned','NexusPHP','fixture','{}','{}','dingding229/mediatool-site')`); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := engine.DB.Exec(ctx, `INSERT INTO search_site_results(run_id,account_id,state)VALUES($1,$2,'failed')`, run, account); err != nil {

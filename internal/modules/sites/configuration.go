@@ -35,15 +35,22 @@ func decodeConfig(raw, common []byte, stored bool) (Config, error) {
 		return Config{}, err
 	}
 	base, err := decodeDefinition(common, stored)
-	if err != nil {
-		return Config{}, err
+	if err != nil || len(base) != 0 {
+		return Config{}, ErrConfig
+	}
+	version, ok := root["templateVersion"].(json.Number)
+	if !ok || version.String() != "1" {
+		return Config{}, ErrConfig
+	}
+	allowed := map[string]bool{"templateVersion": true, "id": true, "name": true, "domain": true, "api": true, "schema": true, "encoding": true, "additional_domain": true, "meta": true, "requests": true}
+	for key := range root {
+		if !allowed[key] {
+			return Config{}, ErrConfig
+		}
 	}
 	c := Config{ID: text(root["id"]), Name: text(root["name"]), Domain: text(root["domain"]), API: text(root["api"]), Schema: text(root["schema"]), Encoding: text(root["encoding"]), Requests: map[string]Map{}}
-	if !regexp.MustCompile(`^[A-Za-z0-9_]{1,80}$`).MatchString(c.ID) || c.Domain == "" {
+	if !regexp.MustCompile(`^[a-z0-9_]{1,80}$`).MatchString(c.ID) || c.Domain == "" {
 		return c, ErrConfig
-	}
-	if c.Schema == "" {
-		c.Schema = text(root["reuse_schema"])
 	}
 	if value, ok := object(root["meta"])["has_hr"].(bool); ok {
 		c.HasHR = &value
@@ -51,55 +58,17 @@ func decodeConfig(raw, common []byte, stored bool) (Config, error) {
 	for _, v := range slice(root["additional_domain"]) {
 		c.AdditionalDomains = append(c.AdditionalDomains, text(v))
 	}
-	for k, v := range object(base["requests"]) {
-		if m, ok := v.(Map); ok {
-			c.Requests[k] = clone(m)
-		}
-	}
 	for name, v := range object(root["requests"]) {
-		override := object(v)
-		inherited := clone(c.Requests[name])
-		if inherited == nil {
-			inherited = Map{}
+		rule, ok := v.(Map)
+		if !ok {
+			return c, ErrConfig
 		}
-		for key, disable := range object(override["disabled_extends"]) {
-			if disable == true {
-				delete(inherited, key)
-			}
+		if _, legacy := rule["disabled_extends"]; legacy {
+			return c, ErrConfig
 		}
-		if parser := text(override["parser"]); parser != "" && parser != text(inherited["parser"]) {
-			delete(inherited, "fields")
-			delete(inherited, "list")
-		}
-		c.Requests[name] = merge(inherited, override)
+		c.Requests[name] = clone(rule)
 	}
 	return c, nil
-}
-func merge(base, override Map) Map {
-	out := clone(base)
-	if out == nil {
-		out = Map{}
-	}
-	if _, ok := override["selector"]; ok {
-		delete(out, "any")
-		delete(out, "case")
-	}
-	if _, ok := override["case"]; ok {
-		delete(out, "selector")
-		delete(out, "any")
-	}
-	if _, ok := override["any"]; ok {
-		delete(out, "selector")
-		delete(out, "case")
-	}
-	for k, v := range override {
-		if m, ok := v.(Map); ok {
-			out[k] = merge(object(out[k]), m)
-		} else {
-			out[k] = v
-		}
-	}
-	return out
 }
 func clone(in Map) Map {
 	if in == nil {
@@ -148,6 +117,6 @@ func keys(m Map) []string {
 // client, including its inherited rules and immutable source reference.
 func DefinitionFingerprint(definition, common []byte, commit string) string {
 	raw, _ := json.Marshal([]json.RawMessage{definition, common})
-	digest := sha256.Sum256(append(append(raw, '\n'), []byte(commit+"\nparser-contract:containers-and-summary-seeding-v4")...))
+	digest := sha256.Sum256(append(append(raw, '\n'), []byte(commit+"\nparser-contract:native-mediate-tool-site-v1-v5")...))
 	return hex.EncodeToString(digest[:])
 }

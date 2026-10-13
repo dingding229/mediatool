@@ -1,3 +1,11 @@
+## 2026-10-13 当前原生站点仓库切换
+
+全部六模板已移入dingding229/mediatool-site，主程序只用原生templateVersion=1/catalogVersion=1，不兼容原仓库/common继承/无版本格式。schema33保存来源，旧定义保留但拒绝运行；原生导入不删除账号与订阅，改变指纹使旧搜索/统计/下载证明失效。计划见plans/native-site-repository-20261013.md，当前说明见NATIVE_SITE_TEMPLATES.md。
+
+主程序发布及正式定义同步以本轮Actions/Hub/服务器回执为准。仍需真实五站点账号、完整PT下载/订阅/入库/通知链路及设备稳定性验收。以下历史段落不能视为当前原库兼容承诺。
+
+---
+
 ## 2026-10-13 当前五站点模板更新
 
 CHDBITS（ptchdbits）、SSD、OURBITS、UBITS、TTG自包含精简模板已开发；索引与差异见examples/sites/README.md，执行计划见plans/site-templates-20261013.md。仅保留4个核心请求，不含账号秘密/签到/验证码等。SSD/UBITS使用明确的汇总统计，TTG保留独立搜索/下载/做种契约，缺失促销/H&R及异常页面保持未知。搜索结果容器与解析契约指纹v4已补齐。schema仍32。

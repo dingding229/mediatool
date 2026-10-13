@@ -2,9 +2,17 @@
 
 # 当前实现与验证状态
 
-更新：2026-10-12。源码版本0.11.2-dev，数据库迁移32；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
+更新：2026-10-12。源码版本0.12.0-dev，数据库迁移33；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
 
 主要业务已实现，本轮继续完成不依赖真实账号的可靠性与管理功能。**测试服务通过不等于真实115/PT/Emby客户端通过；整体项目未宣布验收完成。** 历史过程保留在 WORK_LOG.md，本文件只记录当前状态。
+
+## 本轮0.12原生模板仓库切换
+
+- 六个模板已上传mediatool-site；主程序内置唯一仓库目录、固定快照/摘要校验/原子同步。
+- 原生templateVersion=1、catalogVersion=1，删除原有配置继承与旧仓库导入；旧模板拒绝执行，不提供回退兼容。
+- schema33记录source_repository，后台显示旧来源不支持并禁用旧来源恢复；新增site-template-sync CLI。
+- 原模板文件从主仓库移除，仅保留公共冻结testdata用于回归；当前使用说明见NATIVE_SITE_TEMPLATES.md。
+- 本轮发布后在明确用户授权下导入原生6模板，不删账号或订阅；验证状态以Actions/服务器回执为准，真实五站点账号仍未验收。
 
 ## 本轮0.11.2站点模板更新
 

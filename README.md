@@ -4,7 +4,7 @@
 
 Go + Vue 3 的模块化媒体自动化程序。PostgreSQL保存业务事实/任务/恢复日志，Redis保存可重建缓存；CloudDrive2负责115扫描/上传；播放可使用已授权的115官方开放平台按播放器UA动态取链。STRM只保存固定解析地址，不保存临时CDN链接。
 
-**当前0.11.0-dev，源码迁移31。主要业务已实现；真实115授权、默认Sen UA的网关302/CDN206与非零Range样本已通过，真实PT入库全链路和客户端完整验收仍未完成，不宣称完整1.0。** 不注入模拟账号、示例下载或假直链。
+**当前0.12.0-dev，源码迁移33。主要业务已实现；真实115授权、默认Sen UA的网关302/CDN206与非零Range样本已通过，真实PT入库全链路和客户端完整验收仍未完成，不宣称完整1.0。** 不注入模拟账号、示例下载或假直链。
 
 本轮新增：HDSKY做种/分页证据、订阅结构化筛选、功能型Go/WASM插件、原始业务日志及隔离备份验证。
 插件功能和权限见 [PLUGIN_FRAMEWORK.md](docs/PLUGIN_FRAMEWORK.md)，日志/备份见 [RAW_LOGS_AND_BACKUP.md](docs/RAW_LOGS_AND_BACKUP.md)。
@@ -12,7 +12,7 @@ Go + Vue 3 的模块化媒体自动化程序。PostgreSQL保存业务事实/任�
 ## 能力
 
 - 加密服务连接、修订保护和审计；管理员日志/数据库按用户要求显示原始值，普通会话可撤销。
-- pre-dessert-sites固定快照导入，NexusPHP/M-Team核心配置解析、多站搜索。
+- 内置 dingding229/mediatool-site 原生模板仓库，目录选择、固定快照和 SHA256 校验、多站搜索；不再兼容原站点模板或公共配置继承。
 - TMDB人工身份确认、qBittorrent下载及共享源文件校验，不移动做种源文件。
 - CloudDrive2远程上传与校验，暂停/恢复/取消/核对/受约束人工绑定会话。
 - 电影/剧集订阅、预演、周期搜索/RSS、首次基线、季集覆盖与去重。
@@ -110,3 +110,5 @@ TMDB 搜索区分查询中、服务错误、无匹配结果、缓存结果与正
 和 375–1440px 的回归验证。具体设计约定见
 `design-system/media-tool/MASTER.md`，本轮实施与验收范围见
 `docs/plans/ui-refactor-20261012.md`。播放、文件确认、连接验证和账号恢复规则不变。
+
+原生站点模板格式、来源切换和部署同步见 [docs/NATIVE_SITE_TEMPLATES.md](docs/NATIVE_SITE_TEMPLATES.md)。

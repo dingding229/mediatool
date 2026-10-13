@@ -53,8 +53,8 @@ func TestPostgresExplicitPTHeadersStayEncryptedAndRevisionBound(t *testing.T) {
 	repo := integrations.Repository{DB: db, Vault: vault}
 	manager := integrations.NewManager(repo, config.Config{})
 	defer manager.Close()
-	definition := fmt.Sprintf(`{"id":"owned_encrypted_headers","name":"Owned","schema":"NexusPHP","domain":%q,"requests":{"user_basic_info":{"path":"/profile","parser":"JsonPath","required_headers":["Authorization","X-Csrf-Token"],"fields":{"is_login":{"selector":"ok"}}}}}`, server.URL)
-	if _, err = db.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition)VALUES('owned_encrypted_headers','Owned','NexusPHP','fixture',$1,'{}')`, json.RawMessage(definition)); err != nil {
+	definition := fmt.Sprintf(`{"templateVersion":1,"id":"owned_encrypted_headers","name":"Owned","schema":"NexusPHP","domain":%q,"requests":{"user_basic_info":{"path":"/profile","parser":"JsonPath","required_headers":["Authorization","X-Csrf-Token"],"fields":{"is_login":{"selector":"ok"}}}}}`, server.URL)
+	if _, err = db.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition,source_repository)VALUES('owned_encrypted_headers','Owned','NexusPHP','fixture',$1,'{}','dingding229/mediatool-site')`, json.RawMessage(definition)); err != nil {
 		t.Fatal(err)
 	}
 	input := integrations.Input{Kind: "ptsite", Name: "Owned", Enabled: false, Settings: map[string]any{"endpoint": server.URL, "definitionId": "owned_encrypted_headers"}, Secrets: map[string]string{"requestHeaders": `{"authorization":"Bearer literal{passkey}","X-Csrf-Token":"PRIVATE-CSRF","X-Owned-Unused":"PRIVATE-UNUSED"}`}}

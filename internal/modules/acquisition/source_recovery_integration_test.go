@@ -131,8 +131,8 @@ func newSourceFixture(t *testing.T) *sourceFixture {
 	f.accountID = account.ID
 	save(integrations.Input{Kind: "tmdb", Name: "Owned metadata", Enabled: true, Secrets: map[string]string{"token": "fixture"}})
 	save(integrations.Input{Kind: "qbittorrent", Name: "Owned downloader", Enabled: true, Settings: map[string]any{"endpoint": server.URL, "downloadPath": "/downloads", "localPath": t.TempDir()}})
-	definition := fmt.Sprintf(`{"id":"owned_source","name":"Owned","schema":"NexusPHP","domain":%q,"requests":{}}`, server.URL)
-	if _, err = db.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition)VALUES('owned_source','Owned','NexusPHP','fixture',$1,'{}')`, json.RawMessage(definition)); err != nil {
+	definition := fmt.Sprintf(`{"templateVersion":1,"id":"owned_source","name":"Owned","schema":"NexusPHP","domain":%q,"requests":{}}`, server.URL)
+	if _, err = db.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition,source_repository)VALUES('owned_source','Owned','NexusPHP','fixture',$1,'{}','dingding229/mediatool-site')`, json.RawMessage(definition)); err != nil {
 		t.Fatal(err)
 	}
 	searcher := search.Engine{DB: db, Vault: vault, Connections: manager}

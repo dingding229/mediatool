@@ -20,6 +20,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/admin-reset ./cmd/admin-reset && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/cloud-upload-smoke ./cmd/cloud-upload-smoke && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/site-compat-audit ./cmd/site-compat-audit && \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/site-template-sync ./cmd/site-template-sync && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/cloud-events-check ./cmd/cloud-events-check
 
 FROM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 AS runtime
@@ -32,6 +33,7 @@ COPY --from=backend /out/rekey /app/rekey
 COPY --from=backend /out/admin-reset /app/admin-reset
 COPY --from=backend /out/cloud-upload-smoke /app/cloud-upload-smoke
 COPY --from=backend /out/site-compat-audit /app/site-compat-audit
+COPY --from=backend /out/site-template-sync /app/site-template-sync
 COPY --from=backend /out/cloud-events-check /app/cloud-events-check
 USER 65532:65532
 EXPOSE 8080 8091

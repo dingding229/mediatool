@@ -1,14 +1,10 @@
 {
-  "id": "ptchdbits",
-  "name": "彩虹岛（精简模板）",
-  "domain": "https://ptchdbits.co",
+  "templateVersion": 1,
+  "id": "hdsky",
+  "name": "HDSKY 天空（精简模板）",
+  "domain": "https://hdsky.me",
   "schema": "NexusPHP",
   "encoding": "UTF-8",
-  "additional_domain": [
-    "https://bj.chddiy.xyz",
-    "https://js.chddiy.xyz",
-    "https://hn.chddiy.xyz"
-  ],
   "requests": {
     "user_basic_info": {
       "parser": "XPath",
@@ -252,11 +248,11 @@
       },
       "list": {
         "selector": "table.torrents tr:has(table.torrentname)",
-        "container": "table.torrents",
         "next_page": {
-          "selector": "a[rel='next'][href], a[href]:contains('下一页'), a[href]:contains('下一頁'), a[href]:contains('Next'), a[href]:contains('next')",
+          "selector": "a[href*=\"torrents.php\"][rel=\"next\"], a[href*=\"torrents.php\"]:contains(\"下一页\"), a[href*=\"torrents.php\"]:contains(\"下一頁\")",
           "attribute": "href"
-        }
+        },
+        "container": "table.torrents"
       },
       "fields": {
         "id": {
@@ -273,15 +269,23 @@
           ]
         },
         "title": {
-          "selector": "table.torrentname tr > td.embedded > a > b"
+          "any": [
+            {
+              "selector": "a[title][href*='details.php?id=']",
+              "attribute": "title"
+            },
+            {
+              "selector": "a[href*='details.php?id=']"
+            }
+          ]
         },
         "details": {
           "selector": "a[href*='details.php?id=']",
           "attribute": "href"
         },
         "download": {
-          "selector": "a[href*='download.php?id=']",
-          "attribute": "href"
+          "selector": "form[action*='/download.php?id=']",
+          "attribute": "action"
         },
         "size": {
           "selector": "td:nth-child(5):not(.embedded)",
@@ -341,33 +345,29 @@
           ]
         },
         "description": {
-          "selector": "font.subtitle",
-          "remove": "div",
+          "any": [
+            {
+              "selector": "td:nth-child(2) > table.torrentname > tbody > tr > td.embedded > span:not(.optiontag)",
+              "remove": "img,a,b"
+            },
+            {
+              "selector": "td:nth-child(2) > table.torrentname > tr > td.embedded > span:not(.optiontag)",
+              "remove": "img,a,b"
+            }
+          ],
           "filters": [
             {
-              "name": "split",
+              "name": "replace",
               "args": [
-                "\n",
-                -1
+                "[优惠剩余时间：]",
+                ""
               ]
             }
           ]
         },
         "labels": {
-          "selector": "font.subtitle > div[style] > div.tag",
-          "array": true
-        },
-        "hr_days": {
-          "selector": "div.circle > div.circle-text",
-          "filters": [
-            {
-              "name": "re_search",
-              "args": [
-                "\\d+",
-                0
-              ]
-            }
-          ]
+          "array": true,
+          "selector": "td:nth-child(2) > table.torrentname > tbody > tr > td.embedded > span.optiontag, td:nth-child(2) > table.torrentname > tr > td.embedded > span.optiontag"
         }
       }
     },
@@ -386,7 +386,7 @@
       },
       "fields": {
         "size": {
-          "selector": ".//td[3]",
+          "selector": "/td[3]",
           "filters": [
             {
               "name": "byte_size"

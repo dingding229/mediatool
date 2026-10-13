@@ -18,7 +18,7 @@ var minimalSites = []string{"chdbits", "ssd", "ourbits", "ubits", "ttg"}
 
 func minimalSiteConfig(t *testing.T, site string) Config {
 	t.Helper()
-	raw, e := os.ReadFile("../../../examples/sites/" + site + ".json")
+	raw, e := os.ReadFile("testdata/repository/sites/" + map[string]string{"chdbits": "ptchdbits", "ssd": "ssd", "ourbits": "ourbits", "ubits": "ubits", "ttg": "ttg"}[site] + ".json")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -426,7 +426,7 @@ func TestSummarySeedingRejectsInvalidOrAmbiguousTotals(t *testing.T) {
 	}
 }
 func TestTemplateIndexHasOnlySelfContainedDefinitions(t *testing.T) {
-	raw, e := os.ReadFile("../../../examples/sites/index.json")
+	raw, e := os.ReadFile("testdata/repository/index.json")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -439,7 +439,7 @@ func TestTemplateIndexHasOnlySelfContainedDefinitions(t *testing.T) {
 	}
 	ids := map[string]bool{}
 	for _, x := range idx.Templates {
-		data, e := os.ReadFile("../../../examples/sites/" + x.File)
+		data, e := os.ReadFile("testdata/repository/" + x.File)
 		if e != nil {
 			t.Fatal(e)
 		}

@@ -337,6 +337,9 @@ func (m *Manager) siteCredentials(ctx context.Context, c Credentials) (sites.Cli
 	if err != nil {
 		return sites.Client{}, err
 	}
+	if definition.SourceRepository != sites.NativeRepository {
+		return sites.Client{}, errors.New("site template source is no longer supported; import from mediatool-site")
+	}
 	configuration, err := sites.DecodeStored(definition.RawJSON, definition.CommonJSON)
 	if err != nil {
 		return sites.Client{}, err

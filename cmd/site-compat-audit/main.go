@@ -36,8 +36,8 @@ type report struct {
 }
 
 func main() {
-	directory := flag.String("directory", "", "explicit local site_config directory")
-	commit := flag.String("source-commit", "", "immutable upstream 40-character commit")
+	directory := flag.String("directory", "", "explicit local native repository directory")
+	commit := flag.String("source-commit", "", "immutable mediatool-site 40-character commit")
 	flag.Parse()
 	result, err := audit(*directory, *commit)
 	if err != nil {
@@ -92,10 +92,6 @@ func audit(directory, commit string) (report, error) {
 		}
 		return raw, nil
 	}
-	common, err := read("commons/NexusPHP.json")
-	if err != nil {
-		return result, &auditFailure{"common_read", err}
-	}
 	entries, err := os.ReadDir(filepath.Join(directory, "sites"))
 	if err != nil {
 		return result, &auditFailure{"sites_list", err}
@@ -114,7 +110,7 @@ func audit(directory, commit string) (report, error) {
 		if err != nil {
 			return result, &auditFailure{"definition_read", err}
 		}
-		config, err := sites.Decode(raw, common)
+		config, err := sites.Decode(raw, []byte(`{}`))
 		if err != nil || config.ID != id {
 			result.Invalid++
 			result.Rows = append(result.Rows, row{ID: id, State: "invalid", Issues: 1, IssueCodes: []string{"invalid_definition"}})

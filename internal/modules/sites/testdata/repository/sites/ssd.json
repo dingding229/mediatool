@@ -1,12 +1,10 @@
 {
-  "id": "ourbits",
-  "name": "我堡（精简模板）",
-  "domain": "https://ourbits.club",
+  "templateVersion": 1,
+  "id": "ssd",
+  "name": "春天（精简模板）",
+  "domain": "https://springsunday.net",
   "schema": "NexusPHP",
   "encoding": "UTF-8",
-  "additional_domain": [
-    "https://pt.ourhelp.club"
-  ],
   "meta": {
     "has_hr": true
   },
@@ -167,43 +165,13 @@
           ]
         },
         "bonus": {
-          "any": [
+          "selector": "//a[contains(@href,'mybonus')]/@title",
+          "filters": [
             {
-              "selector": "//a[contains(@href,'mybonus') or contains(@href,'bonus.php')]/text()",
-              "filters": [
-                {
-                  "name": "re_search",
-                  "args": [
-                    "([\\d,.]+)",
-                    1
-                  ]
-                }
-              ]
-            },
-            {
-              "selector": "*",
-              "selection": "html",
-              "filters": [
-                {
-                  "name": "re_search",
-                  "args": [
-                    "mybonus.[\\[\\]:：<>/a-zA-Z_\\-=''\\s#;.(使用魔力值豆]+\\s*([\\d,.]+)[<()&\\s\\[]",
-                    1
-                  ]
-                }
-              ]
-            },
-            {
-              "selector": "*",
-              "selection": "html",
-              "filters": [
-                {
-                  "name": "re_search",
-                  "args": [
-                    "[魔力值|\\]][\\[\\]:：<>/a-zA-Z_\\-=''\\s#;]+\\s*([\\d,.]+|\\'[\\d,.]+')[<>()&\\s\\[]",
-                    1
-                  ]
-                }
+              "name": "re_search",
+              "args": [
+                "([\\d,.]+)",
+                1
               ]
             }
           ]
@@ -293,7 +261,7 @@
           "attribute": "href"
         },
         "size": {
-          "selector": "td.rowfollow:nth-child(5)",
+          "selector": "td:nth-child(5):not(.embedded)",
           "filters": [
             {
               "name": "byte_size"
@@ -309,7 +277,7 @@
         "downloadvolumefactor": {
           "any": [
             {
-              "selector": "img.pro_free,img.pro_free2up",
+              "selector": "span.torrent-pro-icon.torrent-pro-free,span.torrent-pro-icon.torrent-pro-twoupfree",
               "attribute": "class",
               "filters": [
                 {
@@ -322,7 +290,7 @@
               ]
             },
             {
-              "selector": "img.pro_50pctdown,img.pro_50pctdown2up",
+              "selector": "span.torrent-pro-icon.torrent-pro-halfdown,span.torrent-pro-icon.torrent-pro-twouphalfdown",
               "attribute": "class",
               "filters": [
                 {
@@ -335,7 +303,7 @@
               ]
             },
             {
-              "selector": "img.pro_30pctdown",
+              "selector": "span.torrent-pro-icon.torrent-pro-thirtypercent",
               "attribute": "class",
               "filters": [
                 {
@@ -350,34 +318,21 @@
           ]
         },
         "description": {
-          "selector": "table.torrentname tr > td.embedded",
-          "remove": "div,a,img,b",
+          "selector": "td.embedded > div.torrent-smalldescr > span",
+          "remove": "span,a,img,font,b",
           "filters": [
             {
-              "name": "replace",
+              "name": "split",
               "args": [
-                "剩余时间：",
-                ""
+                "\n",
+                -1
               ]
             }
           ]
         },
         "labels": {
-          "selector": "table.torrentname tr > td.embedded > div > a[href*='?tags[]='] > span",
+          "selector": "td.embedded > div.torrent-smalldescr > a > span",
           "array": true
-        },
-        "hr": {
-          "selector": "img.hitandrun",
-          "attribute": "class",
-          "filters": [
-            {
-              "name": "not_blank",
-              "args": [
-                true,
-                ""
-              ]
-            }
-          ]
         }
       }
     },
@@ -385,24 +340,46 @@
       "parser": "XPath",
       "method": "GET",
       "path": "/getusertorrentlistajax.php?userid={userId}&type=seeding",
-      "headers": {
-        "Referer": "{domain}/userdetails.php?id={userId}"
-      },
-      "list": {
-        "selector": "//tr[position()>1]",
-        "next_page": {
-          "selector": "//a[contains(.//text(), '下一页') or contains(.//text(), '下一頁')]/@href"
-        }
-      },
       "fields": {
-        "size": {
-          "selector": "/td[3]",
+        "count": {
+          "selector": "(.//b)[1]",
           "filters": [
+            {
+              "name": "strip"
+            },
+            {
+              "name": "re_search",
+              "args": [
+                "^\\d+$",
+                0
+              ]
+            }
+          ]
+        },
+        "size": {
+          "selector": "(.//b)[2]",
+          "filters": [
+            {
+              "name": "strip"
+            },
+            {
+              "name": "re_search",
+              "args": [
+                "(?i)^[0-9][0-9,.]*\\s*[KMGTPE]?i?B$",
+                0
+              ]
+            },
             {
               "name": "byte_size"
             }
           ]
         }
+      },
+      "headers": {
+        "Referer": "{domain}/userdetails.php?id={userId}"
+      },
+      "summary": {
+        "selector": "//body[count(.//b)=2]"
       }
     }
   }

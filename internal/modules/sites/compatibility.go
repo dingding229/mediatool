@@ -80,7 +80,7 @@ func Compatibility(c Config) Map {
 	if len(issues) > 0 {
 		state = "partial"
 	}
-	return Map{"state": state, "notes": notes, "issueCodes": codes, "accountVerified": false, "source": "pre-dessert-sites"}
+	return Map{"state": state, "notes": notes, "issueCodes": codes, "accountVerified": false, "source": NativeRepository}
 }
 
 func scanFieldFilters(fields Map, at string, add func(string, string)) {

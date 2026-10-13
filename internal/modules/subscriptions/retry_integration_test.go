@@ -97,8 +97,8 @@ func retryFixtureFor(t *testing.T) *retryFixture {
 	if _, err = repo.Save(ctx, "", integrations.Input{Kind: "tmdb", Name: "Owned metadata", Enabled: true, Secrets: map[string]string{"token": "fixture"}}); err != nil {
 		t.Fatal(err)
 	}
-	definition := fmt.Sprintf(`{"id":"owned_retry","name":"Owned","schema":"NexusPHP","domain":%q,"meta":{"has_hr":false},"requests":{}}`, server.URL)
-	if _, err = db.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition)VALUES('owned_retry','Owned','NexusPHP','fixture',$1,'{}')`, json.RawMessage(definition)); err != nil {
+	definition := fmt.Sprintf(`{"templateVersion":1,"id":"owned_retry","name":"Owned","schema":"NexusPHP","domain":%q,"meta":{"has_hr":false},"requests":{}}`, server.URL)
+	if _, err = db.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition,source_repository)VALUES('owned_retry','Owned','NexusPHP','fixture',$1,'{}','dingding229/mediatool-site')`, json.RawMessage(definition)); err != nil {
 		t.Fatal(err)
 	}
 	engine := Engine{DB: db, Connections: manager}

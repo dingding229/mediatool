@@ -44,7 +44,7 @@ func TestPostgresRedisSearchCacheScopeAndInvalidation(t *testing.T) {
 	repo := integrations.Repository{DB: db, Vault: v}
 	manager := integrations.NewManager(repo, config.Config{})
 	defer manager.Close()
-	_, err = db.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition)VALUES('owned-cache','Owned','NexusPHP','owned-commit','{}','{}') ON CONFLICT(id)DO UPDATE SET definition='{}',common_definition='{}'`)
+	_, err = db.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition,source_repository)VALUES('owned-cache','Owned','NexusPHP','owned-commit','{}','{}','dingding229/mediatool-site') ON CONFLICT(id)DO UPDATE SET definition='{}',common_definition='{}'`)
 	if err != nil {
 		t.Fatal(err)
 	}

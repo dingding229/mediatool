@@ -30,6 +30,7 @@ type Definition struct {
 	ID                  string         `json:"id"`
 	Name                string         `json:"name"`
 	Schema              string         `json:"schema"`
+	SourceRepository    string         `json:"sourceRepository"`
 	SourceCommit        string         `json:"sourceCommit"`
 	Compatibility       map[string]any `json:"compatibility"`
 	RawJSON, CommonJSON []byte         `json:"-"`

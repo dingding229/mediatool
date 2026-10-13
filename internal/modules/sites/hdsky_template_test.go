@@ -12,7 +12,7 @@ import (
 
 func minimalHDSKY(t *testing.T, mode string) Client {
 	t.Helper()
-	raw, e := os.ReadFile("../../../examples/sites/hdsky.json")
+	raw, e := os.ReadFile("testdata/repository/sites/hdsky.json")
 	if e != nil {
 		t.Fatal(e)
 	}

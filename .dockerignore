@@ -11,3 +11,5 @@ internal/platform/webui/assets/assets
 internal/platform/webui/assets/index.html
 
 examples/sites
+
+internal/modules/sites/testdata

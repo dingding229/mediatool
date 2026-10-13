@@ -16,7 +16,7 @@ import (
 )
 
 func TestCasesRetainDeclarationOrderAndFalsyValues(t *testing.T) {
-	raw := []byte(`{"id":"owned","domain":"https://owned.invalid","reuse_schema":"NexusPHP","requests":{"search":{"parser":"CssSelector","fields":{"factor":{"case":{".z-free":0,".a-half":0.5,"*":1}},"login":{"case":{".z-free":false,"*":true}}}}}}`)
+	raw := []byte(`{"templateVersion":1,"id":"owned","domain":"https://owned.invalid","schema":"NexusPHP","requests":{"search":{"parser":"CssSelector","fields":{"factor":{"case":{".z-free":0,".a-half":0.5,"*":1}},"login":{"case":{".z-free":false,"*":true}}}}}}`)
 	config, err := Decode(raw, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestCasesRetainDeclarationOrderAndFalsyValues(t *testing.T) {
 }
 
 func TestCanonicalizationDoesNotTransformJSONPayloadsOrLookupFilters(t *testing.T) {
-	raw := []byte(`{"id":"owned","domain":"https://owned.invalid","requests":{"search":{"body":{"fields":{"case":{"a":1,"b":2}}},"fields":{"labels":{"selector":"codes","array":true,"filters":[{"name":"case","args":{"a":"A","b":"B"}}]},"title":{"any":[{"case":{".first":"First","*":"Default"}}]}}}}}`)
+	raw := []byte(`{"templateVersion":1,"id":"owned","domain":"https://owned.invalid","requests":{"search":{"body":{"fields":{"case":{"a":1,"b":2}}},"fields":{"labels":{"selector":"codes","array":true,"filters":[{"name":"case","args":{"a":"A","b":"B"}}]},"title":{"any":[{"case":{".first":"First","*":"Default"}}]}}}}}`)
 	canonical, err := canonicalDefinitionJSON(raw)
 	if err != nil {
 		t.Fatal(err)
@@ -81,8 +81,11 @@ func TestCanonicalizationDoesNotTransformJSONPayloadsOrLookupFilters(t *testing.
 
 func TestCaseOverrideIsExclusiveAndBadJSONRejected(t *testing.T) {
 	common := []byte(`{"requests":{"search":{"fields":{"factor":{"selector":".normal","any":[{"selector":".other"}]}}}}}`)
-	raw := []byte(`{"id":"owned","domain":"https://owned.invalid","requests":{"search":{"fields":{"factor":{"case":{".free":0,"*":1}}}}}}`)
-	config, err := Decode(raw, common)
+	raw := []byte(`{"templateVersion":1,"id":"owned","domain":"https://owned.invalid","requests":{"search":{"fields":{"factor":{"case":{".free":0,"*":1}}}}}}`)
+	if _, err := Decode(raw, common); err == nil {
+		t.Fatal("inheritance accepted")
+	}
+	config, err := Decode(raw, []byte(`{}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +96,7 @@ func TestCaseOverrideIsExclusiveAndBadJSONRejected(t *testing.T) {
 	if _, ok := rule["any"]; ok {
 		t.Fatal("case inherited conflicting alternatives")
 	}
-	for _, bad := range []string{`{"id":"a","id":"b"}`, `{} {}`, `[]`, `{"requests":{"search":{"fields":{"title":{"case":true}}}}}`, `{"requests":{"search":{"fields":{"title":{"case":[{"selector":"a","value":1},{"selector":"a","value":2}]}}}}}`} {
+	for _, bad := range []string{`{"templateVersion":1,"id":"a","id":"b"}`, `{} {}`, `[]`, `{"requests":{"search":{"fields":{"title":{"case":true}}}}}`, `{"requests":{"search":{"fields":{"title":{"case":[{"selector":"a","value":1},{"selector":"a","value":2}]}}}}}`} {
 		if _, err := decodeDefinition([]byte(bad), false); err == nil {
 			t.Fatal("malformed/ambiguous configuration accepted")
 		}
@@ -188,7 +191,7 @@ func TestGroupedSearchKeepsParentFieldsAndChildIdentity(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	raw := []byte(fmt.Sprintf(`{"id":"owned_groups","domain":%q,"reuse_schema":"NexusPHP","requests":{"user_basic_info":{"path":"/profile","parser":"JsonPath","fields":{"is_login":{"selector":"login"}}},"search":{"path":"/search","parser":"JsonPath","list":{"selector":"groups"},"fields":{"title":{"selector":"group","filters":[{"name":"append_right","args":" - "},{"name":"append_field_right","args":"z_name"}]},"z_name":{"selector":"name"},"details":{"selector":"details"},"labels":{"selector":"codes","array":true,"filters":[{"name":"case","args":{"lossless":"Lossless"}}]},"ignored_date":{"selector":"date","filters":[{"name":"timezone","args":["+19"]}]}},"flat_map_fields":{"selector":"torrents","fields":{"id":{"selector":"id"},"size":{"selector":"size"},"seeders":{"selector":"seeds"},"downloadvolumefactor":{"selector":"factor"},"hr_days":{"selector":"hr"}}}}}}`, server.URL))
+	raw := []byte(fmt.Sprintf(`{"templateVersion":1,"id":"owned_groups","domain":%q,"schema":"NexusPHP","requests":{"user_basic_info":{"path":"/profile","parser":"JsonPath","fields":{"is_login":{"selector":"login"}}},"search":{"path":"/search","parser":"JsonPath","list":{"selector":"groups"},"fields":{"title":{"selector":"group","filters":[{"name":"append_right","args":" - "},{"name":"append_field_right","args":"z_name"}]},"z_name":{"selector":"name"},"details":{"selector":"details"},"labels":{"selector":"codes","array":true,"filters":[{"name":"case","args":{"lossless":"Lossless"}}]},"ignored_date":{"selector":"date","filters":[{"name":"timezone","args":["+19"]}]}},"flat_map_fields":{"selector":"torrents","fields":{"id":{"selector":"id"},"size":{"selector":"size"},"seeders":{"selector":"seeds"},"downloadvolumefactor":{"selector":"factor"},"hr_days":{"selector":"hr"}}}}}}`, server.URL))
 	config, err := Decode(raw, nil)
 	if err != nil {
 		t.Fatal(err)
