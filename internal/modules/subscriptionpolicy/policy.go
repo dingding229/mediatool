@@ -3,6 +3,7 @@
 package subscriptionpolicy
 
 import (
+	"errors"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/releaseattrs"
 	"media-tool/internal/modules/search"
@@ -16,6 +17,7 @@ type Rules struct {
 	Source         string   `json:"source,omitempty"`
 	Codec          string   `json:"codec,omitempty"`
 	AccountIDs     []string `json:"accountIds"`
+	RegexKeywords  bool     `json:"regexKeywords,omitempty"`
 	Keyword        string   `json:"keyword"`
 	Include        []string `json:"include"`
 	Exclude        []string `json:"exclude"`
@@ -88,15 +90,22 @@ func Evaluate(resource search.Resource, item metadata.Item, rules Rules) (bool, 
 		reasons = append(reasons, "标题/年份无法精确对应已选择媒体，需要人工确认")
 	}
 	for _, word := range rules.Include {
-		if !strings.Contains(lower, strings.ToLower(word)) {
+		matched, err := keywordMatches(resource.Title, lower, word, rules.RegexKeywords)
+		if err != nil {
+			reasons = append(reasons, "无效包含正则："+word)
+		} else if !matched {
 			reasons = append(reasons, "缺少包含词："+word)
 		}
 	}
 	for _, word := range rules.Exclude {
-		if strings.Contains(lower, strings.ToLower(word)) {
+		matched, err := keywordMatches(resource.Title, lower, word, rules.RegexKeywords)
+		if err != nil {
+			reasons = append(reasons, "无效排除正则："+word)
+		} else if matched {
 			reasons = append(reasons, "包含排除词："+word)
 		}
 	}
+
 	if rules.MinSize > 0 && resource.Size < rules.MinSize {
 		reasons = append(reasons, "体积过小或未知")
 	}
@@ -150,4 +159,31 @@ func AttributeChecks(title string, rules Rules) []RuleCheck {
 func Filter(resource search.Resource, item metadata.Item, rules Rules) (bool, []string) {
 	matched, reasons, _ := Evaluate(resource, item, rules)
 	return matched, reasons
+}
+
+func keywordMatches(title, lower, pattern string, regex bool) (bool, error) {
+	if !regex {
+		return strings.Contains(lower, strings.ToLower(pattern)), nil
+	}
+	r, err := regexp.Compile(pattern)
+	if err != nil {
+		return false, err
+	}
+	return r.MatchString(title), nil
+}
+func ValidateKeywords(rules Rules) error {
+	if len(rules.Include)+len(rules.Exclude) > 64 {
+		return errors.New("关键词最多64条")
+	}
+	for _, s := range append(append([]string{}, rules.Include...), rules.Exclude...) {
+		if len(s) > 200 || strings.TrimSpace(s) == "" {
+			return errors.New("关键词须为1～200字符")
+		}
+		if rules.RegexKeywords {
+			if _, err := regexp.Compile(s); err != nil {
+				return errors.New("正则表达式无效，请核对包含/排除关键词")
+			}
+		}
+	}
+	return nil
 }

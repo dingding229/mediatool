@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"media-tool/internal/modules/integrations"
+	"media-tool/internal/modules/settings"
 	"media-tool/internal/platform/auth"
 	"media-tool/internal/platform/cache"
 	"media-tool/internal/platform/database"
@@ -98,6 +99,55 @@ func TestPostgresTMDBCacheSeparatesKindAndConfiguration(t *testing.T) {
 	if calls != 3 {
 		t.Fatal("revision cache collision")
 	}
+	// Subscription/download lookup endpoint shares the same cached result.
+	lookup := func() *httptest.ResponseRecorder {
+		r := httptest.NewRequest("GET", "/api/v1/metadata/search?mediaType=movie&q=Owned%20Cache%20Fixture", nil)
+		r.AddCookie(&http.Cookie{Name: auth.CookieName, Value: token})
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != 200 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+		return w
+	}
+	if lookup().Header().Get("X-Media-Cache") != "hit" || calls != 3 {
+		t.Fatal("cross-entry cache miss")
+	}
+	prefs, _ := (settings.Repository{DB: db}).Get(ctx)
+	original := prefs.Value
+	defer func() {
+		latest, _ := (settings.Repository{DB: db}).Get(ctx)
+		(settings.Repository{DB: db}).Save(ctx, original, latest.Revision)
+	}()
+	prefs.Value.TMDBCacheSeconds = 45
+	saved, e := (settings.Repository{DB: db}).Save(ctx, prefs.Value, prefs.Revision)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if lookup().Header().Get("X-Media-Cache") != "miss" || calls != 4 {
+		t.Fatal("TTL config not applied")
+	}
+	keys, _, _ := rc.Scan(ctx, 0, "media-tool:tmdb-cache:*", 1000).Result()
+	has45 := false
+	for _, key := range keys {
+		ttl, _ := rc.TTL(ctx, key).Result()
+		if ttl > 40*time.Second && ttl <= 45*time.Second {
+			has45 = true
+		}
+	}
+	if !has45 {
+		t.Fatal("new TTL absent")
+	}
+	saved.Value.TMDBCacheSeconds = 0
+	if _, e = (settings.Repository{DB: db}).Save(ctx, saved.Value, saved.Revision); e != nil {
+		t.Fatal(e)
+	}
+	lookup()
+	lookup()
+	if calls != 6 {
+		t.Fatal("cache disabled but reused", calls)
+	}
+
 }
 
 type mediaCacheTransport func(*http.Request) (*http.Response, error)

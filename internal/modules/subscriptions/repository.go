@@ -11,6 +11,7 @@ import (
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/metadata"
+	"media-tool/internal/modules/settings"
 )
 
 type Engine struct {
@@ -71,9 +72,14 @@ func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
 	if in.Source == "" {
 		in.Source = "search"
 	}
-	if in.IntervalMinutes == 0 {
-		in.IntervalMinutes = 30
+	prefs, err := (settings.Repository{DB: e.DB}).Get(ctx)
+	if err != nil {
+		return Record{}, err
 	}
+	in.IntervalMinutes = prefs.Value.SubscriptionIntervalMinutes
+	in.Rules.MinSize = 0
+	in.Rules.MaxSize = 0
+	in.Rules.MinSeeders = 0
 	if err := Validate(in); err != nil {
 		return Record{}, err
 	}
@@ -104,6 +110,10 @@ func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
 		return Record{}, err
 	}
 	defer tx.Rollback(ctx)
+	// Serialize interval assignment with system-setting updates, including new rows.
+	if err = tx.QueryRow(ctx, `SELECT (value->>'subscriptionIntervalMinutes')::integer FROM application_settings WHERE singleton FOR SHARE`).Scan(&in.IntervalMinutes); err != nil {
+		return Record{}, err
+	}
 	if id == "" {
 		id = jobs.UUID()
 		_, err = tx.Exec(ctx, `INSERT INTO subscriptions(id,title,media_type,identity,rules,enabled,source,interval_seconds)VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, id, item.Title, in.MediaType, identity, rules, in.Enabled, in.Source, in.IntervalMinutes*60)

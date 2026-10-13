@@ -3,7 +3,6 @@ package subscriptions
 import (
 	"errors"
 	"sort"
-	"strings"
 
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/releaseattrs"
@@ -60,10 +59,8 @@ func Validate(in Input) error {
 			return errors.New("invalid episode number")
 		}
 	}
-	for _, s := range append(append([]string{}, in.Rules.Include...), in.Rules.Exclude...) {
-		if len(s) > 200 || strings.TrimSpace(s) == "" {
-			return errors.New("keywords must be nonempty and <=200 characters")
-		}
+	if err := subscriptionpolicy.ValidateKeywords(in.Rules); err != nil {
+		return err
 	}
 	return nil
 }

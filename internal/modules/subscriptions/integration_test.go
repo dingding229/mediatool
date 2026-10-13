@@ -100,9 +100,16 @@ func TestPostgresSubscriptionPreviewRSSBaselineAndAutomaticDedup(t *testing.T) {
 	}
 	engine := Engine{DB: db, Connections: manager}
 	input := Input{MediaType: "movie", TMDBID: 1, Source: "search", IntervalMinutes: 30, Rules: Rules{AccountIDs: []string{account.ID}, Keyword: "Owned Movie", FreeOnly: true, MinSeeders: 1}}
+	input.IntervalMinutes = 999
+	input.Rules.MinSize = 1
+	input.Rules.MaxSize = 999
+	input.Rules.MinSeeders = 5
 	record, err := engine.Save(ctx, "", input)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if record.IntervalMinutes != 30 || record.Rules.MinSize != 0 || record.Rules.MaxSize != 0 || record.Rules.MinSeeders != 0 {
+		t.Fatal("per-subscription interval/limits retained", record)
 	}
 	previewID, err := engine.Queue(ctx, record.ID, true)
 	if err != nil {

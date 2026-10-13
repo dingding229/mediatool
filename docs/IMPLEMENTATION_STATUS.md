@@ -2,9 +2,13 @@
 
 # 当前实现与验证状态
 
-更新：2026-10-13。源码版本0.14.1-dev，数据库迁移36；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
+更新：2026-10-13。源码版本0.15.0-dev，数据库迁移37；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
 
 主要业务已实现，本轮继续完成不依赖真实账号的可靠性与管理功能。**测试服务通过不等于真实115/PT/Emby客户端通过；整体项目未宣布验收完成。** 历史过程保留在 WORK_LOG.md，本文件只记录当前状态。
+
+## 本轮0.15 搜索/订阅交互
+
+表头远程排序、来源规范显示、站点动作/历史状态对齐；订阅TMDB查询布局和缓存提示；删除体积/做种人数限制、系统统一间隔、正则关键词。说明SUBSCRIPTION_SEARCH_UI.md，计划plans/search-layout-20261013.md。schema37只授权转换订阅限制/间隔，保护其余业务字段、账号和STRM。
 
 ## 本轮0.14.1 图标/全选/定时刷新
 

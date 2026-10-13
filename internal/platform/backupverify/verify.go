@@ -22,14 +22,15 @@ type Table struct {
 type Report struct {
 	InitialTables map[string]Table `json:"initialTables"`
 
-	BaselineVersion                int64          `json:"baselineVersion"`
-	FinalVersion                   int64          `json:"finalVersion"`
-	Tables                         int            `json:"tables"`
-	LegacyBusinessColumnsPreserved bool           `json:"legacyBusinessColumnsPreserved"`
-	DryRunCiphertextsUnchanged     bool           `json:"dryRunCiphertextsUnchanged"`
-	SecondMigrationIdempotent      bool           `json:"secondMigrationIdempotent"`
-	CipherRows                     map[string]int `json:"cipherRows"`
-	NoWorkersStarted               bool           `json:"noWorkersStarted"`
+	BaselineVersion                         int64          `json:"baselineVersion"`
+	FinalVersion                            int64          `json:"finalVersion"`
+	Tables                                  int            `json:"tables"`
+	LegacyBusinessColumnsPreserved          bool           `json:"legacyBusinessColumnsPreserved"`
+	DryRunCiphertextsUnchanged              bool           `json:"dryRunCiphertextsUnchanged"`
+	SecondMigrationIdempotent               bool           `json:"secondMigrationIdempotent"`
+	CipherRows                              map[string]int `json:"cipherRows"`
+	AuthorizedSubscriptionMigrationVerified bool           `json:"authorizedSubscriptionMigrationVerified"`
+	NoWorkersStarted                        bool           `json:"noWorkersStarted"`
 }
 
 type querier interface {
@@ -117,6 +118,13 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 	if e != nil {
 		return r, e
 	}
+	var protected37 map[string]Table
+	if r.BaselineVersion < 37 {
+		protected37, e = subscriptionMigrationProjection(ctx, db, before)
+		if e != nil {
+			return r, e
+		}
+	}
 	if e = schema.Up(ctx, dsn); e != nil {
 		return r, e
 	}
@@ -124,7 +132,31 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 	if e != nil {
 		return r, e
 	}
-	r.LegacyBusinessColumnsPreserved = equal(before, after, true)
+	compareBefore, compareAfter := map[string]Table{}, map[string]Table{}
+	for n, v := range before {
+		compareBefore[n] = v
+	}
+	for n, v := range after {
+		compareAfter[n] = v
+	}
+	if protected37 != nil {
+		actual37, err := subscriptionMigrationProjection(ctx, db, before)
+		if err != nil {
+			return r, err
+		}
+		if !equal(protected37, actual37, false) {
+			return r, errors.New("unapproved subscription/settings data changed")
+		}
+		if err = validateSubscriptionMigration(ctx, db); err != nil {
+			return r, err
+		}
+		for name := range protected37 {
+			delete(compareBefore, name)
+			delete(compareAfter, name)
+		}
+		r.AuthorizedSubscriptionMigrationVerified = true
+	}
+	r.LegacyBusinessColumnsPreserved = equal(compareBefore, compareAfter, true)
 	if !r.LegacyBusinessColumnsPreserved {
 		return r, errors.New("legacy data changed during migration")
 	}

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import { Search, Film } from "@element-plus/icons-vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, type TableInstance } from "element-plus";
 import { request, post } from "../api/client";
+import { resourceSources } from "../utils/resource-source";
 import StatusBadge from "../components/StatusBadge.vue";
 interface Account {
   id: string;
@@ -56,6 +57,33 @@ const resourceFilters = ref({
   keyword: "",
   sort: "seeders_desc",
 });
+const resourceTable = ref<TableInstance>();
+const tableSort = computed(() => ({
+  prop: resourceFilters.value.sort.startsWith("size") ? "size" : "seeders",
+  order: resourceFilters.value.sort.endsWith("asc")
+    ? ("ascending" as const)
+    : ("descending" as const),
+}));
+function changeSort({
+  prop,
+  order,
+}: {
+  prop: string;
+  order: "ascending" | "descending" | null;
+}) {
+  if ((prop !== "size" && prop !== "seeders") || !order) return;
+  const sort = `${prop}_${order === "ascending" ? "asc" : "desc"}`;
+  if (sort === resourceFilters.value.sort) return;
+  resourceFilters.value.sort = sort;
+  applyFilter();
+}
+function toggleSort(prop: "size" | "seeders") {
+  const order =
+    tableSort.value.prop === prop && tableSort.value.order === "descending"
+      ? "ascending"
+      : "descending";
+  resourceTable.value?.sort(prop, order);
+}
 const mode = ref("media"),
   foundMedia = ref<Media[]>([]),
   foundCached = ref(false),
@@ -468,17 +496,10 @@ onUnmounted(() => {
               refresh();
             "
             ><el-option label="全部" value="" /><el-option
-              v-for="x in [
-                'web-dl',
-                'webrip',
-                'bluray',
-                'remux',
-                'hdtv',
-                'unknown',
-              ]"
-              :key="x"
-              :label="x"
-              :value="x"
+              v-for="option in resourceSources"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
           /></el-select>
         </div>
         <div>
@@ -525,23 +546,6 @@ onUnmounted(() => {
             @keyup.enter="applyFilter"
           />
         </div>
-        <div>
-          <label>排序</label
-          ><el-select
-            v-model="resourceFilters.sort"
-            aria-label="资源排序"
-            @change="applyFilter"
-            ><el-option
-              label="做种人数 · 从多到少"
-              value="seeders_desc" /><el-option
-              label="做种人数 · 从少到多"
-              value="seeders_asc" /><el-option
-              label="文件大小 · 从大到小"
-              value="size_desc" /><el-option
-              label="文件大小 · 从小到大"
-              value="size_asc"
-          /></el-select>
-        </div>
       </div>
       <p class="field-hint">
         筛选整个已取得快照，共
@@ -562,6 +566,9 @@ onUnmounted(() => {
         />
       </div>
       <el-table
+        ref="resourceTable"
+        :default-sort="tableSort"
+        @sort-change="changeSort"
         :data="run.resources"
         :empty-text="
           ['pending', 'running'].includes(run.state)
@@ -578,15 +585,42 @@ onUnmounted(() => {
               {{ scope.row.metadata?.attributes?.codec || "编码未知" }}</small
             ></template
           ></el-table-column
-        ><el-table-column label="大小" width="110"
+        ><el-table-column
+          prop="size"
+          label="大小"
+          width="126"
+          sortable="custom"
+          :sort-orders="['descending', 'ascending']"
+        >
+          <template #header
+            ><button
+              type="button"
+              class="column-sort"
+              aria-label="按文件大小排序"
+              @click.stop="toggleSort('size')"
+            >
+              大小
+            </button></template
           ><template #default="scope">{{
             size(scope.row.size)
           }}</template></el-table-column
         ><el-table-column
           prop="seeders"
-          label="做种"
-          width="70"
-        /><el-table-column label="下载系数" width="110"
+          label="做种人数"
+          width="126"
+          sortable="custom"
+          :sort-orders="['descending', 'ascending']"
+          ><template #header
+            ><button
+              type="button"
+              class="column-sort"
+              aria-label="按做种人数排序"
+              @click.stop="toggleSort('seeders')"
+            >
+              做种人数
+            </button></template
+          ></el-table-column
+        ><el-table-column label="下载系数" width="110"
           ><template #default="scope">{{
             scope.row.downloadFactor === null
               ? "未知"
@@ -610,14 +644,21 @@ onUnmounted(() => {
         @current-change="refresh()"
       />
     </section>
-    <section v-else class="panel">
+    <section v-else class="panel search-history">
       <h2>最近搜索</h2>
-      <div v-for="item in history" :key="item.id" class="job-row">
-        <span>{{ item.keyword }}</span
-        ><StatusBadge
-          :state="item.state"
-          :label="item.state === 'partial' ? '部分结果' : undefined"
-        /><el-button @click="refresh(item.id)">查看结果</el-button>
+      <div v-for="item in history" :key="item.id" class="search-history-row">
+        <span class="history-keyword">{{ item.keyword }}</span
+        ><span class="history-status"
+          ><StatusBadge
+            :state="item.state"
+            :label="item.state === 'partial' ? '部分结果' : undefined" /></span
+        ><el-button
+          @click="
+            page = 1;
+            refresh(item.id);
+          "
+          >查看结果</el-button
+        >
       </div>
       <p v-if="history.length === 0" class="field-hint">
         尚无搜索记录。真实请求会交给持久化 Worker 执行。
@@ -683,6 +724,59 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.column-sort {
+  border: 0;
+  background: transparent;
+  padding: 10px 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+}
+.column-sort:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.search-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+}
+.search-history-row + .search-history-row {
+  border-top: 1px solid var(--border);
+}
+.history-keyword {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.history-status {
+  justify-self: start;
+}
+.search-history-row :deep(.el-button) {
+  justify-self: end;
+  margin: 0;
+  min-height: 44px;
+}
+@media (max-width: 680px) {
+  .search-history-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .history-keyword {
+    grid-column: 1/-1;
+  }
+  .history-status {
+    grid-column: 1;
+  }
+  .search-history-row :deep(.el-button) {
+    grid-column: 2;
+  }
+}
+
 .resource-filter-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -316,9 +316,19 @@ onUnmounted(() => clearInterval(refreshTimer));
   white-space: nowrap;
 }
 .metric-state {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 10px;
+  min-width: 108px;
+  justify-self: end;
+}
+.metric-state :deep(.el-button) {
+  margin: 0;
+  width: 100%;
+  min-height: 44px;
+}
+.metric-state :deep(.status-badge) {
+  justify-self: start;
 }
 .metrics-note {
   grid-column: 1/-1;
@@ -330,8 +340,14 @@ onUnmounted(() => clearInterval(refreshTimer));
     grid-template-columns: 1fr;
   }
   .metric-state {
-    flex-direction: row;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-self: stretch;
+  }
+  .metric-state :deep(.el-button) {
+    width: auto;
+    min-width: 108px;
   }
 }
 @media (max-width: 680px) {
