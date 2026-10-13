@@ -121,6 +121,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/cache/{kind}/{id}", a.protected(a.cacheDetail))
 	mux.HandleFunc("DELETE /api/v1/cache/{kind}/{id}", a.protected(a.deleteCache))
 	mux.HandleFunc("POST /api/v1/cache/{kind}/clear", a.protected(a.clearCache))
+	mux.HandleFunc("GET /api/v1/metadata/image/{size}/{file}", a.tmdbImage)
 	mux.HandleFunc("GET /api/v1/metadata/details", a.protected(a.mediaDetails))
 	mux.HandleFunc("GET /api/v1/search/media", a.protected(a.tmdbMediaSearch))
 	mux.HandleFunc("GET /api/v1/settings/application", a.protected(a.getApplicationSettings))
@@ -469,7 +470,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.16.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.16.1-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

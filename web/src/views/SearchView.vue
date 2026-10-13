@@ -5,6 +5,7 @@ import { ElMessage, type TableInstance } from "element-plus";
 import { request, post } from "../api/client";
 import { resourceSources } from "../utils/resource-source";
 import SearchMediaContext from "../components/SearchMediaContext.vue";
+import { tmdbImage } from "../utils/tmdb-image";
 import StatusBadge from "../components/StatusBadge.vue";
 interface Account {
   id: string;
@@ -392,12 +393,10 @@ onUnmounted(() => {
           <div class="tmdb-poster">
             <img
               v-if="
-                item.posterPath && !posterErrors.has(item.mediaType + item.id)
+                tmdbImage(item.posterPath, 'w342') &&
+                !posterErrors.has(item.mediaType + item.id)
               "
-              :src="
-                '/api/v1/media/tmdb/image?path=' +
-                encodeURIComponent(item.posterPath)
-              "
+              :src="tmdbImage(item.posterPath, 'w342')"
               :alt="item.title"
               loading="lazy"
               @error="posterErrors.add(item.mediaType + item.id)"

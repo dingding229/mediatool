@@ -2,6 +2,7 @@
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { Search, Collection, InfoFilled } from "@element-plus/icons-vue";
+import { tmdbImage } from "../utils/tmdb-image";
 import { request } from "../api/client";
 export interface SearchMedia {
   id: number;
@@ -24,11 +25,8 @@ const item = ref<SearchMedia | null>(null),
   error = ref(""),
   posterError = ref(false);
 let sequence = 0;
-function image(path: string | undefined, size = "w500") {
-  return path && /^\/[A-Za-z0-9_-]+\.(?:jpg|png|webp)$/.test(path)
-    ? `https://image.tmdb.org/t/p/${size}${path}`
-    : "";
-}
+const image = tmdbImage;
+
 async function select(media: SearchMedia) {
   const current = ++sequence;
   item.value = media;
