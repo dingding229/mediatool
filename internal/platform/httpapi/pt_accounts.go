@@ -5,6 +5,7 @@ import (
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/sites"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -85,6 +86,9 @@ func (a *API) savePTAccount(w http.ResponseWriter, r *http.Request) {
 		DefinitionID string            `json:"definitionId"`
 		Values       map[string]string `json:"values"`
 		Revision     int64             `json:"revision"`
+		UserID       string            `json:"userId"`
+		RSSURL       string            `json:"rssUrl"`
+		Rediscover   bool              `json:"rediscover"`
 	}
 	if !decode(w, r, &in) {
 		return
@@ -98,12 +102,14 @@ func (a *API) savePTAccount(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	id := r.PathValue("id")
 	values := map[string]string{}
+	priorUserID := ""
 	if id != "" {
 		old, e := a.Deps.Integrations.Repository.Get(ctx, id)
 		if e != nil || old.Record.Kind != "ptsite" || old.String("definitionId") != in.DefinitionID || old.Record.Revision != in.Revision {
 			fail(w, 409, "pt_changed", "请刷新站点信息，编辑时不可更换站点")
 			return
 		}
+		priorUserID = old.String("userId")
 		for k, v := range old.Values {
 			values[k] = v
 		}
@@ -151,26 +157,81 @@ func (a *API) savePTAccount(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "templates_unavailable", "模板不可用")
 		return
 	}
-	client := sites.Client{Config: cfg, Account: sites.Account{Endpoint: t.Domain, Cookie: values["cookie"], UserAgent: ua}, HTTP: a.Deps.Integrations.OutboundHTTP}
-	if e = client.Test(ctx); e != nil {
-		fail(w, 400, "site_validation_failed", "保存前站点登录验证失败，请核对Cookie/UA")
+	manualID := strings.TrimSpace(in.UserID)
+	if manualID != "" {
+		if n, e := strconv.ParseUint(manualID, 10, 64); e != nil || n == 0 {
+			fail(w, 400, "invalid_user_id", "用户ID须为站点数字ID")
+			return
+		} else {
+			manualID = strconv.FormatUint(n, 10)
+		}
+	}
+	seedID := manualID
+	if seedID == "" {
+		seedID = priorUserID
+	}
+	transport, e := a.Deps.Integrations.HTTPClient(ctx, "ptsite")
+	if e != nil {
+		fail(w, 503, "proxy_unavailable", "站点代理配置不可用")
 		return
 	}
-	rss, uid, rssErr := client.DiscoverRSS(ctx)
+	client := sites.Client{Config: cfg, Account: sites.Account{Endpoint: t.Domain, Cookie: values["cookie"], UserAgent: ua, UserID: seedID}, HTTP: transport}
+	if e = client.Test(ctx); e != nil {
+		fail(w, 400, "site_validation_failed", "保存前站点登录验证失败，请核对Cookie/UA/代理")
+		return
+	}
+	autoID, autoErr := client.AuthenticatedUserID(ctx)
+	if manualID != "" && autoErr == nil && autoID != "" && manualID != autoID {
+		fail(w, 400, "user_id_mismatch", "手动用户ID与当前登录身份不一致")
+		return
+	}
+	if manualID == "" && autoID != "" {
+		seedID = autoID
+	}
+	rss, uid, rssErr := "", seedID, error(nil)
+	source := "auto"
+	if strings.TrimSpace(in.RSSURL) != "" && !in.Rediscover {
+		rss, rssErr = client.ValidateRSS(ctx, in.RSSURL)
+		source = "manual"
+		if strings.TrimSpace(in.RSSURL) == values["rssUrl"] && id != "" {
+			if old, e := a.Deps.Integrations.Repository.Get(ctx, id); e == nil && old.String("rssSource") != "" {
+				source = old.String("rssSource")
+			}
+		}
+		if rssErr != nil {
+			fail(w, 400, "invalid_rss", "手动RSS必须是同站可读取的有效订阅地址，未覆盖原值")
+			return
+		}
+	} else {
+		rss, uid, rssErr = client.DiscoverRSS(ctx)
+		if manualID != "" && uid != "" && manualID != uid {
+			fail(w, 400, "user_id_mismatch", "手动用户ID与当前登录身份不一致")
+			return
+		}
+		if rssErr != nil && values["rssUrl"] != "" {
+			if existing, e := client.ValidateRSS(ctx, values["rssUrl"]); e == nil {
+				rss = existing
+				rssErr = nil
+				source = "retained"
+			}
+		}
+	}
+	if manualID != "" {
+		uid = manualID
+	}
 	rssState := "ready"
 	if rssErr != nil {
 		rssState = "unavailable"
 	} else {
 		values["rssUrl"] = rss
 	}
-	settings := map[string]any{"definitionId": t.ID, "endpoint": t.Domain, "userAgent": ua, "rssState": rssState}
+	settings := map[string]any{"definitionId": t.ID, "endpoint": t.Domain, "userAgent": ua, "rssState": rssState, "rssSource": source}
 	if uid != "" {
 		settings["userId"] = uid
-	} else if id != "" {
-		if old, e := a.Deps.Integrations.Repository.Get(ctx, id); e == nil && old.String("userId") != "" {
-			settings["userId"] = old.String("userId")
-		}
+	} else if priorUserID != "" {
+		settings["userId"] = priorUserID
 	}
+
 	record, e := a.Deps.Integrations.Repository.Save(ctx, id, integrations.Input{Kind: "ptsite", Name: t.Name, Enabled: true, Settings: settings, Secrets: values, Revision: in.Revision})
 	if e != nil {
 		integrationError(w, e)

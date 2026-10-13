@@ -195,6 +195,9 @@ func TestPostgresPipelineSearchDownloadUploadSTRMAndNotification(t *testing.T) {
 	manager := integrations.NewManager(repo, config.Config{PublicURL: "https://media.fixture.example", STRMKey: strings.Repeat("b", 64), STRMOutputDir: strmDir, STRMAllowedRoots: []string{"/115/Media"}, CloudDriveRequestTimeout: 5 * time.Second})
 	defer manager.Close()
 	manager.OutboundHTTP = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host != "api.themoviedb.org" {
+			return http.DefaultTransport.RoundTrip(r)
+		}
 		if r.URL.Host != "api.themoviedb.org" || r.Header.Get("Authorization") != "Bearer tmdb-token" {
 			t.Error("metadata credential or endpoint mismatch")
 		}

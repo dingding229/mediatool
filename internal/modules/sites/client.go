@@ -341,6 +341,13 @@ func (c Client) searchPageLink(ctx context.Context, q SearchQuery, next *url.URL
 	if strings.TrimSpace(selector) == "" {
 		return result, ErrConfig
 	}
+	// Explicit site-local empty response evidence is required when no result table exists.
+	if emptySearchEvidence(d, rule) {
+		result.Target = target
+		result.LinkPagination = true
+		result.LinkEnd = true
+		return result, nil
+	}
 	// A template may declare a result container to prove that an empty row
 	// selection is a real empty result, not a login/challenge/error document.
 	if container, exists := object(rule["list"])["container"]; exists {

@@ -18,8 +18,8 @@ func TestPreciseMediaRuleIdentityAndUnknownPromotion(t *testing.T) {
 			t.Fatal("ambiguous media accepted", title)
 		}
 	}
-	resource := search.Resource{Title: "Princess.Mononoke.1997.1080p", Size: 100, Seeders: 2}
-	rule := Rules{FreeOnly: true, AllowUnknownHR: true}
+	resource := search.Resource{Title: "Princess.Mononoke.1997.1080p", Size: 100, Seeders: 2, Metadata: map[string]any{"hr": false}}
+	rule := Rules{FreeOnly: true}
 	if ok, _ := Filter(resource, item, rule); ok {
 		t.Fatal("unknown promotion accepted")
 	}
@@ -28,7 +28,7 @@ func TestPreciseMediaRuleIdentityAndUnknownPromotion(t *testing.T) {
 	if ok, _ := Filter(resource, item, rule); !ok {
 		t.Fatal("known free resource rejected")
 	}
-	rule.AllowUnknownHR = false
+	resource.Metadata = map[string]any{}
 	if ok, _ := Filter(resource, item, rule); ok {
 		t.Fatal("unknown HR accepted")
 	}

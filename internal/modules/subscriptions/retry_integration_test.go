@@ -83,6 +83,9 @@ func retryFixtureFor(t *testing.T) *retryFixture {
 	manager := integrations.NewManager(repo, config.Config{})
 	t.Cleanup(func() { manager.Close() })
 	manager.OutboundHTTP = &http.Client{Transport: transport(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host != "api.themoviedb.org" {
+			return http.DefaultTransport.RoundTrip(r)
+		}
 		return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"id":1,"title":"Owned Movie","original_title":"Owned Movie","release_date":"2026-01-01"}`))}, nil
 	})}
 	account := func(path string) string {

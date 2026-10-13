@@ -19,6 +19,7 @@ type Store struct {
 	DB    *pgxpool.Pool
 }
 type Entry struct {
+	Reusable   bool      `json:"reusable"`
 	PosterPath string    `json:"posterPath,omitempty"`
 	CreatedAt  time.Time `json:"createdAt"`
 	ID         string    `json:"id"`

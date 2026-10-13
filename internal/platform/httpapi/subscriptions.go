@@ -17,7 +17,8 @@ func (a *API) listSubscriptions(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "subscriptions_unavailable", "请先连接数据库")
 		return
 	}
-	list, err := engine.List(r.Context())
+	history := r.URL.Query().Get("view") == "history"
+	list, err := engine.Browse(r.Context(), history)
 	if err != nil {
 		fail(w, 503, "subscriptions_unavailable", "订阅记录暂不可用")
 		return
@@ -53,10 +54,10 @@ func (a *API) deleteSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := engine.Delete(r.Context(), r.PathValue("id")); err != nil {
-		fail(w, 409, "subscription_delete_failed", "订阅正在评估或记录暂不可用，请停用并等待后重试")
+		fail(w, 409, "subscription_delete_failed", "订阅正在评估或记录暂不可用，请停用并等待后归档")
 		return
 	}
-	write(w, 200, map[string]bool{"deleted": true})
+	write(w, 200, map[string]bool{"archived": true})
 }
 func (a *API) queueSubscription(w http.ResponseWriter, r *http.Request) {
 	engine := a.subscriptionEngine()
@@ -89,4 +90,17 @@ func (a *API) getSubscriptionRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, run)
+}
+func (a *API) subscriptionHistory(w http.ResponseWriter, r *http.Request) {
+	engine := a.subscriptionEngine()
+	if engine == nil {
+		fail(w, 503, "subscriptions_unavailable", "订阅暂不可用")
+		return
+	}
+	out, err := engine.History(r.Context(), r.PathValue("id"))
+	if err != nil {
+		fail(w, 404, "subscription_unavailable", "订阅历史不可用")
+		return
+	}
+	write(w, 200, out)
 }

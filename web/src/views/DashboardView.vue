@@ -21,7 +21,7 @@ onMounted(refresh)
 <article class="panel"><span>服务器运行时间</span><strong>{{snapshot?.server.uptimeSeconds!==undefined ? Math.floor(snapshot.server.uptimeSeconds/86400)+' 天' : '不可用'}}</strong><p class="field-hint">数据采样 {{snapshot ? new Date(snapshot.server.sampledAt).toLocaleTimeString('zh-CN') : '—'}}</p></article>
 </section>
 <section class="daily-grid"><RouterLink v-for="item in daily" :key="item.key" :to="item.to" class="panel"><span>{{item.label}}</span><strong>{{snapshot?.daily[item.key] ?? '—'}}</strong></RouterLink></section>
-<section class="panel"><div class="panel-title"><h2>最近搜索</h2><RouterLink to="/search-cache">查看搜索记录</RouterLink></div><div v-for="item in recent" :key="item.id" class="daily-search"><RouterLink :to="{path:'/search',query:{run:item.id}}">{{item.keyword}}</RouterLink><StatusBadge :state="item.state"/><span>{{item.total}} 个资源</span></div><p v-if="!recent.length" class="field-hint">暂无搜索记录，前往资源搜索发现作品。</p></section>
+<section class="panel"><div class="panel-title"><h2>最近搜索</h2><RouterLink to="/search-cache">查看搜索记录</RouterLink></div><div v-for="item in recent" :key="item.id" class="daily-search"><RouterLink :to="{path:`/search/results/${item.id}`}">{{item.keyword}}</RouterLink><StatusBadge :state="item.state"/><span>{{item.total}} 个资源</span></div><p v-if="!recent.length" class="field-hint">暂无搜索记录，前往资源搜索发现作品。</p></section>
 <PluginDashboards/>
 </template>
 <style scoped>

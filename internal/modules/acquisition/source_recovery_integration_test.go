@@ -117,6 +117,9 @@ func newSourceFixture(t *testing.T) *sourceFixture {
 	manager := integrations.NewManager(repo, config.Config{})
 	t.Cleanup(func() { manager.Close() })
 	manager.OutboundHTTP = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host != "api.themoviedb.org" {
+			return http.DefaultTransport.RoundTrip(r)
+		}
 		return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(fmt.Sprintf(`{"id":%s,"title":"Owned Movie","original_title":"Owned Movie","release_date":"2026-01-01"}`, path.Base(r.URL.Path))))}, nil
 	})}
 	save := func(input integrations.Input) integrations.Record {
@@ -636,5 +639,48 @@ func TestPostgresLegacyDigestlessKnownHashReconcilesWithoutFreshSource(t *testin
 	var required bool
 	if err := f.engine.DB.QueryRow(f.ctx, `SELECT download_state,source_recovery_required FROM download_tasks WHERE id=$1`, f.taskID).Scan(&state, &required); err != nil || state != "downloading" || required {
 		t.Fatal("legacy receipt was not reconciled", state, required, err)
+	}
+}
+
+func TestPostgresSubscriptionAddFenceRechecksHRAndArchive(t *testing.T) {
+	f := newSourceFixture(t)
+	subID, runID := jobs.UUID(), jobs.UUID()
+	db := f.engine.DB
+	_, err := db.Exec(f.ctx, `INSERT INTO subscriptions(id,title,media_type,identity,rules,enabled,source,interval_seconds) VALUES($1,'Owned guard','movie','{"id":1,"title":"Owned Movie","mediaType":"movie","year":"2026"}','{"rejectHR":true}',true,'search',1800)`, subID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(f.ctx, `INSERT INTO subscription_runs(id,subscription_id,preview,state,revision,search_run_id) VALUES($1,$2,false,'succeeded',1,$3)`, runID, subID, f.runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, _, _, details, err := f.engine.load(f.ctx, f.taskID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	details.SubscriptionRunID = runID
+	release, err := f.engine.guardSubscriptionAdd(f.ctx, details, f.resourceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	release()
+	db.Exec(f.ctx, `UPDATE search_run_resources SET public_snapshot=jsonb_set(public_snapshot,'{metadata,hr}','true') WHERE run_id=$1 AND resource_id=$2`, f.runID, f.resourceID)
+	if _, err = f.engine.guardSubscriptionAdd(f.ctx, details, f.resourceID); !errors.Is(err, jobs.ErrOperatorRequired) {
+		t.Fatal("known HR allowed", err)
+	}
+	db.Exec(f.ctx, `UPDATE subscriptions SET rules='{"rejectHR":false}' WHERE id=$1`, subID)
+	release, err = f.engine.guardSubscriptionAdd(f.ctx, details, f.resourceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	release()
+	db.Exec(f.ctx, `UPDATE search_run_resources SET public_snapshot=public_snapshot#-'{metadata,hr}' WHERE run_id=$1 AND resource_id=$2`, f.runID, f.resourceID)
+	if _, err = f.engine.guardSubscriptionAdd(f.ctx, details, f.resourceID); !errors.Is(err, jobs.ErrOperatorRequired) {
+		t.Fatal("unknown HR allowed", err)
+	}
+	db.Exec(f.ctx, `UPDATE search_run_resources SET public_snapshot=jsonb_set(public_snapshot,'{metadata,hr}','false') WHERE run_id=$1 AND resource_id=$2`, f.runID, f.resourceID)
+	db.Exec(f.ctx, `UPDATE subscriptions SET archived_at=now(),enabled=false WHERE id=$1`, subID)
+	if _, err = f.engine.guardSubscriptionAdd(f.ctx, details, f.resourceID); !errors.Is(err, jobs.ErrOperatorRequired) {
+		t.Fatal("archived subscription allowed", err)
 	}
 }

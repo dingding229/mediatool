@@ -28,12 +28,14 @@ type cloudRevision struct {
 	adapter *clouddrive2.Adapter
 }
 type Manager struct {
-	Repository   Repository
-	Config       config.Config
-	OutboundHTTP *http.Client
-	mu           sync.Mutex
-	lastPruned   time.Time
-	cloud        map[string]cloudRevision
+	Repository    Repository
+	Config        config.Config
+	OutboundHTTP  *http.Client
+	proxyClients  map[string]*http.Client
+	proxyRevision int64
+	mu            sync.Mutex
+	lastPruned    time.Time
+	cloud         map[string]cloudRevision
 }
 
 func NewManager(repository Repository, c config.Config) *Manager {
@@ -46,6 +48,10 @@ func (m *Manager) Close() {
 		client.adapter.Retire()
 	}
 	m.cloud = map[string]cloudRevision{}
+	for _, client := range m.proxyClients {
+		client.CloseIdleConnections()
+	}
+	m.proxyClients = nil
 }
 func (m *Manager) Cloud(ctx context.Context) (*clouddrive2.Adapter, error) {
 	m.Prune(ctx)
@@ -108,7 +114,11 @@ func (m *Manager) TMDB(ctx context.Context) (tmdb.Client, error) {
 	if err != nil {
 		return tmdb.Client{}, err
 	}
-	return tmdb.Client{Token: c.Values["token"], Language: c.String("language"), HTTP: m.OutboundHTTP}, nil
+	client, err := m.HTTPClient(ctx, "tmdb")
+	if err != nil {
+		return tmdb.Client{}, err
+	}
+	return tmdb.Client{Token: c.Values["token"], Language: c.String("language"), HTTP: client}, nil
 }
 func (m *Manager) Telegram(ctx context.Context) (telegram.Client, error) {
 	c, err := m.Repository.Default(ctx, "telegram")
@@ -191,7 +201,11 @@ func (m *Manager) ProbeCredentials(ctx context.Context, c Credentials) (CheckRes
 			message = "qBittorrent 已连接（" + version + "）；请另行检查共享下载目录"
 		}
 	case "tmdb":
-		err = (tmdb.Client{Token: c.Values["token"], Language: c.String("language"), HTTP: m.OutboundHTTP}).Probe(bounded)
+		clientHTTP, httpErr := m.HTTPClient(ctx, "tmdb")
+		if httpErr != nil {
+			return CheckResult{}, httpErr
+		}
+		err = (tmdb.Client{Token: c.Values["token"], Language: c.String("language"), HTTP: clientHTTP}).Probe(bounded)
 		if err == nil {
 			message = "TMDB Token 有效，可查询媒体信息"
 		}
@@ -348,7 +362,11 @@ func (m *Manager) siteCredentials(ctx context.Context, c Credentials) (sites.Cli
 	if err != nil {
 		return sites.Client{}, ErrInvalid
 	}
-	return sites.Client{Config: configuration, Account: sites.Account{ID: id, Endpoint: c.String("endpoint"), UserID: c.String("userId"), Cookie: c.Values["cookie"], APIKey: c.Values["apiKey"], Passkey: c.Values["passkey"], UserAgent: c.String("userAgent"), RequestHeaders: headers}, SourceRevision: c.Record.Revision, DefinitionFingerprint: sites.DefinitionFingerprint(definition.RawJSON, definition.CommonJSON, definition.SourceCommit)}, nil
+	httpClient, err := m.HTTPClient(ctx, "ptsite")
+	if err != nil {
+		return sites.Client{}, err
+	}
+	return sites.Client{HTTP: httpClient, Config: configuration, Account: sites.Account{ID: id, Endpoint: c.String("endpoint"), UserID: c.String("userId"), Cookie: c.Values["cookie"], APIKey: c.Values["apiKey"], Passkey: c.Values["passkey"], UserAgent: c.String("userAgent"), RequestHeaders: headers}, SourceRevision: c.Record.Revision, DefinitionFingerprint: sites.DefinitionFingerprint(definition.RawJSON, definition.CommonJSON, definition.SourceCommit)}, nil
 }
 
 // Prune removes deleted/disabled profiles without terminating in-flight work.

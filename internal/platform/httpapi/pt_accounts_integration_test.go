@@ -96,6 +96,33 @@ func TestPostgresPTTemplateAccountValidatesAutoRSSDuplicatesAndEcho(t *testing.T
 	if strings.Contains(string(ciphertext), "owned-cookie") {
 		t.Fatal("unencrypted")
 	}
+	// Manual RSS/UID must be editable and same-origin validated without replacing good values on failure.
+	edit := func(uid, rss string) *httptest.ResponseRecorder {
+		latest, _ := repo.Get(ctx, response.Data.ID)
+		raw, _ := json.Marshal(map[string]any{"definitionId": "hdsky", "values": map[string]string{"cookie": "owned-cookie", "userAgent": "Owned-UA"}, "revision": latest.Record.Revision, "userId": uid, "rssUrl": rss})
+		req := httptest.NewRequest("PUT", "/pt/accounts", strings.NewReader(string(raw)))
+		req.SetPathValue("id", response.Data.ID)
+		w := httptest.NewRecorder()
+		a.savePTAccount(w, req)
+		return w
+	}
+	if w := edit("42", "https://hdsky.me/torrentrss.php?passkey=manual"); w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	latest, _ := repo.Get(ctx, response.Data.ID)
+	if latest.String("rssSource") != "manual" || !strings.Contains(latest.Values["rssUrl"], "manual") {
+		t.Fatal("manual override missing")
+	}
+	for _, sample := range []struct{ uid, rss string }{{"wrong", ""}, {"99", "https://hdsky.me/torrentrss.php?passkey=manual"}, {"42", "https://foreign.invalid/rss?passkey=owned"}} {
+		if w := edit(sample.uid, sample.rss); w.Code != 400 {
+			t.Fatal("invalid override accepted", w.Code)
+		}
+	}
+	after, _ := repo.Get(ctx, response.Data.ID)
+	if after.Record.Revision != latest.Record.Revision || after.Values["rssUrl"] != latest.Values["rssUrl"] {
+		t.Fatal("failed manual validation changed good settings")
+	}
+
 	if e = (sites.Repository{DB: db}).RegisterGoTemplates(ctx); e != nil {
 		t.Fatal(e)
 	}

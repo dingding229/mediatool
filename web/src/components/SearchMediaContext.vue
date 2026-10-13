@@ -279,3 +279,5 @@ watch(
 </style>
 
 <style scoped>.media-context{background:none!important;color:var(--text);padding:0;display:flex;gap:20px;margin:24px 0;align-items:flex-start}.context-poster{width:88px!important;height:132px!important;flex:0 0 88px;object-fit:cover;border-radius:6px}.context-copy{background:none!important;padding:0!important;min-width:0;color:var(--text)!important}.context-overview{color:var(--muted)!important}.context-copy h2,.context-copy p,.context-copy .section-kicker{color:var(--text)!important}.context-actions{margin:8px 0}.context-title{gap:12px}.context-copy h2{font-size:23px}@media(max-width:600px){.context-poster{width:64px!important;height:96px!important;flex-basis:64px}.media-context{gap:12px}.context-copy h2{font-size:18px}}</style>
+
+<style scoped>.media-context{border:1px solid var(--border);border-radius:12px;padding:20px;background:none!important}.context-poster{align-self:flex-start}.context-copy{flex:1}@media(max-width:600px){.media-context{padding:14px}}</style>

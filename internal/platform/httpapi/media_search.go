@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"media-tool/internal/modules/metadata"
+	"media-tool/internal/modules/networkproxy"
 	"media-tool/internal/modules/releasename"
 	"media-tool/internal/modules/settings"
 	"media-tool/internal/platform/trace"
@@ -54,7 +55,12 @@ func (a *API) tmdbMediaSearch(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "tmdb_not_configured", "请在系统设置添加并启用TMDB")
 		return
 	}
-	raw, _ := json.Marshal([]any{"auto-search-v3", q, kind, year, profile.Record.ID, profile.Record.Revision, profile.String("language"), prefs.Revision})
+	proxyRevision, err := (networkproxy.Repository{DB: a.Deps.DB}).Revision(ctx)
+	if err != nil {
+		fail(w, 503, "proxy_unavailable", "代理设置不可用")
+		return
+	}
+	raw, _ := json.Marshal([]any{"auto-search-v3", q, kind, year, profile.Record.ID, profile.Record.Revision, profile.String("language"), prefs.Revision, proxyRevision})
 	sum := sha256.Sum256(raw)
 	key := "media-tool:tmdb-cache:" + hex.EncodeToString(sum[:])
 	items := []metadata.Item{}

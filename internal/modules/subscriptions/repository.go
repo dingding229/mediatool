@@ -20,6 +20,7 @@ type Engine struct {
 	Connections *integrations.Manager
 }
 type Record struct {
+	ArchivedAt      *time.Time    `json:"archivedAt,omitempty"`
 	ID              string        `json:"id"`
 	Title           string        `json:"title"`
 	Media           metadata.Item `json:"media"`
@@ -34,13 +35,13 @@ type Record struct {
 	UpdatedAt       time.Time     `json:"updatedAt"`
 }
 
-const subscriptionColumns = `id::text,title,identity,enabled,source,interval_seconds,rules,revision,last_state,last_message,next_run_at,updated_at`
+const subscriptionColumns = `id::text,title,identity,enabled,source,interval_seconds,rules,revision,last_state,last_message,next_run_at,updated_at,archived_at`
 
 func scanRecord(row pgx.Row) (Record, error) {
 	var record Record
 	var identity, rules []byte
 	var interval int
-	err := row.Scan(&record.ID, &record.Title, &identity, &record.Enabled, &record.Source, &interval, &rules, &record.Revision, &record.LastState, &record.LastMessage, &record.NextRunAt, &record.UpdatedAt)
+	err := row.Scan(&record.ID, &record.Title, &identity, &record.Enabled, &record.Source, &interval, &rules, &record.Revision, &record.LastState, &record.LastMessage, &record.NextRunAt, &record.UpdatedAt, &record.ArchivedAt)
 	if err != nil {
 		return record, errors.New("subscription unavailable")
 	}
@@ -54,7 +55,7 @@ func (e Engine) Get(ctx context.Context, id string) (Record, error) {
 	return scanRecord(e.DB.QueryRow(ctx, `SELECT `+subscriptionColumns+` FROM subscriptions WHERE id=$1`, id))
 }
 func (e Engine) List(ctx context.Context) ([]Record, error) {
-	rows, err := e.DB.Query(ctx, `SELECT `+subscriptionColumns+` FROM subscriptions ORDER BY created_at DESC LIMIT 200`)
+	rows, err := e.DB.Query(ctx, `SELECT `+subscriptionColumns+` FROM subscriptions WHERE archived_at IS NULL ORDER BY created_at DESC LIMIT 200`)
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +125,9 @@ func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
 		if loadErr != nil {
 			return Record{}, loadErr
 		}
+		if old.ArchivedAt != nil {
+			return Record{}, errors.New("历史订阅仅供查看，请新建订阅继续跟进")
+		}
 		if old.Revision != in.Revision {
 			return Record{}, errors.New("subscription changed; reload before saving")
 		}
@@ -157,6 +161,9 @@ func (e Engine) Queue(ctx context.Context, id string, preview bool) (string, err
 	record, err := scanRecord(tx.QueryRow(ctx, `SELECT `+subscriptionColumns+` FROM subscriptions WHERE id=$1 FOR UPDATE`, id))
 	if err != nil {
 		return "", err
+	}
+	if record.ArchivedAt != nil {
+		return "", errors.New("历史订阅不可执行")
 	}
 	var existing string
 	if tx.QueryRow(ctx, `SELECT id::text FROM subscription_runs WHERE subscription_id=$1 AND state IN ('pending','running')`, id).Scan(&existing) == nil {
@@ -194,7 +201,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 		return err
 	}
 	defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock(74812911)`)
-	rows, err := e.DB.Query(ctx, `SELECT id::text FROM subscriptions WHERE enabled AND next_run_at<=now() ORDER BY next_run_at LIMIT 20`)
+	rows, err := e.DB.Query(ctx, `SELECT id::text FROM subscriptions WHERE enabled AND archived_at IS NULL AND next_run_at<=now() ORDER BY next_run_at LIMIT 20`)
 	if err != nil {
 		return err
 	}
@@ -227,11 +234,13 @@ func (e Engine) Delete(ctx context.Context, id string) error {
 	if active > 0 {
 		return errors.New("subscription evaluation is active; disable and wait before deleting")
 	}
-	if _, err = tx.Exec(ctx, `UPDATE download_tasks SET subscription_id=NULL WHERE subscription_id=$1`, id); err != nil {
+	tag, err := tx.Exec(ctx, `UPDATE subscriptions SET archived_at=now(),enabled=false,revision=revision+1,updated_at=now() WHERE id=$1 AND archived_at IS NULL`, id)
+	if err != nil {
 		return err
 	}
-	if _, err = tx.Exec(ctx, `DELETE FROM subscriptions WHERE id=$1`, id); err != nil {
-		return err
+	if tag.RowsAffected() != 1 {
+		return errors.New("订阅不存在或已归档")
 	}
+
 	return tx.Commit(ctx)
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"media-tool/internal/modules/networkproxy"
 	"media-tool/internal/modules/settings"
 	"media-tool/internal/modules/sites"
 	"media-tool/internal/platform/trace"
@@ -34,7 +35,11 @@ func (e Engine) cacheKey(ctx context.Context, keyword string, ids []string) (str
 		}
 		profiles = append(profiles, []any{id, c.Record.Revision, sites.DefinitionFingerprint(def.RawJSON, def.CommonJSON, def.SourceCommit)})
 	}
-	raw, _ := json.Marshal([]any{keyword, profiles, prefs.Revision})
+	proxyRevision, err := (networkproxy.Repository{DB: e.DB}).Revision(ctx)
+	if err != nil {
+		return "", 0, err
+	}
+	raw, _ := json.Marshal([]any{keyword, profiles, prefs.Revision, proxyRevision})
 	sum := sha256.Sum256(raw)
 	return "media-tool:search-cache:" + hex.EncodeToString(sum[:]), time.Duration(prefs.Value.SearchCacheSeconds) * time.Second, nil
 }

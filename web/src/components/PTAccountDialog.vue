@@ -48,7 +48,7 @@ watch(
     rss.value = "";
     rssState.value = "";
     userID.value = "";
-    error.value = "";
+    error.value = "";rediscover.value=false;
     if (!open) {
       busy.value = false;
       return;
@@ -121,6 +121,7 @@ async function captureUA() {
     error.value = String(e);
   }
 }
+const rediscover=ref(false);
 async function save() {
   if (!selection.value) return;
   busy.value = true;
@@ -137,6 +138,7 @@ async function save() {
             userAgent: values.value.userAgent,
           },
           revision: revision.value,
+ userId:userID.value,rssUrl:rss.value,rediscover:rediscover.value,
         }),
       },
     );
@@ -208,18 +210,17 @@ async function save() {
             @click="captureUA"
             >获取当前UA</el-button
           ></template
-        ><label v-if="userID"
+        ><label
           >用户ID<el-input
-            :model-value="userID"
-            readonly
+            v-model="userID"
             aria-label="用户ID" /></label
         ><label
           >RSS订阅URL<el-input
-            :model-value="rss"
-            readonly
+            v-model="rss"
             aria-label="RSS订阅URL"
-            placeholder="保存时自动获取，无需手动填写"
+            placeholder="留空自动获取，也可手动填写同站有效RSS"
         /></label>
+        <el-checkbox v-model="rediscover">保存时重新自动获取RSS</el-checkbox><p class="field-hint">用户ID和RSS可手动填写作为自动获取失败时的补充；手动RSS保存前会验证同站及有效XML，不会覆盖失败值。</p>
         <p v-if="rssState === 'unavailable'" class="field-hint">
           上次未获取RSS；保存时会重新尝试，不会覆盖已保存的地址。
         </p>

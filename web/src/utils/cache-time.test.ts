@@ -1,0 +1,3 @@
+import{describe,it,expect}from'vitest'
+import{cacheTime}from'./cache-time'
+describe('cache remaining time',()=>{it('uses hours for TMDB and distinguishes reusable search indexes from history',()=>{expect(cacheTime('tmdb',{state:'cached',ttlSeconds:7200})).toBe('2.00 小时');expect(cacheTime('search',{state:'succeeded',ttlSeconds:60,reusable:true},10)).toBe('50 秒');expect(cacheTime('search',{state:'succeeded',ttlSeconds:500,reusable:false})).toBe('历史结果');expect(cacheTime('search',{state:'running',ttlSeconds:0})).toBe('查询中');expect(cacheTime('search',{state:'succeeded',ttlSeconds:5,reusable:true},10)).toBe('历史结果');expect(cacheTime('tmdb',{state:'cached',ttlSeconds:15})).toBe('不足 0.01 小时')})})

@@ -80,6 +80,9 @@ func TestPostgresSubscriptionPreviewRSSBaselineAndAutomaticDedup(t *testing.T) {
 	manager := integrations.NewManager(repo, config.Config{})
 	defer manager.Close()
 	manager.OutboundHTTP = &http.Client{Transport: transport(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host != "api.themoviedb.org" {
+			return http.DefaultTransport.RoundTrip(r)
+		}
 		return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"id":1,"title":"Owned Movie","original_title":"Owned Movie","release_date":"2026-01-01"}`))}, nil
 	})}
 	save := func(in integrations.Input) integrations.Record {
@@ -156,7 +159,7 @@ func TestPostgresSubscriptionPreviewRSSBaselineAndAutomaticDedup(t *testing.T) {
 	input.Revision = record.Revision
 	input.Rules.MinSeeders = 0
 	input.Rules.FreeOnly = false
-	input.Rules.AllowUnknownHR = true
+
 	record, err = engine.Save(ctx, record.ID, input)
 	if err != nil {
 		t.Fatal(err)

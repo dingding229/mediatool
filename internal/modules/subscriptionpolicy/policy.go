@@ -24,7 +24,7 @@ type Rules struct {
 	MinSize        int64    `json:"minSize"`
 	MaxSize        int64    `json:"maxSize"`
 	MinSeeders     int      `json:"minSeeders"`
-	AllowUnknownHR bool     `json:"allowUnknownHR"`
+	RejectHR       *bool    `json:"rejectHR,omitempty"`
 	FreeOnly       bool     `json:"freeOnly"`
 	Season         int      `json:"season"`
 	Episodes       []int    `json:"episodes"`
@@ -118,10 +118,10 @@ func Evaluate(resource search.Resource, item metadata.Item, rules Rules) (bool, 
 	if rules.FreeOnly && (resource.DownloadFactor == nil || *resource.DownloadFactor != 0) {
 		reasons = append(reasons, "不是已确认的免费资源")
 	}
-	if hr, ok := resource.Metadata["hr"].(bool); ok && hr {
+	if hr, ok := resource.Metadata["hr"].(bool); ok && hr && (rules.RejectHR == nil || *rules.RejectHR) {
 		reasons = append(reasons, "资源包含H&R约束，自动订阅不下载")
-	} else if !ok && !rules.AllowUnknownHR {
-		reasons = append(reasons, "H&R信息未知，需要人工确认或明确允许未知信息")
+	} else if !ok {
+		reasons = append(reasons, "H&R信息未知，不能确认做种义务，自动订阅不下载")
 	}
 	return len(reasons) == 0, reasons, checks
 }

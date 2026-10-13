@@ -47,7 +47,7 @@ async function login(page:import('@playwright/test').Page){
  await page.getByRole('button',{name:'进入工作台',exact:true}).click()
  await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
  await expect(page.getByText('服务器负载',{exact:true})).toBeVisible()
- await expect(page.locator('.sidebar-note')).toContainText('0.17.0-dev')
+ await expect(page.locator('.sidebar-note')).toContainText('0.18.0-dev')
 }
 // Later UI-only fixtures share one valid account session in memory. Login/
 // logout/password/rate-limit behavior above remains separately exercised; do
@@ -255,7 +255,7 @@ test('Go template catalog supports selective loading, version, icon and website'
  expect((await loadedReply).status()).toBe(200)
  const catalog=(await(await page.request.get('/api/v1/pt/templates')).json()).data.templates
  expect(catalog.filter((x:any)=>x.loaded).map((x:any)=>x.id).sort()).toEqual(['hdsky','ourbits'])
- expect(catalog.every((x:any)=>x.version==='1.2.0'&&x.iconUrl===`/api/v1/pt/templates/${x.id}/icon?v=1.2.0`)).toBe(true)
+ expect(catalog.every((x:any)=>x.version==='1.3.0'&&x.iconUrl===`/api/v1/pt/templates/${x.id}/icon?v=1.3.0`)).toBe(true)
  await page.reload({waitUntil:'domcontentloaded'});await expect(page.locator('article').filter({has:page.getByRole('heading',{name:'HDSKY',exact:true})}).getByRole('checkbox')).toBeDisabled()
  await expect(page.getByRole('checkbox',{name:'选择 SSD',exact:true})).toBeEnabled();await expect.poll(()=>page.locator('.template-card img').evaluateAll(imgs=>imgs.length===6&&imgs.every(img=>(img as HTMLImageElement).complete&&(img as HTMLImageElement).naturalWidth>0))).toBe(true)
  await page.getByText('全选可加载模板',{exact:true}).click();await expect(page.getByRole('button',{name:'加载所选模板（4）',exact:true})).toBeEnabled();await page.getByRole('button',{name:'取消全选',exact:true}).click()
@@ -550,7 +550,7 @@ test('partial provider pagination remains visible and does not claim no more res
  await page.getByText('站点直搜',{exact:true}).click()
  await page.getByLabel('资源关键词',{exact:true}).fill('Owned')
  await page.getByRole('button',{name:'开始搜索',exact:true}).click()
- await expect(page.getByText('部分结果',{exact:true})).toHaveCount(2)
+ await expect(page.getByText('部分结果',{exact:true})).toHaveCount(3)
  await expect(page.getByText('没有显示不等于站点没有资源。',{exact:false})).toBeVisible()
  await expect(page.getByRole('button',{name:'确认并下载',exact:true})).toBeVisible()
  mkdirSync(screenshots,{recursive:true})
@@ -730,7 +730,7 @@ test('TMDB and site-direct search have distinct cache controls (fixture)',async(
 })
 
 test('automatic roots, 0day hints, history and safe plugin manifests',async({page})=>{
- await login(page);await page.goto('/files');await expect(page.getByText(/本地目录/).first()).toBeVisible();const parsed=await page.request.post('/api/v1/media/recognize-name',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned.Show.2026.S01E03.1080p.WEB-DL.x265-TEAM.mkv'}});expect(parsed.status()).toBe(200);expect((await parsed.json()).data.hint).toMatchObject({title:'Owned Show',year:'2026',mediaType:'series',season:1,episode:3})
+ await fixtureLogin(page);await page.goto('/files');await expect(page.getByText(/本地目录/).first()).toBeVisible();const parsed=await page.request.post('/api/v1/media/recognize-name',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned.Show.2026.S01E03.1080p.WEB-DL.x265-TEAM.mkv'}});expect(parsed.status()).toBe(200);expect((await parsed.json()).data.hint).toMatchObject({title:'Owned Show',year:'2026',mediaType:'series',season:1,episode:3})
  await page.goto('/organize-history');await expect(page.getByRole('heading',{name:'媒体整理历史',exact:true})).toBeVisible();await page.goto('/plugins');await expect(page.getByRole('heading',{name:'尚未安装插件',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'0day 文件名识别',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'电影与剧集命名模板',exact:true})).toHaveCount(0);await expect(page.getByText('兼容入口：导入扩展 Manifest',{exact:true})).toHaveCount(0)
  const rejected=await page.request.post('/api/v1/plugins',{headers:{'X-Requested-With':'media-tool'},data:{manifest:{id:'owned-plugin',name:'Owned',version:'1',contractVersion:1,runtime:'webhook',endpoint:'https://owned.example',capabilities:['media.organized']},enabled:false,consent:false,revision:0}});expect(rejected.status()).toBe(400);await page.screenshot({path:resolve(screenshots,'workbench-plugins-desktop.png'),animations:'disabled'})
 })
@@ -943,7 +943,7 @@ test('WASM plugin lifecycle, page, command, API, dashboard, service and isolated
 })
 
 test('subscription structured filters persist and preview displays individual reasons (fixture)',async({page})=>{
- await page.route('**/api/v1/subscriptions',route=>route.fulfill({json:{data:[{id:'owned-subscription',title:'Owned Rules',media:{id:1,mediaType:'movie',title:'Owned Film',year:'2026'},enabled:false,source:'search',intervalMinutes:30,rules:{accountIds:['owned-account'],keyword:'Owned',include:[],exclude:[],minSize:0,maxSize:0,minSeeders:1,freeOnly:true,allowUnknownHR:false,season:1,episodes:[],includeHistory:false,resolution:'2160p',source:'web-dl',codec:'h265'},revision:1,lastState:'succeeded',lastMessage:'',nextRunAt:''}]}}))
+ await page.route('**/api/v1/subscriptions**',route=>route.fulfill({json:{data:[{id:'owned-subscription',title:'Owned Rules',media:{id:1,mediaType:'movie',title:'Owned Film',year:'2026'},enabled:false,source:'search',intervalMinutes:30,rules:{accountIds:['owned-account'],keyword:'Owned',include:[],exclude:[],minSize:0,maxSize:0,minSeeders:1,freeOnly:true,allowUnknownHR:false,season:1,episodes:[],includeHistory:false,resolution:'2160p',source:'web-dl',codec:'h265'},revision:1,lastState:'succeeded',lastMessage:'',nextRunAt:''}]}}))
  await page.route('**/api/v1/subscriptions/owned-subscription/evaluate',route=>route.fulfill({status:202,json:{data:{id:'owned-preview'}}}));await page.route('**/api/v1/subscription-runs/owned-preview',route=>route.fulfill({json:{data:{id:'owned-preview',preview:true,state:'succeeded',decisions:[{id:'owned-decision',title:'Owned Film 2026 1080p WEB-DL x264',action:'skipped',episodes:[],reasons:['分辨率不匹配','编码不匹配'],checks:[{key:'resolution',label:'分辨率',expected:'2160p',actual:'1080p',state:'rejected',message:'分辨率不匹配：需要2160p，识别为1080p'},{key:'source',label:'来源',expected:'web-dl',actual:'web-dl',state:'matched',message:'来源匹配：web-dl'}]}]}}}));await fixtureLogin(page);await page.goto('/subscriptions');await page.getByRole('button',{name:'编辑',exact:true}).click();await expect(page.getByRole('combobox',{name:'订阅分辨率',exact:true})).toBeVisible();await expect(page.getByRole('dialog',{name:'编辑订阅',exact:true})).toContainText('2160p');await page.getByRole('dialog',{name:'编辑订阅',exact:true}).getByRole('button',{name:'关闭此对话框',exact:true}).click();await page.getByRole('button',{name:'预演',exact:true}).click();await expect(page.getByRole('dialog',{name:'订阅评估与决策',exact:true})).toContainText('分辨率 · 拒绝');await expect(page.getByRole('dialog',{name:'订阅评估与决策',exact:true})).toContainText('来源 · 通过');await page.screenshot({path:resolve(screenshots,'subscription-structured-preview.png'),animations:'disabled'})
 })
 
@@ -997,10 +997,10 @@ test('runtime update: compact media title searches all sites inline with promoti
  await page.route(`**/api/v1/search/${id}?*`,r=>r.fulfill({json:{data:{id,keyword:media.title,state:'succeeded',sites:[],resources,total:1,media}}}));
  await fixtureLogin(page);await page.goto('/search');await expect(page.getByRole('heading',{name:'最近搜索',exact:true})).toBeVisible();await expect(page.getByRole('link',{name:'全部记录',exact:true})).toHaveAttribute('href','/search-cache');await expect(page.locator('.acquire-workspace-nav')).toHaveCount(0);
  await page.getByLabel('TMDB媒体名称',{exact:true}).fill(media.title);await page.getByRole('button',{name:'搜索媒体',exact:true}).click();await page.getByRole('button',{name:media.title,exact:true}).click();expect(started).toBe(true);
- await expect(page.getByLabel('TMDB媒体名称',{exact:true})).toBeVisible();await expect(page.getByLabel('资源关键词',{exact:true})).toHaveCount(0);
+ await expect(page).toHaveURL(new RegExp('/search/results/'+id+'$'));await expect(page.getByRole('heading',{name:'搜索结果',exact:true})).toBeVisible();await expect(page.getByLabel('TMDB媒体名称',{exact:true})).toHaveCount(0);
  await expect(page.getByText('HDSKY · H264 · WEB-DL · 1080p',{exact:true})).toBeVisible();await expect(page.getByText('50%DL',{exact:true})).toBeVisible();await expect(page.locator('.media-context').getByRole('button',{name:'订阅',exact:true})).toHaveCount(0);
  await page.screenshot({path:resolve(screenshots,'runtime-inline-search.png'),fullPage:true,animations:'disabled'});
- await page.route('**/api/v1/cache/search?*',r=>r.fulfill({json:{data:{items:[{id,query:media.title,state:'succeeded',count:1,ttlSeconds:45,bytes:100,posterPath:media.posterPath,createdAt:new Date().toISOString()}],total:1}}}));await page.goto('/search-cache');await expect(page.getByRole('link',{name:'查看结果',exact:true})).toBeVisible();await expect(page.locator('.cache-desktop .cache-content img')).toHaveAttribute('src','/api/v1/metadata/image/w500/owned.png');await expect(page.getByText(/media-tool:search-cache:/)).toHaveCount(0);
+ await page.route('**/api/v1/cache/search?*',r=>r.fulfill({json:{data:{items:[{id,query:media.title,state:'succeeded',count:1,ttlSeconds:45,reusable:true,bytes:100,posterPath:media.posterPath,createdAt:new Date().toISOString()}],total:1}}}));await page.goto('/search-cache');await expect(page.getByRole('button',{name:'查看结果',exact:true})).toBeVisible();await expect(page.locator('.cache-desktop .cache-content img')).toHaveAttribute('src','/api/v1/metadata/image/w500/owned.png');await expect(page.getByText(/media-tool:search-cache:/)).toHaveCount(0);
  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await page.screenshot({path:resolve(screenshots,'runtime-search-cache-mobile.png'),fullPage:true,animations:'disabled'});
 });
 
@@ -1016,4 +1016,20 @@ test('runtime update: configured proxy origin can log in but spoofed forwarding 
  const allowed=await page.request.post('/api/v1/auth/login',{headers:{Origin:'https://proxy.fixture.invalid','X-Requested-With':'media-tool'},data:{username,password}});expect(allowed.status()).toBe(200);
  const hostile=await page.request.post('/api/v1/auth/login',{headers:{Origin:'https://hostile.fixture.invalid','X-Requested-With':'media-tool','X-Forwarded-Host':'proxy.fixture.invalid','X-Forwarded-Proto':'https'},data:{username,password}});expect(hostile.status()).toBe(403);
  const missing=await page.request.post('/api/v1/auth/login',{headers:{Origin:'https://proxy.fixture.invalid'},data:{username,password}});expect(missing.status()).toBe(403);
+});
+
+test('acquisition: dedicated results survive reload and every history entry navigates there (fixture)',async({page})=>{
+ const id='owned-standalone';await page.route('**/api/v1/search',r=>r.fulfill({json:{data:[{id,keyword:'Owned dedicated',state:'succeeded',total:1}]}}));await page.route(`**/api/v1/search/${id}?*`,r=>r.fulfill({json:{data:{id,keyword:'Owned dedicated',state:'succeeded',sites:[],resources:[],total:0}}}));await fixtureLogin(page);await page.goto('/search');await expect(page.getByRole('link',{name:'管理PT站点账号',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'查看结果',exact:true}).click();await expect(page).toHaveURL(/\/search\/results\/owned-standalone$/);await expect(page.locator('h1')).toHaveText('搜索结果');await expect(page.getByRole('radiogroup',{name:'搜索方式'})).toHaveCount(0);await page.reload();await expect(page.locator('h1')).toHaveText('搜索结果');await page.getByRole('button',{name:'返回搜索',exact:true}).click();await expect(page).toHaveURL(/\/search$/);
+});
+
+test('acquisition: cache pages omit size and settings, use matching buttons and meaningful TTL (fixture)',async({page})=>{
+ const id='22222222-2222-4222-8222-222222222222';let kind='tmdb';await page.route('**/api/v1/cache/**',r=>r.fulfill({json:{data:{items:[{id:kind==='tmdb'?'a'.repeat(64):id,query:'Owned cache',state:'succeeded',count:2,bytes:9999,ttlSeconds:7200,reusable:true}],total:1}}}));await fixtureLogin(page);await page.goto('/tmdb-cache');await expect(page.getByRole('columnheader',{name:'大小',exact:true})).toHaveCount(0);await expect(page.getByText('有效期设置',{exact:true})).toHaveCount(0);await expect(page.locator('.cache-desktop').getByText('2.00 小时',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'查看',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'删除',exact:true})).toBeVisible();kind='search';await page.goto('/search-cache');await expect(page.getByRole('columnheader',{name:'大小',exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:'查看结果',exact:true})).toBeVisible();await page.setViewportSize({width:390,height:844});await expect(page.locator('.cache-mobile').getByRole('button',{name:'查看结果',exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,'acquire-cache-mobile.png'),fullPage:true,animations:'disabled'});
+});
+
+test('acquisition: proxy settings are scoped, validated and persisted in isolated database',async({page})=>{
+ await fixtureLogin(page);await page.goto('/settings');await expect(page.getByRole('heading',{name:'网络代理',exact:true})).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('http://127.0.0.1:7890');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();await page.reload();await expect(page.getByLabel('代理地址',{exact:true})).toHaveValue('http://127.0.0.1:7890');await expect(page.getByRole('checkbox',{name:'TMDB查询与海报使用代理',exact:true})).not.toBeChecked();await page.getByLabel('代理地址',{exact:true}).fill('file:///unsafe');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText(/代理地址须使用/)).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();
+});
+
+test('acquisition: subscriptions reject HR without unknown override and expose history (fixture)',async({page})=>{
+ await page.route('**/api/v1/subscriptions**',r=>r.fulfill({json:{data:[]}}));await fixtureLogin(page);await page.goto('/subscriptions');await expect(page.getByText('历史订阅',{exact:true})).toBeVisible();await page.getByText('历史订阅',{exact:true}).click();await expect(page.getByRole('radiogroup',{name:'订阅记录分类',exact:true})).toBeVisible();await page.getByRole('button',{name:'创建订阅',exact:true}).click();const dialog=page.getByRole('dialog',{name:'创建停用订阅',exact:true});await expect(dialog.getByRole('checkbox',{name:'拒绝下载H&R资源',exact:true})).toBeChecked();await expect(dialog.getByText(/明确允许H/)).toHaveCount(0);await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();
 });

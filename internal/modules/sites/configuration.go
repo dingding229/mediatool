@@ -117,6 +117,6 @@ func keys(m Map) []string {
 // client, including its inherited rules and immutable source reference.
 func DefinitionFingerprint(definition, common []byte, commit string) string {
 	raw, _ := json.Marshal([]json.RawMessage{definition, common})
-	digest := sha256.Sum256(append(append(raw, '\n'), []byte(commit+"\nparser-contract:native-mediate-tool-site-v1-v6")...))
+	digest := sha256.Sum256(append(append(raw, '\n'), []byte(commit+"\nparser-contract:native-mediate-tool-site-v1-v7")...))
 	return hex.EncodeToString(digest[:])
 }

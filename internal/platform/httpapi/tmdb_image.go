@@ -33,11 +33,17 @@ func (a *API) tmdbImage(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(raw) == 0 || len(raw) > maxImage {
 		client := http.Client{Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-		if a.Deps.Integrations != nil && a.Deps.Integrations.OutboundHTTP != nil {
-			client = *a.Deps.Integrations.OutboundHTTP
+		if a.Deps.Integrations != nil {
+			selected, e := a.Deps.Integrations.HTTPClient(ctx, "tmdb")
+			if e != nil {
+				http.Error(w, "image proxy unavailable", 502)
+				return
+			}
+			client = *selected
 			client.Timeout = 8 * time.Second
 			client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 		}
+
 		// Fixed public image origin only. Never attach TMDB token, PT Cookie, client UA or headers.
 		request, e := http.NewRequestWithContext(ctx, "GET", "https://image.tmdb.org/t/p/"+size+"/"+file, nil)
 		if e != nil {

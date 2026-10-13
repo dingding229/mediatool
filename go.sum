@@ -27,6 +27,12 @@ github.com/dingding229/mediatool-site v0.0.0-20261013120458-2e449207cbc1 h1:ZpGg
 github.com/dingding229/mediatool-site v0.0.0-20261013120458-2e449207cbc1/go.mod h1:3JW8lsY4a1VvCoIe0LiZwkOjeCDtdJlxQPY+Y6fzxQQ=
 github.com/dingding229/mediatool-site v0.0.0-20261013122233-618a86f27cd3 h1:U3RvAndePugbjcihN2ZtYi6FIhMrGIChcW1EVLyno9g=
 github.com/dingding229/mediatool-site v0.0.0-20261013122233-618a86f27cd3/go.mod h1:3JW8lsY4a1VvCoIe0LiZwkOjeCDtdJlxQPY+Y6fzxQQ=
+github.com/dingding229/mediatool-site v0.0.0-20261013171639-4a3f84de8d13 h1:9GPNxgwsSm2VlBGLsnAxS8ZxxTamKhJybYkicWM9ZvE=
+github.com/dingding229/mediatool-site v0.0.0-20261013171639-4a3f84de8d13/go.mod h1:3JW8lsY4a1VvCoIe0LiZwkOjeCDtdJlxQPY+Y6fzxQQ=
+github.com/dingding229/mediatool-site v0.0.0-20261013174744-686fa20e24d8 h1:/SKriGPYhwx+UGXkzQ/4L8+WxMarv+fVNMtbNiTQs9c=
+github.com/dingding229/mediatool-site v0.0.0-20261013174744-686fa20e24d8/go.mod h1:3JW8lsY4a1VvCoIe0LiZwkOjeCDtdJlxQPY+Y6fzxQQ=
+github.com/dingding229/mediatool-site v0.0.0-20261013180133-7dfba442a392 h1:ghB0kwmHdsc/7gkNVFMnVU8H9vg6gfS6ywquCzMsSSs=
+github.com/dingding229/mediatool-site v0.0.0-20261013180133-7dfba442a392/go.mod h1:3JW8lsY4a1VvCoIe0LiZwkOjeCDtdJlxQPY+Y6fzxQQ=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeORc=

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"media-tool/internal/modules/metadata"
+	"media-tool/internal/modules/networkproxy"
 	"media-tool/internal/modules/settings"
 	"net/http"
 	"strconv"
@@ -34,7 +35,12 @@ func (a *API) mediaDetails(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "tmdb_not_configured", "请配置TMDB")
 		return
 	}
-	seed, _ := json.Marshal([]any{"detail-v1", id, kind, profile.Record.ID, profile.Record.Revision, profile.String("language"), prefs.Revision})
+	proxyRevision, err := (networkproxy.Repository{DB: a.Deps.DB}).Revision(ctx)
+	if err != nil {
+		fail(w, 503, "proxy_unavailable", "代理设置不可用")
+		return
+	}
+	seed, _ := json.Marshal([]any{"detail-v1", id, kind, profile.Record.ID, profile.Record.Revision, profile.String("language"), prefs.Revision, proxyRevision})
 	sum := sha256.Sum256(seed)
 	key := "media-tool:tmdb-cache:" + hex.EncodeToString(sum[:])
 	ttl := time.Duration(prefs.Value.TMDBCacheSeconds) * time.Second

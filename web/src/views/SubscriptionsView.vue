@@ -24,7 +24,7 @@ interface Rule {
   maxSize: number;
   minSeeders: number;
   freeOnly: boolean;
-  allowUnknownHR: boolean;
+  rejectHR?: boolean;
   season: number;
   episodes: number[];
   includeHistory: boolean;
@@ -82,6 +82,10 @@ const list = ref<Subscription[]>([]),
   candidates = ref<Media[]>([]),
   run = ref<Run | null>(null),
   runDialog = ref(false);
+const view=ref('current'),historyOpen=ref(false),historyRows=ref<Array<{id:string;state:string;preview:boolean;createdAt:string}>>([]);
+async function historyFor(id:string){try{historyRows.value=await request(`/subscriptions/${id}/history`);historyOpen.value=true}catch(e){ElMessage.error(String(e))}}
+async function historyResult(id:string){try{run.value=await request(`/subscription-runs/${id}`);runDialog.value=true}catch(e){ElMessage.error(String(e))}}
+
 const form = reactive({
   id: "",
   mediaType: "movie",
@@ -99,7 +103,7 @@ const form = reactive({
   releaseSource: "",
   codec: "",
   freeOnly: true,
-  allowUnknownHR: false,
+  rejectHR: true,
   season: 1,
   episodes: "",
   includeHistory: false,
@@ -116,7 +120,7 @@ const actions: Record<string, string> = {
 async function refresh() {
   loading.value = true;
   try {
-    list.value = await request<Subscription[]>("/subscriptions");
+    list.value = await request<Subscription[]>(`/subscriptions?view=${view.value}`);
     accounts.value = (await request<Account[]>("/integrations")).filter(
       (a) => a.kind === "ptsite" && a.enabled,
     );
@@ -145,7 +149,7 @@ function create() {
     releaseSource: "",
     codec: "",
     freeOnly: true,
-    allowUnknownHR: false,
+    rejectHR: true,
     season: 1,
     episodes: "",
     includeHistory: false,
@@ -173,7 +177,7 @@ function edit(s: Subscription) {
     releaseSource: s.rules.source ?? "",
     codec: s.rules.codec ?? "",
     freeOnly: s.rules.freeOnly,
-    allowUnknownHR: s.rules.allowUnknownHR,
+    rejectHR: s.rules.rejectHR ?? true,
     season: s.rules.season,
     episodes: s.rules.episodes?.join(",") ?? "",
     includeHistory: s.rules.includeHistory,
@@ -255,7 +259,7 @@ async function save() {
         maxSize: 0,
         minSeeders: 0,
         freeOnly: form.freeOnly,
-        allowUnknownHR: form.allowUnknownHR,
+        rejectHR: form.rejectHR,
         season: form.season,
         episodes,
         includeHistory: form.includeHistory,
@@ -309,10 +313,10 @@ async function evaluate(s: Subscription, preview: boolean) {
 async function remove(s: Subscription) {
   try {
     await ElMessageBox.confirm(
-      "删除订阅不会删除已有下载、云盘文件或做种源文件。",
-      "删除订阅",
+      "归档后停止后续订阅，历史规则、评估和下载关联保留；不删除已有下载、云盘文件或做种源文件。",
+      "归档订阅",
       {
-        confirmButtonText: "删除订阅",
+        confirmButtonText: "归档订阅",
         cancelButtonText: "取消",
         type: "warning",
       },
@@ -379,7 +383,7 @@ onUnmounted(() => {
     :closable="false"
     show-icon
   />
-  <section class="panel">
+  <section class="panel"><el-radio-group v-model="view" aria-label="订阅记录分类" @change="refresh"><el-radio-button value="current">当前订阅</el-radio-button><el-radio-button value="history">历史订阅</el-radio-button></el-radio-group>
     <el-table
       :data="list"
       empty-text="暂无订阅。先配置TMDB、PT账号及下载器，再创建停用的订阅并预演。"
@@ -395,7 +399,7 @@ onUnmounted(() => {
         ><template #default="scope"
           >{{ scope.row.enabled ? "已启用" : "已停用"
           }}<small class="table-id"
-            >{{ scope.row.source }} · {{ scope.row.intervalMinutes }}分钟</small
+            >{{scope.row.source}} · {{view==='history'?'历史记录':'系统Cron调度'}}</small
           ></template
         ></el-table-column
       ><el-table-column label="最近评估" min-width="220"
@@ -405,7 +409,7 @@ onUnmounted(() => {
             {{ scope.row.lastMessage || "尚未评估" }}
           </p></template
         ></el-table-column
-      ><el-table-column label="操作" min-width="320"
+      ><el-table-column label="评估历史" width="120"><template #default="{row}"><el-button @click="historyFor(row.id)">查看历史</el-button></template></el-table-column><el-table-column v-if="view==='current'" label="操作" min-width="320"
         ><template #default="scope"
           ><el-button size="small" @click="evaluate(scope.row, true)"
             >预演</el-button
@@ -420,7 +424,7 @@ onUnmounted(() => {
             type="danger"
             plain
             @click="remove(scope.row)"
-            >删除</el-button
+            >归档</el-button
           ></template
         ></el-table-column
       ></el-table
@@ -584,12 +588,12 @@ onUnmounted(() => {
         </div>
       </div>
       <p class="field-hint">
-        明确限制的属性未识别时拒绝匹配；旧订阅默认不限。先规则预演，再明确启用，原做种文件不会被替换。
+        明确限制的属性未识别时拒绝匹配；未配置的属性不限。先规则预演，再明确启用，原做种文件不会被替换。
       </p>
       <el-checkbox v-model="form.freeOnly">只下载已确认免费资源</el-checkbox
-      ><el-checkbox v-model="form.allowUnknownHR"
-        >明确允许H&amp;R信息未知（已知H&amp;R仍拒绝自动下载）</el-checkbox
-      ><el-checkbox v-model="form.includeHistory"
+      ><el-checkbox v-model="form.rejectHR"
+        >拒绝下载H&amp;R资源</el-checkbox
+      ><p class="field-hint">H&amp;R信息未知时始终拒绝自动下载；关闭此选项只允许已明确标记的H&amp;R资源，请承担相应做种义务。</p><el-checkbox v-model="form.includeHistory"
         >允许首次RSS历史补抓</el-checkbox
       ><el-checkbox v-model="form.enabled">保存后启用自动下载</el-checkbox
       ><el-alert
@@ -605,6 +609,7 @@ onUnmounted(() => {
       >
     </form></el-dialog
   >
+  <el-dialog v-model="historyOpen" title="历史订阅评估" width="min(780px,94vw)"><el-table :data="historyRows" empty-text="暂无评估历史"><el-table-column label="时间"><template #default="{row}">{{new Date(row.createdAt).toLocaleString('zh-CN')}}</template></el-table-column><el-table-column label="模式"><template #default="{row}">{{row.preview?'预演':'正式评估'}}</template></el-table-column><el-table-column label="状态"><template #default="{row}"><StatusBadge :state="row.state"/></template></el-table-column><el-table-column label="操作"><template #default="{row}"><el-button @click="historyResult(row.id)">查看结果</el-button></template></el-table-column></el-table></el-dialog>
   <el-dialog v-model="runDialog" title="订阅评估与决策" width="min(900px,96vw)"
     ><el-alert
       v-if="run?.state === 'needs_refresh'"

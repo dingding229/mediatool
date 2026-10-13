@@ -325,7 +325,16 @@ func (e Engine) Add(ctx context.Context, job jobs.Job) (result error) {
 			return err
 		}
 		if _, err = inspectDownloadTarget(ctx, client, hash, details); errors.Is(err, qbittorrent.ErrNotFound) {
-			if _, err = client.Add(ctx, downloads.Request{Torrent: torrent, SavePath: details.DownloadPath, Category: details.Category, Tags: []string{"media-tool", payload.TaskID}}); err != nil {
+			release, guardErr := e.guardSubscriptionAdd(ctx, details, resource)
+			if guardErr != nil {
+				return guardErr
+			}
+			addErr := func() error {
+				defer release()
+				_, err := client.Add(ctx, downloads.Request{Torrent: torrent, SavePath: details.DownloadPath, Category: details.Category, Tags: []string{"media-tool", payload.TaskID}})
+				return err
+			}()
+			if err = addErr; err != nil {
 				return err
 			}
 		} else if err != nil {
@@ -344,7 +353,16 @@ func (e Engine) Add(ctx context.Context, job jobs.Job) (result error) {
 			if parseErr != nil || meta.InfoHash != hash {
 				return errors.New("torrent identity changed; manual confirmation required")
 			}
-			if _, err = client.Add(ctx, downloads.Request{Torrent: torrent, SavePath: details.DownloadPath, Category: details.Category, Tags: []string{"media-tool", payload.TaskID}}); err != nil {
+			release, guardErr := e.guardSubscriptionAdd(ctx, details, resource)
+			if guardErr != nil {
+				return guardErr
+			}
+			addErr := func() error {
+				defer release()
+				_, err := client.Add(ctx, downloads.Request{Torrent: torrent, SavePath: details.DownloadPath, Category: details.Category, Tags: []string{"media-tool", payload.TaskID}})
+				return err
+			}()
+			if err = addErr; err != nil {
 				return err
 			}
 		} else if err != nil {

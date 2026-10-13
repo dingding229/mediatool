@@ -62,6 +62,11 @@ func main() {
 	switch *action {
 	case "up":
 		err = goose.UpContext(ctx, db, ".")
+		if err == nil && *cleanupPlugins {
+			// Browser suites use a fresh master key; never let their encrypted
+			// proxy fixture leak into the next isolated Go/rekey test suite.
+			_, err = db.ExecContext(ctx, `UPDATE network_proxy_settings SET tmdb_enabled=false,sites_enabled=false,url_ciphertext=''::bytea,revision=1 WHERE id='main'`)
+		}
 	case "status":
 		err = goose.StatusContext(ctx, db, ".")
 	case "down":

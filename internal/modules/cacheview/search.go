@@ -58,7 +58,11 @@ func (s Store) searchEntry(ctx context.Context, id string, detail bool) (Entry, 
 	x.PosterPath, _ = context["posterPath"].(string)
 	if key != "" {
 		if cached, err := s.Redis.Get(ctx, key).Result(); err == nil && cached == id {
-			x.TTLSeconds = int64(s.Redis.TTL(ctx, key).Val() / time.Second)
+			ttl := s.Redis.TTL(ctx, key).Val()
+			if ttl > 0 {
+				x.TTLSeconds = max(1, int64(ttl/time.Second))
+				x.Reusable = true
+			}
 		}
 	}
 	if detail {
