@@ -154,6 +154,8 @@ onMounted(load);
   place-items: center;
   width: 40px;
   height: 40px;
+  font-size: 14px;
+  font-weight: 600;
   background: var(--accent-soft);
   color: var(--accent);
 }

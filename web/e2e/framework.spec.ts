@@ -253,7 +253,7 @@ test('Go template catalog supports selective loading, version, icon and website'
  expect(catalog.filter((x:any)=>x.loaded).map((x:any)=>x.id).sort()).toEqual(['hdsky','ourbits'])
  expect(catalog.every((x:any)=>x.version==='1.1.0'&&x.iconUrl===x.domain+'/favicon.ico')).toBe(true)
  await page.reload({waitUntil:'domcontentloaded'});await expect(page.locator('article').filter({has:page.getByRole('heading',{name:'HDSKY',exact:true})}).getByRole('checkbox')).toBeDisabled()
- await expect(page.getByRole('checkbox',{name:'选择 SSD',exact:true})).toBeEnabled()
+ await expect(page.getByRole('checkbox',{name:'选择 SSD',exact:true})).toBeEnabled();await expect(page.locator('.site-fallback').first()).toHaveText('HD');expect(await page.locator('.site-fallback').first().evaluate(el=>getComputedStyle(el).fontSize)).toBe('14px')
  await expect(page.getByRole('link',{name:'https://hdsky.me',exact:true})).toHaveAttribute('href','https://hdsky.me')
  for(const name of ['HDSKY','OURBITS','CHDBITS','SSD','TTG','UBITS'])await expect(page.getByRole('heading',{name,exact:true})).toBeVisible()
  for(const text of ['来源提交','已导入配置','mediatool-site','天空','我堡','春天'])await expect(page.getByText(text,{exact:true})).toHaveCount(0)
