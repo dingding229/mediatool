@@ -338,6 +338,18 @@ func (c Client) searchPageLink(ctx context.Context, q SearchQuery, next *url.URL
 	if strings.TrimSpace(selector) == "" {
 		return result, ErrConfig
 	}
+	// A template may declare a result container to prove that an empty row
+	// selection is a real empty result, not a login/challenge/error document.
+	if container, exists := object(rule["list"])["container"]; exists {
+		selector, valid := container.(string)
+		if !valid || strings.TrimSpace(selector) == "" || d.html == nil {
+			return result, ErrConfig
+		}
+		containers, e := d.values(selector, nil)
+		if e != nil || len(containers) != 1 {
+			return result, ErrSearchResponse
+		}
+	}
 	var list []any
 	if strings.EqualFold(mode, "JsonPath") {
 		selected, exists := d.jsonValue(selector, nil)

@@ -1,0 +1,409 @@
+{
+  "id": "ourbits",
+  "name": "我堡（精简模板）",
+  "domain": "https://ourbits.club",
+  "schema": "NexusPHP",
+  "encoding": "UTF-8",
+  "additional_domain": [
+    "https://pt.ourhelp.club"
+  ],
+  "meta": {
+    "has_hr": true
+  },
+  "requests": {
+    "user_basic_info": {
+      "parser": "XPath",
+      "method": "GET",
+      "path": "",
+      "fields": {
+        "is_login": {
+          "any": [
+            {
+              "selector": "//a[contains(@href, 'logout')]/text()"
+            },
+            {
+              "selector": "//a[contains(@data-url, 'logout')]/text()"
+            },
+            {
+              "selector": "//a[contains(@href, 'mybonus')]/text()"
+            },
+            {
+              "selector": "//a[contains(@onclick, 'logout')]/text()"
+            },
+            {
+              "selector": "//a[contains(@href, 'usercp')]/text()"
+            },
+            {
+              "selector": "//form[contains(@action, 'logout')]/text()"
+            },
+            {
+              "selector": "//div[@class='user-info-side']/text()"
+            }
+          ],
+          "filters": [
+            {
+              "name": "not_blank"
+            }
+          ]
+        },
+        "id": {
+          "selector": "*",
+          "selection": "html",
+          "filters": [
+            {
+              "name": "re_search",
+              "args": [
+                "userdetails.php\\?id=(\\d+)",
+                1
+              ]
+            }
+          ]
+        },
+        "name": {
+          "any": [
+            {
+              "selector": "//a[contains(@href, 'userdetails')]//b//text()"
+            },
+            {
+              "selector": "//a[contains(@href, 'userdetails')]//text()"
+            },
+            {
+              "selector": "//a[contains(@href, 'userdetails')]//strong//text()"
+            }
+          ]
+        },
+        "uploaded": {
+          "selector": "*",
+          "selection": "html",
+          "filters": [
+            {
+              "name": "re_search",
+              "args": [
+                "[^总]上[传傳]量?[:：_<>/a-zA-Z-=''\\s#;]+([\\d,.\\s]+(?i)[KMGTPI]*B)",
+                1
+              ]
+            },
+            {
+              "name": "byte_size"
+            }
+          ]
+        },
+        "downloaded": {
+          "selector": "*",
+          "selection": "html",
+          "filters": [
+            {
+              "name": "re_search",
+              "args": [
+                "[^总子影力]下[载載]量?[:：_<>/a-zA-Z-=''\\s#;]+([\\d,.\\s]+(?i)[KMGTPI]*B)",
+                1
+              ]
+            },
+            {
+              "name": "byte_size"
+            }
+          ]
+        },
+        "ratio": {
+          "selector": "*",
+          "selection": "html",
+          "filters": [
+            {
+              "name": "replace",
+              "args": [
+                "无限",
+                ""
+              ]
+            },
+            {
+              "name": "replace",
+              "args": [
+                "无穷",
+                ""
+              ]
+            },
+            {
+              "name": "replace",
+              "args": [
+                "∞",
+                ""
+              ]
+            },
+            {
+              "name": "replace",
+              "args": [
+                "Infinity",
+                ""
+              ]
+            },
+            {
+              "name": "replace",
+              "args": [
+                "infinity",
+                ""
+              ]
+            },
+            {
+              "name": "replace",
+              "args": [
+                "Inf",
+                ""
+              ]
+            },
+            {
+              "name": "replace",
+              "args": [
+                "inf",
+                ""
+              ]
+            },
+            {
+              "name": "re_search",
+              "args": [
+                "分享率[:：_<>/a-zA-Z-=\\\"'\\s#;]+([\\d,.\\s]+)",
+                1
+              ]
+            }
+          ]
+        },
+        "bonus": {
+          "any": [
+            {
+              "selector": "//a[contains(@href,'mybonus') or contains(@href,'bonus.php')]/text()",
+              "filters": [
+                {
+                  "name": "re_search",
+                  "args": [
+                    "([\\d,.]+)",
+                    1
+                  ]
+                }
+              ]
+            },
+            {
+              "selector": "*",
+              "selection": "html",
+              "filters": [
+                {
+                  "name": "re_search",
+                  "args": [
+                    "mybonus.[\\[\\]:：<>/a-zA-Z_\\-=''\\s#;.(使用魔力值豆]+\\s*([\\d,.]+)[<()&\\s\\[]",
+                    1
+                  ]
+                }
+              ]
+            },
+            {
+              "selector": "*",
+              "selection": "html",
+              "filters": [
+                {
+                  "name": "re_search",
+                  "args": [
+                    "[魔力值|\\]][\\[\\]:：<>/a-zA-Z_\\-=''\\s#;]+\\s*([\\d,.]+|\\'[\\d,.]+')[<>()&\\s\\[]",
+                    1
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "user_details": {
+      "parser": "XPath",
+      "method": "GET",
+      "path": "/userdetails.php?id={userId}",
+      "fields": {
+        "level": {
+          "any": [
+            {
+              "selector": "//tr/td[contains(text(), '等級') or contains(text(), '等级')]/following-sibling::td[1]/img[1]/@title"
+            },
+            {
+              "selector": "//tr/td[contains(text(), '等級') or contains(text(), '等级')]/following-sibling::td[1 and not(img)]|//tr/td[contains(text(), '等級') or contains(text(), '等级')]/following-sibling::td[1 and img[not(@title)]]"
+            },
+            {
+              "selector": "//tr/td[contains(text(), '等級') or contains(text(), '等级')]/following-sibling::td[1]"
+            },
+            {
+              "selector": "//a[contains(@href, 'userdetails')]/text()",
+              "filters": [
+                {
+                  "name": "re_search",
+                  "args": [
+                    "\\[(.*)]",
+                    1
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "search": {
+      "parser": "CssSelector",
+      "method": "GET",
+      "path": "/torrents.php",
+      "params": {
+        "search": [
+          "{keyword}"
+        ]
+      },
+      "list": {
+        "selector": "table.torrents tr:has(table.torrentname)",
+        "container": "table.torrents",
+        "next_page": {
+          "selector": "a[rel='next'][href], a[href]:contains('下一页'), a[href]:contains('下一頁'), a[href]:contains('Next'), a[href]:contains('next')",
+          "attribute": "href"
+        }
+      },
+      "fields": {
+        "id": {
+          "selector": "a[href*='details.php?id=']",
+          "attribute": "href",
+          "filters": [
+            {
+              "name": "re_search",
+              "args": [
+                "\\d+",
+                0
+              ]
+            }
+          ]
+        },
+        "title": {
+          "any": [
+            {
+              "selector": "a[title][href*='details.php?id=']",
+              "attribute": "title"
+            },
+            {
+              "selector": "a[href*='details.php?id=']"
+            }
+          ]
+        },
+        "details": {
+          "selector": "a[href*='details.php?id=']",
+          "attribute": "href"
+        },
+        "download": {
+          "selector": "a[href*='download.php?id=']",
+          "attribute": "href"
+        },
+        "size": {
+          "selector": "td.rowfollow:nth-child(5)",
+          "filters": [
+            {
+              "name": "byte_size"
+            }
+          ]
+        },
+        "seeders": {
+          "selector": "td:nth-child(6):not(.embedded)"
+        },
+        "leechers": {
+          "selector": "td:nth-child(7):not(.embedded)"
+        },
+        "downloadvolumefactor": {
+          "any": [
+            {
+              "selector": "img.pro_free,img.pro_free2up",
+              "attribute": "class",
+              "filters": [
+                {
+                  "name": "not_blank",
+                  "args": [
+                    0,
+                    ""
+                  ]
+                }
+              ]
+            },
+            {
+              "selector": "img.pro_50pctdown,img.pro_50pctdown2up",
+              "attribute": "class",
+              "filters": [
+                {
+                  "name": "not_blank",
+                  "args": [
+                    0.5,
+                    ""
+                  ]
+                }
+              ]
+            },
+            {
+              "selector": "img.pro_30pctdown",
+              "attribute": "class",
+              "filters": [
+                {
+                  "name": "not_blank",
+                  "args": [
+                    0.3,
+                    ""
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "description": {
+          "selector": "table.torrentname tr > td.embedded",
+          "remove": "div,a,img,b",
+          "filters": [
+            {
+              "name": "replace",
+              "args": [
+                "剩余时间：",
+                ""
+              ]
+            }
+          ]
+        },
+        "labels": {
+          "selector": "table.torrentname tr > td.embedded > div > a[href*='?tags[]='] > span",
+          "array": true
+        },
+        "hr": {
+          "selector": "img.hitandrun",
+          "attribute": "class",
+          "filters": [
+            {
+              "name": "not_blank",
+              "args": [
+                true,
+                ""
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "seeding_statistics": {
+      "parser": "XPath",
+      "method": "GET",
+      "path": "/getusertorrentlistajax.php?userid={userId}&type=seeding",
+      "headers": {
+        "Referer": "{domain}/userdetails.php?id={userId}"
+      },
+      "list": {
+        "selector": "//tr[position()>1]",
+        "next_page": {
+          "selector": "//a[contains(.//text(), '下一页') or contains(.//text(), '下一頁')]/@href"
+        }
+      },
+      "fields": {
+        "size": {
+          "selector": "/td[3]",
+          "filters": [
+            {
+              "name": "byte_size"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

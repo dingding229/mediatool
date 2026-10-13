@@ -15,6 +15,9 @@ import (
 // collectSeeding reports authoritative totals only after proving a terminal
 // page. The authenticated HDSKY AJAX "没有记录" response was verified live.
 func (c Client) collectSeeding(ctx context.Context, rule Map, vars map[string]string) (int64, int64, int, bool, string) {
+	if _, exists := rule["summary"]; exists {
+		return c.collectSeedingSummary(ctx, rule, vars)
+	}
 	var count, total int64
 	seenPages := map[[32]byte]bool{}
 	seenRows := map[string]bool{}

@@ -2,9 +2,17 @@
 
 # 当前实现与验证状态
 
-更新：2026-10-12。源码版本0.11.1-dev，数据库迁移32；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
+更新：2026-10-12。源码版本0.11.2-dev，数据库迁移32；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
 
 主要业务已实现，本轮继续完成不依赖真实账号的可靠性与管理功能。**测试服务通过不等于真实115/PT/Emby客户端通过；整体项目未宣布验收完成。** 历史过程保留在 WORK_LOG.md，本文件只记录当前状态。
+
+## 本轮0.11.2站点模板更新
+
+- 新增CHDBITS（ptchdbits）、SSD、OURBITS、UBITS、TTG自包含精简模板及索引；只保留4个核心请求，说明见examples/sites/README.md。
+- SSD/UBITS明确汇总型做种统计，校验唯一容器、用户/路径、完整数量/体积及异常/零语义；不强套列表或伪填0。
+- 搜索声明结果容器以拒绝登录/挑战伪空结果；TTG使用独立search_field/c=M及实际下载路径，纠正统计XPath残留html selection。
+- 促销缺失保持未知，H&R不假填固定天数，不截断两位数字；解析契约指纹更新为v4，不复用旧证据。
+- 新站点本轮只有合成页面回归，无真实账号实测；不自动替换生产定义或账号，不声称后台已有任意JSON上传。数据库仍32，无新迁移。发布以本轮Actions/服务器回执为准。
 
 ## 本轮0.11.1更新
 

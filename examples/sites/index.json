@@ -1,0 +1,62 @@
+{
+  "templateVersion": 1,
+  "sourceRepository": "mantou568/pre-dessert-sites",
+  "sourceCommit": "37bf5c5064ae437f54e26b57406ca84d480daab5",
+  "commonRequired": false,
+  "templates": [
+    {
+      "id": "hdsky",
+      "name": "HDSKY 天空（精简模板）",
+      "file": "hdsky.json",
+      "schema": "NexusPHP",
+      "seedingMode": "list",
+      "accountVerified": false,
+      "sourceFile": "site_config/sites/hdsky.json"
+    },
+    {
+      "id": "ptchdbits",
+      "name": "彩虹岛（精简模板）",
+      "file": "chdbits.json",
+      "schema": "NexusPHP",
+      "seedingMode": "list",
+      "accountVerified": false,
+      "sourceFile": "site_config/sites/ptchdbits.json"
+    },
+    {
+      "id": "ssd",
+      "name": "春天（精简模板）",
+      "file": "ssd.json",
+      "schema": "NexusPHP",
+      "seedingMode": "summary",
+      "accountVerified": false,
+      "sourceFile": "site_config/sites/ssd.json"
+    },
+    {
+      "id": "ourbits",
+      "name": "我堡（精简模板）",
+      "file": "ourbits.json",
+      "schema": "NexusPHP",
+      "seedingMode": "list",
+      "accountVerified": false,
+      "sourceFile": "site_config/sites/ourbits.json"
+    },
+    {
+      "id": "ubits",
+      "name": "UBits（精简模板）",
+      "file": "ubits.json",
+      "schema": "NexusPHP",
+      "seedingMode": "summary",
+      "accountVerified": false,
+      "sourceFile": "site_config/sites/ubits.json"
+    },
+    {
+      "id": "ttg",
+      "name": "听听歌（精简模板）",
+      "file": "ttg.json",
+      "schema": "ttg",
+      "seedingMode": "list",
+      "accountVerified": false,
+      "sourceFile": "site_config/sites/ttg.json"
+    }
+  ]
+}

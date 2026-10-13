@@ -250,7 +250,8 @@
         "next_page": {
           "selector": "a[href*=\"torrents.php\"][rel=\"next\"], a[href*=\"torrents.php\"]:contains(\"下一页\"), a[href*=\"torrents.php\"]:contains(\"下一頁\")",
           "attribute": "href"
-        }
+        },
+        "container": "table.torrents"
       },
       "fields": {
         "id": {

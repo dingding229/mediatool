@@ -1,3 +1,11 @@
+## 2026-10-13 当前五站点模板更新
+
+CHDBITS（ptchdbits）、SSD、OURBITS、UBITS、TTG自包含精简模板已开发；索引与差异见examples/sites/README.md，执行计划见plans/site-templates-20261013.md。仅保留4个核心请求，不含账号秘密/签到/验证码等。SSD/UBITS使用明确的汇总统计，TTG保留独立搜索/下载/做种契约，缺失促销/H&R及异常页面保持未知。搜索结果容器与解析契约指纹v4已补齐。schema仍32。
+
+本地Go race/vet、Vue32/构建、E2E52、Python18通过。正式发布以本轮Actions/Hub/服务器回执为准。新模板没有真实账号实测，不自动替换已有定义，不声称后台支持任意JSON上传；真实PT下载/订阅/入库/通知链路和设备播放稳定性仍需单独验收。
+
+---
+
 ## 2026-10-12 当前插件/核心功能调整
 
 0day解析和电影/剧集命名模板改为基本功能，不显示为插件。插件统一为可执行WASM ZIP；旧Webhook/rules/手填Manifest及旧示例已删除，不实现旧版数据兼容。已核对用户指定MoviePilot-Plugins V3开发文档及加载/生命周期源码，开发指南为PLUGIN_DEVELOPMENT.md。HDSKY独立精简模板仅保留4个业务请求，不自动替换已配置站点。
