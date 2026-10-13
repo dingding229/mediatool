@@ -58,7 +58,7 @@ watch(
   { immediate: true },
 );
 onMounted(() => {
-  if (route.name !== "dashboard" && !system.status) system.refresh();
+  if (!system.status) system.refresh();
   mobile = window.matchMedia("(max-width: 900px)");
   mobile.addEventListener("change", onResize);
   window.addEventListener("keydown", shortcut);
