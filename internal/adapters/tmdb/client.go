@@ -65,7 +65,11 @@ type record struct {
 	FirstAirDate  string `json:"first_air_date"`
 	Overview      string
 	PosterPath    string `json:"poster_path"`
-	MediaType     string `json:"media_type"`
+	BackdropPath  string `json:"backdrop_path"`
+	Genres        []struct {
+		Name string `json:"name"`
+	} `json:"genres"`
+	MediaType string `json:"media_type"`
 }
 
 func convert(r record, kind string) metadata.Item {
@@ -77,7 +81,11 @@ func convert(r record, kind string) metadata.Item {
 	if len(date) >= 4 {
 		year = date[:4]
 	}
-	return metadata.Item{ID: r.ID, MediaType: kind, Title: title, OriginalTitle: original, Year: year, Overview: r.Overview, PosterPath: r.PosterPath}
+	genres := []string{}
+	for _, g := range r.Genres {
+		genres = append(genres, g.Name)
+	}
+	return metadata.Item{BackdropPath: r.BackdropPath, Genres: genres, ID: r.ID, MediaType: kind, Title: title, OriginalTitle: original, Year: year, Overview: r.Overview, PosterPath: r.PosterPath}
 }
 func (c Client) Search(ctx context.Context, kind, query string) ([]metadata.Item, error) {
 	if len(query) > 200 || strings.TrimSpace(query) == "" {

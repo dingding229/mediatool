@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { Grid, List } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { request, post } from "../api/client";
 interface Site {
@@ -9,6 +10,15 @@ interface Site {
   version: string;
   iconUrl: string;
   loaded: boolean;
+}
+const layout = ref(
+  localStorage.getItem("media-tool:template-layout") === "list"
+    ? "list"
+    : "grid",
+);
+function setLayout(value: string) {
+  layout.value = value;
+  localStorage.setItem("media-tool:template-layout", value);
 }
 const templates = ref<Site[]>([]);
 const selected = ref<string[]>([]);
@@ -64,6 +74,7 @@ onMounted(load);
 <template>
   <section class="page-heading">
     <div>
+      <span class="page-kicker">ACQUIRE / 模板目录</span>
       <h1>站点模板</h1>
       <p>
         勾选需要的站点模板后加载，再到 PT
@@ -84,6 +95,21 @@ onMounted(load);
   <el-skeleton v-if="loading" :rows="3" animated />
   <template v-else>
     <div class="template-toolbar">
+      <div class="template-layout">
+        <el-button
+          :icon="Grid"
+          :type="layout === 'grid' ? 'primary' : 'default'"
+          aria-label="网格展示模板"
+          :aria-pressed="layout === 'grid'"
+          @click="setLayout('grid')"
+        /><el-button
+          :icon="List"
+          :type="layout === 'list' ? 'primary' : 'default'"
+          aria-label="列表展示模板"
+          :aria-pressed="layout === 'list'"
+          @click="setLayout('list')"
+        />
+      </div>
       <el-checkbox
         :model-value="allSelected"
         :indeterminate="partlySelected"
@@ -105,6 +131,7 @@ onMounted(load);
       v-model="selected"
       aria-label="选择站点模板"
       class="template-grid"
+      :class="{ 'template-list': layout === 'list' }"
     >
       <article
         v-for="site in templates"
@@ -146,6 +173,35 @@ onMounted(load);
   </template>
 </template>
 <style scoped>
+.template-layout {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  order: 2;
+}
+.template-layout .el-button {
+  margin: 0;
+  min-width: 44px;
+  min-height: 44px;
+}
+.template-list {
+  grid-template-columns: 1fr !important;
+}
+.template-list .template-card {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) 140px;
+  align-items: center;
+}
+@media (max-width: 680px) {
+  .template-list .template-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .template-list .site-url {
+    grid-column: 1/-1;
+    grid-row: 2;
+  }
+}
+
 .template-toolbar {
   display: flex;
   align-items: center;

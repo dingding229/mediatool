@@ -181,6 +181,10 @@ func (d document) fieldWithResolver(name string, rule Map, scope any, vars map[s
 			for _, v := range values {
 				switch node := v.(type) {
 				case *html.Node:
+					if node.Type == html.TextNode {
+						out = append(out, strings.TrimSpace(node.Data))
+						continue
+					}
 					if attribute := text(rule["attribute"]); attribute != "" {
 						s := ""
 						for _, a := range node.Attr {

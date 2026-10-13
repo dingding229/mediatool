@@ -13,6 +13,8 @@ export const navigationGroups: NavigationGroup[] = [
     { id: 'subscriptions', name: '资源订阅', icon: Collection, keywords: 'RSS 订阅规则' },
     { id: 'sites', name: 'PT 站点', icon: Connection, keywords: 'HDSKY 账号' },
 { id: 'site-templates', name: '站点模板', icon: SetUp, keywords: 'HDSKY OURBITS CHDBITS SSD Go 模板' },
+    { id: 'tmdb-cache', name: 'TMDB缓存', icon: Coin, keywords: 'TMDB 缓存 TTL 查看 清理' },
+{ id: 'search-cache', name: '搜索缓存', icon: Clock, keywords: '站点 搜索 缓存 TTL 查看 清理' },
     { id: 'downloads', name: '下载与传输', icon: Download, keywords: '下载器 做种 上传' },
   ] },
   { id: 'organize', name: '文件与入库', items: [

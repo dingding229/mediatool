@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { request, post } from "../api/client";
 import { resourceSources } from "../utils/resource-source";
@@ -68,6 +69,8 @@ interface Run {
     }[];
   }[];
 }
+const route = useRoute(),
+  router = useRouter();
 const tmdbCache = ref<{ cached: boolean; seconds: number } | null>(null);
 const list = ref<Subscription[]>([]),
   accounts = ref<Account[]>([]),
@@ -328,8 +331,29 @@ async function poll() {
     } catch {}
   }
 }
-onMounted(() => {
-  refresh();
+onMounted(async () => {
+  await refresh();
+  if (
+    route.query.create === "1" &&
+    (route.query.mediaType === "movie" || route.query.mediaType === "series") &&
+    /^\d+$/.test(String(route.query.tmdbId))
+  ) {
+    try {
+      const out = await request<{ item: Media }>(
+        `/metadata/details?mediaType=${route.query.mediaType}&tmdbId=${route.query.tmdbId}`,
+      );
+      create();
+      form.mediaType = out.item.mediaType;
+      form.tmdbId = out.item.id;
+      form.title = out.item.title;
+      form.query = out.item.title;
+      form.keyword = out.item.title;
+      await router.replace({ path: "/subscriptions" });
+    } catch (e) {
+      error.value = String(e);
+    }
+  }
+
   timer = setInterval(poll, 3000);
 });
 onUnmounted(() => {

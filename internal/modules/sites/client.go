@@ -401,6 +401,7 @@ func (c Client) searchPageLink(ctx context.Context, q SearchQuery, next *url.URL
 				}
 			}
 			resource, ok := c.resource(combined)
+			resource.DownloadFactor = promotionFactor(rule, child, resource.DownloadFactor)
 			if !ok {
 				continue
 			}

@@ -78,3 +78,14 @@ func TestAPIAuthenticationSearchAndDownload(t *testing.T) {
 		t.Fatal("torrent bytes modified", err)
 	}
 }
+
+func TestXPathTextNodesRetainExplicitZero(t *testing.T) {
+	d, err := parseDocument([]byte(`<font>0</font><span>Owner</span>`), "XPath")
+	if err != nil {
+		t.Fatal(err)
+	}
+	values, err := mapFields(d, Map{"count": Map{"selector": "//font/text()"}, "name": Map{"selector": "//span/text()"}}, nil, nil)
+	if err != nil || values["count"] != "0" || values["name"] != "Owner" {
+		t.Fatal(values, err)
+	}
+}

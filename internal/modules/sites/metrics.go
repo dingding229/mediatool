@@ -104,7 +104,12 @@ func (c Client) Metrics(ctx context.Context) (Metrics, error) {
 			m.Notes = append(m.Notes, "等级读取失败")
 		}
 	}
-	if seed := c.Config.Requests["seeding_statistics"]; seed != nil && vars["userId"] != "" {
+	if m.Seeding != nil && *m.Seeding == 0 && rule["seeding_zero_is_complete"] == true {
+		zero := int64(0)
+		m.SeedingBytes = &zero
+		m.SeedingComplete = true
+		m.SeedingPages = 1
+	} else if seed := c.Config.Requests["seeding_statistics"]; seed != nil && vars["userId"] != "" {
 		count, size, pages, complete, note := c.collectSeeding(ctx, seed, vars)
 		m.SeedingPages = pages
 		m.SeedingComplete = complete

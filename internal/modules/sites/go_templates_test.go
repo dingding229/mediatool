@@ -77,3 +77,46 @@ func TestRSSDiscoveryDoesNotPersistUnverifiedOrCrossOriginLinks(t *testing.T) {
 		})
 	}
 }
+
+func TestCompiledSSDSubtitleAndSummaryEmptyEvidence(t *testing.T) {
+	cfg, e := DecodeStored(SnapshotForTest("ssd"), nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	d, e := parseDocument([]byte(`<table class="torrents"><tr><td><table class="torrentname"><tr><td class="embedded"><div class="torrent-smalldescr"><span class="torrent-tag">tag</span><span>Owned subtitle</span></div></td></tr></table></td></tr></table>`), "CssSelector")
+	if e != nil {
+		t.Fatal(e)
+	}
+	rows, _ := d.values("table.torrents > tbody > tr", nil)
+	if len(rows) == 0 {
+		rows, _ = d.values("table.torrents tr:has(table.torrentname)", nil)
+	}
+	value, e := mapFields(d, Map{"description": object(cfg.Requests["search"]["fields"])["description"]}, rows[0], nil)
+	if e != nil || value["description"] != "Owned subtitle" {
+		t.Fatal(value, e)
+	}
+	c := Client{Config: cfg, Account: Account{Endpoint: cfg.Domain, UserID: "42"}, HTTP: &http.Client{Transport: metricsTransport(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Request: r, Body: io.NopCloser(strings.NewReader("没有记录"))}, nil
+	})}}
+	count, size, _, complete, note := c.collectSeedingSummary(context.Background(), cfg.Requests["seeding_statistics"], map[string]string{"userId": "42", "domain": cfg.Domain})
+	if !complete || count != 0 || size != 0 || note != "" {
+		t.Fatal(count, size, complete, note)
+	}
+}
+
+func TestUbitsBlockedSeedboxOverridesFreeEvenWithEmptyMarkerText(t *testing.T) {
+	cfg, e := DecodeStored(SnapshotForTest("ubits"), nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	d, e := parseDocument([]byte(`<table><tr><td><img class="pro_free" alt="Free"><span class="seed-box-policy-download is-blocked"></span></td></tr></table>`), "CssSelector")
+	if e != nil {
+		t.Fatal(e)
+	}
+	rows, _ := d.values("tr", nil)
+	v, e := mapFields(d, Map{"factor": object(cfg.Requests["search"]["fields"])["downloadvolumefactor"]}, rows[0], nil)
+	factor, ok := checkedNumber(v["factor"])
+	if e != nil || !ok || factor != 1 {
+		t.Fatal(v, e)
+	}
+}

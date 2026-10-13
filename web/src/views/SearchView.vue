@@ -4,6 +4,7 @@ import { Search, Film } from "@element-plus/icons-vue";
 import { ElMessage, type TableInstance } from "element-plus";
 import { request, post } from "../api/client";
 import { resourceSources } from "../utils/resource-source";
+import SearchMediaContext from "../components/SearchMediaContext.vue";
 import StatusBadge from "../components/StatusBadge.vue";
 interface Account {
   id: string;
@@ -47,13 +48,20 @@ interface Media {
   year: string;
   originalTitle: string;
 }
+const activeMedia = ref<Media | null>(null),
+  contextRunID = ref("");
+function useMedia(item: Media) {
+  activeMedia.value = item;
+  keyword.value = item.originalTitle || item.title;
+  mode.value = "site";
+}
 const tmdbSearched = ref(false),
   posterErrors = ref(new Set<string>());
 const resourceFilters = ref({
-  resolution: "",
-  source: "",
-  codec: "",
-  accountId: "",
+  resolution: [] as string[],
+  source: [] as string[],
+  codec: [] as string[],
+  accountId: [] as string[],
   keyword: "",
   sort: "seeders_desc",
 });
@@ -136,6 +144,13 @@ async function load() {
   }
 }
 async function search(force = false) {
+  if (
+    activeMedia.value &&
+    ![activeMedia.value.title, activeMedia.value.originalTitle].includes(
+      keyword.value.trim(),
+    )
+  )
+    activeMedia.value = null;
   busy.value = true;
   error.value = "";
   run.value = null;
@@ -147,6 +162,7 @@ async function search(force = false) {
       refresh: force,
     });
     searchCached.value = created.cached;
+    contextRunID.value = created.id;
     await refresh(created.id);
     history.value = await request<Run[]>("/search");
   } catch (e) {
@@ -155,8 +171,18 @@ async function search(force = false) {
     busy.value = false;
   }
 }
+function filterParams() {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(resourceFilters.value)) {
+    if (Array.isArray(value)) {
+      for (const item of value) params.append(key, item);
+    } else params.set(key, value);
+  }
+  return params.toString();
+}
 async function refresh(id = run.value?.id) {
   if (!id) return;
+  if (id !== contextRunID.value) activeMedia.value = null;
   const epoch = ++resultEpoch;
   resultController?.abort();
   resultController = new AbortController();
@@ -164,7 +190,7 @@ async function refresh(id = run.value?.id) {
   error.value = "";
   try {
     const result = await request<Run>(
-      `/search/${id}?page=${page.value}&limit=50&${new URLSearchParams(Object.fromEntries(Object.entries(resourceFilters.value).map(([k, v]) => [k, String(v)])))}`,
+      `/search/${id}?page=${page.value}&limit=50&${filterParams()}`,
       { signal: resultController.signal },
     );
     if (epoch === resultEpoch) run.value = result;
@@ -387,13 +413,7 @@ onUnmounted(() => {
             </h2>
             <p>{{ item.originalTitle }}</p>
             <p class="field-hint">{{ item.overview || "暂无简介" }}</p>
-            <el-button
-              @click="
-                keyword = item.originalTitle || item.title;
-                mode = 'site';
-              "
-              >使用标题到站点搜索</el-button
-            >
+            <el-button @click="useMedia(item)">使用标题到站点搜索</el-button>
           </div>
         </article>
       </div>
@@ -409,6 +429,12 @@ onUnmounted(() => {
     </div>
   </section>
   <template v-if="mode === 'site'">
+    <SearchMediaContext
+      v-if="run"
+      :key="run.id"
+      :keyword="run.keyword"
+      :initial="activeMedia"
+    />
     <section class="panel section-gap">
       <form @submit.prevent="search(false)" class="search-form">
         <el-input
@@ -461,18 +487,24 @@ onUnmounted(() => {
         </div>
       </div>
     </section>
+
     <section v-if="run" class="panel">
       <div class="resource-filter-grid">
         <div>
           <label>分辨率</label
           ><el-select
             v-model="resourceFilters.resolution"
+            multiple
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
             aria-label="资源分辨率"
+            placeholder="全部分辨率"
             @change="
               page = 1;
               refresh();
             "
-            ><el-option label="全部" value="" /><el-option
+            ><el-option
               v-for="x in [
                 '480p',
                 '720p',
@@ -490,12 +522,17 @@ onUnmounted(() => {
           <label>来源</label
           ><el-select
             v-model="resourceFilters.source"
+            multiple
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
             aria-label="资源来源"
+            placeholder="全部来源"
             @change="
               page = 1;
               refresh();
             "
-            ><el-option label="全部" value="" /><el-option
+            ><el-option
               v-for="option in resourceSources"
               :key="option.value"
               :label="option.label"
@@ -506,12 +543,17 @@ onUnmounted(() => {
           <label>编码</label
           ><el-select
             v-model="resourceFilters.codec"
+            multiple
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
             aria-label="资源编码"
+            placeholder="全部编码"
             @change="
               page = 1;
               refresh();
             "
-            ><el-option label="全部" value="" /><el-option
+            ><el-option
               v-for="x in ['h264', 'h265', 'av1', 'unknown']"
               :key="x"
               :label="x"
@@ -522,12 +564,17 @@ onUnmounted(() => {
           <label>站点</label
           ><el-select
             v-model="resourceFilters.accountId"
+            multiple
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
             aria-label="结果站点"
+            placeholder="全部站点"
             @change="
               page = 1;
               refresh();
             "
-            ><el-option label="全部" value="" /><el-option
+            ><el-option
               v-for="x in run.sites"
               :key="x.accountId"
               :label="x.name"

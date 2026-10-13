@@ -54,7 +54,7 @@ func (a *API) tmdbMediaSearch(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "tmdb_not_configured", "请在系统设置添加并启用TMDB")
 		return
 	}
-	raw, _ := json.Marshal([]any{"auto-search-v2", q, kind, year, profile.Record.ID, profile.Record.Revision, profile.String("language"), prefs.Revision})
+	raw, _ := json.Marshal([]any{"auto-search-v3", q, kind, year, profile.Record.ID, profile.Record.Revision, profile.String("language"), prefs.Revision})
 	sum := sha256.Sum256(raw)
 	key := "media-tool:tmdb-cache:" + hex.EncodeToString(sum[:])
 	items := []metadata.Item{}
@@ -64,7 +64,13 @@ func (a *API) tmdbMediaSearch(w http.ResponseWriter, r *http.Request) {
 		bounded, stop := context.WithTimeout(ctx, 250*time.Millisecond)
 		raw, err := a.Deps.Redis.Get(bounded, key).Bytes()
 		stop()
-		cached = err == nil && len(raw) <= 1<<20 && json.Unmarshal(raw, &items) == nil
+		var envelope struct {
+			Items []metadata.Item `json:"items"`
+		}
+		cached = err == nil && len(raw) <= 1<<20 && json.Unmarshal(raw, &envelope) == nil && envelope.Items != nil
+		if cached {
+			items = envelope.Items
+		}
 	}
 	if !cached {
 		client, err := a.Deps.Integrations.TMDB(ctx)
@@ -85,7 +91,7 @@ func (a *API) tmdbMediaSearch(w http.ResponseWriter, r *http.Request) {
 			items = filtered
 		}
 		if ttl > 0 && a.Deps.Redis != nil {
-			raw, _ := json.Marshal(items)
+			raw, _ := json.Marshal(map[string]any{"items": items, "query": q, "mediaType": kind, "year": year, "createdAt": time.Now().UTC()})
 			if len(raw) <= 1<<20 {
 				bounded, stop := context.WithTimeout(ctx, 250*time.Millisecond)
 				a.Deps.Redis.Set(bounded, key, raw, ttl)

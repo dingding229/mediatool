@@ -91,3 +91,43 @@ func TestKeywordAndSortValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestMultiSelectionFiltersORWithinGroupANDCrossGroups(t *testing.T) {
+	r := Resource{Title: "Owned Film 2026 2160p WEB-DL x265", AccountID: "b"}
+	f := Filter{Resolutions: []string{"1080p", "2160p"}, Sources: []string{"web-dl", "bluray"}, Codecs: []string{"h264", "h265"}, AccountIDs: []string{"a", "b"}}
+	if f.Validate() != nil || !f.Match(r) {
+		t.Fatal("selected resource rejected")
+	}
+	f.Sources = []string{"bluray", "hdtv"}
+	if f.Match(r) {
+		t.Fatal("OR leaked across groups")
+	}
+	f.Sources = nil
+	f.AccountIDs = []string{"a"}
+	if f.Match(r) {
+		t.Fatal("site selection ignored")
+	}
+	if (Filter{Sources: []string{""}}).Validate() == nil {
+		t.Fatal("empty list item accepted")
+	}
+}
+
+func TestPostgresMultiSelectionCoversCompleteSnapshot(t *testing.T) {
+	ctx, engine, account, newRun := snapshotSearchFixture(t)
+	run := newRun()
+	list := []sites.Resource{}
+	for i := 0; i < 65; i++ {
+		resolution := "1080p"
+		if i%2 == 0 {
+			resolution = "2160p"
+		}
+		list = append(list, sites.Resource{TorrentID: fmt.Sprint(i), Title: "Owned.2026." + resolution + ".WEB-DL.x265", Size: 1 << 30, Seeders: i, DownloadURL: "https://owned.invalid/download?id=" + fmt.Sprint(i)})
+	}
+	if e := engine.SaveResources(ctx, run, account, list); e != nil {
+		t.Fatal(e)
+	}
+	result, e := engine.GetFiltered(ctx, run, 2, 50, Filter{Resolutions: []string{"1080p", "2160p"}, Sources: []string{"web-dl", "bluray"}, Codecs: []string{"h265"}})
+	if e != nil || result.Total != 65 || len(result.Resources) != 15 {
+		t.Fatal(result.Total, len(result.Resources), e)
+	}
+}

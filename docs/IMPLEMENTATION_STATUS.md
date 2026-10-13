@@ -2,9 +2,13 @@
 
 # 当前实现与验证状态
 
-更新：2026-10-13。源码版本0.15.0-dev，数据库迁移37；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
+更新：2026-10-13。源码版本0.16.0-dev，数据库迁移37；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
 
 主要业务已实现，本轮继续完成不依赖真实账号的可靠性与管理功能。**测试服务通过不等于真实115/PT/Emby客户端通过；整体项目未宣布验收完成。** 历史过程保留在 WORK_LOG.md，本文件只记录当前状态。
+
+## 本轮0.16 资源获取工作台
+
+实际SSD副标题、CHDBITS/UBITS默认查询分页、已知优惠/账号级屏蔽、明确空做种统计与TTG活动标记适配；多选四类筛选、模板网格/列表、独立TMDB/站点缓存、媒体信息卡片和资源获取统一UI。说明ACQUIRE_WORKSPACE.md，计划plans/pt-acquire-20261013.md。旧快照依解析指纹失效需重新搜索。真实非零做种完整性、站点挑战和播放器解码不因合成样本而宣称全部可用。
 
 ## 本轮0.15 搜索/订阅交互
 

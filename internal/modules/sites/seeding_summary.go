@@ -33,6 +33,9 @@ func (c Client) collectSeedingSummary(ctx context.Context, rule Map, vars map[st
 	if len(target.Query()) != 2 {
 		return fail("做种汇总出现未声明的查询范围，不能证明总数")
 	}
+	if strings.TrimSpace(string(raw)) == "没有记录" {
+		return 0, 0, 1, true, ""
+	}
 	doc, e := parseDocument(raw, mode)
 	if e != nil {
 		return fail("做种汇总解析失败")

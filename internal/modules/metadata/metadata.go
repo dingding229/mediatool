@@ -9,6 +9,8 @@ type Item struct {
 	OriginalTitle  string    `json:"originalTitle"`
 	Year           string    `json:"year"`
 	Overview       string    `json:"overview"`
+	BackdropPath   string    `json:"backdropPath,omitempty"`
+	Genres         []string  `json:"genres,omitempty"`
 	PosterPath     string    `json:"posterPath"`
 	EpisodeDetails []Episode `json:"episodeDetails,omitempty"`
 }

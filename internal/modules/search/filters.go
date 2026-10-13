@@ -10,21 +10,36 @@ import (
 )
 
 type Filter struct {
-	Keyword    string `json:"keyword"`
-	Sort       string `json:"sort"`
-	Resolution string `json:"resolution"`
-	Source     string `json:"source"`
-	Codec      string `json:"codec"`
-	AccountID  string `json:"accountId"`
-	MinSize    int64  `json:"minSize"`
-	MaxSize    int64  `json:"maxSize"`
-	MinSeeders int    `json:"minSeeders"`
-	FreeOnly   bool   `json:"freeOnly"`
+	Resolutions []string `json:"resolutions,omitempty"`
+	Sources     []string `json:"sources,omitempty"`
+	Codecs      []string `json:"codecs,omitempty"`
+	AccountIDs  []string `json:"accountIds,omitempty"`
+	Keyword     string   `json:"keyword"`
+	Sort        string   `json:"sort"`
+	Resolution  string   `json:"resolution"`
+	Source      string   `json:"source"`
+	Codec       string   `json:"codec"`
+	AccountID   string   `json:"accountId"`
+	MinSize     int64    `json:"minSize"`
+	MaxSize     int64    `json:"maxSize"`
+	MinSeeders  int      `json:"minSeeders"`
+	FreeOnly    bool     `json:"freeOnly"`
 }
 
 func attrs(title string) map[string]string { return releaseattrs.Parse(title) }
 
 func (f Filter) Validate() error {
+	for _, values := range [][]string{f.Resolutions, f.Sources, f.Codecs, f.AccountIDs} {
+		if len(values) > 16 {
+			return errors.New("too many selections")
+		}
+		for _, value := range values {
+			if len(value) == 0 || len(value) > 80 || strings.ContainsAny(value, "\x00\r\n") {
+				return errors.New("invalid selections")
+			}
+		}
+	}
+
 	if len(f.Keyword) > 512 || !utf8.ValidString(f.Keyword) || strings.ContainsAny(f.Keyword, "\x00\r\n") {
 		return errors.New("invalid keyword")
 	}
@@ -53,12 +68,45 @@ func (f Filter) Match(r Resource) bool {
 		}
 	}
 	a := attrs(r.Title)
-	for key, want := range map[string]string{"resolution": f.Resolution, "source": f.Source, "codec": f.Codec} {
-		if want == "unknown" && a[key] != "" || want != "" && want != "unknown" && a[key] != strings.ToLower(want) {
+	for key, group := range map[string]struct {
+		single string
+		multi  []string
+	}{"resolution": {f.Resolution, f.Resolutions}, "source": {f.Source, f.Sources}, "codec": {f.Codec, f.Codecs}} {
+		choices := group.multi
+		if len(choices) == 0 && group.single != "" {
+			choices = []string{group.single}
+		}
+		if len(choices) > 0 {
+			matched := false
+			for _, want := range choices {
+				if want == "unknown" && a[key] == "" || want != "unknown" && a[key] == strings.ToLower(want) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				return false
+			}
+		}
+	}
+	accounts := f.AccountIDs
+	if len(accounts) == 0 && f.AccountID != "" {
+		accounts = []string{f.AccountID}
+	}
+	if len(accounts) > 0 {
+		matched := false
+		for _, id := range accounts {
+			if id == r.AccountID {
+				matched = true
+				break
+			}
+		}
+		if !matched {
 			return false
 		}
 	}
-	return (f.AccountID == "" || r.AccountID == f.AccountID) && r.Size >= f.MinSize && (f.MaxSize == 0 || r.Size <= f.MaxSize) && r.Seeders >= f.MinSeeders && (!f.FreeOnly || r.DownloadFactor != nil && *r.DownloadFactor == 0)
+	return r.Size >= f.MinSize && (f.MaxSize == 0 || r.Size <= f.MaxSize) && r.Seeders >= f.MinSeeders && (!f.FreeOnly || r.DownloadFactor != nil && *r.DownloadFactor == 0)
+
 }
 
 // Only constant whitelist SQL fragments are interpolated; user input never becomes SQL.

@@ -6,6 +6,7 @@ import (
 	"media-tool/internal/modules/search"
 	"media-tool/internal/modules/sites"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -67,7 +68,11 @@ func (a *API) getSearch(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "search_unavailable", "请先连接数据库")
 		return
 	}
-	q := r.URL.Query()
+	q, parseErr := url.ParseQuery(r.URL.RawQuery)
+	if parseErr != nil {
+		fail(w, 400, "invalid_filters", "筛选参数编码无效")
+		return
+	}
 	page, limit := 1, 50
 	for key, target := range map[string]*int{"page": &page, "limit": &limit} {
 		if raw := q.Get(key); raw != "" {
@@ -84,7 +89,7 @@ func (a *API) getSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := search.Filter{Keyword: q.Get("keyword"), Sort: q.Get("sort"), Resolution: q.Get("resolution"), Source: q.Get("source"), Codec: q.Get("codec"), AccountID: q.Get("accountId"), FreeOnly: q.Get("freeOnly") == "true"}
+	f := search.Filter{Resolutions: q["resolution"], Sources: q["source"], Codecs: q["codec"], AccountIDs: q["accountId"], Keyword: q.Get("keyword"), Sort: q.Get("sort"), Resolution: q.Get("resolution"), Source: q.Get("source"), Codec: q.Get("codec"), AccountID: q.Get("accountId"), FreeOnly: q.Get("freeOnly") == "true"}
 	for key, target := range map[string]*int64{"minSize": &f.MinSize, "maxSize": &f.MaxSize} {
 		if raw := q.Get(key); raw != "" {
 			n, e := strconv.ParseInt(raw, 10, 64)
@@ -102,6 +107,11 @@ func (a *API) getSearch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		f.MinSeeders = n
+	}
+	for _, group := range []*[]string{&f.Resolutions, &f.Sources, &f.Codecs, &f.AccountIDs} {
+		if len(*group) == 1 && (*group)[0] == "" {
+			*group = nil
+		}
 	}
 	if f.Validate() != nil || page < 1 || page > 10000 || limit < 1 || limit > 200 {
 		fail(w, 400, "invalid_filters", "筛选或分页参数无效")
