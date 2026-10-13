@@ -19,6 +19,7 @@ import (
 	"media-tool/internal/modules/messaging"
 	"media-tool/internal/modules/plugins"
 	"media-tool/internal/modules/search"
+	"media-tool/internal/modules/sites"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
 	"media-tool/internal/modules/subscriptions"
@@ -126,6 +127,9 @@ func run() error {
 		}
 		migrateCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 		err = schema.Up(migrateCtx, c.DatabaseURL)
+		if err == nil {
+			err = (sites.Repository{DB: db}).RegisterGoTemplates(migrateCtx)
+		}
 		cancel()
 		if err != nil {
 			return err

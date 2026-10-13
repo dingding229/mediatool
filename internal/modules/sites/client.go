@@ -16,8 +16,8 @@ import (
 )
 
 type Account struct {
-	ID, Endpoint, UserID, Cookie, APIKey, Passkey string
-	RequestHeaders                                map[string]string
+	ID, Endpoint, UserID, Cookie, APIKey, Passkey, UserAgent string
+	RequestHeaders                                           map[string]string
 }
 type Client struct {
 	Config                Config
@@ -106,6 +106,9 @@ func (c Client) callWithTarget(ctx context.Context, rule Map, vars map[string]st
 		return nil, "", err
 	}
 	request.Header = declared
+	if c.Account.UserAgent != "" {
+		request.Header.Set("User-Agent", c.Account.UserAgent)
+	}
 	if !sameRequestOrigin(base, target) && (len(rawHeaders) > 0 || request.Body != nil || request.Method != "GET" && request.Method != "HEAD") {
 		// The definition's request material belongs to its selected base/API
 		// origin. An allowed download origin is not implicit credential consent.

@@ -16,7 +16,7 @@ func TestNativeContractRejectsOldFormatAndInheritance(t *testing.T) {
 	if _, e := Decode([]byte(good), nil); e != nil {
 		t.Fatal(e)
 	}
-	bad := []string{strings.Replace(good, `"templateVersion":1,`, "", 1), strings.Replace(good, `"templateVersion":1`, `"templateVersion":2`, 1), strings.Replace(good, `"requests":{}`, `"reuse_schema":"NexusPHP","requests":{}`, 1), strings.Replace(good, `"requests":{}`, `"requests":{"search":{"disabled_extends":{"params":true}}}`, 1)}
+	bad := []string{strings.Replace(good, `"templateVersion":1,`, "", 1), strings.Replace(good, `"templateVersion":1`, `"templateVersion":3`, 1), strings.Replace(good, `"requests":{}`, `"reuse_schema":"NexusPHP","requests":{}`, 1), strings.Replace(good, `"requests":{}`, `"requests":{"search":{"disabled_extends":{"params":true}}}`, 1)}
 	for _, raw := range bad {
 		if _, e := Decode([]byte(raw), nil); e == nil {
 			t.Fatal("legacy accepted", raw)

@@ -53,7 +53,7 @@ var publicKeys = map[string][]string{
 	"emby":        {"endpoint", "strmPathPrefix", "gatewayEnabled", "directPlayOnly"},
 	"tmdb":        {"language"},
 	"telegram":    {"chatId"},
-	"ptsite":      {"definitionId", "endpoint", "userId"},
+	"ptsite":      {"definitionId", "endpoint", "userId", "userAgent", "rssState"},
 }
 var secretKeys = map[string][]string{
 	"local": {}, "open115": {"accessToken", "refreshToken"}, "clouddrive2": {"token", "username", "password"}, "qbittorrent": {"username", "password"}, "emby": {"apiKey"}, "tmdb": {"token"}, "telegram": {"botToken"}, "ptsite": {"cookie", "apiKey", "passkey", "rssUrl", "requestHeaders"},

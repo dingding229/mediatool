@@ -175,9 +175,12 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/sites", a.protected(a.listDefinitions))
 	mux.HandleFunc("GET /api/v1/sites/metrics", a.protected(a.siteMetrics))
 	mux.HandleFunc("POST /api/v1/sites/metrics/sync", a.protected(a.syncSiteMetrics))
-	mux.HandleFunc("GET /api/v1/sites/catalog", a.protected(a.siteCatalog))
+	mux.HandleFunc("GET /api/v1/pt/templates", a.protected(a.ptTemplates))
+	mux.HandleFunc("GET /api/v1/pt/ua", a.protected(a.ptUA))
+	mux.HandleFunc("GET /api/v1/pt/accounts", a.protected(a.ptAccounts))
+	mux.HandleFunc("POST /api/v1/pt/accounts", a.protected(a.savePTAccount))
+	mux.HandleFunc("PUT /api/v1/pt/accounts/{id}", a.protected(a.savePTAccount))
 	mux.HandleFunc("GET /api/v1/sites/definitions", a.protected(a.listDefinitions))
-	mux.HandleFunc("POST /api/v1/sites/definitions/import", a.protected(a.importDefinitions))
 	mux.HandleFunc("GET /api/v1/search", a.protected(a.listSearches))
 	mux.HandleFunc("POST /api/v1/search", a.protected(a.startSearch))
 	mux.HandleFunc("GET /api/v1/search/{id}", a.protected(a.getSearch))
@@ -457,7 +460,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.12.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.13.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

@@ -32,6 +32,11 @@ func (a *API) siteMetrics(w http.ResponseWriter, r *http.Request) {
 		}
 		var m any
 		json.Unmarshal(raw, &m)
+		if cfg, e := sites.DecodeStored(definition, common); e == nil {
+			if t, ok := sites.GoTemplate(cfg.ID); ok {
+				name = t.Name
+			}
+		}
 		out = append(out, map[string]any{"accountId": id, "name": name, "enabled": enabled, "metrics": m, "collectedAt": collected, "attemptedAt": attempted, "state": state, "message": message, "stale": collected != nil && (rev != saved || state == "failed" || fingerprint != sites.DefinitionFingerprint(definition, common, sourceCommit))})
 	}
 	if rows.Err() != nil {

@@ -348,7 +348,7 @@ func (m *Manager) siteCredentials(ctx context.Context, c Credentials) (sites.Cli
 	if err != nil {
 		return sites.Client{}, ErrInvalid
 	}
-	return sites.Client{Config: configuration, Account: sites.Account{ID: id, Endpoint: c.String("endpoint"), UserID: c.String("userId"), Cookie: c.Values["cookie"], APIKey: c.Values["apiKey"], Passkey: c.Values["passkey"], RequestHeaders: headers}, SourceRevision: c.Record.Revision, DefinitionFingerprint: sites.DefinitionFingerprint(definition.RawJSON, definition.CommonJSON, definition.SourceCommit)}, nil
+	return sites.Client{Config: configuration, Account: sites.Account{ID: id, Endpoint: c.String("endpoint"), UserID: c.String("userId"), Cookie: c.Values["cookie"], APIKey: c.Values["apiKey"], Passkey: c.Values["passkey"], UserAgent: c.String("userAgent"), RequestHeaders: headers}, SourceRevision: c.Record.Revision, DefinitionFingerprint: sites.DefinitionFingerprint(definition.RawJSON, definition.CommonJSON, definition.SourceCommit)}, nil
 }
 
 // Prune removes deleted/disabled profiles without terminating in-flight work.

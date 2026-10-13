@@ -39,7 +39,7 @@ func decodeConfig(raw, common []byte, stored bool) (Config, error) {
 		return Config{}, ErrConfig
 	}
 	version, ok := root["templateVersion"].(json.Number)
-	if !ok || version.String() != "1" {
+	if !ok || version.String() != "1" && version.String() != "2" {
 		return Config{}, ErrConfig
 	}
 	allowed := map[string]bool{"templateVersion": true, "id": true, "name": true, "domain": true, "api": true, "schema": true, "encoding": true, "additional_domain": true, "meta": true, "requests": true}

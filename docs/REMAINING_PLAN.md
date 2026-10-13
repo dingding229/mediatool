@@ -1,3 +1,11 @@
+## 2026-10-13 当前Go模板/站点UI更新
+
+承接15项要求：Go模板库及全部自动登记、独立英文模板页、模板驱动PT连接表单、站点唯一、UA/RSS自动获取与全值回显、种站点数及无重复连接块。计划见plans/pt-go-ui-20261013.md；当前说明见PT_GO_TEMPLATES.md，schema34。以下旧目录/提交导入文字仅为历史过程，不是当前功能。
+
+真实RSS接口/挑战/账号及完整PT到播放链路仍需单独验收，不因合成页面、模板编译或UI通过而声明全部站点实际可用。
+
+---
+
 ## 2026-10-13 当前原生站点仓库切换
 
 全部六模板已移入dingding229/mediatool-site，主程序只用原生templateVersion=1/catalogVersion=1，不兼容原仓库/common继承/无版本格式。schema33保存来源，旧定义保留但拒绝运行；原生导入不删除账号与订阅，改变指纹使旧搜索/统计/下载证明失效。计划见plans/native-site-repository-20261013.md，当前说明见NATIVE_SITE_TEMPLATES.md。

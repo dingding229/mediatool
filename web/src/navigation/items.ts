@@ -11,7 +11,8 @@ export const navigationGroups: NavigationGroup[] = [
   { id: 'acquire', name: '资源获取', items: [
     { id: 'search', name: '资源搜索', icon: Search, keywords: 'TMDB 站点直搜 搜索历史' },
     { id: 'subscriptions', name: '资源订阅', icon: Collection, keywords: 'RSS 订阅规则' },
-    { id: 'sites', name: 'PT 站点', icon: Connection, keywords: 'HDSKY 账号 站点定义' },
+    { id: 'sites', name: 'PT 站点', icon: Connection, keywords: 'HDSKY 账号' },
+{ id: 'site-templates', name: '站点模板', icon: SetUp, keywords: 'HDSKY OURBITS CHDBITS SSD Go 模板' },
     { id: 'downloads', name: '下载与传输', icon: Download, keywords: '下载器 做种 上传' },
   ] },
   { id: 'organize', name: '文件与入库', items: [

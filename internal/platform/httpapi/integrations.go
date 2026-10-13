@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"media-tool/internal/modules/integrations"
+	"media-tool/internal/modules/sites"
 )
 
 func (a *API) integrationReady(w http.ResponseWriter) bool {
@@ -50,6 +51,13 @@ func (a *API) saveIntegration(w http.ResponseWriter, r *http.Request) {
 	if in.Kind == "local" {
 		fail(w, 400, "automatic_local_root", "本地目录已自动发现，无需添加连接")
 		return
+	}
+	if in.Kind == "ptsite" {
+		if t, ok := sites.GoTemplate(func() string { v, _ := in.Settings["definitionId"].(string); return v }()); ok {
+			in.Name = t.Name
+			in.Enabled = true
+			in.Settings["endpoint"] = t.Domain
+		}
 	}
 	if err := integrations.Validate(in); err != nil {
 		integrationError(w, err)

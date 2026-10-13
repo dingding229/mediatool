@@ -21,4 +21,4 @@
 - Cleanup must be path/label scoped to this program's build residues. No global
   docker prune, no business-volume deletion, and retain recent rollback backups.
 
-- Site templates use only the built-in dingding229/mediatool-site repository and native templateVersion=1/catalogVersion=1. Never download pre-dessert-sites/common inheritance or execute unversioned stored templates. Preserve accounts/credentials when changing definition sources, and invalidate prior definition fingerprints.
+- Site templates are compiled Go definitions from the pinned github.com/dingding229/mediatool-site module and auto-register on startup. Never download pre-dessert-sites/common inheritance, dynamically compile remote Go, or expose source/commit/import choices in the template UI. Preserve accounts/credentials when changing definition sources, and invalidate prior definition fingerprints.

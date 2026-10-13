@@ -27,49 +27,6 @@ func (a *API) listDefinitions(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, list)
 }
-func (a *API) siteCatalog(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
-	defer cancel()
-	catalog, err := sites.RepositoryCatalog(ctx, r.URL.Query().Get("sourceCommit"))
-	if err != nil {
-		fail(w, 502, "site_catalog_unavailable", "内置mediatool-site目录获取失败；未切换其他仓库")
-		return
-	}
-	write(w, 200, catalog)
-}
-func (a *API) importDefinitions(w http.ResponseWriter, r *http.Request) {
-	if !a.integrationReady(w) {
-		return
-	}
-	var body struct {
-		LicenseAccepted bool     `json:"licenseAccepted"`
-		IDs             []string `json:"ids"`
-		SourceCommit    string   `json:"sourceCommit"`
-	}
-	if !decode(w, r, &body) {
-		return
-	}
-	if !body.LicenseAccepted {
-		fail(w, 400, "license_confirmation_required", "请先阅读并确认mediatool-site模板的使用授权")
-		return
-	}
-	if err := sites.ValidateImport(body.IDs, body.SourceCommit); err != nil {
-		fail(w, 400, "site_import_invalid", "每批最多30个不重复的站点ID；指定来源提交时须使用完整40位SHA")
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
-	defer cancel()
-	list, err := (sites.Repository{DB: a.Deps.DB}).ImportSnapshot(ctx, body.IDs, body.SourceCommit)
-	if err != nil {
-		if errors.Is(err, sites.ErrImportCommitUnconfirmed) {
-			fail(w, 503, "site_import_unconfirmed", "保存结果未确认，请先刷新配置列表核对来源提交，不要直接重试或切换新快照")
-			return
-		}
-		fail(w, 502, "site_import_failed", "原生模板导入失败：请检查内置仓库、提交、目录ID和文件摘要；旧格式不受支持")
-		return
-	}
-	write(w, 200, list)
-}
 func (a *API) startSearch(w http.ResponseWriter, r *http.Request) {
 	engine := a.searchEngine()
 	if engine == nil {
