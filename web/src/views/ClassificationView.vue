@@ -245,7 +245,7 @@ onMounted(load);
             >{{ l }}</el-tag
           ><span
             v-if="
-              !r.genreIds.length && !r.countries.length && !r.languages.length
+              !(r.genreIds?.length??0) && !(r.countries?.length??0) && !(r.languages?.length??0)
             "
             class="muted"
             >兜底 / 所有题材</span

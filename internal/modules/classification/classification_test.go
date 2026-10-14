@@ -1,6 +1,8 @@
 package classification
 
 import (
+	"context"
+	"encoding/json"
 	"media-tool/internal/modules/metadata"
 	"strings"
 	"testing"
@@ -31,5 +33,19 @@ func TestClassificationDefaultsAndTemplates(t *testing.T) {
 	bad.Groups[0].Directory = "../escape"
 	if bad.Validate() == nil {
 		t.Fatal("path escape accepted")
+	}
+}
+
+func TestDefaultPolicySerializesCollectionFieldsAsArrays(t *testing.T) {
+	record, err := (Repository{}).Get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), `"genreIds":null`) || strings.Contains(string(raw), `"countries":null`) || strings.Contains(string(raw), `"languages":null`) || strings.Contains(string(raw), `"rules":null`) {
+		t.Fatal(string(raw))
 	}
 }

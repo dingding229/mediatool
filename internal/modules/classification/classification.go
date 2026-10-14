@@ -161,8 +161,35 @@ func (p Policy) Match(i metadata.Item) Match {
 	}
 	return Match{Directory: dir, Name: dir, Reason: "无启用规则命中，使用类型兜底"}
 }
+func normalize(p *Policy) {
+	if p.Groups == nil {
+		p.Groups = []Group{}
+	}
+	for gi := range p.Groups {
+		g := &p.Groups[gi]
+		if g.GenreIDs == nil {
+			g.GenreIDs = []int{}
+		}
+		if g.Rules == nil {
+			g.Rules = []Rule{}
+		}
+		for ri := range g.Rules {
+			r := &g.Rules[ri]
+			if r.GenreIDs == nil {
+				r.GenreIDs = []int{}
+			}
+			if r.Countries == nil {
+				r.Countries = []string{}
+			}
+			if r.Languages == nil {
+				r.Languages = []string{}
+			}
+		}
+	}
+}
 func (r Repository) Get(ctx context.Context) (Record, error) {
 	out := Record{Value: Defaults(), Revision: 1}
+	normalize(&out.Value)
 	if r.DB == nil {
 		return out, nil
 	}
@@ -175,9 +202,11 @@ func (r Repository) Get(ctx context.Context) (Record, error) {
 			return out, err
 		}
 	}
+	normalize(&out.Value)
 	return out, out.Value.Validate()
 }
 func (r Repository) Save(ctx context.Context, p Policy, rev int64) (Record, error) {
+	normalize(&p)
 	if err := p.Validate(); err != nil {
 		return Record{}, err
 	}
