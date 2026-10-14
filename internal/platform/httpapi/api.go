@@ -164,6 +164,9 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/files/batches/{id}", a.protected(a.getFileBatch))
 	mux.HandleFunc("POST /api/v1/files/batches/{id}/approve", a.protected(a.approveFileBatch))
 	mux.HandleFunc("POST /api/v1/files/batches/{id}/reconcile", a.protected(a.reconcileFileBatch))
+	mux.HandleFunc("POST /api/v1/settings/naming-preview", a.protected(a.namingPreview))
+	mux.HandleFunc("GET /api/v1/cloud/accounts/info", a.protected(a.cloudAccountInfo))
+	mux.HandleFunc("POST /api/v1/library/activity/remove", a.protected(a.removeLibraryHistory))
 	mux.HandleFunc("GET /api/v1/library/activity", a.protected(a.libraryActivity))
 	mux.HandleFunc("GET /api/v1/library/outputs/{id}/content", a.protected(a.managedOutputContent))
 	mux.HandleFunc("GET /api/v1/library/outputs", a.protected(a.managedOutputs))
@@ -486,7 +489,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.19.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.20.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

@@ -113,11 +113,23 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 	if err != nil {
 		return "", err
 	}
+	var scrapeSeason *int
+	if in.MediaType == "series" {
+		scrapeSeason = &in.Season
+	}
+	item, err = e.enrichScraping(ctx, item, scrapeSeason)
+	if err != nil {
+		return "", err
+	}
+
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
 		return "", err
 	}
 	defer tx.Rollback(ctx)
+	if err = checkScrapeSettings(ctx, tx, item); err != nil {
+		return "", err
+	}
 	var fileID, connectionID, cloudPath, cloudState, candidateState string
 	var revision int64
 	err = tx.QueryRow(ctx, `SELECT c.file_id::text,f.storage_id::text,f.full_path,f.state,c.state,c.revision FROM library_candidates c JOIN cloud_files f ON f.id=c.file_id WHERE c.id=$1 FOR UPDATE OF c,f`, id).Scan(&fileID, &connectionID, &cloudPath, &cloudState, &candidateState, &revision)
@@ -187,6 +199,9 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 	if _, err = tx.Exec(ctx, `INSERT INTO media_assets(id,cloud_file_id,media_identity,edition)VALUES($1,$2,$3,'cloud-library')ON CONFLICT(id)DO NOTHING`, assetID, fileID, assetJSON); err != nil {
 		return "", err
 	}
+	if err = saveScrapeReport(ctx, tx, assetID, item); err != nil {
+		return "", err
+	}
 	var season, episode any
 	episodes := []int{}
 	if item.MediaType == "series" {
@@ -224,6 +239,9 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 	if err != nil {
 		return "", err
 	}
+	if _, err = tx.Exec(ctx, `UPDATE media_assets SET artifacts_state='pending' WHERE id=$1`, assetID); err != nil {
+		return "", err
+	}
 	if _, err = tx.Exec(ctx, `UPDATE library_candidates SET state='artifacts_pending',asset_id=$2,revision=revision+1,updated_at=now()WHERE id=$1`, id, assetID); err != nil {
 		return "", err
 	}
@@ -242,6 +260,9 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 		if err = journal.Apply(ctx, intent); err != nil {
 			return assetID, err
 		}
+	}
+	if _, err = e.DB.Exec(ctx, `UPDATE media_assets SET artifacts_state='ready' WHERE id=$1 AND NOT EXISTS(SELECT 1 FROM media_artifact_journal WHERE asset_id=$1 AND state<>'applied')`, assetID); err != nil {
+		return assetID, err
 	}
 	if _, err = e.DB.Exec(ctx, `UPDATE library_candidates SET state='confirmed',updated_at=now()WHERE id=$1`, id); err != nil {
 		return assetID, err

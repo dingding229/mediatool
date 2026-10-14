@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import ScrapingSettings, {type Policy} from "./ScrapingSettings.vue";
 import { request } from "../api/client";
 interface Settings {
+  scraping:Policy;
   movieTemplate: string;
   seriesTemplate: string;
   searchCacheSeconds: number;
@@ -9,6 +11,8 @@ interface Settings {
   subscriptionCron: string;
   embyUserId: string;
 }
+const namingPreview=ref<{movie:string;series:string}|null>(null),previewing=ref(false);
+async function previewNames(){if(!record.value)return;previewing.value=true;error.value="";try{namingPreview.value=await request("/settings/naming-preview",{method:"POST",body:JSON.stringify({movieTemplate:record.value.value.movieTemplate,seriesTemplate:record.value.value.seriesTemplate})})}catch(e){error.value=e instanceof Error?e.message:"模板预览失败"}finally{previewing.value=false}}
 const record = ref<{ value: Settings; revision: number } | null>(null),
   busy = ref(false),
   error = ref(""),
@@ -71,12 +75,12 @@ onMounted(load);
             v-model="record.value.seriesTemplate"
           />
           <p class="field-hint">
-            支持
-            {title}、{year}、{season}、{episode}、{resolution}、{source}、{codec}、{group}、{ext}、{original}。缺失年份不猜造，未知类型需确认；保留扩展名请包含
-            {ext}。
+            支持相对文件夹，例如 {title} ({year})/{title} ({year}) - {videoFormat}。{videoFormat}表示已识别分辨率，{season_episode}表示S01E04等已确认季集标签。也支持{season}、{episode}、{resolution}、{source}、{codec}、{group}、{original}、{ext}。自动保留扩展名；绝对路径与../禁止。
           </p>
         </div>
       </fieldset>
+      <el-button :loading="previewing" @click="previewNames">预览命名模板</el-button><div v-if="namingPreview" class="naming-preview"><p>电影示例：<code>{{namingPreview.movie}}</code></p><p>剧集示例：<code>{{namingPreview.series}}</code></p><p class="field-hint">纯模板示例，不操作真实文件；STRM实际输出保留版本标识。</p></div>
+      <ScrapingSettings v-model="record.value.scraping"/>
       <fieldset>
         <legend>搜索缓存</legend>
         <div class="cache-fields">
@@ -119,7 +123,7 @@ onMounted(load);
     <el-skeleton v-else-if="!error" :rows="5" animated />
   </section>
 </template>
-<style scoped>
+<style scoped>.naming-preview{padding:16px;border:1px solid var(--border);border-radius:8px;margin:16px 0 24px}.naming-preview code{white-space:normal;overflow-wrap:anywhere}.naming-preview p{margin:8px 0}
 .settings-defaults {
   max-width: 880px;
 }

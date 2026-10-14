@@ -49,11 +49,23 @@ func (e Engine) Correct(ctx context.Context, assetID string, in Confirmation) er
 	if err != nil {
 		return err
 	}
+	var scrapeSeason *int
+	if in.MediaType == "series" {
+		scrapeSeason = &in.Season
+	}
+	item, err = e.enrichScraping(ctx, item, scrapeSeason)
+	if err != nil {
+		return err
+	}
+
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if err = checkScrapeSettings(ctx, tx, item); err != nil {
+		return err
+	}
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,715))`, assetID); err != nil {
 		return err
 	}
@@ -115,6 +127,11 @@ func (e Engine) Correct(ctx context.Context, assetID string, in Confirmation) er
 				return err
 			}
 			intents = append(intents, ids...)
+			if extra, err := StageScrapeExtras(ctx, journal, tx, e.Connections.Config.STRMOutputDir, assetID, item, season, projection); err != nil {
+				return err
+			} else {
+				intents = append(intents, extra...)
+			}
 		}
 	}
 
@@ -132,6 +149,9 @@ func (e Engine) Correct(ctx context.Context, assetID string, in Confirmation) er
 		return err
 	}
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','library.identity_corrected',jsonb_build_object('assetId',$1::text,'tmdbId',$2::int,'migrateOutputs',$3::bool))`, assetID, in.TMDBID, in.MigrateOutputs); err != nil {
+		return err
+	}
+	if err = saveScrapeReport(ctx, tx, assetID, item); err != nil {
 		return err
 	}
 	if err = tx.Commit(ctx); err != nil {

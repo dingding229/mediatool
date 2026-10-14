@@ -19,7 +19,8 @@ export const navigationGroups: NavigationGroup[] = [
   ] },
   { id: 'organize', name: '文件与入库', items: [
     { id: 'files', name: '文件管理', icon: FolderOpened, keywords: '本地 云盘 重命名 移动 回收' },
-    { id: 'cloudStorage', name: '云盘索引', icon: Cloudy, keywords: '115 授权 CloudDrive2 扫描' },
+    { id: 'cloud-connections', name: '云盘连接', icon: Connection, keywords: '115 授权 CloudDrive2 空间 会员' },
+    { id: 'cloudStorage', name: '云盘索引', icon: Cloudy, keywords: '扫描 识别 入库' },
     { id: 'strm', name: 'STRM 管理', icon: Link, keywords: '固定链接 302 播放' },
     { id: 'organize-history', name: '整理历史', icon: Clock, keywords: '命名 对账 记录' },
   ] },

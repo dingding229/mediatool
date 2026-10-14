@@ -19,6 +19,7 @@ const router=createRouter({history:createWebHistory(),routes:[
  {path:'search/results/:id',name:'searchResults',component:()=>import('./views/SearchResultsView.vue')},
   {path:'search',name:'search',component:()=>import('./views/SearchView.vue')},
   {path:'downloads',name:'downloads',component:()=>import('./views/DownloadsView.vue')},
+  {path:'cloud-connections',name:'cloudConnections',component:()=>import('./views/CloudConnectionsView.vue')},
   {path:'files',name:'files',component:()=>import('./views/FilesView.vue')},
   {path:'mediaLibrary',name:'mediaLibrary',component:()=>import('./views/MediaLibraryView.vue')},
   {path:'cloudStorage',name:'cloudStorage',component:()=>import('./views/LibraryView.vue')},

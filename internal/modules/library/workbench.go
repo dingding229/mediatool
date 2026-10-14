@@ -32,7 +32,7 @@ const historyUnion = `WITH history AS (
  UNION ALL SELECT t.id,'transfer',t.state,t.destination,t.integration_id,'',t.last_error,t.created_at,t.updated_at,jsonb_build_object('phase',t.phase,'bytesTransferred',t.bytes_transferred,'size',f.size_bytes,'hashBytes',t.hash_bytes,'sourceSha1',t.source_sha1,'taskId',f.task_id,'source',f.relative_path,'controlRevision',t.control_revision,'uploadId',t.upload_id,'originalPreserved',true) FROM transfer_tasks t JOIN download_files f ON f.id=t.download_file_id
  UNION ALL SELECT j.id,'output',j.state,j.relative_path,NULL::uuid,'','',j.created_at,j.updated_at,jsonb_build_object('assetId',j.asset_id,'operation',j.operation,'kind',j.artifact_kind,'owner',j.owner_scope) FROM media_artifact_journal j
  UNION ALL SELECT c.asset_id,'emby',c.state,'',c.integration_id,'',c.message,c.checked_at,c.checked_at,jsonb_build_object('assetId',c.asset_id,'revision',c.asset_revision,'paths',c.paths,'decodingVerified',false) FROM library_emby_checks c
-), selected AS (SELECT * FROM history WHERE ($1='' OR kind=$1) AND ($2='' OR state=$2) AND ($3='' OR position(lower($3) IN lower(coalesce(source,'')||' '||message||' '||details::text))>0) AND ($4='' OR integration_id::text=$4) AND ($5='' OR batch_id=$5) AND ($6::timestamptz IS NULL OR created_at>=$6) AND ($7::timestamptz IS NULL OR created_at<$7)) `
+), selected AS (SELECT * FROM history WHERE NOT EXISTS(SELECT 1 FROM library_hidden_history hidden WHERE hidden.kind=history.kind AND hidden.record_id=history.id AND history.updated_at<=hidden.observed_at) AND ($1='' OR kind=$1) AND ($2='' OR state=$2) AND ($3='' OR position(lower($3) IN lower(coalesce(source,'')||' '||message||' '||details::text))>0) AND ($4='' OR integration_id::text=$4) AND ($5='' OR batch_id=$5) AND ($6::timestamptz IS NULL OR created_at>=$6) AND ($7::timestamptz IS NULL OR created_at<$7)) `
 
 func (e Engine) History(ctx context.Context, f HistoryFilter) ([]HistoryEntry, int, error) {
 	if f.Limit < 1 || f.Limit > 200 || f.Offset < 0 || len(f.Query) > 256 {
@@ -71,6 +71,7 @@ type ManagedAsset struct {
 	Outputs        json.RawMessage `json:"outputs"`
 	EmbyState      string          `json:"embyState"`
 	EmbyPaths      json.RawMessage `json:"embyPaths"`
+	ScrapeReport   json.RawMessage `json:"scrapeReport"`
 	Revoked        bool            `json:"revoked"`
 }
 
@@ -83,7 +84,7 @@ func (e Engine) ManagedAssets(ctx context.Context, limit, offset int, q string) 
 	if err := e.DB.QueryRow(ctx, `SELECT count(*)`+where, q).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := e.DB.Query(ctx, `SELECT a.id::text,coalesce(m.title,''),coalesce(m.media_type,''),coalesce(m.release_year,''),f.full_path,f.state,a.artifacts_state,a.revision,coalesce((SELECT jsonb_agg(jsonb_build_object('path',path,'kind',kind,'owner',owner) ORDER BY path) FROM (SELECT s.output_path AS path,'strm' AS kind,'asset:'||a.id::text AS owner FROM strm_entries s WHERE s.asset_id=a.id UNION ALL SELECT relative_path,artifact_kind,owner_scope FROM managed_media_artifacts WHERE asset_id=a.id AND artifact_kind<>'strm') outputs),'[]'),CASE WHEN c.asset_revision=a.revision AND emby.enabled AND c.integration_revision=emby.revision AND c.user_id=coalesce(prefs.value->>'embyUserId','') THEN c.state ELSE 'pending' END,CASE WHEN c.asset_revision=a.revision AND emby.enabled AND c.integration_revision=emby.revision AND c.user_id=coalesce(prefs.value->>'embyUserId','') THEN c.paths ELSE '[]'::jsonb END,coalesce(g.revoked_at IS NOT NULL,false)`+where+` ORDER BY a.created_at DESC,a.id DESC LIMIT $2 OFFSET $3`, q, limit, offset)
+	rows, err := e.DB.Query(ctx, `SELECT a.id::text,coalesce(m.title,''),coalesce(m.media_type,''),coalesce(m.release_year,''),f.full_path,f.state,a.artifacts_state,a.revision,coalesce((SELECT jsonb_agg(jsonb_build_object('path',path,'kind',kind,'owner',owner) ORDER BY path) FROM (SELECT s.output_path AS path,'strm' AS kind,'asset:'||a.id::text AS owner FROM strm_entries s WHERE s.asset_id=a.id UNION ALL SELECT relative_path,artifact_kind,owner_scope FROM managed_media_artifacts WHERE asset_id=a.id AND artifact_kind<>'strm') outputs),'[]'),CASE WHEN c.asset_revision=a.revision AND emby.enabled AND c.integration_revision=emby.revision AND c.user_id=coalesce(prefs.value->>'embyUserId','') THEN c.state ELSE 'pending' END,CASE WHEN c.asset_revision=a.revision AND emby.enabled AND c.integration_revision=emby.revision AND c.user_id=coalesce(prefs.value->>'embyUserId','') THEN c.paths ELSE '[]'::jsonb END,coalesce(g.revoked_at IS NOT NULL,false),a.scrape_report`+where+` ORDER BY a.created_at DESC,a.id DESC LIMIT $2 OFFSET $3`, q, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -91,7 +92,7 @@ func (e Engine) ManagedAssets(ctx context.Context, limit, offset int, q string) 
 	out := []ManagedAsset{}
 	for rows.Next() {
 		var item ManagedAsset
-		if err = rows.Scan(&item.ID, &item.Title, &item.MediaType, &item.Year, &item.Source, &item.CloudState, &item.ArtifactsState, &item.Revision, &item.Outputs, &item.EmbyState, &item.EmbyPaths, &item.Revoked); err != nil {
+		if err = rows.Scan(&item.ID, &item.Title, &item.MediaType, &item.Year, &item.Source, &item.CloudState, &item.ArtifactsState, &item.Revision, &item.Outputs, &item.EmbyState, &item.EmbyPaths, &item.Revoked, &item.ScrapeReport); err != nil {
 			return nil, 0, err
 		}
 		out = append(out, item)

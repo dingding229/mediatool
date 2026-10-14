@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.19.0-dev
+  version: 0.20.0-dev
   description: 'Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -10,6 +10,33 @@ servers:
 security:
 - AdminSession: []
 paths:
+  /api/v1/cloud/accounts/info:
+    get:
+      operationId: cloudAccountInfo
+      description: 当前已启用CloudDrive2挂载的只读空间/会员信息；包含来源和时间，部分错误明确返回，不猜测115会员到期。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 连接未配置、修订变化或记录未结束
+  /api/v1/settings/naming-preview:
+    post:
+      operationId: namingPreview
+      description: movieTemplate/seriesTemplate受限相对路径模板示例；videoFormat为分辨率，season_episode为确认季集，自动扩展名。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 连接未配置、修订变化或记录未结束
+  /api/v1/library/activity/remove:
+    post:
+      operationId: removeLibraryHistory
+      description: confirm=true+items(kind/id/updatedAt)移除1–50条已结束历史显示；媒体、审计和恢复证据保留，未知/待恢复不可移除。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 连接未配置、修订变化或记录未结束
   /api/v1/files/batches/preview:
     post:
       operationId: previewFileBatch

@@ -105,7 +105,7 @@ func StageNFOProjection(ctx context.Context, j Journal, tx pgx.Tx, root, assetID
 		return nil, err
 	}
 	out := []string{}
-	for _, p := range parts {
+	for _, p := range selectedNFO(parts, assetID, item) {
 		id, err := j.Stage(ctx, tx, root, p.relative, assetID, p.scope, "nfo", p.data)
 		if err != nil {
 			return nil, err
@@ -148,6 +148,11 @@ func StageOutputProjections(ctx context.Context, j Journal, tx pgx.Tx, root, ass
 			return nil, err
 		}
 		intents = append(intents, ids...)
+		extra, err := StageScrapeExtras(ctx, j, tx, root, assetID, item, season, p)
+		if err != nil {
+			return nil, err
+		}
+		intents = append(intents, extra...)
 	}
 	return uniqueIntents(intents), nil
 }

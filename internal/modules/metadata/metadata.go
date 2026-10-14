@@ -3,16 +3,17 @@ package metadata
 import "context"
 
 type Item struct {
-	ID             int       `json:"id"`
-	MediaType      string    `json:"mediaType"`
-	Title          string    `json:"title"`
-	OriginalTitle  string    `json:"originalTitle"`
-	Year           string    `json:"year"`
-	Overview       string    `json:"overview"`
-	BackdropPath   string    `json:"backdropPath,omitempty"`
-	Genres         []string  `json:"genres,omitempty"`
-	PosterPath     string    `json:"posterPath"`
-	EpisodeDetails []Episode `json:"episodeDetails,omitempty"`
+	Scrape         *ScrapeBundle `json:"-"`
+	ID             int           `json:"id"`
+	MediaType      string        `json:"mediaType"`
+	Title          string        `json:"title"`
+	OriginalTitle  string        `json:"originalTitle"`
+	Year           string        `json:"year"`
+	Overview       string        `json:"overview"`
+	BackdropPath   string        `json:"backdropPath,omitempty"`
+	Genres         []string      `json:"genres,omitempty"`
+	PosterPath     string        `json:"posterPath"`
+	EpisodeDetails []Episode     `json:"episodeDetails,omitempty"`
 }
 type Provider interface {
 	Search(context.Context, string, string) ([]Item, error)

@@ -23,6 +23,10 @@ func ApplyOutputTemplates(ctx context.Context, db *pgxpool.Pool, cloudPath, asse
 			return projections, nil
 		}
 	}
+	return applyTemplatePaths(ctx, db, cloudPath, assetID, item, projections)
+}
+
+func applyTemplatePaths(ctx context.Context, db *pgxpool.Pool, cloudPath, assetID string, item metadata.Item, projections []OutputProjection) ([]OutputProjection, error) {
 	record, err := (settings.Repository{DB: db}).Get(ctx)
 	if err != nil {
 		return nil, err
@@ -46,8 +50,10 @@ func ApplyOutputTemplates(ctx context.Context, db *pgxpool.Pool, cloudPath, asse
 				return nil, err
 			}
 			template = strings.ReplaceAll(template, "S{season}E{episode}", tag)
+			template = strings.ReplaceAll(template, "{season_episode}", tag)
 		}
-		name, err := releasename.Render(template, h, path.Base(cloudPath))
+		rendered, err := releasename.RenderPath(template, h, path.Base(cloudPath))
+		name := path.Base(rendered)
 		if err != nil {
 			return nil, err
 		}
@@ -59,7 +65,15 @@ func ApplyOutputTemplates(ctx context.Context, db *pgxpool.Pool, cloudPath, asse
 		if strings.ContainsAny(name, "/\\") || len(name) > 255 {
 			return nil, errors.New("output name invalid")
 		}
-		projections[i].Path = path.Join(path.Dir(p.Path), name)
+		directory := path.Dir(p.Path)
+		if strings.Contains(template, "/") {
+			base := "Movies"
+			if item.MediaType == "series" {
+				base = "TV"
+			}
+			directory = path.Join(base, path.Dir(rendered))
+		}
+		projections[i].Path = path.Join(directory, name)
 	}
 	return projections, nil
 }

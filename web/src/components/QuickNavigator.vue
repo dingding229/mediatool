@@ -8,6 +8,8 @@ const router = useRouter(), query = ref(''), selected = ref(0), input = ref<HTML
 const results = computed(() => searchNavigation(query.value))
 watch(query, () => { selected.value = 0 })
 watch(open, value => { if (value) { query.value = ''; selected.value = 0 } })
+function focusInput(event?:Event){event?.preventDefault();nextTick(()=>{if(open.value)input.value?.focus()})}
+function restoreFocus(event:Event){if(open.value)focusInput(event)}
 async function go(id: string) { open.value = false; await router.push(`/${id}`) }
 function keydown(event: KeyboardEvent) {
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -21,7 +23,7 @@ function keydown(event: KeyboardEvent) {
 }
 </script>
 <template>
-  <el-dialog v-model="open" title="快速前往" width="min(580px,94vw)" class="quick-navigator" @opened="input?.focus()">
+  <el-dialog v-model="open" title="快速前往" width="min(580px,94vw)" class="quick-navigator" @open-auto-focus="focusInput" @close-auto-focus="restoreFocus" @opened="focusInput()">
     <div class="quick-search-field"><Search aria-hidden="true" />
       <input ref="input" v-model="query" role="combobox" aria-label="搜索功能入口" aria-autocomplete="list" aria-controls="quick-options" aria-expanded="true"
         :aria-activedescendant="results[selected] ? `quick-option-${results[selected].id}` : undefined"

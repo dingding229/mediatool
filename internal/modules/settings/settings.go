@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"media-tool/internal/modules/metadata"
+	"media-tool/internal/modules/releasename"
 	"media-tool/internal/platform/scheduling"
 	"regexp"
 	"strings"
@@ -15,13 +17,14 @@ var ErrInvalid = errors.New("invalid application settings")
 var ErrRevision = errors.New("settings changed; refresh first")
 
 type Value struct {
-	MovieTemplate               string `json:"movieTemplate"`
-	SeriesTemplate              string `json:"seriesTemplate"`
-	SearchCacheSeconds          int    `json:"searchCacheSeconds"`
-	TMDBCacheSeconds            int    `json:"tmdbCacheSeconds"`
-	SubscriptionIntervalMinutes int    `json:"-"`
-	SubscriptionCron            string `json:"subscriptionCron"`
-	EmbyUserID                  string `json:"embyUserId"`
+	Scraping                    metadata.ScrapePolicy `json:"scraping"`
+	MovieTemplate               string                `json:"movieTemplate"`
+	SeriesTemplate              string                `json:"seriesTemplate"`
+	SearchCacheSeconds          int                   `json:"searchCacheSeconds"`
+	TMDBCacheSeconds            int                   `json:"tmdbCacheSeconds"`
+	SubscriptionIntervalMinutes int                   `json:"-"`
+	SubscriptionCron            string                `json:"subscriptionCron"`
+	EmbyUserID                  string                `json:"embyUserId"`
 }
 type Record struct {
 	Value    Value `json:"value"`
@@ -30,29 +33,26 @@ type Record struct {
 type Repository struct{ DB *pgxpool.Pool }
 
 func Defaults() Value {
-	return Value{MovieTemplate: "{title} ({year}) - {resolution}{ext}", SeriesTemplate: "{title} - S{season}E{episode} - {resolution}{ext}", SearchCacheSeconds: 900, TMDBCacheSeconds: 86400, SubscriptionIntervalMinutes: 30, SubscriptionCron: "*/30 * * * *"}
+	return Value{Scraping: metadata.DefaultScrapePolicy(), MovieTemplate: "{title} ({year})/{title} ({year}) - {videoFormat}", SeriesTemplate: "{title} ({year})/Season {season}/{title} - {season_episode} - 第{episode}集", SearchCacheSeconds: 900, TMDBCacheSeconds: 86400, SubscriptionIntervalMinutes: 30, SubscriptionCron: "*/30 * * * *"}
 }
 
-var token = regexp.MustCompile(`\{([A-Za-z]+)\}`)
-
 func Validate(v Value) error {
+	s := v.Scraping
+	if s.Movie.Thumb || s.Series.Thumb || s.Season.Backdrop || s.Season.Logo || s.Season.Thumb || s.Episode.Poster || s.Episode.Backdrop || s.Episode.Logo {
+		return ErrInvalid
+	}
 	for _, s := range []string{v.MovieTemplate, v.SeriesTemplate} {
-		if len(s) == 0 || len(s) > 512 || strings.ContainsAny(s, "/\\\x00\r\n") || !strings.Contains(s, "{title}") {
-			return ErrInvalid
-		}
-		cleaned := token.ReplaceAllStringFunc(s, func(m string) string {
-			for _, x := range []string{"title", "year", "season", "episode", "resolution", "source", "codec", "group", "ext", "original"} {
-				if m == "{"+x+"}" {
-					return ""
-				}
-			}
-			return m
-		})
-		if strings.ContainsAny(cleaned, "{}") {
+		if releasename.ValidateTemplate(s) != nil || !strings.Contains(s, "{title}") {
 			return ErrInvalid
 		}
 	}
-	if !strings.Contains(v.SeriesTemplate, "{season}") || !strings.Contains(v.SeriesTemplate, "{episode}") {
+	if strings.Contains(v.SeriesTemplate, "/") {
+		parts := strings.Split(v.SeriesTemplate, "/")
+		if len(parts) != 3 || !strings.Contains(parts[1], "{season}") {
+			return ErrInvalid
+		}
+	}
+	if !strings.Contains(v.SeriesTemplate, "{season_episode}") && (!strings.Contains(v.SeriesTemplate, "{season}") || !strings.Contains(v.SeriesTemplate, "{episode}")) {
 		return ErrInvalid
 	}
 	if _, err := scheduling.Next(v.SubscriptionCron, time.Now(), 5*time.Minute); err != nil {

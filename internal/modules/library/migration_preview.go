@@ -129,6 +129,15 @@ func (e Engine) PreviewIdentityMigration(ctx context.Context, assetID string, in
 	if err != nil {
 		return MigrationPreview{}, err
 	}
+	var scrapeSeason *int
+	if in.MediaType == "series" {
+		scrapeSeason = &in.Season
+	}
+	item, err = e.enrichScraping(ctx, item, scrapeSeason)
+	if err != nil {
+		return MigrationPreview{}, err
+	}
+
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
 		return MigrationPreview{}, err

@@ -47,7 +47,7 @@ async function login(page:import('@playwright/test').Page){
  await page.getByRole('button',{name:'进入工作台',exact:true}).click()
  await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
  await expect(page.getByText('服务器负载',{exact:true})).toBeVisible()
- await expect(page.locator('.sidebar-note')).toContainText('0.19.0-dev')
+ await expect(page.locator('.sidebar-note')).toContainText('0.20.0-dev')
 }
 // Later UI-only fixtures share one valid account session in memory. Login/
 // logout/password/rate-limit behavior above remains separately exercised; do
@@ -134,7 +134,7 @@ test('mobile menu, reduced motion and layout at 375px/landscape',async({page})=>
 })
 
 test('saved connections are editable, redacted, and can be deleted',async({page})=>{
- await login(page);await page.goto('/cloudStorage')
+ await login(page);await page.goto('/cloud-connections')
  await page.getByRole('button',{name:'添加连接'}).click()
  const name='Browser connection '+Date.now()
  await page.getByLabel('连接名称',{exact:true}).fill(name)
@@ -166,8 +166,8 @@ test('subscriptions and scanner pages expose real configuration gates',async({pa
  await page.keyboard.press('Escape')
  await expect(page.getByRole('button',{name:'保存订阅',exact:true})).not.toBeVisible()
  await navigate(page,'云盘索引')
- await expect(page.getByRole('heading',{name:/^已入库文件/})).toBeVisible()
- await page.getByRole('button',{name:'开始扫描',exact:true}).click()
+ await page.getByRole('tab',{name:'已入库资产',exact:true}).click();await expect(page.getByRole('heading',{name:/^已入库文件/})).toBeVisible()
+ await page.getByRole('tab',{name:'扫描与计划',exact:true}).click();await page.getByRole('button',{name:'开始扫描',exact:true}).click()
  await expect(page.getByText('configure a primary CloudDrive2 connection',{exact:true})).toBeVisible()
 })
 test('logout revokes a previously captured signed cookie',async({page,request})=>{
@@ -183,7 +183,7 @@ test('logout revokes a previously captured signed cookie',async({page,request})=
 test('scan schedule dialog is default-off and pagination requests are bounded',async({page})=>{
  await page.emulateMedia({reducedMotion:'reduce'});await login(page);const response=page.waitForResponse(r=>r.url().includes('/library/candidates?page=1&pageSize=50'))
  await navigate(page,'云盘索引');expect((await response).status()).toBe(200)
- await page.getByRole('button',{name:'新增定时扫描'}).click();const dialog=page.getByRole('dialog');await expect(dialog.getByRole('switch',{name:'启用定时扫描'})).not.toBeChecked();await expect(dialog.getByRole('switch',{name:'启用CloudDrive2文件变化推送'})).not.toBeChecked()
+ await page.getByRole('tab',{name:'扫描与计划',exact:true}).click();await page.getByRole('button',{name:'新增定时扫描'}).click();const dialog=page.getByRole('dialog');await expect(dialog.getByRole('switch',{name:'启用定时扫描'})).not.toBeChecked();await expect(dialog.getByRole('switch',{name:'启用CloudDrive2文件变化推送'})).not.toBeChecked()
  await dialog.getByRole('button',{name:'保存定时扫描'}).click();await expect(page.getByText('请先在服务连接中配置并启用 CloudDrive2',{exact:true})).toBeVisible()
  await dialog.getByRole('button',{name:'取消',exact:true}).click();await expect(dialog).not.toBeVisible();await page.screenshot({path:resolve(screenshots,'library-desktop.png'),fullPage:true});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  mkdirSync(screenshots,{recursive:true});await page.screenshot({path:resolve(screenshots,'library-mobile.png'),fullPage:true})
@@ -205,7 +205,7 @@ test('account login form is accessible on mobile and needs no deployment key',as
 })
 
 test('official 115 is saved disabled and QR authorization is explicit and cancellable',async({page})=>{
- await login(page);await page.goto('/cloudStorage')
+ await login(page);await page.goto('/cloud-connections')
  await page.getByRole('button',{name:'添加连接'}).click()
  await page.getByRole('button',{name:'关闭此对话框',exact:true}).click()
  await page.getByRole('button',{name:'115 授权',exact:true}).click()
@@ -306,7 +306,7 @@ test('output identity migration needs read-only preview and explicit archive con
  await page.route(`**/api/v1/media/assets/${asset}/identity`,async route=>{applied.push(route.request().postDataJSON());await route.fulfill({json:{data:{corrected:true}}})})
  await fixtureLogin(page);await navigate(page,'云盘索引')
  const row=page.getByRole('row').filter({hasText:'自有电影'})
- await row.getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
+ await page.getByRole('tab',{name:'已入库资产',exact:true}).click();await row.getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
  const dialog=page.getByRole('dialog')
  await dialog.getByRole('button',{name:'查询TMDB'}).click()
  await dialog.getByRole('row').filter({hasText:'自有新电影'}).click()
@@ -323,7 +323,7 @@ test('output identity migration needs read-only preview and explicit archive con
  await page.setViewportSize({width:1440,height:1000})
  await confirm.getByRole('button',{name:'返回检查',exact:true}).click()
  expect(applied).toHaveLength(0)
- await row.getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
+ await page.getByRole('tab',{name:'已入库资产',exact:true}).click();await row.getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
  await page.getByRole('dialog').getByRole('button',{name:'查询TMDB'}).click()
  await page.getByRole('dialog').getByRole('row').filter({hasText:'自有新电影'}).click()
  await page.getByRole('dialog').getByText('同时迁移Movies/TV输出目录（先预览）',{exact:true}).click()
@@ -343,7 +343,7 @@ test('episode metadata preview is read-only, explicit and cleared when season co
  await page.route('**/api/v1/metadata/episodes?*',async route=>{previewQueries.push(route.request().url());await route.fulfill({json:{data:[{id:991,seriesId:99,season:1,number:1,title:'自有单集第一集',overview:'单集简介样本',airDate:'2026-01-01',runtimeMinutes:25},{id:993,seriesId:99,season:1,number:3,title:'自有单集第三集',overview:'第三集简介样本'}]}})})
  await page.route(`**/api/v1/media/assets/${asset}/identity`,async route=>{writes++;await route.fulfill({json:{data:{corrected:true}}})})
  await fixtureLogin(page);await navigate(page,'云盘索引')
- await page.getByRole('row').filter({hasText:'自有剧集'}).getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
+ await page.getByRole('tab',{name:'已入库资产',exact:true}).click();await page.getByRole('row').filter({hasText:'自有剧集'}).getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
  const dialog=page.getByRole('dialog')
  await dialog.getByRole('button',{name:'查询TMDB'}).click()
  await dialog.getByRole('row').filter({hasText:'自有剧集'}).click()
@@ -371,7 +371,7 @@ test('expired archive cleanup is preview-only until typed explicit confirmation 
  await page.route('**/api/v1/library/archives/cleanup-preview',route=>route.fulfill({json:{data:{planDigest:'b'.repeat(64),policy:{retentionDays:30,revision:1,automaticCleanup:false},items:[entry],sourceFilesUntouched:true,physicalDeletion:true}}}))
  await page.route('**/api/v1/library/archives/cleanup-confirm',async route=>{confirmations.push(route.request().postDataJSON());entry.state='removed';entry.deletedAt='2026-10-10T00:00:00Z';await route.fulfill({json:{data:[{id:'owned-cleanup',archiveId:archive,state:'removed',message:''}]}})})
  await fixtureLogin(page);await navigate(page,'云盘索引')
- await expect(page.getByRole('heading',{name:'旧输出归档',exact:false})).toBeVisible()
+ await page.getByRole('tab',{name:'输出恢复与归档',exact:true}).click();await expect(page.getByRole('heading',{name:'旧输出归档',exact:false})).toBeVisible()
  const row=page.getByRole('row').filter({hasText:'旧输出.strm'})
  // Element Plus hides native selection checkbox: click its visible label.
  await row.locator('.el-checkbox').click()
@@ -404,7 +404,7 @@ test('unknown archive response retains its request and needs explicit reconcilia
  await page.route('**/api/v1/library/archives/cleanup-confirm',async route=>{confirmations.push(route.request().postDataJSON());await route.fulfill({json:{data:confirmations.length===1?[]:[{id:'owned-cleanup',archiveId:archive,state:'conflict',message:'needs manual recovery'}]}})})
  await page.route('**/api/v1/library/archive-cleanups/*',route=>route.fulfill({json:{data:[]}}))
  await fixtureLogin(page);await navigate(page,'云盘索引')
- await page.getByRole('row').filter({hasText:'待核对.strm'}).locator('.el-checkbox').click()
+ await page.getByRole('tab',{name:'输出恢复与归档',exact:true}).click();await page.getByRole('row').filter({hasText:'待核对.strm'}).locator('.el-checkbox').click()
  await page.getByRole('button',{name:'预览清理所选 1',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'确认物理清理归档',exact:true})
  await dialog.getByLabel('输入清理归档确认',{exact:true}).fill('清理归档')
@@ -433,7 +433,7 @@ test('sparse episode migration previews explicit aliases and whole-file playback
  await page.route(`**/api/v1/media/assets/${asset}/identity-preview`,route=>route.fulfill({json:{data:preview}}))
  await page.route(`**/api/v1/media/assets/${asset}/identity`,async route=>{applied.push(route.request().postDataJSON());await route.fulfill({json:{data:{corrected:true}}})})
  await fixtureLogin(page);await navigate(page,'云盘索引')
- await page.getByRole('row').filter({hasText:'自有非连续合集'}).getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
+ await page.getByRole('tab',{name:'已入库资产',exact:true}).click();await page.getByRole('row').filter({hasText:'自有非连续合集'}).getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'修正媒体身份与季集',exact:true})
  await dialog.getByRole('button',{name:'查询TMDB'}).click();await dialog.getByRole('row').filter({hasText:'自有剧集'}).click()
  await dialog.getByLabel('修正实际覆盖集',{exact:true}).fill('1,3')
@@ -582,7 +582,7 @@ test('PT account form uses template identity, UA, echo and disallows duplicates 
 
 test('separate 115 setup saves without tokens and secret echoes are explicit (isolated)',async({page})=>{
  await fixtureLogin(page)
- await page.goto('/cloudStorage');await page.getByRole('button',{name:'115 授权',exact:true}).click()
+ await page.goto('/cloud-connections');await page.getByRole('button',{name:'115 授权',exact:true}).click()
  await expect(page.getByRole('button',{name:'115 授权',exact:true})).toHaveAttribute('aria-pressed','true')
  await page.getByRole('button',{name:'添加连接',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'添加连接',exact:true})
@@ -671,8 +671,8 @@ test('local file management previews organize, keeps sidecars and uses reversibl
  await plan.getByRole('button',{name:'取消，不执行',exact:true}).click()
  await expect(plan).not.toBeVisible()
  await page.setViewportSize({width:1440,height:1000})
- await video.getByRole('button',{name:'移入回收目录',exact:true}).click()
- await page.getByRole('dialog',{name:'移入回收目录',exact:true}).getByRole('button',{name:'预览变更',exact:true}).click()
+ await video.getByRole('button',{name:'删除（可恢复）',exact:true}).click()
+ await page.getByRole('dialog',{name:'删除（可恢复）',exact:true}).getByRole('button',{name:'预览变更',exact:true}).click()
  await plan.getByRole('button',{name:'确认执行文件变更',exact:true}).click()
  await expect(video).toHaveCount(0);await expect(plan).not.toBeVisible()
  await page.getByRole('button',{name:'查看回收目录',exact:true}).click()
@@ -707,7 +707,7 @@ test('media catalog browses managed and Emby content without exposing playback c
 
 test('service overview is read-only and settings own naming and TMDB',async({page})=>{
  await login(page);await page.goto('/integrations');await expect(page.getByRole('heading',{name:'服务连接总览',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(0)
- await page.goto('/settings');await expect(page.getByLabel('电影命名模板',{exact:true})).toHaveValue('{title} ({year}) - {resolution}{ext}');await expect(page.getByLabel('剧集命名模板',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'TMDB配置',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'生成 / 更换恢复码',exact:true})).toHaveCount(0)
+ await page.goto('/settings');await expect(page.getByLabel('电影命名模板',{exact:true})).toHaveValue('{title} ({year})/{title} ({year}) - {videoFormat}');await expect(page.getByLabel('剧集命名模板',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'TMDB配置',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'生成 / 更换恢复码',exact:true})).toHaveCount(0)
  await page.locator('#pt-cache-seconds').fill('600');await page.getByRole('button',{name:'保存系统设置',exact:true}).click();await expect(page.getByText('模板、订阅Cron与缓存有效期已保存，新的整理预览默认使用模板。不会自动重命名现有文件。',{exact:true})).toBeVisible()
  await page.screenshot({path:resolve(screenshots,'workbench-settings-desktop.png'),animations:'disabled',fullPage:true});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-settings-mobile.png'),animations:'disabled',fullPage:false})
 })
@@ -1045,7 +1045,7 @@ test('files and library readonly capabilities, persistent batch proof, scan cont
  await page.setViewportSize({width:390,height:844});await expect(page.getByLabel('选择 Owned.Show.S01E01.mkv')).toBeDisabled();await expect(page.getByRole('button',{name:'上级目录',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  await page.screenshot({path:resolve(screenshots,'files-library-readonly-mobile.png'),animations:'disabled',fullPage:true})
  await page.route('**/api/v1/library/scans',r=>r.fulfill({json:{data:[{id,root:'/115/Media',state:'paused',files:2,directories:4,completedDirectories:1,generation:2,revision:1,message:'不完整覆盖不用于缺失判断'}]}}))
- await page.goto('/cloudStorage');await expect(page.getByRole('button',{name:'重新完整对账',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.goto('/cloudStorage');await page.getByRole('tab',{name:'扫描与计划',exact:true}).click();await expect(page.getByRole('button',{name:'重新完整对账',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  await page.screenshot({path:resolve(screenshots,'files-library-scans-mobile.png'),animations:'disabled',fullPage:true})
  await page.route('**/api/v1/library/activity?**',r=>r.fulfill({json:{data:{items:[{id,kind:'file',state:'needs_reconcile',source:'Owned.mkv',batchId:'',connectionId:id,message:'只读回核对，不重放',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),details:{completedSteps:0,plan:{steps:[{action:'relocate',source:{path:'Owned.mkv'},target:'Owned (2026).mkv'}],items:[{source:{path:'Owned.mkv'},target:'Owned (2026).mkv'}]}}}],total:1}}}))
  await page.goto('/organize-history');await page.getByRole('button',{name:'查看步骤详情',exact:true}).click();await expect(page.getByRole('dialog').getByRole('button',{name:'核对结果（不重放）',exact:true})).toBeVisible();await expect(page.getByRole('dialog')).toContainText('Owned (2026).mkv');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
@@ -1076,4 +1076,25 @@ test('isolated local batch preview writes nothing until explicit approval and su
  await dialog.getByRole('button',{name:'刷新执行进度',exact:true}).click();await expect(dialog.locator('.batch-status')).toContainText('已完成')
  for(const name of names)expect(existsSync(resolve(folder,name))).toBe(false)
  await dialog.getByRole('link',{name:'查看持久化批次',exact:true}).click();await expect(page.getByRole('heading',{name:'文件与入库历史',exact:true})).toBeVisible();await page.reload();await expect(page.getByRole('button',{name:'查看步骤详情',exact:true}).first()).toBeVisible()
+})
+
+test('cloud page exposes honest quota and membership while library tabs keep metadata query usable at 390px (UI fixture)',async({page})=>{
+ await fixtureLogin(page)
+ await page.route('**/api/v1/cloud/accounts/info',r=>r.fulfill({json:{data:{connectionId:'owned',note:'挂载账户范围',info:{path:'/115/Owned',source:'CloudDrive2 官方接口',checkedAt:'2026-10-14T00:00:00Z',space:{total:1099511627776,used:549755813888,free:549755813888},memberships:[{identity:'115VIP',level:'VIP',expiresAt:'2027-01-01T00:00:00Z'}]}}}}))
+ await page.goto('/cloud-connections');await expect(page.getByRole('heading',{name:'云盘连接',exact:true})).toBeVisible();await expect(page.locator('.quota-grid')).toContainText('1.00 TiB');await expect(page.locator('.membership-row')).toContainText('2027');await page.screenshot({path:resolve(screenshots,'cloud-account-desktop.png'),animations:'disabled',fullPage:true})
+ await page.route('**/api/v1/media/assets?page=*',r=>r.fulfill({json:{data:{items:[{id:'00000000-0000-4000-8000-000000000141',title:'自有电影',mediaType:'movie',path:'/115/Owned/owned.mkv',revision:1,artifactsState:'ready',state:'present',fileScoped:true}],total:1}}}))
+ await page.route('**/api/v1/metadata/search?*',r=>r.fulfill({json:{data:[{id:11,title:'自有电影',year:'2026',mediaType:'movie'}]}}))
+ await page.goto('/cloudStorage');await expect(page.getByRole('heading',{name:'云盘连接与115授权',exact:true})).toHaveCount(0);await page.getByRole('tab',{name:'已入库资产',exact:true}).click();await page.getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
+ const dialog=page.getByRole('dialog',{name:'修正媒体身份与季集',exact:true});await expect(dialog.getByLabel('TMDB查询关键词',{exact:true})).toHaveValue('自有电影');await expect(dialog.getByLabel('TMDB查询关键词',{exact:true})).toBeInViewport({ratio:1});await dialog.getByRole('button',{name:'查询TMDB',exact:true}).click();await expect(dialog.getByRole('row').filter({hasText:'自有电影'})).toBeVisible()
+ await dialog.screenshot({path:resolve(screenshots,'metadata-query-desktop.png'),animations:'disabled'});await page.setViewportSize({width:390,height:844});await expect(dialog.getByLabel('TMDB查询关键词',{exact:true})).toBeInViewport({ratio:1});await expect(dialog.getByRole('button',{name:'查询TMDB',exact:true})).toBeInViewport({ratio:1});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await dialog.screenshot({path:resolve(screenshots,'metadata-query-mobile.png'),animations:'disabled'})
+})
+
+test('folder naming and scraping settings persist while history removal cannot delete media (isolated)',async({page})=>{
+ await fixtureLogin(page);await page.goto('/settings');const movie='{title} ({year})/{title} ({year}) - {videoFormat}',series='{title} ({year})/Season {season}/{title} - {season_episode} - 第{episode}集'
+ await page.getByLabel('电影命名模板',{exact:true}).fill(movie);await page.getByLabel('剧集命名模板',{exact:true}).fill(series);await page.getByRole('button',{name:'预览命名模板',exact:true}).click();await expect(page.locator('.naming-preview')).toContainText('示例剧集 (2026)/Season 01/示例剧集 - S01E04 - 第04集.mkv')
+ await page.locator('.scraping-group').filter({has:page.getByRole('heading',{name:'电影刮削项',exact:true})}).getByText('poster（海报）',{exact:true}).click();await page.getByRole('button',{name:'保存系统设置',exact:true}).click();await expect(page.getByText(/模板、订阅Cron与缓存有效期已保存/)).toBeVisible();const prefs=(await(await page.request.get('/api/v1/settings/application')).json()).data;expect(prefs.value.scraping.movie.poster).toBe(true)
+ await page.screenshot({path:resolve(screenshots,'scraping-settings-desktop.png'),animations:'disabled',fullPage:true});await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'scraping-settings-mobile.png'),animations:'disabled',fullPage:true})
+ // Restore isolated policy before other tests; never change production settings.
+ prefs.value.scraping.movie.poster=false;expect((await page.request.put('/api/v1/settings/application',{headers:{'X-Requested-With':'media-tool'},data:prefs})).status()).toBe(200)
+ await page.goto('/organize-history');const batch=page.locator('.history-row').filter({hasText:'整理批次'}).filter({hasText:'已完成'}).first();await expect(batch).toBeVisible();await batch.getByRole('button',{name:'移除历史',exact:true}).click();const confirm=page.getByRole('dialog',{name:'移除整理历史',exact:true});await expect(confirm).toContainText('媒体、STRM、审计和恢复证据保留');await confirm.getByRole('button',{name:'明确移除历史',exact:true}).click();await expect(page.getByText('历史已从列表移除，媒体和恢复证据未删除',{exact:true})).toBeVisible()
 })

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"media-tool/internal/modules/jobs"
+	"media-tool/internal/modules/settings"
 	"os"
 	"path/filepath"
 	"testing"
@@ -119,5 +120,47 @@ func TestBrowserShowsSymlinkNamesButProtectsSystemTargetsAndReadonlyChildren(t *
 	}
 	if _, err = OpenLocal(filepath.Join(root.Path, "host-root")); !errors.Is(err, ErrProtected) {
 		t.Fatal("symlink root opened", err)
+	}
+}
+
+func TestFolderTemplateAndDirectoryRenameRecycleArePreviewed(t *testing.T) {
+	ctx, e, root, _ := fixture(t)
+	record, err := (settings.Repository{DB: e.DB}).Get(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := record.Value
+	next := old
+	next.MovieTemplate = "{title} ({year})/{title} ({year}) - {videoFormat}"
+	if _, err = (settings.Repository{DB: e.DB}).Save(ctx, next, record.Revision); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		current, _ := (settings.Repository{DB: e.DB}).Get(ctx)
+		(settings.Repository{DB: e.DB}).Save(ctx, old, current.Revision)
+	}()
+	os.WriteFile(filepath.Join(root.Path, "Owned.Movie.2026.1080p.mkv"), []byte("owned"), 0600)
+	p, err := e.Preview(ctx, Input{ConnectionID: root.ID, Operation: "organize", Source: "Owned.Movie.2026.1080p.mkv"})
+	if err != nil || p.Items[0].Target != "电影/Owned Movie (2026)/Owned Movie (2026) - 1080p.mkv" {
+		t.Fatal(p, err)
+	}
+	os.Mkdir(filepath.Join(root.Path, "OwnedFolder"), 0755)
+	os.WriteFile(filepath.Join(root.Path, "OwnedFolder", "owned.txt"), []byte("owned"), 0600)
+	p, err = e.Preview(ctx, Input{ConnectionID: root.ID, Operation: "rename", Source: "OwnedFolder", Name: "RenamedFolder"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.Execute(ctx, p.ID, p.Digest, true); err != nil {
+		t.Fatal(err)
+	}
+	p, err = e.Preview(ctx, Input{ConnectionID: root.ID, Operation: "trash", Source: "RenamedFolder"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.Execute(ctx, p.ID, p.Digest, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = os.Stat(filepath.Join(root.Path, p.Items[0].Target, "owned.txt")); err != nil {
+		t.Fatal("recycle lost contents", err)
 	}
 }

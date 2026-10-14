@@ -246,10 +246,57 @@ func (e Engine) Preview(ctx context.Context, in Input) (Plan, error) {
 			if hint.MediaType == "unknown" {
 				return Plan{}, ErrInvalid
 			}
-			in.Name, err = releasename.Render(template, hint, source.Name)
+			rendered, renderErr := releasename.RenderPath(template, hint, source.Name)
+			err = renderErr
+			in.Name = path.Base(rendered)
+			if in.Operation == "organize" && strings.Contains(rendered, "/") {
+				base := in.Destination
+				if base == "" || base == "." {
+					base = "电影"
+					if hint.MediaType == "series" {
+						base = "电视剧"
+					}
+					if in.Category != "" {
+						if Name(in.Category) != nil {
+							return Plan{}, ErrInvalid
+						}
+						base = path.Join(base, in.Category)
+					}
+				}
+				in.Destination = path.Join(base, path.Dir(rendered))
+			}
 			if err != nil {
 				return Plan{}, ErrInvalid
 			}
+		}
+	}
+	if in.Template != "" && strings.Contains(in.Template, "/") {
+		source, findErr := b.Find(ctx, in.Source)
+		if findErr != nil {
+			return Plan{}, findErr
+		}
+		hint := releasename.Parse(source.Name)
+		hint.Title, hint.Year, hint.MediaType, hint.Season, hint.Episode = in.Title, in.Year, in.MediaType, in.Season, in.Episode
+		if in.Resolution != "" {
+			hint.Resolution = in.Resolution
+		}
+		rendered, err := releasename.RenderPath(in.Template, hint, source.Name)
+		if err != nil {
+			return Plan{}, ErrInvalid
+		}
+		in.Name = path.Base(rendered)
+		in.Template = ""
+		if in.Operation == "organize" {
+			base := in.Destination
+			if base == "" || base == "." {
+				base = "电影"
+				if hint.MediaType == "series" {
+					base = "电视剧"
+				}
+			}
+			in.Destination = path.Join(base, path.Dir(rendered))
+		} else if in.Operation != "rename" {
+			return Plan{}, ErrInvalid
 		}
 	}
 	p, err := BuildPlan(ctx, b, root, in, jobs.UUID())

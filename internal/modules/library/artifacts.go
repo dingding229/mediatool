@@ -132,7 +132,7 @@ func StageNFOCoverage(ctx context.Context, j Journal, tx pgx.Tx, root, output, a
 		return nil, err
 	}
 	ids := []string{}
-	for _, file := range files {
+	for _, file := range selectedNFO(files, assetID, item) {
 		id, err := j.Stage(ctx, tx, root, file.relative, assetID, file.scope, "nfo", file.data)
 		if err != nil {
 			return nil, err

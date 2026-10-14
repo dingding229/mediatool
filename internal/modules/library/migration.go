@@ -54,6 +54,10 @@ func (e Engine) stageOutputMigration(ctx context.Context, tx pgx.Tx, assetID, cl
 	if err != nil {
 		return nil, err
 	}
+	projections, err = applyTemplatePaths(ctx, e.DB, cloudPath, assetID, item, projections)
+	if err != nil {
+		return nil, err
+	}
 	if len(outputs) == 0 || len(outputs) > 100 {
 		return nil, ErrArtifactConflict
 	}
@@ -132,13 +136,25 @@ func (e Engine) stageOutputMigration(ctx context.Context, tx pgx.Tx, assetID, cl
 		if err != nil {
 			return nil, err
 		}
-		for _, nfo := range nfos {
+		for _, nfo := range selectedNFO(nfos, assetID, item) {
 			id, err := stageMigrationWrite(ctx, j, tx, root, nfo.relative, assetID, nfo.scope, "nfo", nfo.data)
 			if err != nil {
 				return nil, err
 			}
 			writes = append(writes, id)
 			delete(retire, nfo.relative)
+		}
+		extras, err := scrapeFiles(target, assetID, item, season, projection.Episodes)
+		if err != nil {
+			return nil, err
+		}
+		for _, extra := range extras {
+			id, err := stageMigrationWrite(ctx, j, tx, root, extra.Path, assetID, extra.Scope, extra.Kind, extra.Data)
+			if err != nil {
+				return nil, err
+			}
+			writes = append(writes, id)
+			delete(retire, extra.Path)
 		}
 		stem := strings.TrimSuffix(target, path.Ext(target))
 		suffixes := []string{}
@@ -157,6 +173,11 @@ func (e Engine) stageOutputMigration(ctx context.Context, tx pgx.Tx, assetID, cl
 		}
 	}
 	// An owned old NFO still receives a hash check before any new identity commits.
+	for name, owned := range retire {
+		if owned.Kind == "artwork" {
+			delete(retire, name)
+		}
+	}
 	names := []string{}
 	for name, a := range retire {
 		if path.Base(name) == "tvshow.nfo" {

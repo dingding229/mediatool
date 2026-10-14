@@ -292,3 +292,29 @@ func (a *API) managedOutputContent(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	write(w, 200, out)
 }
+
+func (a *API) removeLibraryHistory(w http.ResponseWriter, r *http.Request) {
+	e := a.library()
+	if e == nil {
+		fail(w, 503, "library_unavailable", "数据库不可用")
+		return
+	}
+	var in struct {
+		Items   []library.HistorySelection `json:"items"`
+		Confirm bool                       `json:"confirm"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	for _, item := range in.Items {
+		if !isWorkbenchUUID(item.ID) {
+			fail(w, 400, "invalid_id", "历史ID无效")
+			return
+		}
+	}
+	if err := e.HideHistory(r.Context(), in.Items, in.Confirm); err != nil {
+		fail(w, 409, "history_changed", err.Error())
+		return
+	}
+	write(w, 200, map[string]any{"removed": len(in.Items), "mediaDeleted": false, "recoveryEvidenceRetained": true})
+}

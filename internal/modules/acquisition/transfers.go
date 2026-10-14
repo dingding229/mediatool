@@ -436,6 +436,11 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 		details.Media = enriched
 	}
 
+	details.Media, err = (library.Engine{DB: e.DB, Connections: e.Connections}).EnrichScraping(ctx, details.Media, season)
+	if err != nil {
+		return err
+	}
+
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
 		return err
@@ -467,6 +472,9 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 	}
 	assetID := fileID
 	if _, err = tx.Exec(ctx, `INSERT INTO media_assets(id,cloud_file_id,media_identity,edition)VALUES($1,$2,$3,$4)ON CONFLICT(id)DO NOTHING`, assetID, cloudFileID, assetJSON, path.Base(relative)); err != nil {
+		return err
+	}
+	if err = library.PersistScrapeReport(ctx, tx, assetID, details.Media); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, `INSERT INTO media_asset_bindings(asset_id,media_id,download_file_id,season,episode,episodes)VALUES($1,$2,$3,$4,$5,$6)ON CONFLICT(asset_id)DO NOTHING`, assetID, mediaID, fileID, season, episode, jsonEpisodes(episodes)); err != nil {

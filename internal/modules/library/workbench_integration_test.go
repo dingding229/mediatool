@@ -1,10 +1,14 @@
 package library
 
 import (
+	"bytes"
 	"encoding/json"
+	"image"
+	"image/png"
 	"io"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
+	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/storage"
 	"net/http"
 	"net/http/httptest"
@@ -170,5 +174,77 @@ func TestManagedContentReturnsOriginalResolverOnlyAfterOwnershipAndDigestProof(t
 	}
 	if _, err = e.OutputContent(ctx, file, "../password"); err == nil {
 		t.Fatal("escaped output path")
+	}
+}
+
+func TestSelectedScrapeOutputsAndHistoryRemovalPreserveEvidence(t *testing.T) {
+	ctx, e, c := scanWorkbenchFixture(t)
+	e.Connections.Config.STRMOutputDir = t.TempDir()
+	e.DB.Exec(ctx, `INSERT INTO storage_connections(id,name,provider)VALUES($1,'owned','clouddrive2')`, c)
+	file, err := e.indexFile(ctx, c, storage.File{ID: "owned", Name: "owned.mkv", Path: "/115/Media/owned.mkv", Size: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.DB.Exec(ctx, `INSERT INTO media_assets(id,cloud_file_id)VALUES($1,$1)`, file)
+	var imageData bytes.Buffer
+	png.Encode(&imageData, image.NewRGBA(image.Rect(0, 0, 2, 2)))
+	policy := metadata.DefaultScrapePolicy()
+	policy.Movie.NFO = false
+	policy.Movie.Poster = true
+	item := metadata.Item{ID: 1, Title: "Owned", MediaType: "movie", Scrape: &metadata.ScrapeBundle{Policy: policy, Artworks: []metadata.Artwork{{Level: "movie", Role: "poster", Extension: ".png", Data: imageData.Bytes()}}}}
+	j := Journal{DB: e.DB, Vault: e.Connections.Repository.Vault}
+	tx, err := e.DB.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := OutputProjection{Path: "Movies/Owned/Owned [owned].strm", WholeFilePlayback: true}
+	intents, err := StageOutputProjections(ctx, j, tx, e.Connections.Config.STRMOutputDir, file, item, nil, []OutputProjection{p}, []byte("https://owned.fixture/original\n"), "owned")
+	if err != nil {
+		tx.Rollback(ctx)
+		t.Fatal(err)
+	}
+	if err = tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range intents {
+		if err = j.Apply(ctx, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err = os.Stat(filepath.Join(e.Connections.Config.STRMOutputDir, "Movies/Owned/Owned [owned].nfo")); !os.IsNotExist(err) {
+		t.Fatal("disabled NFO generated", err)
+	}
+	if _, err = os.Stat(filepath.Join(e.Connections.Config.STRMOutputDir, "Movies/Owned/Owned [owned]-poster.png")); err != nil {
+		t.Fatal("selected poster not generated", err)
+	}
+	scan, err := e.Start(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := e.ScanByID(ctx, scan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = e.HideHistory(ctx, []HistorySelection{{Kind: "scan", ID: scan, UpdatedAt: s.UpdatedAt}}, true); err == nil {
+		t.Fatal("active scan hidden")
+	}
+	e.DB.Exec(ctx, `UPDATE library_scans SET state='succeeded',updated_at=now() WHERE id=$1`, scan)
+	s, _ = e.ScanByID(ctx, scan)
+	if err = e.HideHistory(ctx, []HistorySelection{{Kind: "scan", ID: scan, UpdatedAt: s.UpdatedAt}}, true); err != nil {
+		t.Fatal(err)
+	}
+	_, count, err := e.History(ctx, HistoryFilter{Kind: "scan", Limit: 10})
+	if err != nil || count != 0 {
+		t.Fatal("hidden history still listed", count, err)
+	}
+	var retained bool
+	e.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM library_scans WHERE id=$1)`, scan).Scan(&retained)
+	if !retained {
+		t.Fatal("recovery evidence deleted")
+	}
+	e.DB.Exec(ctx, `UPDATE library_scans SET updated_at=now()+interval '1 second',message='new evidence' WHERE id=$1`, scan)
+	_, count, err = e.History(ctx, HistoryFilter{Kind: "scan", Limit: 10})
+	if err != nil || count != 1 {
+		t.Fatal("new evidence hidden by old deletion", count, err)
 	}
 }

@@ -137,7 +137,7 @@ func fingerprint(value any) string {
 	return hex.EncodeToString(sum[:])
 }
 
-var tokenPattern = regexp.MustCompile(`\{([a-zA-Z]+)\}`)
+var tokenPattern = regexp.MustCompile(`\{([a-zA-Z_]+)\}`)
 
 func FileName(in Input, source File) (string, error) {
 	if in.Name != "" && in.Template != "" {
@@ -155,6 +155,8 @@ func FileName(in Input, source File) (string, error) {
 		if in.Season < 0 || in.Season > 999 || in.Episode < 0 || in.Episode > 9999 {
 			return "", ErrInvalid
 		}
+		vars["videoFormat"] = in.Resolution
+		vars["season_episode"] = fmt.Sprintf("S%02dE%02d", in.Season, in.Episode)
 		vars["season"] = pad(in.Season)
 		vars["episode"] = pad(in.Episode)
 		valid := true

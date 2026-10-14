@@ -209,7 +209,7 @@ func (e Engine) FinalizeRecovered(ctx context.Context) error {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	rows, err := tx.Query(ctx, `SELECT c.id::text,c.asset_id::text FROM library_candidates c WHERE state IN ('artifacts_pending','needs_output_reconciliation') AND EXISTS(SELECT 1 FROM media_artifact_journal j WHERE j.asset_id=c.asset_id AND j.state='applied' AND j.artifact_kind='nfo') AND NOT EXISTS(SELECT 1 FROM media_artifact_journal j WHERE j.asset_id=c.asset_id AND j.state<>'applied') FOR UPDATE OF c`)
+	rows, err := tx.Query(ctx, `SELECT c.id::text,c.asset_id::text FROM library_candidates c WHERE state IN ('artifacts_pending','needs_output_reconciliation') AND EXISTS(SELECT 1 FROM media_artifact_journal j WHERE j.asset_id=c.asset_id AND j.state='applied' AND j.artifact_kind IN ('strm','nfo')) AND NOT EXISTS(SELECT 1 FROM media_artifact_journal j WHERE j.asset_id=c.asset_id AND j.state<>'applied') FOR UPDATE OF c`)
 	if err != nil {
 		return err
 	}
