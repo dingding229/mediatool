@@ -97,3 +97,12 @@ identity changes require confirmation; password fields allow paste/managers,
 visibility toggles and have real labels. Scoped ui-ux-pro-max authentication
 search verified these recommendations; no new form library is needed for the
 small forms, and password values deliberately do not use `.trim`.
+
+## Player UA admission · 2026-10-14
+
+播放器访问 is an explicit browse-group page with a default-disabled admission
+policy, real aggregate observations and exact-UA approval. Desktop uses a
+bounded table; mobile uses cards with44px actions. Full UA remains available in
+a wrapping readonly detail field. Rule removal, admission changes and cleanup
+require distinct confirmation. Counts say UA admission, never playback success.
+Scoped ui-ux-pro-max table/confirmation guidance verified this choice.

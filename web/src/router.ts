@@ -22,6 +22,7 @@ const router=createRouter({history:createWebHistory(),routes:[
   {path:'downloads',name:'downloads',component:()=>import('./views/DownloadsView.vue')},
   {path:'cloud-connections',name:'cloudConnections',component:()=>import('./views/CloudConnectionsView.vue')},
   {path:'files',name:'files',component:()=>import('./views/FilesView.vue')},
+  {path:'player-access',name:'playerAccess',component:()=>import('./views/PlayerAccessView.vue')},
   {path:'media-server',name:'mediaServer',component:()=>import('./views/MediaServerView.vue')},
   {path:'media-users',name:'mediaUsers',component:()=>import('./views/MediaUsersView.vue')},
   {path:'mediaLibrary',name:'mediaLibrary',component:()=>import('./views/MediaLibraryView.vue')},

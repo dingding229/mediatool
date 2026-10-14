@@ -92,7 +92,7 @@ func TestNativeMediaUsersIsolationPermissionsAndRevocation(t *testing.T) {
 	member := login("member_one", "first123")
 	// Neither administrator nor member sessions can cross the realm boundary,
 	// even when a client manually renames or forwards the other cookie.
-	for _, path := range []string{"/api/v1/media-server/users", "/api/v1/integrations", "/api/v1/logs", "/api/v1/data/postgres/tables", "/api/v1/system/status"} {
+	for _, path := range []string{"/api/v1/player-access/policy", "/api/v1/player-access/observations", "/api/v1/media-server/users", "/api/v1/integrations", "/api/v1/logs", "/api/v1/data/postgres/tables", "/api/v1/system/status"} {
 		expect(call("GET", path, nil, member), 401)
 	}
 	expect(call("GET", "/api/v1/system/status", nil, &http.Cookie{Name: auth.CookieName, Value: member.Value}), 401)

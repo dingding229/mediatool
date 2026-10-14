@@ -22,7 +22,7 @@ import (
 
 func TestAccessMetricsRawURLAndLocationWithoutCollectingHeadersOrBodies(t *testing.T) {
 	var logs bytes.Buffer
-	api := &API{Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
+	api := &API{Config: cfg(), Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
 	handler := api.middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(206)
 		io.WriteString(w, "owned-bytes")
@@ -45,7 +45,7 @@ func TestAccessMetricsRawURLAndLocationWithoutCollectingHeadersOrBodies(t *testi
 }
 func TestAccessMetricsPreserveWriterInterfacesAndFlush(t *testing.T) {
 	var logs bytes.Buffer
-	api := &API{Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
+	api := &API{Config: cfg(), Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
 	writer := httptest.NewRecorder()
 	handler := api.middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := w.(http.Flusher); !ok {
@@ -74,7 +74,7 @@ func TestAccessMetricsPreserveWriterInterfacesAndFlush(t *testing.T) {
 }
 func TestAccessMetricsIncludeRecoveredPanicWithoutPayload(t *testing.T) {
 	var logs bytes.Buffer
-	api := &API{Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
+	api := &API{Config: cfg(), Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
 	writer := httptest.NewRecorder()
 	handler := api.middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { panic("NEVER-LOG-PRIVATE-PANIC") }))
 	handler.ServeHTTP(writer, httptest.NewRequest("GET", "/api/v1/fixture", nil))
@@ -91,7 +91,7 @@ func TestAccessMetricsIncludeRecoveredPanicWithoutPayload(t *testing.T) {
 
 func TestAccessMetricsDoNotAppendJSONToAbortedMediaStream(t *testing.T) {
 	var logs bytes.Buffer
-	api := &API{Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
+	api := &API{Config: cfg(), Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
 	writer := httptest.NewRecorder()
 	handler := api.middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(206)
@@ -116,7 +116,7 @@ func TestAccessMetricsDoNotAppendJSONToAbortedMediaStream(t *testing.T) {
 
 func TestCancelledStreamLogsFixedReasonWithoutFabricated502(t *testing.T) {
 	var logs bytes.Buffer
-	api := &API{Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
+	api := &API{Config: cfg(), Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
 	handler := api.middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Media-Gateway-Reason", "request_cancelled")
 		panic(http.ErrAbortHandler)

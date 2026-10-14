@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.21.0-dev
-  description: 'Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
+  version: 0.22.0-dev
+  description: 'Playback UA admission precedes resolver/cache/upstream; unmatched UA returns403 player_ua_denied, policy failure503 player_ua_unavailable. UA is client-controlled, never replaces media authorization. Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
 servers:
@@ -3885,6 +3885,228 @@ paths:
         schema:
           type: string
           const: media-tool
+  /api/v1/player-access/policy:
+    get:
+      operationId: playerUAPolicy
+      description: 管理员读取全局UA策略与白名单；默认限制关闭。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 策略修订变化，须刷新后重试
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    put:
+      operationId: savePlayerUAPolicy
+      description: 完整替换策略，乐观revision，更新后对后续请求立即生效；启用至少需要一条有效规则。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 策略修订变化，须刷新后重试
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - enabled
+              - revision
+              - rules
+              properties:
+                enabled:
+                  type: boolean
+                  default: false
+                revision:
+                  type: integer
+                  minimum: 1
+                rules:
+                  type: array
+                  maxItems: 128
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - matchType
+                    - userAgent
+                    - enabled
+                    properties:
+                      id:
+                        type: string
+                        description: 新规则省略；现有规则为已知uuid
+                      label:
+                        type: string
+                        maxLength: 80
+                      matchType:
+                        enum:
+                        - exact
+                        - prefix
+                        description: 区分大小写；前缀至少3字节，不是通配符或正则
+                      userAgent:
+                        type: string
+                        maxLength: 4096
+                        description: 原始UTF8 UA最多4096字节，不去除首尾空格，禁止控制字符
+                      enabled:
+                        type: boolean
+                updatedAt:
+                  type: string
+                  format: date-time
+                  description: 接受完整读取快照；实际更新时间由服务器产生
+  /api/v1/player-access/observations:
+    get:
+      operationId: playerUAObservations
+      description: 聚合实际播放请求UA，最多2000种；通过计数不代表媒体授权或播放成功。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 策略修订变化，须刷新后重试
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+          maxLength: 200
+      - name: filter
+        in: query
+        schema:
+          enum:
+          - ''
+          - whitelisted
+          - unlisted
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+  /api/v1/player-access/observations/{id}/allow:
+    post:
+      operationId: allowPlayerUAObservation
+      description: 按记录原始完整UA添加/启用exact白名单，不自动开启全局限制。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 策略修订变化，须刷新后重试
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '404':
+          description: 原始记录已清理或淘汰
+      parameters:
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - revision
+              - confirm
+              properties:
+                revision:
+                  type: integer
+                  minimum: 1
+                confirm:
+                  const: true
+                label:
+                  type: string
+                  maxLength: 80
+  /api/v1/player-access/observations/clear:
+    post:
+      operationId: clearPlayerUAObservations
+      description: 仅清理UA聚合记录；不删除白名单、原始日志或媒体。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 策略修订变化，须刷新后重试
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - revision
+              - confirm
+              properties:
+                revision:
+                  type: integer
+                  minimum: 1
+                confirm:
+                  const: true
 components:
   securitySchemes:
     MemberSession:

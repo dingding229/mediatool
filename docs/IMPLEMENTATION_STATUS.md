@@ -2,9 +2,13 @@
 
 # 当前实现与验证状态
 
-更新：2026-10-14。源码版本0.21.0-dev，数据库迁移44；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
+更新：2026-10-14。源码版本0.22.0-dev，数据库迁移45；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
 
 主要业务已实现，本轮继续完成不依赖真实账号的可靠性与管理功能。**测试服务通过不等于真实115/PT/Emby客户端通过；整体项目未宣布验收完成。** 历史过程保留在 WORK_LOG.md，本文件只记录当前状态。
+
+## 本轮0.22 播放器UA白名单
+
+独立播放器访问页、原始UA聚合记录、从记录添加、完整/前缀匹配、即时修订和明确启用/清理。UA限制默认关闭，覆盖STRM、Emby播放入口和预留内置播放接口，在缓存或上游前校验，未匹配403/故障503；原始UA继续用于115取链。UA不是强身份，不替代媒体授权，不追溯撤销已发CDN URL。详见PLAYER_UA_ACCESS.md。
 
 ## 本轮0.21 内置媒体库边界与媒体用户
 

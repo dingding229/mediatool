@@ -47,7 +47,7 @@ async function login(page:import('@playwright/test').Page){
  await page.getByRole('button',{name:'进入工作台',exact:true}).click()
  await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
  await expect(page.getByText('服务器负载',{exact:true})).toBeVisible()
- await expect(page.locator('.sidebar-note')).toContainText('0.21.0-dev')
+ await expect(page.locator('.sidebar-note')).toContainText('0.22.0-dev')
 }
 // Later UI-only fixtures share one valid account session in memory. Login/
 // logout/password/rate-limit behavior above remains separately exercised; do
@@ -1164,4 +1164,56 @@ test('media users have independent login forced password change and revocable sc
   await page.getByRole('button',{name:'删除',exact:true}).click();await page.getByRole('button',{name:'确认',exact:true}).click()
   await expect(page.getByRole('cell',{name:'e2e_media_member 独立媒体用户'})).not.toBeVisible()
  }finally{await context.close()}
+})
+
+test('player UA observations can be approved and enforce whitelist before all playback paths',async({page})=>{
+ await fixtureLogin(page)
+ const ua='Owned-E2E-Player/1.0'
+ const observed=await page.request.get('/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key&path=/115/OwnedFixture.mkv',{headers:{'User-Agent':ua},maxRedirects:0})
+ expect(observed.status()).toBe(401)
+ await page.goto('/player-access')
+ await expect(page.getByRole('heading',{name:'播放器访问',exact:true})).toBeVisible()
+ await expect(page.getByText('当前仅记录访问，不按UA限制现有播放器。',{exact:true})).toBeVisible()
+ await page.getByLabel('搜索UA记录',{exact:true}).fill(ua)
+ await page.getByRole('button',{name:'搜索记录',exact:true}).click()
+ const row=page.locator('.ua-table .el-table__row').filter({hasText:ua})
+ await expect(row).toBeVisible()
+ await row.getByRole('button',{name:'查看UA',exact:true}).click()
+ let dialog=page.getByRole('dialog',{name:'完整UA访问信息',exact:true})
+ await expect(dialog.getByLabel('实际收到的完整 UA',{exact:true})).toHaveValue(ua)
+ await dialog.getByRole('button',{name:'从此记录加入白名单',exact:true}).click()
+ dialog=page.getByRole('dialog',{name:'从访问记录加入白名单',exact:true})
+ await expect(dialog.getByLabel('完整 User-Agent',{exact:true})).toHaveValue(ua)
+ await expect(dialog.getByLabel('完整 User-Agent',{exact:true})).toHaveAttribute('readonly','')
+ await dialog.getByLabel('播放器备注',{exact:true}).fill('Owned E2E player')
+ await dialog.getByRole('button',{name:'确认加入白名单',exact:true}).click()
+ await expect(page.getByText('Owned E2E player',{exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'启用UA限制',exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'启用UA限制',exact:true}).click()
+ await page.getByRole('dialog',{name:'启用播放器白名单',exact:true}).getByRole('button',{name:'启用限制',exact:true}).click()
+ await expect(page.getByRole('button',{name:'关闭UA限制',exact:true})).toBeVisible()
+ try{
+  const blocked=await page.request.get('/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key',{headers:{'User-Agent':'Unknown-E2E-Player/2'},maxRedirects:0})
+  expect(blocked.status()).toBe(403);expect(blocked.headers().location).toBeUndefined();expect((await blocked.json()).error.code).toBe('player_ua_denied')
+  const allowed=await page.request.get('/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key',{headers:{'User-Agent':ua},maxRedirects:0});expect(allowed.status()).toBe(401)
+  for(const path of ['/Videos/11/original.mkv','/Items/11/PlaybackInfo','/emby/VIDEOS/11/stream']){
+   const reply=await page.request.get('http://localhost:18085'+path,{headers:{'User-Agent':'Unknown-E2E-Player/2'},maxRedirects:0});expect(reply.status()).toBe(403);expect(reply.headers().location).toBeUndefined()
+  }
+  await expect(page.locator('.el-message')).toHaveCount(0,{timeout:6000})
+  for(const width of [375,768,1440]){
+   await page.setViewportSize({width,height:900});await page.getByRole('button',{name:'刷新访问记录',exact:true}).click()
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
+   await page.screenshot({path:resolve(screenshots,`player-ua-access-${width}.png`),fullPage:true})
+  }
+ }finally{
+  const current=await page.request.get('/api/v1/player-access/policy');const p=(await current.json()).data
+  const disabled=await page.request.put('/api/v1/player-access/policy',{headers:{'X-Requested-With':'media-tool'},data:{enabled:false,revision:p.revision,rules:p.rules}});expect(disabled.status()).toBe(200)
+ }
+ await page.getByRole('button',{name:'刷新访问记录',exact:true}).click()
+ await page.getByRole('button',{name:'清理UA记录',exact:true}).click()
+ await page.getByRole('dialog',{name:'清理UA访问记录',exact:true}).getByRole('button',{name:'清理记录',exact:true}).click()
+ await expect(page.getByText('Owned E2E player',{exact:true})).toBeVisible()
+ const p=(await(await page.request.get('/api/v1/player-access/policy')).json()).data
+ expect(p.rules).toHaveLength(1);expect(p.enabled).toBe(false)
+ expect((await page.request.put('/api/v1/player-access/policy',{headers:{'X-Requested-With':'media-tool'},data:{enabled:false,revision:p.revision,rules:[]}})).status()).toBe(200)
 })
