@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"media-tool/internal/modules/playeraccess"
-	"net"
+	"media-tool/internal/modules/settings"
 	"net/http"
 	"time"
 )
@@ -47,23 +47,23 @@ func (a *API) admitPlayer(w http.ResponseWriter, r *http.Request) bool {
 		}
 		checker = a.playerAccessRepo()
 	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	if len(host) > 100 {
-		host = "unknown"
-	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	d, err := checker.Check(ctx, playeraccess.Request{UserAgent: r.UserAgent(), Entry: entry, Method: r.Method, ClientIP: host})
+	prefs, prefsErr := (settings.Repository{DB: a.Deps.DB}).Get(ctx)
+	var trusted []string
+	if prefsErr == nil {
+		trusted = prefs.Value.TrustedProxyCIDRs
+	}
+	addr := playeraccess.ClientAddress(r, trusted)
+	request := playeraccess.Request{UserAgent: r.UserAgent(), Entry: entry, Method: r.Method, ClientIP: addr.ClientIP, ConnectionIP: addr.ConnectionIP, IPSource: addr.Source, IPPublic: addr.Public}
+	d, err := checker.Check(ctx, request)
 	if err != nil {
 		a.Deps.Logger.Error("player UA policy unavailable", "module", "playback", "entry", entry, "userAgent", r.UserAgent())
 		playerAccessError(w, playeraccess.ErrUnavailable)
 		return false
 	}
 	if a.Deps.DB != nil {
-		id, eventErr := a.playerAccessRepo().RecordEvent(ctx, playeraccess.Request{UserAgent: r.UserAgent(), Entry: entry, Method: r.Method, ClientIP: host}, d)
+		id, eventErr := a.playerAccessRepo().RecordEvent(ctx, request, d)
 		if eventErr != nil {
 			playerAccessError(w, playeraccess.ErrUnavailable)
 			return false
@@ -72,7 +72,7 @@ func (a *API) admitPlayer(w http.ResponseWriter, r *http.Request) bool {
 			visit.ID = id
 		}
 	}
-	fields := []any{"module", "playback", "entry", entry, "userAgent", r.UserAgent(), "uaAllowed", d.Allowed, "uaReason", d.Reason, "uaRuleId", d.RuleID, "uaPolicyRevision", d.PolicyRevision}
+	fields := []any{"module", "playback", "entry", entry, "userAgent", r.UserAgent(), "clientIp", addr.ClientIP, "connectionIp", addr.ConnectionIP, "ipSource", addr.Source, "ipPublic", addr.Public, "uaAllowed", d.Allowed, "uaReason", d.Reason, "uaRuleId", d.RuleID, "uaPolicyRevision", d.PolicyRevision}
 	if !d.Allowed {
 		a.Deps.Logger.Warn("player UA denied", fields...)
 		fail(w, 403, "player_ua_denied", "当前播放器User-Agent不在白名单中，请联系管理员添加")
@@ -160,6 +160,7 @@ func (a *API) clearPlayerObservations(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) registerPlayerAccess(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/player-access/events", a.protected(a.playerAccessEvents))
+	mux.HandleFunc("GET /api/v1/player-access/users", a.protected(a.playerAccessUsers))
 	mux.HandleFunc("GET /api/v1/player-access/policy", a.protected(a.getPlayerAccess))
 	mux.HandleFunc("PUT /api/v1/player-access/policy", a.protected(a.savePlayerAccess))
 	mux.HandleFunc("GET /api/v1/player-access/observations", a.protected(a.playerObservations))

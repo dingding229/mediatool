@@ -2,9 +2,13 @@
 
 # 当前实现与验证状态
 
-更新：2026-10-14。源码版本0.23.0-dev，数据库迁移46；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
+更新：2026-10-14。源码版本0.24.0-dev，数据库迁移47；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
 
 主要业务已实现，本轮继续完成不依赖真实账号的可靠性与管理功能。**测试服务通过不等于真实115/PT/Emby客户端通过；整体项目未宣布验收完成。** 历史过程保留在 WORK_LOG.md，本文件只记录当前状态。
+
+## 本轮0.24 播放来源与下载进度
+
+可信代理公网IP证据、精确Emby用户筛选、搜索TMDB身份直接下载、云盘索引批量整理/身份回显、只读下载状态刷新及同步错误。真实Tracker的6881端口黑名单已定位，测试下载器改用49161；真实后续连接状态由部署收据核验。详见PLAYER_CLOUD_DOWNLOAD.md。
 
 ## 本轮0.23 文件入库与访问工作台
 

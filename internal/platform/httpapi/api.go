@@ -215,6 +215,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/search/{id}", a.protected(a.getSearch))
 	mux.HandleFunc("GET /api/v1/downloads", a.protected(a.listDownloads))
 	mux.HandleFunc("POST /api/v1/downloads", a.protected(a.startDownload))
+	mux.HandleFunc("POST /api/v1/downloads/sync", a.protected(a.syncDownloads))
 	mux.HandleFunc("GET /api/v1/downloads/{id}/source-preview", a.protected(a.downloadSourcePreview))
 	mux.HandleFunc("POST /api/v1/downloads/{id}/reconfirm-source", a.protected(a.reconfirmDownloadSource))
 	mux.HandleFunc("POST /api/v1/pipeline/{kind}/{id}/retry", a.protected(a.retryPipeline))
@@ -225,6 +226,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/transfers/{id}/resume-import", a.protected(a.resumeOutputImport))
 	mux.HandleFunc("POST /api/v1/media/assets/{id}/identity", a.protected(a.correctAssetIdentity))
 	mux.HandleFunc("POST /api/v1/media/assets/{id}/identity-preview", a.protected(a.previewAssetIdentity))
+	mux.HandleFunc("POST /api/v1/library/organize-selection", a.protected(a.libraryOrganizeSelection))
 	mux.HandleFunc("GET /api/v1/media/assets", a.protected(a.listAssets))
 	mux.HandleFunc("POST /api/v1/media/assets/{id}/grant/revoke", a.protected(a.revokeGrant))
 	mux.HandleFunc("POST /api/v1/media/assets/{id}/grant/rotate", a.protected(a.rotateGrant))
@@ -507,7 +509,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.23.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.24.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

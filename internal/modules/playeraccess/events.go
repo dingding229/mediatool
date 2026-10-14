@@ -11,6 +11,9 @@ type Event struct {
 	ObservationID  string    `json:"observationId"`
 	UserAgent      string    `json:"userAgent"`
 	ClientIP       string    `json:"clientIp"`
+	ConnectionIP   string    `json:"connectionIp"`
+	IPSource       string    `json:"ipSource"`
+	IPPublic       bool      `json:"ipPublic"`
 	Entry          string    `json:"entry"`
 	Method         string    `json:"method"`
 	Allowed        bool      `json:"allowed"`
@@ -40,7 +43,7 @@ func (r Repository) RecordEvent(ctx context.Context, in Request, d Decision) (st
 		return "", ErrUnavailable
 	}
 	id := jobs.UUID()
-	_, err = tx.Exec(ctx, `INSERT INTO player_access_events(id,observation_id,user_agent,client_ip,entry,method,allowed,reason,policy_revision)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, id, ObservationID(in.UserAgent), in.UserAgent, in.ClientIP, in.Entry, in.Method, d.Allowed, d.Reason, d.PolicyRevision)
+	_, err = tx.Exec(ctx, `INSERT INTO player_access_events(id,observation_id,user_agent,client_ip,entry,method,allowed,reason,policy_revision,connection_ip,ip_source,ip_public)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, id, ObservationID(in.UserAgent), in.UserAgent, in.ClientIP, in.Entry, in.Method, d.Allowed, d.Reason, d.PolicyRevision, in.ConnectionIP, in.IPSource, in.IPPublic)
 	if err != nil {
 		return "", ErrUnavailable
 	}
@@ -60,25 +63,28 @@ func (r Repository) FinishEvent(ctx context.Context, id, userID, userName string
 	return err
 }
 func (r Repository) Events(ctx context.Context, q, observation string, page, size int) (EventPage, error) {
+	return r.FilteredEvents(ctx, q, observation, "", page, size)
+}
+func (r Repository) FilteredEvents(ctx context.Context, q, observation, user string, page, size int) (EventPage, error) {
 	out := EventPage{Items: []Event{}, Page: page, PageSize: size, MaxRecords: 10000}
 	if r.DB == nil {
 		return out, ErrUnavailable
 	}
-	if len(q) > 200 || page < 1 || size < 1 || size > 100 || observation != "" && !validObservationID(observation) {
+	if len(user) > 128 || len(q) > 200 || page < 1 || size < 1 || size > 100 || observation != "" && !validObservationID(observation) {
 		return out, ErrInvalid
 	}
-	where := ` WHERE ($1='' OR position(lower($1) IN lower(user_agent||' '||client_ip||' '||emby_user_name||' '||emby_user_id))>0)AND($2=''OR observation_id=$2)`
-	if err := r.DB.QueryRow(ctx, `SELECT count(*) FROM player_access_events`+where, q, observation).Scan(&out.Total); err != nil {
+	where := ` WHERE ($1='' OR position(lower($1) IN lower(user_agent||' '||client_ip||' '||emby_user_name||' '||emby_user_id))>0)AND($2=''OR observation_id=$2) AND ($3='' OR ($3='unknown' AND NOT emby_verified) OR (emby_verified AND emby_user_id=$3))`
+	if err := r.DB.QueryRow(ctx, `SELECT count(*) FROM player_access_events`+where, q, observation, user).Scan(&out.Total); err != nil {
 		return out, ErrUnavailable
 	}
-	rows, err := r.DB.Query(ctx, `SELECT id::text,observation_id,user_agent,client_ip,entry,method,allowed,reason,policy_revision,emby_user_id,emby_user_name,emby_verified,status,created_at FROM player_access_events`+where+` ORDER BY created_at DESC,id LIMIT $3 OFFSET $4`, q, observation, size, (page-1)*size)
+	rows, err := r.DB.Query(ctx, `SELECT id::text,observation_id,user_agent,client_ip,entry,method,allowed,reason,policy_revision,emby_user_id,emby_user_name,emby_verified,status,created_at,connection_ip,ip_source,ip_public FROM player_access_events`+where+` ORDER BY created_at DESC,id LIMIT $4 OFFSET $5`, q, observation, user, size, (page-1)*size)
 	if err != nil {
 		return out, ErrUnavailable
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var e Event
-		if err = rows.Scan(&e.ID, &e.ObservationID, &e.UserAgent, &e.ClientIP, &e.Entry, &e.Method, &e.Allowed, &e.Reason, &e.PolicyRevision, &e.EmbyUserID, &e.EmbyUserName, &e.EmbyVerified, &e.Status, &e.CreatedAt); err != nil {
+		if err = rows.Scan(&e.ID, &e.ObservationID, &e.UserAgent, &e.ClientIP, &e.Entry, &e.Method, &e.Allowed, &e.Reason, &e.PolicyRevision, &e.EmbyUserID, &e.EmbyUserName, &e.EmbyVerified, &e.Status, &e.CreatedAt, &e.ConnectionIP, &e.IPSource, &e.IPPublic); err != nil {
 			return out, ErrUnavailable
 		}
 		out.Items = append(out.Items, e)

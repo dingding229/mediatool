@@ -1,10 +1,12 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"media-tool/internal/modules/acquisition"
 	"media-tool/internal/modules/search"
 	"net/http"
+	"time"
 )
 
 func (a *API) acquisition() *acquisition.Engine {
@@ -34,15 +36,16 @@ func (a *API) startDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		ResourceID  string `json:"resourceId"`
-		SearchRunID string `json:"searchRunId"`
-		MediaType   string `json:"mediaType"`
-		TMDBID      int    `json:"tmdbId"`
+		CorrectMediaIdentity bool   `json:"correctMediaIdentity"`
+		ResourceID           string `json:"resourceId"`
+		SearchRunID          string `json:"searchRunId"`
+		MediaType            string `json:"mediaType"`
+		TMDBID               int    `json:"tmdbId"`
 	}
 	if !decode(w, r, &body) {
 		return
 	}
-	id, err := engine.StartFromRun(r.Context(), body.SearchRunID, body.ResourceID, body.MediaType, body.TMDBID)
+	id, err := engine.StartFromRunIdentity(r.Context(), body.SearchRunID, body.ResourceID, body.MediaType, body.TMDBID, body.CorrectMediaIdentity)
 	if err != nil {
 		if errors.Is(err, search.ErrSnapshotUnavailable) || errors.Is(err, search.ErrSnapshotChanged) || errors.Is(err, search.ErrSnapshotExpired) {
 			fail(w, 409, "search_refresh_required", err.Error())
@@ -87,4 +90,20 @@ func (a *API) reconfirmDownloadSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 202, result)
+}
+
+func (a *API) syncDownloads(w http.ResponseWriter, r *http.Request) {
+	engine := a.acquisition()
+	if engine == nil {
+		fail(w, 503, "downloads_unavailable", "下载器不可用")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
+	defer cancel()
+	err := engine.Sync(ctx)
+	message := ""
+	if err != nil {
+		message = err.Error()
+	}
+	write(w, 200, map[string]string{"message": message})
 }

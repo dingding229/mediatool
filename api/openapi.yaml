@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.23.0-dev
+  version: 0.24.0-dev
   description: 'Playback UA admission precedes resolver/cache/upstream; unmatched UA returns403 player_ua_denied, policy failure503 player_ua_unavailable. UA is client-controlled, never replaces media authorization. Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -10,6 +10,29 @@ servers:
 security:
 - AdminSession: []
 paths:
+  /api/v1/player-access/users:
+    get:
+      operationId: playerAccessUsers
+      description: 已核验Emby用户ID/名称列表；events支持embyUserId精确筛选，unknown仅未核验。IP记录同时回显clientIp/connectionIp/ipSource/ipPublic，不伪造公网来源。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/downloads/sync:
+    post:
+      operationId: syncDownloads
+      description: 只读核对现有下载进度，不重新加种、不恢复暂停或推进上传；按任务保留最后有效进度/同步时间/错误。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/library/organize-selection:
+    post:
+      operationId: libraryOrganizeSelection
+      description: candidateIds或assetIds选择1–20项同一115连接，回显源文件证据及保存的TMDB/季集；不直接移动。后续复用files/batches/preview并绑定expectedFileId及expectedSize。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 文件来源受保护或不同连接
   /api/v1/cloud/accounts/info:
     get:
       operationId: cloudAccountInfo

@@ -133,3 +133,22 @@ func TestModernTorrentAddResponseMustConfirmOwnedHash(t *testing.T) {
 		server.Close()
 	}
 }
+
+func TestProgressTelemetryAndMissingProgress(t *testing.T) {
+	for _, body := range []string{`[{"hash":"wanted","state":"downloading"}]`, `[{"hash":"wanted","state":"downloading","progress":null}]`, `[{"hash":"wanted","state":"downloading","progress":1.2}]`} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, body) }))
+		a := &Adapter{Endpoint: server.URL}
+		if _, err := a.Inspect(context.Background(), "wanted"); err == nil {
+			t.Fatal("missing/invalid progress converted into zero")
+		}
+		server.Close()
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `[{"hash":"wanted","state":"stalledDL","progress":0,"dlspeed":0,"upspeed":1024,"num_seeds":0,"num_leechs":2}]`)
+	}))
+	defer server.Close()
+	task, err := (&Adapter{Endpoint: server.URL}).Inspect(context.Background(), "wanted")
+	if err != nil || task.Progress != 0 || task.State != "stalledDL" || task.UploadSpeed != 1024 || task.Peers != 2 {
+		t.Fatal(task, err)
+	}
+}

@@ -16,7 +16,25 @@ interface Task {
   title: string;
   state: string;
   seedingState: string;
-  progress: number;
+  trackers?: {
+    url: string;
+    status: number;
+    message: string;
+    peers: number;
+    seeds: number;
+    leeches: number;
+  }[];
+  trackerError?: string;
+  progress: number | null;
+  qbState: string;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  seeds: number;
+  peers: number;
+  syncedAt?: string;
+  syncAttemptAt?: string;
+  syncError: string;
+  infoHash: string;
   message: string;
   media: { title: string; year: string };
   createdAt: string;
@@ -48,6 +66,25 @@ const transferLabels: Record<string, string> = {
   uploading: "上传中",
   uncertain: "上传结果待核对",
 };
+const qbLabel = (s: string) =>
+  ({
+    stalledDL: "下载停滞（等待有效连接）",
+    downloading: "正在下载",
+    metaDL: "获取元数据",
+    checkingDL: "校验中",
+    pausedDL: "下载已暂停",
+    stoppedDL: "下载已停止",
+    error: "下载器错误",
+    missingFiles: "源文件缺失",
+    queuedDL: "下载排队",
+    allocating: "分配空间",
+  })[s] ||
+  s ||
+  "状态未同步";
+const rate = (n: number) =>
+  n >= 1024 ** 2
+    ? `${(n / 1024 ** 2).toFixed(2)} MiB/s`
+    : `${(n / 1024).toFixed(1)} KiB/s`;
 const labels: Record<string, string> = {
   pending: "等待下载器提交",
   downloading: "下载中",
@@ -70,10 +107,14 @@ const currentTransfers = computed(
     transfers.value.filter((x) => !["imported", "cancelled"].includes(x.state))
       .length,
 );
-async function refresh() {
+async function refresh(sync = false) {
   if (loading.value) return;
   loading.value = true;
   try {
+    if (sync) {
+      const result = await post<{ message: string }>("/downloads/sync", {});
+      if (result.message) ElMessage.warning(result.message);
+    }
     const [downloadList, transferList] = await Promise.all([
       request<Task[]>("/downloads"),
       request<typeof transfers.value>("/transfers"),
@@ -187,7 +228,7 @@ onUnmounted(() => {
       <h1>下载与传输</h1>
       <p>下载、做种、上传和入库分开记录，原文件不会因入库而被移动。</p>
     </div>
-    <el-button :loading="loading" @click="refresh">刷新进度</el-button>
+    <el-button :loading="loading" @click="refresh(true)">刷新进度</el-button>
   </section>
   <section class="download-overview">
     <article class="panel">
@@ -209,12 +250,24 @@ onUnmounted(() => {
   />
   <section class="panel download-section">
     <div class="panel-title">
-      <div><span class="section-kicker">01 / 下载与做种</span><h2>下载任务</h2><p class="field-hint">下载进度与做种状态独立展示，原文件保留在下载器中。</p></div>
+      <div>
+        <span class="section-kicker">01 / 下载与做种</span>
+        <h2>下载任务</h2>
+        <p class="field-hint">
+          下载进度与做种状态独立展示，原文件保留在下载器中。
+        </p>
+      </div>
       <RouterLink to="/search" class="inline-link">搜索并创建下载</RouterLink>
     </div>
     <el-table
       :data="tasks"
       empty-text="尚无下载任务。先配置站点、TMDB与qBittorrent，再搜索资源。"
+      ><el-table-column type="expand"
+        ><template #default="scope">
+          <pre class="download-evidence">{{
+            JSON.stringify(scope.row, null, 2)
+          }}</pre>
+        </template></el-table-column
       ><el-table-column label="资源 / 媒体" min-width="300"
         ><template #default="scope"
           ><strong>{{ scope.row.title }}</strong>
@@ -222,14 +275,40 @@ onUnmounted(() => {
             {{ scope.row.media?.title }} ({{ scope.row.media?.year }})
           </p></template
         ></el-table-column
-      ><el-table-column label="进度" min-width="160"
+      ><el-table-column label="进度 / 下载器状态" min-width="320"
         ><template #default="scope"
           ><el-progress
-            :percentage="Math.round(scope.row.progress * 100)"
-          /><small>{{
-            labels[scope.row.state] ?? scope.row.state
-          }}</small></template
-        ></el-table-column
+            v-if="scope.row.progress !== null"
+            :percentage="Math.round(scope.row.progress * 100)" /><span
+            v-if="scope.row.progress === null"
+            >尚未同步</span
+          ><small
+            >{{ labels[scope.row.state] ?? scope.row.state }} ·
+            {{ qbLabel(scope.row.qbState) }}</small
+          ><small class="download-telemetry"
+            >↓ {{scope.row.syncedAt ? rate(scope.row.downloadSpeed) : "未知"}} / ↑
+            {{scope.row.syncedAt ? rate(scope.row.uploadSpeed) : "未知"}} · 做种连接
+            {{ scope.row.seeds ?? "未知" }} / 下载连接
+            {{ scope.row.peers ?? "未知" }}<br />最近同步：{{
+              scope.row.syncedAt
+                ? new Date(scope.row.syncedAt).toLocaleString("zh-CN")
+                : "未同步"
+            }}<br /><code>{{ scope.row.infoHash }}</code></small
+          ><small
+            v-for="tracker in scope.row.trackers?.filter(
+              (t: any) => t.status >= 4 && t.message,
+            ) ?? []"
+            :key="tracker.url"
+            class="tracker-error"
+            >Tracker：{{ tracker.message }}</small
+          ><small v-if="scope.row.trackerError" class="tracker-error"
+            >Tracker状态未同步：{{ scope.row.trackerError }}</small
+          >
+          <el-alert
+            v-if="scope.row.syncError"
+            :title="'同步失败（保留上次进度）：' + scope.row.syncError"
+            type="warning"
+            :closable="false" /></template></el-table-column
       ><el-table-column label="做种" width="100"
         ><template #default="scope">{{
           scope.row.seedingState === "seeding" ? "做种中" : "待开始"
@@ -253,8 +332,14 @@ onUnmounted(() => {
   </section>
   <section class="panel transfer-section">
     <div class="panel-title">
-      <div><span class="section-kicker">02 / 上传与入库</span><h2>115上传与入库</h2><p class="field-hint">上传、文件校验和媒体入库按阶段记录。</p></div>
-      <RouterLink to="/organize-history?kind=transfer" class="inline-link">查看上传与入库阶段证据</RouterLink>
+      <div>
+        <span class="section-kicker">02 / 上传与入库</span>
+        <h2>115上传与入库</h2>
+        <p class="field-hint">上传、文件校验和媒体入库按阶段记录。</p>
+      </div>
+      <RouterLink to="/organize-history?kind=transfer" class="inline-link"
+        >查看上传与入库阶段证据</RouterLink
+      >
     </div>
     <el-table
       :data="transfers"
@@ -262,7 +347,7 @@ onUnmounted(() => {
       ><el-table-column
         prop="destination"
         label="目标文件"
-        min-width="260" /><el-table-column label="状态" min-width="150"
+        min-min-width="280" /><el-table-column label="状态" min-width="150"
         ><template #default="scope"
           ><strong>{{
             transferLabels[scope.row.state] ?? scope.row.state
@@ -328,14 +413,44 @@ onUnmounted(() => {
   <OutputRecoveryDialog
     ref="outputRecovery"
     @completed="refresh"
-  /><DownloadSourceDialog
-    ref="sourceRecovery"
-    @completed="refresh"
-  /><section class="downloader-section"><ConnectionPanel :allowed-kinds="['qbittorrent']" title="下载器配置" /></section>
+  /><DownloadSourceDialog ref="sourceRecovery" @completed="refresh" />
+  <section class="downloader-section">
+    <ConnectionPanel :allowed-kinds="['qbittorrent']" title="下载器配置" />
+  </section>
 </template>
 
 <style scoped>
-.download-section,.transfer-section,.note-panel,.downloader-section{margin-bottom:28px}.downloader-section{padding-top:24px;border-top:1px solid var(--border)}
+.tracker-error {
+  display: block;
+  color: var(--caution);
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+}
+.download-evidence {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 16px;
+  max-height: 400px;
+  overflow: auto;
+}
+.download-telemetry {
+  display: block;
+  color: var(--muted);
+  line-height: 1.8;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+
+.download-section,
+.transfer-section,
+.note-panel,
+.downloader-section {
+  margin-bottom: 28px;
+}
+.downloader-section {
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
 .download-overview {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

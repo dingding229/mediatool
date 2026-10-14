@@ -18,7 +18,7 @@ defineExpose({open})
   <p class="recovery-message" role="status">{{preview.message}}</p>
   <p class="field-hint recovery-id">资产ID：{{preview.assetId}} · 传输修订：{{preview.controlRevision}}</p>
   <div class="recovery-paths" aria-label="已有入库输出核对"><section><h3>已有输出</h3><code v-for="path in preview.existingPaths" :key="path">{{path}}</code></section><section><h3>应有布局</h3><code v-for="path in preview.expectedPaths" :key="path">{{path}}</code></section></div>
-  <RouterLink v-if="preview.needsMigration||preview.needsArtifactRecovery" :to="{path:'/library',query:{assetId:preview.assetId}}" class="recovery-link" @click="visible=false">前往云盘索引核对该资产、恢复已有输出并明确预览迁移</RouterLink>
+  <RouterLink v-if="preview.needsMigration||preview.needsArtifactRecovery" :to="{path:'/cloudStorage',query:{assetId:preview.assetId}}" class="recovery-link" @click="visible=false">前往云盘索引核对该资产、恢复已有输出并明确预览迁移</RouterLink>
   <p class="field-hint">核对只读，不会迁移文件。预览后文件、授权、绑定或修订变化会阻止恢复；请求结果不确定时先“重新核对”，不自动重建任务。</p>
  </div>
  <template #footer><el-button :loading="busy" :disabled="applying" @click="refresh">重新核对</el-button><el-button :disabled="applying" @click="visible=false">关闭</el-button><el-button type="primary" :loading="applying" :disabled="!preview?.ready||preview?.state!=='needs_output_reconciliation'" @click="resume">明确恢复入库（不重新上传）</el-button></template>

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
@@ -152,7 +153,11 @@ func (a *Adapter) Inspect(ctx context.Context, id string) (downloads.Task, error
 	}
 	var items []struct {
 		Hash, Name, State string
-		Progress          float64
+		Progress          *float64
+		DownloadSpeed     int64  `json:"dlspeed"`
+		UploadSpeed       int64  `json:"upspeed"`
+		Seeds             int    `json:"num_seeds"`
+		Peers             int    `json:"num_leechs"`
 		SavePath          string `json:"save_path"`
 		ContentPath       string `json:"content_path"`
 		AmountLeft        int64  `json:"amount_left"`
@@ -180,7 +185,10 @@ func (a *Adapter) Inspect(ctx context.Context, id string) (downloads.Task, error
 		return downloads.Task{}, ErrUnavailable
 	}
 	it := items[match]
-	return downloads.Task{ID: it.Hash, State: it.State, Name: it.Name, Progress: it.Progress, SavePath: it.SavePath, ContentPath: it.ContentPath, Size: it.Size, Ratio: it.Ratio, SeedingTime: it.SeedingTime, Complete: it.Progress >= 1 && it.AmountLeft == 0 && it.CompletionOn > 0, Seeding: strings.HasSuffix(it.State, "UP") || it.State == "uploading"}, nil
+	if it.Progress == nil || math.IsNaN(*it.Progress) || *it.Progress < 0 || *it.Progress > 1 || it.State == "" {
+		return downloads.Task{}, ErrUnavailable
+	}
+	return downloads.Task{ID: it.Hash, State: it.State, Name: it.Name, Progress: *it.Progress, DownloadSpeed: it.DownloadSpeed, UploadSpeed: it.UploadSpeed, Seeds: it.Seeds, Peers: it.Peers, SavePath: it.SavePath, ContentPath: it.ContentPath, Size: it.Size, Ratio: it.Ratio, SeedingTime: it.SeedingTime, Complete: *it.Progress >= 1 && it.AmountLeft == 0 && it.CompletionOn > 0, Seeding: it.State == "stalledUP" || it.State == "forcedUP" || it.State == "uploading"}, nil
 }
 func (a *Adapter) Files(ctx context.Context, id string) ([]downloads.File, error) {
 	raw, err := a.request(ctx, "GET", "torrents/files?"+url.Values{"hash": {id}}.Encode(), "", nil)
@@ -228,4 +236,27 @@ func (a *Adapter) InspectAliases(ctx context.Context, id string, aliases []strin
 		}
 	}
 	return downloads.Task{}, ErrNotFound
+}
+
+func (a *Adapter) Trackers(ctx context.Context, id string) ([]downloads.Tracker, error) {
+	raw, err := a.request(ctx, "GET", "torrents/trackers?"+url.Values{"hash": {id}}.Encode(), "", nil)
+	if err != nil {
+		return nil, err
+	}
+	var values []struct {
+		URL     string `json:"url"`
+		Status  int    `json:"status"`
+		Message string `json:"msg"`
+		Peers   int    `json:"num_peers"`
+		Seeds   int    `json:"num_seeds"`
+		Leeches int    `json:"num_leeches"`
+	}
+	if json.Unmarshal(raw, &values) != nil || len(values) > 200 {
+		return nil, ErrUnavailable
+	}
+	out := []downloads.Tracker{}
+	for _, v := range values {
+		out = append(out, downloads.Tracker{URL: v.URL, Status: v.Status, Message: v.Message, Peers: v.Peers, Seeds: v.Seeds, Leeches: v.Leeches})
+	}
+	return out, nil
 }

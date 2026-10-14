@@ -206,6 +206,15 @@ func (e Engine) Preview(ctx context.Context, in Input) (Plan, error) {
 		return Plan{}, err
 	}
 	defer b.Close()
+	if in.ExpectedFileID != "" || in.ExpectedSize != nil {
+		source, err := b.Find(ctx, in.Source)
+		if err != nil {
+			return Plan{}, err
+		}
+		if in.ExpectedFileID != "" && source.ID != in.ExpectedFileID || in.ExpectedSize != nil && source.Size != *in.ExpectedSize {
+			return Plan{}, ErrChanged
+		}
+	}
 	if (in.Operation == "organize" || in.Operation == "rename") && in.Name == "" && in.Template == "" {
 		source, findErr := b.Find(ctx, in.Source)
 		if findErr != nil {
@@ -225,7 +234,7 @@ func (e Engine) Preview(ctx context.Context, in Input) (Plan, error) {
 			if in.MediaType != "" {
 				hint.MediaType = in.MediaType
 			}
-			if in.Season != 0 {
+			if in.Season != 0 || in.MediaType == "series" {
 				hint.Season = in.Season
 			}
 			if in.Episode != 0 {

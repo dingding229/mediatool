@@ -41,7 +41,10 @@ type Decision struct {
 	RuleID         string `json:"ruleId"`
 	PolicyRevision int64  `json:"policyRevision"`
 }
-type Request struct{ UserAgent, Entry, Method, ClientIP string }
+type Request struct {
+	UserAgent, Entry, Method, ClientIP, ConnectionIP, IPSource string
+	IPPublic                                                   bool
+}
 type Observation struct {
 	ID                 string    `json:"id"`
 	UserAgent          string    `json:"userAgent"`

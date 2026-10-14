@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"media-tool/internal/modules/integrations"
+	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/database"
 	"media-tool/internal/platform/secrets"
@@ -244,5 +245,87 @@ func TestPostgresCloudRelocationPreservesAssetGrantAndRepairsIndex(t *testing.T)
 	var bytes []byte
 	if err = e.DB.QueryRow(ctx, `SELECT plan FROM file_operations WHERE id=$1`, p.ID).Scan(&bytes); err != nil || !json.Valid(bytes) || strings.Contains(string(bytes), "PRIVATE-FIXTURE") {
 		t.Fatal("credential in file plan")
+	}
+}
+
+func TestPreviewRejectsSelectedFileReplacement(t *testing.T) {
+	ctx, e, root, local := fixture(t)
+	name := "Owned.2026.mkv"
+	os.WriteFile(filepath.Join(root.Path, name), []byte("original"), 0600)
+	before, err := local.Find(ctx, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	size := before.Size
+	input := Input{ConnectionID: root.ID, Operation: "rename", Source: name, Name: "Renamed.mkv", ExpectedFileID: before.ID, ExpectedSize: &size}
+	if _, err = e.Preview(ctx, input); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(root.Path, name), []byte("different-size"), 0600)
+	if _, err = e.Preview(ctx, input); !errors.Is(err, ErrChanged) {
+		t.Fatal("selected stale file accepted", err)
+	}
+}
+
+func TestCloudIndexSelectionAndBatchOrganizePreservesSavedIdentity(t *testing.T) {
+	ctx, e, _, _ := fixture(t)
+	record, err := e.Connections.Repository.Save(ctx, "", integrations.Input{Kind: "clouddrive2", Name: "Owned cloud", Enabled: true, Settings: map[string]any{"endpoint": "http://owned.invalid:19798", "cloudRoot": "/115/Owned"}, Secrets: map[string]string{"token": "fixture"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.DB.Exec(ctx, `INSERT INTO storage_connections(id,name,provider)VALUES($1,'Owned','clouddrive2')`, record.ID)
+	file := "00000000-0000-4000-8000-000000000051"
+	asset := "00000000-0000-4000-8000-000000000052"
+	candidate := "00000000-0000-4000-8000-000000000053"
+	media := "00000000-0000-4000-8000-000000000054"
+	for _, q := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO cloud_files(id,storage_id,provider_file_id,full_path,size_bytes)VALUES($1,$2,'provider51','/115/Owned/Wrong.Title.2020.S01E01.1080p.mkv',5)`, []any{file, record.ID}},
+		{`INSERT INTO media_assets(id,cloud_file_id)VALUES($1,$2)`, []any{asset, file}},
+		{`INSERT INTO media_items(id,media_type,tmdb_id,title,release_year,metadata)VALUES($1,'series',51,'Confirmed Show','2026','{}')`, []any{media}},
+		{`INSERT INTO media_asset_bindings(asset_id,media_id,season,episode,episodes)VALUES($1,$2,0,2,'[2]')`, []any{asset, media}},
+		{`INSERT INTO library_candidates(id,file_id,asset_id,state)VALUES($1,$2,$3,'confirmed')`, []any{candidate, file, asset}},
+		{`INSERT INTO strm_entries(id,asset_id,output_path,key_reference)VALUES('00000000-0000-4000-8000-000000000055',$1,'owned.strm','unchanged-key')`, []any{asset}},
+	} {
+		if _, err = e.DB.Exec(ctx, q.sql, q.args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	provider := &memoryBackend{files: map[string]File{".": {ID: "root", Path: ".", Directory: true}, "Wrong.Title.2020.S01E01.1080p.mkv": {ID: "provider51", Name: "Wrong.Title.2020.S01E01.1080p.mkv", Path: "Wrong.Title.2020.S01E01.1080p.mkv", Size: 5}}}
+	e.Open = func(context.Context, Root) (Backend, error) { return provider, nil }
+	selected, err := e.LibrarySelection(ctx, []string{candidate}, nil)
+	if err != nil || len(selected.Rows) != 1 {
+		t.Fatal(selected, err)
+	}
+	row := selected.Rows[0]
+	if !row.Confirmed || row.TMDBID != 51 || row.Title != "Confirmed Show" || row.Year != "2026" || row.Season != 0 || row.Episode != 2 {
+		t.Fatal("saved identity lost", row)
+	}
+	if _, err = e.LibrarySelection(ctx, nil, []string{asset}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.LibrarySelection(ctx, []string{candidate, candidate}, nil); !errors.Is(err, ErrInvalid) {
+		t.Fatal(err)
+	}
+	size := selected.Files[0].Size
+	batch, err := e.PreviewBatch(ctx, []Input{{ConnectionID: selected.Root.ID, Source: row.Source, ExpectedFileID: selected.Files[0].ID, ExpectedSize: &size, Operation: "organize", Title: row.Title, Year: row.Year, MediaType: row.MediaType, Season: row.Season, Episode: row.Episode, Resolution: row.Resolution}})
+	if err != nil || batch.Items[0].State != "preview" {
+		t.Fatal(batch, err)
+	}
+	if !strings.Contains(batch.Items[0].Result.Plan.Items[0].Target, "Season 00") {
+		t.Fatal("season zero ignored", batch.Items[0].Result.Plan)
+	}
+	if _, err = e.ApproveBatch(ctx, batch.ID, batch.Digest, true); err != nil {
+		t.Fatal(err)
+	}
+	payload, _ := json.Marshal(map[string]string{"batchId": batch.ID})
+	if err = e.ProcessBatch(ctx, jobs.Job{Payload: payload}); err != nil {
+		t.Fatal(err)
+	}
+	var title, key, actual string
+	if err = e.DB.QueryRow(ctx, `SELECT m.title,s.key_reference,f.full_path FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id JOIN media_asset_bindings b ON b.asset_id=a.id JOIN media_items m ON m.id=b.media_id JOIN strm_entries s ON s.asset_id=a.id WHERE a.id=$1`, asset).Scan(&title, &key, &actual); err != nil || title != "Confirmed Show" || key != "unchanged-key" || !strings.Contains(actual, "Season 00") {
+		t.Fatal(title, key, actual, err)
 	}
 }

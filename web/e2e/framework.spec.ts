@@ -47,7 +47,7 @@ async function login(page:import('@playwright/test').Page){
  await page.getByRole('button',{name:'进入工作台',exact:true}).click()
  await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
  await expect(page.getByText('服务器负载',{exact:true})).toBeVisible()
- await expect(page.locator('.sidebar-note')).toContainText('0.23.0-dev')
+ await expect(page.locator('.sidebar-note')).toContainText('0.24.0-dev')
 }
 // Later UI-only fixtures share one valid account session in memory. Login/
 // logout/password/rate-limit behavior above remains separately exercised; do
@@ -467,7 +467,7 @@ test('blocked legacy imports require read-only review before import-only approva
  const resume=dialog.getByRole('button',{name:'明确恢复入库（不重新上传）',exact:true})
  await expect(resume).toBeDisabled();expect(approvals).toHaveLength(0)
  const link=dialog.getByRole('link',{name:'前往云盘索引核对该资产、恢复已有输出并明确预览迁移',exact:true})
- await expect(link).toHaveAttribute('href',`/library?assetId=${asset}`)
+ await expect(link).toHaveAttribute('href',`/cloudStorage?assetId=${asset}`)
  await dialog.getByRole('button',{name:'关闭',exact:true}).click();expect(approvals).toHaveLength(0)
  migrated=true;await row.getByRole('button',{name:'核对入库恢复',exact:true}).click()
  await expect(resume).toBeEnabled()
@@ -606,10 +606,9 @@ test('separate 115 setup saves without tokens and secret echoes are explicit (is
  await dialog.getByRole('button',{name:'加密保存',exact:true}).click()
  const row=page.getByRole('row').filter({hasText:embyName});await row.getByRole('button',{name:'编辑',exact:true}).click()
  const edit=page.getByRole('dialog',{name:'编辑连接',exact:true}),field=edit.getByLabel('媒体库刷新 API Key',{exact:true})
- await expect(field).toHaveValue('')
- await edit.getByRole('button',{name:'读取已保存密钥',exact:true}).click()
- await page.getByRole('button',{name:'确认读取',exact:true}).click()
- await expect(field).toHaveValue(value);await expect(field).toHaveAttribute('type','password')
+ await expect(field).toHaveValue(value);await expect(field).toHaveAttribute('type','text')
+ await edit.getByRole('button',{name:'隐藏媒体库刷新 API Key',exact:true}).click()
+ await expect(field).toHaveAttribute('type','password')
  await edit.getByRole('button',{name:'显示媒体库刷新 API Key',exact:true}).click()
  await expect(field).toHaveAttribute('type','text')
  await edit.screenshot({path:resolve(screenshots,'service-secrets-explicit-desktop.png'),animations:'disabled',mask:[field]})
@@ -1262,4 +1261,53 @@ test('STRM repair history stage is accepted by the actual protected API',async({
  await page.getByRole('navigation',{name:'历史阶段快捷筛选',exact:true}).getByRole('button',{name:'STRM修复',exact:true}).click()
  expect((await response).status()).toBe(200)
  await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
+test('known search TMDB identity is echoed and submitted without another lookup (fixture)',async({page})=>{
+ await fixtureLogin(page)
+ const runId='direct-identity-run',resourceId='identity-resource'
+ const media={id:1381078,mediaType:'movie',title:'一生所爱',originalTitle:'Love of Your Life',year:'2026'}
+ await page.route('**/api/v1/integrations',r=>r.fulfill({json:{data:[]}}))
+ await page.route('**/api/v1/search',r=>r.fulfill({json:{data:[]}}))
+ await page.route(`**/api/v1/search/${runId}?*`,r=>r.fulfill({json:{data:{id:runId,keyword:'一生所爱',state:'succeeded',media,sites:[],resources:[{id:resourceId,title:'Love.of.Your.Life.2026.1080p.WEB-DL.H264',siteName:'Owned',size:100,seeders:0,downloadFactor:0,metadata:{}}],total:1}}}))
+ let lookup=0,submitted:Record<string,unknown>|undefined
+ await page.route('**/api/v1/metadata/search?*',r=>{lookup++;return r.fulfill({json:{data:[]}})})
+ await page.route('**/api/v1/downloads',r=>{submitted=r.request().postDataJSON();return r.fulfill({json:{data:{id:'owned-task'}}})})
+ await page.goto(`/search/results/${runId}`);await page.getByRole('button',{name:'确认并下载',exact:true}).click()
+ const dialog=page.getByRole('dialog',{name:'确认媒体身份与下载'});await expect(dialog.getByRole('heading',{name:'已使用搜索中的媒体身份'})).toBeVisible();await expect(dialog.getByText('1381078',{exact:true})).toBeVisible();await expect(dialog.getByRole('button',{name:'查询 TMDB'})).toHaveCount(0)
+ for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`download-search-identity-${width}.png`),fullPage:true,animations:'disabled'})}
+ await dialog.getByRole('button',{name:'创建下载任务',exact:true}).click();await expect.poll(()=>submitted?.tmdbId).toBe(1381078);expect(submitted?.searchRunId).toBe(runId);expect(submitted?.correctMediaIdentity).toBe(false);expect(lookup).toBe(0)
+})
+
+test('download zero, unknown and sync errors are distinct; refresh observes only (fixture)',async({page})=>{
+ await fixtureLogin(page)
+ const tasks=[{id:'zero',title:'真实0进度',state:'downloading',seedingState:'pending',progress:0,qbState:'stalledDL',downloadSpeed:0,uploadSpeed:0,seeds:0,peers:0,syncedAt:'2026-10-14T00:00:00Z',infoHash:'owned-hash',media:{title:'电影',year:'2026'}},{id:'unknown',title:'尚未核对的任务',state:'pending',progress:null,media:{}},{id:'stale',title:'保留最后有效进度',state:'downloading',progress:0.42,qbState:'downloading',syncError:'torrent not found in qBittorrent',media:{}}]
+ await page.route('**/api/v1/downloads',r=>r.fulfill({json:{data:tasks}}));await page.route('**/api/v1/transfers',r=>r.fulfill({json:{data:[]}}));await page.route('**/api/v1/integrations',r=>r.fulfill({json:{data:[]}}))
+ let sync=0;await page.route('**/api/v1/downloads/sync',r=>{expect(r.request().method()).toBe('POST');sync++;return r.fulfill({json:{data:{message:''}}})})
+ await page.goto('/downloads');await expect(page.getByText('下载中 · 下载停滞（等待有效连接）',{exact:true})).toBeVisible();await expect(page.getByText('尚未同步',{exact:true})).toBeVisible();await expect(page.getByText('同步失败（保留上次进度）：torrent not found in qBittorrent',{exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'刷新进度',exact:true}).click();await expect.poll(()=>sync).toBe(1)
+ for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`download-telemetry-${width}.png`),fullPage:true})}
+})
+
+test('Emby user filter uses verified IDs and echoes public address provenance (fixture)',async({page})=>{
+ await fixtureLogin(page)
+ await page.route('**/api/v1/player-access/policy',r=>r.fulfill({json:{data:{enabled:false,revision:1,rules:[]}}}));await page.route('**/api/v1/player-access/observations?*',r=>r.fulfill({json:{data:{items:[],total:0}}}));await page.route('**/api/v1/player-access/users',r=>r.fulfill({json:{data:[{id:'verified-id',name:'已核验用户'}]}}))
+ const seen:string[]=[];await page.route('**/api/v1/player-access/events?*',r=>{seen.push(new URL(r.request().url()).searchParams.get('embyUserId')??'');return r.fulfill({json:{data:{items:[{id:'visit',userAgent:'Owned Player',clientIp:'8.8.8.8',connectionIp:'10.0.0.2',ipSource:'trusted_proxy',ipPublic:true,entry:'emby',method:'GET',status:302,embyVerified:true,embyUserId:'verified-id',embyUserName:'已核验用户',createdAt:'2026-10-14T00:00:00Z'}],total:1}}})})
+ await page.goto('/player-access');await expect(page.getByText(/公网访客IP 8\.8\.8\.8/)).toBeVisible();await expect(page.getByText('连接IP 10.0.0.2',{exact:true})).toBeVisible()
+ await page.getByRole('combobox',{name:'按Emby用户筛选',exact:true}).press('ArrowDown');await page.getByRole('option',{name:'已核验用户 · verified-id',exact:true}).click();await expect.poll(()=>seen.at(-1)).toBe('verified-id');await page.screenshot({path:resolve(screenshots,'public-ip-user-filter.png'),fullPage:true})
+})
+
+test('cloud index bulk organizer echoes saved identity, templates and frozen file proof (fixture)',async({page})=>{
+ await fixtureLogin(page)
+ const candidateId='00000000-0000-4000-8000-000000000101',assetId='00000000-0000-4000-8000-000000000102',rootId='00000000-0000-4000-8000-000000000103',batchId='owned-batch'
+ const source='Show.2020.S01E01.1080p.mkv'
+ await page.route('**/api/v1/library/candidates?*',r=>r.fulfill({json:{data:{items:[{id:candidateId,name:source,path:'/115/'+source,size:5,state:'needs_confirmation',revision:1,cloudState:'present'}],total:1}}}));await page.route('**/api/v1/media/assets?*',r=>r.fulfill({json:{data:{items:[],total:0}}}));for(const path of ['scans','schedules'])await page.route(`**/api/v1/library/${path}`,r=>r.fulfill({json:{data:[]}}))
+ let selected:Record<string,unknown>|undefined,preview:Record<string,any>|undefined
+ await page.route('**/api/v1/library/organize-selection',r=>{selected=r.request().postDataJSON();return r.fulfill({json:{data:{root:{id:rootId,name:'115测试',kind:'cloud',path:'/115',revision:1},files:[{id:'provider',name:source,path:source,size:5,directory:false}],rows:[{source,title:'已确认剧集',year:'2026',mediaType:'series',tmdbId:123,season:0,episode:2,episodes:[2],resolution:'1080p',confirmed:true,warnings:[]}]}}})})
+ await page.route('**/api/v1/files/batches/preview',r=>{preview=r.request().postDataJSON();return r.fulfill({json:{data:{id:batchId,state:'preview',digest:'d',expiresAt:'2099-01-01T00:00:00Z',items:[{ordinal:0,source,state:'preview',result:{id:'op',state:'preview',completedSteps:0,plan:{items:[{source:{path:source},target:'电视剧/已确认剧集 (2026)/Season 00/已确认剧集 - S00E02.mkv'}],steps:[]}}}]}}})})
+ await page.goto('/cloudStorage');await page.getByRole('row').filter({hasText:'/115/'+source}).locator('.el-checkbox').click();await page.getByRole('button',{name:'批量整理115 · 1',exact:true}).click()
+ const dialog=page.getByRole('dialog',{name:'批次整理工作台'});await expect(dialog.getByText(/已确认 TMDB 123/)).toBeVisible();await expect(dialog.getByLabel('批次文件标题')).toHaveValue('已确认剧集');await expect(dialog.getByLabel('批次年份')).toHaveValue('2026');await expect(dialog.getByText('{title} ({year})/{title} ({year}) - {videoFormat}',{exact:true})).toBeVisible();expect(selected?.candidateIds).toEqual([candidateId])
+ await page.screenshot({path:resolve(screenshots,'cloud-batch-identity-desktop.png'),fullPage:true,animations:'disabled'});await page.setViewportSize({width:375,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await dialog.screenshot({path:resolve(screenshots,'cloud-batch-identity-mobile.png'),animations:'disabled'})
+ await dialog.getByRole('button',{name:'预览全部变更',exact:true}).click();await expect.poll(()=>preview?.items?.[0]?.expectedFileId).toBe('provider');expect(preview?.items[0]?.expectedSize).toBe(5);await expect(dialog.getByText(/Season 00/)).toBeVisible()
+ // Production mutations are not fixtures: this verifies only preview; isolated Go tests execute the batch.
 })

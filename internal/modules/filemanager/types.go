@@ -48,6 +48,8 @@ type Backend interface {
 	Close() error
 }
 type Input struct {
+	ExpectedFileID  string `json:"expectedFileId"`
+	ExpectedSize    *int64 `json:"expectedSize"`
 	ConnectionID    string `json:"connectionId"`
 	Operation       string `json:"operation"`
 	Source          string `json:"source"`

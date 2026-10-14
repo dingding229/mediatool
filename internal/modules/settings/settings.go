@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/metadata"
+	"media-tool/internal/modules/playeraccess"
 	"media-tool/internal/modules/releasename"
 	"media-tool/internal/platform/scheduling"
 	"regexp"
@@ -17,6 +18,7 @@ var ErrInvalid = errors.New("invalid application settings")
 var ErrRevision = errors.New("settings changed; refresh first")
 
 type Value struct {
+	TrustedProxyCIDRs           []string              `json:"trustedProxyCidrs"`
 	Scraping                    metadata.ScrapePolicy `json:"scraping"`
 	MovieTemplate               string                `json:"movieTemplate"`
 	SeriesTemplate              string                `json:"seriesTemplate"`
@@ -37,6 +39,9 @@ func Defaults() Value {
 }
 
 func Validate(v Value) error {
+	if !playeraccess.ValidateProxies(v.TrustedProxyCIDRs) {
+		return errors.New("可信代理必须为最多32个规范CIDR，不能使用0.0.0.0/0或::/0")
+	}
 	s := v.Scraping
 	if s.Movie.Thumb || s.Series.Thumb || s.Season.Backdrop || s.Season.Logo || s.Season.Thumb || s.Episode.Poster || s.Episode.Backdrop || s.Episode.Logo {
 		return ErrInvalid

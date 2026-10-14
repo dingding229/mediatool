@@ -26,6 +26,17 @@ type Engine struct {
 	Search      search.Engine
 }
 type taskDetails struct {
+	Trackers         []downloads.Tracker `json:"trackers"`
+	TrackerError     string              `json:"trackerError"`
+	IdentityOverride bool                `json:"identityOverride"`
+	SyncedAt         *time.Time          `json:"syncedAt"`
+	SyncAttemptAt    *time.Time          `json:"syncAttemptAt"`
+	SyncError        string              `json:"syncError"`
+	DownloadSpeed    int64               `json:"downloadSpeed"`
+	UploadSpeed      int64               `json:"uploadSpeed"`
+	Seeds            int                 `json:"seeds"`
+	Peers            int                 `json:"peers"`
+
 	SearchRunID          string        `json:"searchRunId,omitempty"`
 	SourceSnapshotDigest string        `json:"sourceSnapshotDigest,omitempty"`
 	SubscriptionRunID    string        `json:"subscriptionRunId,omitempty"`
@@ -43,6 +54,21 @@ type taskDetails struct {
 	Message              string        `json:"message,omitempty"`
 }
 type Task struct {
+	Trackers      []downloads.Tracker `json:"trackers"`
+	TrackerError  string              `json:"trackerError"`
+	DownloadPath  string              `json:"downloadPath"`
+	LocalPath     string              `json:"localPath"`
+	Endpoint      string              `json:"endpoint"`
+	Category      string              `json:"category"`
+	SyncedAt      *time.Time          `json:"syncedAt"`
+	SyncAttemptAt *time.Time          `json:"syncAttemptAt"`
+	SyncError     string              `json:"syncError"`
+	DownloadSpeed int64               `json:"downloadSpeed"`
+	UploadSpeed   int64               `json:"uploadSpeed"`
+	Seeds         int                 `json:"seeds"`
+	Peers         int                 `json:"peers"`
+	QBState       string              `json:"qbState"`
+
 	ID                     string        `json:"id"`
 	ResourceID             string        `json:"resourceId"`
 	Title                  string        `json:"title"`
@@ -52,7 +78,7 @@ type Task struct {
 	ExpectedHash           string        `json:"expectedHash,omitempty"`
 	ExpectedSeason         *int          `json:"expectedSeason,omitempty"`
 	ExpectedEpisodes       []int         `json:"expectedEpisodes,omitempty"`
-	Progress               float64       `json:"progress"`
+	Progress               *float64      `json:"progress"`
 	InfoHash               string        `json:"infoHash"`
 	Message                string        `json:"message"`
 	SourceRecoveryRequired bool          `json:"sourceRecoveryRequired"`
@@ -71,6 +97,9 @@ func (e Engine) StartExpected(ctx context.Context, resourceID, mediaType string,
 }
 
 func (e Engine) StartFromRun(ctx context.Context, runID, resourceID, mediaType string, tmdbID int) (string, error) {
+	return e.StartFromRunIdentity(ctx, runID, resourceID, mediaType, tmdbID, false)
+}
+func (e Engine) StartFromRunIdentity(ctx context.Context, runID, resourceID, mediaType string, tmdbID int, correction bool) (string, error) {
 	if runID == "" {
 		var err error
 		runID, err = e.Search.LatestRunForResource(ctx, resourceID)
@@ -86,14 +115,14 @@ func (e Engine) StartFromRun(ctx context.Context, runID, resourceID, mediaType s
 	if err != nil {
 		return "", err
 	}
-	return e.startExpected(ctx, runID, resourceID, mediaType, tmdbID, meta.InfoHash, nil, nil, "", 0)
+	return e.startExpected(ctx, runID, resourceID, mediaType, tmdbID, meta.InfoHash, nil, nil, "", 0, correction)
 }
 
 func (e Engine) StartExpectedFromRun(ctx context.Context, runID, resourceID, mediaType string, tmdbID int, expectedHash string, season *int, episodes []int, subscriptionRunID string, revision int64) (string, error) {
 	return e.startExpected(ctx, runID, resourceID, mediaType, tmdbID, expectedHash, season, episodes, subscriptionRunID, revision)
 }
 
-func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType string, tmdbID int, expectedHash string, season *int, episodes []int, subscriptionRunID string, revision int64) (string, error) {
+func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType string, tmdbID int, expectedHash string, season *int, episodes []int, subscriptionRunID string, revision int64, correction ...bool) (string, error) {
 	if runID != "" {
 		if err := e.Search.ValidateRunResource(ctx, runID, resourceID); err != nil {
 			return "", err
@@ -119,7 +148,7 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 	if err != nil || media.ID != tmdbID || media.MediaType != mediaType {
 		return "", errors.New("media identity verification failed")
 	}
-	details := taskDetails{SearchRunID: runID, SubscriptionRunID: subscriptionRunID, ExpectedHash: expectedHash, ExpectedSeason: season, ExpectedEpisodes: episodes, Media: media, Endpoint: connection.String("endpoint"), DownloadPath: source, LocalPath: local, Category: connection.String("category")}
+	details := taskDetails{IdentityOverride: len(correction) > 0 && correction[0], SearchRunID: runID, SubscriptionRunID: subscriptionRunID, ExpectedHash: expectedHash, ExpectedSeason: season, ExpectedEpisodes: episodes, Media: media, Endpoint: connection.String("endpoint"), DownloadPath: source, LocalPath: local, Category: connection.String("category")}
 	if details.Category == "" {
 		details.Category = "media-tool"
 	}
@@ -143,6 +172,17 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 	if runID != "" {
 		if err = e.Search.ValidateRunResourceTx(ctx, tx, runID, resourceID); err != nil {
 			return "", err
+		}
+		var rawIdentity []byte
+		if err = tx.QueryRow(ctx, `SELECT media_context FROM search_runs WHERE id=$1 FOR SHARE`, runID).Scan(&rawIdentity); err != nil {
+			return "", search.ErrSnapshotUnavailable
+		}
+		var identity metadata.Item
+		if len(rawIdentity) > 0 && json.Unmarshal(rawIdentity, &identity) != nil {
+			return "", search.ErrSnapshotChanged
+		}
+		if identity.ID > 0 && (identity.ID != tmdbID || identity.MediaType != mediaType) && !details.IdentityOverride {
+			return "", errors.New("搜索中的TMDB身份已变化；请刷新或明确更正身份")
 		}
 		details.SourceSnapshotDigest, err = e.Search.SourceSnapshotDigest(ctx, runID, resourceID)
 		if err != nil {
@@ -225,8 +265,18 @@ func (e Engine) List(ctx context.Context) ([]Task, error) {
 			return nil, err
 		}
 		var details taskDetails
-		json.Unmarshal(raw, &details)
-		task.Progress = details.Progress
+		if json.Unmarshal(raw, &details) != nil {
+			return nil, errors.New("download details unavailable")
+		}
+		if details.QBState != "" {
+			value := details.Progress
+			task.Progress = &value
+		}
+		task.SyncedAt, task.SyncAttemptAt, task.SyncError = details.SyncedAt, details.SyncAttemptAt, details.SyncError
+		task.QBState, task.DownloadSpeed, task.UploadSpeed, task.Seeds, task.Peers = details.QBState, details.DownloadSpeed, details.UploadSpeed, details.Seeds, details.Peers
+		task.HashAliases, task.ExpectedHash, task.ExpectedSeason, task.ExpectedEpisodes = details.HashAliases, details.ExpectedHash, details.ExpectedSeason, details.ExpectedEpisodes
+		task.DownloadPath, task.LocalPath, task.Endpoint, task.Category = details.DownloadPath, details.LocalPath, details.Endpoint, details.Category
+		task.Trackers, task.TrackerError = details.Trackers, details.TrackerError
 		task.Message = details.Message
 		task.Media = details.Media
 		out = append(out, task)
@@ -395,7 +445,7 @@ func (e Engine) transition(ctx context.Context, id, state, event string, details
 	}
 	defer tx.Rollback(ctx)
 	raw, _ := json.Marshal(details)
-	tag, err := tx.Exec(ctx, `UPDATE download_tasks SET download_state=$2,details=$3,updated_at=now() WHERE id=$1 AND download_state<>$2`, id, state, raw)
+	tag, err := tx.Exec(ctx, `UPDATE download_tasks SET download_state=$2,details=details||($3::jsonb - 'syncedAt' - 'syncAttemptAt' - 'syncError' - 'progress' - 'qbState' - 'downloadSpeed' - 'uploadSpeed' - 'seeds' - 'peers' - 'trackers' - 'trackerError'),updated_at=now() WHERE id=$1 AND download_state<>$2`, id, state, raw)
 	if err != nil {
 		return err
 	}
@@ -408,7 +458,7 @@ func (e Engine) transition(ctx context.Context, id, state, event string, details
 	return tx.Commit(ctx)
 }
 func (e Engine) Reconcile(ctx context.Context) error {
-	rows, err := e.DB.Query(ctx, `SELECT id::text FROM download_tasks WHERE download_state='downloading' ORDER BY created_at LIMIT 100`)
+	rows, err := e.DB.Query(ctx, `SELECT id::text FROM download_tasks WHERE info_hash IS NOT NULL AND download_state NOT IN ('pending','failed','cancelled') ORDER BY coalesce((details->>'syncAttemptAt')::timestamptz,created_at) LIMIT 100`)
 	if err != nil {
 		return err
 	}
@@ -428,32 +478,22 @@ func (e Engine) Reconcile(ctx context.Context) error {
 	return nil
 }
 func (e Engine) reconcileTask(ctx context.Context, id string) {
-	_, connectionID, hash, _, details, err := e.load(ctx, id)
+	_, connectionID, hash, state, details, err := e.load(ctx, id)
 	if err != nil {
 		return
 	}
-	client, err := e.client(ctx, connectionID, details)
+	task, err := e.syncTask(ctx, id, connectionID, hash, details)
 	if err != nil {
-		details.Message = "下载器地址已变更，请人工核对现有任务"
-		raw, _ := json.Marshal(details)
-		e.DB.Exec(ctx, `UPDATE download_tasks SET details=$2 WHERE id=$1`, id, raw)
 		return
 	}
+	details.Progress, details.QBState = task.Progress, task.State
 	bounded, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	task, err := client.InspectAliases(bounded, hash, details.HashAliases)
+	client, err := e.client(bounded, connectionID, details)
 	if err != nil {
 		return
 	}
-	details.Progress = task.Progress
-	details.QBState = task.State
-	raw, _ := json.Marshal(details)
-	seeding := "pending"
-	if task.Seeding {
-		seeding = "seeding"
-	}
-	e.DB.Exec(ctx, `UPDATE download_tasks SET details=$2,seeding_state=$3,updated_at=now() WHERE id=$1`, id, raw, seeding)
-	if !task.Complete {
+	if state != "downloading" || !task.Complete {
 		return
 	}
 	files, err := client.Files(bounded, task.ID)
@@ -470,7 +510,7 @@ func (e Engine) reconcileTask(ctx context.Context, id string) {
 	if actualSave != remoteRoot && !strings.HasPrefix(actualSave, strings.TrimRight(remoteRoot, "/")+"/") {
 		details.Message = "下载器保存路径不在共享映射范围内，需人工修正映射"
 		raw, _ := json.Marshal(details)
-		e.DB.Exec(ctx, `UPDATE download_tasks SET details=$2 WHERE id=$1`, id, raw)
+		e.DB.Exec(ctx, `UPDATE download_tasks SET details=jsonb_set(details,'{message}',($2::jsonb)->'message') WHERE id=$1`, id, raw)
 		return
 	}
 	prefix := strings.TrimPrefix(strings.TrimPrefix(actualSave, remoteRoot), "/")
