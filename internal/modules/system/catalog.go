@@ -11,6 +11,7 @@ type Module struct {
 
 func Modules() []Module {
 	return []Module{
+		{"media-server", "内置媒体库", "预留替代Emby的服务边界和独立媒体用户", "foundation", "M6", []string{"已实现：Go Provider v1与权限隔离", "已实现：媒体用户管理与只读资产目录", "预留：播放票据、进度与播放器协议"}},
 		{"sites", "PT 站点", "配置兼容与账号连接", "partial", "M2", []string{"配置快照与本地覆盖", "公共规则继承", "站点连接测试"}},
 		{"search", "资源搜索", "多站聚合与资源筛选", "partial", "M2", []string{"并发搜索与站点限流", "资源去重", "手动下载"}},
 		{"subscriptions", "资源订阅", "按电影与季集追踪资源", "partial", "M3", []string{"已实现：RSS/周期搜索与规则预演", "已实现：种子季集覆盖与去重", "待验证：真实站点和客户端"}},

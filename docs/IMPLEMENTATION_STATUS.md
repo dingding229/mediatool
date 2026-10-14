@@ -2,9 +2,13 @@
 
 # 当前实现与验证状态
 
-更新：2026-10-13。源码版本0.16.1-dev，数据库迁移37；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
+更新：2026-10-14。源码版本0.21.0-dev，数据库迁移44；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
 
 主要业务已实现，本轮继续完成不依赖真实账号的可靠性与管理功能。**测试服务通过不等于真实115/PT/Emby客户端通过；整体项目未宣布验收完成。** 历史过程保留在 WORK_LOG.md，本文件只记录当前状态。
+
+## 本轮0.21 内置媒体库边界与媒体用户
+
+Provider v1、Go内置只读授权目录、Emby适配边界和独立媒体账号/会话已接入。后台用户管理与 `/watch` 入口独立；密码6–20字符，首次/重置需修改，修改权限/禁用立即撤销会话。不切换现有Emby，不改STRM，不签发未实现的播放票据。详见NATIVE_MEDIA_SERVER.md；完整播放/进度/设备及Emby客户端替代仍待开发。测试及发布结果以本轮实测收据为准。
 
 ## 本轮0.16 资源获取工作台
 

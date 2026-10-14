@@ -86,3 +86,14 @@ Retain existing API/behavior E2E coverage, and add grouped-navigation model unit
 tests; command keyboard and empty-state tests; mobile focus-trap/return tests;
 375 / 768 / 1024 / 1440 px overflow checks. Inspect actual screenshots before
 release. Deployment follows GitHub → Actions AMD64 → Docker Hub → owned server.
+
+## Native media realm · 2026-10-14
+
+Add 自研媒体库 / 媒体用户 to the canonical browse group; `/watch` is a
+separate member surface without administrator navigation. Retain existing
+tokens and avoid pretending to be a completed video player. Mark unsupported
+playback and progress clearly. New-user grants default to none, destructive
+identity changes require confirmation; password fields allow paste/managers,
+visibility toggles and have real labels. Scoped ui-ux-pro-max authentication
+search verified these recommendations; no new form library is needed for the
+small forms, and password values deliberately do not use `.trim`.

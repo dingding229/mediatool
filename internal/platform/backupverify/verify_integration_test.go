@@ -30,7 +30,7 @@ func TestPostgresCloneGuardAndCompleteRekeyMigrationImmutability(t *testing.T) {
 	if _, e = Verify(ctx, db, dsn, "media_tool", strings.Repeat("9", 64), false); e == nil {
 		t.Fatal("production allowed")
 	}
-	rows, e := db.Query(ctx, `SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename NOT IN ('goose_db_version','application_settings','media_archive_policy','network_proxy_settings')`)
+	rows, e := db.Query(ctx, `SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename NOT IN ('goose_db_version','application_settings','media_archive_policy','network_proxy_settings','native_media_libraries')`)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -64,7 +64,7 @@ func TestPostgresCloneGuardAndCompleteRekeyMigrationImmutability(t *testing.T) {
 		t.Fatal(e)
 	}
 	report, e := Verify(ctx, db, dsn, "media_tool_test", strings.Repeat("9", 64), true)
-	if e != nil || !report.DryRunCiphertextsUnchanged || !report.SecondMigrationIdempotent || !report.LegacyBusinessColumnsPreserved || report.FinalVersion != 43 || len(report.CipherRows) != len(secrets.CipherColumns) {
+	if e != nil || !report.DryRunCiphertextsUnchanged || !report.SecondMigrationIdempotent || !report.LegacyBusinessColumnsPreserved || report.FinalVersion != 44 || len(report.CipherRows) != len(secrets.CipherColumns) {
 		t.Fatal(report, e)
 	}
 	var after []byte

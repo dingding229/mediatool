@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.20.0-dev
+  version: 0.21.0-dev
   description: 'Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -3380,8 +3380,518 @@ paths:
           description: Administrator session required
         '409':
           description: Changed snapshot, conflict, protected path or busy operation
+  /api/v1/media-server/providers:
+    get:
+      operationId: nativeMediaProviders
+      description: Provider v1能力说明；内置只读目录，不切换现有Emby，不宣称未实现的播放/进度。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/media-server/libraries:
+    get:
+      operationId: nativeMediaLibraries
+      description: 可授权的movies/series逻辑媒体库。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/media-server/users:
+    get:
+      operationId: mediaUsersList
+      description: 最多500个媒体用户，包含权限、修订和有效会话数；无密码或哈希。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      operationId: mediaUserCreate
+      description: 无公开注册；管理员创建，强制首次改密码；默认无权限。
+      responses:
+        '201':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - username
+              - password
+              - enabled
+              properties:
+                username: &native_id001
+                  type: string
+                  minLength: 3
+                  maxLength: 32
+                displayName: &native_id002
+                  type: string
+                  maxLength: 80
+                enabled: &native_id003
+                  type: boolean
+                grants: &native_id004
+                  type: array
+                  maxItems: 2
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - libraryId
+                    properties:
+                      libraryId:
+                        enum:
+                        - movies
+                        - series
+                      canPlay:
+                        type: boolean
+                        default: false
+                password: &native_id006
+                  type: string
+                  minLength: 6
+                  maxLength: 20
+                  writeOnly: true
+  /api/v1/media-server/users/{id}:
+    put:
+      operationId: mediaUserUpdate
+      description: 修改账号或权限会递增revision并立即撤销旧会话；409须刷新。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - username
+              - enabled
+              - revision
+              properties:
+                username: *native_id001
+                displayName: *native_id002
+                enabled: *native_id003
+                grants: *native_id004
+                revision: &native_id005
+                  type: integer
+                  minimum: 1
+    delete:
+      operationId: mediaUserDelete
+      description: 删除身份、会话、权限，不删除媒体文件。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - revision
+              properties:
+                revision: *native_id005
+  /api/v1/media-server/users/{id}/password:
+    post:
+      operationId: mediaUserResetPassword
+      description: 管理员设置初始密码，撤销会话，下次登录强制修改。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - revision
+              - password
+              properties:
+                revision: *native_id005
+                password: *native_id006
+  /api/v1/media-server/users/{id}/sessions/revoke:
+    post:
+      operationId: mediaUserRevokeSessions
+      description: 撤销该媒体用户全部会话，不影响管理员会话。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - revision
+              properties:
+                revision: *native_id005
+  /api/v1/member/auth/login:
+    post:
+      operationId: memberLogin
+      description: 独立媒体账号登录；PG全局/实际IP/账号限流；HttpOnly媒体会话cookie；不接受管理员或Emby账号。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      security: []
+      parameters:
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - username
+              - password
+              properties:
+                username:
+                  type: string
+                password: *native_id006
+  /api/v1/member/auth/session:
+    get:
+      operationId: memberSession
+      description: 本人媒体会话；管理员cookie无效。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      security:
+      - MemberSession: []
+  /api/v1/member/auth/password:
+    post:
+      operationId: memberChangePassword
+      description: 核对当前密码；新密码6–20字符；成功撤销所有媒体会话，须重新登录。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      security:
+      - MemberSession: []
+      parameters:
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - currentPassword
+              - newPassword
+              - confirmPassword
+              properties:
+                currentPassword: *native_id006
+                newPassword: *native_id006
+                confirmPassword: *native_id006
+  /api/v1/member/auth/logout:
+    post:
+      operationId: memberLogout
+      description: 撤销当前媒体会话。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      security:
+      - MemberSession: []
+      parameters:
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+  /api/v1/member/libraries:
+    get:
+      operationId: memberLibraries
+      description: 实时有效授权范围；未改初始密码返回403。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      security:
+      - MemberSession: []
+  /api/v1/member/libraries/{library}/items:
+    get:
+      operationId: memberLibraryItems
+      description: 仅已确认/ready且present的资产，不含文件路径、pickCode、STRM密钥或上游配置。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      security:
+      - MemberSession: []
+      parameters:
+      - name: library
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - movies
+          - series
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          default: 1
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      - name: q
+        in: query
+        schema:
+          type: string
+          maxLength: 200
+  /api/v1/member/libraries/{library}/items/{item}/poster:
+    get:
+      operationId: memberMediaPoster
+      description: 实时验证用户/媒体库/在库资产，再读取固定TMDB图片源；no-store。
+      responses:
+        '200':
+          description: Authorized poster
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      security:
+      - MemberSession: []
+      parameters:
+      - name: library
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - movies
+          - series
+      - name: item
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/member/libraries/{library}/items/{item}/playback:
+    post:
+      operationId: memberPlaybackReserved
+      description: 预留短期可撤销播放票据；先校验播放权限与在库资产。没有权限403、不存在404、有权限但未实现501；不转授永久STRM密钥。
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+        '404':
+          description: 媒体不存在或已离库
+      security:
+      - MemberSession: []
+      parameters:
+      - name: library
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - movies
+          - series
+      - name: item
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
 components:
   securitySchemes:
+    MemberSession:
+      type: apiKey
+      in: cookie
+      name: media_tool_member_session
+      description: 独立媒体用户随机会话，不能访问管理后台；Path=/api/v1/member，8小时，实时撤销。
     AdminSession:
       type: apiKey
       in: cookie

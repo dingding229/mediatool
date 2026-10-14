@@ -6,6 +6,8 @@ export interface NavigationGroup { id: string; name: string; items: NavigationIt
 export const navigationGroups: NavigationGroup[] = [
   { id: 'browse', name: '媒体浏览', items: [
     { id: 'dashboard', name: '总览', icon: Monitor, keywords: '首页 状态 工作台' },
+    { id: 'media-server', name: '自研媒体库', icon: Film, keywords: '内置 Go TypeScript Provider 播放接口' },
+    { id: 'media-users', name: '媒体用户', icon: Collection, keywords: '账号 权限 登录 独立媒体用户' },
     { id: 'mediaLibrary', name: '媒体库', icon: Film, keywords: 'Emby 电影 剧集 播放' },
   ] },
   { id: 'acquire', name: '资源获取', items: [

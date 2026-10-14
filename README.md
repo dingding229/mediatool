@@ -4,10 +4,12 @@
 
 Go + Vue 3 的模块化媒体自动化程序。PostgreSQL保存业务事实/任务/恢复日志，Redis保存可重建缓存；CloudDrive2负责115扫描/上传；播放可使用已授权的115官方开放平台按播放器UA动态取链。STRM只保存固定解析地址，不保存临时CDN链接。
 
-**当前0.16.1-dev，源码迁移37。主要业务已实现；真实115授权、默认Sen UA的网关302/CDN206与非零Range样本已通过，真实PT入库全链路和客户端完整验收仍未完成，不宣称完整1.0。** 不注入模拟账号、示例下载或假直链。
+**当前0.21.0-dev，源码迁移44。主要业务已实现；真实115授权、默认Sen UA的网关302/CDN206与非零Range样本已通过，真实PT入库全链路和客户端完整验收仍未完成，不宣称完整1.0。** 不注入模拟账号、示例下载或假直链。
 
 本轮新增：HDSKY做种/分页证据、订阅结构化筛选、功能型Go/WASM插件、原始业务日志及隔离备份验证。
 插件功能和权限见 [PLUGIN_FRAMEWORK.md](docs/PLUGIN_FRAMEWORK.md)，日志/备份见 [RAW_LOGS_AND_BACKUP.md](docs/RAW_LOGS_AND_BACKUP.md)。
+
+本轮新增：内置媒体库 Provider v1、独立媒体用户管理和 `/watch` 授权只读目录。播放票据及完整 Emby 替代尚未实现；现有播放不切换。详见 [内置媒体库与媒体用户](docs/NATIVE_MEDIA_SERVER.md)。
 
 ## 能力
 
@@ -26,7 +28,7 @@ Go + Vue 3 的模块化媒体自动化程序。PostgreSQL保存业务事实/任�
 
 ## 开始
 
-已有.env不要重新初始化或替换主密钥。
+已有私密docker-compose.yml不要重新初始化或替换主密钥；部署参数直接写在该文件。开发测试.env仅供本地隔离测试，不是服务器部署配置。
 
 ```bash
 python3 scripts/init-compose.py  # 仅首次，用直接私密Compose；已有密钥不能替换
@@ -34,10 +36,10 @@ docker compose pull
 docker compose up -d --wait
 ```
 
-基础部署管理8080、Emby网关8091。初始化默认只绑定回环；通过 .env 指定管理端口及网关端口；外部Emby/电视需明确配置共享目录与网络/HTTPS访问。提供方凭据在本地“服务连接”填写，不发到聊天。
+基础部署管理8080、Emby网关8091。初始化默认只绑定回环；直接编辑私密 docker-compose.yml 指定管理端口及网关端口；外部Emby/电视需明确配置共享目录与网络/HTTPS访问。提供方凭据在各自所属模块填写，“服务连接”仅查看，不发到聊天。
 
 ```bash
-# 连接 NAS 目录：在同一 .env 设置 STRM_MOUNT、DOWNLOADS_MOUNT、LOCAL_FILES_MOUNT 和 UID/GID
+# 连接 NAS 目录：直接编辑同一私密 docker-compose.yml 的 volumes 和用户参数
 # 不再使用额外 Compose 覆盖文件。
 docker compose up -d --wait
 ```

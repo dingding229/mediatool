@@ -21,12 +21,12 @@ test_db_exec(){
  fi
 }
 go run ./cmd/migrate -test-only -cleanup-test-plugins >/dev/null
-test_db_exec 'TRUNCATE site_template_loads,subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,administrator_accounts,administrator_auth_limits CASCADE'
+test_db_exec 'TRUNCATE site_template_loads,subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,administrator_accounts,administrator_auth_limits,media_users,media_user_auth_limits CASCADE'
 
 test_db_exec "INSERT INTO site_metric_schedule(singleton,enabled,cron_expression,revision,next_run_at) VALUES(true,false,'0 * * * *',1,now()+interval '1 hour') ON CONFLICT(singleton) DO UPDATE SET enabled=false,cron_expression='0 * * * *',revision=1,next_run_at=now()+interval '1 hour',last_dispatched_at=NULL"
 private=$(mktemp -d)
 pids=()
-cleanup(){ for pid in "${pids[@]}";do kill "$pid" 2>/dev/null||true;done;for pid in "${pids[@]}";do wait "$pid" 2>/dev/null||true;done;test_db_exec "UPDATE network_proxy_settings SET tmdb_enabled=false,sites_enabled=false,url_ciphertext=''::bytea,revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE administrator_accounts,administrator_auth_limits CASCADE' >/dev/null 2>&1 || true; rm -rf "$private"; }
+cleanup(){ for pid in "${pids[@]}";do kill "$pid" 2>/dev/null||true;done;for pid in "${pids[@]}";do wait "$pid" 2>/dev/null||true;done;test_db_exec "UPDATE network_proxy_settings SET tmdb_enabled=false,sites_enabled=false,url_ciphertext=''::bytea,revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE administrator_accounts,administrator_auth_limits,media_users,media_user_auth_limits CASCADE' >/dev/null 2>&1 || true; rm -rf "$private"; }
 trap cleanup EXIT INT TERM
 export AUTH_ALLOWED_ORIGINS=https://proxy.fixture.invalid
 export APP_ENV=development APP_ADDR=127.0.0.1:18084 APP_PUBLIC_URL=http://localhost:18084 EMBY_GATEWAY_ADDR=127.0.0.1:18085
@@ -47,6 +47,7 @@ python3 scripts/e2e-emby-fixture.py >"$private/provider.log" 2>&1 & pids+=("$!")
 export E2E_ISOLATED=1 E2E_BASE_URL=http://localhost:18084 E2E_ADMIN_USERNAME=e2e_admin
 export E2E_ADMIN_PASSWORD="$(python3 -c 'import secrets;print("E2E-"+secrets.token_hex(6))')"
 go run ./cmd/migrate -test-only >/dev/null
+test_db_exec "INSERT INTO native_media_libraries(id,name,media_type)VALUES('movies','电影','movie'),('series','剧集','series')ON CONFLICT(id)DO NOTHING"
 go build -o "$private/media-tool" ./cmd/media-tool
 "$private/media-tool" -role all >"$private/server.log" 2>&1 & pids+=("$!")
 
