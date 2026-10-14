@@ -200,7 +200,7 @@ const scheduleDialog = ref(false),
     revision: 0,
   });
 let timer: ReturnType<typeof setInterval> | undefined;
-async function refresh() {
+async function refresh(background = false) {
   if (
     loading.value ||
     dialog.value ||
@@ -208,6 +208,7 @@ async function refresh() {
     migrationDialog.value
   )
     return;
+  if (!background) {selection.value=[];assetSelection.value=[];}
   loading.value = true;
   const failures: string[] = [];
   try {
@@ -216,6 +217,7 @@ async function refresh() {
         `/library/candidates?page=${page.value}&pageSize=50&state=${filter.value}`,
       )
         .then((c) => {
+          if (selection.value.length || assetSelection.value.length || organizing.value) return;
           candidates.value = c.items;
           total.value = c.total;
           selection.value = [];
@@ -229,6 +231,7 @@ async function refresh() {
         `/media/assets?page=${assetPage.value}&pageSize=50${assetFilter.value ? "&assetId=" + encodeURIComponent(assetFilter.value) : ""}`,
       )
         .then((a) => {
+          if (selection.value.length || assetSelection.value.length || organizing.value) return;
           assets.value = a.items;
           assetTotal.value = a.total;
         })
@@ -599,7 +602,7 @@ onMounted(() => {
   timer = setInterval(() => {
     // Keep an operator's selection stable until they explicitly refresh or
     // finish the batch; polling must never silently cancel a bulk action.
-    if (!selection.value.length && !assetSelection.value.length && !organizing.value) void refresh();
+    if (!selection.value.length && !assetSelection.value.length && !organizing.value) void refresh(true);
   }, 10000);
 });
 onUnmounted(() => {
@@ -615,7 +618,7 @@ onUnmounted(() => {
         扫描、确认与入库分开处理。保留源文件，固定播放链接跟随索引中的当前路径。
       </p>
     </div>
-    <el-button :loading="loading" @click="refresh">刷新记录</el-button>
+    <el-button :loading="loading" @click="refresh()">刷新记录</el-button>
   </section>
   <el-alert
     v-if="error"
@@ -716,7 +719,7 @@ onUnmounted(() => {
           :page-size="50"
           :total="total"
           layout="prev,pager,next,total"
-          @current-change="refresh"
+          @current-change="refresh()"
         />
       </section> </el-tab-pane
     ><el-tab-pane label="已入库资产" name="assets"
@@ -776,7 +779,7 @@ onUnmounted(() => {
           :page-size="50"
           :total="assetTotal"
           layout="prev,pager,next,total"
-          @current-change="refresh"
+          @current-change="refresh()"
         />
       </section> </el-tab-pane
     ><el-tab-pane label="扫描与计划" name="scans"
@@ -1122,7 +1125,7 @@ onUnmounted(() => {
     :root="organization.root"
     :files="organization.files"
     :initial-rows="organization.rows"
-    @completed="refresh"
+    @completed="refresh()"
   />
   <section class="note-panel">
     <strong>安全边界</strong>

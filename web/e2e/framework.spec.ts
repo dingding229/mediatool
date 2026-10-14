@@ -1311,3 +1311,16 @@ test('cloud index bulk organizer echoes saved identity, templates and frozen fil
  await dialog.getByRole('button',{name:'预览全部变更',exact:true}).click();await expect.poll(()=>preview?.items?.[0]?.expectedFileId).toBe('provider');expect(preview?.items[0]?.expectedSize).toBe(5);await expect(dialog.getByText(/Season 00/)).toBeVisible()
  // Production mutations are not fixtures: this verifies only preview; isolated Go tests execute the batch.
 })
+
+test('cloud asset selection survives a polling response that was already in flight (fixture)',async({page})=>{
+ await fixtureLogin(page);await page.clock.install()
+ const asset={id:'00000000-0000-4000-8000-000000000099',title:'已入库选择保护',path:'/115/owned-selection.mkv',state:'present',artifactsState:'ready',fileScoped:true,revision:1}
+ await page.route('**/api/v1/library/candidates?*',r=>r.fulfill({json:{data:{items:[],total:0}}}));for(const name of ['scans','schedules'])await page.route(`**/api/v1/library/${name}`,r=>r.fulfill({json:{data:[]}}))
+ let reads=0,release!:()=>void;const pending=new Promise<void>(resolve=>release=resolve)
+ await page.route('**/api/v1/media/assets?*',async r=>{reads++;if(reads===2)await pending;await r.fulfill({json:{data:{items:[asset],total:1}}})})
+ await page.goto('/cloudStorage');await expect(page.getByRole('button',{name:'刷新记录',exact:true})).toBeEnabled();await page.getByRole('tab',{name:'已入库资产',exact:true}).click()
+ await page.clock.fastForward(11000);await expect.poll(()=>reads).toBe(2)
+ await page.getByRole('row').filter({hasText:asset.path}).locator('.el-checkbox').click();await expect(page.getByRole('button',{name:'批量整理115 · 1',exact:true})).toBeEnabled()
+ release();await expect(page.getByRole('button',{name:'刷新记录',exact:true})).toBeEnabled();await expect(page.getByRole('button',{name:'批量整理115 · 1',exact:true})).toBeEnabled()
+ await page.clock.fastForward(21000);await expect(page.getByRole('button',{name:'批量整理115 · 1',exact:true})).toBeEnabled();expect(reads).toBe(2)
+})
