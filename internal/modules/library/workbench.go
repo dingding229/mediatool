@@ -4,17 +4,29 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"media-tool/internal/modules/classification"
+	"media-tool/internal/modules/metadata"
 	"net/url"
+	"path"
 	"regexp"
 	"time"
 )
 
 type HistoryFilter struct {
 	Kind, State, Query, ConnectionID, BatchID string
+	Origin, Method                            string
 	From, To                                  *time.Time
 	Limit, Offset                             int
 }
 type HistoryEntry struct {
+	Media        metadata.Item   `json:"media"`
+	Poster       string          `json:"poster"`
+	Destination  string          `json:"destination"`
+	Category     string          `json:"category"`
+	Season       int             `json:"season"`
+	Episodes     []int           `json:"episodes"`
+	Method       string          `json:"method"`
+	Origin       string          `json:"origin"`
 	ID           string          `json:"id"`
 	Kind         string          `json:"kind"`
 	State        string          `json:"state"`
@@ -31,22 +43,23 @@ const historyUnion = `WITH history AS (
  SELECT o.id,'file' AS kind,o.state,o.plan->'items'->0->'source'->>'path' AS source,o.integration_id,coalesce(i.batch_id::text,'') AS batch_id,o.message,o.created_at,o.updated_at,jsonb_build_object('plan',o.plan,'completedSteps',o.completed_steps) AS details FROM file_operations o LEFT JOIN file_batch_items i ON i.operation_id=o.id WHERE o.state<>'preview'
  UNION ALL SELECT b.id,'batch',b.state,'',NULL::uuid,b.id::text,'',b.created_at,b.updated_at,jsonb_build_object('items',(SELECT jsonb_agg(jsonb_build_object('ordinal',i.ordinal,'source',i.source,'state',i.state,'message',i.message,'operationId',i.operation_id) ORDER BY i.ordinal) FROM file_batch_items i WHERE i.batch_id=b.id)) FROM file_batches b
  UNION ALL SELECT s.id,'scan',s.state,s.root,s.integration_id,'',s.message,s.created_at,s.updated_at,jsonb_build_object('files',s.files_seen,'directories',s.directories_seen,'completedDirectories',(SELECT count(*) FROM library_scan_directories d WHERE d.scan_id=s.id AND state='completed'),'currentDirectory',s.current_directory,'generation',s.generation,'revision',s.integration_revision) FROM library_scans s
- UNION ALL SELECT t.id,'transfer',t.state,t.destination,t.integration_id,'',t.last_error,t.created_at,t.updated_at,jsonb_build_object('phase',t.phase,'bytesTransferred',t.bytes_transferred,'size',f.size_bytes,'hashBytes',t.hash_bytes,'sourceSha1',t.source_sha1,'taskId',f.task_id,'source',f.relative_path,'controlRevision',t.control_revision,'uploadId',t.upload_id,'originalPreserved',true) FROM transfer_tasks t JOIN download_files f ON f.id=t.download_file_id
+ UNION ALL SELECT t.id,'transfer',t.state,t.destination,t.integration_id,'',t.last_error,t.created_at,t.updated_at,jsonb_build_object('phase',t.phase,'bytesTransferred',t.bytes_transferred,'size',f.size_bytes,'hashBytes',t.hash_bytes,'sourceSha1',t.source_sha1,'taskId',f.task_id,'source',f.relative_path,'controlRevision',t.control_revision,'uploadId',t.upload_id,'originalPreserved',true,'media',(SELECT details->'media'FROM download_tasks d WHERE d.id=f.task_id),'layout',t.layout_snapshot) FROM transfer_tasks t JOIN download_files f ON f.id=t.download_file_id
  UNION ALL SELECT j.id,'output',j.state,j.relative_path,NULL::uuid,'','',j.created_at,j.updated_at,jsonb_build_object('assetId',j.asset_id,'operation',j.operation,'kind',j.artifact_kind,'owner',j.owner_scope) FROM media_artifact_journal j
  UNION ALL SELECT b.id,'strmRepair',CASE WHEN b.state='running' AND j.state='failed' THEN 'needs_reconcile' ELSE b.state END,'',NULL::uuid,b.id::text,'STRM缺失修复；不处理NFO或源媒体',b.created_at,b.updated_at,jsonb_build_object('items',(SELECT coalesce(jsonb_agg(jsonb_build_object('ordinal',i.ordinal,'source',i.relative_path,'state',i.state,'message',i.message)ORDER BY i.ordinal),'[]')FROM strm_repair_items i WHERE i.batch_id=b.id))FROM strm_repair_batches b LEFT JOIN jobs j ON j.id=b.job_id
+ UNION ALL SELECT c.task_id,'cleanup',c.state,'',NULL::uuid,'',c.message,c.approved_at,c.updated_at,jsonb_build_object('taskId',c.task_id,'media',d.details->'media','method','清理本地与种子','evidence',c.evidence,'cloudMediaPreserved',true,'strmKeyPreserved',true)FROM download_cleanup_requests c JOIN download_tasks d ON d.id=c.task_id
  UNION ALL SELECT c.asset_id,'emby',c.state,'',c.integration_id,'',c.message,c.checked_at,c.checked_at,jsonb_build_object('assetId',c.asset_id,'revision',c.asset_revision,'paths',c.paths,'decodingVerified',false) FROM library_emby_checks c
-), selected AS (SELECT * FROM history WHERE NOT EXISTS(SELECT 1 FROM library_hidden_history hidden WHERE hidden.kind=history.kind AND hidden.record_id=history.id AND history.updated_at<=hidden.observed_at) AND ($1='' OR kind=$1) AND ($2='' OR state=$2) AND ($3='' OR position(lower($3) IN lower(coalesce(source,'')||' '||message||' '||details::text))>0) AND ($4='' OR integration_id::text=$4) AND ($5='' OR batch_id=$5) AND ($6::timestamptz IS NULL OR created_at>=$6) AND ($7::timestamptz IS NULL OR created_at<$7)) `
+), selected AS (SELECT * FROM history WHERE NOT EXISTS(SELECT 1 FROM library_hidden_history hidden WHERE hidden.kind=history.kind AND hidden.record_id=history.id AND history.updated_at<=hidden.observed_at) AND ($1='' OR kind=$1) AND ($2='' OR state=$2) AND ($3='' OR position(lower($3) IN lower(coalesce(source,'')||' '||message||' '||details::text))>0) AND ($4='' OR integration_id::text=$4) AND ($5='' OR batch_id=$5) AND ($6::timestamptz IS NULL OR created_at>=$6) AND ($7::timestamptz IS NULL OR created_at<$7) AND ($8='' OR ($8='download' AND kind='transfer') OR ($8='file' AND kind='file') OR ($8='system' AND kind NOT IN('file','transfer'))) AND ($9='' OR kind=$9)) `
 
 func (e Engine) History(ctx context.Context, f HistoryFilter) ([]HistoryEntry, int, error) {
 	if f.Limit < 1 || f.Limit > 200 || f.Offset < 0 || len(f.Query) > 256 {
 		return nil, 0, errors.New("invalid history filter")
 	}
-	args := []any{f.Kind, f.State, f.Query, f.ConnectionID, f.BatchID, f.From, f.To}
+	args := []any{f.Kind, f.State, f.Query, f.ConnectionID, f.BatchID, f.From, f.To, f.Origin, f.Method}
 	var total int
 	if err := e.DB.QueryRow(ctx, historyUnion+`SELECT count(*) FROM selected`, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := e.DB.Query(ctx, historyUnion+`SELECT id::text,kind,state,coalesce(source,''),coalesce(integration_id::text,''),batch_id,message,created_at,updated_at,details FROM selected ORDER BY updated_at DESC,id DESC LIMIT $8 OFFSET $9`, append(args, f.Limit, f.Offset)...)
+	rows, err := e.DB.Query(ctx, historyUnion+`SELECT id::text,kind,state,coalesce(source,''),coalesce(integration_id::text,''),batch_id,message,created_at,updated_at,details FROM selected ORDER BY updated_at DESC,id DESC LIMIT $10 OFFSET $11`, append(args, f.Limit, f.Offset)...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -60,7 +73,77 @@ func (e Engine) History(ctx context.Context, f HistoryFilter) ([]HistoryEntry, i
 
 		out = append(out, item)
 	}
-	return out, total, rows.Err()
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, 0, err
+	}
+	policy, _ := (classification.Repository{DB: e.DB}).Get(ctx)
+	for index := range out {
+		h := &out[index]
+		var details struct {
+			Media   metadata.Item `json:"media"`
+			AssetID string        `json:"assetId"`
+			Source  string        `json:"source"`
+			Plan    struct {
+				Media     metadata.Item `json:"media"`
+				Operation string        `json:"operation"`
+				Items     []struct {
+					Source struct {
+						Path string `json:"path"`
+					}
+					Target string `json:"target"`
+				} `json:"items"`
+			} `json:"plan"`
+		}
+		json.Unmarshal(h.Details, &details)
+		h.Media = details.Media
+		h.Method = h.Kind
+		h.Origin = "系统任务"
+		if h.Kind == "file" {
+			h.Media = details.Plan.Media
+			h.Method = details.Plan.Operation
+			h.Origin = "文件管理"
+			if len(details.Plan.Items) > 0 {
+				h.Destination = details.Plan.Items[0].Target
+			}
+		}
+		if h.Kind == "transfer" {
+			h.Destination = h.Source
+			h.Source = details.Source
+			h.Method = "上传入库"
+			h.Origin = "下载源"
+		}
+		asset := details.AssetID
+		if h.Kind == "emby" {
+			asset = h.ID
+		}
+		if asset != "" {
+			var raw []byte
+			var season *int
+			var episodes []byte
+			if e.DB.QueryRow(ctx, `SELECT m.metadata,b.season,b.episodes FROM media_asset_bindings b JOIN media_items m ON m.id=b.media_id WHERE b.asset_id=$1`, asset).Scan(&raw, &season, &episodes) == nil {
+				json.Unmarshal(raw, &h.Media)
+				if season != nil {
+					h.Season = *season
+				}
+				json.Unmarshal(episodes, &h.Episodes)
+			}
+		}
+		if h.Media.Title == "" {
+			h.Media.Title = path.Base(h.Source)
+		}
+		if h.Media.MediaType == "movie" || h.Media.MediaType == "series" {
+			h.Category = policy.Value.Match(h.Media).Name
+		}
+		if h.Kind == "cleanup" {
+			h.Method = "清理本地与种子"
+		}
+		if regexp.MustCompile(`^/[A-Za-z0-9_-]+\.(jpg|png|webp)$`).MatchString(h.Media.PosterPath) {
+			h.Poster = "/api/v1/media/tmdb/image?path=" + url.QueryEscape(h.Media.PosterPath)
+		}
+	}
+	return out, total, nil
 }
 
 type ManagedAsset struct {

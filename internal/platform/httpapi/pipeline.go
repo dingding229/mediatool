@@ -31,7 +31,12 @@ func (a *API) listTransfers(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(phase, "output_resume:") {
 			phase = "output_resume_approved"
 		}
-		out = append(out, map[string]any{"id": id, "taskId": taskID, "destination": destination, "state": state, "phase": phase, "bytes": bytes, "hashBytes": hashed, "total": total, "message": message, "updatedAt": updated, "controlRevision": revision, "assetId": assetID})
+		progress, stage := acquisition.TransferProgress(state, phase, bytes, hashed, total)
+		method := "stream"
+		if (state == "verified" || state == "imported" || phase == "verified") && bytes < total {
+			method = "instant_or_reused"
+		}
+		out = append(out, map[string]any{"id": id, "taskId": taskID, "destination": destination, "state": state, "phase": phase, "processingProgress": progress, "processingStage": stage, "transferMethod": method, "bytes": bytes, "hashBytes": hashed, "total": total, "message": message, "updatedAt": updated, "controlRevision": revision, "assetId": assetID})
 	}
 	write(w, 200, out)
 }

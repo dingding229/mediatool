@@ -3,23 +3,26 @@ package filemanager
 import (
 	"context"
 	"encoding/json"
+	"media-tool/internal/modules/classification"
+	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/releasename"
 	"path"
 	"strings"
 )
 
 type LibraryRow struct {
-	Source     string   `json:"source"`
-	Title      string   `json:"title"`
-	Year       string   `json:"year"`
-	MediaType  string   `json:"mediaType"`
-	TMDBID     int      `json:"tmdbId"`
-	Season     int      `json:"season"`
-	Episode    int      `json:"episode"`
-	Episodes   []int    `json:"episodes"`
-	Resolution string   `json:"resolution"`
-	Confirmed  bool     `json:"confirmed"`
-	Warnings   []string `json:"warnings"`
+	Destination string   `json:"destination"`
+	Source      string   `json:"source"`
+	Title       string   `json:"title"`
+	Year        string   `json:"year"`
+	MediaType   string   `json:"mediaType"`
+	TMDBID      int      `json:"tmdbId"`
+	Season      int      `json:"season"`
+	Episode     int      `json:"episode"`
+	Episodes    []int    `json:"episodes"`
+	Resolution  string   `json:"resolution"`
+	Confirmed   bool     `json:"confirmed"`
+	Warnings    []string `json:"warnings"`
 }
 type LibrarySelection struct {
 	Root  Root         `json:"root"`
@@ -42,7 +45,7 @@ func (e Engine) LibrarySelection(ctx context.Context, candidates, assets []strin
 		}
 		seen[id] = true
 	}
-	rows, err := e.DB.Query(ctx, `SELECT f.storage_id::text,coalesce(f.provider_file_id,''),f.full_path,f.size_bytes,f.state,coalesce(m.title,''),coalesce(m.release_year,''),coalesce(m.media_type,''),coalesce(m.tmdb_id,0),coalesce(b.season,0),coalesce(b.episode,0),coalesce(b.episodes,'[]'::jsonb) FROM cloud_files f LEFT JOIN library_candidates c ON c.file_id=f.id LEFT JOIN media_assets a ON a.cloud_file_id=f.id LEFT JOIN media_asset_bindings b ON b.asset_id=a.id LEFT JOIN media_items m ON m.id=b.media_id WHERE (c.id::text=ANY($1::text[]) OR a.id::text=ANY($2::text[])) ORDER BY f.full_path`, candidates, assets)
+	rows, err := e.DB.Query(ctx, `SELECT f.storage_id::text,coalesce(f.provider_file_id,''),f.full_path,f.size_bytes,f.state,coalesce(m.title,''),coalesce(m.release_year,''),coalesce(m.media_type,''),coalesce(m.tmdb_id,0),coalesce(b.season,0),coalesce(b.episode,0),coalesce(b.episodes,'[]'::jsonb),coalesce(m.metadata,'{}'::jsonb) FROM cloud_files f LEFT JOIN library_candidates c ON c.file_id=f.id LEFT JOIN media_assets a ON a.cloud_file_id=f.id LEFT JOIN media_asset_bindings b ON b.asset_id=a.id LEFT JOIN media_items m ON m.id=b.media_id WHERE (c.id::text=ANY($1::text[]) OR a.id::text=ANY($2::text[])) ORDER BY f.full_path`, candidates, assets)
 	if err != nil {
 		return out, ErrUnavailable
 	}
@@ -51,8 +54,8 @@ func (e Engine) LibrarySelection(ctx context.Context, candidates, assets []strin
 		var storage, id, full, state string
 		var size int64
 		var row LibraryRow
-		var episodes []byte
-		if err = rows.Scan(&storage, &id, &full, &size, &state, &row.Title, &row.Year, &row.MediaType, &row.TMDBID, &row.Season, &row.Episode, &episodes); err != nil {
+		var episodes, mediaJSON []byte
+		if err = rows.Scan(&storage, &id, &full, &size, &state, &row.Title, &row.Year, &row.MediaType, &row.TMDBID, &row.Season, &row.Episode, &episodes, &mediaJSON); err != nil {
 			rows.Close()
 			return out, ErrUnavailable
 		}
@@ -74,6 +77,17 @@ func (e Engine) LibrarySelection(ctx context.Context, candidates, assets []strin
 			row.Episodes = hint.Episodes
 		}
 		out.Files = append(out.Files, File{ID: id, Name: path.Base(full), Path: full, Size: size})
+		var item metadata.Item
+		json.Unmarshal(mediaJSON, &item)
+		policy, policyErr := (classification.Repository{DB: e.DB}).Get(ctx)
+		if policyErr != nil {
+			rows.Close()
+			return out, policyErr
+		}
+		if !row.Confirmed {
+			item = metadata.Item{Title: row.Title, MediaType: row.MediaType, Year: row.Year}
+		}
+		row.Destination = policy.Value.Match(item).Directory
 		out.Rows = append(out.Rows, row)
 	}
 	err = rows.Err()

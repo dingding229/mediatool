@@ -107,3 +107,36 @@ func (a *API) syncDownloads(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, map[string]string{"message": message})
 }
+
+func (a *API) approveDownloadCleanup(w http.ResponseWriter, r *http.Request) {
+	e := a.acquisition()
+	if e == nil {
+		fail(w, 503, "cleanup_unavailable", "数据库不可用")
+		return
+	}
+	var in struct {
+		Confirm     bool `json:"confirm"`
+		HRSatisfied bool `json:"hrSatisfied"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if err := e.ApproveCleanup(r.Context(), r.PathValue("id"), in.Confirm, in.HRSatisfied); err != nil {
+		fail(w, 409, "cleanup_blocked", err.Error())
+		return
+	}
+	write(w, 202, map[string]bool{"queued": true})
+}
+
+func (a *API) reconcileDownloadCleanup(w http.ResponseWriter, r *http.Request) {
+	e := a.acquisition()
+	if e == nil {
+		fail(w, 503, "cleanup_unavailable", "数据库不可用")
+		return
+	}
+	if err := e.ReconcileCleanup(r.Context(), r.PathValue("id")); err != nil {
+		fail(w, 409, "cleanup_uncertain", err.Error())
+		return
+	}
+	write(w, 200, map[string]bool{"verified": true})
+}

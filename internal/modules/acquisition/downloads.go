@@ -18,6 +18,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/search"
+	"media-tool/internal/modules/settings"
 )
 
 type Engine struct {
@@ -26,16 +27,17 @@ type Engine struct {
 	Search      search.Engine
 }
 type taskDetails struct {
-	Trackers         []downloads.Tracker `json:"trackers"`
-	TrackerError     string              `json:"trackerError"`
-	IdentityOverride bool                `json:"identityOverride"`
-	SyncedAt         *time.Time          `json:"syncedAt"`
-	SyncAttemptAt    *time.Time          `json:"syncAttemptAt"`
-	SyncError        string              `json:"syncError"`
-	DownloadSpeed    int64               `json:"downloadSpeed"`
-	UploadSpeed      int64               `json:"uploadSpeed"`
-	Seeds            int                 `json:"seeds"`
-	Peers            int                 `json:"peers"`
+	CleanupAfterImport bool                `json:"cleanupAfterImport"`
+	Trackers           []downloads.Tracker `json:"trackers"`
+	TrackerError       string              `json:"trackerError"`
+	IdentityOverride   bool                `json:"identityOverride"`
+	SyncedAt           *time.Time          `json:"syncedAt"`
+	SyncAttemptAt      *time.Time          `json:"syncAttemptAt"`
+	SyncError          string              `json:"syncError"`
+	DownloadSpeed      int64               `json:"downloadSpeed"`
+	UploadSpeed        int64               `json:"uploadSpeed"`
+	Seeds              int                 `json:"seeds"`
+	Peers              int                 `json:"peers"`
 
 	SearchRunID          string        `json:"searchRunId,omitempty"`
 	SourceSnapshotDigest string        `json:"sourceSnapshotDigest,omitempty"`
@@ -54,20 +56,22 @@ type taskDetails struct {
 	Message              string        `json:"message,omitempty"`
 }
 type Task struct {
-	Trackers      []downloads.Tracker `json:"trackers"`
-	TrackerError  string              `json:"trackerError"`
-	DownloadPath  string              `json:"downloadPath"`
-	LocalPath     string              `json:"localPath"`
-	Endpoint      string              `json:"endpoint"`
-	Category      string              `json:"category"`
-	SyncedAt      *time.Time          `json:"syncedAt"`
-	SyncAttemptAt *time.Time          `json:"syncAttemptAt"`
-	SyncError     string              `json:"syncError"`
-	DownloadSpeed int64               `json:"downloadSpeed"`
-	UploadSpeed   int64               `json:"uploadSpeed"`
-	Seeds         int                 `json:"seeds"`
-	Peers         int                 `json:"peers"`
-	QBState       string              `json:"qbState"`
+	CleanupState   string              `json:"cleanupState"`
+	CleanupMessage string              `json:"cleanupMessage"`
+	Trackers       []downloads.Tracker `json:"trackers"`
+	TrackerError   string              `json:"trackerError"`
+	DownloadPath   string              `json:"downloadPath"`
+	LocalPath      string              `json:"localPath"`
+	Endpoint       string              `json:"endpoint"`
+	Category       string              `json:"category"`
+	SyncedAt       *time.Time          `json:"syncedAt"`
+	SyncAttemptAt  *time.Time          `json:"syncAttemptAt"`
+	SyncError      string              `json:"syncError"`
+	DownloadSpeed  int64               `json:"downloadSpeed"`
+	UploadSpeed    int64               `json:"uploadSpeed"`
+	Seeds          int                 `json:"seeds"`
+	Peers          int                 `json:"peers"`
+	QBState        string              `json:"qbState"`
 
 	ID                     string        `json:"id"`
 	ResourceID             string        `json:"resourceId"`
@@ -104,6 +108,11 @@ func (e Engine) StartFromRunIdentity(ctx context.Context, runID, resourceID, med
 		var err error
 		runID, err = e.Search.LatestRunForResource(ctx, resourceID)
 		if err != nil {
+			return "", err
+		}
+	}
+	if !correction {
+		if err := e.Search.MediaResource(ctx, runID, resourceID); err != nil {
 			return "", err
 		}
 	}
@@ -148,7 +157,11 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 	if err != nil || media.ID != tmdbID || media.MediaType != mediaType {
 		return "", errors.New("media identity verification failed")
 	}
-	details := taskDetails{IdentityOverride: len(correction) > 0 && correction[0], SearchRunID: runID, SubscriptionRunID: subscriptionRunID, ExpectedHash: expectedHash, ExpectedSeason: season, ExpectedEpisodes: episodes, Media: media, Endpoint: connection.String("endpoint"), DownloadPath: source, LocalPath: local, Category: connection.String("category")}
+	prefs, prefsErr := (settings.Repository{DB: e.DB}).Get(ctx)
+	if prefsErr != nil {
+		return "", prefsErr
+	}
+	details := taskDetails{CleanupAfterImport: prefs.Value.CleanupAfterImport, IdentityOverride: len(correction) > 0 && correction[0], SearchRunID: runID, SubscriptionRunID: subscriptionRunID, ExpectedHash: expectedHash, ExpectedSeason: season, ExpectedEpisodes: episodes, Media: media, Endpoint: connection.String("endpoint"), DownloadPath: source, LocalPath: local, Category: connection.String("category")}
 	if details.Category == "" {
 		details.Category = "media-tool"
 	}
@@ -252,7 +265,7 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 	return id, tx.Commit(ctx)
 }
 func (e Engine) List(ctx context.Context) ([]Task, error) {
-	rows, err := e.DB.Query(ctx, `SELECT d.id::text,d.resource_id::text,r.title,d.download_state,d.seeding_state,coalesce(d.info_hash,''),d.details,d.created_at,d.source_recovery_required,d.source_control_revision FROM download_tasks d JOIN resources r ON r.id=d.resource_id ORDER BY d.created_at DESC LIMIT 200`)
+	rows, err := e.DB.Query(ctx, `SELECT d.id::text,d.resource_id::text,r.title,d.download_state,d.seeding_state,coalesce(d.info_hash,''),d.details,d.created_at,d.source_recovery_required,d.source_control_revision,coalesce(c.state,'disabled'),coalesce(c.message,'') FROM download_tasks d JOIN resources r ON r.id=d.resource_id LEFT JOIN download_cleanup_requests c ON c.task_id=d.id ORDER BY d.created_at DESC LIMIT 200`)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +274,7 @@ func (e Engine) List(ctx context.Context) ([]Task, error) {
 	for rows.Next() {
 		var task Task
 		var raw []byte
-		if err = rows.Scan(&task.ID, &task.ResourceID, &task.Title, &task.State, &task.SeedingState, &task.InfoHash, &raw, &task.CreatedAt, &task.SourceRecoveryRequired, &task.SourceControlRevision); err != nil {
+		if err = rows.Scan(&task.ID, &task.ResourceID, &task.Title, &task.State, &task.SeedingState, &task.InfoHash, &raw, &task.CreatedAt, &task.SourceRecoveryRequired, &task.SourceControlRevision, &task.CleanupState, &task.CleanupMessage); err != nil {
 			return nil, err
 		}
 		var details taskDetails
@@ -458,7 +471,7 @@ func (e Engine) transition(ctx context.Context, id, state, event string, details
 	return tx.Commit(ctx)
 }
 func (e Engine) Reconcile(ctx context.Context) error {
-	rows, err := e.DB.Query(ctx, `SELECT id::text FROM download_tasks WHERE info_hash IS NOT NULL AND download_state NOT IN ('pending','failed','cancelled') ORDER BY coalesce((details->>'syncAttemptAt')::timestamptz,created_at) LIMIT 100`)
+	rows, err := e.DB.Query(ctx, `SELECT id::text FROM download_tasks WHERE info_hash IS NOT NULL AND seeding_state<>'removed' AND download_state NOT IN ('pending','failed','cancelled') ORDER BY coalesce((details->>'syncAttemptAt')::timestamptz,created_at) LIMIT 100`)
 	if err != nil {
 		return err
 	}

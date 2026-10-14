@@ -14,6 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
+	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/sites"
 	"media-tool/internal/platform/secrets"
 	"media-tool/internal/platform/trace"
@@ -35,6 +36,7 @@ type Run struct {
 	Sites      []SiteResult    `json:"sites"`
 	Resources  []Resource      `json:"resources"`
 	Total      int             `json:"total"`
+	Excluded   int             `json:"excluded"`
 }
 type SiteResult struct {
 	AccountID string `json:"accountId"`
@@ -62,7 +64,7 @@ func (e Engine) Start(ctx context.Context, keyword string, accountIDs []string) 
 func (e Engine) StartInline(ctx context.Context, keyword string, accountIDs []string) (string, error) {
 	return e.start(ctx, keyword, accountIDs, false, "")
 }
-func (e Engine) start(ctx context.Context, keyword string, accountIDs []string, enqueue bool, cacheKey string) (string, error) {
+func (e Engine) start(ctx context.Context, keyword string, accountIDs []string, enqueue bool, cacheKey string, media ...metadata.Item) (string, error) {
 	if keyword == "" || len(keyword) > 200 {
 		return "", errors.New("enter a keyword up to 200 characters")
 	}
@@ -87,7 +89,11 @@ func (e Engine) start(ctx context.Context, keyword string, accountIDs []string, 
 	defer tx.Rollback(ctx)
 	id := jobs.UUID()
 	accounts, _ := json.Marshal(accountIDs)
-	if _, err = tx.Exec(ctx, `INSERT INTO search_runs(id,keyword,account_ids,cache_key)VALUES($1,$2,$3,$4)`, id, keyword, accounts, cacheKey); err != nil {
+	mediaJSON := []byte("null")
+	if len(media) > 0 {
+		mediaJSON, _ = json.Marshal(media[0])
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO search_runs(id,keyword,account_ids,cache_key,media_context)VALUES($1,$2,$3,$4,$5)`, id, keyword, accounts, cacheKey, mediaJSON); err != nil {
 		return "", err
 	}
 	for _, account := range accountIDs {

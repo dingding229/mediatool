@@ -185,7 +185,7 @@ func (a *API) libraryActivity(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_page", "分页无效")
 		return
 	}
-	f := library.HistoryFilter{Kind: r.URL.Query().Get("kind"), State: r.URL.Query().Get("state"), Query: r.URL.Query().Get("q"), ConnectionID: r.URL.Query().Get("connectionId"), BatchID: r.URL.Query().Get("batchId"), Limit: p.Limit, Offset: p.Offset}
+	f := library.HistoryFilter{Origin: r.URL.Query().Get("origin"), Method: r.URL.Query().Get("method"), Kind: r.URL.Query().Get("kind"), State: r.URL.Query().Get("state"), Query: r.URL.Query().Get("q"), ConnectionID: r.URL.Query().Get("connectionId"), BatchID: r.URL.Query().Get("batchId"), Limit: p.Limit, Offset: p.Offset}
 	for _, id := range []string{f.ConnectionID, f.BatchID} {
 		if id != "" && !isWorkbenchUUID(id) {
 			fail(w, 400, "invalid_id", "筛选ID无效")

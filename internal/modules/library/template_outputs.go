@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"media-tool/internal/modules/classification"
 	"media-tool/internal/modules/metadata"
-	"media-tool/internal/modules/releasename"
 	"media-tool/internal/modules/settings"
 	"path"
-	"strings"
 )
 
 // Only NEW output proposals use the configured templates. Existing entries and
@@ -20,7 +19,49 @@ func ApplyOutputTemplates(ctx context.Context, db *pgxpool.Pool, cloudPath, asse
 			return nil, err
 		}
 		if exists {
-			return projections, nil
+			rows, err := db.Query(ctx, `SELECT output_path FROM strm_entries WHERE asset_id=$1 ORDER BY output_path`, assetID)
+			if err != nil {
+				return nil, err
+			}
+			paths := []string{}
+			for rows.Next() {
+				var p string
+				if err = rows.Scan(&p); err != nil {
+					rows.Close()
+					return nil, err
+				}
+				paths = append(paths, p)
+			}
+			err = rows.Err()
+			rows.Close()
+			if err != nil {
+				return nil, err
+			}
+			var season *int
+			episodes := []int{}
+			if item.MediaType == "series" {
+				for _, p := range projections {
+					s, _, ok := metadata.Episodes(p.Path)
+					if !ok {
+						return nil, errors.New("季集缺失")
+					}
+					season = &s
+					episodes = append(episodes, p.SourceEpisodes...)
+					if len(p.SourceEpisodes) == 0 {
+						episodes = append(episodes, p.Episodes...)
+					}
+				}
+				seen := map[int]bool{}
+				unique := []int{}
+				for _, n := range episodes {
+					if !seen[n] {
+						seen[n] = true
+						unique = append(unique, n)
+					}
+				}
+				episodes = unique
+			}
+			return ExistingOutputProjections(paths, item.MediaType, season, episodes)
 		}
 	}
 	return applyTemplatePaths(ctx, db, cloudPath, assetID, item, projections)
@@ -31,49 +72,30 @@ func applyTemplatePaths(ctx context.Context, db *pgxpool.Pool, cloudPath, assetI
 	if err != nil {
 		return nil, err
 	}
-	h := releasename.Parse(path.Base(cloudPath))
-	h.Title, h.Year, h.MediaType, h.Extension = safeName(item.Title), item.Year, item.MediaType, ".strm"
+	policy, err := (classification.Repository{DB: db}).Get(ctx)
+	if err != nil {
+		return nil, err
+	}
 	for i, p := range projections {
-		template := record.Value.MovieTemplate
+		season := 0
 		if item.MediaType == "series" {
-			template = record.Value.SeriesTemplate
-			if len(p.Episodes) == 0 {
-				return nil, errors.New("series coverage required")
-			}
-			s, ep, ok := metadata.Episodes(path.Base(p.Path))
+			var ok bool
+			season, _, ok = metadata.Episodes(path.Base(p.Path))
 			if !ok {
 				return nil, errors.New("projection season unavailable")
 			}
-			h.Season, h.Episode = s, ep[0]
-			tag, err := metadata.EpisodeTag(s, p.Episodes)
-			if err != nil {
-				return nil, err
-			}
-			template = strings.ReplaceAll(template, "S{season}E{episode}", tag)
-			template = strings.ReplaceAll(template, "{season_episode}", tag)
 		}
-		rendered, err := releasename.RenderPath(template, h, path.Base(cloudPath))
-		name := path.Base(rendered)
+		rendered, _, err := classification.Render(policy.Value, item, cloudPath, record.Value.MovieTemplate, record.Value.SeriesTemplate, ".strm", season, p.Episodes)
 		if err != nil {
 			return nil, err
 		}
-		// Keep stable edition scoping rather than collide different encodes of a title.
-		if len(assetID) < 8 {
-			return nil, errors.New("asset identity required")
-		}
-		name = strings.TrimSuffix(name, ".strm") + " [" + assetID[:8] + "].strm"
-		if strings.ContainsAny(name, "/\\") || len(name) > 255 {
-			return nil, errors.New("output name invalid")
-		}
-		directory := path.Dir(p.Path)
-		if strings.Contains(template, "/") {
-			base := "Movies"
-			if item.MediaType == "series" {
-				base = "TV"
-			}
-			directory = path.Join(base, path.Dir(rendered))
-		}
-		projections[i].Path = path.Join(directory, name)
+		projections[i].Path = rendered
 	}
 	return projections, nil
+}
+
+// Explicit migration/recovery compares the desired new geometry, not an
+// existing legacy geometry adopted solely for normal idempotent import.
+func DesiredOutputTemplates(ctx context.Context, db *pgxpool.Pool, cloudPath, assetID string, item metadata.Item, p []OutputProjection) ([]OutputProjection, error) {
+	return applyTemplatePaths(ctx, db, cloudPath, assetID, item, p)
 }

@@ -28,6 +28,7 @@ interface Resource {
   };
 }
 interface Run {
+ excluded?:number;
   id: string;
   keyword: string;
   state: string;
@@ -180,6 +181,7 @@ async function search(force = false) {
   try {
     const created = await post<{ id: string; cached: boolean }>("/search", {
       keyword: keyword.value,
+ media:activeMedia.value?{id:activeMedia.value.id,mediaType:activeMedia.value.mediaType}:undefined,
       refresh: force,
     });
     searchCached.value = created.cached;
@@ -330,7 +332,8 @@ onUnmounted(() => {
 });
 </script>
 <template>
-  <section class="page-heading">
+  <el-alert v-if="run?.media?.id" :title="`按所选TMDB身份核对发行标题、类型及年份，排除${run.excluded??0}条不匹配结果；副标题同名不作为身份凭据。`" type="info" :closable="false"/>
+<section class="page-heading">
     <div>
       <span class="page-kicker">ACQUIRE / 搜索结果</span>
       <h1>搜索结果</h1>

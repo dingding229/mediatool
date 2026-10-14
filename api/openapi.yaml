@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.24.0-dev
+  version: 0.25.0-dev
   description: 'Playback UA admission precedes resolver/cache/upstream; unmatched UA returns403 player_ua_denied, policy failure503 player_ua_unavailable. UA is client-controlled, never replaces media authorization. Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -10,6 +10,34 @@ servers:
 security:
 - AdminSession: []
 paths:
+  /api/v1/classification:
+    get:
+      operationId: getDirectoryClassification
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+    put:
+      operationId: saveDirectoryClassification
+      description: value.groups有序分类组及子规则，revision并发保护；不自动迁移旧文件。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/external/v1/status:
+    get:
+      operationId: externalStatus
+      security:
+      - ExternalAPIKey: []
+      description: 独立Bearer凭据status.read；不接受管理员Cookie或STRM播放Key。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+  /api/v1/downloads/{id}/cleanup:
+    post:
+      operationId: approveDownloadCleanup
+      description: confirm=true及明确hrSatisfied批准，全部云端/本地/hash/目录/标签/共享文件证据核验后才由qB删除种子和对应文件；不会递归删目录或删除云端。
+      responses:
+        '202':
+          $ref: '#/components/responses/OK'
   /api/v1/player-access/users:
     get:
       operationId: playerAccessUsers
@@ -4343,6 +4371,9 @@ paths:
                   const: true
 components:
   securitySchemes:
+    ExternalAPIKey:
+      type: http
+      scheme: bearer
     MemberSession:
       type: apiKey
       in: cookie

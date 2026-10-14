@@ -18,6 +18,7 @@ var ErrInvalid = errors.New("invalid application settings")
 var ErrRevision = errors.New("settings changed; refresh first")
 
 type Value struct {
+	CleanupAfterImport          bool                  `json:"cleanupAfterImport"`
 	TrustedProxyCIDRs           []string              `json:"trustedProxyCidrs"`
 	Scraping                    metadata.ScrapePolicy `json:"scraping"`
 	MovieTemplate               string                `json:"movieTemplate"`

@@ -59,3 +59,34 @@ func TestSearchContextIdentityRequiresExplicitCorrection(t *testing.T) {
 		t.Fatal("explicit correction denied", err)
 	}
 }
+
+func TestCleanupRequiresCompletedVerifiedOwnedTaskAndHRConfirmation(t *testing.T) {
+	f := newSourceFixture(t)
+	if err := f.engine.ApproveCleanup(f.ctx, f.taskID, false, false); err == nil {
+		t.Fatal("cleanup without confirmation")
+	}
+	if err := f.engine.ApproveCleanup(f.ctx, f.taskID, true, false); err != nil {
+		t.Fatal(err)
+	}
+	payload, _ := json.Marshal(map[string]string{"taskId": f.taskID})
+	if err := f.engine.Cleanup(f.ctx, jobs.Job{Payload: payload}); err == nil {
+		t.Fatal("pending task cleaned")
+	}
+	var state, message string
+	f.engine.DB.QueryRow(f.ctx, `SELECT state,message FROM download_cleanup_requests WHERE task_id=$1`, f.taskID).Scan(&state, &message)
+	if state != "blocked" || message == "" {
+		t.Fatal(state, message)
+	}
+	f.engine.DB.Exec(f.ctx, `UPDATE download_tasks SET download_state='imported',info_hash=$2 WHERE id=$1`, f.taskID, f.hash)
+	f.engine.DB.Exec(f.ctx, `UPDATE search_run_resources SET public_snapshot=jsonb_set(public_snapshot,'{metadata}',(public_snapshot->'metadata')-'hr')WHERE run_id=$1`, f.runID)
+	if err := f.engine.ApproveCleanup(f.ctx, f.taskID, true, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.engine.Cleanup(f.ctx, jobs.Job{Payload: payload}); err == nil {
+		t.Fatal("unknown HR cleaned")
+	}
+	f.engine.DB.QueryRow(f.ctx, `SELECT state,message FROM download_cleanup_requests WHERE task_id=$1`, f.taskID).Scan(&state, &message)
+	if state != "blocked" || !strings.Contains(message, "H&R") {
+		t.Fatal(state, message)
+	}
+}

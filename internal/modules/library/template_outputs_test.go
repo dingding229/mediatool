@@ -16,7 +16,7 @@ func TestDefaultNamingTemplatesPreserveEditionAndSparseCoverage(t *testing.T) {
 		t.Fatal(err)
 	}
 	p, err = ApplyOutputTemplates(ctx, nil, "/115/Owned.Film.2026.1080p.WEB-DL-GRP.mkv", asset, movie, p)
-	if err != nil || p[0].Path != "Movies/Owned Film (2026)/Owned Film (2026) - 1080p [aaaaaaaa].strm" {
+	if err != nil || p[0].Path != "电影/其他电影/Owned Film (2026)/Owned Film (2026) - 1080p.strm" {
 		t.Fatal(p, err)
 	}
 	season := 1

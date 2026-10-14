@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/releasename"
 	"path"
 	"regexp"
@@ -75,17 +76,19 @@ type Step struct {
 	Target string `json:"target"`
 }
 type Plan struct {
-	ID                string    `json:"id"`
-	ConnectionID      string    `json:"connectionId"`
-	Revision          int64     `json:"revision"`
-	BackendKind       string    `json:"backendKind"`
-	Root              string    `json:"root"`
-	OriginFingerprint string    `json:"originFingerprint"`
-	Operation         string    `json:"operation"`
-	Items             []Item    `json:"items"`
-	Steps             []Step    `json:"steps"`
-	Digest            string    `json:"digest"`
-	ExpiresAt         time.Time `json:"expiresAt"`
+	Media             metadata.Item `json:"media"`
+	Category          string        `json:"category"`
+	ID                string        `json:"id"`
+	ConnectionID      string        `json:"connectionId"`
+	Revision          int64         `json:"revision"`
+	BackendKind       string        `json:"backendKind"`
+	Root              string        `json:"root"`
+	OriginFingerprint string        `json:"originFingerprint"`
+	Operation         string        `json:"operation"`
+	Items             []Item        `json:"items"`
+	Steps             []Step        `json:"steps"`
+	Digest            string        `json:"digest"`
+	ExpiresAt         time.Time     `json:"expiresAt"`
 }
 type Result struct {
 	ID             string `json:"id"`

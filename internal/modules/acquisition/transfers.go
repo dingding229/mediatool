@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"media-tool/internal/modules/classification"
 	"media-tool/internal/modules/library"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/playbackgrants"
+	"media-tool/internal/modules/settings"
 	"os"
 	"path"
 	"path/filepath"
@@ -63,21 +65,31 @@ func (e Engine) PrepareTransfers(ctx context.Context) error {
 		if json.Unmarshal(item.details, &details) != nil {
 			continue
 		}
-		category := "Movies"
-		if details.Media.MediaType == "series" {
-			category = "TV"
+		prefs, prefErr := (settings.Repository{DB: e.DB}).Get(ctx)
+		if prefErr != nil {
+			return prefErr
 		}
-		folder := safeName(details.Media.Title)
-		if details.Media.Year != "" {
-			folder += " (" + details.Media.Year + ")"
+		policy, policyErr := (classification.Repository{DB: e.DB}).Get(ctx)
+		if policyErr != nil {
+			return policyErr
 		}
-		destination := path.Join(root, category, folder, safeName(path.Base(item.name)))
+		season, episodes, parseErr := coverage(item.name, details.Media.MediaType)
+		if parseErr != nil {
+			e.DB.Exec(ctx, `UPDATE download_files SET media_state='needs_confirmation'WHERE id=$1`, item.fileID)
+			continue
+		}
+		rel, match, layoutErr := classification.Render(policy.Value, details.Media, item.name, prefs.Value.MovieTemplate, prefs.Value.SeriesTemplate, extension, season, episodes)
+		if layoutErr != nil {
+			return layoutErr
+		}
+		destination := path.Join(root, rel)
+		layout, _ := json.Marshal(map[string]any{"movieTemplate": prefs.Value.MovieTemplate, "seriesTemplate": prefs.Value.SeriesTemplate, "classification": policy.Value, "category": match, "source": item.name, "media": details.Media, "revision": policy.Revision, "settingsRevision": prefs.Revision})
 		tx, err := e.DB.Begin(ctx)
 		if err != nil {
 			return err
 		}
 		id := jobs.UUID()
-		tag, err := tx.Exec(ctx, `INSERT INTO transfer_tasks(id,download_file_id,integration_id,destination,device_id,endpoint_snapshot)VALUES($1,$2,$3,$4,$5,$6)ON CONFLICT DO NOTHING`, id, item.fileID, cloud.Record.ID, destination, "media-tool-"+cloud.Record.ID, cloud.String("endpoint"))
+		tag, err := tx.Exec(ctx, `INSERT INTO transfer_tasks(id,download_file_id,integration_id,destination,device_id,endpoint_snapshot,layout_snapshot)VALUES($1,$2,$3,$4,$5,$6,$7)ON CONFLICT DO NOTHING`, id, item.fileID, cloud.Record.ID, destination, "media-tool-"+cloud.Record.ID, cloud.String("endpoint"), layout)
 		if err == nil && tag.RowsAffected() == 0 {
 			_, err = tx.Exec(ctx, `UPDATE download_files SET media_state='needs_confirmation'WHERE id=$1`, item.fileID)
 		}
@@ -394,18 +406,7 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 	}
 
 	// Detect old output geometry before calling any metadata/network provider.
-	preliminary, err := library.AssetOutputProjections(cloudPath, fileID, details.Media, season, episodes)
-	if err != nil {
-		return err
-	}
-	if season == nil {
-		folder := safeName(details.Media.Title)
-		if details.Media.Year != "" {
-			folder += " (" + details.Media.Year + ")"
-		}
-		preliminary[0].Path = path.Join("Movies", folder, strings.TrimSuffix(safeName(path.Base(relative)), path.Ext(relative))+".strm")
-	}
-	preliminary, err = library.ApplyOutputTemplates(ctx, e.DB, cloudPath, fileID, details.Media, preliminary)
+	preliminary, err := e.TransferProjections(ctx, transferID, cloudPath, fileID, details.Media, season, episodes)
 	if err != nil {
 		return err
 	}
@@ -489,21 +490,7 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 		return err
 	}
 	journal := library.Journal{DB: e.DB, Vault: e.Connections.Repository.Vault}
-	projections, err := library.AssetOutputProjections(cloudPath, assetID, details.Media, season, episodes)
-	if err != nil {
-		return err
-	}
-	// Preserve the established movie import layout; sparse-TV projection is the
-	// only change to download import naming in this release.
-	if season == nil {
-		folder := safeName(details.Media.Title)
-		if details.Media.Year != "" {
-			folder += " (" + details.Media.Year + ")"
-		}
-		projections[0].Path = path.Join("Movies", folder, strings.TrimSuffix(safeName(path.Base(relative)), path.Ext(relative))+".strm")
-	}
-
-	projections, err = library.ApplyOutputTemplates(ctx, e.DB, cloudPath, assetID, details.Media, projections)
+	projections, err := e.TransferProjections(ctx, transferID, cloudPath, assetID, details.Media, season, episodes)
 	if err != nil {
 		return err
 	}
@@ -617,3 +604,14 @@ func (e Engine) finishTask(ctx context.Context, id string) error {
 func intFromString(v string) int { n, _ := strconv.Atoi(v); return n }
 
 func jsonEpisodes(v []int) []byte { raw, _ := json.Marshal(v); return raw }
+
+func coverage(name, kind string) (int, []int, error) {
+	if kind == "movie" {
+		return 0, nil, nil
+	}
+	season, episodes, ok := metadata.Episodes(name)
+	if !ok {
+		return 0, nil, errors.New("剧集未识别明确季集")
+	}
+	return season, episodes, nil
+}

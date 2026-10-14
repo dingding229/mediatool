@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/releaseattrs"
 	"strings"
 	"unicode/utf8"
@@ -140,6 +141,10 @@ func (e Engine) GetFiltered(ctx context.Context, id string, page, limit int, f F
 	defer rows.Close()
 	run.Resources = []Resource{}
 	run.Total = 0
+	var identity metadata.Item
+	if len(run.Media) > 0 && json.Unmarshal(run.Media, &identity) != nil {
+		return run, ErrSnapshotChanged
+	}
 	start := (page - 1) * limit
 	for rows.Next() {
 		if err := ctx.Err(); err != nil {
@@ -152,6 +157,10 @@ func (e Engine) GetFiltered(ctx context.Context, id string, page, limit int, f F
 		}
 		if json.Unmarshal(raw, &r) != nil {
 			return run, ErrSnapshotUnavailable
+		}
+		if identity.ID > 0 && !MatchesMedia(r, identity) {
+			run.Excluded++
+			continue
 		}
 		if !f.Match(r) {
 			continue

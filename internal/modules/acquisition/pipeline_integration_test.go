@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -179,7 +180,11 @@ func TestPostgresPipelineSearchDownloadUploadSTRMAndNotification(t *testing.T) {
 				w.WriteHeader(500)
 				return
 			}
-			expected := fmt.Sprintf("/strm/Movies/Owned Film (2026)/Owned Film (2026) [%s].strm", asset[:8])
+			var relative string
+			if err := db.QueryRow(r.Context(), `SELECT output_path FROM strm_entries WHERE asset_id=$1 LIMIT 1`, asset).Scan(&relative); err != nil {
+				t.Fatal(err)
+			}
+			expected := path.Join("/strm", relative)
 			json.NewEncoder(w).Encode(map[string]any{"Items": []map[string]any{{"Id": "owned-library-item", "Path": expected, "MediaSources": []map[string]string{{"Id": "owned-source", "Path": expected}}}}})
 			return
 		}

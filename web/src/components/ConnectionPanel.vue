@@ -338,7 +338,7 @@ async function save(startAuth = false) {
     const input = {
       kind: form.kind,
       name: form.name,
-      enabled: form.enabled,
+      enabled: savedSecretFields.value.length>0 || Object.values(form.secrets).some(v=>!!v),
       settings: form.settings,
       secrets,
       revision: form.revision,
@@ -429,7 +429,7 @@ onMounted(refresh);
   <section class="panel">
     <div class="panel-title">
       <h2>已保存连接</h2>
-      <span class="muted">同类型仅启用一个主连接，PT账号可多个</span>
+      <span class="muted">单实例服务自动保持唯一启用连接，PT账号可多个</span>
     </div>
     <el-table
       :data="filteredList"
@@ -576,8 +576,7 @@ onMounted(refresh);
         title="启用后：扫描和上传仍走CloudDrive2，播放取链走115官方API。官方取链失败会明确报错，不会悄悄中转整部影片。保存并扫码后自动验证授权，再启用。"
         type="warning"
         :closable="false"
-      /><el-checkbox v-model="form.enabled">启用为主连接</el-checkbox
-      ><el-alert
+      /><p class="field-hint">保存并验证通过后自动启用；未完成115授权时保持草稿。</p><el-alert
         title="编辑时自动回显已保存凭据，可按需隐藏。留空或未修改的回显值保留服务端最新凭据；公网请使用HTTPS，关闭窗口后清空内存。"
         type="info"
         :closable="false"

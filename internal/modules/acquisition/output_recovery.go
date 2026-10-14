@@ -107,16 +107,9 @@ func (e Engine) outputSnapshot(ctx context.Context, tx pgx.Tx, id string, allowA
 		}
 		s.Episodes = normalized
 	}
-	s.Projection, err = library.AssetOutputProjections(cloudPath, s.Preview.AssetID, s.Item, s.Season, s.Episodes)
+	s.Projection, err = e.TransferProjections(ctx, id, cloudPath, s.Preview.AssetID, s.Item, s.Season, s.Episodes, true)
 	if err != nil {
 		return s, err
-	}
-	if s.Item.MediaType == "movie" {
-		folder := safeName(s.Item.Title)
-		if s.Item.Year != "" {
-			folder += " (" + s.Item.Year + ")"
-		}
-		s.Projection[0].Path = filepath.ToSlash(filepath.Join("Movies", folder, strings.TrimSuffix(safeName(filepath.Base(s.Relative)), filepath.Ext(s.Relative))+".strm"))
 	}
 	desired := map[string]bool{}
 	for _, p := range s.Projection {

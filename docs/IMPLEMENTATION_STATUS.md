@@ -2,9 +2,13 @@
 
 # 当前实现与验证状态
 
-更新：2026-10-14。源码版本0.24.0-dev，数据库迁移47；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
+更新：2026-10-15。源码版本0.25.0-dev，数据库迁移48；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
 
 主要业务已实现，本轮继续完成不依赖真实账号的可靠性与管理功能。**测试服务通过不等于真实115/PT/Emby客户端通过；整体项目未宣布验收完成。** 历史过程保留在 WORK_LOG.md，本文件只记录当前状态。
+
+## 本轮0.25 分类命名、外部API与清理
+
+统一分类/命名与上传布局快照、无资产随机后缀、阶段化上传进度、TMDB身份严格匹配、全局STRM修复与自动Emby确认、目录内容/类型筛选、媒体历史表格、独立API凭据/权限/限额、默认关闭的云端校验后本地与种子清理。详见MEDIA_LAYOUT_AND_EXTERNAL_API.md；生产不自动清理历史任务或移动旧媒体。
 
 ## 本轮0.24 播放来源与下载进度
 

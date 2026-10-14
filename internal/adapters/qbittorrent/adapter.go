@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"mime/multipart"
@@ -257,6 +258,43 @@ func (a *Adapter) Trackers(ctx context.Context, id string) ([]downloads.Tracker,
 	out := []downloads.Tracker{}
 	for _, v := range values {
 		out = append(out, downloads.Tracker{URL: v.URL, Status: v.Status, Message: v.Message, Peers: v.Peers, Seeds: v.Seeds, Leeches: v.Leeches})
+	}
+	return out, nil
+}
+
+func (a *Adapter) DeleteOwned(ctx context.Context, hash string, deleteFiles bool) error {
+	body := url.Values{"hashes": {hash}, "deleteFiles": {fmt.Sprint(deleteFiles)}}
+	_, err := a.request(ctx, "POST", "torrents/delete", "application/x-www-form-urlencoded", []byte(body.Encode()))
+	return err
+}
+func (a *Adapter) CleanupInfo(ctx context.Context, hash string) (string, string, error) {
+	raw, err := a.request(ctx, "GET", "torrents/info?"+url.Values{"hashes": {hash}}.Encode(), "", nil)
+	if err != nil {
+		return "", "", err
+	}
+	var rows []struct {
+		Hash     string
+		Tags     string
+		Category string
+		SavePath string `json:"save_path"`
+	}
+	if json.Unmarshal(raw, &rows) != nil || len(rows) != 1 || !strings.EqualFold(rows[0].Hash, hash) {
+		return "", "", ErrUnavailable
+	}
+	return rows[0].Tags, rows[0].SavePath, nil
+}
+func (a *Adapter) AllHashes(ctx context.Context) ([]string, error) {
+	raw, err := a.request(ctx, "GET", "torrents/info", "", nil)
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct{ Hash string }
+	if json.Unmarshal(raw, &rows) != nil || len(rows) > 1000 {
+		return nil, ErrUnavailable
+	}
+	out := []string{}
+	for _, r := range rows {
+		out = append(out, r.Hash)
 	}
 	return out, nil
 }

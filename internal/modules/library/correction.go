@@ -6,7 +6,6 @@ import (
 	"errors"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/metadata"
-	"strings"
 )
 
 // Correct retains assetId/grant and cloud/source media. Output path changes
@@ -114,8 +113,9 @@ func (e Engine) Correct(ctx context.Context, assetID string, in Confirmation) er
 			}
 		}
 		for _, output := range outputs {
-			if item.MediaType == "series" && !strings.HasPrefix(output.Path, "TV/") || item.MediaType == "movie" && !strings.HasPrefix(output.Path, "Movies/") {
-				return errors.New("media type changed; reimport into the correct Movies/TV directory rather than overwriting a shared folder")
+			var existingType string
+			if err = tx.QueryRow(ctx, `SELECT m.media_type FROM media_asset_bindings b JOIN media_items m ON m.id=b.media_id WHERE b.asset_id=$1`, assetID).Scan(&existingType); err != nil || existingType != item.MediaType {
+				return errors.New("媒体类型改变，需要明确迁移输出；目录名称不是身份凭据")
 			}
 
 			projection := OutputProjection{Path: output.Path, WholeFilePlayback: true}

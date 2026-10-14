@@ -247,6 +247,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		w.Handlers["library.emby.confirm"] = libraryEngine.CheckEmby
 		downloader := acquisition.Engine{DB: db, Connections: manager, Search: engine}
 		w.Handlers["download.add"] = downloader.Add
+		w.Handlers["download.cleanup"] = downloader.Cleanup
 		w.Handlers["transfer.upload"] = downloader.Transfer
 		w.Handlers["transfer.import.resume"] = downloader.RunOutputImport
 		w.Handlers["emby.refresh"] = downloader.RefreshEmby
@@ -267,6 +268,9 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 					logger.Warn("download reconciliation unavailable")
 				}
 				if queue == "default" {
+					if err := downloader.ScheduleCleanup(check); err != nil {
+						logger.Warn("cleanup scheduling unavailable", "error", err)
+					}
 					if err := metricEngine.Schedule(check); err != nil {
 						logger.Warn("site metrics schedule unavailable", "error", err)
 					}
@@ -278,6 +282,9 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 					}
 					if err := subscriptionEngine.Schedule(check); err != nil {
 						logger.Warn("subscription schedule unavailable", "error", err)
+					}
+					if err := libraryEngine.ScheduleEmby(check); err != nil {
+						logger.Warn("automatic Emby refresh unavailable", "error", err)
 					}
 					if err := libraryEngine.Schedule(check); err != nil {
 						logger.Warn("library schedule unavailable", "error", err)

@@ -151,7 +151,7 @@ func TestIdentityMigrationKeepsFileURLArchivesOwnedOutputsAndPreservesSharedNFO(
 	}
 	var current string
 	db.QueryRow(ctx, `SELECT output_path FROM strm_entries WHERE asset_id=$1`, asset).Scan(&current)
-	if !strings.HasPrefix(current, "TV/Owned Series 10 (2026)/Season 01/") {
+	if !strings.HasPrefix(current, "电视剧/其他剧/Owned Series 10 (2026)/Season 01/") {
 		t.Fatal("wrong destination", current)
 	}
 	raw, err := os.ReadFile(filepath.Join(root, current))
@@ -195,7 +195,7 @@ func TestIdentityMigrationKeepsFileURLArchivesOwnedOutputsAndPreservesSharedNFO(
 		t.Fatal("shared old show NFO was altered/removed")
 	}
 	db.QueryRow(ctx, `SELECT output_path FROM strm_entries WHERE asset_id=$1`, asset).Scan(&current)
-	if !strings.HasPrefix(current, "TV/Owned Series 20 (2026)/Season 02/") {
+	if !strings.HasPrefix(current, "电视剧/其他剧/Owned Series 20 (2026)/Season 02/") {
 		t.Fatal("cross-show output remains old", current)
 	}
 	in.MediaType = "movie"
@@ -211,7 +211,7 @@ func TestIdentityMigrationKeepsFileURLArchivesOwnedOutputsAndPreservesSharedNFO(
 		t.Fatal("series to movie migration", err)
 	}
 	db.QueryRow(ctx, `SELECT output_path FROM strm_entries WHERE asset_id=$1`, asset).Scan(&current)
-	if !strings.HasPrefix(current, "Movies/Owned Film 30 (2026)/") {
+	if !strings.HasPrefix(current, "电影/其他电影/Owned Film 30 (2026)/") {
 		t.Fatal("movie output incorrect", current)
 	}
 	raw, _ = os.ReadFile(filepath.Join(root, current))

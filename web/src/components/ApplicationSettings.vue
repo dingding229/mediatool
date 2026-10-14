@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { ElMessageBox } from "element-plus";
 import { ref, onMounted } from "vue";
 import ScrapingSettings, { type Policy } from "./ScrapingSettings.vue";
 import { request } from "../api/client";
 interface Settings {
+  cleanupAfterImport: boolean;
   trustedProxyCidrs: string[];
   scraping: Policy;
   movieTemplate: string;
@@ -51,6 +53,21 @@ async function save() {
     .split(/[\n,]/)
     .map((x) => x.trim())
     .filter(Boolean);
+  if (record.value.value.cleanupAfterImport) {
+    try {
+      await ElMessageBox.confirm(
+        "新任务全部上传校验并入库后允许自动清理本地文件和qB种子。H&R未知或有要求时仍须逐项人工确认完成做种；不会自动清理历史任务。",
+        "启用上传后清理",
+        {
+          type: "warning",
+          confirmButtonText: "确认启用",
+          cancelButtonText: "取消",
+        },
+      );
+    } catch {
+      return;
+    }
+  }
   busy.value = true;
   error.value = "";
   message.value = "";
@@ -86,6 +103,15 @@ onMounted(load);
       :closable="false"
     />
     <form v-if="record" class="settings-defaults" @submit.prevent="save">
+      <fieldset>
+        <legend>上传后清理</legend>
+        <el-checkbox v-model="record.value.cleanupAfterImport"
+          >新任务全部云端校验并入库后清理本地文件及qB种子</el-checkbox
+        >
+        <p class="field-hint">
+          默认关闭。开启后冻结到新任务；H&R未知/有要求、共用文件、缺少云端哈希或任务归属会阻止删除。旧任务须在下载页面单独批准；失败/结果未知不会盲目重放。
+        </p>
+      </fieldset>
       <fieldset>
         <legend>播放器访客 IP</legend>
         <label for="trusted-proxies">可信反代 IP / CIDR（每行一个）</label
@@ -237,5 +263,25 @@ legend {
     grid-template-columns: 1fr;
     gap: 16px;
   }
+}
+</style>
+
+<style scoped>
+:deep(.el-checkbox) {
+  max-width: 100%;
+  height: auto;
+  min-height: 44px;
+  align-items: flex-start;
+}
+:deep(.el-checkbox__label) {
+  white-space: normal;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+:deep(.el-checkbox__input) {
+  margin-top: 5px;
+}
+.settings-defaults fieldset {
+  min-width: 0;
 }
 </style>

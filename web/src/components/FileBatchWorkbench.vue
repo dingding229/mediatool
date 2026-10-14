@@ -11,6 +11,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ completed: [] }>();
 export interface Row {
+ destination?:string;
   tmdbId?: number;
   episodes?: number[];
   confirmed?: boolean;
@@ -97,7 +98,7 @@ async function preview() {
           expectedSize: props.files.find((f) => f.path === row.source)?.size,
           connectionId: props.root.id,
           operation: operation.value,
-          destination: destination.value,
+          destination:destination.value==="." && operation.value==="organize" && row.destination?row.destination:destination.value,
           includeSidecars: true,
           name: nameMode.value === "direct" ? row.name : "",
         }),
@@ -215,7 +216,7 @@ async function reconcile() {
         </div>
       </dl>
       <article v-for="row in rows" :key="row.source" class="batch-row">
-        <code>{{ row.source }}</code>
+        <code>{{ row.source }}</code><p v-if="row.destination" class="field-hint">目录分类：{{row.destination}}</p>
         <p v-if="row.confirmed" class="field-hint">
           已确认 TMDB {{ row.tmdbId }} ·
           {{ row.mediaType === "movie" ? "电影" : "剧集" }} · 季

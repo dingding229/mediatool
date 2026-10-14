@@ -3,6 +3,7 @@ package filemanager
 import (
 	"context"
 	"errors"
+	"media-tool/internal/modules/metadata"
 	"path"
 	"strings"
 	"time"
@@ -11,7 +12,7 @@ import (
 var sidecarTypes = map[string]bool{".srt": true, ".ass": true, ".ssa": true, ".vtt": true, ".idx": true, ".sub": true, ".sup": true, ".smi": true, ".ttml": true, ".nfo": true}
 
 func BuildPlan(ctx context.Context, b Backend, root Root, in Input, id string) (Plan, error) {
-	p := Plan{ID: id, ConnectionID: root.ID, Revision: root.Revision, Root: root.Path, OriginFingerprint: root.Origin, BackendKind: root.Kind, Operation: in.Operation, Items: []Item{}, Steps: []Step{}, ExpiresAt: time.Now().UTC().Add(10 * time.Minute)}
+	p := Plan{Media: metadata.Item{Title: in.Title, Year: in.Year, MediaType: in.MediaType}, Category: in.Category, ID: id, ConnectionID: root.ID, Revision: root.Revision, Root: root.Path, OriginFingerprint: root.Origin, BackendKind: root.Kind, Operation: in.Operation, Items: []Item{}, Steps: []Step{}, ExpiresAt: time.Now().UTC().Add(10 * time.Minute)}
 	source, err := Relative(in.Source)
 	if err != nil {
 		return p, err

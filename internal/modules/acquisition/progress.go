@@ -12,7 +12,7 @@ import (
 // Sync only observes existing torrents. It never re-adds a torrent or changes
 // the download/import state, even when an operator presses Refresh.
 func (e Engine) Sync(ctx context.Context) error {
-	rows, err := e.DB.Query(ctx, `SELECT id::text FROM download_tasks WHERE info_hash IS NOT NULL AND download_state NOT IN ('pending','failed','cancelled') ORDER BY coalesce((details->>'syncAttemptAt')::timestamptz,created_at) LIMIT 100`)
+	rows, err := e.DB.Query(ctx, `SELECT id::text FROM download_tasks WHERE info_hash IS NOT NULL AND seeding_state<>'removed' AND download_state NOT IN ('pending','failed','cancelled') ORDER BY coalesce((details->>'syncAttemptAt')::timestamptz,created_at) LIMIT 100`)
 	if err != nil {
 		return err
 	}

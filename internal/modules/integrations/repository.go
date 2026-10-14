@@ -188,6 +188,14 @@ func (r Repository) Save(ctx context.Context, id string, in Input) (Record, erro
 			}
 		}
 	}
+	if in.Enabled && in.Kind != "ptsite" && in.Kind != "local" {
+		if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,716))`, in.Kind); err != nil {
+			return Record{}, err
+		}
+		if _, err = tx.Exec(ctx, `UPDATE integrations SET enabled=false,revision=revision+1,updated_at=now() WHERE kind=$1 AND id<>$2 AND enabled`, in.Kind, id); err != nil {
+			return Record{}, err
+		}
+	}
 	encrypted, err := r.Vault.Seal(id, values)
 	if err != nil {
 		return Record{}, err

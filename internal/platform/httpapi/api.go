@@ -146,6 +146,9 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/auth/login", a.login)
 	mux.HandleFunc("POST /api/v1/auth/logout", a.protected(a.logout))
 	mux.HandleFunc("GET /api/v1/auth/session", a.protected(a.accountSession))
+	mux.HandleFunc("GET /api/v1/classification", a.protected(a.getClassification))
+	mux.HandleFunc("PUT /api/v1/classification", a.protected(a.saveClassification))
+	mux.HandleFunc("POST /api/v1/classification/preview", a.protected(a.previewClassification))
 	mux.HandleFunc("GET /api/v1/system/status", a.protected(a.status))
 	mux.HandleFunc("GET /api/v1/system/modules", a.protected(func(w http.ResponseWriter, r *http.Request) { write(w, 200, system.Modules()) }))
 	mux.HandleFunc("GET /api/v1/integrations", a.protected(a.listIntegrations))
@@ -215,6 +218,8 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/search/{id}", a.protected(a.getSearch))
 	mux.HandleFunc("GET /api/v1/downloads", a.protected(a.listDownloads))
 	mux.HandleFunc("POST /api/v1/downloads", a.protected(a.startDownload))
+	mux.HandleFunc("POST /api/v1/downloads/{id}/cleanup/reconcile", a.protected(a.reconcileDownloadCleanup))
+	mux.HandleFunc("POST /api/v1/downloads/{id}/cleanup", a.protected(a.approveDownloadCleanup))
 	mux.HandleFunc("POST /api/v1/downloads/sync", a.protected(a.syncDownloads))
 	mux.HandleFunc("GET /api/v1/downloads/{id}/source-preview", a.protected(a.downloadSourcePreview))
 	mux.HandleFunc("POST /api/v1/downloads/{id}/reconfirm-source", a.protected(a.reconfirmDownloadSource))
@@ -264,6 +269,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 	a.registerMediaServer(mux)
 	a.registerPlayerAccess(mux)
 	a.registerSTRMTools(mux)
+	a.registerExternal(mux)
 	ui := webui.Handler()
 	embyProxy := longStream(http.HandlerFunc(a.proxyEmby))
 	mux.Handle("/emby/", embyProxy)
@@ -509,7 +515,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.24.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.25.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

@@ -32,10 +32,9 @@ func AssetOutputProjections(cloudPath, assetID string, item metadata.Item, seaso
 	if item.Year != "" {
 		folder += " (" + item.Year + ")"
 	}
-	edition := assetID[:8]
 	if item.MediaType != "series" {
 		filename := strings.TrimSuffix(safeName(path.Base(cloudPath)), path.Ext(cloudPath))
-		return []OutputProjection{{Path: path.Join("Movies", folder, filename+" ["+edition+"].strm"), WholeFilePlayback: true}}, nil
+		return []OutputProjection{{Path: path.Join("Movies", folder, filename+".strm"), WholeFilePlayback: true}}, nil
 	}
 	if season == nil {
 		return nil, errors.New("explicit season required")
@@ -63,7 +62,7 @@ func AssetOutputProjections(cloudPath, assetID string, item metadata.Item, seaso
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, OutputProjection{Path: path.Join("TV", folder, fmt.Sprintf("Season %02d", *season), fmt.Sprintf("%s - %s [%s].strm", safeName(item.Title), tag, edition)), Episodes: append([]int(nil), coverage...), SourceEpisodes: append([]int(nil), sorted...), WholeFilePlayback: true})
+		out = append(out, OutputProjection{Path: path.Join("TV", folder, fmt.Sprintf("Season %02d", *season), fmt.Sprintf("%s - %s.strm", safeName(item.Title), tag)), Episodes: append([]int(nil), coverage...), SourceEpisodes: append([]int(nil), sorted...), WholeFilePlayback: true})
 	}
 	return out, nil
 }
@@ -216,7 +215,7 @@ func ExistingOutputProjections(paths []string, mediaType string, season *int, ep
 	if mediaType == "movie" {
 		out := []OutputProjection{}
 		for _, p := range paths {
-			if !validRelativeArtifact(p) || !strings.HasPrefix(p, "Movies/") {
+			if !validRelativeArtifact(p) || path.Ext(p) != ".strm" {
 				return nil, ErrOutputLayoutRequired
 			}
 			out = append(out, OutputProjection{Path: p, WholeFilePlayback: true})
@@ -228,7 +227,7 @@ func ExistingOutputProjections(paths []string, mediaType string, season *int, ep
 	}
 	old := []oldOutput{}
 	for _, p := range paths {
-		if !validRelativeArtifact(p) || !strings.HasPrefix(p, "TV/") {
+		if !validRelativeArtifact(p) || path.Ext(p) != ".strm" {
 			return nil, ErrOutputLayoutRequired
 		}
 		old = append(old, oldOutput{Path: p})

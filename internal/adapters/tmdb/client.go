@@ -57,6 +57,11 @@ func (c Client) Probe(ctx context.Context) error {
 }
 
 type record struct {
+	OriginalLanguage    string   `json:"original_language"`
+	OriginCountry       []string `json:"origin_country"`
+	ProductionCountries []struct {
+		Code string `json:"iso_3166_1"`
+	} `json:"production_countries"`
 	ID            int
 	Title, Name   string
 	OriginalTitle string `json:"original_title"`
@@ -67,6 +72,7 @@ type record struct {
 	PosterPath    string `json:"poster_path"`
 	BackdropPath  string `json:"backdrop_path"`
 	Genres        []struct {
+		ID   int    `json:"id"`
 		Name string `json:"name"`
 	} `json:"genres"`
 	MediaType string `json:"media_type"`
@@ -82,10 +88,16 @@ func convert(r record, kind string) metadata.Item {
 		year = date[:4]
 	}
 	genres := []string{}
+	ids := []int{}
+	countries := append([]string(nil), r.OriginCountry...)
+	for _, c := range r.ProductionCountries {
+		countries = append(countries, c.Code)
+	}
 	for _, g := range r.Genres {
 		genres = append(genres, g.Name)
+		ids = append(ids, g.ID)
 	}
-	return metadata.Item{BackdropPath: r.BackdropPath, Genres: genres, ID: r.ID, MediaType: kind, Title: title, OriginalTitle: original, Year: year, Overview: r.Overview, PosterPath: r.PosterPath}
+	return metadata.Item{GenreIDs: ids, Countries: countries, OriginalLanguage: r.OriginalLanguage, BackdropPath: r.BackdropPath, Genres: genres, ID: r.ID, MediaType: kind, Title: title, OriginalTitle: original, Year: year, Overview: r.Overview, PosterPath: r.PosterPath}
 }
 func (c Client) Search(ctx context.Context, kind, query string) ([]metadata.Item, error) {
 	if len(query) > 200 || strings.TrimSpace(query) == "" {

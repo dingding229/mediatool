@@ -38,6 +38,10 @@ func (a *API) startSearch(w http.ResponseWriter, r *http.Request) {
 		Keyword    string   `json:"keyword"`
 		AccountIDs []string `json:"accountIds"`
 		Refresh    bool     `json:"refresh"`
+		Media      *struct {
+			ID        int    `json:"id"`
+			MediaType string `json:"mediaType"`
+		} `json:"media"`
 	}
 	if !decode(w, r, &body) {
 		return
@@ -54,7 +58,24 @@ func (a *API) startSearch(w http.ResponseWriter, r *http.Request) {
 			body.AccountIDs = append(body.AccountIDs, account.ID)
 		}
 	}
-	id, cached, err := engine.StartCached(r.Context(), body.Keyword, body.AccountIDs, body.Refresh)
+	var id string
+	var cached bool
+	if body.Media != nil {
+		client, clientErr := a.Deps.Integrations.TMDB(r.Context())
+		if clientErr != nil {
+			fail(w, 503, "tmdb_unavailable", clientErr.Error())
+			return
+		}
+		item, identityErr := client.Details(r.Context(), body.Media.MediaType, body.Media.ID)
+		if identityErr != nil {
+			fail(w, 400, "media_unavailable", "所选TMDB身份无法核验")
+			return
+		}
+		body.Keyword = item.Title
+		id, cached, err = engine.StartMediaCached(r.Context(), body.Keyword, body.AccountIDs, body.Refresh, item)
+	} else {
+		id, cached, err = engine.StartCached(r.Context(), body.Keyword, body.AccountIDs, body.Refresh)
+	}
 	if err != nil {
 		fail(w, 400, "search_create_failed", err.Error())
 		return

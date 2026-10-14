@@ -10,6 +10,8 @@ const sourceRecovery = ref<InstanceType<typeof DownloadSourceDialog> | null>(
 );
 const outputRecovery = ref<InstanceType<typeof OutputRecoveryDialog>>();
 interface Task {
+  cleanupState: string;
+  cleanupMessage: string;
   sourceRecoveryRequired: boolean;
   sourceControlRevision: number;
   id: string;
@@ -38,6 +40,36 @@ interface Task {
   message: string;
   media: { title: string; year: string };
   createdAt: string;
+}
+async function reconcileCleanup(t: Task) {
+  try {
+    await post(`/downloads/${t.id}/cleanup/reconcile`, {});
+    ElMessage.success("只读核对完成，没有重新执行删除");
+    await refresh();
+  } catch (e) {
+    if (e instanceof Error) ElMessage.error(e.message);
+  }
+}
+async function cleanupTask(t: Task) {
+  try {
+    await ElMessageBox.confirm(
+      "仅在全部媒体上传、哈希校验及入库完成后，删除此种子与对应本地下载文件。删除不可逆，不删除云端文件或STRM；请确认已满足站点H&R/做种要求。",
+      "确认清理本地下载与种子",
+      {
+        confirmButtonText: "已满足做种要求，批准清理",
+        cancelButtonText: "取消",
+        type: "warning",
+      },
+    );
+    await post(`/downloads/${t.id}/cleanup`, {
+      confirm: true,
+      hrSatisfied: true,
+    });
+    ElMessage.success("清理意图已登记，后台会再次核对全部证据");
+    await refresh();
+  } catch (e) {
+    if (e instanceof Error) ElMessage.error(e.message);
+  }
 }
 const transfers = ref<
   {
@@ -286,9 +318,10 @@ onUnmounted(() => {
             >{{ labels[scope.row.state] ?? scope.row.state }} ·
             {{ qbLabel(scope.row.qbState) }}</small
           ><small class="download-telemetry"
-            >↓ {{scope.row.syncedAt ? rate(scope.row.downloadSpeed) : "未知"}} / ↑
-            {{scope.row.syncedAt ? rate(scope.row.uploadSpeed) : "未知"}} · 做种连接
-            {{ scope.row.seeds ?? "未知" }} / 下载连接
+            >↓
+            {{ scope.row.syncedAt ? rate(scope.row.downloadSpeed) : "未知" }} /
+            ↑ {{ scope.row.syncedAt ? rate(scope.row.uploadSpeed) : "未知" }} ·
+            做种连接 {{ scope.row.seeds ?? "未知" }} / 下载连接
             {{ scope.row.peers ?? "未知" }}<br />最近同步：{{
               scope.row.syncedAt
                 ? new Date(scope.row.syncedAt).toLocaleString("zh-CN")
@@ -313,7 +346,7 @@ onUnmounted(() => {
         ><template #default="scope">{{
           scope.row.seedingState === "seeding" ? "做种中" : "待开始"
         }}</template></el-table-column
-      ><el-table-column label="操作" width="100"
+      ><el-table-column label="操作" min-width="180"
         ><template #default="scope"
           ><el-button
             v-if="scope.row.sourceRecoveryRequired"
@@ -321,6 +354,26 @@ onUnmounted(() => {
             >核对来源</el-button
           ><el-button v-else @click="retry('downloads', scope.row.id)"
             >重试</el-button
+          ><el-button
+            v-if="
+              scope.row.state === 'imported' &&
+              !['succeeded', 'uncertain', 'deleting'].includes(
+                scope.row.cleanupState,
+              )
+            "
+            type="danger"
+            plain
+            @click="cleanupTask(scope.row)"
+            >清理本地与种子</el-button
+          ><el-button
+            v-if="['uncertain', 'deleting'].includes(scope.row.cleanupState)"
+            @click="reconcileCleanup(scope.row)"
+            >核对清理结果</el-button
+          ><small
+            v-if="scope.row.cleanupState !== 'disabled'"
+            class="download-telemetry"
+            >{{ scope.row.cleanupState }} ·
+            {{ scope.row.cleanupMessage }}</small
           ></template
         ></el-table-column
       ><el-table-column label="最近提示" min-width="180"
@@ -357,11 +410,17 @@ onUnmounted(() => {
       ><el-table-column label="处理进度" min-width="150"
         ><template #default="scope"
           ><el-progress
-            :percentage="
-              scope.row.total
-                ? Math.round((scope.row.bytes / scope.row.total) * 100)
-                : 0
-            " /></template></el-table-column
+            :percentage="scope.row.processingProgress ?? 0"
+          /><small>{{ scope.row.processingStage }}</small
+          ><small class="download-telemetry"
+            >实际传输 {{ (scope.row.bytes / 1024 / 1024).toFixed(2) }} MiB /
+            {{ (scope.row.total / 1024 / 1024).toFixed(2) }} MiB<br /><span>{{
+              scope.row.transferMethod === "instant_or_reused"
+                ? "秒传或复用；节省字节不计作网络传输"
+                : ""
+            }}</span></small
+          ></template
+        ></el-table-column
       ><el-table-column label="操作" min-width="290"
         ><template #default="scope"
           ><el-button
