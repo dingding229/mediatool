@@ -596,7 +596,11 @@ async function saveSchedule() {
 }
 onMounted(() => {
   refresh();
-  timer = setInterval(refresh, 10000);
+  timer = setInterval(() => {
+    // Keep an operator's selection stable until they explicitly refresh or
+    // finish the batch; polling must never silently cancel a bulk action.
+    if (!selection.value.length && !assetSelection.value.length && !organizing.value) void refresh();
+  }, 10000);
 });
 onUnmounted(() => {
   if (timer) clearInterval(timer);
