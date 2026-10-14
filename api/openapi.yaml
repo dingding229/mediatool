@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.11.0-dev
+  version: 0.19.0-dev
   description: 'Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -10,6 +10,147 @@ servers:
 security:
 - AdminSession: []
 paths:
+  /api/v1/files/batches/preview:
+    post:
+      operationId: previewFileBatch
+      description: 持久化逐项整理预览；1–20项。不会执行文件变更，冲突项阻止整批批准。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 证据变化、冲突或当前状态不允许
+  /api/v1/files/batches/{id}:
+    get:
+      operationId: getFileBatch
+      description: 逐项计划、执行进度和原始核对结果。
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 证据变化、冲突或当前状态不允许
+  /api/v1/files/batches/{id}/approve:
+    post:
+      operationId: approveFileBatch
+      description: digest+confirm=true明确批准；预览未过期、无冲突才入library队列；重复批准不重复任务。
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 证据变化、冲突或当前状态不允许
+  /api/v1/files/batches/{id}/reconcile:
+    post:
+      operationId: reconcileFileBatch
+      description: 只读回核对未知结果，不重放移动、不自动继续未执行项。
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 证据变化、冲突或当前状态不允许
+  /api/v1/library/scans/{id}:
+    get:
+      operationId: scanDetails
+      description: 目录游标分页、已知覆盖、代次和连接修订；进度不是预先已知的全树百分比。
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 证据变化、冲突或当前状态不允许
+  /api/v1/library/scans/{id}/{action}:
+    post:
+      operationId: controlScan
+      description: pause/resume/cancel；resume重新全树校准，旧代次与不完整覆盖不参与缺失投票。
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: action
+        in: path
+        required: true
+        schema: {type: string, enum: [pause, resume, cancel]}
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 证据变化、冲突或当前状态不允许
+  /api/v1/library/candidates/{id}/recognize:
+    post:
+      operationId: recognizeCandidate
+      description: 绑定当前文件ID、路径、大小和候选修订的识别证据；唯一标题+年份+类型才预选，仍需人工批准。
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 证据变化、冲突或当前状态不允许
+  /api/v1/library/activity:
+    get:
+      operationId: libraryActivity
+      description: 统一文件/批次/扫描/传输/输出/Emby历史。kind,state,q,connectionId,batchId,from,to,page,pageSize筛选；日期RFC3339。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 证据变化、冲突或当前状态不允许
+  /api/v1/library/outputs:
+    get:
+      operationId: managedOutputs
+      description: 托管文件集合和输出归属、云端状态、按资产修订的逐路径Emby可见性；q/page/pageSize。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 证据变化、冲突或当前状态不允许
+  /api/v1/library/outputs/{id}/content:
+    get:
+      operationId: managedOutputContent
+      description: 核对托管归属与当前SHA256后返回原STRM/NFO正文，保留原链接；path相对路径，no-store，256KiB上限。未知或手工改变文件返回409，不读取、不覆盖。
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: path, in: query, required: true, schema: {type: string}}
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 非托管、缺失或文件改变
+  /api/v1/library/outputs/{id}/emby:
+    post:
+      operationId: checkManagedEmby
+      description: 排队定向路径刷新，再逐路径确认可见；刷新成功不代表入库、可见不代表完整解码。
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '409':
+          description: 证据变化、冲突或当前状态不允许
   /healthz:
     get:
       operationId: liveness
@@ -44,7 +185,7 @@ paths:
   /api/v1/logs:
     get:
       operationId: readLogs
-      description: 最近100条脱敏JSON日志，可用level及limit筛选
+      description: 最近100条管理员原值JSON日志，可用level及limit筛选
       responses:
         '200':
           $ref: '#/components/responses/OK'
@@ -52,7 +193,7 @@ paths:
     get:
       operationId: queryLogs
       description: >-
-        分页查询脱敏文件日志。keyword（至多200字）、level、module、from/to/before（RFC3339）、
+        分页查询管理员原值文件日志。keyword（至多200字）、level、module、from/to/before（RFC3339）、
         page（1-10000）、pageSize（1-200）。返回items/total/modules/before/truncated。
         total仅代表每文件最近2MiB且至多20000条的扫描窗口，不代表全部保留日志。
         before为查询截止时间；分页复用该时间可排除新写日志，大量写入、轮转或清理仍可能使窗口变化。

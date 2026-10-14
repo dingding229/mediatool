@@ -338,8 +338,12 @@ func (e Engine) markVerifiedRecord(ctx context.Context, id string, remote storag
 		return err
 	}
 	metadata, _ := json.Marshal(remote.Hashes)
-	if _, err = tx.Exec(ctx, `INSERT INTO cloud_files(id,storage_id,provider_file_id,full_path,size_bytes,metadata)VALUES($1,$2,$3,$4,$5,$6)ON CONFLICT(storage_id,full_path)DO UPDATE SET provider_file_id=excluded.provider_file_id,size_bytes=excluded.size_bytes,metadata=excluded.metadata,state='present',updated_at=now()`, jobs.UUID(), connectionID, remote.ID, remote.Path, remote.Size, metadata); err != nil {
+	tag, err := tx.Exec(ctx, `INSERT INTO cloud_files(id,storage_id,provider_file_id,full_path,size_bytes,metadata)VALUES($1,$2,$3,$4,$5,$6)ON CONFLICT(storage_id,full_path)DO UPDATE SET provider_file_id=excluded.provider_file_id,size_bytes=excluded.size_bytes,metadata=excluded.metadata,state='present',updated_at=now() WHERE NOT EXISTS(SELECT 1 FROM media_assets WHERE cloud_file_id=cloud_files.id) OR (cloud_files.provider_file_id=excluded.provider_file_id AND cloud_files.size_bytes=excluded.size_bytes AND (coalesce(cloud_files.metadata->>'2','')='' OR lower(cloud_files.metadata->>'2')=lower(coalesce(excluded.metadata->>'2',''))))`, jobs.UUID(), connectionID, remote.ID, remote.Path, remote.Size, metadata)
+	if err != nil {
 		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return errors.New("cloud path already belongs to different media; original playback grant not rebound")
 	}
 	if _, err = tx.Exec(ctx, `UPDATE transfer_tasks SET state='verified',phase='verified',last_error='',updated_at=now()WHERE id=$1`, id); err != nil {
 		return err

@@ -14,21 +14,28 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/storage"
+	"media-tool/internal/platform/trace"
 )
 
 type Engine struct {
 	DB          *pgxpool.Pool
 	Connections *integrations.Manager
+	Observe     func(context.Context, string, string) (storage.File, error)
 }
 type Scan struct {
-	ID           string    `json:"id"`
-	ConnectionID string    `json:"connectionId"`
-	Root         string    `json:"root"`
-	State        string    `json:"state"`
-	Files        int       `json:"files"`
-	Directories  int       `json:"directories"`
-	Message      string    `json:"message"`
-	CreatedAt    time.Time `json:"createdAt"`
+	ID                   string    `json:"id"`
+	ConnectionID         string    `json:"connectionId"`
+	Root                 string    `json:"root"`
+	State                string    `json:"state"`
+	Files                int       `json:"files"`
+	Directories          int       `json:"directories"`
+	Message              string    `json:"message"`
+	CompletedDirectories int       `json:"completedDirectories"`
+	CurrentDirectory     string    `json:"currentDirectory"`
+	Revision             int64     `json:"revision"`
+	Generation           int64     `json:"generation"`
+	UpdatedAt            time.Time `json:"updatedAt"`
+	CreatedAt            time.Time `json:"createdAt"`
 }
 
 func inside(root, p string) bool {
@@ -83,12 +90,12 @@ func startScanTx(ctx context.Context, tx pgx.Tx, connectionID, root string) (str
 	}
 
 	id := jobs.UUID()
-	tag, err := tx.Exec(ctx, `INSERT INTO library_scans(id,integration_id,root)VALUES($1,$2,$3)ON CONFLICT(integration_id,root)WHERE state IN ('pending','running')DO NOTHING`, id, connectionID, root)
+	tag, err := tx.Exec(ctx, `INSERT INTO library_scans(id,integration_id,root,integration_revision)SELECT $1,$2,$3,revision FROM integrations WHERE id=$2 ON CONFLICT(integration_id,root)WHERE state IN ('pending','running','paused')DO NOTHING`, id, connectionID, root)
 	if err != nil {
 		return "", false, err
 	}
 	if tag.RowsAffected() == 0 {
-		if err = tx.QueryRow(ctx, `SELECT id::text FROM library_scans WHERE integration_id=$1 AND root=$2 AND state IN ('pending','running')`, connectionID, root).Scan(&id); err != nil {
+		if err = tx.QueryRow(ctx, `SELECT id::text FROM library_scans WHERE integration_id=$1 AND root=$2 AND state IN ('pending','running','paused')`, connectionID, root).Scan(&id); err != nil {
 			return "", false, err
 		}
 		return id, false, nil
@@ -103,7 +110,7 @@ func startScanTx(ctx context.Context, tx pgx.Tx, connectionID, root string) (str
 	return id, true, nil
 }
 func (e Engine) Scans(ctx context.Context) ([]Scan, error) {
-	rows, err := e.DB.Query(ctx, `SELECT id::text,integration_id::text,root,state,files_seen,directories_seen,message,created_at FROM library_scans ORDER BY created_at DESC LIMIT 100`)
+	rows, err := e.DB.Query(ctx, `SELECT id::text,integration_id::text,root,state,(SELECT count(*) FROM library_scan_seen s WHERE s.scan_id=library_scans.id),(SELECT count(*) FROM library_scan_directories d WHERE d.scan_id=library_scans.id),message,created_at,updated_at,integration_revision,generation,current_directory,(SELECT count(*) FROM library_scan_directories d WHERE d.scan_id=library_scans.id AND d.state='completed') FROM library_scans ORDER BY created_at DESC LIMIT 100`)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +118,7 @@ func (e Engine) Scans(ctx context.Context) ([]Scan, error) {
 	out := []Scan{}
 	for rows.Next() {
 		var item Scan
-		if err = rows.Scan(&item.ID, &item.ConnectionID, &item.Root, &item.State, &item.Files, &item.Directories, &item.Message, &item.CreatedAt); err != nil {
+		if err = rows.Scan(&item.ID, &item.ConnectionID, &item.Root, &item.State, &item.Files, &item.Directories, &item.Message, &item.CreatedAt, &item.UpdatedAt, &item.Revision, &item.Generation, &item.CurrentDirectory, &item.CompletedDirectories); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -120,20 +127,69 @@ func (e Engine) Scans(ctx context.Context) ([]Scan, error) {
 }
 func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 	var body struct {
-		ScanID string `json:"scanId"`
+		ScanID     string `json:"scanId"`
+		Generation int64  `json:"generation"`
 	}
 	if json.Unmarshal(job.Payload, &body) != nil {
 		return errors.New("invalid scan job")
 	}
 	var connectionID, root, state string
-	if err := e.DB.QueryRow(ctx, `SELECT integration_id::text,root,state FROM library_scans WHERE id=$1`, body.ScanID).Scan(&connectionID, &root, &state); err != nil {
+	var expectedRevision, generation int64
+	// A dedicated session lock prevents two retry generations from clearing or
+	// extending the same directory evidence concurrently.
+	lock, err := e.DB.Acquire(ctx)
+	if err != nil {
 		return err
+	}
+	defer lock.Release()
+	var acquired bool
+	if err = lock.QueryRow(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1,842))`, body.ScanID).Scan(&acquired); err != nil {
+		return err
+	}
+	if !acquired {
+		return errors.New("scan is already being processed")
+	}
+	defer func() {
+		c, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		var unlocked bool
+		if lock.QueryRow(c, `SELECT pg_advisory_unlock(hashtextextended($1,842))`, body.ScanID).Scan(&unlocked) != nil || !unlocked {
+			lock.Conn().Close(c)
+		}
+	}()
+	if err := e.DB.QueryRow(ctx, `SELECT integration_id::text,root,state,integration_revision,generation FROM library_scans WHERE id=$1`, body.ScanID).Scan(&connectionID, &root, &state, &expectedRevision, &generation); err != nil {
+		return err
+	}
+	var rootLocked bool
+	if err = lock.QueryRow(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1,0))`, "files:"+connectionID).Scan(&rootLocked); err != nil {
+		return err
+	}
+	if !rootLocked {
+		return errors.New("file operation is active; scan will retry without missing votes")
+	}
+	defer func() {
+		c, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		var released bool
+		if lock.QueryRow(c, `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "files:"+connectionID).Scan(&released) != nil || !released {
+			lock.Conn().Close(c)
+		}
+	}()
+	if body.Generation == 0 {
+		body.Generation = 1
+	}
+	if state == "paused" || state == "cancelled" || generation != body.Generation {
+		return jobs.ErrOperatorRequired
 	}
 	if state == "succeeded" {
 		return nil
 	}
-	if _, err := e.DB.Exec(ctx, `UPDATE library_scans SET state='running',message=''WHERE id=$1`, body.ScanID); err != nil {
+	tag, err := e.DB.Exec(ctx, `UPDATE library_scans SET state='running',message='',updated_at=now(),coverage_started_at=now() WHERE id=$1 AND generation=$2 AND state IN ('pending','running')`, body.ScanID, generation)
+	if err != nil {
 		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return jobs.ErrOperatorRequired
 	}
 	defer func() {
 		if result != nil {
@@ -141,15 +197,23 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 			if job.Attempts >= job.MaxAttempts {
 				status = "failed"
 			}
-			e.DB.Exec(context.WithoutCancel(ctx), `UPDATE library_scans SET state=$2,message='目录扫描未完成；不会据此标记缺失或清理输出'WHERE id=$1`, body.ScanID, status)
+			e.DB.Exec(context.WithoutCancel(ctx), `UPDATE library_scans SET state=$2,updated_at=now(),message=$4 WHERE id=$1 AND generation=$3 AND state='running'`, body.ScanID, status, generation, "目录扫描未完成；不会据此标记缺失或清理输出："+result.Error())
 		}
 	}()
-	if job.Attempts > 1 {
+	if job.Attempts > 1 || generation > 1 {
 		tx, err := e.DB.Begin(ctx)
 		if err != nil {
 			return err
 		}
 		defer tx.Rollback(ctx)
+		var state string
+		var current int64
+		if err = tx.QueryRow(ctx, `SELECT state,generation FROM library_scans WHERE id=$1 FOR UPDATE`, body.ScanID).Scan(&state, &current); err != nil {
+			return err
+		}
+		if state != "running" || current != generation {
+			return jobs.ErrOperatorRequired
+		}
 		if _, err = tx.Exec(ctx, `DELETE FROM library_scan_seen WHERE scan_id=$1`, body.ScanID); err != nil {
 			return err
 		}
@@ -171,6 +235,9 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 	if allowed == "" && len(e.Connections.Config.STRMAllowedRoots) > 0 {
 		allowed = e.Connections.Config.STRMAllowedRoots[0]
 	}
+	if connection.Record.Revision != expectedRevision {
+		return errors.New("scan connection revision changed; restart with fresh coverage")
+	}
 	if !connection.Record.Enabled || allowed == "" || !inside(allowed, root) || strings.Contains("/"+root+"/", "/.media-tool-trash/") {
 		return errors.New("scan connection or allowed directory changed")
 	}
@@ -183,11 +250,26 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 	if _, err = e.DB.Exec(ctx, `INSERT INTO storage_connections(id,name,provider,settings,enabled)VALUES($1,$2,'clouddrive2',$3,true)ON CONFLICT(id)DO NOTHING`, connectionID, connection.Record.Name, settings); err != nil {
 		return err
 	}
+	trace.Info(ctx, "library", "scan coverage started", "scanId", body.ScanID, "root", root, "generation", generation, "revision", expectedRevision)
 	rootInfo, err := client.Find(ctx, root)
 	if err != nil || !rootInfo.IsDirectory {
 		return errors.New("scan root is not a readable cloud directory")
 	}
+	check := func() error {
+		var s string
+		var g int64
+		if err := e.DB.QueryRow(ctx, `SELECT state,generation FROM library_scans WHERE id=$1`, body.ScanID).Scan(&s, &g); err != nil {
+			return err
+		}
+		if s != "running" || g != generation {
+			return jobs.ErrOperatorRequired
+		}
+		return nil
+	}
 	for {
+		if err := check(); err != nil {
+			return err
+		}
 		var directory string
 		err = e.DB.QueryRow(ctx, `SELECT path FROM library_scan_directories WHERE scan_id=$1 AND state<>'completed'ORDER BY path LIMIT 1`, body.ScanID).Scan(&directory)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -196,10 +278,16 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		if err != nil {
 			return err
 		}
+		if _, err = e.DB.Exec(ctx, `UPDATE library_scans SET current_directory=$2,updated_at=now() WHERE id=$1 AND generation=$3 AND state='running'`, body.ScanID, directory, generation); err != nil {
+			return err
+		}
 		if strings.Count(strings.TrimPrefix(directory, root), "/") > 32 {
 			return errors.New("cloud tree exceeds depth limit")
 		}
 		if err = client.Iterate(ctx, directory, func(file storage.File) error {
+			if err := check(); err != nil {
+				return err
+			}
 			if file.Path == "" || path.Clean(file.Path) != file.Path || path.Dir(file.Path) != directory || !inside(root, file.Path) || file.Size < 0 {
 				return errors.New("cloud listing contains an unsafe path")
 			}
@@ -233,7 +321,7 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		if dirs > 20000 || files > 500000 {
 			return errors.New("scan safety limit exceeded")
 		}
-		if _, err = e.DB.Exec(ctx, `UPDATE library_scans SET files_seen=$2,directories_seen=$3 WHERE id=$1`, body.ScanID, files, dirs); err != nil {
+		if _, err = e.DB.Exec(ctx, `UPDATE library_scans SET files_seen=$2,directories_seen=$3,updated_at=now() WHERE id=$1 AND generation=$4 AND state='running'`, body.ScanID, files, dirs, generation); err != nil {
 			return err
 		}
 	}
@@ -242,6 +330,14 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	var finalState string
+	var finalGeneration int64
+	if err = tx.QueryRow(ctx, `SELECT state,generation FROM library_scans WHERE id=$1 FOR UPDATE`, body.ScanID).Scan(&finalState, &finalGeneration); err != nil {
+		return err
+	}
+	if finalState != "running" || finalGeneration != generation {
+		return jobs.ErrOperatorRequired
+	}
 	var currentRevision int64
 	var stillEnabled bool
 	if err = tx.QueryRow(ctx, `SELECT revision,enabled FROM integrations WHERE id=$1 FOR SHARE`, connectionID).Scan(&currentRevision, &stillEnabled); err != nil {
@@ -250,12 +346,20 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 	if !stillEnabled || currentRevision != connection.Record.Revision {
 		return errors.New("connection changed during scan; missing-file votes were not applied")
 	}
+	var changedDuringScan bool
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM library_scan_schedules s JOIN library_scans scan ON scan.id=$2 WHERE s.integration_id=$1 AND s.last_change_at>scan.coverage_started_at)`, connectionID, body.ScanID).Scan(&changedDuringScan); err != nil {
+		return err
+	}
+	if changedDuringScan {
+		return errors.New("cloud changes observed during coverage; a new complete scan is required before missing votes")
+	}
 	if _, err = tx.Exec(ctx, `UPDATE cloud_files SET missing_scan_count=missing_scan_count+1,state=CASE WHEN missing_scan_count+1>=2 THEN 'missing'ELSE 'suspected_missing'END,missing_since=coalesce(missing_since,now()) WHERE state<>'trashed' AND storage_id=$1 AND (full_path=$2 OR left(full_path,length($2)+1)=$2||'/')AND NOT EXISTS(SELECT 1 FROM library_scan_seen WHERE scan_id=$3 AND file_id=cloud_files.id)`, connectionID, root, body.ScanID); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(ctx, `UPDATE library_scans SET state='succeeded',message='完整扫描完成；缺失需两次完整扫描确认，默认不删除STRM',completed_at=now()WHERE id=$1`, body.ScanID); err != nil {
+	if _, err = tx.Exec(ctx, `UPDATE library_scans SET state='succeeded',message='完整扫描完成；缺失需两次完整扫描确认，默认不删除STRM',completed_at=now(),updated_at=now(),current_directory='' WHERE id=$1`, body.ScanID); err != nil {
 		return err
 	}
+	trace.Info(ctx, "library", "complete scan coverage verified", "scanId", body.ScanID, "root", root, "generation", generation)
 	return tx.Commit(ctx)
 }
 func (e Engine) indexFile(ctx context.Context, connectionID string, file storage.File) (string, error) {
@@ -297,6 +401,19 @@ func (e Engine) indexFile(ctx context.Context, connectionID string, file storage
 		id = jobs.UUID()
 	}
 	raw, _ := json.Marshal(file.Hashes)
+	var bound, changed, replaced bool
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM media_assets WHERE cloud_file_id=$1), EXISTS(SELECT 1 FROM cloud_files WHERE id=$1 AND (provider_file_id IS DISTINCT FROM $2 OR full_path<>$3 OR size_bytes<>$4 OR metadata<>$5::jsonb)), EXISTS(SELECT 1 FROM cloud_files WHERE id=$1 AND (provider_file_id IS DISTINCT FROM $2 OR size_bytes<>$4 OR (coalesce(metadata->>'2','')<>'' AND coalesce($5::jsonb->>'2','')<>'' AND lower(metadata->>'2')<>lower($5::jsonb->>'2'))))`, id, file.ID, file.Path, file.Size, raw).Scan(&bound, &changed, &replaced); err != nil {
+		return "", err
+	}
+	if bound && replaced {
+		return "", errors.New("indexed media identity changed at this path; old playback grant was not rebound")
+	}
+	if changed {
+		if _, err = tx.Exec(ctx, `UPDATE library_candidates SET revision=revision+1,updated_at=now() WHERE file_id=$1`, id); err != nil {
+			return "", err
+		}
+	}
+
 	_, err = tx.Exec(ctx, `INSERT INTO cloud_files(id,storage_id,provider_file_id,full_path,size_bytes,metadata)VALUES($1,$2,$3,$4,$5,$6)ON CONFLICT(id)DO UPDATE SET provider_file_id=excluded.provider_file_id,full_path=excluded.full_path,size_bytes=excluded.size_bytes,metadata=excluded.metadata,state='present',missing_scan_count=0,missing_since=NULL,updated_at=now()`, id, connectionID, file.ID, file.Path, file.Size, raw)
 	if err != nil {
 		return "", err

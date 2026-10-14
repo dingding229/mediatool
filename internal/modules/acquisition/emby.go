@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"media-tool/internal/modules/jobs"
+	"media-tool/internal/modules/library"
 )
 
 func (e Engine) RefreshEmby(ctx context.Context, job jobs.Job) error {
@@ -29,19 +30,26 @@ func (e Engine) RefreshEmby(ctx context.Context, job jobs.Job) error {
 	if c.Values["apiKey"] == "" {
 		return errors.New("Emby refresh requires its dedicated library API Key")
 	}
-	request, err := http.NewRequestWithContext(ctx, "POST", strings.TrimRight(c.String("endpoint"), "/")+"/Library/Refresh", nil)
+	rows, err := e.DB.Query(ctx, `SELECT s.output_path FROM strm_entries s JOIN media_asset_bindings b ON b.asset_id=s.asset_id JOIN download_files f ON f.id=b.download_file_id WHERE f.task_id=$1 ORDER BY s.output_path`, payload.TaskID)
 	if err != nil {
-		return errors.New("invalid Emby endpoint")
+		return err
 	}
-	request.Header.Set("X-Emby-Token", c.Values["apiKey"])
-	response, err := (&http.Client{Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}).Do(request)
+	outputs := []string{}
+	for rows.Next() {
+		var output string
+		if rows.Scan(&output) != nil {
+			rows.Close()
+			return errors.New("owned output evidence unreadable")
+		}
+		outputs = append(outputs, output)
+	}
+	err = rows.Err()
+	rows.Close()
 	if err != nil {
-		return errors.New("Emby refresh request failed")
+		return err
 	}
-	defer response.Body.Close()
-	io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
-	if response.StatusCode != 200 && response.StatusCode != 204 {
-		return errors.New("Emby refused media library refresh")
+	if err = library.RequestTargetedRefresh(ctx, c, outputs); err != nil {
+		return err
 	}
 	_, _, _, _, details, err := e.load(ctx, payload.TaskID)
 	if err != nil {

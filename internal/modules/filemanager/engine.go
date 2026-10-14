@@ -15,6 +15,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/releasename"
 	"media-tool/internal/modules/settings"
+	"media-tool/internal/platform/trace"
 )
 
 type Engine struct {
@@ -33,7 +34,7 @@ func (e Engine) Roots(ctx context.Context) ([]Root, error) {
 		if !c.Enabled {
 			continue
 		}
-		root := Root{ID: c.ID, Name: c.Name, Revision: c.Revision}
+		root := Root{ID: c.ID, Name: c.Name, Revision: c.Revision, ConnectionState: c.LastCheckState}
 		switch c.Kind {
 		case "clouddrive2":
 			root.Kind = "cloud"
@@ -47,10 +48,25 @@ func (e Engine) Roots(ctx context.Context) ([]Root, error) {
 		default:
 			continue
 		}
-		if root.Path == "" || root.Path == "/" {
+		if root.Path == "" || root.Path == "/" || root.Kind == "local" && !safeLocalRoot(root.Path) {
 			continue
 		}
 		root.Origin = fingerprint(map[string]any{"kind": root.Kind, "root": root.Path, "endpoint": c.Settings["endpoint"]})
+		root.Capabilities = Capabilities{Read: true, Write: true, Move: false, Recycle: false, Role: "cloud-target"}
+		if root.Kind == "local" {
+			b, openErr := e.backend(ctx, root)
+			if openErr != nil {
+				root.ConnectionState = "unavailable"
+				root.Capabilities = Capabilities{ReadOnly: true, Role: "workspace", Reason: "目录不可读取"}
+			} else {
+				root.Capabilities, err = e.capability(ctx, root, ".", b, nil)
+				b.Close()
+				if err != nil {
+					return nil, err
+				}
+				root.ConnectionState = "accessible"
+			}
+		}
 		out = append(out, root)
 	}
 	return out, nil
@@ -97,10 +113,25 @@ func (e Engine) List(ctx context.Context, id, relative string, limit, offset int
 		return nil, err
 	}
 	defer b.Close()
+	capability, err := e.capability(ctx, root, p, b, nil)
+	if err != nil {
+		return nil, err
+	}
+	if !capability.Read {
+		return nil, ErrProtected
+	}
 	items, err := b.List(ctx, p)
 	if err != nil {
 		return nil, err
 	}
+	visible := make([]File, 0, len(items))
+	for _, item := range items {
+		if root.Kind == "local" && e.privateBrowsePath(root, item.Path) {
+			continue
+		}
+		visible = append(visible, item)
+	}
+	items = visible
 	total := len(items)
 	end := offset + limit
 	if offset > total {
@@ -109,7 +140,15 @@ func (e Engine) List(ctx context.Context, id, relative string, limit, offset int
 	if end > total {
 		end = total
 	}
-	return map[string]any{"root": root, "path": p, "items": items[offset:end], "total": total, "offset": offset, "limit": limit}, nil
+	pageItems := items[offset:end]
+	for i := range pageItems {
+		c, capErr := e.capability(ctx, root, pageItems[i].Path, b, &pageItems[i])
+		if capErr != nil {
+			return nil, capErr
+		}
+		pageItems[i].Capabilities = &c
+	}
+	return map[string]any{"root": root, "capabilities": capability, "path": p, "items": pageItems, "total": total, "offset": offset, "limit": limit}, nil
 }
 func (e Engine) protected(ctx context.Context, root Root, relative string) error {
 	if root.Kind != "local" {
@@ -118,6 +157,18 @@ func (e Engine) protected(ctx context.Context, root Root, relative string) error
 	full := filepath.Join(root.Path, filepath.FromSlash(relative))
 	if actual, err := filepath.EvalSymlinks(full); err == nil {
 		full = actual
+	}
+	for _, private := range []string{e.Connections.Config.LogDir, e.Connections.Config.PasswordResetFile} {
+		if private == "" {
+			continue
+		}
+		p, err := filepath.Abs(private)
+		if err == nil && overlaps(full, p) {
+			return ErrProtected
+		}
+	}
+	if privateLocalPath(relative) {
+		return ErrProtected
 	}
 	output, err := filepath.Abs(e.Connections.Config.STRMOutputDir)
 	if e.Connections.Config.STRMOutputDir != "" && err == nil && output != "" && overlaps(full, output) {
@@ -162,6 +213,9 @@ func (e Engine) Preview(ctx context.Context, in Input) (Plan, error) {
 		}
 		if !source.Directory {
 			hint := releasename.Parse(source.Name)
+			if len(hint.Episodes) > 1 {
+				return Plan{}, ErrInvalid
+			} // multi-episode files need an explicit complete custom name, not a single-episode template
 			if in.Title != "" {
 				hint.Title = in.Title
 			}
@@ -209,6 +263,9 @@ func (e Engine) Preview(ctx context.Context, in Input) (Plan, error) {
 		return p, ErrLimit
 	}
 	for _, step := range p.Steps {
+		if err = e.requireWritable(ctx, root, b, step); err != nil {
+			return p, err
+		}
 		if step.Action != "mkdir" {
 			if err = e.protected(ctx, root, step.Source.Path); err != nil {
 				return p, err
@@ -331,6 +388,11 @@ func (e Engine) finish(ctx context.Context, id, state, message string, completed
 	if _, err = tx.Exec(ctx, `UPDATE file_operations SET state=$2,message=$3,completed_steps=$4,updated_at=now() WHERE id=$1`, id, state, message, completed); err != nil {
 		return err
 	}
+	payload, _ := json.Marshal(map[string]string{"operationId": id, "state": state, "message": message})
+	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)SELECT $1,$2,$3,$4 WHERE NOT EXISTS(SELECT 1 FROM outbox_events WHERE aggregate_id=$3 AND event_type=$2)`, jobs.UUID(), "files."+state, id, payload); err != nil {
+		return err
+	}
+	trace.Info(ctx, "filemanager", "file operation result", "operationId", id, "state", state, "completedSteps", completed, "message", message)
 	if state == "succeeded" {
 		_, err = tx.Exec(ctx, `INSERT INTO jobs(id,kind,payload,idempotency_key) SELECT $1,'plugin.dispatch',jsonb_build_object('operationId',$2::text),$3 WHERE EXISTS(SELECT 1 FROM extension_plugins WHERE enabled AND manifest->'capabilities' ? 'media.organized') ON CONFLICT(idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING`, jobs.UUID(), id, "plugin.organized:"+id)
 		if err != nil {
@@ -386,6 +448,9 @@ func (e Engine) Execute(ctx context.Context, id, digest string, confirm bool) (R
 		}
 	}
 	for _, step := range out.Plan.Steps {
+		if err = e.requireWritable(ctx, root, b, step); err != nil {
+			return out, err
+		}
 		if err = e.protected(ctx, root, step.Target); err != nil {
 			return out, err
 		}
@@ -397,6 +462,7 @@ func (e Engine) Execute(ctx context.Context, id, digest string, confirm bool) (R
 		return out, err
 	}
 	completed := 0
+	trace.Info(ctx, "filemanager", "approved file operation started", "operationId", id, "root", out.Plan.Root, "items", out.Plan.Items)
 
 	for _, step := range out.Plan.Steps {
 		if ctx.Err() != nil {
@@ -405,8 +471,13 @@ func (e Engine) Execute(ctx context.Context, id, digest string, confirm bool) (R
 		}
 		if step.Action == "mkdir" {
 			err = absent(ctx, b, step.Target)
+			if errors.Is(err, ErrConflict) {
+				err = e.sharedParent(ctx, b, out.Plan, step.Target)
+			}
 			if err == nil {
-				err = b.Mkdir(ctx, step.Target)
+				if _, foundErr := b.Find(ctx, step.Target); errors.Is(foundErr, ErrMissing) {
+					err = b.Mkdir(ctx, step.Target)
+				}
 			}
 		} else {
 			current, findErr := b.Find(ctx, step.Source.Path)
@@ -430,7 +501,7 @@ func (e Engine) Execute(ctx context.Context, id, digest string, confirm bool) (R
 				break
 			}
 		}
-		if err = e.recordStep(ctx, out.Plan, step, completed+1); err != nil {
+		if err = e.recordStep(ctx, out.Plan, step, completed+1, target); err != nil {
 			break
 		}
 		completed++
@@ -447,12 +518,18 @@ func (e Engine) Execute(ctx context.Context, id, digest string, confirm bool) (R
 	}
 	return e.Get(doneCtx, id)
 }
-func (e Engine) recordStep(ctx context.Context, p Plan, step Step, completed int) error {
+func (e Engine) recordStep(ctx context.Context, p Plan, step Step, completed int, observed ...File) error {
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if step.Action == "mkdir" && len(observed) == 1 {
+		raw, _ := json.Marshal(observed[0])
+		if _, err = tx.Exec(ctx, `INSERT INTO file_batch_parents(batch_id,integration_id,path,identity) SELECT batch_id,$2,$3,$4 FROM file_batch_items WHERE operation_id=$1 ON CONFLICT DO NOTHING`, p.ID, p.ConnectionID, step.Target, raw); err != nil {
+			return err
+		}
+	}
 	if p.BackendKind == "cloud" && step.Action != "mkdir" {
 		source, target := path.Join(p.Root, step.Source.Path), path.Join(p.Root, step.Target)
 		state := "present"

@@ -217,7 +217,10 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		w.Handlers["subscription.evaluate"] = subscriptionEngine.Process
 		libraryEngine := library.Engine{DB: db, Connections: manager}
 		w.Handlers["library.scan"] = libraryEngine.Process
+		fileEngine := filemanager.Engine{DB: db, Connections: manager}
+		w.Handlers["files.batch"] = fileEngine.ProcessBatch
 		w.Handlers["library.refresh"] = libraryEngine.Refresh
+		w.Handlers["library.emby.confirm"] = libraryEngine.CheckEmby
 		downloader := acquisition.Engine{DB: db, Connections: manager, Search: engine}
 		w.Handlers["download.add"] = downloader.Add
 		w.Handlers["transfer.upload"] = downloader.Transfer

@@ -13,6 +13,7 @@ import (
 
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
+	"media-tool/internal/modules/storage"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/database"
 	"media-tool/internal/platform/secrets"
@@ -58,9 +59,11 @@ func TestConfirmedSparseEpisodesHaveExactFilenameAssetMetadataAndShowIsolation(t
 	})}
 	db.Exec(ctx, `INSERT INTO storage_connections(id,name,provider)VALUES($1,'owned','clouddrive2')`, cloud.ID)
 	file, candidate := jobs.UUID(), jobs.UUID()
-	db.Exec(ctx, `INSERT INTO cloud_files(id,storage_id,full_path,size_bytes)VALUES($1,$2,'/115/Owned/combined.mkv',1)`, file, cloud.ID)
+	db.Exec(ctx, `INSERT INTO cloud_files(id,storage_id,provider_file_id,full_path,size_bytes)VALUES($1,$2,'owned-file-id','/115/Owned/combined.mkv',1)`, file, cloud.ID)
 	db.Exec(ctx, `INSERT INTO library_candidates(id,file_id)VALUES($1,$2)`, candidate, file)
-	e := Engine{DB: db, Connections: m}
+	e := Engine{DB: db, Connections: m, Observe: func(context.Context, string, string) (storage.File, error) {
+		return storage.File{ID: "owned-file-id", Name: "combined.mkv", Path: "/115/Owned/combined.mkv", Size: 1, Hashes: map[uint32]string{}}, nil
+	}}
 	asset, err := e.Confirm(ctx, candidate, Confirmation{MediaType: "series", TMDBID: 99, Season: 1, Episodes: []int{3, 1}, Revision: 1})
 	if err != nil {
 		t.Fatal(err)

@@ -18,6 +18,8 @@ func (a *API) files() (*filemanager.Engine, error) {
 func fileError(w http.ResponseWriter, err error) {
 	status, code, message := 400, "invalid_file_operation", "文件操作参数无效，请核对目录、名称和模板"
 	switch {
+	case errors.Is(err, filemanager.ErrReadOnly):
+		status, code, message = 403, "files_read_only", "当前目录为只读或受管理保护，不能写入；下载做种原文件保留不动"
 	case errors.Is(err, filemanager.ErrLimit):
 		status, code, message = 413, "files_limit", "当前目录或变更超过安全上限，请缩小子目录范围"
 	case errors.Is(err, filemanager.ErrMissing):

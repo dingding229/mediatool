@@ -17,6 +17,7 @@ import (
 )
 
 var (
+	ErrReadOnly    = errors.New("directory is read-only")
 	ErrInvalid     = errors.New("invalid file operation")
 	ErrChanged     = errors.New("file or configuration changed; preview again")
 	ErrConflict    = errors.New("destination already exists or is reserved")
@@ -30,13 +31,14 @@ var (
 const TrashDirectory = ".media-tool-trash"
 
 type File struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Path        string `json:"path"`
-	Size        int64  `json:"size"`
-	Directory   bool   `json:"directory"`
-	Modified    int64  `json:"modified,omitempty"`
-	Unsupported bool   `json:"unsupported,omitempty"`
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
+	ID           string        `json:"id"`
+	Name         string        `json:"name"`
+	Path         string        `json:"path"`
+	Size         int64         `json:"size"`
+	Directory    bool          `json:"directory"`
+	Modified     int64         `json:"modified,omitempty"`
+	Unsupported  bool          `json:"unsupported,omitempty"`
 }
 type Backend interface {
 	Find(context.Context, string) (File, error)
@@ -91,12 +93,14 @@ type Result struct {
 	Plan           Plan   `json:"plan"`
 }
 type Root struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Kind     string `json:"kind"`
-	Path     string `json:"path"`
-	Revision int64  `json:"revision"`
-	Origin   string `json:"-"`
+	Capabilities    Capabilities `json:"capabilities"`
+	ConnectionState string       `json:"connectionState"`
+	ID              string       `json:"id"`
+	Name            string       `json:"name"`
+	Kind            string       `json:"kind"`
+	Path            string       `json:"path"`
+	Revision        int64        `json:"revision"`
+	Origin          string       `json:"-"`
 }
 
 func Relative(raw string) (string, error) {

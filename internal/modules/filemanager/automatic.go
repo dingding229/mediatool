@@ -15,7 +15,7 @@ import (
 func RegisterLocal(ctx context.Context, manager *integrations.Manager, paths []string) error {
 	for _, raw := range paths {
 		p, err := filepath.Abs(strings.TrimSpace(raw))
-		if err != nil || p == "/" {
+		if err != nil || !safeLocalRoot(p) {
 			continue
 		}
 		st, err := os.Lstat(p)
@@ -38,7 +38,7 @@ func RegisterLocal(ctx context.Context, manager *integrations.Manager, paths []s
 func privateLocalPath(p string) bool {
 	for _, name := range strings.Split(filepath.ToSlash(p), "/") {
 		lower := strings.ToLower(name)
-		if lower == "password" || strings.HasPrefix(lower, ".password") || lower == "logs" || lower == "postgres" || lower == "redis" || lower == "private" || lower == "backups" || lower == ".env" || strings.HasPrefix(lower, ".env.") || lower == "docker-compose.yml" {
+		if lower == "password" || strings.HasPrefix(lower, ".password") || lower == "logs" || lower == "postgres" || lower == "redis" || lower == "private" || lower == "backups" || lower == ".env" || strings.HasPrefix(lower, ".env.") || lower == "docker-compose.yml" || lower == "docker.sock" || lower == "pgdata" || lower == "redis-data" || lower == "postgresql" || lower == ".ssh" || lower == ".git" || lower == "secrets" || lower == "diagnostics" {
 			return true
 		}
 	}

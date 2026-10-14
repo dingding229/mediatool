@@ -164,7 +164,11 @@ func TestPostgresPipelineSearchDownloadUploadSTRMAndNotification(t *testing.T) {
 			w.WriteHeader(403)
 			return
 		}
-		if r.URL.Path == "/Library/Refresh" {
+		if r.URL.Path == "/Library/Media/Updated" {
+			var body struct{ Updates []struct{ Path string } }
+			if json.NewDecoder(r.Body).Decode(&body) != nil || len(body.Updates) != 1 || !strings.HasSuffix(body.Updates[0].Path, ".strm") {
+				t.Error("refresh lacks owned path evidence")
+			}
 			w.WriteHeader(204)
 			return
 		}

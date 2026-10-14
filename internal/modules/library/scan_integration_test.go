@@ -35,6 +35,13 @@ type fixtureCloud struct {
 }
 
 func (c *fixtureCloud) FindFileByPath(ctx context.Context, r *pb.FindFileByPathRequest) (*pb.CloudDriveFile, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, f := range c.files {
+		if f.FullPathName == r.Path {
+			return proto.Clone(f).(*pb.CloudDriveFile), nil
+		}
+	}
 	if r.Path == "/115/Media" {
 		return &pb.CloudDriveFile{Id: "root", Name: "Media", FullPathName: r.Path, IsDirectory: true}, nil
 	}

@@ -1,5 +1,5 @@
 import { test,expect } from '@playwright/test'
-import { mkdirSync,readFileSync } from 'node:fs'
+import { mkdirSync,readFileSync,writeFileSync,existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { navigationItems } from '../src/navigation/items'
 const root=resolve(import.meta.dirname,'../..')
@@ -47,7 +47,7 @@ async function login(page:import('@playwright/test').Page){
  await page.getByRole('button',{name:'进入工作台',exact:true}).click()
  await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
  await expect(page.getByText('服务器负载',{exact:true})).toBeVisible()
- await expect(page.locator('.sidebar-note')).toContainText('0.18.0-dev')
+ await expect(page.locator('.sidebar-note')).toContainText('0.19.0-dev')
 }
 // Later UI-only fixtures share one valid account session in memory. Login/
 // logout/password/rate-limit behavior above remains separately exercised; do
@@ -731,7 +731,7 @@ test('TMDB and site-direct search have distinct cache controls (fixture)',async(
 
 test('automatic roots, 0day hints, history and safe plugin manifests',async({page})=>{
  await fixtureLogin(page);await page.goto('/files');await expect(page.getByText(/本地目录/).first()).toBeVisible();const parsed=await page.request.post('/api/v1/media/recognize-name',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned.Show.2026.S01E03.1080p.WEB-DL.x265-TEAM.mkv'}});expect(parsed.status()).toBe(200);expect((await parsed.json()).data.hint).toMatchObject({title:'Owned Show',year:'2026',mediaType:'series',season:1,episode:3})
- await page.goto('/organize-history');await expect(page.getByRole('heading',{name:'媒体整理历史',exact:true})).toBeVisible();await page.goto('/plugins');await expect(page.getByRole('heading',{name:'尚未安装插件',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'0day 文件名识别',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'电影与剧集命名模板',exact:true})).toHaveCount(0);await expect(page.getByText('兼容入口：导入扩展 Manifest',{exact:true})).toHaveCount(0)
+ await page.goto('/organize-history');await expect(page.getByRole('heading',{name:'文件与入库历史',exact:true})).toBeVisible();await page.goto('/plugins');await expect(page.getByRole('heading',{name:'尚未安装插件',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'0day 文件名识别',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'电影与剧集命名模板',exact:true})).toHaveCount(0);await expect(page.getByText('兼容入口：导入扩展 Manifest',{exact:true})).toHaveCount(0)
  const rejected=await page.request.post('/api/v1/plugins',{headers:{'X-Requested-With':'media-tool'},data:{manifest:{id:'owned-plugin',name:'Owned',version:'1',contractVersion:1,runtime:'webhook',endpoint:'https://owned.example',capabilities:['media.organized']},enabled:false,consent:false,revision:0}});expect(rejected.status()).toBe(400);await page.screenshot({path:resolve(screenshots,'workbench-plugins-desktop.png'),animations:'disabled'})
 })
 
@@ -1033,3 +1033,47 @@ test('acquisition: proxy settings are scoped, validated and persisted in isolate
 test('acquisition: subscriptions reject HR without unknown override and expose history (fixture)',async({page})=>{
  await page.route('**/api/v1/subscriptions**',r=>r.fulfill({json:{data:[]}}));await fixtureLogin(page);await page.goto('/subscriptions');await expect(page.getByText('历史订阅',{exact:true})).toBeVisible();await page.getByText('历史订阅',{exact:true}).click();await expect(page.getByRole('radiogroup',{name:'订阅记录分类',exact:true})).toBeVisible();await page.getByRole('button',{name:'创建订阅',exact:true}).click();const dialog=page.getByRole('dialog',{name:'创建停用订阅',exact:true});await expect(dialog.getByRole('checkbox',{name:'拒绝下载H&R资源',exact:true})).toBeChecked();await expect(dialog.getByText(/明确允许H/)).toHaveCount(0);await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();
 });
+
+test('files and library readonly capabilities, persistent batch proof, scan controls and stage history (UI fixtures)',async({page})=>{
+ await fixtureLogin(page)
+ const id='12345678-1234-1234-1234-123456789012'
+ const readonly={read:true,write:false,move:false,recycle:false,readOnly:true,role:'download-source',reason:'下载及做种原文件只读保留'}
+ await page.route('**/api/v1/files/roots',r=>r.fulfill({json:{data:[{id,name:'自动发现的本地目录',kind:'local',path:'/data',revision:1,capabilities:readonly,connectionState:'accessible'}]}}))
+ await page.route('**/api/v1/files?**',r=>r.fulfill({json:{data:{items:[{id:'inode',name:'Owned.Show.S01E01.mkv',path:'downloads/Owned.Show.S01E01.mkv',size:1024,directory:false,capabilities:readonly}],total:1,capabilities:readonly}}}))
+ await page.route('**/api/v1/files/operations',r=>r.fulfill({json:{data:[]}}))
+ await page.goto('/files');await expect(page.getByRole('button',{name:'新建文件夹',exact:true})).toBeDisabled();await expect(page.locator('.desktop-files').getByRole('button',{name:'影视整理',exact:true})).toBeDisabled()
+ await page.setViewportSize({width:390,height:844});await expect(page.getByLabel('选择 Owned.Show.S01E01.mkv')).toBeDisabled();await expect(page.getByRole('button',{name:'上级目录',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.screenshot({path:resolve(screenshots,'files-library-readonly-mobile.png'),animations:'disabled',fullPage:true})
+ await page.route('**/api/v1/library/scans',r=>r.fulfill({json:{data:[{id,root:'/115/Media',state:'paused',files:2,directories:4,completedDirectories:1,generation:2,revision:1,message:'不完整覆盖不用于缺失判断'}]}}))
+ await page.goto('/cloudStorage');await expect(page.getByRole('button',{name:'重新完整对账',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.screenshot({path:resolve(screenshots,'files-library-scans-mobile.png'),animations:'disabled',fullPage:true})
+ await page.route('**/api/v1/library/activity?**',r=>r.fulfill({json:{data:{items:[{id,kind:'file',state:'needs_reconcile',source:'Owned.mkv',batchId:'',connectionId:id,message:'只读回核对，不重放',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),details:{completedSteps:0,plan:{steps:[{action:'relocate',source:{path:'Owned.mkv'},target:'Owned (2026).mkv'}],items:[{source:{path:'Owned.mkv'},target:'Owned (2026).mkv'}]}}}],total:1}}}))
+ await page.goto('/organize-history');await page.getByRole('button',{name:'查看步骤详情',exact:true}).click();await expect(page.getByRole('dialog').getByRole('button',{name:'核对结果（不重放）',exact:true})).toBeVisible();await expect(page.getByRole('dialog')).toContainText('Owned (2026).mkv');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.screenshot({path:resolve(screenshots,'files-library-history-mobile.png'),animations:'disabled',fullPage:false})
+})
+
+
+test('isolated local batch preview writes nothing until explicit approval and survives history reload',async({page})=>{
+ await fixtureLogin(page)
+ const folder=process.env.E2E_FILE_ROOT!
+ const names=['Batch.Owned.Show.2026.S01E01.mkv','Batch.Owned.Show.2026.S01E02.mkv']
+ for(const name of names)writeFileSync(resolve(folder,name),'Isolated batch fixture, not real media.')
+ await page.goto('/files')
+ for(const name of names){const row=page.locator('.desktop-files .el-table__row').filter({hasText:name});await row.locator('.el-checkbox').click()}
+ await page.getByRole('button',{name:'批量整理预览（2）',exact:true}).click()
+ const dialog=page.getByRole('dialog',{name:'批次整理工作台',exact:true})
+ await expect(dialog.getByLabel('批次文件标题').first()).toHaveValue('Batch Owned Show')
+ await dialog.getByRole('button',{name:'预览全部变更',exact:true}).click()
+ await expect(dialog.getByRole('button',{name:'明确批准整个批次',exact:true})).toBeEnabled()
+ for(const name of names)expect(existsSync(resolve(folder,name))).toBe(true)
+ await dialog.screenshot({path:resolve(screenshots,'files-library-batch-preview-desktop.png'),animations:'disabled'})
+ await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await dialog.screenshot({path:resolve(screenshots,'files-library-batch-preview-mobile.png'),animations:'disabled'})
+ await dialog.getByRole('button',{name:'明确批准整个批次',exact:true}).click()
+ await expect(dialog.getByRole('button',{name:'刷新执行进度',exact:true})).toBeVisible()
+ const batchLink=await dialog.getByRole('link',{name:'查看持久化批次',exact:true}).getAttribute('href');const batchID=new URL('http://localhost:18084'+batchLink).searchParams.get('batchId')!
+ await expect.poll(async()=>{const response=await page.request.get(`/api/v1/files/batches/${batchID}`);return (await response.json()).data.state},{timeout:15000}).toBe('succeeded')
+ await dialog.getByRole('button',{name:'刷新执行进度',exact:true}).click();await expect(dialog.locator('.batch-status')).toContainText('已完成')
+ for(const name of names)expect(existsSync(resolve(folder,name))).toBe(false)
+ await dialog.getByRole('link',{name:'查看持久化批次',exact:true}).click();await expect(page.getByRole('heading',{name:'文件与入库历史',exact:true})).toBeVisible();await page.reload();await expect(page.getByRole('button',{name:'查看步骤详情',exact:true}).first()).toBeVisible()
+})

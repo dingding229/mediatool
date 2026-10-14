@@ -112,3 +112,7 @@ TMDB 搜索区分查询中、服务错误、无匹配结果、缓存结果与正
 `docs/plans/ui-refactor-20261012.md`。播放、文件确认、连接验证和账号恢复规则不变。
 
 原生站点模板格式、来源切换和部署同步见 [docs/PT_GO_TEMPLATES.md](docs/PT_GO_TEMPLATES.md)。
+
+## 文件与入库工作台
+
+自动目录能力、扫描暂停/对账证据、0day+TMDB识别、持久化整理批次、托管输出和逐路径Emby确认、统一历史与恢复，详见 [使用说明](docs/FILES_LIBRARY_WORKBENCH.md)。真实媒体变更必须先预览并明确批准；隔离测试不会替代真实播放器完整解码验收。

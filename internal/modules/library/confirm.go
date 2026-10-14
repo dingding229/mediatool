@@ -14,6 +14,7 @@ import (
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/playbackgrants"
 	"media-tool/internal/modules/releasename"
+	"media-tool/internal/modules/storage"
 )
 
 type Candidate struct {
@@ -35,6 +36,7 @@ type Confirmation struct {
 	Episodes       []int  `json:"episodes"`
 	Revision       int64  `json:"revision"`
 	MigrateOutputs bool   `json:"migrateOutputs"`
+	FileDigest     string `json:"fileDigest,omitempty"`
 	PlanDigest     string `json:"planDigest,omitempty"`
 }
 
@@ -80,6 +82,22 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 			return "", err
 		}
 	}
+	snapshot, sourceConnection, indexed, err := e.candidateFile(ctx, id)
+	if err != nil {
+		return "", errors.New("candidate unavailable")
+	}
+	if snapshot.State != "confirmed" {
+		actual, err := e.observe(ctx, sourceConnection, indexed.Path)
+		if err != nil {
+			return "", err
+		}
+		if !fileMatches(indexed, actual) {
+			return "", errors.New("cloud file identity changed; rescan before confirmation")
+		}
+		if in.FileDigest != "" && in.FileDigest != evidenceDigest(indexed) {
+			return "", errors.New("recognition preview changed; refresh evidence")
+		}
+	}
 	tmdb, err := e.Connections.TMDB(ctx)
 	if err != nil {
 		return "", err
@@ -102,9 +120,23 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 	defer tx.Rollback(ctx)
 	var fileID, connectionID, cloudPath, cloudState, candidateState string
 	var revision int64
-	err = tx.QueryRow(ctx, `SELECT c.file_id::text,f.storage_id::text,f.full_path,f.state,c.state,c.revision FROM library_candidates c JOIN cloud_files f ON f.id=c.file_id WHERE c.id=$1 FOR UPDATE OF c`, id).Scan(&fileID, &connectionID, &cloudPath, &cloudState, &candidateState, &revision)
+	err = tx.QueryRow(ctx, `SELECT c.file_id::text,f.storage_id::text,f.full_path,f.state,c.state,c.revision FROM library_candidates c JOIN cloud_files f ON f.id=c.file_id WHERE c.id=$1 FOR UPDATE OF c,f`, id).Scan(&fileID, &connectionID, &cloudPath, &cloudState, &candidateState, &revision)
 	if err != nil {
 		return "", errors.New("candidate unavailable")
+	}
+	if cloudPath != indexed.Path || connectionID != sourceConnection || revision != snapshot.Revision {
+		return "", errors.New("candidate snapshot changed during metadata lookup")
+	}
+	var providerID string
+	var fileSize int64
+	var hashes []byte
+	if err = tx.QueryRow(ctx, `SELECT coalesce(provider_file_id,''),size_bytes,metadata FROM cloud_files WHERE id=$1`, fileID).Scan(&providerID, &fileSize, &hashes); err != nil {
+		return "", err
+	}
+	var currentHashes map[uint32]string
+	json.Unmarshal(hashes, &currentHashes)
+	if evidenceDigest(storage.File{ID: providerID, Name: path.Base(cloudPath), Path: cloudPath, Size: fileSize, Hashes: currentHashes}) != evidenceDigest(indexed) {
+		return "", errors.New("indexed file changed during confirmation")
 	}
 	if revision != in.Revision {
 		return "", errors.New("candidate changed; reload before confirmation")
@@ -127,11 +159,23 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 		return "", err
 	}
 	allowed := connection.String("cloudRoot")
-	if allowed == "" {
+	if allowed == "" && len(e.Connections.Config.STRMAllowedRoots) > 0 {
 		allowed = e.Connections.Config.STRMAllowedRoots[0]
+	}
+	if allowed == "" || !connection.Record.Enabled {
+		return "", errors.New("cloud connection disabled or root missing")
 	}
 	if !inside(path.Clean(allowed), cloudPath) {
 		return "", errors.New("file no longer belongs to the configured root")
+	}
+	if candidateState != "confirmed" {
+		actual, err := e.observe(ctx, connectionID, cloudPath)
+		if err != nil {
+			return "", err
+		}
+		if !fileMatches(indexed, actual) {
+			return "", errors.New("cloud file changed before import; no output or playback grant was written")
+		}
 	}
 	mediaJSON, _ := json.Marshal(item.ShowMetadata())
 	assetJSON, _ := json.Marshal(item)

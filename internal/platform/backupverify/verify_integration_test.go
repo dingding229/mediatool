@@ -64,7 +64,7 @@ func TestPostgresCloneGuardAndCompleteRekeyMigrationImmutability(t *testing.T) {
 		t.Fatal(e)
 	}
 	report, e := Verify(ctx, db, dsn, "media_tool_test", strings.Repeat("9", 64), true)
-	if e != nil || !report.DryRunCiphertextsUnchanged || !report.SecondMigrationIdempotent || !report.LegacyBusinessColumnsPreserved || report.FinalVersion != 39 || len(report.CipherRows) != len(secrets.CipherColumns) {
+	if e != nil || !report.DryRunCiphertextsUnchanged || !report.SecondMigrationIdempotent || !report.LegacyBusinessColumnsPreserved || report.FinalVersion != 42 || len(report.CipherRows) != len(secrets.CipherColumns) {
 		t.Fatal(report, e)
 	}
 	var after []byte

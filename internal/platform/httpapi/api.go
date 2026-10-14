@@ -160,6 +160,16 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/metadata/episodes", a.protected(a.metadataEpisodes))
 	mux.HandleFunc("GET /api/v1/media/library", a.protected(a.listCatalog))
 	mux.HandleFunc("GET /api/v1/media/library/emby/{id}/image", a.protected(a.catalogImage))
+	mux.HandleFunc("POST /api/v1/files/batches/preview", a.protected(a.previewFileBatch))
+	mux.HandleFunc("GET /api/v1/files/batches/{id}", a.protected(a.getFileBatch))
+	mux.HandleFunc("POST /api/v1/files/batches/{id}/approve", a.protected(a.approveFileBatch))
+	mux.HandleFunc("POST /api/v1/files/batches/{id}/reconcile", a.protected(a.reconcileFileBatch))
+	mux.HandleFunc("GET /api/v1/library/activity", a.protected(a.libraryActivity))
+	mux.HandleFunc("GET /api/v1/library/outputs/{id}/content", a.protected(a.managedOutputContent))
+	mux.HandleFunc("GET /api/v1/library/outputs", a.protected(a.managedOutputs))
+	mux.HandleFunc("POST /api/v1/library/outputs/{id}/emby", a.protected(a.checkManagedEmby))
+	mux.HandleFunc("GET /api/v1/library/scans/{id}", a.protected(a.scanDetails))
+	mux.HandleFunc("POST /api/v1/library/scans/{id}/{action}", a.protected(a.controlScan))
 	mux.HandleFunc("GET /api/v1/files/roots", a.protected(a.listFileRoots))
 	mux.HandleFunc("GET /api/v1/files", a.protected(a.listFiles))
 	mux.HandleFunc("GET /api/v1/files/operations", a.protected(a.listFileOperations))
@@ -238,6 +248,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/library/candidates/batch-confirm", a.protected(a.batchConfirmCandidates))
 	mux.HandleFunc("GET /api/v1/library/scans", a.protected(a.listLibraryScans))
 	mux.HandleFunc("GET /api/v1/library/candidates", a.protected(a.listLibraryCandidates))
+	mux.HandleFunc("POST /api/v1/library/candidates/{id}/recognize", a.protected(a.recognizeCandidate))
 	mux.HandleFunc("POST /api/v1/library/candidates/{id}/confirm", a.protected(a.confirmLibraryCandidate))
 	for _, module := range []string{"cloudStorage"} {
 		mux.HandleFunc("/api/v1/"+module, a.protected(notImplemented))
@@ -475,7 +486,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.18.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.19.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

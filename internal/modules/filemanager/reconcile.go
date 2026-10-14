@@ -55,7 +55,7 @@ func (e Engine) Reconcile(ctx context.Context, id string) (Result, error) {
 				return out, ErrChanged
 			}
 		}
-		if err = e.recordStep(ctx, out.Plan, step, completed+1); err != nil {
+		if err = e.recordStep(ctx, out.Plan, step, completed+1, target); err != nil {
 			return out, ErrUnavailable
 		}
 		completed++

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"syscall"
@@ -15,6 +16,14 @@ import (
 type Local struct{ Root *os.Root }
 
 func OpenLocal(root string) (*Local, error) {
+	st, err := os.Lstat(root)
+	if err != nil || !st.IsDir() || st.Mode()&os.ModeSymlink != 0 {
+		return nil, ErrProtected
+	}
+	real, err := filepath.EvalSymlinks(root)
+	if err != nil || !safeLocalRoot(real) {
+		return nil, ErrProtected
+	}
 	r, err := os.OpenRoot(root)
 	if err != nil {
 		return nil, ErrUnavailable
@@ -104,6 +113,9 @@ func (l *Local) List(ctx context.Context, p string) ([]File, error) {
 	return out, nil
 }
 func (l *Local) Mkdir(_ context.Context, p string) error {
+	if privateLocalPath(p) {
+		return ErrProtected
+	}
 	if err := l.safe(path.Dir(p)); err != nil {
 		return err
 	}
@@ -119,6 +131,9 @@ func (l *Local) Mkdir(_ context.Context, p string) error {
 	return nil
 }
 func (l *Local) Relocate(ctx context.Context, source, target string) error {
+	if privateLocalPath(target) {
+		return ErrProtected
+	}
 	if err := l.safe(source); err != nil {
 		return err
 	}

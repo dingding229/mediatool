@@ -254,7 +254,7 @@ onUnmounted(() => {
   <section class="panel transfer-section">
     <div class="panel-title">
       <div><span class="section-kicker">02 / 上传与入库</span><h2>115上传与入库</h2><p class="field-hint">上传、文件校验和媒体入库按阶段记录。</p></div>
-      <span class="muted">使用可恢复的CloudDrive2上传会话</span>
+      <RouterLink to="/organize-history?kind=transfer" class="inline-link">查看上传与入库阶段证据</RouterLink>
     </div>
     <el-table
       :data="transfers"
