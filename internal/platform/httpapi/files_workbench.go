@@ -192,7 +192,7 @@ func (a *API) libraryActivity(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if f.Kind != "" && !strings.Contains("|file|batch|scan|transfer|output|emby|", "|"+f.Kind+"|") {
+	if f.Kind != "" && !strings.Contains("|file|batch|scan|transfer|output|emby|strmRepair|", "|"+f.Kind+"|") {
 		fail(w, 400, "invalid_kind", "历史类型无效")
 		return
 	}

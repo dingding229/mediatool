@@ -1255,3 +1255,11 @@ test('search promotion header sorts full results and history evidence starts fol
  await page.route('**/api/v1/library/activity?*',r=>r.fulfill({json:{data:{items:[{id:'owned-history',kind:'output',state:'applied',source:'Movies/Owned.strm',message:'输出已写入',createdAt:'2026-10-14T00:00:00Z',updatedAt:'2026-10-14T00:00:00Z',details:{operation:'write',kind:'strm'}}],total:1}}}))
  await page.goto('/organize-history');await expect(page.getByRole('navigation',{name:'历史阶段快捷筛选',exact:true})).toBeVisible();await page.getByRole('button',{name:'查看步骤详情',exact:true}).click();await expect(page.locator('.evidence-json')).toBeHidden();await page.getByText('查看完整原始证据（JSON）',{exact:true}).click();await expect(page.locator('.evidence-json')).toContainText('write');await page.getByRole('button',{name:'关闭',exact:true}).click();await expect(page.locator('.el-overlay:visible')).toHaveCount(0);await page.setViewportSize({width:375,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-history-375.png'),fullPage:true})
 })
+
+test('STRM repair history stage is accepted by the actual protected API',async({page})=>{
+ await fixtureLogin(page);await page.goto('/organize-history')
+ const response=page.waitForResponse(r=>r.url().includes('/api/v1/library/activity?')&&new URL(r.url()).searchParams.get('kind')==='strmRepair')
+ await page.getByRole('navigation',{name:'历史阶段快捷筛选',exact:true}).getByRole('button',{name:'STRM修复',exact:true}).click()
+ expect((await response).status()).toBe(200)
+ await expect(page.getByRole('alert')).toHaveCount(0)
+})

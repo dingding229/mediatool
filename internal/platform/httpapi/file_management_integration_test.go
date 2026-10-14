@@ -57,7 +57,7 @@ func TestPostgresFileAndCatalogRoutesAndSecretRevealRequireSession(t *testing.T)
 			t.Fatal("workbench write accessible anonymously", target, w.Code)
 		}
 	}
-	for _, target := range []string{"/api/v1/library/activity", "/api/v1/library/outputs"} {
+	for _, target := range []string{"/api/v1/library/activity", "/api/v1/library/activity?kind=strmRepair", "/api/v1/library/outputs"} {
 		if w := invoke(h, "GET", target, "", cfg().SessionKey); w.Code != 200 {
 			t.Fatal("workbench DTO query failed", target, w.Code, w.Body.String())
 		}
