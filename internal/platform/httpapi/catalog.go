@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"media-tool/internal/modules/catalog"
+	"media-tool/internal/modules/mediaserver"
 	"media-tool/internal/modules/playback"
 	"net/http"
 	"regexp"
@@ -28,7 +29,12 @@ func (a *API) listCatalog(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 	e := catalog.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations}
-	items, err := e.ListParent(ctx, source, r.URL.Query().Get("q"), r.URL.Query().Get("mediaType"), r.URL.Query().Get("parentId"), p.Page, p.Limit)
+	var items catalog.Page
+	if source == "emby" {
+		items, err = (mediaserver.EmbyAdapter{Catalog: e}).AdministrativeList(ctx, r.URL.Query().Get("q"), r.URL.Query().Get("mediaType"), r.URL.Query().Get("parentId"), p.Page, p.Limit)
+	} else {
+		items, err = e.ListParent(ctx, source, r.URL.Query().Get("q"), r.URL.Query().Get("mediaType"), r.URL.Query().Get("parentId"), p.Page, p.Limit)
+	}
 	if err != nil {
 		fail(w, 503, "catalog_unavailable", "媒体库读取失败；Emby内容需配置并启用Emby连接和媒体库API Key")
 		return

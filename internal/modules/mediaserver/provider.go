@@ -127,11 +127,18 @@ func (EmbyAdapter) Describe() Description {
 func (e EmbyAdapter) Libraries(ctx context.Context, a Access) ([]Library, error) {
 	return nil, ErrUnsupported
 }
+
+// AdministrativeList preserves the existing management DTO, including source
+// and parent pagination. It is called only by administrator-protected routes.
+func (e EmbyAdapter) AdministrativeList(ctx context.Context, text, kind, parent string, page, size int) (catalog.Page, error) {
+	return e.Catalog.ListParent(ctx, "emby", text, kind, parent, page, size)
+}
+
 func (e EmbyAdapter) List(ctx context.Context, a Access, q Query) (Page, error) {
 	if a.UserID != "" {
 		return Page{}, ErrDenied
 	}
-	p, err := e.Catalog.ListParent(ctx, "emby", q.Text, "", q.LibraryID, q.Page, q.PageSize)
+	p, err := e.AdministrativeList(ctx, q.Text, "", q.LibraryID, q.Page, q.PageSize)
 	if err != nil {
 		return Page{}, ErrUnavailable
 	}
