@@ -62,6 +62,16 @@ func (a *API) admitPlayer(w http.ResponseWriter, r *http.Request) bool {
 		playerAccessError(w, playeraccess.ErrUnavailable)
 		return false
 	}
+	if a.Deps.DB != nil {
+		id, eventErr := a.playerAccessRepo().RecordEvent(ctx, playeraccess.Request{UserAgent: r.UserAgent(), Entry: entry, Method: r.Method, ClientIP: host}, d)
+		if eventErr != nil {
+			playerAccessError(w, playeraccess.ErrUnavailable)
+			return false
+		}
+		if visit, ok := r.Context().Value(playerVisitKey{}).(*playerVisit); ok {
+			visit.ID = id
+		}
+	}
 	fields := []any{"module", "playback", "entry", entry, "userAgent", r.UserAgent(), "uaAllowed", d.Allowed, "uaReason", d.Reason, "uaRuleId", d.RuleID, "uaPolicyRevision", d.PolicyRevision}
 	if !d.Allowed {
 		a.Deps.Logger.Warn("player UA denied", fields...)
@@ -149,6 +159,7 @@ func (a *API) clearPlayerObservations(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]bool{"cleared": true})
 }
 func (a *API) registerPlayerAccess(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/v1/player-access/events", a.protected(a.playerAccessEvents))
 	mux.HandleFunc("GET /api/v1/player-access/policy", a.protected(a.getPlayerAccess))
 	mux.HandleFunc("PUT /api/v1/player-access/policy", a.protected(a.savePlayerAccess))
 	mux.HandleFunc("GET /api/v1/player-access/observations", a.protected(a.playerObservations))

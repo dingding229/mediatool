@@ -172,3 +172,28 @@ func (s Service) ExistingURL(ctx context.Context, assetID string) (string, error
 	return s.build(assetID, values["token"], cloudPath)
 }
 func SecretFreeKeyRef(id string) string { return "grant:" + strings.TrimSpace(id) }
+
+// ExistingBody never creates/rotates a grant. The caller must compare its SHA256
+// with the owned original STRM manifest before using it for recovery.
+func (s Service) ExistingBody(ctx context.Context, tx pgx.Tx, asset string) ([]byte, error) {
+	var id, p string
+	var raw, digest []byte
+	var revoked bool
+	if err := tx.QueryRow(ctx, `SELECT g.id::text,g.token_ciphertext,g.token_digest,g.revoked_at IS NOT NULL,f.full_path FROM playback_grants g JOIN media_assets a ON a.id=g.asset_id JOIN cloud_files f ON f.id=a.cloud_file_id WHERE g.asset_id=$1`, asset).Scan(&id, &raw, &digest, &revoked, &p); err != nil || revoked {
+		return nil, ErrDenied
+	}
+	values, err := s.Vault.Open(id, raw)
+	if err != nil {
+		return nil, err
+	}
+	token := values["token"]
+	sum := sha256.Sum256([]byte(token))
+	if subtle.ConstantTimeCompare(sum[:], digest) != 1 {
+		return nil, ErrDenied
+	}
+	link, err := s.build(asset, token, p)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(link + "\n"), nil
+}

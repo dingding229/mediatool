@@ -545,3 +545,22 @@ func TestOfficialResolutionPhaseEvidenceKeepsUAAndProviderFailuresSeparate(t *te
 		t.Fatal("raw provider/client data in observation")
 	}
 }
+
+func TestOfficialAccountInfoUsesAuthorizedTokenNotCloudDrive(t *testing.T) {
+	ctx, m, record := officialFixture(t)
+	m.OutboundHTTP = &http.Client{Transport: officialTransport(func(r *http.Request) (*http.Response, error) {
+		if r.URL.String() != open115.APIOrigin+"/open/user/info" || r.Header.Get("Authorization") == "" {
+			t.Fatal("wrong account source", r.URL)
+		}
+		return officialReply(r, `{"state":true,"data":{"user_id":321,"user_name":"Owned","rt_space_info":{"all_total":{"size":1000},"all_use":{"size":250},"all_remain":{"size":750}}}}`), nil
+	})}
+	// The fixture is intentionally disabled until explicit selection.
+	_, err := m.Repository.DB.Exec(ctx, `UPDATE integrations SET enabled=true WHERE id=$1`, record.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, c, err := m.OfficialAccountInfo(ctx)
+	if err != nil || out.Space == nil || out.Space.Free != 750 || c.ID != record.ID || out.UserID != "321" {
+		t.Fatal(out, c, err)
+	}
+}

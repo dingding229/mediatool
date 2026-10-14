@@ -266,6 +266,9 @@ func (r Repository) Clear(ctx context.Context, confirm bool, revision int64) err
 	if p.Revision != revision {
 		return ErrConflict
 	}
+	if _, err = tx.Exec(ctx, `DELETE FROM player_access_events`); err != nil {
+		return ErrUnavailable
+	}
 	tag, err := tx.Exec(ctx, `DELETE FROM player_ua_observations`)
 	if err != nil {
 		return ErrUnavailable

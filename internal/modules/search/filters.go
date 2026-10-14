@@ -111,11 +111,13 @@ func (f Filter) Match(r Resource) bool {
 
 // Only constant whitelist SQL fragments are interpolated; user input never becomes SQL.
 var sortOrders = map[string]string{
-	"":             "(public_snapshot->>'seeders')::integer DESC",
-	"seeders_desc": "(public_snapshot->>'seeders')::integer DESC",
-	"seeders_asc":  "(public_snapshot->>'seeders')::integer ASC",
-	"size_desc":    "(public_snapshot->>'size')::bigint DESC",
-	"size_asc":     "(public_snapshot->>'size')::bigint ASC",
+	"":               "(public_snapshot->>'seeders')::integer DESC",
+	"seeders_desc":   "(public_snapshot->>'seeders')::integer DESC",
+	"seeders_asc":    "(public_snapshot->>'seeders')::integer ASC",
+	"size_desc":      "(public_snapshot->>'size')::bigint DESC",
+	"size_asc":       "(public_snapshot->>'size')::bigint ASC",
+	"promotion_asc":  "(public_snapshot->>'downloadFactor')::numeric ASC NULLS LAST",
+	"promotion_desc": "(public_snapshot->>'downloadFactor')::numeric DESC NULLS LAST",
 }
 
 // GetFiltered enumerates the entire frozen result snapshot, not only one page.

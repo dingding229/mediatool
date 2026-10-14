@@ -65,6 +65,16 @@ func (a *API) proxyEmby(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "emby_disabled", "请配置并启用 Emby 连接")
 		return
 	}
+	if visit, ok := r.Context().Value(playerVisitKey{}).(*playerVisit); ok && visit.ID != "" {
+		identity, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		id, name, err := gateway.VerifiedCaller(identity, r)
+		cancel()
+		if err == nil {
+			visit.UserID = id
+			visit.UserName = name
+			visit.Verified = true
+		}
+	}
 	gateway.ServeHTTP(w, r)
 }
 

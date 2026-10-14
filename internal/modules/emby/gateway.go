@@ -178,6 +178,7 @@ func requiresTranscoding(key, value string) bool {
 
 type userIdentity struct {
 	ID     string `json:"Id"`
+	Name   string `json:"Name"`
 	Policy struct {
 		EnableMediaPlayback *bool `json:"EnableMediaPlayback"`
 	} `json:"Policy"`
@@ -201,36 +202,9 @@ func (g *Gateway) authorizeItem(ctx context.Context, r *http.Request, itemID str
 	if !itemIDPattern.MatchString(itemID) {
 		return user, item, errors.New("invalid item ID")
 	}
-	token, credentialErr := unambiguousToken(r)
-	if credentialErr != nil {
-		return user, item, &upstreamError{Status: http.StatusUnauthorized}
-	}
-	if token == "" {
-		return user, item, &upstreamError{Status: http.StatusUnauthorized}
-	}
-	key := IdentityKey(g.options.Upstream, token)
-	id, lookupErr := g.options.Identities.Lookup(ctx, key)
-	if lookupErr == nil && itemIDPattern.MatchString(id) {
-		if err := g.get(ctx, r, "/Users/"+id, nil, &user); err != nil {
-			var denied *upstreamError
-			if errors.As(err, &denied) && denied.Status == 401 {
-				_ = g.options.Identities.Forget(ctx, key)
-			}
-			return user, item, err
-		}
-		if user.ID != id {
-			return user, item, ErrIdentityUnknown
-		}
-	} else {
-		// Supported by some compatible servers. Never infer identity from a client
-		// UserId, DeviceId, public-user list or an administrative API key.
-		if err := g.get(ctx, r, "/Users/Me", nil, &user); err != nil {
-			return user, item, err
-		}
-		if !itemIDPattern.MatchString(user.ID) {
-			return user, item, ErrIdentityUnknown
-		}
-		_ = g.options.Identities.Remember(ctx, key, user.ID)
+	user, err := g.callerUser(ctx, r)
+	if err != nil {
+		return user, item, err
 	}
 	if user.Policy.EnableMediaPlayback == nil || !*user.Policy.EnableMediaPlayback {
 		return user, item, &upstreamError{Status: http.StatusForbidden}
@@ -270,6 +244,51 @@ func (g *Gateway) authorizeItem(ctx context.Context, r *http.Request, itemID str
 		}
 	}
 	return user, item, nil
+}
+
+// Only caller-authenticated upstream profile data may attribute playback. Cached
+// token->ID bindings are revalidated; query UserId and UA/IP are never identities.
+func (g *Gateway) callerUser(ctx context.Context, r *http.Request) (userIdentity, error) {
+	var user userIdentity
+	token, credentialErr := unambiguousToken(r)
+	if credentialErr != nil {
+		return user, &upstreamError{Status: http.StatusUnauthorized}
+	}
+	if token == "" {
+		return user, &upstreamError{Status: http.StatusUnauthorized}
+	}
+	key := IdentityKey(g.options.Upstream, token)
+	id, lookupErr := g.options.Identities.Lookup(ctx, key)
+	if lookupErr == nil && itemIDPattern.MatchString(id) {
+		if err := g.get(ctx, r, "/Users/"+id, nil, &user); err != nil {
+			var denied *upstreamError
+			if errors.As(err, &denied) && denied.Status == 401 {
+				_ = g.options.Identities.Forget(ctx, key)
+			}
+			return user, err
+		}
+		if user.ID != id {
+			return user, ErrIdentityUnknown
+		}
+	} else {
+		// Supported by some compatible servers. Never infer identity from a client
+		// UserId, DeviceId, public-user list or an administrative API key.
+		if err := g.get(ctx, r, "/Users/Me", nil, &user); err != nil {
+			return user, err
+		}
+		if !itemIDPattern.MatchString(user.ID) {
+			return user, ErrIdentityUnknown
+		}
+		_ = g.options.Identities.Remember(ctx, key, user.ID)
+	}
+	return user, nil
+}
+func (g *Gateway) VerifiedCaller(ctx context.Context, r *http.Request) (string, string, error) {
+	u, err := g.callerUser(ctx, r)
+	if err != nil {
+		return "", "", err
+	}
+	return u.ID, u.Name, nil
 }
 func (g *Gateway) get(ctx context.Context, in *http.Request, endpoint string, extra url.Values, out any) error {
 	target := *g.options.Upstream

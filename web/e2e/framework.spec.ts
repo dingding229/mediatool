@@ -47,7 +47,7 @@ async function login(page:import('@playwright/test').Page){
  await page.getByRole('button',{name:'进入工作台',exact:true}).click()
  await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
  await expect(page.getByText('服务器负载',{exact:true})).toBeVisible()
- await expect(page.locator('.sidebar-note')).toContainText('0.22.0-dev')
+ await expect(page.locator('.sidebar-note')).toContainText('0.23.0-dev')
 }
 // Later UI-only fixtures share one valid account session in memory. Login/
 // logout/password/rate-limit behavior above remains separately exercised; do
@@ -88,7 +88,7 @@ test('login, honest dependency states, module navigation and logout',async({page
  expect(errors).toEqual([])
 })
 test('STRM preview encodes cloud path and download has one stable URL',async({page})=>{
- await login(page);await navigate(page,'STRM 管理')
+ await login(page);await navigate(page,'STRM工具')
  const path='/115/Media/电影/幽灵公主 (1997)/电影 & 特别版#1.mkv'
  await page.getByLabel('CloudDrive2 完整路径',{exact:false}).fill(path)
  await page.getByRole('button',{name:'生成固定链接'}).click()
@@ -125,8 +125,8 @@ test('mobile menu, reduced motion and layout at 375px/landscape',async({page})=>
  await page.setViewportSize({width:375,height:812});await page.emulateMedia({reducedMotion:'reduce'});await login(page)
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  await page.getByRole('button',{name:'打开导航'}).click()
- await navigate(page,'STRM 管理')
- await expect(page.getByRole('heading',{name:'STRM 固定链接'})).toBeVisible()
+ await navigate(page,'STRM目录')
+ await expect(page.getByRole('heading',{name:'STRM目录',exact:true})).toBeVisible()
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  await page.screenshot({path:resolve(screenshots,'strm-mobile.png'),fullPage:true})
  await page.setViewportSize({width:812,height:375})
@@ -1080,7 +1080,7 @@ test('isolated local batch preview writes nothing until explicit approval and su
 
 test('cloud page exposes honest quota and membership while library tabs keep metadata query usable at 390px (UI fixture)',async({page})=>{
  await fixtureLogin(page)
- await page.route('**/api/v1/cloud/accounts/info',r=>r.fulfill({json:{data:{connectionId:'owned',note:'挂载账户范围',info:{path:'/115/Owned',source:'CloudDrive2 官方接口',checkedAt:'2026-10-14T00:00:00Z',space:{total:1099511627776,used:549755813888,free:549755813888},memberships:[{identity:'115VIP',level:'VIP',expiresAt:'2027-01-01T00:00:00Z'}]}}}}))
+ await page.route('**/api/v1/cloud/accounts/info',r=>r.fulfill({json:{data:{connectionId:'owned',note:'挂载账户范围',info:{path:'/115/Owned',source:'115 官方开放平台 /open/user/info',checkedAt:'2026-10-14T00:00:00Z',space:{total:1099511627776,used:549755813888,free:549755813888},memberships:[{identity:'115VIP',level:'VIP',expiresAt:'2027-01-01T00:00:00Z'}]}}}}))
  await page.goto('/cloud-connections');await expect(page.getByRole('heading',{name:'云盘连接',exact:true})).toBeVisible();await expect(page.locator('.quota-grid')).toContainText('1.00 TiB');await expect(page.locator('.membership-row')).toContainText('2027');await page.screenshot({path:resolve(screenshots,'cloud-account-desktop.png'),animations:'disabled',fullPage:true})
  await page.route('**/api/v1/media/assets?page=*',r=>r.fulfill({json:{data:{items:[{id:'00000000-0000-4000-8000-000000000141',title:'自有电影',mediaType:'movie',path:'/115/Owned/owned.mkv',revision:1,artifactsState:'ready',state:'present',fileScoped:true}],total:1}}}))
  await page.route('**/api/v1/metadata/search?*',r=>r.fulfill({json:{data:[{id:11,title:'自有电影',year:'2026',mediaType:'movie'}]}}))
@@ -1216,4 +1216,42 @@ test('player UA observations can be approved and enforce whitelist before all pl
  const p=(await(await page.request.get('/api/v1/player-access/policy')).json()).data
  expect(p.rules).toHaveLength(1);expect(p.enabled).toBe(false)
  expect((await page.request.put('/api/v1/player-access/policy',{headers:{'X-Requested-With':'media-tool'},data:{enabled:false,revision:p.revision,rules:[]}})).status()).toBe(200)
+})
+
+test('subscription tabs have separation and PT metrics actions are centered',async({page})=>{
+ await fixtureLogin(page);await page.goto('/subscriptions')
+ const tabs=page.getByRole('radiogroup',{name:'订阅记录分类',exact:true});const table=page.locator('.el-table').first();await expect(tabs).toBeVisible();await expect(table).toBeVisible()
+ const bottom=await tabs.evaluate(el=>el.getBoundingClientRect().bottom);const top=await table.evaluate(el=>el.getBoundingClientRect().top);expect(top-bottom).toBeGreaterThanOrEqual(20)
+ await page.route('**/api/v1/sites/metrics',r=>r.fulfill({json:{data:[{accountId:'owned-center',name:'HDSKY',enabled:true,metrics:{uploaded:1,downloaded:0,seeding:2,seedingBytes:1024},state:'succeeded',stale:false}]}}))
+ await page.goto('/sites');const metric=page.locator('.site-metric-row').first();await expect(metric).toBeVisible();expect(await metric.evaluate(el=>getComputedStyle(el).alignItems)).toBe('center')
+ await page.screenshot({path:resolve(screenshots,'workbench-site-centered.png'),fullPage:true})
+})
+
+test('STRM directory has posters and no NFO collection while tools persist repair previews',async({page})=>{
+ const asset='00000000-0000-4000-8000-000000000246',repair='00000000-0000-4000-8000-000000000247'
+ await page.route('**/api/v1/library/outputs?*',r=>r.fulfill({json:{data:{items:[{id:asset,title:'自有STRM电影',year:'2026',mediaType:'movie',source:'/115/Owned/film.mkv',poster:'/pwa/icon-192.png',cloudState:'present',artifactsState:'ready',revision:1,outputs:[{kind:'strm',path:'Movies/film.strm',owner:'asset:'+asset},{kind:'nfo',path:'Movies/film.nfo',owner:'asset:'+asset}],embyState:'pending',embyPaths:[],revoked:false}],total:1}}}))
+ await fixtureLogin(page);await page.goto('/strm');await expect(page.getByRole('heading',{name:'STRM目录',exact:true})).toBeVisible();await expect(page.getByRole('img',{name:'自有STRM电影海报',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'生成链接预览',exact:true})).toHaveCount(0)
+ await page.getByRole('button',{name:'查看输出归属',exact:true}).click();await expect(page.getByRole('dialog')).toContainText('Movies/film.strm');await expect(page.getByRole('dialog')).not.toContainText('Movies/film.nfo');await page.getByRole('dialog').getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(page.locator('.el-overlay:visible')).toHaveCount(0)
+ for(const width of [375,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`workbench-strm-directory-${width}.png`),fullPage:true})}
+ let approved=false
+ const batch=()=>({id:repair,digest:'d'.repeat(64),state:approved?'succeeded':'preview',expiresAt:'2099-01-01T00:00:00Z',items:[{ordinal:0,assetId:asset,path:'Movies/film.strm',digest:'e'.repeat(64),state:approved?'repaired':'missing',message:'只恢复原文'}]})
+ await page.route('**/api/v1/strm/repairs/preview',r=>r.fulfill({json:{data:batch()}}))
+ await page.route(`**/api/v1/strm/repairs/${repair}`,r=>r.fulfill({json:{data:batch()}}))
+ await page.route(`**/api/v1/strm/repairs/${repair}/approve`,r=>{expect(r.request().postDataJSON()).toEqual({digest:'d'.repeat(64),confirm:true});approved=true;return r.fulfill({json:{data:batch()}})})
+ await page.goto('/strm-tools');await expect(page.getByRole('heading',{name:'STRM工具',exact:true})).toBeVisible();await page.getByText('自有STRM电影 · 1 份STRM',{exact:true}).click();await page.getByRole('button',{name:'检查并预览修复（1）',exact:true}).click();await expect(page).toHaveURL(/repairId=/);expect(approved).toBe(false)
+ await page.reload();await expect(page.getByRole('button',{name:'批准批量修复',exact:true})).toBeVisible();await page.getByRole('button',{name:'批准批量修复',exact:true}).click();await page.getByRole('dialog',{name:'批准批量STRM修复',exact:true}).getByRole('button',{name:'明确批准修复',exact:true}).click();await expect(page.getByRole('heading',{name:'修复完成',exact:true})).toBeVisible();await expect(page.locator('.el-overlay:visible')).toHaveCount(0)
+ await page.screenshot({path:resolve(screenshots,'workbench-strm-tools-repair.png'),fullPage:true})
+})
+
+test('UA visits expose IP and verified Emby users without inferring unknown callers',async({page})=>{
+ await page.route('**/api/v1/player-access/events?*',r=>r.fulfill({json:{data:{items:[{id:'owned-visit',userAgent:'Owned-Player/1',clientIp:'192.0.2.50',entry:'emby',method:'GET',allowed:true,reason:'restriction_disabled',status:302,embyUserId:'actual-user',embyUserName:'已核验用户',embyVerified:true,createdAt:'2026-10-14T00:00:00Z'},{id:'unknown-visit',userAgent:'Owned-Player/1',clientIp:'192.0.2.51',entry:'strm',method:'HEAD',allowed:true,reason:'restriction_disabled',status:401,embyVerified:false,createdAt:'2026-10-14T00:00:01Z'}],total:2}}}))
+ await fixtureLogin(page);await page.goto('/player-access');await expect(page.getByText('已核验用户',{exact:true})).toBeVisible();await expect(page.getByText('Emby用户未核验 / 不适用',{exact:true})).toBeVisible();await expect(page.getByText(/192\.0\.2\.50/)).toBeVisible();await expect(page.getByText('已核验用户ID actual-user',{exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-ua-users.png'),fullPage:true})
+})
+
+test('search promotion header sorts full results and history evidence starts folded',async({page})=>{
+ let sort='';const run='00000000-0000-4000-8000-000000000248'
+ await page.route(`**/api/v1/search/${run}?*`,r=>{sort=new URL(r.request().url()).searchParams.get('sort')||'';return r.fulfill({json:{data:{id:run,keyword:'Owned',state:'succeeded',siteResults:[],resources:[],total:0}}})})
+ await fixtureLogin(page);await page.goto('/search/results/'+run);await expect(page.getByRole('button',{name:'促销',exact:true})).toBeVisible();await page.getByRole('button',{name:'促销',exact:true}).click();await expect.poll(()=>sort).toBe('promotion_desc');await page.getByRole('button',{name:'促销',exact:true}).click();await expect.poll(()=>sort).toBe('promotion_asc')
+ await page.route('**/api/v1/library/activity?*',r=>r.fulfill({json:{data:{items:[{id:'owned-history',kind:'output',state:'applied',source:'Movies/Owned.strm',message:'输出已写入',createdAt:'2026-10-14T00:00:00Z',updatedAt:'2026-10-14T00:00:00Z',details:{operation:'write',kind:'strm'}}],total:1}}}))
+ await page.goto('/organize-history');await expect(page.getByRole('navigation',{name:'历史阶段快捷筛选',exact:true})).toBeVisible();await page.getByRole('button',{name:'查看步骤详情',exact:true}).click();await expect(page.locator('.evidence-json')).toBeHidden();await page.getByText('查看完整原始证据（JSON）',{exact:true}).click();await expect(page.locator('.evidence-json')).toContainText('write');await page.getByRole('button',{name:'关闭',exact:true}).click();await expect(page.locator('.el-overlay:visible')).toHaveCount(0);await page.setViewportSize({width:375,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-history-375.png'),fullPage:true})
 })

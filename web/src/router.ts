@@ -28,6 +28,7 @@ const router=createRouter({history:createWebHistory(),routes:[
   {path:'mediaLibrary',name:'mediaLibrary',component:()=>import('./views/MediaLibraryView.vue')},
   {path:'cloudStorage',name:'cloudStorage',component:()=>import('./views/LibraryView.vue')},
   {path:'notifications',name:'notifications',component:()=>import('./views/NotificationsView.vue')},
+  {path:'strm-tools',name:'strmTools',component:()=>import('./views/StrmToolsView.vue')},
   {path:'strm',name:'strm',component:()=>import('./views/StrmView.vue')},
   {path:'jobs',name:'jobs',component:()=>import('./views/JobsView.vue')},
   {path:'integrations',name:'integrations',component:()=>import('./views/IntegrationsView.vue')},

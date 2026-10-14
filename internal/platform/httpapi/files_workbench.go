@@ -230,7 +230,12 @@ func (a *API) managedOutputs(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_page", "筛选无效")
 		return
 	}
-	items, total, err := e.ManagedAssets(r.Context(), p.Limit, p.Offset, r.URL.Query().Get("q"))
+	kind := r.URL.Query().Get("kind")
+	if kind != "" && kind != "strm" {
+		fail(w, 400, "invalid_kind", "输出类型无效")
+		return
+	}
+	items, total, err := e.ManagedAssetsKind(r.Context(), p.Limit, p.Offset, r.URL.Query().Get("q"), kind == "strm")
 	if err != nil {
 		fail(w, 503, "outputs_unavailable", "托管输出清单暂不可用")
 		return

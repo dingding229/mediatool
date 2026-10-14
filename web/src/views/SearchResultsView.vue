@@ -68,7 +68,7 @@ const resourceFilters = ref({
 });
 const resourceTable = ref<TableInstance>();
 const tableSort = computed(() => ({
-  prop: resourceFilters.value.sort.startsWith("size") ? "size" : "seeders",
+  prop: resourceFilters.value.sort.startsWith("promotion") ? "promotion" : resourceFilters.value.sort.startsWith("size") ? "size" : "seeders",
   order: resourceFilters.value.sort.endsWith("asc")
     ? ("ascending" as const)
     : ("descending" as const),
@@ -80,13 +80,13 @@ function changeSort({
   prop: string;
   order: "ascending" | "descending" | null;
 }) {
-  if ((prop !== "size" && prop !== "seeders") || !order) return;
+  if ((prop !== "size" && prop !== "seeders" && prop !== "promotion") || !order) return;
   const sort = `${prop}_${order === "ascending" ? "asc" : "desc"}`;
   if (sort === resourceFilters.value.sort) return;
   resourceFilters.value.sort = sort;
   applyFilter();
 }
-function toggleSort(prop: "size" | "seeders") {
+function toggleSort(prop: "size" | "seeders" | "promotion") {
   const order =
     tableSort.value.prop === prop && tableSort.value.order === "descending"
       ? "ascending"
@@ -450,7 +450,7 @@ onUnmounted(() => {
               做种人数
             </button></template
           ></el-table-column
-        ><el-table-column label="促销" width="110"><template #default="scope"><PromotionBadge :factor="scope.row.downloadFactor"/></template></el-table-column
+        ><el-table-column prop="promotion" label="促销" width="125" sortable="custom" :sort-orders="['ascending','descending']"><template #header><button type="button" class="column-sort" @click.stop="toggleSort('promotion')">促销</button></template><template #default="scope"><PromotionBadge :factor="scope.row.downloadFactor"/></template></el-table-column
         ><el-table-column label="操作" width="140"
           ><template #default="scope"
             ><el-button type="primary" plain @click="openDownload(scope.row)"

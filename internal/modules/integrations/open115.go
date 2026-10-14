@@ -184,3 +184,15 @@ func (m *Manager) PlaybackVersion(ctx context.Context, ref storage.FileRef) (str
 	}
 	return "open115:" + selected + ":" + base, nil
 }
+
+// Read-only account query through the authorized official identity. Never use a
+// CloudDrive mount's quota as fallback or assume the two accounts are identical.
+func (m *Manager) OfficialAccountInfo(ctx context.Context) (open115.AccountInfo, Record, error) {
+	c, err := m.Repository.Default(ctx, "open115")
+	if err != nil {
+		return open115.AccountInfo{}, Record{}, err
+	}
+	var out open115.AccountInfo
+	err = m.officialCall(ctx, c.Record.ID, true, func(token string) error { var e error; out, e = m.officialClient().AccountInfo(ctx, token); return e })
+	return out, c.Record, err
+}

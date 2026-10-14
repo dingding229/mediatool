@@ -106,3 +106,12 @@ bounded table; mobile uses cards with44px actions. Full UA remains available in
 a wrapping readonly detail field. Rule removal, admission changes and cleanup
 require distinct confirmation. Counts say UA admission, never playback success.
 Scoped ui-ux-pro-max table/confirmation guidance verified this choice.
+
+## Files and playback workbench · 2026-10-14
+
+Separate STRM directory (real posters, STRM-only proof) from link/repair tools.
+Preserve NFO evidence without displaying it as a STRM collection. Give current /
+history subscription controls24px separation and center PT info/action areas.
+History uses real page-scoped counts, stage controls, named source/target blocks
+and collapsed raw JSON; failed/unknown remain visually distinct. UA request
+cards show IP and only server-verified Emby identity. No fabricated media data.

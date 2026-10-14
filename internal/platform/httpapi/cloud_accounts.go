@@ -3,8 +3,6 @@ package httpapi
 import (
 	"context"
 	"net/http"
-	"path"
-	"strings"
 	"time"
 )
 
@@ -14,29 +12,11 @@ func (a *API) cloudAccountInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
 	defer cancel()
-	c, err := a.Deps.Integrations.Repository.Default(ctx, "clouddrive2")
+	out, c, err := a.Deps.Integrations.OfficialAccountInfo(ctx)
 	if err != nil {
-		fail(w, 409, "cloud_not_configured", "先在本页添加并启用CloudDrive2连接")
-		return
-	}
-	root := c.String("cloudRoot")
-	if root == "" && len(a.Config.STRMAllowedRoots) > 0 {
-		root = a.Config.STRMAllowedRoots[0]
-	}
-	if !strings.HasPrefix(root, "/") || path.Clean(root) != root || root == "/" {
-		fail(w, 409, "cloud_root_invalid", "CloudDrive2媒体根目录未设置")
-		return
-	}
-	client, err := a.Deps.Integrations.CloudByID(ctx, c.Record.ID)
-	if err != nil {
-		fail(w, 503, "cloud_unavailable", "CloudDrive2暂不可用")
-		return
-	}
-	out, err := client.AccountInfo(ctx, root)
-	if err != nil {
-		fail(w, 503, "cloud_unavailable", "CloudDrive2空间/会员信息暂不可用")
+		fail(w, 503, "official_account_unavailable", "115官方账户信息不可用，请检查已启用的115授权；不通过CloudDrive2获取或兜底空间数据")
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	write(w, 200, map[string]any{"connectionId": c.Record.ID, "connectionRevision": c.Record.Revision, "info": out, "note": "数据对应此CloudDrive2挂载；115官方OAuth授权与挂载账号分别配置，不自动假定同一账号。未返回的日期/空间保持未知。"})
+	write(w, 200, map[string]any{"connectionId": c.ID, "connectionRevision": c.Revision, "info": out, "note": "空间/会员属于当前115 OAuth授权账号，与CloudDrive2挂载独立；未返回的空间或日期保持未知。"})
 }

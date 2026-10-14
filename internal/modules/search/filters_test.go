@@ -131,3 +131,33 @@ func TestPostgresMultiSelectionCoversCompleteSnapshot(t *testing.T) {
 		t.Fatal(result.Total, len(result.Resources), e)
 	}
 }
+
+func TestPromotionSortWholeSnapshotUnknownLast(t *testing.T) {
+	ctx, e, account, newRun := snapshotSearchFixture(t)
+	run := newRun()
+	free, half, normal := 0.0, 0.5, 1.0
+	list := []sites.Resource{{TorrentID: "unknown", Title: "Unknown", Size: 1, Seeders: 100, DownloadURL: "https://owned.invalid/1"}, {TorrentID: "half", Title: "Half", Size: 1, DownloadFactor: &half, DownloadURL: "https://owned.invalid/2"}, {TorrentID: "free", Title: "Free", Size: 1, DownloadFactor: &free, DownloadURL: "https://owned.invalid/3"}, {TorrentID: "normal", Title: "Normal", Size: 1, DownloadFactor: &normal, DownloadURL: "https://owned.invalid/4"}}
+	if err := e.SaveResources(ctx, run, account, list); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		sort string
+		want []string
+	}{{"promotion_asc", []string{"free", "half", "normal", "unknown"}}, {"promotion_desc", []string{"normal", "half", "free", "unknown"}}} {
+		got := []string{}
+		for p := 1; p <= 2; p++ {
+			out, err := e.GetFiltered(ctx, run, p, 2, Filter{Sort: test.sort})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, r := range out.Resources {
+				got = append(got, r.TorrentID)
+			}
+		}
+		for i := range got {
+			if got[i] != test.want[i] {
+				t.Fatal(test.sort, got)
+			}
+		}
+	}
+}

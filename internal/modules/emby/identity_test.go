@@ -190,3 +190,27 @@ func TestConflictingCredentialsRejected(t *testing.T) {
 		t.Fatal("same credential not accepted")
 	}
 }
+
+func TestVerifiedCallerNeverTrustsRequestUserID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/Users/Me" || r.Header.Get("X-Emby-Token") != "owned-caller" {
+			w.WriteHeader(401)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"Id":"actual-user","Name":"实际用户","Policy":{"EnableMediaPlayback":true}}`))
+	}))
+	defer server.Close()
+	up, _ := url.Parse(server.URL)
+	g := NewGateway(GatewayOptions{Upstream: up})
+	r := httptest.NewRequest("GET", "/emby/Items/11/PlaybackInfo?UserId=forged-user", nil)
+	r.Header.Set("X-Emby-Token", "owned-caller")
+	id, name, err := g.VerifiedCaller(context.Background(), r)
+	if err != nil || id != "actual-user" || name != "实际用户" {
+		t.Fatal(id, name, err)
+	}
+	r.Header.Set("X-Emby-Token", "wrong")
+	if _, _, err = g.VerifiedCaller(context.Background(), r); err == nil {
+		t.Fatal("unauthenticated actor accepted")
+	}
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -54,7 +55,7 @@ func main() {
 }
 func run() error {
 	queue := flag.String("queue", "default", "worker queue: default, transfer or library")
-	role := flag.String("role", "all", "all (default), server, worker, healthcheck, or strm")
+	role := flag.String("role", "all", "all (default), server, worker, healthcheck, strm, or account-info")
 	cloudPath := flag.String("cloud-path", "", "CloudDrive2 full path for one STRM")
 	relative := flag.String("strm-relative", "", "relative .strm output under STRM_OUTPUT_DIR")
 	flag.Parse()
@@ -82,6 +83,28 @@ func run() error {
 		}
 		slog.Info("single STRM written; URL and playback credentials are not printed")
 		return nil
+	}
+	// Owner-only local CLI query uses the same configured official authorization,
+	// without opening a second web session or mutating administrator credentials.
+	if *role == "account-info" {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		db, err := database.Open(ctx, c.DatabaseURL)
+		if err != nil || db == nil {
+			return errors.New("official account query requires configured PostgreSQL")
+		}
+		defer db.Close()
+		vault, err := secrets.New(c.SecretKey)
+		if err != nil {
+			return err
+		}
+		manager := integrations.NewManager(integrations.Repository{DB: db, Vault: vault}, c)
+		defer manager.Close()
+		out, _, err := manager.OfficialAccountInfo(ctx)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(os.Stdout).Encode(out)
 	}
 	logStore, err := logging.Open(c.LogDir, c.LogLevel)
 	if err != nil {
@@ -217,6 +240,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		w.Handlers["subscription.evaluate"] = subscriptionEngine.Process
 		libraryEngine := library.Engine{DB: db, Connections: manager}
 		w.Handlers["library.scan"] = libraryEngine.Process
+		w.Handlers["library.strm.repair"] = libraryEngine.ProcessSTRMRepair
 		fileEngine := filemanager.Engine{DB: db, Connections: manager}
 		w.Handlers["files.batch"] = fileEngine.ProcessBatch
 		w.Handlers["library.refresh"] = libraryEngine.Refresh

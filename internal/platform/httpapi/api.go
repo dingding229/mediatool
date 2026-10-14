@@ -261,6 +261,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) { fail(w, 404, "not_found", "接口不存在") })
 	a.registerMediaServer(mux)
 	a.registerPlayerAccess(mux)
+	a.registerSTRMTools(mux)
 	ui := webui.Handler()
 	embyProxy := longStream(http.HandlerFunc(a.proxyEmby))
 	mux.Handle("/emby/", embyProxy)
@@ -306,6 +307,7 @@ func (a *API) middleware(next http.Handler) http.Handler {
 		rand.Read(nonce)
 		id := hex.EncodeToString(nonce)
 		w.Header().Set("X-Request-ID", id)
+		r = r.WithContext(context.WithValue(r.Context(), playerVisitKey{}, &playerVisit{}))
 		r = r.WithContext(trace.With(r.Context(), a.Deps.Logger.With("requestId", id)))
 		r = r.WithContext(storage.WithResolveObserver(r.Context(), func(event storage.ResolveObservation) {
 			fields := []any{"module", "playback", "requestId", id, "stage", string(event.Stage), "outcome", event.Outcome, "durationMs", event.DurationMillis}
@@ -349,6 +351,14 @@ func (a *API) middleware(next http.Handler) http.Handler {
 			}
 		})
 		metrics := httpsnoop.CaptureMetrics(guarded, w, r)
+		if visit, ok := r.Context().Value(playerVisitKey{}).(*playerVisit); ok && visit.ID != "" {
+			finish, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Second)
+			if err := a.playerAccessRepo().FinishEvent(finish, visit.ID, visit.UserID, visit.UserName, visit.Verified, metrics.Code); err != nil {
+				a.Deps.Logger.Warn("playback event finalization unavailable", "eventId", visit.ID)
+			}
+			cancel()
+		}
+
 		// Owner explicitly requested raw request and redirect URLs in private logs.
 		// Login bodies, Cookie and Authorization headers are still not collected.
 		module := "httpapi"
@@ -497,7 +507,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.22.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.23.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

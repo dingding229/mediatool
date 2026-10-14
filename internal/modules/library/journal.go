@@ -146,13 +146,33 @@ func (j Journal) Apply(ctx context.Context, id string) error {
 		return openErr
 	}
 	fs.Close()
-	if err = artifacts.Write(root, relative, content); err != nil {
+	if values["restoreOnly"] == "true" {
+		fs, openErr := os.OpenRoot(root)
+		if openErr != nil {
+			return openErr
+		}
+		current, readErr := readRegular(fs, relative)
+		fs.Close()
+		if readErr == nil {
+			sum := sha256.Sum256(current)
+			if !bytes.Equal(sum[:], digest) {
+				return ErrArtifactConflict
+			}
+		} else if !errors.Is(readErr, os.ErrNotExist) {
+			return ErrArtifactConflict
+		} else if err = artifacts.Create(root, relative, content); err != nil {
+			if errors.Is(err, os.ErrExist) {
+				return ErrArtifactConflict
+			}
+			return err
+		}
+	} else if err = artifacts.Write(root, relative, content); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, `INSERT INTO managed_media_artifacts(relative_path,asset_id,artifact_kind,content_digest,owner_scope)VALUES($1,$2,$3,$4,$5)ON CONFLICT(relative_path)DO UPDATE SET content_digest=excluded.content_digest,owner_scope=excluded.owner_scope,updated_at=now()`, relative, asset, kind, digest, scope); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(ctx, `UPDATE media_artifact_journal SET state='applied',content_ciphertext=NULL,updated_at=now()WHERE id=$1`, id); err != nil {
+	if _, err = tx.Exec(ctx, `UPDATE media_artifact_journal SET state='applied',content_ciphertext=CASE WHEN artifact_kind='strm' THEN content_ciphertext ELSE NULL END,updated_at=now()WHERE id=$1`, id); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.22.0-dev
+  version: 0.23.0-dev
   description: 'Playback UA admission precedes resolver/cache/upstream; unmatched UA returns403 player_ua_denied, policy failure503 player_ua_unavailable. UA is client-controlled, never replaces media authorization. Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -13,7 +13,7 @@ paths:
   /api/v1/cloud/accounts/info:
     get:
       operationId: cloudAccountInfo
-      description: 当前已启用CloudDrive2挂载的只读空间/会员信息；包含来源和时间，部分错误明确返回，不猜测115会员到期。
+      description: 当前已启用115 OAuth账号的官方用户信息/空间/会员；不通过CloudDrive2查询或兜底，账号范围明确，未知保持未知。
       responses:
         '200':
           $ref: '#/components/responses/OK'
@@ -4105,6 +4105,217 @@ paths:
                 revision:
                   type: integer
                   minimum: 1
+                confirm:
+                  const: true
+  /api/v1/player-access/events:
+    get:
+      operationId: playerAccessEvents
+      description: 逐次播放访问；UA/IP/时间/检查结果/HTTP状态及经调用者Token核验的Emby用户，不猜测STRM用户。最多10000条。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 修订/预览/文件证据冲突，须核对，不盲目重放
+      parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+          maxLength: 200
+      - name: observationId
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+  /api/v1/strm/batch-preview:
+    post:
+      operationId: batchSTRMPreview
+      description: 按行路径批量生成固定链接，仅预览，不写服务器文件。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 修订/预览/文件证据冲突，须核对，不盲目重放
+      parameters:
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          const: media-tool
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - paths
+              properties:
+                paths:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: string
+  /api/v1/strm/repairs/preview:
+    post:
+      operationId: previewSTRMRepair
+      description: 检查托管STRM，持久化10分钟有效预览。仅缺失且摘要/原文/当前Key证据一致可恢复；手工修改或符号链接跳过。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 修订/预览/文件证据冲突，须核对，不盲目重放
+      parameters:
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          const: media-tool
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - assetIds
+              properties:
+                assetIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: string
+                    format: uuid
+  /api/v1/strm/repairs/{id}:
+    get:
+      operationId: getSTRMRepair
+      description: 读取同一修复批次及逐项结果；耗尽任务明确结果待核对。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 修订/预览/文件证据冲突，须核对，不盲目重放
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/strm/repairs/{id}/approve:
+    post:
+      operationId: approveSTRMRepair
+      description: 明确批准/恢复同一原文摘要与持久化恢复意图；不旋转Key、不覆盖手工文件。
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 修订/预览/文件证据冲突，须核对，不盲目重放
+        '202':
+          $ref: '#/components/responses/OK'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          const: media-tool
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - digest
+              - confirm
+              properties:
+                digest:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+                confirm:
+                  const: true
+  /api/v1/strm/repairs/{id}/retry:
+    post:
+      operationId: retrySTRMRepair
+      description: 明确批准/恢复同一原文摘要与持久化恢复意图；不旋转Key、不覆盖手工文件。
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 修订/预览/文件证据冲突，须核对，不盲目重放
+        '202':
+          $ref: '#/components/responses/OK'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          const: media-tool
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - digest
+              - confirm
+              properties:
+                digest:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
                 confirm:
                   const: true
 components:

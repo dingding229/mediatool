@@ -383,7 +383,7 @@ onUnmounted(() => {
     :closable="false"
     show-icon
   />
-  <section class="panel"><el-radio-group v-model="view" aria-label="订阅记录分类" @change="refresh"><el-radio-button value="current">当前订阅</el-radio-button><el-radio-button value="history">历史订阅</el-radio-button></el-radio-group>
+  <section class="panel"><el-radio-group class="subscription-view-tabs" v-model="view" aria-label="订阅记录分类" @change="refresh"><el-radio-button value="current">当前订阅</el-radio-button><el-radio-button value="history">历史订阅</el-radio-button></el-radio-group>
     <el-table
       :data="list"
       empty-text="暂无订阅。先配置TMDB、PT账号及下载器，再创建停用的订阅并预演。"
@@ -702,3 +702,5 @@ onUnmounted(() => {
   }
 }
 </style>
+
+<style scoped>.subscription-view-tabs{margin-bottom:24px;display:flex;width:max-content;max-width:100%}</style>
