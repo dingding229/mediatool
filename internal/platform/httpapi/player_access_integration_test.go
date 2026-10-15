@@ -156,7 +156,10 @@ func TestPostgresUAAdminWorkflowCachedSTRMAndUnavailableDenial(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(745)`); err != nil {
+	defer tx.Rollback(context.Background())
+	// Playback deliberately does not take the administrator advisory lock.
+	// A table lock simulates actual policy storage unavailability instead.
+	if _, err = tx.Exec(ctx, `LOCK TABLE player_ua_policy IN ACCESS EXCLUSIVE MODE`); err != nil {
 		t.Fatal(err)
 	}
 	w = call("GET", linkTarget(), ua, nil, nil)

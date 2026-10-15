@@ -34,12 +34,15 @@ type EventPage struct {
 }
 
 func (r Repository) RecordEvent(ctx context.Context, in Request, d Decision) (string, error) {
-	tx, err := r.begin(ctx)
+	if r.DB == nil {
+		return "", ErrUnavailable
+	}
+	tx, err := r.DB.Begin(ctx)
 	if err != nil {
 		return "", err
 	}
 	defer tx.Rollback(ctx)
-	if _, err = tx.Exec(ctx, `DELETE FROM player_access_events WHERE id IN(SELECT id FROM player_access_events ORDER BY created_at,id LIMIT greatest((SELECT count(*) FROM player_access_events)-10000+1,0))`); err != nil {
+	if _, err = tx.Exec(ctx, `DELETE FROM player_access_events WHERE id IN(SELECT id FROM player_access_events ORDER BY created_at,id LIMIT greatest((SELECT count(*) FROM player_access_events)-10000+1,0) FOR UPDATE SKIP LOCKED)`); err != nil {
 		return "", ErrUnavailable
 	}
 	id := jobs.UUID()

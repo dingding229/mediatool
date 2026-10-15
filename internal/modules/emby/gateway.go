@@ -63,24 +63,6 @@ func NewGateway(options GatewayOptions) *Gateway {
 	return g
 }
 func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if g.options.DirectPlayOnly {
-		w.Header().Set("X-Media-Playback-Policy", "direct-only")
-		if match := directOnlyMediaPath.FindStringSubmatch(gatewayRequestPath(r.URL.Path)); match != nil && !directOnlyMetadataPath.MatchString(gatewayRequestPath(r.URL.Path)) {
-			static := staticPathPattern.FindStringSubmatch(gatewayRequestPath(r.URL.Path))
-			original := originalPathPattern.FindStringSubmatch(gatewayRequestPath(r.URL.Path))
-			if !g.options.Enable302 || g.options.Playback == nil || (r.Method != "GET" && r.Method != "HEAD") ||
-				(static == nil && original == nil) || (static != nil && strings.EqualFold(static[2], "m3u8")) {
-				g.rejectTranscoding(w, r, match[1])
-				return
-			}
-		}
-	}
-	if !g.options.Enable302 || g.options.Playback == nil {
-		g.proxy.ServeHTTP(w, r)
-		return
-	}
-	// Base URL /emby is this application's mount prefix. The /emby prefix inside
-	// the upstream URL remains untouched and can serve an Emby-specific base path.
 	rawPath := gatewayRequestPath(r.URL.Path)
 	match := staticPathPattern.FindStringSubmatch(rawPath)
 	original := false
@@ -88,7 +70,34 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		match = originalPathPattern.FindStringSubmatch(rawPath)
 		original = match != nil
 	}
-	if (r.Method != "GET" && r.Method != "HEAD") || match == nil || strings.EqualFold(match[2], "m3u8") {
+	// Download/File aliases are safe only after the same caller authorization,
+	// source mapping and file-grant checks as an original/static request.
+	itemFile := directOnlyItemFilePath.FindStringSubmatch(rawPath)
+	if g.options.DirectPlayOnly && itemFile != nil {
+		match = []string{itemFile[0], itemFile[1], ""}
+		original = true
+	}
+	if g.options.DirectPlayOnly {
+		w.Header().Set("X-Media-Playback-Policy", "direct-only")
+		if directOnlyOpaqueMediaPath.MatchString(rawPath) {
+			gatewayError(w, 409, "direct_play_required", "仅直链播放：此媒体入口无法映射受管原始文件，禁止服务器中转")
+			return
+		}
+		video := directOnlyMediaPath.FindStringSubmatch(rawPath)
+		if (video != nil && !directOnlyMetadataPath.MatchString(rawPath)) || itemFile != nil {
+			id := ""
+			if video != nil {
+				id = video[1]
+			} else {
+				id = itemFile[1]
+			}
+			if !g.options.Enable302 || g.options.Playback == nil || (r.Method != "GET" && r.Method != "HEAD") || match == nil || strings.EqualFold(match[2], "m3u8") {
+				g.rejectTranscoding(w, r, id)
+				return
+			}
+		}
+	}
+	if !g.options.Enable302 || g.options.Playback == nil || (r.Method != "GET" && r.Method != "HEAD") || match == nil || strings.EqualFold(match[2], "m3u8") {
 		g.proxy.ServeHTTP(w, r)
 		return
 	}
@@ -567,6 +576,8 @@ type directPlayOnlyKey struct{}
 // All media output beneath a video/audio item is denied except explicitly
 // authenticated original/Static routes. Subtitle/attachment APIs are not media
 // encoding endpoints and retain their ordinary Emby permissions.
+var directOnlyItemFilePath = regexp.MustCompile(`(?i)^/Items/([A-Za-z0-9_-]{1,128})/(?:Download|File)(?:[./]|$)`)
+var directOnlyOpaqueMediaPath = regexp.MustCompile(`(?i)^/Sync(?:/[^/]+)*/(?:File|Download)(?:[./]|$)|^/LiveTv/(?:LiveStream(?:Files)?|Recording(?:s)?)(?:/|$)`)
 var directOnlyMediaPath = regexp.MustCompile(`(?i)^/(?:Videos|Audio)/([A-Za-z0-9_-]{1,128})/(.*)$`)
 var directOnlyMetadataPath = regexp.MustCompile(`(?i)^/Videos/[A-Za-z0-9_-]{1,128}/(?:Subtitles|Attachments|AdditionalParts)(?:/|$)`)
 

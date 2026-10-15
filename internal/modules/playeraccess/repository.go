@@ -11,8 +11,8 @@ import (
 
 type Repository struct{ DB *pgxpool.Pool }
 
-// A bounded transaction serializes decisions, aggregates and administrator
-// changes. It is always released BEFORE any provider/network/stream work.
+// A bounded transaction serializes administrator policy mutations and cleanup.
+// Playback decisions and event recording must not acquire this global lock.
 func (r Repository) begin(ctx context.Context) (pgx.Tx, error) {
 	if r.DB == nil {
 		return nil, ErrUnavailable
@@ -123,36 +123,46 @@ func (r Repository) Save(ctx context.Context, in Policy) (Policy, error) {
 	}
 	return out, nil
 }
+
+type policySnapshotReader interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func playbackPolicySnapshot(ctx context.Context, q policySnapshotReader) (Policy, error) {
+	p := Policy{Rules: []Rule{}}
+	var raw []byte
+	if err := q.QueryRow(ctx, `SELECT enabled,revision,updated_at,coalesce((SELECT jsonb_agg(jsonb_build_object('id',id,'label',label,'matchType',match_type,'userAgent',user_agent,'enabled',enabled) ORDER BY match_type,label,id) FROM player_ua_rules),'[]'::jsonb) FROM player_ua_policy WHERE id='main'`).Scan(&p.Enabled, &p.Revision, &p.UpdatedAt, &raw); err != nil {
+		return p, ErrUnavailable
+	}
+	if json.Unmarshal(raw, &p.Rules) != nil {
+		return p, ErrUnavailable
+	}
+	return p, nil
+}
+
 func (r Repository) Check(ctx context.Context, in Request) (Decision, error) {
 	if !ValidUA(in.UserAgent) || len(in.Entry) > 16 || len(in.Method) > 16 || len(in.ClientIP) > 100 {
 		return Decision{}, ErrInvalid
 	}
-	tx, err := r.begin(ctx)
-	if err != nil {
-		return Decision{}, err
+	if r.DB == nil {
+		return Decision{}, ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
-	p, err := readPolicy(ctx, tx)
+	// One SQL statement gives the policy and its rules the same MVCC snapshot,
+	// without a global lock or a long-lived repeatable-read transaction around
+	// the per-UA upsert (which would cause concurrent serialization failures).
+	p, err := playbackPolicySnapshot(ctx, r.DB)
 	if err != nil {
 		return Decision{}, err
 	}
 	d := p.Decide(in.UserAgent)
 	id := ObservationID(in.UserAgent)
-	var exists bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM player_ua_observations WHERE id=$1)`, id).Scan(&exists); err != nil {
-		return d, ErrUnavailable
-	}
-	if !exists {
-		// Drop only oldest aggregate rows, never rules, playback grants or raw logs.
-		if _, err = tx.Exec(ctx, `DELETE FROM player_ua_observations WHERE id IN(SELECT id FROM player_ua_observations ORDER BY last_seen_at,id LIMIT greatest((SELECT count(*) FROM player_ua_observations)-$1+1,0))`, MaxObservations); err != nil {
-			return d, ErrUnavailable
-		}
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO player_ua_observations(id,user_agent,last_allowed,last_reason,last_entry,last_method,last_client_ip,last_rule_id,last_policy_revision,allowed_count,denied_count)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,CASE WHEN $3 THEN 1 ELSE 0 END,CASE WHEN $3 THEN 0 ELSE 1 END)ON CONFLICT(id)DO UPDATE SET last_seen_at=now(),request_count=player_ua_observations.request_count+1,allowed_count=player_ua_observations.allowed_count+EXCLUDED.allowed_count,denied_count=player_ua_observations.denied_count+EXCLUDED.denied_count,last_allowed=EXCLUDED.last_allowed,last_reason=EXCLUDED.last_reason,last_entry=EXCLUDED.last_entry,last_method=EXCLUDED.last_method,last_client_ip=EXCLUDED.last_client_ip,last_rule_id=EXCLUDED.last_rule_id,last_policy_revision=EXCLUDED.last_policy_revision`, id, in.UserAgent, d.Allowed, d.Reason, in.Entry, in.Method, in.ClientIP, d.RuleID, p.Revision)
+	_, err = r.DB.Exec(ctx, `INSERT INTO player_ua_observations(id,user_agent,last_allowed,last_reason,last_entry,last_method,last_client_ip,last_rule_id,last_policy_revision,allowed_count,denied_count)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,CASE WHEN $3 THEN 1 ELSE 0 END,CASE WHEN $3 THEN 0 ELSE 1 END)ON CONFLICT(id)DO UPDATE SET last_seen_at=now(),request_count=player_ua_observations.request_count+1,allowed_count=player_ua_observations.allowed_count+EXCLUDED.allowed_count,denied_count=player_ua_observations.denied_count+EXCLUDED.denied_count,last_allowed=EXCLUDED.last_allowed,last_reason=EXCLUDED.last_reason,last_entry=EXCLUDED.last_entry,last_method=EXCLUDED.last_method,last_client_ip=EXCLUDED.last_client_ip,last_rule_id=EXCLUDED.last_rule_id,last_policy_revision=EXCLUDED.last_policy_revision`, id, in.UserAgent, d.Allowed, d.Reason, in.Entry, in.Method, in.ClientIP, d.RuleID, p.Revision)
 	if err != nil {
 		return d, ErrUnavailable
 	}
-	if err = tx.Commit(ctx); err != nil {
+	// Keep the aggregate bounded without serializing decisions. Concurrent
+	// cleanup may remove the same oldest row, which is harmless.
+	if _, err = r.DB.Exec(ctx, `DELETE FROM player_ua_observations WHERE id IN(SELECT id FROM player_ua_observations ORDER BY last_seen_at,id LIMIT greatest((SELECT count(*) FROM player_ua_observations)-$1,0) FOR UPDATE SKIP LOCKED)`, MaxObservations); err != nil {
 		return d, ErrUnavailable
 	}
 	return d, nil

@@ -149,3 +149,55 @@ func TestPostgresUARecordsWhitelistRevisionAndBoundedStorage(t *testing.T) {
 		t.Fatal("nil database bypass")
 	}
 }
+
+func TestConcurrentPlaybackChecksDoNotSerializeOnAdministratorLock(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("isolated database required")
+	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var name string
+	if db.QueryRow(ctx, `SELECT current_database()`).Scan(&name) != nil || name != "media_tool_test" {
+		t.Skip("isolated database only")
+	}
+	if _, err = db.Exec(ctx, `TRUNCATE player_ua_rules,player_ua_observations;UPDATE player_ua_policy SET enabled=false,revision=1 WHERE id='main'`); err != nil {
+		t.Fatal(err)
+	}
+	defer db.Exec(context.Background(), `TRUNCATE player_ua_rules,player_ua_observations`)
+	repo := Repository{DB: db}
+	lock, err := db.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Release()
+	if _, err = lock.Exec(ctx, `SELECT pg_advisory_lock(745)`); err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Exec(ctx, `SELECT pg_advisory_unlock(745)`)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	const n = 20
+	errs := make(chan error, n)
+	start := make(chan struct{})
+	for i := 0; i < n; i++ {
+		go func() {
+			<-start
+			d, e := repo.Check(ctx, Request{UserAgent: "SenPlayer/6.2.1", Entry: "strm", Method: "GET", ClientIP: "198.51.100.10"})
+			if e == nil {
+				_, e = repo.RecordEvent(ctx, Request{UserAgent: "SenPlayer/6.2.1", Entry: "strm", Method: "GET"}, d)
+			}
+			errs <- e
+		}()
+	}
+	close(start)
+	for i := 0; i < n; i++ {
+		if e := <-errs; e != nil {
+			t.Fatal(e)
+		}
+	}
+}

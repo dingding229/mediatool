@@ -66,12 +66,25 @@ func TestDirectOnlyNoTranscodeOrMediaFallbackEverReachesUpstream(t *testing.T) {
 		}
 	}
 	for _, path := range []string{
+		"/Items/17/Download",
+		"/emby/Items/17/File",
+	} {
+		w := request(path, "caller", "GET")
+		if w.Code != 302 || w.Header().Get("Location") == "" {
+			t.Fatal("managed item file did not use direct redirect", path, w.Code, w.Body.String())
+		}
+	}
+	for _, path := range []string{
 		"/Videos/17/master.m3u8?MediaSourceId=mediasource_17",
 		"/Videos/17/main.m3u8", "/Videos/17/future-media-output", "/Audio/17/universal", "/Videos/17/hls1/main/0.ts", "/Videos/17/stream.m3u8?Static=true",
 		"/Videos/17/live.mpd", "/emby/Emby/Videos/17/master.m3u8", "/emby//Videos/17/master.m3u8/", "/Videos/17/stream.mp4?Static=true&MediaSourceId=mediasource_17",
 		"/Videos/17/stream?MediaSourceId=mediasource_17", "/Videos/17/original.mkv?MediaSourceId=mediasource_17",
 		"/Videos/17/stream?Static=true&MediaSourceId=mediasource_17&VideoCodec=h264",
 		"/Videos/17/stream?Static=true&MediaSourceId=unknown",
+		"/Sync/17/File",
+		"/emby//Sync/17/Download",
+		"/LiveTv/LiveStream/id/stream",
+		"/emby/livetv/recording/id/file",
 	} {
 		w := request(path, "caller", "GET")
 		if w.Code != 409 || w.Header().Get("Location") != "" || !strings.Contains(w.Body.String(), "direct_play_required") {
@@ -83,7 +96,7 @@ func TestDirectOnlyNoTranscodeOrMediaFallbackEverReachesUpstream(t *testing.T) {
 			t.Fatal("missing authentication", w.Code)
 		}
 	}
-	if media.Load() != 0 || cdn.Load() != 0 || resolver.calls.Load() != 4 {
+	if media.Load() != 0 || cdn.Load() != 0 || resolver.calls.Load() != 6 {
 		t.Fatal("upstream media fallback or extra resolve", media.Load(), resolver.calls.Load())
 	}
 	g.options.Enable302 = false
@@ -129,4 +142,23 @@ func TestStrictManagedMetadataPreservesSTRMGrantAndDoesNotInventFormatSupport(t 
 
 func publicLookupForDirectOnly(context.Context, string) ([]net.IPAddr, error) {
 	return []net.IPAddr{{IP: net.ParseIP("93.184.216.34")}}, nil
+}
+
+func TestDirectOnlyOpaqueMediaRoutesNeverReachReverseProxy(t *testing.T) {
+	var forwarded atomic.Int32
+	g := &Gateway{options: GatewayOptions{DirectPlayOnly: true, Enable302: true, Playback: playback.New(nil, playback.Options{})}, proxy: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { forwarded.Add(1); w.WriteHeader(200) })}
+	for _, route := range []string{"/Sync/17/File", "/Sync/17/Download", "/Sync/JobItems/17/File", "/LiveTv/LiveStream/17/stream.ts", "/LiveTv/LiveStreamFiles/17/stream.ts", "/LiveTv/Recordings/17/stream"} {
+		for _, variant := range []string{route, strings.ToLower(route), "/emby" + route, "/emby//EmBy" + strings.ReplaceAll(route, "/", "//")} {
+			for _, method := range []string{"GET", "HEAD"} {
+				w := httptest.NewRecorder()
+				g.ServeHTTP(w, httptest.NewRequest(method, "http://owned"+variant, nil))
+				if w.Code != 409 || w.Header().Get("Location") != "" {
+					t.Fatal("opaque media path was not denied", method, variant, w.Code)
+				}
+			}
+		}
+	}
+	if forwarded.Load() != 0 {
+		t.Fatal("strict policy forwarded media", forwarded.Load())
+	}
 }

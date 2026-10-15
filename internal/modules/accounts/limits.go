@@ -4,7 +4,17 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+type attemptLimitExecer interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+}
+
+func pruneExpiredAttempts(ctx context.Context, q attemptLimitExecer) error {
+	_, err := q.Exec(ctx, `DELETE FROM administrator_auth_limits WHERE scope_digest IN (SELECT scope_digest FROM administrator_auth_limits WHERE window_start<now()-interval '1 day' ORDER BY window_start LIMIT 256)`)
+	return err
+}
 
 // Shared PG counters are HMAC-scoped; neither raw passwords nor usernames/IPs
 // are persisted as limiter keys. Counters remain effective across restarts.
@@ -17,7 +27,7 @@ func (r Repository) TakeAttempt(ctx context.Context, secret, scope string, limit
 	digest := h.Sum(nil)
 	// Bound retention of expired source counters even when attempts come from
 	// changing addresses. Only digests are retained, not raw network identities.
-	if _, err := r.DB.Exec(ctx, `DELETE FROM administrator_auth_limits WHERE window_start<now()-interval '1 day'`); err != nil {
+	if err := pruneExpiredAttempts(ctx, r.DB); err != nil {
 		return false, ErrUnavailable
 	}
 	var attempts int

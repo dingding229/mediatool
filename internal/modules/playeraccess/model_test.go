@@ -24,8 +24,13 @@ func TestExactPrefixEmptyAndCaseSensitiveUA(t *testing.T) {
 	if p.Decide(strings.Repeat("x", 4097)).Allowed {
 		t.Fatal("invalid UA allowed")
 	}
-	if ObservationID("UA") != ObservationID("UA") || ObservationID("UA") == ObservationID("ua") {
-		t.Fatal("UA identity lost")
+	ua := "UA"
+	id := ObservationID(ua)
+	if id == "" || id != ObservationID(strings.Join([]string{"U", "A"}, "")) {
+		t.Fatal("same UA must have a stable, nonempty identity")
+	}
+	if id == ObservationID("ua") || id == ObservationID("UA/2") {
+		t.Fatal("different UAs must have different identities")
 	}
 }
 func TestPolicyInputValidation(t *testing.T) {
