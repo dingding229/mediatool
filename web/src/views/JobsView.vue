@@ -80,6 +80,23 @@ const bytes = (value?: number | null) =>
     : value >= 1073741824
       ? `${(value / 1073741824).toFixed(2)} GiB`
       : `${(value / 1048576).toFixed(1)} MiB`;
+const queueLabels: Record<string, string> = {
+  default: "主任务",
+  library: "媒体入库",
+  transfer: "文件传输",
+  maintenance: "系统维护",
+};
+const stateLabels: Record<string, string> = {
+  pending: "等待中",
+  running: "执行中",
+  retry: "等待重试",
+  succeeded: "已完成",
+  failed: "失败",
+  paused: "已暂停",
+  cancelled: "已取消",
+};
+const queueLabel = (value: string) => queueLabels[value] || value;
+const stateLabel = (value: string) => stateLabels[value] || value;
 async function refreshJobs() {
   const serial = ++epoch;
   loading.value = true;
@@ -160,286 +177,298 @@ onUnmounted(() => {
 });
 </script>
 <template>
-  <section class="page-heading">
-    <div>
-      <span class="page-kicker">SYSTEM / 运行与调度</span>
-      <h1>系统运维与后台任务</h1>
-      <p>
-        依赖探测、Worker 心跳、Cron 调度和持久化任务。任务每 5 秒、运行状态每 15
-        秒刷新，不重放业务。
-      </p>
-    </div>
-    <div class="heading-actions"><RouterLink class="inline-link" to="/maintenance">备份与维护中心</RouterLink>
-      <el-button :loading="loading" @click="refresh"
-        ><Refresh aria-hidden="true" />刷新</el-button
-      ><el-button type="primary" :loading="creating" @click="create"
-        ><VideoPlay aria-hidden="true" />运行系统检查</el-button
-      >
-    </div>
-  </section>
-  <el-alert
-    v-if="healthError || error"
-    :title="healthError || error"
-    type="error"
-    :closable="false"
-    class="section-gap"
-  />
-  <el-alert
-    v-if="snapshot?.unavailable.length"
-    :title="`部分运维数据不可用：${snapshot.unavailable.join('、')}`"
-    type="warning"
-    :closable="false"
-    class="section-gap"
-  />
-  <template v-if="snapshot"
-    ><section class="ops-metrics" aria-label="系统运行状态">
-      <article class="panel">
-        <span>PostgreSQL</span
-        ><strong>{{
-          snapshot.postgres.state === "ready" ? "连接正常" : "不可用"
-        }}</strong
-        ><small>{{
-          snapshot.postgres.state === "ready"
-            ? `${snapshot.postgres.latencyMs} ms · 迁移 ${snapshot.migration ?? "未知"}`
-            : snapshot.postgres.message || "未配置"
-        }}</small>
-      </article>
-      <article class="panel">
-        <span>Redis</span
-        ><strong>{{
-          snapshot.redis.state === "ready" ? "连接正常" : "不可用"
-        }}</strong
-        ><small>{{
-          snapshot.redis.state === "ready"
-            ? `${snapshot.redis.latencyMs} ms`
-            : snapshot.redis.message || "未配置"
-        }}</small>
-      </article>
-      <article class="panel">
-        <span>主库大小 / 连接池</span
-        ><strong>{{ bytes(snapshot.databaseBytes) }}</strong
-        ><small>{{
-          snapshot.pool
-            ? `占用 ${snapshot.pool.acquired} / 上限 ${snapshot.pool.max} · 空闲 ${snapshot.pool.idle}`
-            : "连接池不可用"
-        }}</small>
-      </article>
-      <article class="panel">
-        <span>应用进程 / 待处理通知</span
-        ><strong>{{ bytes(snapshot.process.heapBytes) }}</strong
-        ><small
-          >{{ snapshot.process.goroutines }} goroutine · 通知
-          {{ snapshot.pendingNotifications ?? "未知" }} 条</small
-        >
-      </article>
-    </section>
-    <section class="panel section-gap">
-      <div class="panel-title">
-        <h2>Worker 与队列</h2>
-        <span class="muted">采样 {{ date(snapshot.sampledAt) }}</span>
+  <div class="operations-stack">
+    <section class="page-heading">
+      <div>
+        <span class="page-kicker">SYSTEM / 运行与调度</span>
+        <h1>系统运维与后台任务</h1>
+        <p>
+          依赖探测、Worker 心跳、Cron 调度和持久化任务。任务每 5 秒、运行状态每
+          15 秒刷新，不重放业务。
+        </p>
       </div>
-      <el-alert
-        v-if="!snapshot.workers.some((w) => w.online && w.queue === 'default')"
-        title="默认 Worker 未在线，调度与业务处理可能停止。请查看日志及容器状态。"
-        type="warning"
-        :closable="false"
-      />
-      <div class="workers">
-        <article v-for="w in snapshot.workers" :key="w.owner">
-          <el-tag :type="w.online ? 'success' : 'danger'">{{
-            w.online ? "在线" : "心跳过期"
-          }}</el-tag
-          ><code>{{ w.owner }}</code
-          ><span>{{ w.queue }}</span
-          ><time>{{ date(w.lastSeenAt) }}</time>
+      <div class="heading-actions">
+        <RouterLink class="el-button" to="/maintenance"
+          >备份与维护中心</RouterLink
+        >
+        <el-button :loading="loading" @click="refresh"
+          ><Refresh aria-hidden="true" />刷新</el-button
+        ><el-button type="primary" :loading="creating" @click="create"
+          ><VideoPlay aria-hidden="true" />运行系统检查</el-button
+        >
+      </div>
+    </section>
+    <el-alert
+      v-if="healthError || error"
+      :title="healthError || error"
+      type="error"
+      :closable="false"
+      class="section-gap"
+    />
+    <el-alert
+      v-if="snapshot?.unavailable.length"
+      :title="`部分运维数据不可用：${snapshot.unavailable.join('、')}`"
+      type="warning"
+      :closable="false"
+      class="section-gap"
+    />
+    <template v-if="snapshot"
+      ><section class="ops-metrics" aria-label="系统运行状态">
+        <article class="panel">
+          <span>PostgreSQL</span
+          ><strong>{{
+            snapshot.postgres.state === "ready" ? "连接正常" : "不可用"
+          }}</strong
+          ><small>{{
+            snapshot.postgres.state === "ready"
+              ? `${snapshot.postgres.latencyMs} ms · 数据版本 ${snapshot.migration ?? "未知"}`
+              : snapshot.postgres.message || "未配置"
+          }}</small>
         </article>
-        <p v-if="!snapshot.workers.length" class="muted">
-          尚无 Worker 心跳记录，不能视为运行正常。
-        </p>
-      </div>
-      <div class="queue-chips">
-        <button
-          v-for="q in snapshot.queues"
-          :key="q.name + q.state"
-          type="button"
-          @click="
-            queue = q.name;
-            state = q.state;
-            filter();
-          "
-        >
-          <code>{{ q.name }}</code
-          ><StatusBadge :state="q.state" /><strong>{{ q.count }}</strong
-          ><span v-if="q.expiredLeases" class="danger"
-            >{{ q.expiredLeases }} 条租约逾期</span
+        <article class="panel">
+          <span>Redis</span
+          ><strong>{{
+            snapshot.redis.state === "ready" ? "连接正常" : "不可用"
+          }}</strong
+          ><small>{{
+            snapshot.redis.state === "ready"
+              ? `${snapshot.redis.latencyMs} ms`
+              : snapshot.redis.message || "未配置"
+          }}</small>
+        </article>
+        <article class="panel">
+          <span>主库大小 / 连接池</span
+          ><strong>{{ bytes(snapshot.databaseBytes) }}</strong
+          ><small>{{
+            snapshot.pool
+              ? `占用 ${snapshot.pool.acquired} / 上限 ${snapshot.pool.max} · 空闲 ${snapshot.pool.idle}`
+              : "连接池不可用"
+          }}</small>
+        </article>
+        <article class="panel">
+          <span>应用进程 / 待处理通知</span
+          ><strong>{{ bytes(snapshot.process.heapBytes) }}</strong
+          ><small
+            >{{ snapshot.process.goroutines }} 个后台协程 · 通知
+            {{ snapshot.pendingNotifications ?? "未知" }} 条</small
           >
-        </button>
-        <p v-if="!snapshot.queues.length" class="muted">
-          队列暂无任务；可用性以依赖探测为准。
+        </article>
+      </section>
+      <section class="panel section-gap">
+        <div class="panel-title">
+          <h2>Worker 与队列</h2>
+          <span class="muted">采样 {{ date(snapshot.sampledAt) }}</span>
+        </div>
+        <el-alert
+          v-if="
+            !snapshot.workers.some((w) => w.online && w.queue === 'default')
+          "
+          title="默认 Worker 未在线，调度与业务处理可能停止。请查看日志及容器状态。"
+          type="warning"
+          :closable="false"
+        />
+        <div class="workers">
+          <article
+            v-for="w in snapshot.workers"
+            :key="w.owner"
+            class="worker-row"
+          >
+            <div class="worker-heading">
+              <el-tag :type="w.online ? 'success' : 'warning'">{{
+                w.online ? "在线" : "历史心跳已过期"
+              }}</el-tag
+              ><strong>{{ queueLabel(w.queue) }}</strong
+              ><time>{{ date(w.lastSeenAt) }}</time>
+            </div>
+            <code>{{ w.owner }}</code
+            ><small class="muted">队列标识：{{ w.queue }}</small>
+          </article>
+          <p v-if="!snapshot.workers.length" class="muted">
+            尚无 Worker 心跳记录，不能视为运行正常。
+          </p>
+        </div>
+        <div class="queue-chips">
+          <button
+            v-for="q in snapshot.queues"
+            :key="q.name + q.state"
+            type="button"
+            @click="
+              queue = q.name;
+              state = q.state;
+              filter();
+            "
+          >
+            <code>{{ q.name }}</code
+            ><StatusBadge :state="q.state" /><strong>{{ q.count }}</strong
+            ><span v-if="q.expiredLeases" class="danger"
+              >{{ q.expiredLeases }} 条租约逾期</span
+            >
+          </button>
+          <p v-if="!snapshot.queues.length" class="muted">
+            队列暂无任务；可用性以依赖探测为准。
+          </p>
+        </div>
+      </section>
+      <section class="panel section-gap">
+        <div class="panel-title">
+          <h2>Cron 调度</h2>
+          <span class="muted"
+            >Asia/Shanghai · 业务最多300条 / 插件最多100个</span
+          >
+        </div>
+        <p class="field-hint">
+          业务表达式为五字段；核心协调为六字段（含秒）。下次时间为数据库到期时间，不代表已执行；停用项不派发。心跳不等于单次调度成功。
         </p>
-      </div>
-    </section>
+        <div class="ops-table">
+          <table>
+            <thead>
+              <tr>
+                <th>调度</th>
+                <th>表达式 / 状态</th>
+                <th>下次到期 / 最近派发</th>
+                <th>设置</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in snapshot.schedules" :key="s.id">
+                <td>
+                  {{ s.name
+                  }}<small v-if="s.error" class="schedule-error">{{
+                    s.error
+                  }}</small>
+                </td>
+                <td>
+                  <code>{{ s.cron || "未配置" }}</code
+                  ><small>{{ s.enabled ? "已启用" : "已停用" }}</small>
+                </td>
+                <td>
+                  {{ date(s.nextRunAt)
+                  }}<small v-if="s.lastRunAt"
+                    >最近派发 {{ date(s.lastRunAt) }}</small
+                  >
+                </td>
+                <td>
+                  <RouterLink :to="s.link" class="inline-link">查看</RouterLink>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section></template
+    >
     <section class="panel section-gap">
       <div class="panel-title">
-        <h2>Cron 调度</h2>
-        <span class="muted">Asia/Shanghai · 业务最多300条 / 插件最多100个</span>
+        <h2>后台任务</h2>
+        <span class="muted">共 {{ total }} 条 · PostgreSQL 持久化</span>
       </div>
-      <p class="field-hint">
-        业务表达式为五字段；核心协调为六字段（含秒）。下次时间为数据库到期时间，不代表已执行；停用项不派发。心跳不等于单次调度成功。
-      </p>
+      <el-form class="job-filters" label-position="top" @submit.prevent="filter"
+        ><el-form-item label="状态"
+          ><el-select v-model="state" aria-label="任务状态" @change="filter"
+            ><el-option label="全部状态" value="" /><el-option
+              v-for="s in [
+                'pending',
+                'running',
+                'retry',
+                'succeeded',
+                'failed',
+                'paused',
+                'cancelled',
+              ]"
+              :key="s"
+              :label="stateLabel(s)"
+              :value="s" /></el-select></el-form-item
+        ><el-form-item label="队列"
+          ><el-input
+            v-model="queue"
+            aria-label="任务队列"
+            clearable
+            @keyup.enter="filter" /></el-form-item
+        ><el-form-item label="类型"
+          ><el-input
+            v-model="kind"
+            aria-label="任务类型"
+            clearable
+            @keyup.enter="filter" /></el-form-item
+        ><el-form-item label="任务ID / 类型 / 错误"
+          ><el-input
+            v-model="query"
+            aria-label="任务关键词"
+            clearable
+            :maxlength="200"
+            @keyup.enter="filter" /></el-form-item
+        ><el-button native-type="submit">筛选任务</el-button></el-form
+      >
       <div class="ops-table">
-        <table>
+        <table v-loading="loading">
           <thead>
             <tr>
-              <th>调度</th>
-              <th>表达式 / 状态</th>
-              <th>下次到期 / 最近派发</th>
-              <th>设置</th>
+              <th>任务</th>
+              <th>状态 / 尝试</th>
+              <th>时间</th>
+              <th>最近错误</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="s in snapshot.schedules" :key="s.id">
+            <tr v-for="j in jobs" :key="j.id">
               <td>
-                {{ s.name
-                }}<small v-if="s.error" class="schedule-error">{{
-                  s.error
-                }}</small>
+                <strong>{{
+                  j.kind === "system.check" ? "系统检查" : j.kind
+                }}</strong
+                ><small>{{ queueLabel(j.queue) }}</small
+                ><code>{{ j.id }}</code>
               </td>
               <td>
-                <code>{{ s.cron || "未配置" }}</code
-                ><small>{{ s.enabled ? "已启用" : "已停用" }}</small>
-              </td>
-              <td>
-                {{ date(s.nextRunAt)
-                }}<small v-if="s.lastRunAt"
-                  >最近派发 {{ date(s.lastRunAt) }}</small
+                <StatusBadge :state="j.state" /><small
+                  >{{ j.attempts }} / {{ j.maxAttempts }} 次</small
                 >
               </td>
               <td>
-                <RouterLink :to="s.link" class="inline-link">查看</RouterLink>
+                {{ date(j.updatedAt)
+                }}<small>创建 {{ date(j.createdAt) }}</small>
+              </td>
+              <td class="job-error">{{ j.lastError || "—" }}</td>
+              <td>
+                <el-button
+                  :aria-label="`查看任务 ${j.id}`"
+                  @click="inspect(j.id)"
+                  >详情</el-button
+                >
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-    </section></template
-  >
-  <section class="panel section-gap">
-    <div class="panel-title">
-      <h2>后台任务</h2>
-      <span class="muted">共 {{ total }} 条 · PostgreSQL 持久化</span>
-    </div>
-    <el-form class="job-filters" label-position="top" @submit.prevent="filter"
-      ><el-form-item label="状态"
-        ><el-select v-model="state" aria-label="任务状态" @change="filter"
-          ><el-option label="全部状态" value="" /><el-option
-            v-for="s in [
-              'pending',
-              'running',
-              'retry',
-              'succeeded',
-              'failed',
-              'paused',
-              'cancelled',
-            ]"
-            :key="s"
-            :label="s"
-            :value="s" /></el-select></el-form-item
-      ><el-form-item label="队列"
-        ><el-input
-          v-model="queue"
-          aria-label="任务队列"
-          clearable
-          @keyup.enter="filter" /></el-form-item
-      ><el-form-item label="类型"
-        ><el-input
-          v-model="kind"
-          aria-label="任务类型"
-          clearable
-          @keyup.enter="filter" /></el-form-item
-      ><el-form-item label="任务ID / 类型 / 错误"
-        ><el-input
-          v-model="query"
-          aria-label="任务关键词"
-          clearable
-          :maxlength="200"
-          @keyup.enter="filter" /></el-form-item
-      ><el-button native-type="submit">筛选任务</el-button></el-form
+      <el-empty
+        v-if="!loading && !error && !jobs.length"
+        description="当前筛选暂无任务"
+      /><el-pagination
+        v-model:current-page="page"
+        :page-size="25"
+        :total="total"
+        layout="prev,pager,next,total"
+        @current-change="refreshJobs"
+      />
+    </section>
+    <el-dialog v-model="dialog" title="后台任务详情" width="min(760px,94vw)"
+      ><template v-if="detail"
+        ><p>
+          状态：{{ detail.state }} · 队列：{{ detail.queue }} · 尝试
+          {{ detail.attempts }} / {{ detail.maxAttempts }}
+        </p>
+        <p>
+          可领取时间：{{ date(detail.availableAt) }} · 租约截至：{{
+            date(detail.leaseUntil)
+          }}
+        </p>
+        <p>Worker：{{ detail.lockedBy || "未被领取" }}</p>
+        <p class="field-hint">
+          完整持久化记录（仅查看）。上传、删除、结果未知任务请到对应业务页核对，不提供通用强制重放。
+        </p>
+        <pre class="job-json">{{ JSON.stringify(detail, null, 2) }}</pre>
+      </template></el-dialog
     >
-    <div class="ops-table">
-      <table v-loading="loading">
-        <thead>
-          <tr>
-            <th>任务</th>
-            <th>状态 / 尝试</th>
-            <th>时间</th>
-            <th>最近错误</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="j in jobs" :key="j.id">
-            <td>
-              <strong>{{
-                j.kind === "system.check" ? "系统检查" : j.kind
-              }}</strong
-              ><small>{{ j.queue }}</small
-              ><code>{{ j.id }}</code>
-            </td>
-            <td>
-              <StatusBadge :state="j.state" /><small
-                >{{ j.attempts }} / {{ j.maxAttempts }} 次</small
-              >
-            </td>
-            <td>
-              {{ date(j.updatedAt) }}<small>创建 {{ date(j.createdAt) }}</small>
-            </td>
-            <td class="job-error">{{ j.lastError || "—" }}</td>
-            <td>
-              <el-button :aria-label="`查看任务 ${j.id}`" @click="inspect(j.id)"
-                >详情</el-button
-              >
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <el-empty
-      v-if="!loading && !error && !jobs.length"
-      description="当前筛选暂无任务"
-    /><el-pagination
-      v-model:current-page="page"
-      :page-size="25"
-      :total="total"
-      layout="prev,pager,next,total"
-      @current-change="refreshJobs"
-    />
-  </section>
-  <section class="note-panel ops-links">
-    <strong>运维工具</strong><RouterLink to="/logs">日志查看与清理</RouterLink
-    ><RouterLink to="/data">PostgreSQL / Redis 数据浏览</RouterLink
-    ><RouterLink to="/notifications">通知中心</RouterLink
-    ><RouterLink to="/integrations">连接总览</RouterLink
-    ><RouterLink to="/settings">系统设置</RouterLink>
-  </section>
-  <el-dialog v-model="dialog" title="后台任务详情" width="min(760px,94vw)"
-    ><template v-if="detail"
-      ><p>
-        状态：{{ detail.state }} · 队列：{{ detail.queue }} · 尝试
-        {{ detail.attempts }} / {{ detail.maxAttempts }}
-      </p>
-      <p>
-        可领取时间：{{ date(detail.availableAt) }} · 租约截至：{{
-          date(detail.leaseUntil)
-        }}
-      </p>
-      <p>Worker：{{ detail.lockedBy || "未被领取" }}</p>
-      <p class="field-hint">
-        完整持久化记录（仅查看）。上传、删除、结果未知任务请到对应业务页核对，不提供通用强制重放。
-      </p>
-      <pre class="job-json">{{ JSON.stringify(detail, null, 2) }}</pre>
-    </template></el-dialog
-  >
+  </div>
 </template>
 <style scoped>
 .ops-metrics {
@@ -465,16 +494,32 @@ onUnmounted(() => {
 }
 .workers {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   margin: 16px 0;
 }
 .workers article {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
   font-size: 12px;
 }
+.worker-heading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.worker-heading time {
+  margin-left: auto;
+}
+.worker-heading strong {
+  font-size: 13px;
+}
+
 .workers code {
   overflow-wrap: anywhere;
 }
@@ -563,6 +608,11 @@ onUnmounted(() => {
   flex-wrap: wrap;
   align-items: center;
 }
+.ops-links-note {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
 .ops-links a {
   font-size: 13px;
   color: var(--el-color-primary);
@@ -585,7 +635,13 @@ onUnmounted(() => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (max-width: 600px) {
+@media (max-width: 760px) {
+  .workers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .worker-heading time {
+    margin-left: 0;
+  }
   .ops-metrics {
     gap: 8px;
   }

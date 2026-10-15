@@ -91,6 +91,11 @@ func (r Repository) Save(ctx context.Context, id string, in Input) (Record, erro
 		return Record{}, ErrUnavailable
 	}
 	defer tx.Rollback(ctx)
+	if in.Kind == "tmdb" {
+		if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('tmdb',716))`); err != nil {
+			return Record{}, ErrUnavailable
+		}
+	}
 	values := map[string]string{}
 	if id != "" {
 		old, err := r.scan(tx.QueryRow(ctx, `SELECT `+columns+` FROM integrations WHERE id=$1 FOR UPDATE`, id))
@@ -129,6 +134,14 @@ func (r Repository) Save(ctx context.Context, id string, in Input) (Record, erro
 			values = map[string]string{}
 		}
 	} else {
+		if in.Kind == "tmdb" {
+			var existing string
+			if err = tx.QueryRow(ctx, `SELECT id::text FROM integrations WHERE kind='tmdb' ORDER BY created_at LIMIT 1`).Scan(&existing); err == nil {
+				return Record{}, errors.New("TMDB只允许一个API Token配置，请编辑已有配置")
+			} else if !errors.Is(err, pgx.ErrNoRows) {
+				return Record{}, ErrUnavailable
+			}
+		}
 		id = jobs.UUID()
 	}
 	for k, v := range in.Secrets {

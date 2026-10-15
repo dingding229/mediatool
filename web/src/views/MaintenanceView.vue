@@ -296,6 +296,7 @@ onUnmounted(() => {
 });
 </script>
 <template>
+ <div class="operations-stack">
   <section class="page-heading">
     <div>
       <span class="page-kicker">SYSTEM / 维护中心</span>
@@ -306,8 +307,7 @@ onUnmounted(() => {
       </p>
     </div>
     <div class="heading-actions">
-      <RouterLink to="/jobs" class="inline-link">任务与运行状态</RouterLink
-      ><el-button
+      <el-button
         :loading="busy"
         @click="
           load();
@@ -771,6 +771,7 @@ onUnmounted(() => {
   <el-dialog v-model="detailOpen" title="维护详情" width="min(900px,94vw)">
     <pre class="maintenance-json">{{ JSON.stringify(detail, null, 2) }}</pre>
   </el-dialog>
+ </div>
 </template>
 <style scoped>
 .maintenance-tabs {

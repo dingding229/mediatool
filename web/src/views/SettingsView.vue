@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { passwordPolicyError } from "../auth/password-policy";
 import ApplicationSettings from "../components/ApplicationSettings.vue";
-import ConnectionPanel from "../components/ConnectionPanel.vue";
+import TMDBSettings from "../components/TMDBSettings.vue";
 import NetworkProxySettings from "../components/NetworkProxySettings.vue";
 import PWASettings from "../components/PWASettings.vue";
 import AccessSettings from "../components/AccessSettings.vue";
@@ -109,9 +109,6 @@ async function change() {
         按功能管理系统配置。保存范围在各表单中独立说明，切换分组不会自动保存。
       </p>
     </div>
-    <div class="heading-actions">
-      <RouterLink class="el-button" to="/integrations">服务连接状态</RouterLink>
-    </div>
   </section>
   <div class="settings-layout">
     <nav class="settings-navigation" aria-label="系统设置分类">
@@ -128,22 +125,13 @@ async function change() {
       </button>
     </nav>
     <div class="settings-content" :aria-label="selected.label">
-      <header class="settings-section-heading">
-        <p>{{ selected.hint }}</p>
-      </header>
       <AccessSettings v-show="active === 'access'" />
       <ApplicationSettings
         v-show="['access', 'library', 'automation'].includes(active)"
         :section="active"
       />
       <div v-show="active === 'proxy'"><NetworkProxySettings /></div>
-      <div v-show="active === 'tmdb'" class="settings-tmdb">
-        <ConnectionPanel
-          :allowed-kinds="['tmdb']"
-          title="TMDB配置"
-          config-only
-        />
-      </div>
+      <TMDBSettings v-show="active === 'tmdb'" />
       <section v-show="active === 'account'" class="panel settings-panel">
         <div class="panel-title">
           <div>
@@ -212,16 +200,17 @@ async function change() {
 <style scoped>
 .settings-layout {
   display: grid;
-  grid-template-columns: 184px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
 .settings-navigation {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  position: sticky;
-  top: 20px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--border);
 }
 .settings-navigation button {
   display: flex;
@@ -229,9 +218,9 @@ async function change() {
   gap: 10px;
   min-height: 46px;
   padding: 10px 12px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: transparent;
+  background: var(--panel-bg);
   color: var(--text);
   text-align: left;
   font: inherit;
@@ -252,8 +241,10 @@ async function change() {
   flex-shrink: 0;
 }
 .settings-content {
+  display: grid;
+  gap: 24px;
   min-width: 0;
-  max-width: 1000px;
+  width: 100%;
 }
 .settings-section-heading {
   margin-bottom: 16px;
@@ -291,6 +282,7 @@ async function change() {
   .settings-navigation {
     position: static;
     flex-direction: row;
+    flex-wrap: nowrap;
     overflow-x: auto;
     max-width: 100%;
     padding-bottom: 6px;
@@ -300,6 +292,39 @@ async function change() {
   }
   .settings-section-heading {
     margin-bottom: 12px;
+  }
+}
+</style>
+
+<style scoped>
+.settings-content :deep(.panel) {
+  margin: 0;
+  padding: 24px;
+}
+.settings-content :deep(.panel-title) {
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.settings-content :deep(.settings-panel) {
+  max-width: none;
+}
+.settings-navigation button {
+  transition:
+    background 0.16s,
+    color 0.16s;
+}
+.settings-navigation button.active {
+  font-weight: 600;
+}
+.settings-content > div {
+  min-width: 0;
+}
+@media (max-width: 680px) {
+  .settings-content {
+    gap: 16px;
+  }
+  .settings-content :deep(.panel) {
+    padding: 16px;
   }
 }
 </style>

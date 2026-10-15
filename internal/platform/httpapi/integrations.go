@@ -48,6 +48,18 @@ func (a *API) saveIntegration(w http.ResponseWriter, r *http.Request) {
 	if id == "" {
 		in.Revision = 0
 	}
+	if id == "" && in.Kind == "tmdb" {
+		var exists bool
+		if err := a.Deps.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM integrations WHERE kind='tmdb')`).Scan(&exists); err != nil {
+			integrationError(w, integrations.ErrUnavailable)
+			return
+		}
+		if exists {
+			fail(w, 409, "tmdb_already_configured", "TMDB仅配置一个API Token，请在系统设置编辑现有Token")
+			return
+		}
+	}
+
 	if in.Kind == "local" {
 		fail(w, 400, "automatic_local_root", "本地目录已自动发现，无需添加连接")
 		return
