@@ -212,13 +212,23 @@ func (e Engine) RecoverArtifacts(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	return recoverArtifactIDs(ctx, ids, j.Apply, e.FinalizeRecovered)
+}
+
+func recoverArtifactIDs(ctx context.Context, ids []string, apply func(context.Context, string) error, finalize func(context.Context) error) error {
+	var applyErrors []error
 	for _, id := range ids {
 		if ctx.Err() != nil {
-			return ctx.Err()
+			return errors.Join(append(applyErrors, ctx.Err())...)
 		}
-		_ = j.Apply(ctx, id)
+		if applyErr := apply(ctx, id); applyErr != nil {
+			applyErrors = append(applyErrors, fmt.Errorf("artifact %s: %w", id, applyErr))
+		}
 	}
-	return e.FinalizeRecovered(ctx)
+	if finalizeErr := finalize(ctx); finalizeErr != nil {
+		applyErrors = append(applyErrors, finalizeErr)
+	}
+	return errors.Join(applyErrors...)
 }
 
 // Finalize only candidates whose complete staged manifest has been applied.

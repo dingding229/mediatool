@@ -62,10 +62,11 @@ func (e Engine) Schedule(ctx context.Context) error {
 		return err
 	}
 	if due {
-		if err = e.Sample(ctx, r.Value); err != nil {
+		// Recover stale backup/delete intents even when collecting metrics fails.
+		if err = e.Retain(ctx, r.Value); err != nil {
 			return err
 		}
-		if err = e.Retain(ctx, r.Value); err != nil {
+		if err = e.Sample(ctx, r.Value); err != nil {
 			return err
 		}
 	}

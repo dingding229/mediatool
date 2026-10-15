@@ -68,47 +68,114 @@ func (e Engine) Delete(ctx context.Context, id string) error {
 	if err != nil || !allowed {
 		return errors.New("固定、最近两份成功备份或被维护任务引用的备份不可删除")
 	}
-	dir, _ := e.dir(id)
-	info, statErr := os.Lstat(dir)
-	if statErr == nil && (!info.IsDir() || info.Mode()&os.ModeSymlink != 0) {
+	dir, err := e.dir(id)
+	if err != nil {
+		return err
+	}
+	tombstone := dir + ".deleting"
+	paths, err := inspectBackupDeletion(dir, os.Lstat)
+	if err != nil {
+		return err
+	}
+	if paths.original.exists && paths.tombstone.exists {
+		// Never replace an existing isolation directory with another backup.
 		return ErrUnsafe
 	}
-	if statErr != nil && !os.IsNotExist(statErr) {
-		return statErr
+	if (paths.original.exists && (!paths.original.info.IsDir() || paths.original.info.Mode()&os.ModeSymlink != 0)) || (paths.tombstone.exists && (!paths.tombstone.info.IsDir() || paths.tombstone.info.Mode()&os.ModeSymlink != 0)) {
+		return ErrUnsafe
 	}
+	detached := paths.tombstone.exists
+	filesExist := paths.original.exists || paths.tombstone.exists
 	// Only known module-owned files; refuse an unexpected entry rather than recursive pruning.
-	if statErr == nil {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			return err
+	if filesExist {
+		cleanupPath := dir
+		if detached {
+			cleanupPath = tombstone
+		}
+		entries, readErr := os.ReadDir(cleanupPath)
+		if readErr != nil {
+			return readErr
 		}
 		for _, entry := range entries {
 			if entry.IsDir() || entry.Type()&os.ModeSymlink != 0 || entry.Name() != "database.dump" && entry.Name() != "outputs.tar" && entry.Name() != "manifest.json" {
 				return ErrUnsafe
 			}
 		}
-		for _, entry := range entries {
-			if err = os.Remove(filepath.Join(dir, entry.Name())); err != nil {
-				return err
+	}
+	var deletionStarted time.Time
+	if err = tx.QueryRow(ctx, `UPDATE ops_backups SET state='deleting',deletion_started_at=clock_timestamp(),message='删除已确认，正在清理备份文件' WHERE id=$1 AND state IN('ready','failed','interrupted') RETURNING deletion_started_at`, id).Scan(&deletionStarted); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','ops.backup.delete_started',jsonb_build_object('id',$1::text))`, id); err != nil {
+		return err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	// Detach the directory first. Readers can no longer observe a ready backup
+	// while the physical cleanup is in progress, and a later DB failure leaves
+	// an explicit deleting/failed state rather than a false ready record.
+	if filesExist {
+		if !detached {
+			if err = os.Rename(dir, tombstone); err != nil {
+				return e.failBackupDeletion(ctx, id, deletionStarted, "备份目录隔离失败，文件未删除，可重新删除：", err)
 			}
 		}
-		if err = os.Remove(dir); err != nil {
-			return err
+		entries, readErr := os.ReadDir(tombstone)
+		if readErr == nil {
+			for _, entry := range entries {
+				if entry.IsDir() || entry.Type()&os.ModeSymlink != 0 || entry.Name() != "database.dump" && entry.Name() != "outputs.tar" && entry.Name() != "manifest.json" {
+					readErr = ErrUnsafe
+					break
+				}
+			}
+		}
+		if readErr == nil {
+			for _, entry := range entries {
+				if removeErr := os.Remove(filepath.Join(tombstone, entry.Name())); removeErr != nil {
+					readErr = removeErr
+					break
+				}
+			}
+		}
+		if readErr == nil {
+			readErr = os.Remove(tombstone)
+		}
+		if readErr != nil {
+			return e.failBackupDeletion(ctx, id, deletionStarted, "备份文件清理失败，保留隔离目录，可重新删除：", readErr)
 		}
 	}
-	if _, err = tx.Exec(ctx, `UPDATE ops_backups SET state='deleted',message='本模块备份已删除，业务媒体未删除' WHERE id=$1`, id); err != nil {
-		return err
+
+	finish, finishErr := e.DB.Begin(ctx)
+	if finishErr != nil {
+		return finishErr
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','ops.backup.delete',jsonb_build_object('id',$1::text))`, id); err != nil {
-		return err
+	defer finish.Rollback(ctx)
+	finishTag, finishErr := finish.Exec(ctx, `UPDATE ops_backups SET state='deleted',message='本模块备份已删除，业务媒体未删除',completed_at=now() WHERE id=$1 AND state='deleting' AND deletion_started_at=$2`, id, deletionStarted)
+	if finishErr != nil {
+		return finishErr
 	}
-	return tx.Commit(ctx)
+	if finishTag.RowsAffected() != 1 {
+		return ErrConflict
+	}
+	if _, finishErr = finish.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','ops.backup.delete',jsonb_build_object('id',$1::text))`, id); finishErr != nil {
+		return finishErr
+	}
+	return finish.Commit(ctx)
 }
+
 func (e Engine) Retain(ctx context.Context, p Policy) error {
+	recovered, err := e.recoverDeletingBackups(ctx, time.Now())
+	if err != nil {
+		return err
+	}
 	e.DB.Exec(ctx, `UPDATE ops_requests SET state='expired',message='批准已过期' WHERE state IN('preview','approved')AND expires_at<now()`)
 	e.DB.Exec(ctx, `UPDATE ops_backups b SET state='interrupted',message='任务中断，不重放旧备份会话',completed_at=now() WHERE state IN('pending','running')AND NOT EXISTS(SELECT 1 FROM jobs j WHERE j.id=b.job_id AND j.state IN('pending','running','retry'))`)
 	e.DB.Exec(ctx, `UPDATE ops_drills d SET state='interrupted',message='演练中断；核对临时库后再清理',completed_at=now() WHERE state IN('pending','running')AND NOT EXISTS(SELECT 1 FROM jobs j WHERE j.id=d.job_id AND j.state IN('pending','running','retry'))`)
 
+	// A deletion recovered in this cycle requires an administrator retry;
+	// do not immediately start a second physical cleanup attempt.
 	rows, err := e.DB.Query(ctx, `SELECT id::text FROM(SELECT id,pinned,created_at,row_number()OVER(ORDER BY created_at DESC)AS rank FROM ops_backups WHERE state='ready')b WHERE NOT pinned AND rank>2 AND (rank>$1 OR created_at<now()-make_interval(days=>$2)) UNION ALL SELECT id::text FROM ops_backups WHERE NOT pinned AND state IN('failed','interrupted')AND created_at<now()-make_interval(days=>$2) LIMIT 100`, p.KeepCount, p.KeepDays)
 	if err != nil {
 		return err
@@ -126,6 +193,9 @@ func (e Engine) Retain(ctx context.Context, p Policy) error {
 		return err
 	}
 	for _, id := range ids {
+		if _, ok := recovered[id]; ok {
+			continue
+		}
 		_ = e.Delete(ctx, id)
 	}
 	return rows.Err()

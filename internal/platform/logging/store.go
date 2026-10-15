@@ -17,11 +17,12 @@ const MaxLogFileBytes int64 = 10 << 20
 const LogArchives = 4
 
 type Store struct {
-	mu    sync.Mutex
-	root  *os.Root
-	file  *os.File
-	size  int64
-	Level slog.LevelVar
+	mu     sync.Mutex
+	root   *os.Root
+	file   *os.File
+	size   int64
+	closed bool
+	Level  slog.LevelVar
 }
 type FileInfo struct {
 	Name     string    `json:"name"`
@@ -85,33 +86,51 @@ func (s *Store) names() []string {
 	return out
 }
 func (s *Store) rotate() error {
+	reopen := func(cause error) error {
+		if s.file != nil {
+			return cause
+		}
+		if err := s.openCurrent(); err != nil {
+			return errors.Join(cause, err)
+		}
+		return cause
+	}
 	if err := s.file.Close(); err != nil {
-		return err
+		s.file = nil
+		return reopen(err)
 	}
 	s.file = nil
 	names := s.names()
 	for i := len(names) - 1; i >= 1; i-- {
 		if info, e := s.root.Lstat(names[i]); e == nil {
 			if !info.Mode().IsRegular() {
-				return errors.New("unsafe log archive")
+				return reopen(errors.New("unsafe log archive"))
 			}
 			if e = s.root.Remove(names[i]); e != nil {
-				return e
+				return reopen(e)
 			}
 		}
 		if _, e := s.root.Lstat(names[i-1]); e == nil {
 			if e = s.root.Rename(names[i-1], names[i]); e != nil {
-				return e
+				return reopen(e)
 			}
 		}
 	}
-	return s.openCurrent()
+	if err := s.openCurrent(); err != nil {
+		return reopen(err)
+	}
+	return nil
 }
 func (s *Store) Write(p []byte) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.file == nil {
+	if s.closed {
 		return 0, errors.New("log closed")
+	}
+	if s.file == nil {
+		if err := s.openCurrent(); err != nil {
+			return 0, err
+		}
 	}
 	if len(p) > 1<<20 {
 		return 0, errors.New("log record too large")
@@ -128,6 +147,10 @@ func (s *Store) Write(p []byte) (int, error) {
 func (s *Store) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.closed {
+		return nil
+	}
+	s.closed = true
 	if s.file != nil {
 		s.file.Close()
 		s.file = nil
@@ -210,9 +233,19 @@ func (s *Store) Read(level string, limit int) ([]map[string]any, error) {
 	}
 	return out, nil
 }
-func (s *Store) Clear() error {
+func (s *Store) Clear() (result error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.closed {
+		return errors.New("log closed")
+	}
+	// Closing/removing a log is not a permanent close of the Store. Reopen on
+	// every exit, including an unsafe archive or a failed removal.
+	defer func() {
+		if s.file == nil {
+			result = errors.Join(result, s.openCurrent())
+		}
+	}()
 	if s.file != nil {
 		s.file.Close()
 		s.file = nil

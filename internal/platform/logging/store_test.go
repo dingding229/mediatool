@@ -94,3 +94,55 @@ func TestLogRejectsSymlink(t *testing.T) {
 		t.Fatal("link accepted")
 	}
 }
+
+func TestLogRotationFailureReopensCurrentFile(t *testing.T) {
+	dir := t.TempDir()
+	store, err := Open(dir, "info")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	store.size = MaxLogFileBytes
+	if err = os.Mkdir(filepath.Join(dir, "archive-4.jsonl"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = store.Write([]byte("rotation failure\n")); err == nil {
+		t.Fatal("rotation unexpectedly succeeded")
+	}
+	if store.file == nil {
+		t.Fatal("current log file was left closed")
+	}
+	if err = os.Remove(filepath.Join(dir, "archive-4.jsonl")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = store.Write([]byte("after recovery\n")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLogClearFailureRecoversWithoutRestart(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir, "info")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err = os.Mkdir(filepath.Join(dir, "archive-2.jsonl"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Clear(); err == nil {
+		t.Fatal("unsafe archive unexpectedly cleared")
+	}
+	if s.file == nil {
+		t.Fatal("clear failure left file logging closed")
+	}
+	if _, err = s.Write([]byte("after failed clear\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Write([]byte("after close\n")); err == nil {
+		t.Fatal("explicit Close was reopened")
+	}
+}

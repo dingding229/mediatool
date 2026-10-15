@@ -22,6 +22,22 @@ type Engine struct {
 	Connections *integrations.Manager
 	Observe     func(context.Context, string, string) (storage.File, error)
 }
+
+type scanCountQueryer interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func scanCounts(ctx context.Context, q scanCountQueryer, scanID string) (int, int, error) {
+	var dirs, files int
+	if err := q.QueryRow(ctx, `SELECT count(*)FROM library_scan_directories WHERE scan_id=$1`, scanID).Scan(&dirs); err != nil {
+		return 0, 0, err
+	}
+	if err := q.QueryRow(ctx, `SELECT count(*)FROM library_scan_seen WHERE scan_id=$1`, scanID).Scan(&files); err != nil {
+		return 0, 0, err
+	}
+	return dirs, files, nil
+}
+
 type Scan struct {
 	ID                   string    `json:"id"`
 	ConnectionID         string    `json:"connectionId"`
@@ -315,9 +331,10 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		if _, err = e.DB.Exec(ctx, `UPDATE library_scan_directories SET state='completed'WHERE scan_id=$1 AND path=$2`, body.ScanID, directory); err != nil {
 			return err
 		}
-		var dirs, files int
-		e.DB.QueryRow(ctx, `SELECT count(*)FROM library_scan_directories WHERE scan_id=$1`, body.ScanID).Scan(&dirs)
-		e.DB.QueryRow(ctx, `SELECT count(*)FROM library_scan_seen WHERE scan_id=$1`, body.ScanID).Scan(&files)
+		dirs, files, err := scanCounts(ctx, e.DB, body.ScanID)
+		if err != nil {
+			return err
+		}
 		if dirs > 20000 || files > 500000 {
 			return errors.New("scan safety limit exceeded")
 		}

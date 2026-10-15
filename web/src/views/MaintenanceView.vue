@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, toRaw } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { request, post } from "../api/client";
 import StatusBadge from "../components/StatusBadge.vue";
@@ -118,6 +118,9 @@ const bytes = (n: number) =>
   n > 1073741824
     ? `${(n / 1073741824).toFixed(2)} GiB`
     : `${(n / 1048576).toFixed(2)} MiB`;
+const canDeleteBackup = (state: string) =>
+  ["ready", "failed", "interrupted"].includes(state);
+const canPinBackup = (state: string) => state === "ready";
 const labels: Record<string, string> = {
   ready: "备份就绪",
   verified: "演练通过",
@@ -126,6 +129,7 @@ const labels: Record<string, string> = {
   failed: "失败",
   interrupted: "已中断",
   deleted: "已删除",
+  deleting: "删除中",
   preview: "待审批",
   approved: "待宿主执行",
   executing: "宿主执行中",
@@ -145,7 +149,7 @@ async function load() {
     if (serial !== epoch) return;
     data.value = out;
     if (!policy.value) {
-      policy.value = structuredClone(out.policy.value);
+      policy.value = structuredClone(toRaw(out.policy.value));
       policyRevision.value = out.policy.revision;
     }
     error.value = "";
@@ -165,10 +169,14 @@ async function trend() {
   }
 }
 async function reloadPolicy() {
-  await load();
-  if (data.value) {
-    policy.value = structuredClone(data.value.policy.value);
-    policyRevision.value = data.value.policy.revision;
+  try {
+    await load();
+    if (data.value && !error.value) {
+      policy.value = structuredClone(toRaw(data.value.policy.value));
+      policyRevision.value = data.value.policy.revision;
+    }
+  } catch (e) {
+    error.value = String(e);
   }
 }
 async function save() {
@@ -181,7 +189,7 @@ async function save() {
         revision: policyRevision.value,
       }),
     });
-    policy.value = structuredClone(out.value);
+    policy.value = structuredClone(toRaw(out.value));
     policyRevision.value = out.revision;
     ElMessage.success("备份、采样保留和告警策略已保存");
   });
@@ -408,7 +416,7 @@ onUnmounted(() => {
                     class="inline-link"
                     >下载备份</a
                   ><el-button
-                    v-if="b.state === 'ready'"
+                    v-if="canPinBackup(b.state)"
                     @click="
                       action(() =>
                         post(`/ops/backups/${b.id}/pin`, {
@@ -419,7 +427,7 @@ onUnmounted(() => {
                     "
                     >{{ b.pinned ? "取消固定" : "固定" }}</el-button
                   ><el-button
-                    v-if="['ready', 'failed', 'interrupted'].includes(b.state)"
+                    v-if="canDeleteBackup(b.state)"
                     type="danger"
                     plain
                     @click="remove(b)"

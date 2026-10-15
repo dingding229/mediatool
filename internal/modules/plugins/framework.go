@@ -183,11 +183,15 @@ func ValidateModule(ctx context.Context, module []byte) error {
 // inherited environment or network. The single HTTP host import is scoped to
 // origins explicitly declared and authorized on enable.
 func executeWASM(ctx context.Context, module []byte, m Manifest, event Event, data json.RawMessage, host HostFunc) (InvocationResult, error) {
-	result := InvocationResult{}
 	bounded, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
 	runtime := wasmRuntime(bounded)
 	defer runtime.Close(context.Background())
+	return executeWASMRuntime(bounded, runtime, module, m, event, data, host)
+}
+
+func executeWASMRuntime(bounded context.Context, runtime wazero.Runtime, module []byte, m Manifest, event Event, data json.RawMessage, host HostFunc) (InvocationResult, error) {
+	result := InvocationResult{}
 	if _, err := wasi_snapshot_preview1.Instantiate(bounded, runtime); err != nil {
 		return result, err
 	}
@@ -271,6 +275,9 @@ func executeWASM(ctx context.Context, module []byte, m Manifest, event Event, da
 		}
 		return uint32(len(encoded))
 	}).Export("http_request").Instantiate(bounded)
+	if hostError != nil {
+		return result, hostError
+	}
 	_, hostError = runtime.NewHostModuleBuilder("mediatool_host").NewFunctionBuilder().WithFunc(func(ctx context.Context, mod api.Module, ptr, size, out, capacity uint32) uint32 {
 		requests++
 		if requests > 5 || size > 32<<10 || capacity > 128<<10 || host == nil {
@@ -318,7 +325,7 @@ func executeWASM(ctx context.Context, module []byte, m Manifest, event Event, da
 		e = nil
 	}
 	if e != nil {
-		trace.Warn(ctx, "plugins", "WASM运行失败", "pluginId", m.ID, "event", event.Kind, "error", e.Error(), "stderr", string(stderr.data))
+		trace.Warn(bounded, "plugins", "WASM运行失败", "pluginId", m.ID, "event", event.Kind, "error", e.Error(), "stderr", string(stderr.data))
 		return result, errors.New("插件执行失败、超时或预算不足")
 	}
 	if strictJSON(stdout.data, &result) != nil || len(result.Data) > 128<<10 || len(result.Logs) > 40 {

@@ -144,24 +144,39 @@ func (r Registry) Save(ctx context.Context, m Manifest, enabled, consent bool, r
 	}
 	raw, _ := json.Marshal(m)
 
-	tag, err := r.DB.Exec(ctx, `UPDATE extension_plugins SET name=$2,version=$3,manifest=$4,enabled=$5,revision=revision+1,updated_at=now() WHERE id=$1 AND revision=$6`, m.ID, m.Name, m.Version, raw, enabled, revision)
+	// Fail closed: persist disabled before initialization. A failed init (or a
+	// failed final enable CAS) must never leave a schedulable plugin behind.
+	tag, err := r.DB.Exec(ctx, `UPDATE extension_plugins SET name=$2,version=$3,manifest=$4,enabled=$5,revision=revision+1,updated_at=now() WHERE id=$1 AND revision=$6`, m.ID, m.Name, m.Version, raw, false, revision)
 	if err != nil {
 		return err
 	}
 	if tag.RowsAffected() != 1 {
 		return ErrInvalid
 	}
-	if m.Runtime == "wasm" {
-		kind := "plugin.stop"
-		if enabled {
-			kind = "plugin.init"
-		}
-		if _, e := r.Invoke(ctx, m.ID, kind, map[string]any{}, !enabled); e != nil && enabled {
-			r.DB.Exec(ctx, `UPDATE extension_plugins SET enabled=false,revision=revision+1 WHERE id=$1 AND revision=$2`, m.ID, revision+1)
-			return e
-		}
+	if enabled {
+		return initializeBeforeEnable(func() error {
+			_, initErr := r.Invoke(ctx, m.ID, "plugin.init", map[string]any{}, true)
+			return initErr
+		}, func() error {
+			enabledTag, enableErr := r.DB.Exec(ctx, `UPDATE extension_plugins SET enabled=true WHERE id=$1 AND revision=$2 AND NOT enabled`, m.ID, revision+1)
+			if enableErr != nil {
+				return enableErr
+			}
+			if enabledTag.RowsAffected() != 1 {
+				return ErrInvalid
+			}
+			return nil
+		})
 	}
-	return nil
+	_, err = r.Invoke(ctx, m.ID, "plugin.stop", map[string]any{}, true)
+	return err
+}
+
+func initializeBeforeEnable(initialize, enable func() error) error {
+	if err := initialize(); err != nil {
+		return err
+	}
+	return enable()
 }
 func (r Registry) Delete(ctx context.Context, id string) error {
 	if r.DB == nil || !identifier.MatchString(id) || id == "release-name" || id == "naming-template" {

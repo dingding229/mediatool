@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"context"
 	"errors"
+	"fmt"
 	"github.com/jackc/pgx/v5"
 	"io"
 	"media-tool/internal/platform/backupverify"
@@ -20,59 +21,74 @@ import (
 
 var databaseOpen = database.Open
 
-func (e Engine) restoreClone(ctx context.Context, name, dir string, m Manifest) (string, error) {
+func cleanupFailedCandidate(committed *bool, result *error, cleanup func() error) {
+	if !*committed {
+		if err := cleanup(); err != nil {
+			*result = errors.Join(*result, fmt.Errorf("restore candidate cleanup failed: %w", err))
+		}
+	}
+}
+
+func (e Engine) restoreClone(ctx context.Context, name, dir string, m Manifest) (dsn string, cleanup func() error, err error) {
+	noop := func() error { return nil }
 	if !strings.HasPrefix(name, "media_tool_restore_") || len(name) != len("media_tool_restore_")+12 {
-		return "", ErrUnsafe
+		return "", noop, ErrUnsafe
 	}
 	for _, c := range name[len("media_tool_restore_"):] {
 		if !strings.ContainsRune("0123456789abcdef", c) {
-			return "", ErrUnsafe
+			return "", noop, ErrUnsafe
 		}
 	}
 	u, err := url.Parse(e.DSN)
 	if err != nil || strings.TrimPrefix(u.Path, "/") == name {
-		return "", ErrUnsafe
+		return "", noop, ErrUnsafe
 	}
 	if _, err = e.DB.Exec(ctx, `CREATE DATABASE `+pgx.Identifier{name}.Sanitize()+` TEMPLATE template0`); err != nil {
-		return "", err
+		return "", noop, err
 	}
 	u.Path = "/" + name
-	dsn := u.String()
+	dsn = u.String()
 	ok := false
-	defer func() {
-		if !ok {
-			clean, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			e.DB.Exec(clean, `DROP DATABASE `+pgx.Identifier{name}.Sanitize()+` WITH(FORCE)`)
+	cleaned := false
+	ownedCleanup := func() error {
+		if cleaned {
+			return nil
 		}
-	}()
+		cleaned = true
+		clean, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, dropErr := e.DB.Exec(clean, `DROP DATABASE `+pgx.Identifier{name}.Sanitize()+` WITH(FORCE)`)
+		return dropErr
+	}
+	defer cleanupFailedCandidate(&ok, &err, ownedCleanup)
 	dump, err := os.OpenFile(filepath.Join(dir, "database.dump"), os.O_RDONLY|noFollowFlag(), 0)
 	if err != nil {
-		return "", err
+		return "", noop, err
 	}
 	err = e.pg(ctx, "pg_restore", dsn, []string{"--exit-on-error", "--no-owner", "--no-acl", "--dbname=" + name}, dump, io.Discard)
 	dump.Close()
 	if err != nil {
-		return "", err
+		return "", noop, err
 	}
 	db, err := database.Open(ctx, dsn)
 	if err != nil {
-		return "", err
+		return "", noop, err
 	}
 	defer db.Close()
 	actual, err := Inventory(ctx, db)
 	if err != nil {
-		return "", err
+		return "", noop, err
 	}
 	if !sameTables(m.Tables, actual) {
-		return "", errors.New("恢复克隆与原备份摘要不一致")
+		return "", noop, errors.New("恢复克隆与原备份摘要不一致")
 	}
 	if _, err = backupverify.Verify(ctx, db, dsn, name, e.Key, false); err != nil {
-		return "", err
+		return "", noop, err
 	}
 	ok = true
-	return dsn, nil
+	return dsn, ownedCleanup, nil
 }
+
 func (e Engine) restoreOutputs(ctx context.Context, archive string, proofs []FileProof) error {
 	file, err := os.OpenFile(archive, os.O_RDONLY|noFollowFlag(), 0)
 	if err != nil {

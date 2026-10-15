@@ -65,3 +65,46 @@ func TestUnknownDeliveryRequiresAcknowledgementAndCrashIsNotBlindlyRetried(t *te
 		t.Fatal(state)
 	}
 }
+
+func TestStaleNotificationAttemptCannotOverwriteRetry(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL required")
+	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var name string
+	if err = db.QueryRow(ctx, `SELECT current_database()`).Scan(&name); err != nil || name != "media_tool_test" {
+		t.Skip("isolated database required")
+	}
+	cleanup := `TRUNCATE notification_messages,notification_deliveries,outbox_events CASCADE`
+	if _, err = db.Exec(ctx, cleanup); err != nil {
+		t.Fatal(err)
+	}
+	defer db.Exec(ctx, cleanup)
+	eventID, deliveryID := jobs.UUID(), jobs.UUID()
+	if _, err = db.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)VALUES($1,'media.imported',$2,'{}')`, eventID, jobs.UUID()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(ctx, `INSERT INTO notification_messages(id,event_id,title,body)VALUES($1,$2,'owned','owned')`, jobs.UUID(), eventID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(ctx, `INSERT INTO notification_deliveries(id,event_id,state,attempt_token)VALUES($1,$2,'pending','new-attempt')`, deliveryID, eventID); err != nil {
+		t.Fatal(err)
+	}
+	d := Dispatcher{DB: db}
+	if err = d.finishAttempt(ctx, deliveryID, "old-attempt", "sent", "provider", "", 0); err == nil {
+		t.Fatal("stale attempt overwrote a newer pending retry")
+	}
+	var state, token string
+	if err = db.QueryRow(ctx, `SELECT state,attempt_token FROM notification_deliveries WHERE id=$1`, deliveryID).Scan(&state, &token); err != nil {
+		t.Fatal(err)
+	}
+	if state != "pending" || token != "new-attempt" {
+		t.Fatalf("stale attempt changed delivery: state=%s token=%s", state, token)
+	}
+}

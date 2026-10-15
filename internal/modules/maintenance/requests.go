@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/jackc/pgx/v5/pgconn"
 	"path/filepath"
 	"strings"
 	"time"
@@ -267,13 +268,26 @@ func (e Engine) Claim(ctx context.Context, id string) (Request, error) {
 	r.State = "executing"
 	return r, tx.Commit(ctx)
 }
+func requireOneAffected(tag pgconn.CommandTag) error {
+	if tag.RowsAffected() != 1 {
+		return ErrConflict
+	}
+	return nil
+}
+
 func (e Engine) Finish(ctx context.Context, id, message string, success bool) error {
 	state := "failed"
 	if success {
 		state = "completed"
 	}
-	_, err := e.DB.Exec(ctx, `UPDATE ops_requests SET state=$2,message=$3,completed_at=now() WHERE id=$1 AND state='executing'`, id, state, message)
-	return err
+	tag, err := e.DB.Exec(ctx, `UPDATE ops_requests SET state=$2,message=$3,completed_at=now() WHERE id=$1 AND state='executing'`, id, state, message)
+	if err != nil {
+		return err
+	}
+	if err = requireOneAffected(tag); err != nil {
+		return err
+	}
+	return nil
 }
 func (e Engine) Resume(ctx context.Context, revision int64) error {
 	tag, err := e.DB.Exec(ctx, `UPDATE ops_mode SET paused=false,reason='',revision=revision+1 WHERE singleton AND revision=$1 AND NOT EXISTS(SELECT 1 FROM ops_requests WHERE state='executing')`, revision)
@@ -286,7 +300,7 @@ func (e Engine) Resume(ctx context.Context, revision int64) error {
 	e.notice(ctx, "ops.maintenance.resumed", "维护窗口已解除", "业务Cron和队列重新启用")
 	return nil
 }
-func (e Engine) PrepareCandidate(ctx context.Context, id string) (string, error) {
+func (e Engine) PrepareCandidate(ctx context.Context, id string) (candidate string, returnErr error) {
 	r, err := e.Request(ctx, id)
 	if err != nil || r.State != "executing" || r.Kind != "restore" {
 		return "", ErrUnsafe
@@ -300,10 +314,12 @@ func (e Engine) PrepareCandidate(ctx context.Context, id string) (string, error)
 		return "", ErrConflict
 	}
 	name := "media_tool_restore_" + stripID(id)[:12]
-	dsn, err := e.restoreClone(ctx, name, dir, m)
+	dsn, cleanupCandidate, err := e.restoreClone(ctx, name, dir, m)
 	if err != nil {
 		return "", err
 	}
+	candidateCommitted := false
+	defer cleanupFailedCandidate(&candidateCommitted, &returnErr, cleanupCandidate)
 	db, err := databaseOpen(ctx, dsn)
 	if err != nil {
 		return "", err
@@ -322,6 +338,7 @@ func (e Engine) PrepareCandidate(ctx context.Context, id string) (string, error)
 	if err = e.restoreOutputs(ctx, filepath.Join(dir, "outputs.tar"), m.Files); err != nil {
 		return "", err
 	}
+	candidateCommitted = true
 	return name, nil
 }
 func stripID(s string) string { return strings.ReplaceAll(s, "-", "") }

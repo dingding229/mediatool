@@ -171,3 +171,23 @@ func TestCronAndConfiguredIntervalsHaveBoundedSchedules(t *testing.T) {
 		t.Fatal(next, e)
 	}
 }
+
+func TestWASMHostInstantiationErrorsAreNotOverwritten(t *testing.T) {
+	for _, name := range []string{"mediatool", "mediatool_host"} {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			runtime := wasmRuntime(ctx)
+			defer runtime.Close(ctx)
+			if _, err := runtime.NewHostModuleBuilder(name).Instantiate(ctx); err != nil {
+				t.Fatal(err)
+			}
+			_, err := executeWASMRuntime(ctx, runtime, nil, Manifest{}, Event{}, nil, nil)
+			if err == nil || !strings.Contains(err.Error(), name) {
+				t.Fatalf("host initialization error was lost: %v", err)
+			}
+			if name == "mediatool" && runtime.Module("mediatool_host") != nil {
+				t.Fatal("second host was initialized after the first host failed")
+			}
+		})
+	}
+}

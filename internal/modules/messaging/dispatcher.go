@@ -105,21 +105,35 @@ func (d Dispatcher) Deliver(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err = tx.Exec(ctx, `UPDATE notification_deliveries SET state='sending',attempts=attempts+1,started_at=now() WHERE id=$1`, id); err != nil {
+	attemptToken := jobs.UUID()
+	tag, err := tx.Exec(ctx, `UPDATE notification_deliveries SET state='sending',attempts=attempts+1,started_at=now(),attempt_token=$2 WHERE id=$1 AND state IN ('pending','retry')`, id, attemptToken)
+	if err != nil {
 		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return errors.New("notification delivery attempt is no longer pending")
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return err
 	}
 	client, err := d.Connections.Telegram(ctx)
 	if err != nil {
-		_, err = d.DB.Exec(ctx, `UPDATE notification_deliveries SET state='failed',last_error='Telegram connection unavailable'WHERE id=$1`, id)
-		return err
+		sendErr := err
+		if updateErr := d.finishAttempt(ctx, id, attemptToken, "failed", "", "Telegram connection unavailable", 0); updateErr != nil {
+			return errors.Join(sendErr, updateErr)
+		}
+		return sendErr
 	}
 	current, err := d.Connections.Repository.Default(ctx, "telegram")
 	if err != nil || current.Record.ID != connectionID || savedRevision != nil && current.Record.Revision != *savedRevision {
-		_, err = d.DB.Exec(ctx, `UPDATE notification_deliveries SET state='failed',last_error='Telegram target changed; manual retry required'WHERE id=$1`, id)
-		return err
+		targetErr := errors.New("Telegram target changed; manual retry required")
+		if err != nil {
+			targetErr = err
+		}
+		if updateErr := d.finishAttempt(ctx, id, attemptToken, "failed", "", "Telegram target changed; manual retry required", 0); updateErr != nil {
+			return errors.Join(targetErr, updateErr)
+		}
+		return targetErr
 	}
 	message, retryAfter, sendErr := client.SendText(ctx, body)
 	state, lastError := "sent", ""
@@ -144,8 +158,18 @@ func (d Dispatcher) Deliver(ctx context.Context) error {
 	if attempts >= 4 && state == "retry" {
 		state = "failed"
 	}
-	_, err = d.DB.Exec(ctx, `UPDATE notification_deliveries SET state=$2,provider_message_id=NULLIF($3,''),last_error=$4,next_attempt_at=now()+($5::bigint*interval '1 millisecond')WHERE id=$1`, id, state, message, lastError, wait.Milliseconds())
-	return err
+	return d.finishAttempt(ctx, id, attemptToken, state, message, lastError, wait.Milliseconds())
+}
+
+func (d Dispatcher) finishAttempt(ctx context.Context, id, attemptToken, state, providerMessageID, lastError string, delayMS int64) error {
+	tag, err := d.DB.Exec(ctx, `UPDATE notification_deliveries SET state=$3,provider_message_id=NULLIF($4,''),last_error=$5,next_attempt_at=now()+($6::bigint*interval '1 millisecond') WHERE id=$1 AND state='sending' AND attempt_token=$2`, id, attemptToken, state, providerMessageID, lastError, delayMS)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return errors.New("notification delivery attempt is no longer active")
+	}
+	return nil
 }
 
 type Message struct {
@@ -198,7 +222,7 @@ func (d Dispatcher) Retry(ctx context.Context, id string, acceptDuplicateRisk bo
 	if err != nil || current.Record.ID != connectionID || revision != nil && current.Record.Revision != *revision {
 		return errors.New("Telegram target/credentials changed; do not reuse the old event automatically")
 	}
-	if _, err = tx.Exec(ctx, `UPDATE notification_deliveries SET state='pending',started_at=NULL,next_attempt_at=now(),attempts=0,last_error=''WHERE id=$1`, id); err != nil {
+	if _, err = tx.Exec(ctx, `UPDATE notification_deliveries SET state='pending',started_at=NULL,next_attempt_at=now(),attempts=0,attempt_token='',last_error=''WHERE id=$1`, id); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','notification.retry',jsonb_build_object('deliveryId',$1::text,'duplicateRiskAccepted',$2::boolean))`, id, acceptDuplicateRisk); err != nil {
