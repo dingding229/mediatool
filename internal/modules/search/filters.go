@@ -158,7 +158,7 @@ func (e Engine) GetFiltered(ctx context.Context, id string, page, limit int, f F
 		if json.Unmarshal(raw, &r) != nil {
 			return run, ErrSnapshotUnavailable
 		}
-		if identity.ID > 0 && !MatchesMedia(r, identity) {
+		if identity.ID > 0 && !matchesMediaCandidate(r, identity) {
 			run.Excluded++
 			continue
 		}
@@ -168,6 +168,10 @@ func (e Engine) GetFiltered(ctx context.Context, id string, page, limit int, f F
 		if run.Total >= start && len(run.Resources) < limit {
 			if r.Metadata == nil {
 				r.Metadata = map[string]any{}
+			}
+			if warning := MediaYearWarning(r, identity); warning != "" {
+				r.Metadata["yearWarning"] = warning
+				r.Metadata["identityConfirmed"] = false
 			}
 			r.Metadata["attributes"] = attrs(r.Title)
 			run.Resources = append(run.Resources, r)

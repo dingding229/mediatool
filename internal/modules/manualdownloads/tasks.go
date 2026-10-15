@@ -21,23 +21,24 @@ type Engine struct {
 	Connections *integrations.Manager
 }
 type Task struct {
-	ID            string     `json:"id"`
-	InfoHash      string     `json:"infoHash"`
-	Title         string     `json:"title"`
-	SourceKind    string     `json:"sourceKind"`
-	Source        string     `json:"source"`
-	Endpoint      string     `json:"endpoint"`
-	SavePath      string     `json:"savePath"`
-	Category      string     `json:"category"`
-	State         string     `json:"state"`
-	Progress      *float64   `json:"progress"`
-	QBState       string     `json:"qbState"`
-	DownloadSpeed int64      `json:"downloadSpeed"`
-	UploadSpeed   int64      `json:"uploadSpeed"`
-	TotalBytes    int64      `json:"totalBytes"`
-	Message       string     `json:"message"`
-	SyncedAt      *time.Time `json:"syncedAt"`
-	CreatedAt     time.Time  `json:"createdAt"`
+	ID              string     `json:"id"`
+	InfoHash        string     `json:"infoHash"`
+	Title           string     `json:"title"`
+	SourceKind      string     `json:"sourceKind"`
+	Source          string     `json:"source"`
+	Endpoint        string     `json:"endpoint"`
+	SavePath        string     `json:"savePath"`
+	Category        string     `json:"category"`
+	State           string     `json:"state"`
+	SubmitAttempted bool       `json:"submitAttempted"`
+	Progress        *float64   `json:"progress"`
+	QBState         string     `json:"qbState"`
+	DownloadSpeed   int64      `json:"downloadSpeed"`
+	UploadSpeed     int64      `json:"uploadSpeed"`
+	TotalBytes      int64      `json:"totalBytes"`
+	Message         string     `json:"message"`
+	SyncedAt        *time.Time `json:"syncedAt"`
+	CreatedAt       time.Time  `json:"createdAt"`
 }
 
 func (e Engine) Create(ctx context.Context, s Source) (string, error) {
@@ -81,7 +82,7 @@ func (e Engine) Create(ctx context.Context, s Source) (string, error) {
 	return existing, tx.Commit(ctx)
 }
 func (e Engine) List(ctx context.Context) ([]Task, error) {
-	rows, err := e.DB.Query(ctx, `SELECT id::text,info_hash,title,source_kind,source_label,endpoint,save_path,category,state,progress,qb_state,download_speed,upload_speed,total_bytes,message,synced_at,created_at FROM manual_download_tasks ORDER BY created_at DESC LIMIT 200`)
+	rows, err := e.DB.Query(ctx, `SELECT id::text,info_hash,title,source_kind,source_label,endpoint,save_path,category,state,progress,qb_state,download_speed,upload_speed,total_bytes,message,synced_at,created_at,submit_attempted FROM manual_download_tasks ORDER BY created_at DESC LIMIT 200`)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +90,7 @@ func (e Engine) List(ctx context.Context) ([]Task, error) {
 	out := []Task{}
 	for rows.Next() {
 		var t Task
-		if err = rows.Scan(&t.ID, &t.InfoHash, &t.Title, &t.SourceKind, &t.Source, &t.Endpoint, &t.SavePath, &t.Category, &t.State, &t.Progress, &t.QBState, &t.DownloadSpeed, &t.UploadSpeed, &t.TotalBytes, &t.Message, &t.SyncedAt, &t.CreatedAt); err != nil {
+		if err = rows.Scan(&t.ID, &t.InfoHash, &t.Title, &t.SourceKind, &t.Source, &t.Endpoint, &t.SavePath, &t.Category, &t.State, &t.Progress, &t.QBState, &t.DownloadSpeed, &t.UploadSpeed, &t.TotalBytes, &t.Message, &t.SyncedAt, &t.CreatedAt, &t.SubmitAttempted); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -148,6 +149,9 @@ func (e Engine) submit(ctx context.Context, id string) error {
 	if state == "completed" || state == "downloading" {
 		return nil
 	}
+	if state == "absent_confirmed" {
+		return jobs.ErrOperatorRequired
+	}
 	client, err := e.client(ctx, integration, endpoint)
 	if err != nil {
 		return err
@@ -199,7 +203,7 @@ func (e Engine) observe(ctx context.Context, id string, t downloads.Task, save, 
 	return err
 }
 func (e Engine) Sync(ctx context.Context) error {
-	rows, err := e.DB.Query(ctx, `SELECT id::text,integration_id::text,info_hash,endpoint,save_path,category FROM manual_download_tasks WHERE state IN('submitting','uncertain','downloading','completed') ORDER BY updated_at LIMIT 200`)
+	rows, err := e.DB.Query(ctx, `SELECT id::text,integration_id::text,info_hash,endpoint,save_path,category FROM manual_download_tasks WHERE state IN('submitting','uncertain','absent_confirmed','downloading','completed') ORDER BY updated_at LIMIT 200`)
 	if err != nil {
 		return err
 	}

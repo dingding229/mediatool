@@ -160,6 +160,47 @@ func TestManualDownloadQueueHashDedupeRealProgressAndUncertainFence(t *testing.T
 	if state != "uncertain" {
 		t.Fatal(state)
 	}
+	if err = e.Retry(ctx, id, true, true); err == nil {
+		t.Fatal("uncertain submission retried before inspection")
+	}
+	if state, err = e.Reconcile(ctx, id); err != nil || state != "absent_confirmed" {
+		t.Fatal(state, err)
+	}
+	mu.Lock()
+	count = adds
+	mu.Unlock()
+	if count != 2 {
+		t.Fatal("read-only reconciliation added a torrent", count)
+	}
+	if err = e.Retry(ctx, id, true, false); err == nil {
+		t.Fatal("unknown-outcome risk was not acknowledged")
+	}
+	if err = e.Retry(ctx, id, true, true); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	unknown = false
+	mu.Unlock()
+	if err = e.Process(ctx, job); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	count = adds
+	mu.Unlock()
+	if count != 3 {
+		t.Fatal("explicitly confirmed retry did not submit exactly once", count)
+	}
+	// A pre-submit failure may be safely requeued without unknown-outcome consent.
+	if _, err = db.Exec(ctx, `UPDATE manual_download_tasks SET state='blocked',submit_attempted=false WHERE id=$1;`, id); err != nil {
+		t.Fatal(err)
+	}
+	if err = e.Retry(ctx, id, true, false); err != nil {
+		t.Fatal(err)
+	}
+	var queued int
+	if err = db.QueryRow(ctx, `SELECT count(*) FROM jobs WHERE idempotency_key=$1 AND state='pending'`, "download.manual.add:"+id).Scan(&queued); err != nil || queued != 1 {
+		t.Fatal("retry duplicated job", queued, err)
+	}
 	// This feature never fabricates a media binding or starts upload jobs.
 	var pipeline int
 	db.QueryRow(ctx, `SELECT count(*) FROM jobs WHERE kind IN('transfer.upload','library.scan')`).Scan(&pipeline)

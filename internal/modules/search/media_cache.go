@@ -9,7 +9,7 @@ import (
 )
 
 func (e Engine) StartMediaCached(ctx context.Context, keyword string, ids []string, refresh bool, media metadata.Item) (string, bool, error) {
-	if media.ID < 1 || (media.MediaType != "movie" && media.MediaType != "series") {
+	if media.ID < 1 || (media.MediaType != "movie" && media.MediaType != "series") || validateAccountIDs(ids) != nil {
 		return "", false, ErrSnapshotChanged
 	}
 	key, ttl, err := e.cacheKey(ctx, keyword, ids)

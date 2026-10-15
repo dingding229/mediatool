@@ -24,6 +24,8 @@ interface Resource {
   downloadFactor: number | null;
   metadata: {
     subtitle?: string;
+    yearWarning?: string;
+    identityConfirmed?: boolean;
     attributes?: { resolution: string; source: string; codec: string };
   };
 }
@@ -54,21 +56,32 @@ interface Media {
 }
 const codecLabel = (value?: string) =>
   value && value !== "unknown" ? value.toUpperCase() : "编码未知";
-const persistedMedia = new Set<string>();
+const mediaSaving = ref(false), mediaReady = ref(true);
 async function persistMedia(item: Media) {
-  if (run.value) {
-    const key = `${run.value.id}:${item.mediaType}:${item.id}`;
-    if (persistedMedia.has(key)) return;
-    persistedMedia.add(key);
-    try {
-      await post(`/search/${run.value.id}/media`, {
-        id: item.id,
-        mediaType: item.mediaType,
-      });
-      await load();
-    } catch {
-      persistedMedia.delete(key);
-    }
+  if (!run.value || mediaSaving.value) return;
+  const id = run.value.id;
+  if (run.value.media?.id === item.id && run.value.media.mediaType === item.mediaType) return;
+  mediaSaving.value = true;
+  mediaReady.value = false;
+  ++resultEpoch;
+  resultController?.abort();
+  resultLoading = false;
+  dialog.value = false;
+  resource.value = null;
+  chosen.value = null;
+  downloadSearchIdentity.value = null;
+  usingSearchIdentity.value = false;
+  selectedRunId.value = "";
+  media.value = [];
+  try {
+    await post(`/search/${id}/media`, { id: item.id, mediaType: item.mediaType });
+    if (run.value?.id !== id) return;
+    await refresh(id, true);
+    await load();
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "媒体身份保存失败，请刷新搜索记录后重试";
+  } finally {
+    mediaSaving.value = false;
   }
 }
 const usingSearchIdentity = ref(false),
@@ -142,6 +155,10 @@ const dialog = ref(false),
   chosen = ref<Media | null>(null),
   metadataBusy = ref(false),
   downloading = ref(false);
+const yearMismatchConfirmed = ref(false), yearMismatchRequired = ref(false);
+const yearWarning = computed(() => resource.value?.metadata?.yearWarning || (yearMismatchRequired.value ? "年份不一致，需人工确认；可能是季年份或同名剧集，请核对资源与所选TMDB身份。" : ""));
+const requiresYearConfirmation = computed(() => !!yearWarning.value);
+watch(() => chosen.value?.id, () => { yearMismatchConfirmed.value = false; });
 let filterTimer: ReturnType<typeof setTimeout> | undefined;
 function applyFilter() {
   clearTimeout(filterTimer);
@@ -214,8 +231,8 @@ function filterParams() {
   }
   return params.toString();
 }
-async function refresh(id = run.value?.id) {
-  if (!id) return;
+async function refresh(id = run.value?.id, afterMediaSave = false) {
+  if (!id || (mediaSaving.value && !afterMediaSave && id === run.value?.id)) return;
   if (id !== contextRunID.value) {
     const media = history.value.find((x) => x.id === id)?.media;
     activeMedia.value =
@@ -237,6 +254,7 @@ async function refresh(id = run.value?.id) {
       activeMedia.value =
         m?.id && ["movie", "series"].includes(m.mediaType) ? m : null;
       contextRunID.value = result.id;
+      mediaReady.value = true;
     }
   } catch (e) {
     if (
@@ -250,7 +268,10 @@ async function refresh(id = run.value?.id) {
   }
 }
 function openDownload(item: Resource) {
+  if (mediaSaving.value || !mediaReady.value) return;
   selectedRunId.value = run.value?.id ?? "";
+  yearMismatchConfirmed.value = false;
+  yearMismatchRequired.value = false;
   downloadError.value = "";
   resource.value = item;
   const identity = run.value?.media;
@@ -278,10 +299,11 @@ async function lookup() {
   }
 }
 async function download() {
-  if (!resource.value || !chosen.value) return;
+  if (mediaSaving.value || !mediaReady.value || !resource.value || !chosen.value || (requiresYearConfirmation.value && !yearMismatchConfirmed.value)) return;
   downloading.value = true;
   try {
     await post("/downloads", {
+      confirmYearMismatch: yearMismatchConfirmed.value,
       correctMediaIdentity:
         !!downloadSearchIdentity.value && !usingSearchIdentity.value,
       searchRunId: selectedRunId.value,
@@ -292,6 +314,7 @@ async function download() {
     dialog.value = false;
     ElMessage.success("下载任务已持久化。可在下载与传输查看进度。");
   } catch (e) {
+    if (e && typeof e === "object" && "code" in e && e.code === "media_year_confirmation_required") yearMismatchRequired.value = true;
     downloadError.value = e instanceof Error ? e.message : "下载任务创建失败";
     ElMessage.error(downloadError.value);
   } finally {
@@ -517,6 +540,7 @@ onUnmounted(() => {
       ><el-table-column label="资源" min-width="290"
         ><template #default="scope"
           ><strong>{{ scope.row.title }}</strong>
+          <p v-if="scope.row.metadata?.yearWarning" class="field-hint" role="note">{{ scope.row.metadata.yearWarning }}</p>
           <p class="field-hint">{{ scope.row.metadata?.subtitle }}</p>
           <small
             >{{ scope.row.siteName }} ·
@@ -581,7 +605,7 @@ onUnmounted(() => {
             :factor="scope.row.downloadFactor" /></template></el-table-column
       ><el-table-column label="操作" width="140"
         ><template #default="scope"
-          ><el-button type="primary" plain @click="openDownload(scope.row)"
+          ><el-button type="primary" plain :disabled="mediaSaving || !mediaReady" @click="openDownload(scope.row)"
             >确认并下载</el-button
           ></template
         ></el-table-column
@@ -664,6 +688,8 @@ onUnmounted(() => {
       :closable="false"
       role="alert"
     />
+    <el-alert v-if="yearWarning" :title="yearWarning" type="warning" :closable="false" show-icon />
+    <el-checkbox v-if="yearWarning" v-model="yearMismatchConfirmed">我已核对资源年份/季年份与所选TMDB剧集身份，确认继续下载</el-checkbox>
     <p class="field-hint">
       当前确认：{{
         chosen
@@ -674,7 +700,7 @@ onUnmounted(() => {
     <el-button
       type="primary"
       :loading="downloading"
-      :disabled="!chosen"
+      :disabled="!chosen || mediaSaving || !mediaReady || (requiresYearConfirmation && !yearMismatchConfirmed)"
       @click="download"
       >创建下载任务</el-button
     ></el-dialog

@@ -15,6 +15,15 @@ import (
 	"media-tool/internal/modules/settings"
 )
 
+var ErrRunModeConflict = errors.New("已有待执行或执行中的订阅任务与本次预览/实际执行模式不同，请等待其结束后再操作")
+
+func runModeConflict(existingPreview, requestedPreview bool) error {
+	if existingPreview != requestedPreview {
+		return ErrRunModeConflict
+	}
+	return nil
+}
+
 type Engine struct {
 	DB          *pgxpool.Pool
 	Connections *integrations.Manager
@@ -166,8 +175,16 @@ func (e Engine) Queue(ctx context.Context, id string, preview bool) (string, err
 		return "", errors.New("历史订阅不可执行")
 	}
 	var existing string
-	if tx.QueryRow(ctx, `SELECT id::text FROM subscription_runs WHERE subscription_id=$1 AND state IN ('pending','running')`, id).Scan(&existing) == nil {
+	var existingPreview bool
+	err = tx.QueryRow(ctx, `SELECT id::text,preview FROM subscription_runs WHERE subscription_id=$1 AND state IN ('pending','running')`, id).Scan(&existing, &existingPreview)
+	if err == nil {
+		if conflictErr := runModeConflict(existingPreview, preview); conflictErr != nil {
+			return "", conflictErr
+		}
 		return existing, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return "", err
 	}
 	runID := jobs.UUID()
 	if _, err = tx.Exec(ctx, `INSERT INTO subscription_runs(id,subscription_id,preview,revision)VALUES($1,$2,$3,$4)`, runID, id, preview, record.Revision); err != nil {

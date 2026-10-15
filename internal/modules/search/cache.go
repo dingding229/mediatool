@@ -45,7 +45,7 @@ func (e Engine) cacheKey(ctx context.Context, keyword string, ids []string) (str
 }
 func (e Engine) StartCached(ctx context.Context, keyword string, ids []string, refresh bool) (string, bool, error) {
 	// Start's validation still applies even on cache hits.
-	if keyword == "" || len(keyword) > 200 || len(ids) == 0 || len(ids) > 10 {
+	if keyword == "" || len(keyword) > 200 || validateAccountIDs(ids) != nil {
 		return "", false, ErrSnapshotChanged
 	}
 	key, ttl, err := e.cacheKey(ctx, keyword, ids)

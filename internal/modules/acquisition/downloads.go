@@ -27,17 +27,18 @@ type Engine struct {
 	Search      search.Engine
 }
 type taskDetails struct {
-	CleanupAfterImport bool                `json:"cleanupAfterImport"`
-	Trackers           []downloads.Tracker `json:"trackers"`
-	TrackerError       string              `json:"trackerError"`
-	IdentityOverride   bool                `json:"identityOverride"`
-	SyncedAt           *time.Time          `json:"syncedAt"`
-	SyncAttemptAt      *time.Time          `json:"syncAttemptAt"`
-	SyncError          string              `json:"syncError"`
-	DownloadSpeed      int64               `json:"downloadSpeed"`
-	UploadSpeed        int64               `json:"uploadSpeed"`
-	Seeds              int                 `json:"seeds"`
-	Peers              int                 `json:"peers"`
+	CleanupAfterImport    bool                `json:"cleanupAfterImport"`
+	Trackers              []downloads.Tracker `json:"trackers"`
+	TrackerError          string              `json:"trackerError"`
+	YearMismatchConfirmed bool                `json:"yearMismatchConfirmed"`
+	IdentityOverride      bool                `json:"identityOverride"`
+	SyncedAt              *time.Time          `json:"syncedAt"`
+	SyncAttemptAt         *time.Time          `json:"syncAttemptAt"`
+	SyncError             string              `json:"syncError"`
+	DownloadSpeed         int64               `json:"downloadSpeed"`
+	UploadSpeed           int64               `json:"uploadSpeed"`
+	Seeds                 int                 `json:"seeds"`
+	Peers                 int                 `json:"peers"`
 
 	SearchRunID          string        `json:"searchRunId,omitempty"`
 	SourceSnapshotDigest string        `json:"sourceSnapshotDigest,omitempty"`
@@ -103,7 +104,7 @@ func (e Engine) StartExpected(ctx context.Context, resourceID, mediaType string,
 func (e Engine) StartFromRun(ctx context.Context, runID, resourceID, mediaType string, tmdbID int) (string, error) {
 	return e.StartFromRunIdentity(ctx, runID, resourceID, mediaType, tmdbID, false)
 }
-func (e Engine) StartFromRunIdentity(ctx context.Context, runID, resourceID, mediaType string, tmdbID int, correction bool) (string, error) {
+func (e Engine) StartFromRunIdentity(ctx context.Context, runID, resourceID, mediaType string, tmdbID int, correction bool, yearConfirmation ...bool) (string, error) {
 	if runID == "" {
 		var err error
 		runID, err = e.Search.LatestRunForResource(ctx, resourceID)
@@ -111,8 +112,9 @@ func (e Engine) StartFromRunIdentity(ctx context.Context, runID, resourceID, med
 			return "", err
 		}
 	}
+	yearConfirmed := len(yearConfirmation) > 0 && yearConfirmation[0]
 	if !correction {
-		if err := e.Search.MediaResource(ctx, runID, resourceID); err != nil {
+		if err := e.Search.MediaResource(ctx, runID, resourceID, yearConfirmed); err != nil {
 			return "", err
 		}
 	}
@@ -124,7 +126,7 @@ func (e Engine) StartFromRunIdentity(ctx context.Context, runID, resourceID, med
 	if err != nil {
 		return "", err
 	}
-	return e.startExpected(ctx, runID, resourceID, mediaType, tmdbID, meta.InfoHash, nil, nil, "", 0, correction)
+	return e.startExpected(ctx, runID, resourceID, mediaType, tmdbID, meta.InfoHash, nil, nil, "", 0, correction, yearConfirmed)
 }
 
 func (e Engine) StartExpectedFromRun(ctx context.Context, runID, resourceID, mediaType string, tmdbID int, expectedHash string, season *int, episodes []int, subscriptionRunID string, revision int64) (string, error) {
@@ -161,7 +163,7 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 	if prefsErr != nil {
 		return "", prefsErr
 	}
-	details := taskDetails{CleanupAfterImport: prefs.Value.CleanupAfterImport, IdentityOverride: len(correction) > 0 && correction[0], SearchRunID: runID, SubscriptionRunID: subscriptionRunID, ExpectedHash: expectedHash, ExpectedSeason: season, ExpectedEpisodes: episodes, Media: media, Endpoint: connection.String("endpoint"), DownloadPath: source, LocalPath: local, Category: connection.String("category")}
+	details := taskDetails{YearMismatchConfirmed: len(correction) > 1 && correction[1], CleanupAfterImport: prefs.Value.CleanupAfterImport, IdentityOverride: len(correction) > 0 && correction[0], SearchRunID: runID, SubscriptionRunID: subscriptionRunID, ExpectedHash: expectedHash, ExpectedSeason: season, ExpectedEpisodes: episodes, Media: media, Endpoint: connection.String("endpoint"), DownloadPath: source, LocalPath: local, Category: connection.String("category")}
 	if details.Category == "" {
 		details.Category = "media-tool"
 	}
@@ -171,11 +173,12 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 		return "", err
 	}
 	defer tx.Rollback(ctx)
+	var subscriptionID string
 	if subscriptionRunID != "" {
 		var currentRevision, runRevision int64
 		var enabled bool
 		var phase string
-		if err = tx.QueryRow(ctx, `SELECT s.revision,s.enabled,r.revision,r.collection_state FROM subscription_runs r JOIN subscriptions s ON s.id=r.subscription_id WHERE r.id=$1 AND r.search_run_id=$2 FOR SHARE OF s`, subscriptionRunID, runID).Scan(&currentRevision, &enabled, &runRevision, &phase); err != nil {
+		if err = tx.QueryRow(ctx, `SELECT s.revision,s.enabled,r.revision,r.collection_state,s.id::text FROM subscription_runs r JOIN subscriptions s ON s.id=r.subscription_id WHERE r.id=$1 AND r.search_run_id=$2 FOR SHARE OF s`, subscriptionRunID, runID).Scan(&currentRevision, &enabled, &runRevision, &phase, &subscriptionID); err != nil {
 			return "", search.ErrSnapshotChanged
 		}
 		if !enabled || revision != currentRevision || runRevision != revision || phase != "collected" {
@@ -185,6 +188,13 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 	if runID != "" {
 		if err = e.Search.ValidateRunResourceTx(ctx, tx, runID, resourceID); err != nil {
 			return "", err
+		}
+		candidate, candidateErr := e.Search.RunResource(ctx, runID, resourceID)
+		if candidateErr != nil {
+			return "", candidateErr
+		}
+		if search.MediaYearWarning(candidate, media) != "" && !details.YearMismatchConfirmed {
+			return "", search.ErrMediaYearConfirmation
 		}
 		var rawIdentity []byte
 		if err = tx.QueryRow(ctx, `SELECT media_context FROM search_runs WHERE id=$1 FOR SHARE`, runID).Scan(&rawIdentity); err != nil {
@@ -245,13 +255,19 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 		if sourceRequired {
 			return "", ErrSourceRecoveryRequired
 		}
+		if subscriptionID != "" {
+			if bindErr := assignDownloadSubscription(ctx, tx, existing, subscriptionID); bindErr != nil {
+				return "", bindErr
+			}
+			return existing, tx.Commit(ctx)
+		}
 		return existing, nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return "", errors.New("resource unavailable")
 	}
 	id := jobs.UUID()
-	tag, err := tx.Exec(ctx, `INSERT INTO download_tasks(id,resource_id,integration_id,media_type,tmdb_id,details)VALUES($1,$2,$3,$4,$5,$6)ON CONFLICT(resource_id)WHERE download_state NOT IN ('failed','cancelled')DO NOTHING`, id, resourceID, connection.Record.ID, mediaType, tmdbID, raw)
+	tag, err := tx.Exec(ctx, `INSERT INTO download_tasks(id,resource_id,integration_id,media_type,tmdb_id,details,subscription_id)VALUES($1,$2,$3,$4,$5,$6,NULLIF($7::text,'')::uuid)ON CONFLICT(resource_id)WHERE download_state NOT IN ('failed','cancelled')DO NOTHING`, id, resourceID, connection.Record.ID, mediaType, tmdbID, raw, subscriptionID)
 	if err != nil {
 		return "", errors.New("download creation failed")
 	}

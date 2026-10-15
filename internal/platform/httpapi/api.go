@@ -222,6 +222,8 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("PUT /api/v1/settings/network-proxy", a.protected(a.networkProxy))
 	mux.HandleFunc("GET /api/v1/system/runtime", a.protected(a.runtimeSummary))
 	mux.HandleFunc("GET /api/v1/search/{id}", a.protected(a.getSearch))
+	mux.HandleFunc("POST /api/v1/downloads/manual/{id}/retry", a.protected(a.retryManualDownload))
+	mux.HandleFunc("POST /api/v1/downloads/manual/{id}/inspect", a.protected(a.reconcileManualDownload))
 	mux.HandleFunc("GET /api/v1/downloads/manual", a.protected(a.listManualDownloads))
 	mux.HandleFunc("POST /api/v1/downloads/manual", a.protected(a.createManualDownload))
 	mux.HandleFunc("GET /api/v1/downloads", a.protected(a.listDownloads))

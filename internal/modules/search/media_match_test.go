@@ -16,3 +16,17 @@ func TestTMDBIdentityDoesNotTrustSubtitleAlias(t *testing.T) {
 		}
 	}
 }
+
+func TestSeriesYearMismatchIsVisibleButNotConfirmed(t *testing.T) {
+	item := metadata.Item{ID: 10, MediaType: "series", Title: "同名剧集", Year: "2005"}
+	resource := Resource{Title: "同名剧集.2019.S01E01.1080p.WEB-DL"}
+	if warning := MediaYearWarning(resource, item); warning == "" {
+		t.Fatal("series year conflict was not surfaced")
+	}
+	if !matchesMediaCandidate(resource, item) {
+		t.Fatal("interactive candidate was hidden")
+	}
+	if MatchesMedia(resource, item) {
+		t.Fatal("year-conflicted series was treated as confirmed identity")
+	}
+}

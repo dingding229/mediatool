@@ -67,3 +67,17 @@ func TestStructuredSubscriptionInputRejectsUnknownAndSupportsOldRecords(t *testi
 		t.Fatal("unknown is not a proved subscription attribute")
 	}
 }
+
+func TestSubscriptionAccountScopeRemainsLimitedToTen(t *testing.T) {
+	in := Input{MediaType: "movie", TMDBID: 1, Source: "search", IntervalMinutes: 30}
+	for i := range 10 {
+		in.Rules.AccountIDs = append(in.Rules.AccountIDs, string(rune('a'+i)))
+	}
+	if err := Validate(in); err != nil {
+		t.Fatal("ten subscription accounts rejected", err)
+	}
+	in.Rules.AccountIDs = append(in.Rules.AccountIDs, "eleventh")
+	if err := Validate(in); err == nil {
+		t.Fatal("interactive search limit leaked into subscription scope")
+	}
+}

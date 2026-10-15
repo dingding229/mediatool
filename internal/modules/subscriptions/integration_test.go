@@ -146,6 +146,10 @@ func TestPostgresSubscriptionPreviewRSSBaselineAndAutomaticDedup(t *testing.T) {
 	if run.Decisions[0].Action != "download_queued" {
 		t.Fatal(run)
 	}
+	var associated string
+	if err = db.QueryRow(ctx, `SELECT subscription_id::text FROM download_tasks WHERE id=$1`, *run.Decisions[0].DownloadTaskID).Scan(&associated); err != nil || associated != record.ID {
+		t.Fatal("download and subscription were not atomically associated", associated, err)
+	}
 	again, _ := engine.Queue(ctx, record.ID, false)
 	body, _ = json.Marshal(map[string]string{"runId": again})
 	if err = engine.Process(ctx, jobs.Job{Payload: body, Attempts: 1, MaxAttempts: 5}); err != nil {

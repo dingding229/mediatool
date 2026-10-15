@@ -32,6 +32,9 @@ type Rules struct {
 }
 
 func TitleMatches(title string, item metadata.Item) bool {
+	if search.MediaYearWarning(search.Resource{Title: title}, item) != "" {
+		return false
+	}
 	trimmed := strings.TrimSpace(title)
 	prefix := regexp.MustCompile(`^\[[^\]]+\]\s*`)
 	for {
@@ -86,7 +89,9 @@ func Evaluate(resource search.Resource, item metadata.Item, rules Rules) (bool, 
 		}
 	}
 	lower := strings.ToLower(resource.Title)
-	if !TitleMatches(resource.Title, item) {
+	if warning := search.MediaYearWarning(resource, item); warning != "" {
+		reasons = append(reasons, warning+"；自动订阅拒绝下载")
+	} else if !TitleMatches(resource.Title, item) {
 		reasons = append(reasons, "标题/年份无法精确对应已选择媒体，需要人工确认")
 	}
 	for _, word := range rules.Include {

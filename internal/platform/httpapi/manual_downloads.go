@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+type manualDownloadRetryInput struct {
+	Confirm             bool `json:"confirm"`
+	AcceptDuplicateRisk bool `json:"acceptDuplicateRisk"`
+}
+
 func (a *API) manualDownloads() manualdownloads.Engine {
 	return manualdownloads.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations}
 }
@@ -73,4 +78,46 @@ func (a *API) createManualDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	a.Deps.Logger.Info("manual torrent queued", "module", "downloads", "taskId", id, "sourceKind", source.Kind, "source", source.Label, "infoHash", source.Meta.InfoHash)
 	write(w, 202, map[string]string{"id": id})
+}
+
+func (a *API) retryManualDownload(w http.ResponseWriter, r *http.Request) {
+	if !a.integrationReady(w) {
+		return
+	}
+	if !isWorkbenchUUID(r.PathValue("id")) {
+		fail(w, 400, "invalid_id", "任务ID无效")
+		return
+	}
+	var in manualDownloadRetryInput
+	if !decode(w, r, &in) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	if err := a.manualDownloads().Retry(ctx, r.PathValue("id"), in.Confirm, in.AcceptDuplicateRisk); err != nil {
+		fail(w, 409, "manual_retry_blocked", err.Error())
+		return
+	}
+	write(w, 202, map[string]bool{"queued": true})
+}
+func (a *API) reconcileManualDownload(w http.ResponseWriter, r *http.Request) {
+	if !a.integrationReady(w) {
+		return
+	}
+	if !isWorkbenchUUID(r.PathValue("id")) {
+		fail(w, 400, "invalid_id", "任务ID无效")
+		return
+	}
+	var in struct{}
+	if !decode(w, r, &in) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	state, err := a.manualDownloads().Reconcile(ctx, r.PathValue("id"))
+	if err != nil {
+		fail(w, 409, "manual_reconcile_failed", err.Error())
+		return
+	}
+	write(w, 200, map[string]string{"state": state})
 }

@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"errors"
 	"media-tool/internal/modules/subscriptions"
 	"net/http"
 )
@@ -73,6 +74,10 @@ func (a *API) queueSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := engine.Queue(r.Context(), r.PathValue("id"), body.Preview)
 	if err != nil {
+		if errors.Is(err, subscriptions.ErrRunModeConflict) {
+			fail(w, 409, "subscription_run_mode_conflict", err.Error())
+			return
+		}
 		fail(w, 409, "subscription_run_failed", "订阅任务无法创建，请刷新状态")
 		return
 	}

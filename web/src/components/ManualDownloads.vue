@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from "vue";
-import { request } from "../api/client";
-import { ElMessage } from "element-plus";
+import { request, post } from "../api/client";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, DocumentAdd, Link } from "@element-plus/icons-vue";
 interface Task {
   id: string;
@@ -10,6 +10,7 @@ interface Task {
   source: string;
   infoHash: string;
   state: string;
+  submitAttempted?: boolean;
   progress: number | null;
   qbState: string;
   downloadSpeed: number;
@@ -33,6 +34,8 @@ const tasks = ref<Task[]>([]),
 let timer: ReturnType<typeof setInterval> | undefined;
 const labels: Record<string, string> = {
   pending: "等待提交",
+  failed: "提交失败，可重试",
+  absent_confirmed: "已核对未找到，可确认后重试",
   blocked: "提交受阻，请查看原因",
   submitting: "提交中",
   uncertain: "结果待核对",
@@ -108,6 +111,28 @@ async function submit() {
     busy.value = false;
   }
 }
+const actionBusy = ref("");
+async function reconcile(task: Task) {
+  actionBusy.value = task.id;
+  try {
+    const out = await post<{state:string}>(`/downloads/manual/${task.id}/inspect`, {});
+    ElMessage.success(out.state === 'absent_confirmed' ? '已核对下载器未找到此种子；未重新提交，可确认风险后重试' : '已核对下载器中的现有任务');
+    await load();
+  } catch (e) { listError.value = e instanceof Error ? e.message : String(e); }
+  finally { actionBusy.value = ""; }
+}
+async function retry(task: Task) {
+  if (!['blocked','failed','absent_confirmed'].includes(task.state) || (task.submitAttempted && task.state !== 'absent_confirmed')) return;
+  const uncertain = task.state === 'absent_confirmed';
+  try {
+    await ElMessageBox.confirm(uncertain ? '下载器已核对未找到此种子，但此前提交可能延迟接收。确认可能的重复风险并重新提交？' : '修复原因后，确认重新提交此手动下载任务？', '重试手动下载', {type:'warning',confirmButtonText:'确认重试',cancelButtonText:'取消'});
+    actionBusy.value = task.id;
+    await post(`/downloads/manual/${task.id}/retry`, {confirm:true,acceptDuplicateRisk:uncertain});
+    ElMessage.success('手动下载任务已重新排队');
+    await load();
+  } catch (e) { if (e !== 'cancel' && e !== 'close') listError.value = e instanceof Error ? e.message : String(e); }
+  finally { actionBusy.value = ""; }
+}
 onMounted(() => {
   void load();
   timer = setInterval(() => void load(), 8000);
@@ -182,6 +207,10 @@ onBeforeUnmount(() => clearInterval(timer));
               : "尚未同步"
           }}；同步失败时保留上次进度。
         </p>
+        <div class="manual-actions">
+          <el-button v-if="task.state === 'absent_confirmed' || (['blocked','failed'].includes(task.state) && !task.submitAttempted)" :loading="actionBusy === task.id" :disabled="!!actionBusy" @click="retry(task)">确认重试</el-button>
+          <el-button v-if="['uncertain','submitting','absent_confirmed'].includes(task.state) || (['blocked','failed'].includes(task.state) && task.submitAttempted)" :loading="actionBusy === task.id" :disabled="!!actionBusy" @click="reconcile(task)">只读核对下载器</el-button>
+        </div>
         <details>
           <summary>来源与下载信息</summary>
           <dl>

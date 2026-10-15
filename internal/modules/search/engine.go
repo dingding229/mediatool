@@ -58,6 +58,47 @@ type Resource struct {
 	Metadata       map[string]any `json:"metadata"`
 }
 
+const maxSearchAccounts = 200
+const searchConcurrency = 3
+
+func validateAccountIDs(accountIDs []string) error {
+	if len(accountIDs) == 0 || len(accountIDs) > maxSearchAccounts {
+		return errors.New("select 1-200 enabled PT accounts")
+	}
+	seen := make(map[string]bool, len(accountIDs))
+	for _, id := range accountIDs {
+		if seen[id] {
+			return errors.New("duplicate PT account")
+		}
+		seen[id] = true
+	}
+	return nil
+}
+
+func forEachAccount(ctx context.Context, accountIDs []string, visit func(string)) {
+	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, searchConcurrency)
+	for _, account := range accountIDs {
+		select {
+		case semaphore <- struct{}{}:
+		case <-ctx.Done():
+			wg.Wait()
+			return
+		}
+		if ctx.Err() != nil {
+			<-semaphore
+			break
+		}
+		wg.Add(1)
+		go func(account string) {
+			defer wg.Done()
+			defer func() { <-semaphore }()
+			visit(account)
+		}(account)
+	}
+	wg.Wait()
+}
+
 func (e Engine) Start(ctx context.Context, keyword string, accountIDs []string) (string, error) {
 	return e.start(ctx, keyword, accountIDs, true, "")
 }
@@ -68,15 +109,10 @@ func (e Engine) start(ctx context.Context, keyword string, accountIDs []string, 
 	if keyword == "" || len(keyword) > 200 {
 		return "", errors.New("enter a keyword up to 200 characters")
 	}
-	if len(accountIDs) == 0 || len(accountIDs) > 10 {
-		return "", errors.New("select 1-10 enabled PT accounts")
+	if err := validateAccountIDs(accountIDs); err != nil {
+		return "", err
 	}
-	seen := map[string]bool{}
 	for _, id := range accountIDs {
-		if seen[id] {
-			return "", errors.New("duplicate PT account")
-		}
-		seen[id] = true
 		c, err := e.Connections.Repository.Get(ctx, id)
 		if err != nil || c.Record.Kind != "ptsite" || !c.Record.Enabled {
 			return "", errors.New("select enabled PT accounts")
@@ -200,22 +236,9 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) error {
 	if _, err := e.DB.Exec(ctx, `UPDATE search_runs SET state='running' WHERE id=$1`, payload.RunID); err != nil {
 		return err
 	}
-	var wg sync.WaitGroup
-	semaphore := make(chan struct{}, 3)
-	for _, account := range accountIDs {
-		wg.Add(1)
-		go func(account string) {
-			defer wg.Done()
-			select {
-			case semaphore <- struct{}{}:
-			case <-ctx.Done():
-				return
-			}
-			defer func() { <-semaphore }()
-			e.runSite(ctx, payload.RunID, keyword, account)
-		}(account)
-	}
-	wg.Wait()
+	forEachAccount(ctx, accountIDs, func(account string) {
+		e.runSite(ctx, payload.RunID, keyword, account)
+	})
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}

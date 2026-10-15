@@ -313,7 +313,6 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 				} else {
 					action = "download_queued"
 					reasons = append(reasons, "匹配缺集/媒体，已提交持久化下载任务")
-					e.DB.Exec(ctx, `UPDATE download_tasks SET subscription_id=$2 WHERE id=$1`, taskID, record.ID)
 				}
 			}
 			if (run.Preview || action == "download_queued") && record.Media.MediaType == "movie" {

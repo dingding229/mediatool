@@ -9,6 +9,15 @@ import (
 	"time"
 )
 
+type startDownloadInput struct {
+	ConfirmYearMismatch  bool   `json:"confirmYearMismatch"`
+	CorrectMediaIdentity bool   `json:"correctMediaIdentity"`
+	ResourceID           string `json:"resourceId"`
+	SearchRunID          string `json:"searchRunId"`
+	MediaType            string `json:"mediaType"`
+	TMDBID               int    `json:"tmdbId"`
+}
+
 func (a *API) acquisition() *acquisition.Engine {
 	search := a.searchEngine()
 	if search == nil {
@@ -35,18 +44,16 @@ func (a *API) startDownload(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "downloads_unavailable", "请先配置数据库和业务连接")
 		return
 	}
-	var body struct {
-		CorrectMediaIdentity bool   `json:"correctMediaIdentity"`
-		ResourceID           string `json:"resourceId"`
-		SearchRunID          string `json:"searchRunId"`
-		MediaType            string `json:"mediaType"`
-		TMDBID               int    `json:"tmdbId"`
-	}
+	var body startDownloadInput
 	if !decode(w, r, &body) {
 		return
 	}
-	id, err := engine.StartFromRunIdentity(r.Context(), body.SearchRunID, body.ResourceID, body.MediaType, body.TMDBID, body.CorrectMediaIdentity)
+	id, err := engine.StartFromRunIdentity(r.Context(), body.SearchRunID, body.ResourceID, body.MediaType, body.TMDBID, body.CorrectMediaIdentity, body.ConfirmYearMismatch)
 	if err != nil {
+		if errors.Is(err, search.ErrMediaYearConfirmation) {
+			fail(w, 409, "media_year_confirmation_required", err.Error())
+			return
+		}
 		if errors.Is(err, search.ErrSnapshotUnavailable) || errors.Is(err, search.ErrSnapshotChanged) || errors.Is(err, search.ErrSnapshotExpired) {
 			fail(w, 409, "search_refresh_required", err.Error())
 			return
