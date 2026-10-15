@@ -26,6 +26,11 @@ func TestMemberListenerBlocksAdministrativeSurface(t *testing.T) {
 			t.Fatalf("member root failed %s %d", p, w.Code)
 		}
 	}
+	manifestWriter := httptest.NewRecorder()
+	member.ServeHTTP(manifestWriter, httptest.NewRequest("GET", "/manifest.webmanifest", nil))
+	if manifestWriter.Code != 200 || !strings.Contains(manifestWriter.Body.String(), `"start_url":"/"`) {
+		t.Fatal("member PWA points at management route", manifestWriter.Body.String())
+	}
 	r := httptest.NewRequest("GET", "/api/v1/member/auth/session", nil)
 	w := httptest.NewRecorder()
 	member.ServeHTTP(w, r)

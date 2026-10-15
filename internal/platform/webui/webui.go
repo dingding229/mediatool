@@ -3,6 +3,7 @@ package webui
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"path"
@@ -59,6 +60,20 @@ func Handler() http.Handler {
 		}
 		if name == "sw.js" {
 			w.Header().Set("Service-Worker-Allowed", "/")
+		}
+		if name == "manifest.webmanifest" && IsMember(r) {
+			data, err := fs.ReadFile(files, name)
+			var manifest map[string]any
+			if err != nil || json.Unmarshal(data, &manifest) != nil {
+				http.Error(w, "manifest unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			manifest["start_url"] = "/"
+			manifest["name"] = "Media Tool 媒体库"
+			manifest["description"] = "独立媒体用户的授权目录"
+			w.Header().Set("Content-Type", "application/manifest+json")
+			json.NewEncoder(w).Encode(manifest)
+			return
 		}
 		server.ServeHTTP(w, r)
 	})
