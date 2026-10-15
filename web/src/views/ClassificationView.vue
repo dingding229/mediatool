@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { ElMessageBox, ElMessage } from "element-plus";
 import { request } from "../api/client";
+import ClassificationChoices from "../components/ClassificationChoices.vue";
 import {
   Plus,
   Edit,
@@ -13,6 +14,7 @@ import {
   genres,
   genreChoices,
   countryChoices,
+  languageChoices,
 } from "../classification/options";
 interface Rule {
   id: string;
@@ -46,10 +48,9 @@ const record = ref<{ value: { groups: Group[] }; revision: number }>(),
     enabled: true,
     genres: [] as number[],
     countries: [] as string[],
-    languages: "",
+    languages: [] as string[],
   });
 const genreNames = Object.fromEntries(genres.map((g) => [g.value, g.label]));
-const countryQuery = ref("");
 const genreOptions = computed(() =>
   genreChoices(
     isGroup.value
@@ -58,20 +59,13 @@ const genreOptions = computed(() =>
     form.value.genres,
   ),
 );
-const countryOptions = computed(() =>
-  countryChoices(form.value.countries).filter((c) =>
-    `${c.label} ${c.value}`
-      .toLowerCase()
-      .includes(countryQuery.value.toLowerCase()),
-  ),
-);
-const selectedCountryOptions = computed(() =>
-  countryChoices(form.value.countries).filter((c) =>
-    form.value.countries.includes(c.value),
-  ),
-);
+const countryOptions = computed(() => countryChoices(form.value.countries));
+const languageOptions = computed(() => languageChoices(form.value.languages));
 const countryLabels = Object.fromEntries(
   countryChoices([]).map((c) => [c.value, c.label]),
+);
+const languageLabels = Object.fromEntries(
+  languageChoices([]).map((language) => [language.value, language.label]),
 );
 const ruleCount = computed(
   () =>
@@ -103,9 +97,8 @@ function edit(g: number, r = -1) {
     enabled: x?.enabled ?? true,
     genres: [...(x?.genreIds ?? [])],
     countries: [...((x as Rule)?.countries ?? [])],
-    languages: (x as Rule)?.languages?.join(",") ?? "",
+    languages: [...((x as Rule)?.languages ?? [])],
   };
-  countryQuery.value = "";
   dialog.value = true;
 }
 function addRule(g: number) {
@@ -118,7 +111,7 @@ function addRule(g: number) {
     enabled: true,
     genres: [] as number[],
     countries: [] as string[],
-    languages: "",
+    languages: [] as string[],
   };
 }
 function apply() {
@@ -150,10 +143,7 @@ function apply() {
     const r = {
       ...x,
       countries: [...form.value.countries],
-      languages: form.value.languages
-        .toLowerCase()
-        .split(/[\s,]+/)
-        .filter(Boolean),
+      languages: [...form.value.languages],
     };
     if (ruleIndex.value < 0) rows.push(r);
     else rows[ruleIndex.value] = { ...r, id: rows[ruleIndex.value]!.id };
@@ -344,7 +334,7 @@ onMounted(load);
                 }}</span
                 ><span v-for="c in r.countries" :key="c"
                   >{{ countryLabels[c] ?? "已保存地区" }} · {{ c }}</span
-                ><span v-for="l in r.languages" :key="l">语言 {{ l }}</span
+                ><span v-for="l in r.languages" :key="l">{{ languageLabels[l] ?? "已保存语言" }} · {{ l }}</span
                 ><span
                   v-if="
                     !r.genreIds.length &&
@@ -429,47 +419,38 @@ onMounted(load);
           ><el-option label="电影" value="movie" /><el-option
             label="剧集"
             value="series" /></el-select></el-form-item
-      ><el-form-item label="题材（多选，留空不限）"
-        ><div class="choice-grid">
-          <label v-for="option in genreOptions" :key="option.value"
-            ><input
-              v-model="form.genres"
-              type="checkbox"
-              :value="option.value"
-            />{{ option.label }} <small>{{ option.value }}</small></label
-          >
-        </div></el-form-item
-      >
-      <template v-if="!isGroup"
-        ><el-form-item label="国家 / 地区（多选，留空不限）"
-          ><div class="country-picker">
-            <el-input
-              v-model="countryQuery"
-              aria-label="筛选国家地区"
-              placeholder="搜索中文名称或地区代码"
-              clearable
-            />
-            <p class="selected-countries">
-              已选：{{
-                selectedCountryOptions
-                  .map((c) => `${c.label} (${c.value})`)
-                  .join("、") || "不限"
-              }}
-            </p>
-            <div class="choice-grid country-options">
-              <label v-for="option in countryOptions" :key="option.value"
-                ><input
-                  v-model="form.countries"
-                  type="checkbox"
-                  :value="option.value"
-                />{{ option.label }} <small>{{ option.value }}</small></label
-              >
-            </div>
-          </div></el-form-item
-        ><el-form-item label="原语言代码"
-          ><el-input
+      ><el-form-item label="题材（多选，留空不限）">
+        <ClassificationChoices
+          v-model="form.genres"
+          :key="`${groupIndex}:${ruleIndex}:genres:${dialog}`"
+          :options="genreOptions"
+          label="题材"
+          search-label="筛选题材"
+          placeholder="搜索题材名称或代码"
+        />
+      </el-form-item>
+      <template v-if="!isGroup">
+        <el-form-item label="国家 / 地区（多选，留空不限）">
+          <ClassificationChoices
+            v-model="form.countries"
+            :key="`${groupIndex}:${ruleIndex}:countries:${dialog}`"
+            :options="countryOptions"
+            label="国家地区"
+            search-label="筛选国家地区"
+            placeholder="搜索中文名称或地区代码"
+          />
+        </el-form-item>
+        <el-form-item label="原始语言（多选，留空不限）">
+          <ClassificationChoices
             v-model="form.languages"
-            placeholder="zh,cn,ja,en" /></el-form-item></template
+            :key="`${groupIndex}:${ruleIndex}:languages:${dialog}`"
+            :options="languageOptions"
+            label="原始语言"
+            search-label="筛选原始语言"
+            placeholder="搜索中文名称或语言代码"
+          />
+        </el-form-item>
+      </template
       ><el-form-item label="启用规则"
         ><el-switch v-model="form.enabled" /></el-form-item></el-form
     ><template #footer
@@ -624,41 +605,6 @@ onMounted(load);
   color: var(--muted);
   padding-left: 32px;
 }
-.choice-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  width: 100%;
-}
-.choice-grid label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 36px;
-  font-size: 13px;
-  cursor: pointer;
-}
-.choice-grid small {
-  color: var(--muted);
-}
-.choice-grid input {
-  accent-color: var(--el-color-primary);
-  width: 16px;
-  height: 16px;
-}
-.country-picker {
-  width: 100%;
-}
-.country-options {
-  max-height: 240px;
-  overflow: auto;
-}
-.selected-countries {
-  font-size: 12px;
-  line-height: 1.6;
-  margin: 8px 0;
-  overflow-wrap: anywhere;
-}
 @media (max-width: 760px) {
   .classification-list-panel {
     padding: 16px;
@@ -671,12 +617,6 @@ onMounted(load);
   }
   .list-actions .el-button {
     min-width: 44px;
-    min-height: 44px;
-  }
-  .choice-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .choice-grid label {
     min-height: 44px;
   }
 }

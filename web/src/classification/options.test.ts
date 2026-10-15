@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { genres, countries, genreChoices, countryChoices } from "./options";
+import { genres, countries, genreChoices, countryChoices, languages, languageChoices, filterChoices } from "./options";
 describe("classification checkbox vocabulary", () => {
   it("has canonical country and genre identifiers without duplicates", () => {
     expect(countries.find((c) => c.value === "CN")?.label).toBe("中国");
@@ -16,5 +16,42 @@ describe("classification checkbox vocabulary", () => {
       true,
     );
     expect(genreChoices("series", []).some((g) => g.value === 28)).toBe(false);
+  });
+});
+
+describe("searchable classification choices", () => {
+  it("shows Chinese language names, canonical codes and saved unknown values", () => {
+    expect(languages.find((language) => language.value === "en")?.label).toBe("英语");
+    expect(languages.find((language) => language.value === "cn")?.label).toBe("粤语");
+    expect(languages.find((language) => language.value === "zh")?.label).toContain("汉语");
+    expect(new Set(languages.map((language) => language.value)).size).toBe(languages.length);
+    expect(languages.every((language) => /[\u3400-\u9fff]/.test(language.label))).toBe(true);
+    expect(languageChoices(["xyz", "xyz"]).filter((language) => language.value === "xyz")).toEqual([
+      { value: "xyz", label: "已保存语言 xyz" },
+    ]);
+  });
+  it("pins selections ahead of unselected choices without mutating the input order or model", () => {
+    const options = countryChoices(["ZZ", "US", "CN"]);
+    const before = options.map((option) => option.value);
+    const selected = ["ZZ", "US", "CN"];
+    const sorted = filterChoices(options, selected);
+    expect(sorted.slice(0, 3).map((option) => option.value)).toEqual(["CN", "US", "ZZ"]);
+    expect(selected).toEqual(["ZZ", "US", "CN"]);
+    expect(options.map((option) => option.value)).toEqual(before);
+    expect(filterChoices(genreChoices("movie", [99]), [99])[0]?.value).toBe(99);
+  });
+  it("filters all vocabularies by Chinese names or case-insensitive codes", () => {
+    expect(filterChoices(countryChoices([]), [], "  us  ")).toEqual([{ value: "US", label: "美国" }]);
+    expect(filterChoices(languageChoices([]), [], "EN")).toContainEqual({ value: "en", label: "英语" });
+    expect(filterChoices(languageChoices([]), [], "英语").map((option) => option.value)).toEqual(["en"]);
+    expect(filterChoices(genreChoices("movie", []), [], "纪录").map((option) => option.value)).toEqual([99]);
+    expect(filterChoices(genreChoices("movie", []), [], "纪录 99").map((option) => option.value)).toEqual([99]);
+    expect(filterChoices(countryChoices([]), ["CN"], "不存在的国家")).toEqual([]);
+  });
+  it("restores the catalog when search is cleared and preserves unmatched selections", () => {
+    const selected = ["zh", "xyz"];
+    expect(filterChoices(languageChoices(selected), selected, "英语")).toEqual([{ value: "en", label: "英语" }]);
+    expect(selected).toEqual(["zh", "xyz"]);
+    expect(filterChoices(languageChoices(selected), selected, " ").slice(0, 2).map((option) => option.value)).toEqual(["zh", "xyz"]);
   });
 });
