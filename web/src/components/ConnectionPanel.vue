@@ -31,7 +31,7 @@ interface Field {
   hint?: string;
   secret?: boolean;
 }
-const props = defineProps<{ allowedKinds: string[]; title: string }>();
+const props = defineProps<{ allowedKinds: string[]; title: string;configOnly?:boolean }>();
 const kinds: Record<string, { label: string; fields: Field[] }> = {
   local: {
     label: "本地文件目录",
@@ -441,11 +441,11 @@ onMounted(refresh);
             kinds[scope.row.kind]?.label
           }}</small></template
         ></el-table-column
-      ><el-table-column label="启用" width="90"
+      ><el-table-column v-if="!configOnly" label="启用" width="90"
         ><template #default="scope">{{
           scope.row.enabled ? "已启用" : "未启用"
         }}</template></el-table-column
-      ><el-table-column label="连接验证" min-width="230"
+      ><el-table-column v-if="!configOnly" label="连接验证" min-width="230"
         ><template #default="scope"
           ><StatusBadge
             :state="
@@ -598,7 +598,7 @@ onMounted(refresh);
     :integration-id="officialId"
     @authorized="refresh"
   />
-  <section class="note-panel">
+  <section v-if="!configOnly" class="note-panel">
     <strong>连接不等于业务验收</strong>
     <p>
       验证仅检查认证和只读接口。PT真实搜索、上传、Emby客户端播放应在相应业务页面逐项验收。需要公网接入时使用HTTPS。

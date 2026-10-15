@@ -229,7 +229,7 @@ func TestRealPostgresBackupDrillAndPermanentKeyProof(t *testing.T) {
 		t.Fatal(err)
 	}
 	m, dir, err := e.VerifyBundle(ctx, id)
-	if err != nil || m.Schema != 50 || m.ID != id {
+	if err != nil || m.Schema != buildinfo.Schema || m.ID != id {
 		t.Fatal(m, err)
 	}
 	info, _ := os.Stat(filepath.Join(dir, "database.dump"))

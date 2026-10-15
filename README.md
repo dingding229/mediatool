@@ -9,7 +9,7 @@ Go + Vue 3 的模块化媒体自动化程序。PostgreSQL保存业务事实/任�
 本轮新增：HDSKY做种/分页证据、订阅结构化筛选、功能型Go/WASM插件、原始业务日志及隔离备份验证。
 插件功能和权限见 [PLUGIN_FRAMEWORK.md](docs/PLUGIN_FRAMEWORK.md)，日志/备份见 [RAW_LOGS_AND_BACKUP.md](docs/RAW_LOGS_AND_BACKUP.md)。
 
-本轮新增：内置媒体库 Provider v1、独立媒体用户管理和 `/watch` 授权只读目录。播放票据及完整 Emby 替代尚未实现；现有播放不切换。详见 [内置媒体库与媒体用户](docs/NATIVE_MEDIA_SERVER.md)。
+本轮新增：内置媒体库 Provider v1、独立媒体用户管理和独立媒体端口根路径 `/` 的授权只读目录。播放票据及完整 Emby 替代尚未实现；现有播放不切换。详见 [内置媒体库与媒体用户](docs/NATIVE_MEDIA_SERVER.md)。
 
 新增播放器UA访问记录与白名单：默认仅记录，可从真实UA记录加入，明确启用后限制播放入口。说明见 [PLAYER_UA_ACCESS.md](docs/PLAYER_UA_ACCESS.md)。
 
@@ -124,3 +124,5 @@ TMDB 搜索区分查询中、服务错误、无匹配结果、缓存结果与正
 自动目录能力、扫描暂停/对账证据、0day+TMDB识别、持久化整理批次、托管输出和逐路径Emby确认、统一历史与恢复，详见 [使用说明](docs/FILES_LIBRARY_WORKBENCH.md)。真实媒体变更必须先预览并明确批准；隔离测试不会替代真实播放器完整解码验收。
 
 云盘连接独立页、目录级命名模板、电影/剧集/季/集刮削选项及历史移除说明见 [云盘与刮削](docs/CLOUD_NAMING_SCRAPING.md)。
+
+系统设置已按访问域名、命名刮削、搜索订阅、代理、TMDB、账号、移动端分组。支持种子文件/HTTP(S)种子链接/磁力链接手动下载，默认仅下载，不自动整理。详见 [域名与手动下载](docs/ACCESS_AND_MANUAL_DOWNLOADS.md)。

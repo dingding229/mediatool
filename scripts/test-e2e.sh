@@ -7,7 +7,7 @@ export DATABASE_URL="$TEST_DATABASE_URL"
 python3 - <<'PY'
 import os,urllib.parse,socket
 if urllib.parse.urlsplit(os.environ['DATABASE_URL']).path!='/media_tool_test':raise SystemExit('E2E may only use media_tool_test, never the business database.')
-for port in (18084,18085,18086):
+for port in (18084,18085,18086,18087):
  with socket.socket()as sock:
   try:sock.bind(('127.0.0.1',port))
   except OSError:raise SystemExit('Isolated E2E ports busy; no existing process will be stopped.')
@@ -34,6 +34,7 @@ private=$(mktemp -d)
 pids=()
 cleanup(){ for pid in "${pids[@]}";do kill "$pid" 2>/dev/null||true;done;for pid in "${pids[@]}";do wait "$pid" 2>/dev/null||true;done;test_db_exec "UPDATE network_proxy_settings SET tmdb_enabled=false,sites_enabled=false,url_ciphertext=''::bytea,revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE external_api_keys,administrator_accounts,administrator_auth_limits,media_users,media_user_auth_limits CASCADE' >/dev/null 2>&1 || true;test_db_exec "UPDATE player_ua_policy SET enabled=false,revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE player_ua_rules,player_ua_observations,player_access_events' >/dev/null 2>&1 || true; rm -rf "$private"; }
 trap cleanup EXIT INT TERM
+export MEMBER_ADDR=127.0.0.1:18087 MEMBER_PUBLIC_URL=http://localhost:18087
 export AUTH_ALLOWED_ORIGINS=https://proxy.fixture.invalid
 export APP_ENV=development APP_ADDR=127.0.0.1:18084 APP_PUBLIC_URL=http://localhost:18084 EMBY_GATEWAY_ADDR=127.0.0.1:18085
 export APP_SECRET_KEY="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"

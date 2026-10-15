@@ -8,7 +8,7 @@ type Request struct {
 	Tags               []string
 }
 type Task struct {
-	ID, State, Name            string
+	ID, State, Name, Category  string
 	DownloadSpeed, UploadSpeed int64
 	Seeds, Peers               int
 	Progress                   float64

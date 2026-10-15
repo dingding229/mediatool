@@ -78,7 +78,7 @@ test('login, honest dependency states, module navigation and logout',async({page
  await expect(page.getByRole('heading',{name:'依赖服务',exact:true})).toHaveCount(0)
  mkdirSync(screenshots,{recursive:true});await page.screenshot({path:resolve(screenshots,'dashboard-desktop.png'),fullPage:true})
  await navigate(page,'系统设置')
- await expect(page.getByRole('heading',{name:'媒体命名、订阅与缓存',exact:true})).toBeVisible()
+ await expect(page.getByRole('navigation',{name:'系统设置分类'})).toBeVisible()
  await expect(page.getByRole('button',{name:'验证 CloudDrive2',exact:true})).toHaveCount(0)
  await expect(page.getByRole('button',{name:'验证 Emby',exact:true})).toHaveCount(0)
  await navigate(page,'PT 站点')
@@ -192,12 +192,12 @@ test('scan schedule dialog is default-off and pagination requests are bounded',a
 test('wrong credentials are rejected and password change revokes captured sessions',async({page,request})=>{
  const wrong=await request.post('/api/v1/auth/login',{headers:{'X-Requested-With':'media-tool'},data:{username,password:'Wrong-strong-password-2026'}});expect(wrong.status()).toBe(401)
  await login(page);const captured=(await page.context().cookies()).find(c=>c.name==='media_tool_session')!;await navigate(page,'系统设置')
- const next=password+'-new';await page.getByLabel('当前密码',{exact:true}).fill(password);await page.getByLabel('新密码',{exact:true}).fill(next);await page.getByLabel('确认新密码',{exact:true}).fill(next);await page.getByRole('button',{name:'修改密码并重新登录'}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible()
+ await page.getByRole('navigation',{name:'系统设置分类'}).getByRole('button',{name:'管理员账号',exact:true}).click();const next=password+'-new';await page.getByLabel('当前密码',{exact:true}).fill(password);await page.getByLabel('新密码',{exact:true}).fill(next);await page.getByLabel('确认新密码',{exact:true}).fill(next);await page.getByRole('button',{name:'修改密码并重新登录'}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible()
  const replay=await request.get('/api/v1/auth/session',{headers:{Cookie:'media_tool_session='+captured.value}});expect(replay.status()).toBe(401)
  const old=await request.post('/api/v1/auth/login',{headers:{'X-Requested-With':'media-tool'},data:{username,password}});expect(old.status()).toBe(401)
  await page.getByLabel('管理员账号',{exact:true}).fill(username);await page.getByLabel('密码',{exact:true}).fill(next);await page.getByRole('button',{name:'进入工作台',exact:true}).click();await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
  // Restore only the synthetic test account, never a user's administrator.
- await navigate(page,'系统设置');await page.getByLabel('当前密码',{exact:true}).fill(next);await page.getByLabel('新密码',{exact:true}).fill(password);await page.getByLabel('确认新密码',{exact:true}).fill(password);await page.getByRole('button',{name:'修改密码并重新登录'}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible()
+ await navigate(page,'系统设置');await page.getByRole('navigation',{name:'系统设置分类'}).getByRole('button',{name:'管理员账号',exact:true}).click();await page.getByLabel('当前密码',{exact:true}).fill(next);await page.getByLabel('新密码',{exact:true}).fill(password);await page.getByLabel('确认新密码',{exact:true}).fill(password);await page.getByRole('button',{name:'修改密码并重新登录'}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible()
 })
 
 test('account login form is accessible on mobile and needs no deployment key',async({page})=>{
@@ -705,8 +705,8 @@ test('media catalog browses managed and Emby content without exposing playback c
 
 test('service overview is read-only and settings own naming and TMDB',async({page})=>{
  await login(page);await page.goto('/integrations');await expect(page.getByRole('heading',{name:'服务连接总览',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(0)
- await page.goto('/settings');await expect(page.getByLabel('电影命名模板',{exact:true})).toHaveValue('{title} ({year})/{title} ({year}) - {videoFormat}');await expect(page.getByLabel('剧集命名模板',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'TMDB配置',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'生成 / 更换恢复码',exact:true})).toHaveCount(0)
- await page.locator('#pt-cache-seconds').fill('600');await page.getByRole('button',{name:'保存系统设置',exact:true}).click();await expect(page.getByText('模板、订阅Cron与缓存有效期已保存，新的整理预览默认使用模板。不会自动重命名现有文件。',{exact:true})).toBeVisible()
+ await page.goto('/settings?tab=library');await expect(page.getByLabel('电影命名模板',{exact:true})).toHaveValue('{title} ({year})/{title} ({year}) - {videoFormat}');await expect(page.getByLabel('剧集命名模板',{exact:true})).toBeVisible();await page.getByRole('navigation',{name:'系统设置分类'}).getByRole('button',{name:'TMDB',exact:true}).click();await expect(page.getByRole('heading',{name:'TMDB配置',exact:true})).toBeVisible();await page.getByRole('navigation',{name:'系统设置分类'}).getByRole('button',{name:'搜索与订阅',exact:true}).click();await expect(page.getByRole('button',{name:'生成 / 更换恢复码',exact:true})).toHaveCount(0)
+ await page.locator('#pt-cache-seconds').fill('600');await page.getByRole('button',{name:'保存系统设置',exact:true}).click();await expect(page.getByText('当前分组已保存，不会自动重命名现有文件或更改其他分组。',{exact:true})).toBeVisible()
  await page.screenshot({path:resolve(screenshots,'workbench-settings-desktop.png'),animations:'disabled',fullPage:true});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-settings-mobile.png'),animations:'disabled',fullPage:false})
 })
 
@@ -755,6 +755,7 @@ test('grouped navigation, quick jump and keyboard-only return (UI)',async({page}
  await input.press('Enter');await expect(dialog).toBeVisible();await page.keyboard.press('Escape');await expect(dialog).toBeHidden()
  await page.getByRole('button',{name:'快速前往',exact:true}).focus();await page.keyboard.press('Enter');await expect(input).toBeFocused()
  await input.fill('命名模板');await input.press('ArrowDown');await input.press('ArrowUp');await input.press('Enter');await expect(page).toHaveURL(/\/settings$/)
+ await page.getByRole('navigation',{name:'系统设置分类'}).getByRole('button',{name:'命名与刮削',exact:true}).click()
  await expect(page.getByLabel('电影命名模板',{exact:true})).toBeVisible()
 })
 
@@ -906,7 +907,7 @@ test('automatic media search retains movie and series with matching numeric IDs 
 test.describe('real PWA lifecycle',()=>{
  test.use({serviceWorkers:'allow'})
 test('PWA registration, public-only cache, headers and generic offline page (localhost secure context)',async({page,context})=>{
- await fixtureLogin(page);await page.goto('/settings');await expect(page.getByRole('heading',{name:'移动端应用 / PWA',exact:true})).toBeVisible()
+ await fixtureLogin(page);await page.goto('/settings?tab=mobile');await expect(page.getByRole('heading',{name:'移动端应用 / PWA',exact:true})).toBeVisible()
  await page.evaluate(async()=>{await navigator.serviceWorker.ready});await page.reload();await expect(page.getByRole('heading',{name:'移动端应用 / PWA',exact:true})).toBeVisible()
  const sw=await page.request.get('/sw.js');expect(sw.headers()['cache-control']).toBe('no-cache');expect(sw.headers()['service-worker-allowed']).toBe('/');expect(await sw.text()).not.toContain('__BUILD_ID__')
  const manifest=await page.request.get('/manifest.webmanifest');expect((await manifest.json()).display).toBe('standalone')
@@ -969,7 +970,7 @@ test('site action buttons and mixed search-history states align at desktop and m
 })
 
 test('subscription query controls, regex and shared TMDB cache are explicit; removed limits stay absent (fixture)',async({page})=>{
- let calls=0;await page.route('**/api/v1/search/media?*',route=>route.fulfill({json:{data:{items:[{id:42,mediaType:'movie',title:'Owned Film',year:'2026'}],cached:++calls>1,cacheSeconds:86400}}}));await fixtureLogin(page);await page.goto('/subscriptions');await page.getByRole('button',{name:'创建订阅',exact:true}).click();const dialog=page.getByRole('dialog',{name:'创建停用订阅',exact:true});const query=dialog.getByLabel('订阅TMDB关键词',{exact:true});await expect(query).toBeVisible();await expect(dialog.getByRole('button',{name:'查询TMDB',exact:true})).toBeDisabled();await query.fill('Owned Film');await dialog.getByRole('button',{name:'查询TMDB',exact:true}).click();await expect(dialog.getByText(/已查询TMDB · 缓存有效期 86400 秒/)).toBeVisible();await dialog.getByRole('button',{name:'查询TMDB',exact:true}).click();await expect(dialog.getByText(/来自TMDB缓存/)).toBeVisible();for(const label of ['最小体积 GiB','最大体积 GiB（0不限）','最少做种人数','间隔分钟'])await expect(dialog.getByText(label,{exact:true})).toHaveCount(0);await expect(dialog.getByRole('checkbox',{name:'使用正则匹配包含／排除关键词',exact:true})).toBeChecked();await dialog.getByLabel('订阅包含关键词',{exact:true}).fill('(?i)WEB[-.]DL\nS[0-9]{1,3}');await query.scrollIntoViewIfNeeded();const queryWidth=await query.evaluate(el=>el.getBoundingClientRect().width);expect(queryWidth).toBeGreaterThan(200);await page.screenshot({path:resolve(screenshots,'subscription-query-desktop.png'),animations:'disabled'});await page.setViewportSize({width:390,height:844});await query.scrollIntoViewIfNeeded();const dims=await dialog.locator('.subscription-media-query').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth}));expect(dims.scroll).toBeLessThanOrEqual(dims.width+1);await page.screenshot({path:resolve(screenshots,'subscription-query-mobile.png'),animations:'disabled'});await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await page.goto('/settings');await expect(page.getByLabel('订阅 Cron 表达式',{exact:true})).toBeVisible();await expect(page.getByLabel('TMDB 搜索缓存有效期（秒）',{exact:true})).toBeVisible()
+ let calls=0;await page.route('**/api/v1/search/media?*',route=>route.fulfill({json:{data:{items:[{id:42,mediaType:'movie',title:'Owned Film',year:'2026'}],cached:++calls>1,cacheSeconds:86400}}}));await fixtureLogin(page);await page.goto('/subscriptions');await page.getByRole('button',{name:'创建订阅',exact:true}).click();const dialog=page.getByRole('dialog',{name:'创建停用订阅',exact:true});const query=dialog.getByLabel('订阅TMDB关键词',{exact:true});await expect(query).toBeVisible();await expect(dialog.getByRole('button',{name:'查询TMDB',exact:true})).toBeDisabled();await query.fill('Owned Film');await dialog.getByRole('button',{name:'查询TMDB',exact:true}).click();await expect(dialog.getByText(/已查询TMDB · 缓存有效期 86400 秒/)).toBeVisible();await dialog.getByRole('button',{name:'查询TMDB',exact:true}).click();await expect(dialog.getByText(/来自TMDB缓存/)).toBeVisible();for(const label of ['最小体积 GiB','最大体积 GiB（0不限）','最少做种人数','间隔分钟'])await expect(dialog.getByText(label,{exact:true})).toHaveCount(0);await expect(dialog.getByRole('checkbox',{name:'使用正则匹配包含／排除关键词',exact:true})).toBeChecked();await dialog.getByLabel('订阅包含关键词',{exact:true}).fill('(?i)WEB[-.]DL\nS[0-9]{1,3}');await query.scrollIntoViewIfNeeded();const queryWidth=await query.evaluate(el=>el.getBoundingClientRect().width);expect(queryWidth).toBeGreaterThan(200);await page.screenshot({path:resolve(screenshots,'subscription-query-desktop.png'),animations:'disabled'});await page.setViewportSize({width:390,height:844});await query.scrollIntoViewIfNeeded();const dims=await dialog.locator('.subscription-media-query').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth}));expect(dims.scroll).toBeLessThanOrEqual(dims.width+1);await page.screenshot({path:resolve(screenshots,'subscription-query-mobile.png'),animations:'disabled'});await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await page.goto('/settings?tab=automation');await expect(page.getByLabel('订阅 Cron 表达式',{exact:true})).toBeVisible();await expect(page.getByLabel('TMDB 搜索缓存有效期（秒）',{exact:true})).toBeVisible()
 })
 
 test('template list layout persists and multi-select result facets retain repeated values (fixture)',async({page})=>{
@@ -1029,7 +1030,7 @@ test('acquisition: cache pages omit size and settings, use matching buttons and 
 });
 
 test('acquisition: proxy settings are scoped, validated and persisted in isolated database',async({page})=>{
- await fixtureLogin(page);await page.goto('/settings');await expect(page.getByRole('heading',{name:'网络代理',exact:true})).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('http://127.0.0.1:7890');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();await page.reload();await expect(page.getByLabel('代理地址',{exact:true})).toHaveValue('http://127.0.0.1:7890');await expect(page.getByRole('checkbox',{name:'TMDB查询与海报使用代理',exact:true})).not.toBeChecked();await page.getByLabel('代理地址',{exact:true}).fill('file:///unsafe');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText(/代理地址须使用/)).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();
+ await fixtureLogin(page);await page.goto('/settings?tab=proxy');await expect(page.getByRole('heading',{name:'网络代理',exact:true})).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('http://127.0.0.1:7890');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();await page.reload();await expect(page.getByLabel('代理地址',{exact:true})).toHaveValue('http://127.0.0.1:7890');await expect(page.getByRole('checkbox',{name:'TMDB查询与海报使用代理',exact:true})).not.toBeChecked();await page.getByLabel('代理地址',{exact:true}).fill('file:///unsafe');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText(/代理地址须使用/)).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();
 });
 
 test('acquisition: subscriptions reject HR without unknown override and expose history (fixture)',async({page})=>{
@@ -1092,9 +1093,9 @@ test('cloud page exposes honest quota and membership while library tabs keep met
 })
 
 test('folder naming and scraping settings persist while history removal cannot delete media (isolated)',async({page})=>{
- await fixtureLogin(page);await page.goto('/settings');const movie='{title} ({year})/{title} ({year}) - {videoFormat}',series='{title} ({year})/Season {season}/{title} - {season_episode} - 第{episode}集'
+ await fixtureLogin(page);await page.goto('/settings?tab=library');const movie='{title} ({year})/{title} ({year}) - {videoFormat}',series='{title} ({year})/Season {season}/{title} - {season_episode} - 第{episode}集'
  await page.getByLabel('电影命名模板',{exact:true}).fill(movie);await page.getByLabel('剧集命名模板',{exact:true}).fill(series);await page.getByRole('button',{name:'预览命名模板',exact:true}).click();await expect(page.locator('.naming-preview')).toContainText('示例剧集 (2026)/Season 01/示例剧集 - S01E04 - 第04集.mkv')
- await page.locator('.scraping-group').filter({has:page.getByRole('heading',{name:'电影刮削项',exact:true})}).getByText('poster（海报）',{exact:true}).click();await page.getByRole('button',{name:'保存系统设置',exact:true}).click();await expect(page.getByText(/模板、订阅Cron与缓存有效期已保存/)).toBeVisible();const prefs=(await(await page.request.get('/api/v1/settings/application')).json()).data;expect(prefs.value.scraping.movie.poster).toBe(true)
+ await page.locator('.scraping-group').filter({has:page.getByRole('heading',{name:'电影刮削项',exact:true})}).getByText('poster（海报）',{exact:true}).click();await page.getByRole('button',{name:'保存系统设置',exact:true}).click();await expect(page.getByText(/当前分组已保存/)).toBeVisible();const prefs=(await(await page.request.get('/api/v1/settings/application')).json()).data;expect(prefs.value.scraping.movie.poster).toBe(true)
  await page.screenshot({path:resolve(screenshots,'scraping-settings-desktop.png'),animations:'disabled',fullPage:true});await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'scraping-settings-mobile.png'),animations:'disabled',fullPage:true})
  // Restore isolated policy before other tests; never change production settings.
  prefs.value.scraping.movie.poster=false;expect((await page.request.put('/api/v1/settings/application',{headers:{'X-Requested-With':'media-tool'},data:prefs})).status()).toBe(200)
@@ -1132,10 +1133,10 @@ test('media users have independent login forced password change and revocable sc
  await dialog.getByText('电影',{exact:true}).click()
  await dialog.getByRole('button',{name:'创建用户',exact:true}).click()
  await expect(page.getByRole('cell',{name:'e2e_media_member 独立媒体用户'})).toBeVisible()
- const context=await browser.newContext({baseURL:'http://localhost:18084',viewport:{width:375,height:812}})
+ const context=await browser.newContext({baseURL:'http://localhost:18087',viewport:{width:375,height:812}})
  const member=await context.newPage()
  try{
-  await member.goto('/watch')
+  await member.goto('/')
   await expect(member.getByRole('heading',{name:'媒体用户登录',exact:true})).toBeVisible()
   await member.getByLabel('媒体账号',{exact:true}).fill('e2e_media_member')
   await member.getByLabel('媒体密码',{exact:true}).fill('MediaE2e123')
@@ -1151,9 +1152,9 @@ test('media users have independent login forced password change and revocable sc
   await expect(member.getByRole('heading',{name:'我的媒体库',exact:true})).toBeVisible()
   expect(await member.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
   await member.screenshot({path:resolve(screenshots,'native-media-member-375.png'),fullPage:true})
-  const denied=await context.request.get('/api/v1/media-server/users');expect(denied.status()).toBe(401)
-  await member.goto('/logs');await expect(member.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible()
-  await member.goto('/watch');await expect(member.getByRole('heading',{name:'我的媒体库',exact:true})).toBeVisible()
+  const denied=await context.request.get('/api/v1/media-server/users');expect(denied.status()).toBe(404)
+  expect((await context.request.get('/logs')).status()).toBe(404)
+  await member.goto('/');await expect(member.getByRole('heading',{name:'我的媒体库',exact:true})).toBeVisible()
   await page.getByRole('button',{name:'刷新',exact:true}).click()
   await page.getByRole('button',{name:'撤销会话',exact:true}).click()
   await page.getByRole('button',{name:'确认',exact:true}).click()
@@ -1161,7 +1162,7 @@ test('media users have independent login forced password change and revocable sc
   const revoked=await context.request.get('/api/v1/member/auth/session');expect(revoked.status()).toBe(401)
   await member.reload();await expect(member.getByRole('heading',{name:'媒体用户登录',exact:true})).toBeVisible()
   // An administrator cookie alone does not sign in as a media user.
-  await page.goto('/watch');await expect(page.getByRole('heading',{name:'媒体用户登录',exact:true})).toBeVisible()
+  expect((await page.request.get('/watch')).status()).toBe(404)
   await page.goto('/media-users');await expect(page.getByRole('heading',{name:'媒体用户',exact:true})).toBeVisible()
   await page.getByRole('button',{name:'删除',exact:true}).click();await page.getByRole('button',{name:'确认',exact:true}).click()
   await expect(page.getByRole('cell',{name:'e2e_media_member 独立媒体用户'})).not.toBeVisible()
@@ -1377,7 +1378,7 @@ test('classification checkbox editor preserves original countries and genre IDs 
 
 test('system operations has real bounded health, paginated tasks and details (isolated)',async({page})=>{
  await fixtureLogin(page);await page.goto('/jobs');await expect(page.getByRole('heading',{name:'系统运维与后台任务',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Cron 调度',exact:true})).toBeVisible();await expect(page.getByText('连接正常',{exact:true})).toHaveCount(2)
- const health=await page.request.get('/api/v1/system/operations');expect(health.status()).toBe(200);expect(health.headers()['cache-control']).toBe('no-store');const snapshot=(await health.json()).data;expect(snapshot.migration).toBe(50);expect(snapshot.unavailable).toEqual([]);expect(snapshot.workers.some((w:any)=>w.online)).toBe(true);expect(snapshot.schedules.some((s:any)=>s.id==='core'&&s.cron==='*/15 * * * * *')).toBe(true)
+ const health=await page.request.get('/api/v1/system/operations');expect(health.status()).toBe(200);expect(health.headers()['cache-control']).toBe('no-store');const snapshot=(await health.json()).data;expect(snapshot.migration).toBe(51);expect(snapshot.unavailable).toEqual([]);expect(snapshot.workers.some((w:any)=>w.online)).toBe(true);expect(snapshot.schedules.some((s:any)=>s.id==='core'&&s.cron==='*/15 * * * * *')).toBe(true)
  const response=await page.request.post('/api/v1/jobs',{headers:{'X-Requested-With':'media-tool'},data:{kind:'system.check'}});expect(response.status()).toBe(201);const job=(await response.json()).data;await page.getByLabel('任务关键词').fill(job.id);await page.getByRole('button',{name:'筛选任务',exact:true}).click();await expect(page.getByRole('button',{name:`查看任务 ${job.id}`,exact:true})).toBeVisible();await page.getByRole('button',{name:`查看任务 ${job.id}`,exact:true}).click();const dialog=page.getByRole('dialog',{name:'后台任务详情',exact:true});await expect(dialog).toContainText(job.id);await expect(dialog).toContainText('不提供通用强制重放');await dialog.getByRole('button',{name:'关闭此对话框'}).click();await expect(dialog).not.toBeVisible()
  expect((await page.request.get('/api/v1/jobs/browse?page=0')).status()).toBe(400);expect((await page.request.get('/api/v1/jobs/not-a-uuid')).status()).toBe(400);const empty=await page.request.get(`/api/v1/jobs/browse?page=2&pageSize=25&q=${job.id}`);expect((await empty.json()).data).toEqual({items:[],total:1})
  for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`system-operations-${width}.png`),fullPage:true,animations:'disabled'})}
@@ -1461,4 +1462,28 @@ test('classification long country labels wrap inside their own choices on deskto
   expect(bounds.length).toBeGreaterThan(240);for(const bound of bounds){expect(bound.scroll).toBeLessThanOrEqual(bound.width+1);expect(bound.height).toBeGreaterThanOrEqual(43.99);expect(bound.boxWidth).toBeCloseTo(16, 2);expect(bound.contained).toBe(true)}
   expect(await country.locator('.choice-options').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);await country.scrollIntoViewIfNeeded();await page.screenshot({path:resolve(screenshots,`classification-choice-wrap-${width}.png`),animations:'disabled'})
  }
+})
+
+test('settings functional pages are consistent and preserve drafts while switching tabs (isolated)',async({page})=>{
+ await fixtureLogin(page);await page.goto('/settings');const nav=page.getByRole('navigation',{name:'系统设置分类'});await expect(nav).toBeVisible()
+ for(const width of [1440,768,375]){await page.setViewportSize({width,height:950});for(const tab of ['访问与域名','命名与刮削','搜索与订阅','网络代理','TMDB','管理员账号','移动端应用']){await nav.getByRole('button',{name:tab,exact:true}).click();await expect(nav.getByRole('button',{name:tab,exact:true})).toHaveAttribute('aria-pressed','true');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`settings-${tab}-${width}.png`),animations:'disabled'})}}
+ await nav.getByRole('button',{name:'命名与刮削',exact:true}).click();await page.getByLabel('电影命名模板',{exact:true}).fill('{title} ({year})/{title} - draft');await nav.getByRole('button',{name:'网络代理',exact:true}).click();await nav.getByRole('button',{name:'命名与刮削',exact:true}).click();await expect(page.getByLabel('电影命名模板',{exact:true})).toHaveValue('{title} ({year})/{title} - draft')
+ await nav.getByRole('button',{name:'TMDB',exact:true}).click();await expect(page.getByRole('columnheader',{name:'连接验证',exact:true})).toHaveCount(0)
+})
+
+test('domain settings validate origins and update generated STRM without touching old output (isolated)',async({page})=>{
+ await fixtureLogin(page);await page.goto('/settings?tab=access');const initial=(await(await page.request.get('/api/v1/settings/access')).json()).data
+ try{
+  await page.getByLabel('后台访问域名',{exact:true}).fill('https://admin.fixture.invalid');await page.getByLabel('STRM播放域名',{exact:true}).fill('https://play.fixture.invalid');await page.getByLabel('内置媒体入口域名',{exact:true}).fill('https://member.fixture.invalid');await page.getByRole('button',{name:'保存域名设置',exact:true}).click();await expect(page.getByText(/域名已保存，新生成链接立即使用新地址/)).toBeVisible()
+  const current=(await(await page.request.get('/api/v1/settings/access')).json()).data;expect(current.effective.memberUrl).toBe('https://member.fixture.invalid')
+  const bad=await page.request.put('/api/v1/settings/access',{headers:{'X-Requested-With':'media-tool'},data:{value:{...current.value,managementUrl:'https://example.com/watch'},revision:current.revision}});expect(bad.status()).toBe(400)
+  const preview=await page.request.post('/api/v1/strm/preview',{headers:{'X-Requested-With':'media-tool'},data:{path:((await(await page.request.get('/api/v1/system/status')).json()).data.allowedRoots[0]||'/115')+'/Owned.mkv'}});expect(preview.status()).toBe(200);expect(JSON.stringify((await preview.json()).data)).toContain('https://play.fixture.invalid')
+ }finally{const current=(await(await page.request.get('/api/v1/settings/access')).json()).data;expect((await page.request.put('/api/v1/settings/access',{headers:{'X-Requested-With':'media-tool'},data:{value:initial.value,revision:current.revision}})).status()).toBe(200)}
+})
+
+test('manual torrent imports support file and magnet input with persistent status and honest unknown progress (fixture)',async({page})=>{
+ await fixtureLogin(page);let imports:any[]=[];await page.route('**/api/v1/downloads/manual',async route=>{if(route.request().method()==='POST'){imports.push({contentType:route.request().headers()['content-type'],body:route.request().postData()});return route.fulfill({status:202,json:{data:{id:'fixture-manual'}}})}return route.fulfill({json:{data:[{id:'fixture-manual',title:'Owned Manual.mkv',sourceKind:'file',source:'Owned.torrent',infoHash:'a'.repeat(40),state:'downloading',progress:null,qbState:'',downloadSpeed:0,savePath:'/downloads',endpoint:'http://qb.fixture:8080',category:'media-tool',message:'等待同步',createdAt:'2026-10-15T10:00:00Z'}]}})})
+ await page.goto('/downloads');await expect(page.getByRole('heading',{name:'手动种子下载',exact:true})).toBeVisible();await expect(page.getByText('进度待下载器同步，不以0%代替未知进度。',{exact:true})).toBeVisible();await page.getByRole('button',{name:'添加种子',exact:true}).click();const dialog=page.getByRole('dialog',{name:'添加种子下载',exact:true});await dialog.getByLabel('种子文件（.torrent）',{exact:true}).setInputFiles({name:'Owned.torrent',mimeType:'application/x-bittorrent',buffer:Buffer.from('owned-file-fixture')});await dialog.getByRole('button',{name:'确认添加下载',exact:true}).click();await expect(dialog).toBeHidden();expect(imports[0].contentType).toContain('multipart/form-data');expect(imports[0].body).toContain('Owned.torrent')
+ await page.getByRole('button',{name:'添加种子',exact:true}).click();await dialog.getByText('种子链接',{exact:true}).click();const magnet='magnet:?xt=urn:btih:'+'a'.repeat(40);await dialog.getByLabel('种子链接或磁力链接',{exact:true}).fill(magnet);await dialog.getByRole('button',{name:'确认添加下载',exact:true}).click();await expect(dialog).toBeHidden();expect(JSON.parse(imports[1].body).url).toBe(magnet)
+ for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`manual-downloads-${width}.png`),fullPage:true,animations:'disabled'})}
 })

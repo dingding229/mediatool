@@ -19,6 +19,7 @@ import (
 )
 
 type Config struct {
+	MemberAddress, MemberPublicURL                           string
 	LogDir                                                   string
 	MaintenanceDir                                           string
 	PasswordResetFile                                        string
@@ -59,6 +60,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	}
 	secret := func(key string) string { value, _ := lookup(key); return value }
 	c := Config{
+		MemberAddress: get("MEMBER_ADDR", "127.0.0.1:8092"), MemberPublicURL: get("MEMBER_PUBLIC_URL", ""),
 		LogDir: get("APP_LOG_DIR", "./data/logs"), PasswordResetFile: get("PASSWORD_RESET_FILE", "./data/password"), LocalBrowseRoots: strings.Split(get("LOCAL_BROWSE_ROOTS", "./data"), ","),
 		LogLevel:       get("LOG_LEVEL", "info"),
 		HostProcDir:    get("HOST_PROC_DIR", "/proc"),
@@ -75,6 +77,17 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	}
 	if c.Environment != "development" && c.Environment != "production" {
 		return c, errors.New("APP_ENV must be development or production")
+	}
+	if c.MemberAddress != "" {
+		if _, _, err := net.SplitHostPort(c.MemberAddress); err != nil || c.MemberAddress == c.Address || c.MemberAddress == c.EmbyGatewayAddress {
+			return c, errors.New("MEMBER_ADDR requires a separate valid host:port")
+		}
+	}
+	if c.MemberPublicURL != "" {
+		u, err := url.Parse(c.MemberPublicURL)
+		if err != nil || u.User != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+			return c, errors.New("MEMBER_PUBLIC_URL must be an origin")
+		}
 	}
 	if c.Address == "" {
 		return c, errors.New("APP_ADDR is required")

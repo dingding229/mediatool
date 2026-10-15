@@ -28,6 +28,15 @@ func (a *API) saveApplicationSettings(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "settings_unavailable", "数据库不可用")
 		return
 	}
+	current, readErr := (settings.Repository{DB: a.Deps.DB}).Get(r.Context())
+	if readErr != nil {
+		fail(w, 503, "settings_unavailable", "设置不可用")
+		return
+	}
+	if current.Value.Access != in.Value.Access {
+		fail(w, 400, "domain_endpoint_required", "请在访问与域名分组保存域名")
+		return
+	}
 	v, err := (settings.Repository{DB: a.Deps.DB}).Save(r.Context(), in.Value, in.Revision)
 	if errors.Is(err, settings.ErrRevision) {
 		fail(w, 409, "settings_changed", "设置已更新，请刷新后重试")

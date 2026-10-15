@@ -26,7 +26,7 @@ func (a *API) authSetup(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{"registrationOpen": !registered, "passwordMinLength": auth.PasswordMinLength, "passwordMaxLength": auth.PasswordMaxLength})
 }
 func (a *API) checkAuthRequest(w http.ResponseWriter, r *http.Request) bool {
-	if !a.Auth.SameOrigin(r) {
+	if !a.sameOrigin(r) {
 		fail(w, 403, "csrf_rejected", "请求来源或防跨站请求标识无效")
 		return false
 	}

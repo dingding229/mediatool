@@ -61,11 +61,21 @@ func (s Service) Prepare(ctx context.Context, tx pgx.Tx, assetID, cloudPath stri
 		}
 		token = values["token"]
 	}
-	link, err := s.build(assetID, token, cloudPath)
+	link, err := s.build(ctx, tx, assetID, token, cloudPath)
 	return link, id, err
 }
-func (s Service) build(assetID, token, cloudPath string) (string, error) {
-	builder := strm.Builder{BaseURL: s.PublicURL, APIKey: token, AllowedRoots: []string{"/"}}
+func (s Service) build(ctx context.Context, query interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, assetID, token, cloudPath string) (string, error) {
+	origin := s.PublicURL
+	var configured string
+	if err := query.QueryRow(ctx, `SELECT coalesce(value#>>'{access,playbackUrl}','') FROM application_settings WHERE singleton`).Scan(&configured); err != nil {
+		return "", err
+	}
+	if configured != "" {
+		origin = configured
+	}
+	builder := strm.Builder{BaseURL: origin, APIKey: token, AllowedRoots: []string{"/"}}
 	link, err := builder.Build(storage.FileRef{Path: cloudPath})
 	if err != nil {
 		return "", err
@@ -153,7 +163,7 @@ func (s Service) RotateTx(ctx context.Context, tx pgx.Tx, assetID string) (strin
 	if _, err = tx.Exec(ctx, `UPDATE playback_grants SET token_digest=$2,token_ciphertext=$3,revoked_at=NULL,generation=generation+1,updated_at=now()WHERE id=$1`, id, digest[:], encrypted); err != nil {
 		return "", err
 	}
-	return s.build(assetID, token, cloudPath)
+	return s.build(ctx, tx, assetID, token, cloudPath)
 }
 func (s Service) ExistingURL(ctx context.Context, assetID string) (string, error) {
 	var encrypted []byte
@@ -169,7 +179,7 @@ func (s Service) ExistingURL(ctx context.Context, assetID string) (string, error
 	if err != nil {
 		return "", err
 	}
-	return s.build(assetID, values["token"], cloudPath)
+	return s.build(ctx, s.DB, assetID, values["token"], cloudPath)
 }
 func SecretFreeKeyRef(id string) string { return "grant:" + strings.TrimSpace(id) }
 
@@ -191,7 +201,7 @@ func (s Service) ExistingBody(ctx context.Context, tx pgx.Tx, asset string) ([]b
 	if subtle.ConstantTimeCompare(sum[:], digest) != 1 {
 		return nil, ErrDenied
 	}
-	link, err := s.build(asset, token, p)
+	link, err := s.build(ctx, tx, asset, token, p)
 	if err != nil {
 		return nil, err
 	}

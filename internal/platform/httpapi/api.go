@@ -126,6 +126,8 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/metadata/image/{size}/{file}", a.tmdbImage)
 	mux.HandleFunc("GET /api/v1/metadata/details", a.protected(a.mediaDetails))
 	mux.HandleFunc("GET /api/v1/search/media", a.protected(a.tmdbMediaSearch))
+	mux.HandleFunc("GET /api/v1/settings/access", a.protected(a.accessSettings))
+	mux.HandleFunc("PUT /api/v1/settings/access", a.protected(a.accessSettings))
 	mux.HandleFunc("GET /api/v1/settings/application", a.protected(a.getApplicationSettings))
 	mux.HandleFunc("PUT /api/v1/settings/application", a.protected(a.saveApplicationSettings))
 	mux.HandleFunc("POST /api/v1/media/recognize-name", a.protected(a.parseReleaseName))
@@ -220,6 +222,8 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("PUT /api/v1/settings/network-proxy", a.protected(a.networkProxy))
 	mux.HandleFunc("GET /api/v1/system/runtime", a.protected(a.runtimeSummary))
 	mux.HandleFunc("GET /api/v1/search/{id}", a.protected(a.getSearch))
+	mux.HandleFunc("GET /api/v1/downloads/manual", a.protected(a.listManualDownloads))
+	mux.HandleFunc("POST /api/v1/downloads/manual", a.protected(a.createManualDownload))
 	mux.HandleFunc("GET /api/v1/downloads", a.protected(a.listDownloads))
 	mux.HandleFunc("POST /api/v1/downloads", a.protected(a.startDownload))
 	mux.HandleFunc("POST /api/v1/downloads/{id}/cleanup/reconcile", a.protected(a.reconcileDownloadCleanup))
@@ -276,6 +280,8 @@ func New(c config.Config, d Dependencies) http.Handler {
 	a.registerSTRMTools(mux)
 	a.registerExternal(mux)
 	ui := webui.Handler()
+	mux.HandleFunc("GET /watch", func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
+	mux.HandleFunc("GET /watch/{rest...}", func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
 	embyProxy := longStream(http.HandlerFunc(a.proxyEmby))
 	mux.Handle("/emby/", embyProxy)
 	mux.Handle("/emby", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -303,7 +309,7 @@ func (a *API) protected(next http.HandlerFunc) http.HandlerFunc {
 			fail(w, 401, "unauthorized", "请使用管理员账号密码登录")
 			return
 		}
-		if r.Method != "GET" && r.Method != "HEAD" && !a.Auth.SameOrigin(r) {
+		if r.Method != "GET" && r.Method != "HEAD" && !a.sameOrigin(r) {
 			fail(w, 403, "csrf_rejected", "请求来源或防跨站请求标识无效")
 			return
 		}
@@ -529,7 +535,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.27.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.27.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.access(r.Context()).ManagementURL, "memberUrl": a.access(r.Context()).MemberURL, "playbackUrl": a.access(r.Context()).PlaybackURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

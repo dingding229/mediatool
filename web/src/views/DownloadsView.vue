@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ManualDownloads from "../components/ManualDownloads.vue";
 import ConnectionPanel from "../components/ConnectionPanel.vue";
 import { computed, ref, onMounted, onUnmounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
@@ -262,6 +263,7 @@ onUnmounted(() => {
     </div>
     <el-button :loading="loading" @click="refresh(true)">刷新进度</el-button>
   </section>
+  <ManualDownloads/>
   <section class="download-overview">
     <article class="panel">
       <span>本次加载下载任务</span><strong>{{ tasks.length }}</strong>
@@ -474,7 +476,7 @@ onUnmounted(() => {
     @completed="refresh"
   /><DownloadSourceDialog ref="sourceRecovery" @completed="refresh" />
   <section class="downloader-section">
-    <ConnectionPanel :allowed-kinds="['qbittorrent']" title="下载器配置" />
+  <ConnectionPanel :allowed-kinds="['qbittorrent']" title="下载器配置" />
   </section>
 </template>
 

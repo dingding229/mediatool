@@ -2,9 +2,10 @@ import { createRouter,createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import {connectionOwner} from './integrations/owners'
 import Layout from './layouts/AppLayout.vue'
+const memberRealm=document.querySelector('meta[name="media-tool-realm"]')?.getAttribute('content')==='member'
+const memberRoutes=[{path:'/',name:'member',alias:['/login','/password'],component:()=>import('./views/MemberView.vue'),meta:{public:true,realm:'member'}},{path:'/:pathMatch(.*)*',redirect:'/'}]
 const moduleRoutes:never[]=[]
-const router=createRouter({history:createWebHistory(),routes:[
- {path:'/watch',name:'member',alias:['/watch/login','/watch/password'],component:()=>import('./views/MemberView.vue'),meta:{public:true,realm:'member'}},
+const router=createRouter({history:createWebHistory(),routes:memberRealm?memberRoutes:[
  {path:'/login',name:'login',component:()=>import('./views/LoginView.vue'),meta:{public:true}},
  {path:'/reset-password',name:'resetPassword',component:()=>import('./views/ForcePasswordView.vue')},
  {path:'/',component:Layout,children:[

@@ -19,6 +19,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/library"
 	"media-tool/internal/modules/maintenance"
+	"media-tool/internal/modules/manualdownloads"
 	"media-tool/internal/modules/messaging"
 	"media-tool/internal/modules/plugins"
 	"media-tool/internal/modules/search"
@@ -272,6 +273,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		w.Handlers["library.refresh"] = libraryEngine.Refresh
 		w.Handlers["library.emby.confirm"] = libraryEngine.CheckEmby
 		downloader := acquisition.Engine{DB: db, Connections: manager, Search: engine}
+		w.Handlers["download.manual.add"] = (manualdownloads.Engine{DB: db, Connections: manager}).Process
 		w.Handlers["download.add"] = downloader.Add
 		w.Handlers["download.cleanup"] = downloader.Cleanup
 		w.Handlers["transfer.upload"] = downloader.Transfer
@@ -302,6 +304,9 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 					logger.Warn("download reconciliation unavailable")
 				}
 				if queue == "default" {
+					if err := (manualdownloads.Engine{DB: db, Connections: manager}).Sync(check); err != nil {
+						logger.Warn("manual download sync failed", "module", "downloads", "error", err)
+					}
 					if err := downloader.ScheduleCleanup(check); err != nil {
 						logger.Warn("cleanup scheduling unavailable", "error", err)
 					}
@@ -370,12 +375,28 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	if err != nil {
 		return errors.New("cannot bind APP_ADDR")
 	}
-	done := make(chan error, 2)
+	done := make(chan error, 3)
+	var memberServer *http.Server
+	if c.MemberAddress != "" {
+		memberListener, err := net.Listen("tcp", c.MemberAddress)
+		if err != nil {
+			listener.Close()
+			return errors.New("cannot bind MEMBER_ADDR")
+		}
+		memberServer = &http.Server{Handler: httpapi.MemberHandler(handler), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
+		go func() {
+			logger.Info("Media member listener started", "address", c.MemberAddress)
+			done <- memberServer.Serve(memberListener)
+		}()
+	}
 	var gatewayServer *http.Server
 	if c.EmbyGatewayAddress != "" {
 		gatewayListener, err := net.Listen("tcp", c.EmbyGatewayAddress)
 		if err != nil {
 			listener.Close()
+			if memberServer != nil {
+				memberServer.Close()
+			}
 			return errors.New("cannot bind EMBY_GATEWAY_ADDR")
 		}
 		gatewayServer = &http.Server{Handler: httpapi.EmbyHandler(handler), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
@@ -392,6 +413,11 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	defer func() {
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
+		if memberServer != nil {
+			if memberServer.Shutdown(shutdown) != nil {
+				memberServer.Close()
+			}
+		}
 		if gatewayServer != nil {
 			if gatewayServer.Shutdown(shutdown) != nil {
 				gatewayServer.Close()

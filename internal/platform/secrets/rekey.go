@@ -13,6 +13,7 @@ type CipherColumn struct {
 }
 
 var CipherColumns = []CipherColumn{
+	{Table: "manual_download_tasks", Column: "payload_ciphertext", AADPrefix: "manual-download:"},
 	{Table: "external_api_keys", Column: "token_ciphertext", AADPrefix: "api-key:"},
 	{Table: "network_proxy_settings", Column: "url_ciphertext", AADPrefix: "network-proxy:", AllowEmpty: true},
 	{Table: "extension_plugins", Column: "plugin_data_ciphertext", AADPrefix: "plugin-data:", AllowEmpty: true},

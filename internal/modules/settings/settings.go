@@ -18,6 +18,7 @@ var ErrInvalid = errors.New("invalid application settings")
 var ErrRevision = errors.New("settings changed; refresh first")
 
 type Value struct {
+	Access                      Access                `json:"access"`
 	CleanupAfterImport          bool                  `json:"cleanupAfterImport"`
 	TrustedProxyCIDRs           []string              `json:"trustedProxyCidrs"`
 	Scraping                    metadata.ScrapePolicy `json:"scraping"`
@@ -40,6 +41,9 @@ func Defaults() Value {
 }
 
 func Validate(v Value) error {
+	if err := ValidateAccess(v.Access); err != nil {
+		return err
+	}
 	if !playeraccess.ValidateProxies(v.TrustedProxyCIDRs) {
 		return errors.New("可信代理必须为最多32个规范CIDR，不能使用0.0.0.0/0或::/0")
 	}

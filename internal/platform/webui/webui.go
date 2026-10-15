@@ -1,6 +1,7 @@
 package webui
 
 import (
+	"context"
 	"embed"
 	"io/fs"
 	"net/http"
@@ -11,6 +12,12 @@ import (
 //go:embed all:assets
 var assets embed.FS
 
+type realmKey struct{}
+
+func MemberRequest(r *http.Request) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), realmKey{}, true))
+}
+func IsMember(r *http.Request) bool { v, _ := r.Context().Value(realmKey{}).(bool); return v }
 func Handler() http.Handler {
 	files, _ := fs.Sub(assets, "assets")
 	server := http.FileServer(http.FS(files))
@@ -35,6 +42,9 @@ func Handler() http.Handler {
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-store")
+			if IsMember(r) {
+				data = []byte(strings.Replace(string(data), "<head>", `<head><meta name="media-tool-realm" content="member">`, 1))
+			}
 			w.Write(data)
 			return
 		}

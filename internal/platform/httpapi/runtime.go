@@ -5,16 +5,22 @@ import (
 	"errors"
 	"media-tool/internal/modules/emby"
 	"media-tool/internal/modules/integrations"
+	"media-tool/internal/modules/settings"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
+	"media-tool/internal/platform/webui"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 )
 
 func (a *API) builder(ctx context.Context) strm.Builder {
 	b := a.Builder
+	if origin, err := settings.PlaybackOrigin(ctx, a.Deps.DB, b.BaseURL); err == nil {
+		b.BaseURL = origin
+	}
 	if a.Deps.Integrations != nil {
 		if c, err := a.Deps.Integrations.Repository.Default(ctx, "clouddrive2"); err == nil {
 			root := strings.TrimRight(c.String("cloudRoot"), "/")
@@ -50,7 +56,7 @@ func (a *API) gateway(ctx context.Context) *emby.Gateway {
 				return nil
 			}
 			enabled, _ := c.Record.Settings["gatewayEnabled"].(bool)
-			return emby.NewGateway(emby.GatewayOptions{Identities: a.EmbyIdentities, Upstream: target, PublicOrigin: embyPublicOrigin(a.Config.EmbyPublicURL), Enable302: enabled, DirectPlayOnly: a.directPlayOnly(ctx), LegacyEnabled: a.Config.LegacyPlaybackEnabled, OwnedAsset: a.ownedAsset, Builder: a.builder(ctx), STRMOutputDir: a.Config.STRMOutputDir, STRMPathPrefix: c.String("strmPathPrefix"), ResolverOrigins: a.Config.EmbyResolverOrigins, Playback: a.Engine, ManagedURL: a.grants().VerifyManagedURL})
+			return emby.NewGateway(emby.GatewayOptions{Identities: a.EmbyIdentities, Upstream: target, PublicOrigin: embyPublicOrigin(a.access(ctx).EmbyURL), Enable302: enabled, DirectPlayOnly: a.directPlayOnly(ctx), LegacyEnabled: a.Config.LegacyPlaybackEnabled, OwnedAsset: a.ownedAsset, Builder: a.builder(ctx), STRMOutputDir: a.Config.STRMOutputDir, STRMPathPrefix: c.String("strmPathPrefix"), ResolverOrigins: a.Config.EmbyResolverOrigins, Playback: a.Engine, ManagedURL: a.grants().VerifyManagedURL})
 		}
 		var exists bool
 		if a.Deps.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM integrations WHERE kind='emby')`).Scan(&exists) != nil || exists {
@@ -151,4 +157,23 @@ func (a *API) directPlayOnly(ctx context.Context) bool {
 		}
 	}
 	return a.Config.EmbyDirectPlayOnly
+}
+
+// MemberHandler exposes only the member realm on its dedicated root listener.
+// It never forwards an administrator API or the Emby gateway.
+func MemberHandler(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resourcePath := r.URL.Path
+		if path.Clean(resourcePath) != resourcePath && resourcePath != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		api := strings.HasPrefix(resourcePath, "/api/v1/member/")
+		static := strings.HasPrefix(resourcePath, "/assets/") || strings.HasPrefix(resourcePath, "/pwa/") || resourcePath == "/sw.js" || resourcePath == "/manifest.webmanifest" || resourcePath == "/offline.html"
+		if !api && !static && resourcePath != "/" && resourcePath != "/login" && resourcePath != "/password" && resourcePath != "/readyz" {
+			http.NotFound(w, r)
+			return
+		}
+		handler.ServeHTTP(w, webui.MemberRequest(r))
+	})
 }

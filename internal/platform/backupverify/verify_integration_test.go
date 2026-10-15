@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"media-tool/internal/modules/plugins"
+	"media-tool/internal/platform/buildinfo"
 	"media-tool/internal/platform/database"
 	"media-tool/internal/platform/secrets"
 	"os"
@@ -64,7 +65,7 @@ func TestPostgresCloneGuardAndCompleteRekeyMigrationImmutability(t *testing.T) {
 		t.Fatal(e)
 	}
 	report, e := Verify(ctx, db, dsn, "media_tool_test", strings.Repeat("9", 64), true)
-	if e != nil || !report.DryRunCiphertextsUnchanged || !report.SecondMigrationIdempotent || !report.LegacyBusinessColumnsPreserved || report.FinalVersion != 50 || len(report.CipherRows) != len(secrets.CipherColumns) {
+	if e != nil || !report.DryRunCiphertextsUnchanged || !report.SecondMigrationIdempotent || !report.LegacyBusinessColumnsPreserved || report.FinalVersion != buildinfo.Schema || len(report.CipherRows) != len(secrets.CipherColumns) {
 		t.Fatal(report, e)
 	}
 	var after []byte

@@ -129,7 +129,7 @@ func (a *API) mutateMediaUser(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) memberLogin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if !a.Auth.SameOrigin(r) {
+	if !a.sameOrigin(r) {
 		fail(w, 403, "csrf_rejected", "请求来源或防跨站请求标识无效")
 		return
 	}
@@ -194,7 +194,7 @@ func (a *API) memberProtected(next http.HandlerFunc) http.HandlerFunc {
 			mediaError(w, err)
 			return
 		}
-		if r.Method != "GET" && r.Method != "HEAD" && !a.Auth.SameOrigin(r) {
+		if r.Method != "GET" && r.Method != "HEAD" && !a.sameOrigin(r) {
 			fail(w, 403, "csrf_rejected", "请求来源或防跨站请求标识无效")
 			return
 		}

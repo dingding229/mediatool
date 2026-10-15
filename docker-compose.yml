@@ -12,6 +12,8 @@ services:
     environment:
       APP_ENV: development
       APP_ADDR: 0.0.0.0:8080
+      MEMBER_ADDR: 0.0.0.0:8092
+      MEMBER_PUBLIC_URL: http://localhost:8092
       APP_PUBLIC_URL: http://localhost:8080
       AUTH_ALLOWED_ORIGINS: "" # 显式填写反代域名，例如 https://media.example.com
       HOST_PROC_DIR: /host/proc
@@ -44,7 +46,7 @@ services:
       EMBY_STRM_RESOLVER_ORIGINS: ""
       WORKER_POLL_INTERVAL: 2s
       WORKER_LEASE: 90s
-    ports: ["127.0.0.1:8080:8080", "127.0.0.1:8091:8091"]
+    ports: ["127.0.0.1:8080:8080", "127.0.0.1:8091:8091", "127.0.0.1:8092:8092"]
     # 可直接换为 /your/host/data:/data；不需要在后台绑定本地目录。
     volumes: [app-data:/data, downloads-data:/data/downloads:ro, /proc/loadavg:/host/proc/loadavg:ro, /proc/stat:/host/proc/stat:ro, /proc/meminfo:/host/proc/meminfo:ro, /proc/uptime:/host/proc/uptime:ro]
     user: "65532:65532"

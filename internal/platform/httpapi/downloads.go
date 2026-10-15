@@ -101,6 +101,7 @@ func (a *API) syncDownloads(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
 	defer cancel()
 	err := engine.Sync(ctx)
+	err = errors.Join(err, a.manualDownloads().Sync(ctx))
 	message := ""
 	if err != nil {
 		message = err.Error()

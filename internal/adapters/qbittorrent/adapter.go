@@ -153,19 +153,19 @@ func (a *Adapter) Inspect(ctx context.Context, id string) (downloads.Task, error
 		return downloads.Task{}, err
 	}
 	var items []struct {
-		Hash, Name, State string
-		Progress          *float64
-		DownloadSpeed     int64  `json:"dlspeed"`
-		UploadSpeed       int64  `json:"upspeed"`
-		Seeds             int    `json:"num_seeds"`
-		Peers             int    `json:"num_leechs"`
-		SavePath          string `json:"save_path"`
-		ContentPath       string `json:"content_path"`
-		AmountLeft        int64  `json:"amount_left"`
-		CompletionOn      int64  `json:"completion_on"`
-		Size              int64
-		Ratio             float64
-		SeedingTime       int64 `json:"seeding_time"`
+		Hash, Name, State, Category string
+		Progress                    *float64
+		DownloadSpeed               int64  `json:"dlspeed"`
+		UploadSpeed                 int64  `json:"upspeed"`
+		Seeds                       int    `json:"num_seeds"`
+		Peers                       int    `json:"num_leechs"`
+		SavePath                    string `json:"save_path"`
+		ContentPath                 string `json:"content_path"`
+		AmountLeft                  int64  `json:"amount_left"`
+		CompletionOn                int64  `json:"completion_on"`
+		Size                        int64
+		Ratio                       float64
+		SeedingTime                 int64 `json:"seeding_time"`
 	}
 	if json.Unmarshal(raw, &items) != nil {
 		return downloads.Task{}, ErrUnavailable
@@ -189,7 +189,7 @@ func (a *Adapter) Inspect(ctx context.Context, id string) (downloads.Task, error
 	if it.Progress == nil || math.IsNaN(*it.Progress) || *it.Progress < 0 || *it.Progress > 1 || it.State == "" {
 		return downloads.Task{}, ErrUnavailable
 	}
-	return downloads.Task{ID: it.Hash, State: it.State, Name: it.Name, Progress: *it.Progress, DownloadSpeed: it.DownloadSpeed, UploadSpeed: it.UploadSpeed, Seeds: it.Seeds, Peers: it.Peers, SavePath: it.SavePath, ContentPath: it.ContentPath, Size: it.Size, Ratio: it.Ratio, SeedingTime: it.SeedingTime, Complete: *it.Progress >= 1 && it.AmountLeft == 0 && it.CompletionOn > 0, Seeding: it.State == "stalledUP" || it.State == "forcedUP" || it.State == "uploading"}, nil
+	return downloads.Task{ID: it.Hash, State: it.State, Name: it.Name, Category: it.Category, Progress: *it.Progress, DownloadSpeed: it.DownloadSpeed, UploadSpeed: it.UploadSpeed, Seeds: it.Seeds, Peers: it.Peers, SavePath: it.SavePath, ContentPath: it.ContentPath, Size: it.Size, Ratio: it.Ratio, SeedingTime: it.SeedingTime, Complete: *it.Progress >= 1 && it.AmountLeft == 0 && it.CompletionOn > 0, Seeding: it.State == "stalledUP" || it.State == "forcedUP" || it.State == "uploading"}, nil
 }
 func (a *Adapter) Files(ctx context.Context, id string) ([]downloads.File, error) {
 	raw, err := a.request(ctx, "GET", "torrents/files?"+url.Values{"hash": {id}}.Encode(), "", nil)
@@ -297,4 +297,26 @@ func (a *Adapter) AllHashes(ctx context.Context) ([]string, error) {
 		out = append(out, r.Hash)
 	}
 	return out, nil
+}
+
+func (a *Adapter) AddMagnet(ctx context.Context, magnet, hash, save, category string, tags []string) (string, error) {
+	u, err := url.Parse(magnet)
+	if err != nil || u.Scheme != "magnet" || len(magnet) > 8192 || len(hash) != 40 && len(hash) != 64 {
+		return "", ErrUnavailable
+	}
+	values := url.Values{"urls": {magnet}, "savepath": {save}, "category": {category}, "tags": {strings.Join(tags, ",")}}
+	raw, err := a.request(ctx, "POST", "torrents/add", "application/x-www-form-urlencoded", []byte(values.Encode()))
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(string(raw)) != "Ok." {
+		var response struct {
+			Success int `json:"success_count"`
+			Failure int `json:"failure_count"`
+		}
+		if json.Unmarshal(raw, &response) != nil || response.Success != 1 || response.Failure != 0 {
+			return "", ErrUnavailable
+		}
+	}
+	return hash, nil
 }

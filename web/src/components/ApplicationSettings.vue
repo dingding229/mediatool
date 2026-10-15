@@ -3,7 +3,11 @@ import { ElMessageBox } from "element-plus";
 import { ref, onMounted } from "vue";
 import ScrapingSettings, { type Policy } from "./ScrapingSettings.vue";
 import { request } from "../api/client";
+const props = withDefaults(defineProps<{ section?: string }>(), {
+  section: "library",
+});
 interface Settings {
+  access?: unknown;
   cleanupAfterImport: boolean;
   trustedProxyCidrs: string[];
   scraping: Policy;
@@ -15,6 +19,7 @@ interface Settings {
   embyUserId: string;
 }
 const proxyText = ref("");
+const loadedValue = ref<Settings>();
 const namingPreview = ref<{ movie: string; series: string } | null>(null),
   previewing = ref(false);
 async function previewNames() {
@@ -42,6 +47,7 @@ const record = ref<{ value: Settings; revision: number } | null>(null),
 async function load() {
   try {
     record.value = await request("/settings/application");
+    if (record.value) loadedValue.value = JSON.parse(JSON.stringify(record.value.value));
     proxyText.value = (record.value?.value.trustedProxyCidrs ?? []).join("\n");
   } catch (e) {
     error.value = e instanceof Error ? e.message : "设置读取失败";
@@ -53,7 +59,7 @@ async function save() {
     .split(/[\n,]/)
     .map((x) => x.trim())
     .filter(Boolean);
-  if (record.value.value.cleanupAfterImport) {
+  if (props.section === "library" && record.value.value.cleanupAfterImport) {
     try {
       await ElMessageBox.confirm(
         "新任务全部上传校验并入库后允许自动清理本地文件和qB种子。H&R未知或有要求时仍须逐项人工确认完成做种；不会自动清理历史任务。",
@@ -72,12 +78,52 @@ async function save() {
   error.value = "";
   message.value = "";
   try {
-    record.value = await request("/settings/application", {
-      method: "PUT",
-      body: JSON.stringify(record.value),
-    });
-    message.value =
-      "模板、订阅Cron与缓存有效期已保存，新的整理预览默认使用模板。不会自动重命名现有文件。";
+    const latest = await request<{ value: Settings; revision: number }>(
+      "/settings/application",
+    );
+    const keys: (keyof Settings)[] =
+      props.section === "access"
+        ? ["trustedProxyCidrs"]
+        : props.section === "automation"
+          ? ["searchCacheSeconds", "tmdbCacheSeconds", "subscriptionCron"]
+          : [
+              "movieTemplate",
+              "seriesTemplate",
+              "scraping",
+              "cleanupAfterImport",
+            ];
+    if (
+      loadedValue.value &&
+      keys.some(
+        (key) =>
+          JSON.stringify(latest.value[key]) !==
+          JSON.stringify(loadedValue.value?.[key]),
+      )
+    )
+      throw new Error(
+        "当前分组已被其他操作修改。草稿已保留，请重新打开设置核对后保存。",
+      );
+    const value = { ...latest.value };
+    for (const key of keys)
+      (value as unknown as Record<string, unknown>)[key] =
+        record.value.value[key];
+    const saved = await request<{ value: Settings; revision: number }>(
+      "/settings/application",
+      {
+        method: "PUT",
+        body: JSON.stringify({ value, revision: latest.revision }),
+      },
+    );
+    for (const key of keys)
+      (record.value.value as unknown as Record<string, unknown>)[key] =
+        saved.value[key];
+    if (loadedValue.value)
+      for (const key of keys)
+        (loadedValue.value as unknown as Record<string, unknown>)[key] =
+          saved.value[key];
+    record.value.revision = saved.revision;
+    record.value.value.access = saved.value.access;
+    message.value = "当前分组已保存，不会自动重命名现有文件或更改其他分组。";
   } catch (e) {
     error.value = e instanceof Error ? e.message : "保存失败";
   } finally {
@@ -90,10 +136,17 @@ onMounted(load);
   <section class="panel section-gap">
     <div class="panel-title">
       <div>
-        <span class="section-kicker">DEFAULTS</span>
-        <h2>媒体命名、订阅与缓存</h2>
+        <h2>
+          {{
+            section === "access"
+              ? "反代与访客地址"
+              : section === "automation"
+                ? "搜索缓存与订阅调度"
+                : "媒体命名与入库"
+          }}
+        </h2>
       </div>
-      <span class="muted">命名预览、全局订阅调度与TMDB查询</span>
+      <span class="muted">仅保存当前功能分组</span>
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <el-alert
@@ -103,7 +156,7 @@ onMounted(load);
       :closable="false"
     />
     <form v-if="record" class="settings-defaults" @submit.prevent="save">
-      <fieldset>
+      <fieldset v-show="section === 'library'">
         <legend>上传后清理</legend>
         <el-checkbox v-model="record.value.cleanupAfterImport"
           >新任务全部云端校验并入库后清理本地文件及qB种子</el-checkbox
@@ -112,7 +165,7 @@ onMounted(load);
           默认关闭。开启后冻结到新任务；H&R未知/有要求、共用文件、缺少云端哈希或任务归属会阻止删除。旧任务须在下载页面单独批准；失败/结果未知不会盲目重放。
         </p>
       </fieldset>
-      <fieldset>
+      <fieldset v-show="section === 'access'">
         <legend>播放器访客 IP</legend>
         <label for="trusted-proxies">可信反代 IP / CIDR（每行一个）</label
         ><el-input
@@ -127,7 +180,7 @@ onMounted(load);
           X-Forwarded-For。不要填写所有私网或公网网段；错误信任会使访客IP可伪造。找不到公网访客地址时显示实际连接地址及“非公网”，不会用服务器IP替代。
         </p>
       </fieldset>
-      <fieldset>
+      <fieldset v-show="section === 'library'">
         <legend>命名模板</legend>
         <div class="connection-form">
           <label for="movie-naming-template">电影命名模板</label
@@ -146,10 +199,13 @@ onMounted(load);
           </p>
         </div>
       </fieldset>
-      <el-button :loading="previewing" @click="previewNames"
+      <el-button
+        v-show="section === 'library'"
+        :loading="previewing"
+        @click="previewNames"
         >预览命名模板</el-button
       >
-      <div v-if="namingPreview" class="naming-preview">
+      <div v-if="namingPreview && section === 'library'" class="naming-preview">
         <p>
           电影示例：<code>{{ namingPreview.movie }}</code>
         </p>
@@ -160,8 +216,11 @@ onMounted(load);
           纯模板示例，不操作真实文件；STRM实际输出保留版本标识。
         </p>
       </div>
-      <ScrapingSettings v-model="record.value.scraping" />
-      <fieldset>
+      <ScrapingSettings
+        v-show="section === 'library'"
+        v-model="record.value.scraping"
+      />
+      <fieldset v-show="section === 'automation'">
         <legend>搜索缓存</legend>
         <div class="cache-fields">
           <div class="connection-form">
@@ -188,7 +247,7 @@ onMounted(load);
           禁用缓存。TMDB媒体搜索、订阅查询和下载确认共用结果缓存。站点最多1天，TMDB最多30天。历史保存在PostgreSQL，修改缓存时间不会删除历史。配置变更使旧缓存不再复用。
         </p>
       </fieldset>
-      <fieldset>
+      <fieldset v-show="section === 'automation'">
         <legend>订阅调度</legend>
         <div class="connection-form">
           <label for="subscription-cron">订阅 Cron 表达式</label
