@@ -1,19 +1,34 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { APIError, post, request } from '../api/client'
 import { memberLogin, type MediaUser, type MediaLibrary, type MediaItem } from '../api/mediaServer'
 const user=ref<MediaUser>(), libraries=ref<MediaLibrary[]>([]), items=ref<MediaItem[]>([]), selected=ref(''), total=ref(0), page=ref(1), query=ref('')
 const username=ref(''), password=ref(''), current=ref(''), next=ref(''), confirm=ref(''), changing=ref(false), busy=ref(true), error=ref(''), notice=ref(''), broken=ref(new Set<string>())
 const passwordPage=computed(()=>user.value?.mustChangePassword||changing.value)
-function expire(e:unknown){if(e instanceof APIError&&e.status===401){user.value=undefined;items.value=[];libraries.value=[]}error.value=e instanceof Error?e.message:'请求失败'}
-async function loadItems(){if(!selected.value){items.value=[];total.value=0;return}busy.value=true;error.value='';try{const p=await request<{items:MediaItem[];total:number}>(`/member/libraries/${selected.value}/items?${new URLSearchParams({page:String(page.value),pageSize:'24',q:query.value})}`);items.value=p.items;total.value=p.total}catch(e){items.value=[];expire(e)}finally{busy.value=false}}
-async function loadLibraries(){libraries.value=await request('/member/libraries');selected.value=libraries.value.find(l=>l.id===selected.value)?.id||libraries.value[0]?.id||'';await loadItems()}
-async function initialize(){try{user.value=(await request<{user:MediaUser}>('/member/auth/session')).user;if(!user.value.mustChangePassword)await loadLibraries()}catch(e){if(!(e instanceof APIError&&e.status===401))expire(e)}finally{busy.value=false}}
-async function login(){busy.value=true;error.value='';notice.value='';try{user.value=(await memberLogin(username.value,password.value)).user;password.value='';if(!user.value.mustChangePassword)await loadLibraries()}catch(e){expire(e)}finally{busy.value=false}}
-async function logout(){busy.value=true;error.value='';try{await post('/member/auth/logout',{});user.value=undefined;items.value=[];libraries.value=[];changing.value=false;current.value='';next.value='';confirm.value=''}catch(e){expire(e)}finally{busy.value=false}}
-async function change(){busy.value=true;error.value='';try{await post('/member/auth/password',{currentPassword:current.value,newPassword:next.value,confirmPassword:confirm.value});user.value=undefined;items.value=[];libraries.value=[];current.value='';next.value='';confirm.value='';changing.value=false;notice.value='密码已更新，请使用新密码重新登录'}catch(e){expire(e)}finally{busy.value=false}}
+let sessionGeneration=0, itemsGeneration=0, librariesGeneration=0
+function invalidateRequests(){++sessionGeneration;++itemsGeneration;++librariesGeneration;items.value=[];libraries.value=[];selected.value='';total.value=0;page.value=1;broken.value=new Set();return sessionGeneration}
+function expire(e:unknown){if(e instanceof APIError&&e.status===401){invalidateRequests();user.value=undefined;busy.value=false}error.value=e instanceof Error?e.message:'请求失败'}
+async function loadItems(){
+ const session=sessionGeneration,generation=++itemsGeneration
+ if(!selected.value){items.value=[];total.value=0;busy.value=false;return}
+ busy.value=true;error.value=''
+ try{const p=await request<{items:MediaItem[];total:number}>(`/member/libraries/${selected.value}/items?${new URLSearchParams({page:String(page.value),pageSize:'24',q:query.value})}`);if(session!==sessionGeneration||generation!==itemsGeneration)return;items.value=p.items;total.value=p.total}
+ catch(e){if(session!==sessionGeneration||generation!==itemsGeneration)return;items.value=[];total.value=0;expire(e)}
+ finally{if(session===sessionGeneration&&generation===itemsGeneration)busy.value=false}
+}
+async function loadLibraries(){
+ const session=sessionGeneration,generation=++librariesGeneration
+ const result=await request<MediaLibrary[]>('/member/libraries')
+ if(session!==sessionGeneration||generation!==librariesGeneration)return
+ libraries.value=result;selected.value=result.find(l=>l.id===selected.value)?.id||result[0]?.id||'';await loadItems()
+}
+async function initialize(){const session=invalidateRequests();try{const result=await request<{user:MediaUser}>('/member/auth/session');if(session!==sessionGeneration)return;user.value=result.user;if(!user.value.mustChangePassword)await loadLibraries()}catch(e){if(session===sessionGeneration&&!(e instanceof APIError&&e.status===401))expire(e)}finally{if(session===sessionGeneration)busy.value=false}}
+async function login(){const session=invalidateRequests();user.value=undefined;busy.value=true;error.value='';notice.value='';try{const result=await memberLogin(username.value,password.value);if(session!==sessionGeneration)return;user.value=result.user;password.value='';if(!user.value.mustChangePassword)await loadLibraries()}catch(e){if(session===sessionGeneration)expire(e)}finally{if(session===sessionGeneration)busy.value=false}}
+async function logout(){const session=invalidateRequests();busy.value=true;error.value='';try{await post('/member/auth/logout',{});if(session!==sessionGeneration)return;user.value=undefined;changing.value=false;current.value='';next.value='';confirm.value=''}catch(e){if(session===sessionGeneration)expire(e)}finally{if(session===sessionGeneration)busy.value=false}}
+async function change(){const session=invalidateRequests();busy.value=true;error.value='';try{await post('/member/auth/password',{currentPassword:current.value,newPassword:next.value,confirmPassword:confirm.value});if(session!==sessionGeneration)return;user.value=undefined;current.value='';next.value='';confirm.value='';changing.value=false;notice.value='密码已更新，请使用新密码重新登录'}catch(e){if(session===sessionGeneration)expire(e)}finally{if(session===sessionGeneration)busy.value=false}}
 function search(){page.value=1;void loadItems()}
 onMounted(initialize)
+onUnmounted(invalidateRequests)
 </script>
 <template>
  <main class="member-shell"><header class="member-header"><div><span class="page-kicker">MEDIA TOOL / 内置媒体库</span><h1>{{!user?'媒体用户登录':passwordPage?'修改媒体密码':'我的媒体库'}}</h1></div><div v-if="user" class="member-actions"><span>{{user.displayName}}</span><el-button v-if="!passwordPage" @click="changing=true;error=''">修改密码</el-button><el-button :loading="busy" @click="logout">退出</el-button></div></header>

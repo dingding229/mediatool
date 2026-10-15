@@ -110,6 +110,7 @@ const form = reactive({
   revision: 0,
 });
 let timer: ReturnType<typeof setInterval> | undefined;
+let disposed = false;
 const actions: Record<string, string> = {
   skipped: "未匹配 / 已覆盖",
   needs_confirmation: "需人工确认",
@@ -337,6 +338,7 @@ async function poll() {
 }
 onMounted(async () => {
   await refresh();
+  if (disposed) return;
   if (
     route.query.create === "1" &&
     (route.query.mediaType === "movie" || route.query.mediaType === "series") &&
@@ -346,6 +348,7 @@ onMounted(async () => {
       const out = await request<{ item: Media }>(
         `/metadata/details?mediaType=${route.query.mediaType}&tmdbId=${route.query.tmdbId}`,
       );
+      if (disposed) return;
       create();
       form.mediaType = out.item.mediaType;
       form.tmdbId = out.item.id;
@@ -358,9 +361,10 @@ onMounted(async () => {
     }
   }
 
-  timer = setInterval(poll, 3000);
+  if (!disposed) timer = setInterval(poll, 3000);
 });
 onUnmounted(() => {
+  disposed = true;
   if (timer) clearInterval(timer);
 });
 </script>

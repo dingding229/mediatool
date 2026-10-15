@@ -3,6 +3,9 @@ import { mkdirSync,readFileSync,writeFileSync,existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { navigationItems } from '../src/navigation/items'
 const root=resolve(import.meta.dirname,'../..')
+const schemaMatch=readFileSync(resolve(root,'internal/platform/buildinfo/buildinfo.go'),'utf8').match(/^const Schema int64 = (\d+)$/m)
+if(!schemaMatch)throw new Error('Build schema declaration is missing')
+const expectedSchema=Number(schemaMatch[1])
 if(process.env.E2E_ISOLATED!=='1'||process.env.E2E_BASE_URL!=='http://localhost:18084')throw new Error('Use bash scripts/test-e2e.sh; account tests must not register an administrator in the business database.')
 const username=process.env.E2E_ADMIN_USERNAME!,password=process.env.E2E_ADMIN_PASSWORD!
 if(!username||!password)throw new Error('Isolated account credentials required')
@@ -1238,7 +1241,7 @@ test('STRM directory has posters and no NFO collection while tools persist repai
  for(const width of [375,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`workbench-strm-directory-${width}.png`),fullPage:true})}
  let approved=false
  const batch=()=>({id:repair,digest:'d'.repeat(64),state:approved?'succeeded':'preview',expiresAt:'2099-01-01T00:00:00Z',items:[{ordinal:0,assetId:asset,path:'Movies/film.strm',digest:'e'.repeat(64),state:approved?'repaired':'missing',message:'只恢复原文'}]})
- await page.route('**/api/v1/strm/repairs/preview',r=>{expect(r.request().postDataJSON()).toEqual({assets:[asset]});return r.fulfill({json:{data:batch()}})})
+ await page.route('**/api/v1/strm/repairs/preview',r=>{expect(r.request().postDataJSON()).toEqual({assetIds:[asset]});return r.fulfill({json:{data:batch()}})})
  await page.route(`**/api/v1/strm/repairs/${repair}`,r=>r.fulfill({json:{data:batch()}}))
  await page.route(`**/api/v1/strm/repairs/${repair}/approve`,r=>{expect(r.request().postDataJSON()).toEqual({digest:'d'.repeat(64),confirm:true});approved=true;return r.fulfill({json:{data:batch()}})})
  await page.goto('/strm-tools');await expect(page.getByRole('heading',{name:'STRM工具',exact:true})).toBeVisible();await page.getByRole('button',{name:'全局检查并预览修复',exact:true}).click();const selector=page.locator('.repair-selector');await expect(selector).toBeVisible();await selector.getByRole('checkbox').check();await selector.getByRole('button',{name:'检查已选 1 个资产',exact:true}).click();await expect(page).toHaveURL(/repairId=/);expect(approved).toBe(false)
@@ -1378,7 +1381,7 @@ test('classification checkbox editor preserves original countries and genre IDs 
 
 test('system operations has real bounded health, paginated tasks and details (isolated)',async({page})=>{
  await fixtureLogin(page);await page.goto('/jobs');await expect(page.getByRole('heading',{name:'系统运维与后台任务',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Cron 调度',exact:true})).toBeVisible();await expect(page.getByText('连接正常',{exact:true})).toHaveCount(2)
- const health=await page.request.get('/api/v1/system/operations');expect(health.status()).toBe(200);expect(health.headers()['cache-control']).toBe('no-store');const snapshot=(await health.json()).data;expect(snapshot.migration).toBe(51);expect(snapshot.unavailable).toEqual([]);expect(snapshot.workers.some((w:any)=>w.online)).toBe(true);expect(snapshot.schedules.some((s:any)=>s.id==='core'&&s.cron==='*/15 * * * * *')).toBe(true)
+ const health=await page.request.get('/api/v1/system/operations');expect(health.status()).toBe(200);expect(health.headers()['cache-control']).toBe('no-store');const snapshot=(await health.json()).data;expect(snapshot.migration).toBe(expectedSchema);expect(snapshot.unavailable).toEqual([]);expect(snapshot.workers.some((w:any)=>w.online)).toBe(true);expect(snapshot.schedules.some((s:any)=>s.id==='core'&&s.cron==='*/15 * * * * *')).toBe(true)
  const response=await page.request.post('/api/v1/jobs',{headers:{'X-Requested-With':'media-tool'},data:{kind:'system.check'}});expect(response.status()).toBe(201);const job=(await response.json()).data;await page.getByLabel('任务关键词').fill(job.id);await page.getByRole('button',{name:'筛选任务',exact:true}).click();await expect(page.getByRole('button',{name:`查看任务 ${job.id}`,exact:true})).toBeVisible();await page.getByRole('button',{name:`查看任务 ${job.id}`,exact:true}).click();const dialog=page.getByRole('dialog',{name:'后台任务详情',exact:true});await expect(dialog).toContainText(job.id);await expect(dialog).toContainText('不提供通用强制重放');await dialog.getByRole('button',{name:'关闭此对话框'}).click();await expect(dialog).not.toBeVisible()
  expect((await page.request.get('/api/v1/jobs/browse?page=0')).status()).toBe(400);expect((await page.request.get('/api/v1/jobs/not-a-uuid')).status()).toBe(400);const empty=await page.request.get(`/api/v1/jobs/browse?page=2&pageSize=25&q=${job.id}`);expect((await empty.json()).data).toEqual({items:[],total:1})
  for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`system-operations-${width}.png`),fullPage:true,animations:'disabled'})}

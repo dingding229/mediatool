@@ -209,6 +209,7 @@ const filteredList = computed(() =>
       props.allowedKinds.includes(item.kind) && item.kind === activeKind.value,
   ),
 );
+const originalEndpoint = ref<string | boolean>();
 const secretVisible = ref<Record<string, boolean>>({});
 const secretLoading = ref(false),
   savedSecretFields = ref<string[]>([]),
@@ -275,6 +276,7 @@ function changeKind() {
   if (form.kind === "qbittorrent") form.settings.category = "media-tool";
 }
 function edit(item: Connection) {
+  originalEndpoint.value = item.settings.endpoint;
   error.value = "";
   headersError.value = "";
   savedSecretFields.value = [...item.secretFields];
@@ -335,6 +337,22 @@ async function save(startAuth = false) {
   saving.value = true;
   try {
     const secrets = changedSecrets(form.secrets, revealedSecrets.value);
+    if (form.id && originalEndpoint.value !== form.settings.endpoint) {
+      if (secretLoading.value || savedSecretFields.value.some((key) => !form.secrets[key] && !revealedSecrets.value[key])) {
+        throw new Error("更换地址前请先完整读取或重新填写已保存的凭据");
+      }
+      const retained = savedSecretFields.value.filter((key) => !(key in secrets));
+      if (retained.length) {
+        await ElMessageBox.confirm(
+          "连接地址已更改。确认沿用原凭据并将其发送到新地址？请先核对新地址可信。",
+          "更换连接地址并沿用凭据",
+          { type: "warning", confirmButtonText: "确认沿用并保存", cancelButtonText: "取消" },
+        );
+      }
+      for (const key of savedSecretFields.value) {
+        secrets[key] = form.secrets[key] || revealedSecrets.value[key]!;
+      }
+    }
     const input = {
       kind: form.kind,
       name: form.name,
@@ -358,7 +376,7 @@ async function save(startAuth = false) {
     await refresh();
     if (startAuth && record.kind === "open115") authorize115(record);
   } catch (e) {
-    error.value = e instanceof Error ? e.message : "保存失败";
+    if (e !== "cancel" && e !== "close") error.value = e instanceof Error ? e.message : "保存失败";
   } finally {
     saving.value = false;
   }

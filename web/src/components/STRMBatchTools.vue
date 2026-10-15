@@ -130,7 +130,7 @@ async function check() {
   error.value = "";
   try {
     batch.value = await post("/strm/repairs/preview", {
-      assets: selected.value.slice(0, 100),
+      assetIds: selected.value.slice(0, 100),
     });
     await router.replace({
       query: { ...route.query, repairId: batch.value!.id },
