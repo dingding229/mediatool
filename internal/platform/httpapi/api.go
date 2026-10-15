@@ -347,6 +347,9 @@ func (a *API) middleware(next http.Handler) http.Handler {
 			if event.HTTPStatus != 0 {
 				fields = append(fields, "providerHTTPStatus", event.HTTPStatus)
 			}
+			if trace := event.HTTPTrace; trace != nil {
+				fields = append(fields, "dnsMs", trace.DNSMillis, "tcpMs", trace.TCPMillis, "tlsMs", trace.TLSMillis, "firstByteMs", trace.FirstByteMillis, "httpTotalMs", trace.TotalMillis, "httpAttempt", trace.Attempt, "connectionReused", trace.ConnectionReused, "httpResponseReceived", trace.ResponseReceived)
+			}
 			a.Deps.Logger.Info("Playback resolution stage", fields...)
 		}))
 		w.Header().Set("X-Content-Type-Options", "nosniff")

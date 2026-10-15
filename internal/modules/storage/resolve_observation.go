@@ -44,12 +44,26 @@ func (s ResolveStage) valid() bool {
 }
 
 // Contains fixed enums/numbers only: never errors, URLs, paths, tokens, UA or IP.
+// A value of -1 means the phase was not observed (e.g. a pooled connection).
+// This is deliberately numeric/boolean only: never include headers or URLs.
+type HTTPTraceTimings struct {
+	Attempt          int   `json:"attempt"`
+	DNSMillis        int64 `json:"dnsMs"`
+	TCPMillis        int64 `json:"tcpMs"`
+	TLSMillis        int64 `json:"tlsMs"`
+	FirstByteMillis  int64 `json:"firstByteMs"`
+	TotalMillis      int64 `json:"httpTotalMs"`
+	ConnectionReused bool  `json:"connectionReused"`
+	ResponseReceived bool  `json:"responseReceived"`
+}
+
 type ResolveObservation struct {
 	Stage          ResolveStage
 	Outcome        string
 	DurationMillis int64
 	ProviderCode   int64
 	HTTPStatus     int
+	HTTPTrace      *HTTPTraceTimings `json:"httpTrace,omitempty"`
 }
 type ResolveObserver func(ResolveObservation)
 type resolveObserverKey struct{}
@@ -97,12 +111,16 @@ func ResolveFailure(err error) (kind string, code int64, status int) {
 	return "failed", 0, 0
 }
 func ObserveResolve(ctx context.Context, stage ResolveStage, started time.Time, err error) {
+	ObserveResolveHTTP(ctx, stage, started, err, nil)
+}
+
+func ObserveResolveHTTP(ctx context.Context, stage ResolveStage, started time.Time, err error, timing *HTTPTraceTimings) {
 	observer, _ := ctx.Value(resolveObserverKey{}).(ResolveObserver)
 	if observer == nil || !stage.valid() {
 		return
 	}
 	kind, code, status := ResolveFailure(err)
-	observer(ResolveObservation{stage, kind, max(0, time.Since(started).Milliseconds()), code, status})
+	observer(ResolveObservation{Stage: stage, Outcome: kind, DurationMillis: max(0, time.Since(started).Milliseconds()), ProviderCode: code, HTTPStatus: status, HTTPTrace: timing})
 }
 
 // SQL adapters may sanitize messages, but must not turn a cancelled context into

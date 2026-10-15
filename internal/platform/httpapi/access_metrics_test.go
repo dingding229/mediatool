@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"media-tool/internal/adapters/open115"
 	"media-tool/internal/modules/playback"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/platform/requestbudget"
@@ -216,5 +217,85 @@ func TestFixedSTRMDeadlineCanExceedManagementWriteTimeoutButRemainsBounded(t *te
 	// Assert finite bounds separately; no removal of deadline for this endpoint.
 	if requestbudget.FixedSTRMWrite(c.PlaybackResolveTimeout) > 18*time.Second {
 		t.Fatal("unbounded deadline")
+	}
+}
+
+type traceFixtureTransport func(*http.Request) (*http.Response, error)
+
+func (f traceFixtureTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestOfficialHTTPStageTimingFieldsReachAdministratorLogsWithoutSecrets(t *testing.T) {
+	provider := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Set-Cookie", "PRIVATE-PROVIDER-COOKIE")
+		switch r.URL.Path {
+		case "/open/folder/get_info":
+			io.WriteString(w, `{"state":true,"data":{"file_id":"1","file_name":"PRIVATE-Film.mkv","size_byte":16,"pick_code":"abcdefgh12345678","file_category":"1"}}`)
+		case "/open/ufile/downurl":
+			io.WriteString(w, `{"state":true,"data":{"1":{"file_name":"PRIVATE-Film.mkv","file_size":16,"pick_code":"abcdefgh12345678","url":{"url":"https://cdn.example.test/movie?PRIVATE-SIGNATURE"}}}}`)
+		case "/open/refreshToken":
+			io.WriteString(w, `{"state":true,"data":{"access_token":"PRIVATE-NEW-ACCESS","refresh_token":"PRIVATE-NEW-REFRESH","expires_in":7200}}`)
+		default:
+			t.Error("unexpected official request path")
+			w.WriteHeader(500)
+		}
+	}))
+	defer provider.Close()
+	upstream, _ := url.Parse(provider.URL)
+	transport := provider.Client().Transport.(*http.Transport).Clone()
+	defer transport.CloseIdleConnections()
+	client := open115.Client{HTTP: &http.Client{Timeout: time.Second, Transport: traceFixtureTransport(func(r *http.Request) (*http.Response, error) {
+		clone := r.Clone(r.Context())
+		u := *r.URL
+		clone.URL = &u
+		clone.URL.Scheme, clone.URL.Host = upstream.Scheme, upstream.Host
+		return transport.RoundTrip(clone)
+	})}}
+	var logs bytes.Buffer
+	api := &API{Config: cfg(), Deps: Dependencies{Logger: slog.New(slog.NewJSONHandler(&logs, nil))}}
+	h := api.middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		if _, err := client.FileByPath(ctx, "PRIVATE-ACCESS-TOKEN", "/PRIVATE-Film.mkv"); err != nil {
+			t.Error(err)
+		}
+		if _, err := client.Download(ctx, "PRIVATE-ACCESS-TOKEN", "abcdefgh12345678", "OwnedPlayer"); err != nil {
+			t.Error(err)
+		}
+		if _, err := client.Refresh(ctx, "PRIVATE-REFRESH-TOKEN"); err != nil {
+			t.Error(err)
+		}
+		w.WriteHeader(204)
+	}))
+	r := httptest.NewRequest("GET", "/diagnostic", nil)
+	r.Header.Set("Authorization", "PRIVATE-CALLER-AUTH")
+	r.AddCookie(&http.Cookie{Name: "fixture", Value: "PRIVATE-CALLER-COOKIE"})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != 204 || strings.Contains(logs.String(), "PRIVATE") {
+		t.Fatal("HTTP trace leaked credentials/path/signature/cookies", logs.String())
+	}
+	seen := map[string]bool{}
+	for _, line := range strings.Split(strings.TrimSpace(logs.String()), "\n") {
+		var record map[string]any
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			t.Fatal(err)
+		}
+		if record["msg"] != "Playback resolution stage" {
+			continue
+		}
+		seen[record["stage"].(string)] = true
+		for _, key := range []string{"dnsMs", "tcpMs", "tlsMs", "firstByteMs", "httpTotalMs", "httpAttempt"} {
+			if _, ok := record[key].(float64); !ok {
+				t.Fatal("missing numeric admin log timing", key, record)
+			}
+		}
+		if record["httpAttempt"] != float64(1) || record["httpResponseReceived"] != true || record["requestId"] != w.Header().Get("X-Request-ID") {
+			t.Fatal(record)
+		}
+	}
+	for _, stage := range []string{"official_http_path", "official_http_download", "official_http_refresh"} {
+		if !seen[stage] {
+			t.Fatal("missing official stage", stage)
+		}
 	}
 }

@@ -175,3 +175,90 @@ func TestOfficialNetworkFailuresKeepTimeoutIdentityWithoutSecretURL(t *testing.T
 		})
 	}
 }
+
+func TestOfficialPathRetriesOneNoResponseWithinPlaybackBudget(t *testing.T) {
+	var calls atomic.Int32
+	var events []storage.ResolveObservation
+	ctx, cancel := context.WithTimeout(storage.WithResolveObserver(context.Background(), func(e storage.ResolveObservation) { events = append(events, e) }), 2*time.Second)
+	defer cancel()
+	client := Client{HTTP: &http.Client{Timeout: 50 * time.Millisecond, Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
+		if calls.Add(1) == 1 {
+			return nil, &url.Error{Op: "POST", URL: "https://private.invalid/path?token=secret", Err: context.DeadlineExceeded}
+		}
+		return reply(r, `{"state":true,"code":0,"data":{"file_id":"1","file_name":"Film.mkv","size_byte":3,"pick_code":"abcdefgh12345678","file_category":"1"}}`), nil
+	})}}
+	info, err := client.FileByPath(ctx, "private-token", "/Film.mkv")
+	if err != nil || info.PickCode != "abcdefgh12345678" || calls.Load() != 2 {
+		t.Fatalf("path retry failed: info=%+v err=%v calls=%d", info, err, calls.Load())
+	}
+	pathEvents := make([]storage.ResolveObservation, 0, 2)
+	for _, event := range events {
+		if event.Stage == storage.StageOfficialHTTPPath {
+			pathEvents = append(pathEvents, event)
+		}
+	}
+	if len(pathEvents) != 2 || pathEvents[0].HTTPTrace == nil || pathEvents[0].HTTPTrace.Attempt != 1 || pathEvents[1].HTTPTrace.Attempt != 2 {
+		t.Fatalf("missing safe attempt telemetry: %+v", pathEvents)
+	}
+	raw, _ := json.Marshal(pathEvents)
+	if strings.Contains(string(raw), "private-token") || strings.Contains(string(raw), "secret") || strings.Contains(string(raw), "Film.mkv") {
+		t.Fatal("request secret/path leaked into resolve telemetry", string(raw))
+	}
+}
+
+func TestOfficialPathRetriesOnlyTransportTimeouts(t *testing.T) {
+	tests := []struct {
+		name       string
+		status     int
+		body       string
+		wantCalls  int32
+		wantReason string
+	}{
+		{name: "two timeouts", wantCalls: 2, wantReason: "timeout"},
+		{name: "rate limited response", status: http.StatusTooManyRequests, body: `{"state":false,"code":40140117}`, wantCalls: 1, wantReason: "rate_limited"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var calls atomic.Int32
+			var events []storage.ResolveObservation
+			ctx, cancel := context.WithTimeout(storage.WithResolveObserver(context.Background(), func(e storage.ResolveObservation) { events = append(events, e) }), 2*time.Second)
+			defer cancel()
+			client := Client{HTTP: &http.Client{Timeout: 50 * time.Millisecond, Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
+				calls.Add(1)
+				if test.status != 0 {
+					response := reply(r, test.body)
+					response.StatusCode = test.status
+					return response, nil
+				}
+				return nil, &url.Error{Op: "POST", URL: "https://private.invalid/path", Err: context.DeadlineExceeded}
+			})}}
+			_, err := client.FileByPath(ctx, "private-token", "/Film.mkv")
+			if calls.Load() != test.wantCalls {
+				t.Fatalf("unexpected retry count: got=%d want=%d err=%v", calls.Load(), test.wantCalls, err)
+			}
+			var pathEvent storage.ResolveObservation
+			for _, event := range events {
+				if event.Stage == storage.StageOfficialHTTPPath {
+					pathEvent = event
+				}
+			}
+			if pathEvent.Outcome != test.wantReason {
+				t.Fatalf("unexpected safe failure classification: %+v", pathEvent)
+			}
+		})
+	}
+}
+
+func TestOfficialPathDoesNotRetryWhenBudgetCannotFitRequest(t *testing.T) {
+	var calls atomic.Int32
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	client := Client{HTTP: &http.Client{Timeout: 100 * time.Millisecond, Transport: transportFunc(func(*http.Request) (*http.Response, error) {
+		calls.Add(1)
+		return nil, &url.Error{Op: "POST", URL: "https://private.invalid/path", Err: context.DeadlineExceeded}
+	})}}
+	_, err := client.FileByPath(ctx, "private-token", "/Film.mkv")
+	if calls.Load() != 1 || !errors.Is(err, storage.ErrRequestTimeout) && !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("budget guard failed: calls=%d err=%v", calls.Load(), err)
+	}
+}

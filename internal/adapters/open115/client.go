@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"media-tool/internal/modules/storage"
+	"media-tool/internal/platform/requestbudget"
 )
 
 const APIOrigin = "https://proapi.115.com"
@@ -149,8 +150,12 @@ func (c Client) client() *http.Client {
 	}
 	return &h
 }
-func (c Client) call(ctx context.Context, method, endpoint, token, agent string, body io.Reader, typ string, out any) (callErr error) {
+func (c Client) call(ctx context.Context, method, endpoint, token, agent string, body io.Reader, typ string, out any) error {
+	return c.callAttempt(ctx, method, endpoint, token, agent, body, typ, out, 1)
+}
+func (c Client) callAttempt(ctx context.Context, method, endpoint, token, agent string, body io.Reader, typ string, out any, attempt int) (callErr error) {
 	started := time.Now()
+	trace := newHTTPTrace(started, attempt)
 	var stage storage.ResolveStage
 	switch endpoint {
 	case APIOrigin + "/open/folder/get_info":
@@ -160,8 +165,8 @@ func (c Client) call(ctx context.Context, method, endpoint, token, agent string,
 	case AuthOrigin + "/open/refreshToken":
 		stage = storage.StageOfficialHTTPRefresh
 	}
-	defer func() { storage.ObserveResolve(ctx, stage, started, callErr) }()
-	req, err := http.NewRequestWithContext(ctx, method, endpoint, body)
+	defer func() { storage.ObserveResolveHTTP(ctx, stage, started, callErr, trace.snapshot()) }()
+	req, err := http.NewRequestWithContext(trace.traceContext(ctx), method, endpoint, body)
 	if err != nil {
 		return storage.ErrInvalidResponse
 	}
@@ -182,10 +187,26 @@ func (c Client) call(ctx context.Context, method, endpoint, token, agent string,
 		req.Header.Set("Content-Type", typ)
 	}
 	res, err := c.client().Do(req)
-	if err != nil {
-		return networkFailure(ctx, err)
+	if res != nil {
+		trace.update(func() { trace.timing.ResponseReceived = true })
 	}
-	defer res.Body.Close()
+	if err != nil {
+		if res != nil && res.Body != nil {
+			if closeErr := res.Body.Close(); closeErr != nil {
+				// Preserve the transport error; the response was unusable already.
+			}
+		}
+		failure := networkFailure(ctx, err)
+		if !trace.receivedResponse() && ctx.Err() == nil {
+			return &noHTTPResponseError{cause: failure}
+		}
+		return failure
+	}
+	defer func() {
+		if closeErr := res.Body.Close(); closeErr != nil {
+			// The response body was already consumed/failed; closing cannot change the sanitized result.
+		}
+	}()
 	raw, err := io.ReadAll(io.LimitReader(res.Body, (1<<20)+1))
 	if err != nil {
 		if ctx.Err() != nil {
@@ -230,6 +251,9 @@ func networkFailure(ctx context.Context, err error) error {
 	var timed net.Error
 	if errors.Is(err, context.DeadlineExceeded) || errors.As(err, &timed) && timed.Timeout() {
 		return errors.Join(storage.ErrUnavailable, storage.ErrRequestTimeout)
+	}
+	if connectionReset(err) {
+		return errors.Join(storage.ErrUnavailable, errTransportReset)
 	}
 	return storage.ErrUnavailable
 }
@@ -296,7 +320,11 @@ func (c Client) Poll(ctx context.Context, d Device) (Poll, error) {
 		}
 		return Poll{}, storage.ErrUnavailable
 	}
-	defer res.Body.Close()
+	defer func() {
+		if closeErr := res.Body.Close(); closeErr != nil {
+			// The response body was already consumed/failed; closing cannot change the sanitized result.
+		}
+	}()
 	var v struct {
 		State State `json:"state"`
 		Code  int64 `json:"code"`
@@ -327,13 +355,38 @@ func (c Client) FileByPath(ctx context.Context, token, fullPath string) (FileInf
 	if !strings.HasPrefix(fullPath, "/") || path.Clean(fullPath) != fullPath || strings.ContainsAny(fullPath, "\r\n\x00") {
 		return f, storage.ErrInvalidResponse
 	}
-	b, typ, err := multipartBody(map[string]string{"path": fullPath})
-	if err != nil {
-		return f, storage.ErrInvalidResponse
+	// Cap standalone callers as well as honoring the enclosing playback deadline.
+	ctx, cancel := context.WithTimeout(ctx, requestbudget.DefaultResolve)
+	defer cancel()
+	attempt := func(number int) (FileInfo, error) {
+		var current FileInfo
+		b, typ, err := multipartBody(map[string]string{"path": fullPath})
+		if err != nil {
+			return current, storage.ErrInvalidResponse
+		}
+		err = c.callAttempt(ctx, "POST", APIOrigin+"/open/folder/get_info", token, "", b, typ, &current, number)
+		if err == nil && (current.Category != "1" || current.ID == "" || !pickPattern.MatchString(current.PickCode) || current.Name != path.Base(fullPath)) {
+			return current, storage.ErrInvalidResponse
+		}
+		return current, err
 	}
-	err = c.call(ctx, "POST", APIOrigin+"/open/folder/get_info", token, "", b, typ, &f)
-	if err == nil && (f.Category != "1" || f.ID == "" || !pickPattern.MatchString(f.PickCode) || f.Name != path.Base(fullPath)) {
-		return f, storage.ErrInvalidResponse
+	f, err := attempt(1)
+	if retryableNoResponse(err) && enoughForRetry(ctx, c.client().Timeout) {
+		timer := time.NewTimer(pathRetryBackoff)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return f, ctx.Err()
+		case <-timer.C:
+		}
+		// Recheck after sleeping; scheduling/parent cancellation may consume budget.
+		if ctx.Err() != nil {
+			return f, ctx.Err()
+		}
+		deadline, ok := ctx.Deadline()
+		if ok && ctx.Err() == nil && time.Until(deadline) > c.client().Timeout {
+			f, err = attempt(2)
+		}
 	}
 	return f, err
 }
