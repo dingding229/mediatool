@@ -1238,10 +1238,10 @@ test('STRM directory has posters and no NFO collection while tools persist repai
  for(const width of [375,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`workbench-strm-directory-${width}.png`),fullPage:true})}
  let approved=false
  const batch=()=>({id:repair,digest:'d'.repeat(64),state:approved?'succeeded':'preview',expiresAt:'2099-01-01T00:00:00Z',items:[{ordinal:0,assetId:asset,path:'Movies/film.strm',digest:'e'.repeat(64),state:approved?'repaired':'missing',message:'只恢复原文'}]})
- await page.route('**/api/v1/strm/repairs/preview',r=>r.fulfill({json:{data:batch()}}))
+ await page.route('**/api/v1/strm/repairs/preview',r=>{expect(r.request().postDataJSON()).toEqual({assets:[asset]});return r.fulfill({json:{data:batch()}})})
  await page.route(`**/api/v1/strm/repairs/${repair}`,r=>r.fulfill({json:{data:batch()}}))
  await page.route(`**/api/v1/strm/repairs/${repair}/approve`,r=>{expect(r.request().postDataJSON()).toEqual({digest:'d'.repeat(64),confirm:true});approved=true;return r.fulfill({json:{data:batch()}})})
- await page.goto('/strm-tools');await expect(page.getByRole('heading',{name:'STRM工具',exact:true})).toBeVisible();await page.getByRole('button',{name:'全局检查并预览修复',exact:true}).click();await expect(page).toHaveURL(/repairId=/);expect(approved).toBe(false)
+ await page.goto('/strm-tools');await expect(page.getByRole('heading',{name:'STRM工具',exact:true})).toBeVisible();await page.getByRole('button',{name:'全局检查并预览修复',exact:true}).click();const selector=page.locator('.repair-selector');await expect(selector).toBeVisible();await selector.getByRole('checkbox').check();await selector.getByRole('button',{name:'检查已选 1 个资产',exact:true}).click();await expect(page).toHaveURL(/repairId=/);expect(approved).toBe(false)
  await page.reload();await expect(page.getByRole('button',{name:'批准批量修复',exact:true})).toBeVisible();await page.getByRole('button',{name:'批准批量修复',exact:true}).click();await page.getByRole('dialog',{name:'批准全局STRM修复',exact:true}).getByRole('button',{name:'明确批准修复',exact:true}).click();await expect(page.getByRole('heading',{name:'修复完成',exact:true})).toBeVisible();await expect(page.locator('.el-overlay:visible')).toHaveCount(0)
  await page.screenshot({path:resolve(screenshots,'workbench-strm-tools-repair.png'),fullPage:true})
 })

@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { request, post } from "../api/client";
 import { ElMessageBox } from "element-plus";
 interface Asset {
   id: string;
   title: string;
+  mediaType: string;
+  year: string;
   source: string;
-  outputs: { kind: string; path: string }[];
+  poster?: string;
+  outputs: { kind: string; path: string; owner?: string }[];
+  cloudState?: string;
+  artifactsState?: string;
 }
 interface Row {
   ordinal: number;
@@ -38,6 +43,8 @@ const route = useRoute(),
   >([]),
   assets = ref<Asset[]>([]),
   selected = ref<string[]>([]),
+  assetPickerOpen = ref(false),
+  selectionLimit = ref(100),
   batch = ref<Batch>(),
   busy = ref(false),
   error = ref(""),
@@ -67,6 +74,32 @@ async function batchPreview() {
     busy.value = false;
   }
 }
+const selectedCount = computed(() => selected.value.length);
+const visibleAssetIds = computed(() => assets.value.map((asset) => asset.id));
+const allVisibleSelected = computed(
+  () =>
+    visibleAssetIds.value.length > 0 &&
+    visibleAssetIds.value.every((id) => selected.value.includes(id)),
+);
+function toggleVisibleAssets() {
+  if (allVisibleSelected.value) {
+    selected.value = selected.value.filter(
+      (id) => !visibleAssetIds.value.includes(id),
+    );
+    return;
+  }
+  const next = [...selected.value];
+  for (const id of visibleAssetIds.value) {
+    if (next.length >= selectionLimit.value) break;
+    if (!next.includes(id)) next.push(id);
+  }
+  selected.value = next;
+}
+function onSelectionLimitChange(value: number | undefined) {
+  const limit = Math.min(100, Math.max(1, Number(value) || 1));
+  selectionLimit.value = limit;
+  if (selected.value.length > limit) selected.value = selected.value.slice(0, limit);
+}
 async function loadAssets() {
   busy.value = true;
   error.value = "";
@@ -83,11 +116,22 @@ async function loadAssets() {
     busy.value = false;
   }
 }
+async function chooseRepairAssets() {
+  assetPickerOpen.value = true;
+  if (!assets.value.length) await loadAssets();
+}
 async function check() {
+  if (selected.value.length < 1 || selected.value.length > 100) {
+    error.value = "请先选择1–100个托管资产";
+    assetPickerOpen.value = true;
+    return;
+  }
   busy.value = true;
   error.value = "";
   try {
-    batch.value = await post("/strm/repairs/preview", {});
+    batch.value = await post("/strm/repairs/preview", {
+      assets: selected.value.slice(0, 100),
+    });
     await router.replace({
       query: { ...route.query, repairId: batch.value!.id },
     });
@@ -215,11 +259,82 @@ onMounted(() => {
       <el-button :loading="busy" @click="refreshBatch">刷新修复批次</el-button>
     </div>
     <p class="field-hint">
-      全局检查全部托管STRM，不选择条目、不受当前页筛选影响。只恢复可信原文，手工改动和归属冲突会跳过。
+      从托管资产中选择本批需要检查的项目，每批必须选择1–100个资产。只恢复可信原文，手工改动和归属冲突会跳过。
     </p>
-    <el-button :disabled="busy" :loading="busy" @click="check"
-      >全局检查并预览修复</el-button
+    <el-button
+      v-if="!assetPickerOpen && !batch"
+      :disabled="busy"
+      :loading="busy"
+      @click="chooseRepairAssets"
+      >全局检查并预览修复</el-button>
     >
+    <section v-if="assetPickerOpen && !batch" class="repair-selector">
+      <div class="repair-selector-toolbar">
+        <div>
+          <h3>选择本批托管资产</h3>
+          <p class="field-hint">
+            已选择 {{ selectedCount }} / {{ selectionLimit }}；本批最多100个，至少选择1个。
+          </p>
+        </div>
+        <div class="repair-selector-actions">
+          <el-input
+            v-model="q"
+            aria-label="筛选托管资产"
+            placeholder="搜索标题或路径"
+            clearable
+            @keyup.enter="loadAssets"
+          />
+          <el-input-number
+            v-model="selectionLimit"
+            aria-label="本批选择上限"
+            :min="1"
+            :max="100"
+            controls-position="right"
+            @change="onSelectionLimitChange"
+          />
+          <el-button @click="loadAssets" :loading="busy">刷新资产</el-button>
+        </div>
+      </div>
+      <div class="repair-selector-summary">
+        <span>当前加载 {{ assets.length }} 个托管资产</span>
+        <div>
+          <el-button link @click="toggleVisibleAssets">
+            {{ allVisibleSelected ? "取消全选当前列表" : "全选当前列表" }}
+          </el-button>
+          <el-button link @click="selected = []" :disabled="!selected.length">
+            清空选择
+          </el-button>
+        </div>
+      </div>
+      <div v-if="assets.length" class="repair-assets">
+        <label v-for="asset in assets" :key="asset.id" class="repair-asset">
+          <input
+            v-model="selected"
+            type="checkbox"
+            :value="asset.id"
+            :disabled="!selected.includes(asset.id) && selected.length >= selectionLimit"
+          />
+          <img v-if="asset.poster" :src="asset.poster" :alt="`${asset.title || '未命名媒体'}海报`" loading="lazy" />
+          <span class="repair-asset-copy">
+            <strong>{{ asset.title || "未命名媒体" }}</strong>
+            <small>{{ asset.year || "年份未知" }} · {{ asset.mediaType === "series" ? "剧集" : "电影" }}</small>
+            <code>{{ asset.source }}</code>
+            <small>{{ asset.outputs?.length || 0 }} 个托管输出</small>
+          </span>
+        </label>
+      </div>
+      <el-empty v-else description="暂无托管资产，请先完成文件与入库" :image-size="72" />
+      <div class="repair-selector-footer">
+        <el-button @click="assetPickerOpen = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="busy"
+          :disabled="selectedCount < 1 || selectedCount > 100"
+          @click="check"
+          >检查已选 {{ selectedCount }} 个资产</el-button
+        >
+      </div>
+    </section>
     <section v-if="batch" class="repair-batch">
       <div class="panel-title">
         <div>
@@ -288,25 +403,104 @@ onMounted(() => {
   padding-top: 20px;
   overflow-wrap: anywhere;
 }
-.repair-filter {
+
+.repair-selector {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--el-fill-color-lighter);
+}
+.repair-selector-toolbar,
+.repair-selector-summary,
+.repair-selector-footer {
   display: flex;
-  gap: 12px;
-  margin: 16px 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.repair-selector-toolbar h3 {
+  margin: 0 0 6px;
+}
+.repair-selector-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.repair-selector-actions .el-input {
+  width: 220px;
+}
+.repair-selector-actions .el-input-number {
+  width: 150px;
+}
+.repair-selector-summary {
+  margin: 16px 0 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
 }
 .repair-assets {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
+  max-height: 520px;
+  overflow: auto;
 }
-.repair-assets :deep(.el-checkbox) {
-  margin: 0;
-  min-height: 44px;
-  height: auto;
-  white-space: normal;
+.repair-asset {
+  display: grid;
+  grid-template-columns: 18px 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  cursor: pointer;
 }
-.repair-assets :deep(.el-checkbox__label) {
-  white-space: normal;
+.repair-asset:has(input:checked) {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+.repair-asset input {
+  width: 16px;
+  height: 16px;
+  margin-top: 14px;
+  accent-color: var(--el-color-primary);
+}
+.repair-asset img,
+.repair-asset::before {
+  width: 48px;
+  height: 68px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--el-fill-color-light);
+}
+.repair-asset-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.repair-asset-copy strong,
+.repair-asset-copy code {
   overflow-wrap: anywhere;
+}
+.repair-asset-copy small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.repair-selector-footer {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.repair-filter {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
 }
 .repair-batch {
   margin-top: 24px;
