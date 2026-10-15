@@ -29,7 +29,8 @@ describe("searchable classification choices", () => {
     expect(languageLabel("bad_bad")).toBe("已保存语言 bad_bad");
     expect(languages.find((language) => language.value === "zh")?.label).toContain("汉语");
     expect(new Set(languages.map((language) => language.value)).size).toBe(languages.length);
-    expect(languages.every((language) => /[\u3400-\u9fff]/.test(language.label))).toBe(true);
+    expect(languages.every((language) => /[\u3400-\u9fff]/.test(language.label) && !language.label.startsWith("已保存语言"))).toBe(true);
+    expect(languageLabel("aa")).toBe("阿法尔语");
     expect(languageChoices(["xyz", "xyz"]).filter((language) => language.value === "xyz")).toEqual([
       { value: "xyz", label: "已保存语言 xyz" },
     ]);
