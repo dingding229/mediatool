@@ -70,6 +70,13 @@ const selectedCountryOptions = computed(() =>
     form.value.countries.includes(c.value),
   ),
 );
+const countryLabels = Object.fromEntries(
+  countryChoices([]).map((c) => [c.value, c.label]),
+);
+const ruleCount = computed(
+  () =>
+    record.value?.value.groups.reduce((sum, g) => sum + g.rules.length, 0) ?? 0,
+);
 async function load() {
   busy.value = true;
   error.value = "";
@@ -213,93 +220,198 @@ onMounted(load);
   <p class="field-hint">
     模板路径前加分类目录，国家缺失不猜测。修改规则不会自动整理或迁移已有文件。
   </p>
-  <div class="classification-grid" v-loading="busy">
-    <section
-      v-for="(g, gi) in record?.value.groups ?? []"
-      :key="g.id"
-      class="panel category-group"
+  <section class="panel classification-list-panel" v-loading="busy">
+    <div class="panel-title">
+      <h2>分类规则列表</h2>
+      <span v-if="record" class="muted"
+        >{{ record.value.groups.length }} 个分类组 ·
+        {{ ruleCount }} 条子规则</span
+      >
+    </div>
+    <p class="list-hint">
+      按列表顺序匹配，组内首条命中规则生效。窄屏可左右滑动查看完整列表。
+    </p>
+    <div
+      class="classification-table-scroll"
+      tabindex="0"
+      role="region"
+      aria-label="目录分类列表横向滚动区"
     >
-      <header>
-        <div class="group-heading">
-          <span class="order">{{ gi + 1 }}</span>
-          <h2>{{ g.name }}</h2>
-          <el-tag size="small">{{
-            g.mediaType === "series" ? "剧集" : "电影"
-          }}</el-tag
-          ><el-tag v-if="!g.enabled" type="info" size="small">已停用</el-tag
-          ><span class="muted">{{ g.rules.length }} 条规则</span>
-        </div>
-        <div class="rule-actions">
-          <el-button
-            :disabled="gi === 0"
-            :aria-label="`向上移动${g.name}`"
-            @click="move(gi, -1, -1)"
-            ><ArrowUp /></el-button
-          ><el-button
-            :disabled="gi === (record?.value.groups.length ?? 0) - 1"
-            :aria-label="`向下移动${g.name}`"
-            @click="move(gi, -1, 1)"
-            ><ArrowDown /></el-button
-          ><el-button :aria-label="`编辑${g.name}`" @click="edit(gi)"
-            ><Edit />编辑组</el-button
-          ><el-button :aria-label="`删除${g.name}`" @click="remove(gi)"
-            ><Delete /></el-button
-          ><el-button :aria-label="`为${g.name}添加规则`" @click="addRule(gi)"
-            ><Plus />添加规则</el-button
+      <table class="classification-table" aria-label="目录分类规则列表">
+        <colgroup>
+          <col class="name-col" />
+          <col class="type-col" />
+          <col class="conditions-col" />
+          <col class="directory-col" />
+          <col class="status-col" />
+          <col class="actions-col" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">分类名称</th>
+            <th scope="col">媒体类型</th>
+            <th scope="col">匹配条件</th>
+            <th scope="col">目标目录</th>
+            <th scope="col">状态</th>
+            <th scope="col" class="actions-heading">操作</th>
+          </tr>
+        </thead>
+        <tbody v-for="(g, gi) in record?.value.groups ?? []" :key="g.id">
+          <tr class="classification-group-row">
+            <th
+              scope="rowgroup"
+              :id="`classification-group-${g.id}`"
+              :aria-label="g.name"
+            >
+              <div class="classification-name">
+                <span class="order">{{ gi + 1 }}</span
+                ><strong>{{ g.name }}</strong>
+              </div>
+              <small>分类组 · {{ g.rules.length }} 条子规则</small>
+            </th>
+            <td>{{ g.mediaType === "series" ? "剧集" : "电影" }}</td>
+            <td>
+              <div class="condition-values">
+                <span v-for="id in g.genreIds" :key="id">{{
+                  genreNames[id] ?? id
+                }}</span
+                ><span v-if="!g.genreIds.length" class="muted">全部题材</span>
+              </div>
+            </td>
+            <td>
+              <code>{{ g.directory }}/</code>
+            </td>
+            <td>
+              <el-tag size="small" :type="g.enabled ? 'success' : 'info'">{{
+                g.enabled ? "已启用" : "已停用"
+              }}</el-tag>
+            </td>
+            <td>
+              <div class="list-actions">
+                <el-button
+                  :aria-label="`为${g.name}添加规则`"
+                  title="新增子规则"
+                  @click="addRule(gi)"
+                  ><Plus /></el-button
+                ><el-button
+                  :aria-label="`编辑${g.name}`"
+                  title="编辑分类组"
+                  @click="edit(gi)"
+                  ><Edit />编辑</el-button
+                ><el-button
+                  :disabled="gi === 0"
+                  :aria-label="`向上移动${g.name}`"
+                  title="上移分类组"
+                  @click="move(gi, -1, -1)"
+                  ><ArrowUp /></el-button
+                ><el-button
+                  :disabled="gi === (record?.value.groups.length ?? 0) - 1"
+                  :aria-label="`向下移动${g.name}`"
+                  title="下移分类组"
+                  @click="move(gi, -1, 1)"
+                  ><ArrowDown /></el-button
+                ><el-button
+                  :aria-label="`删除${g.name}`"
+                  title="删除分类组"
+                  @click="remove(gi)"
+                  ><Delete
+                /></el-button>
+              </div>
+            </td>
+          </tr>
+          <tr
+            v-for="(r, ri) in g.rules"
+            :key="r.id"
+            class="classification-rule-row"
           >
-        </div>
-        <div class="group-meta">
-          <code>{{ g.directory }}/</code
-          ><span v-for="id in g.genreIds" :key="id">{{
-            genreNames[id] ?? id
-          }}</span>
-        </div>
-      </header>
-      <article v-for="(r, ri) in g.rules" :key="r.id" class="category-rule">
-        <div class="rule-title">
-          <span class="order">{{ ri + 1 }}</span
-          ><strong>{{ r.name }}</strong
-          ><el-tag v-if="!r.enabled" type="info" size="small">已停用</el-tag>
-        </div>
-        <div class="rule-conditions">
-          <span v-for="id in r.genreIds" :key="id">{{
-            genreNames[id] ?? id
-          }}</span
-          ><span v-for="c in r.countries" :key="c"
-            >{{ countryChoices([c]).find((x) => x.value === c)?.label }} ·
-            {{ c }}</span
-          ><span v-for="l in r.languages" :key="l">语言 {{ l }}</span
-          ><span
-            v-if="
-              !r.genreIds.length && !r.countries.length && !r.languages.length
-            "
-            class="muted"
-            >兜底 / 所有题材</span
-          ><code>{{ g.directory }}/{{ r.directory }}</code>
-        </div>
-        <div class="rule-actions">
-          <el-button :aria-label="`编辑${r.name}`" @click="edit(gi, ri)"
-            ><Edit />编辑</el-button
-          ><el-button
-            :disabled="ri === 0"
-            :aria-label="`向上移动${r.name}`"
-            @click="move(gi, ri, -1)"
-            ><ArrowUp /></el-button
-          ><el-button
-            :disabled="ri === g.rules.length - 1"
-            :aria-label="`向下移动${r.name}`"
-            @click="move(gi, ri, 1)"
-            ><ArrowDown /></el-button
-          ><el-button :aria-label="`删除${r.name}`" @click="remove(gi, ri)"
-            ><Delete
-          /></el-button>
-        </div>
-      </article>
-      <p v-if="!g.rules.length" class="muted">
-        尚无子规则，可添加规则设置分类目录。
-      </p>
-    </section>
-  </div>
+            <th
+              scope="row"
+              :headers="`classification-group-${g.id}`"
+              :aria-label="r.name"
+            >
+              <div class="classification-name child-name">
+                <span class="order">{{ gi + 1 }}.{{ ri + 1 }}</span
+                ><strong>{{ r.name }}</strong>
+              </div>
+            </th>
+            <td class="muted">
+              {{ g.mediaType === "series" ? "剧集" : "电影" }}
+            </td>
+            <td>
+              <div class="condition-values">
+                <span v-for="id in r.genreIds" :key="id">{{
+                  genreNames[id] ?? id
+                }}</span
+                ><span v-for="c in r.countries" :key="c"
+                  >{{ countryLabels[c] ?? "已保存地区" }} · {{ c }}</span
+                ><span v-for="l in r.languages" :key="l">语言 {{ l }}</span
+                ><span
+                  v-if="
+                    !r.genreIds.length &&
+                    !r.countries.length &&
+                    !r.languages.length
+                  "
+                  class="muted"
+                  >兜底 / 所有题材</span
+                >
+              </div>
+            </td>
+            <td>
+              <code>{{ g.directory }}/{{ r.directory }}</code>
+            </td>
+            <td>
+              <el-tag
+                size="small"
+                :type="r.enabled && g.enabled ? 'success' : 'info'"
+                >{{
+                  !g.enabled ? "组已停用" : r.enabled ? "已启用" : "已停用"
+                }}</el-tag
+              ><small v-if="!g.enabled"
+                >规则{{ r.enabled ? "启用" : "停用" }}</small
+              >
+            </td>
+            <td>
+              <div class="list-actions">
+                <el-button
+                  :aria-label="`编辑${r.name}`"
+                  title="编辑子规则"
+                  @click="edit(gi, ri)"
+                  ><Edit />编辑</el-button
+                ><el-button
+                  :disabled="ri === 0"
+                  :aria-label="`向上移动${r.name}`"
+                  title="上移子规则"
+                  @click="move(gi, ri, -1)"
+                  ><ArrowUp /></el-button
+                ><el-button
+                  :disabled="ri === g.rules.length - 1"
+                  :aria-label="`向下移动${r.name}`"
+                  title="下移子规则"
+                  @click="move(gi, ri, 1)"
+                  ><ArrowDown /></el-button
+                ><el-button
+                  :aria-label="`删除${r.name}`"
+                  title="删除子规则"
+                  @click="remove(gi, ri)"
+                  ><Delete
+                /></el-button>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="!g.rules.length" class="classification-empty-group">
+            <td colspan="6">此分类组暂无子规则，可使用右侧新增按钮添加。</td>
+          </tr>
+        </tbody>
+        <tbody v-if="record && !record.value.groups.length && !busy">
+          <tr>
+            <td colspan="6">
+              <el-empty description="尚无分类规则，请添加分类组" />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
   <el-dialog
     v-model="dialog"
     :title="isGroup ? '分类组设置' : '子分类规则'"
@@ -369,82 +481,148 @@ onMounted(load);
   >
 </template>
 <style scoped>
-.classification-grid {
-  display: grid;
-  gap: 16px;
-}
-.category-group {
+.classification-list-panel {
+  padding: 20px;
   min-width: 0;
 }
-.category-group header {
-  display: flex;
-  align-items: center;
-  gap: 8px 16px;
-  flex-wrap: wrap;
+.classification-list-panel .panel-title {
+  margin-bottom: 8px;
+}
+.list-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+.classification-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.classification-table {
+  width: 100%;
+  min-width: 1060px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  text-align: left;
+  font-size: 13px;
+}
+.name-col {
+  width: 172px;
+}
+.type-col {
+  width: 76px;
+}
+.conditions-col {
+  width: auto;
+}
+.directory-col {
+  width: 215px;
+}
+.status-col {
+  width: 90px;
+}
+.actions-col {
+  width: 234px;
+}
+.classification-table th,
+.classification-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+.classification-table thead th {
+  background: var(--el-fill-color-light);
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 12px;
+  padding-top: 12px;
   padding-bottom: 12px;
 }
-.group-heading,
-.rule-title {
+.classification-table tbody:last-child tr:last-child > * {
+  border-bottom: 0;
+}
+.classification-table tbody th {
+  font-weight: normal;
+}
+.classification-group-row > * {
+  background: var(--el-fill-color-light);
+}
+.classification-rule-row:hover > * {
+  background: var(--el-color-primary-light-9);
+}
+.classification-name {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+  line-height: 1.6;
 }
-.group-heading {
-  flex: 1;
-  flex-wrap: wrap;
+.classification-name strong {
+  font-weight: 600;
 }
-.group-heading h2 {
-  margin: 0;
-  font-size: 17px;
+.child-name {
+  padding-left: 12px;
 }
-.group-meta {
-  display: flex;
-  gap: 12px;
-  flex-basis: 100%;
-  font-size: 12px;
-  color: var(--muted);
+.child-name:before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-left: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  flex-shrink: 0;
 }
 .order {
-  color: var(--el-color-primary);
-  font-variant-numeric: tabular-nums;
-  min-width: 20px;
-}
-.category-rule {
-  display: grid;
-  grid-template-columns: 140px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  border-top: 1px solid var(--border);
-  padding: 10px 0;
-}
-.rule-title {
-  flex-wrap: wrap;
-  font-size: 14px;
-}
-.rule-conditions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  font-size: 12px;
-}
-.rule-conditions code {
-  flex-basis: 100%;
-  overflow-wrap: anywhere;
   color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
-.rule-actions {
+.classification-table small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.classification-group-row th > small {
+  padding-left: 20px;
+}
+.condition-values {
   display: flex;
-  gap: 6px;
   flex-wrap: wrap;
+  gap: 3px 10px;
+  line-height: 1.7;
 }
-.rule-actions .el-button {
+.classification-table code {
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.actions-heading {
+  text-align: right;
+}
+.list-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.list-actions .el-button {
   margin: 0;
-  padding: 7px 9px;
+  padding: 6px 8px;
+  min-width: 32px;
+  min-height: 32px;
 }
-.rule-actions svg,
+.list-actions svg,
 .heading-actions svg {
-  width: 15px;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.classification-empty-group td {
+  font-size: 12px;
+  color: var(--muted);
+  padding-left: 32px;
 }
 .choice-grid {
   display: grid;
@@ -481,38 +659,25 @@ onMounted(load);
   margin: 8px 0;
   overflow-wrap: anywhere;
 }
-@media (max-width: 1050px) {
-  .category-rule {
-    grid-template-columns: 120px minmax(0, 1fr);
+@media (max-width: 760px) {
+  .classification-list-panel {
+    padding: 16px;
   }
-  .category-rule > .rule-actions {
-    grid-column: 2;
+  .classification-table {
+    min-width: 1100px;
   }
-}
-@media (max-width: 600px) {
-  .category-rule {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 12px 0;
+  .actions-col {
+    width: 272px;
   }
-  .category-rule > .rule-actions {
-    grid-column: 1;
-  }
-  .rule-actions .el-button {
-    min-height: 44px;
+  .list-actions .el-button {
     min-width: 44px;
-  }
-  .category-group header > .rule-actions {
-    flex-basis: 100%;
+    min-height: 44px;
   }
   .choice-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .choice-grid label {
     min-height: 44px;
-  }
-  .group-meta {
-    overflow-wrap: anywhere;
   }
 }
 </style>
