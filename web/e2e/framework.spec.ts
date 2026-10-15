@@ -47,7 +47,7 @@ async function login(page:import('@playwright/test').Page){
  await page.getByRole('button',{name:'进入工作台',exact:true}).click()
  await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
  await expect(page.getByText('服务器负载',{exact:true})).toBeVisible()
- await expect(page.locator('.sidebar-note')).toContainText('0.25.0-dev')
+ await expect(page.locator('.sidebar-note')).toContainText('0.26.0-dev')
 }
 // Later UI-only fixtures share one valid account session in memory. Login/
 // logout/password/rate-limit behavior above remains separately exercised; do
@@ -570,8 +570,8 @@ test('PT account form uses template identity, UA, echo and disallows duplicates 
  await page.route('**/api/v1/pt/accounts',async route=>{if(route.request().method()==='POST'){saved=route.request().postDataJSON();await route.fulfill({json:{data:{saved:true,rssState:'ready',rssMessage:'RSS已自动获取'}}})}else await route.fulfill({json:{data:accounts}})})
  await page.route('**/api/v1/sites/metrics',route=>route.fulfill({json:{data:[{accountId:'owned-pt',name:'HDSKY',enabled:true,metrics:null,state:'not_synced',stale:false}]}}))
  await fixtureLogin(page);await page.goto('/sites');await expect(page.getByText('已保存连接',{exact:true})).toHaveCount(0)
- await page.getByRole('button',{name:'编辑站点',exact:true}).click();const edit=page.getByRole('dialog',{name:'编辑站点',exact:true});await expect(edit.getByLabel('Cookie（必填）',{exact:true})).toHaveValue('owned-cookie-e2e');await expect(edit.getByLabel('User-Agent（必填）',{exact:true})).toHaveValue('Owned-UA');await expect(edit.getByLabel('RSS订阅URL',{exact:true})).toHaveValue('https://owned.invalid/rss?passkey=owned');await expect(edit.getByLabel('Passkey',{exact:true})).toHaveValue('owned-mobile-passkey-'.repeat(8));await page.setViewportSize({width:390,height:844});await expect(edit.locator('pre')).toHaveCount(0);expect(await edit.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await edit.getByLabel('Passkey',{exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:resolve(screenshots,'pt-passkey-mobile.png'),animations:'disabled'});await edit.getByRole('button',{name:'关闭此对话框',exact:true}).click()
- await page.getByRole('button',{name:'添加站点',exact:true}).click();const dialog=page.getByRole('dialog',{name:'添加站点',exact:true});await dialog.locator('.el-select').click()
+ await page.getByRole('button',{name:'编辑站点',exact:true}).click();const edit=page.getByRole('dialog',{name:'编辑站点',exact:true});await expect(edit.getByLabel('Cookie（必填）',{exact:true})).toHaveValue('owned-cookie-e2e');await expect(edit.getByLabel('User-Agent（必填）',{exact:true})).toHaveValue('Owned-UA');await expect(edit.getByLabel('RSS订阅URL',{exact:true})).toHaveValue('https://owned.invalid/rss?passkey=owned');await expect(edit.getByLabel('Passkey',{exact:true})).toHaveValue('owned-mobile-passkey-'.repeat(8));await page.setViewportSize({width:390,height:844});await expect(edit.locator('pre')).toHaveCount(0);expect(await edit.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await edit.getByLabel('Passkey',{exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:resolve(screenshots,'pt-passkey-mobile.png'),animations:'disabled'});await edit.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(edit).not.toBeVisible()
+ await page.getByRole('button',{name:'添加站点',exact:true}).click();const dialog=page.getByRole('dialog',{name:'添加站点',exact:true});await expect(dialog).toBeVisible();await dialog.getByRole('combobox').press('ArrowDown');await expect(dialog.getByRole('combobox')).toHaveAttribute('aria-expanded','true')
  await expect(page.getByRole('option',{name:'HDSKY',exact:true})).toHaveAttribute('aria-disabled','true');await page.getByRole('option',{name:'OURBITS',exact:true}).click()
  await expect(dialog.getByLabel('站点名称',{exact:true})).toHaveValue('OURBITS');await expect(dialog.getByLabel('站点访问地址',{exact:true})).toHaveValue('https://ourbits.club')
  for(const label of ['连接名称','启用为主连接','API Key','Passkey'])await expect(dialog.getByText(label,{exact:true})).toHaveCount(0)
@@ -903,6 +903,8 @@ test('automatic media search retains movie and series with matching numeric IDs 
  await fixtureLogin(page);await page.goto('/search');await page.getByText('TMDB 媒体搜索',{exact:true}).click();await page.getByLabel('TMDB媒体名称',{exact:true}).fill('Owned.2026.1080p.WEB-DL.mkv');await page.getByRole('button',{name:'搜索媒体',exact:true}).click();await expect(page.getByRole('heading',{name:/^Owned Film 2026 · 电影$/})).toBeVisible();await expect(page.getByRole('heading',{name:/^Owned Series 2026 · 剧集$/})).toBeVisible();expect(queries).toContain('auto');await page.screenshot({path:resolve(screenshots,'auto-media-search.png'),animations:'disabled'})
 })
 
+test.describe('real PWA lifecycle',()=>{
+ test.use({serviceWorkers:'allow'})
 test('PWA registration, public-only cache, headers and generic offline page (localhost secure context)',async({page,context})=>{
  await fixtureLogin(page);await page.goto('/settings');await expect(page.getByRole('heading',{name:'移动端应用 / PWA',exact:true})).toBeVisible()
  await page.evaluate(async()=>{await navigator.serviceWorker.ready});await page.reload();await expect(page.getByRole('heading',{name:'移动端应用 / PWA',exact:true})).toBeVisible()
@@ -910,6 +912,8 @@ test('PWA registration, public-only cache, headers and generic offline page (loc
  const manifest=await page.request.get('/manifest.webmanifest');expect((await manifest.json()).display).toBe('standalone')
  const keys=await page.evaluate(async()=>{const out:string[]=[];for(const name of await caches.keys()){if(name.startsWith('media-tool-public-'))for(const request of await (await caches.open(name)).keys())out.push(new URL(request.url).pathname)}return out});expect(keys).toContain('/offline.html');expect(keys.every(key=>key.startsWith('/assets/')||key.startsWith('/pwa/')||key==='/offline.html')).toBe(true)
  await context.setOffline(true);await page.goto('/data');await expect(page.getByRole('heading',{name:'当前处于离线状态',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'数据库浏览',exact:true})).toHaveCount(0);await context.setOffline(false)
+})
+
 })
 
 test('site-result filters issue server query and preserve selection binding (fixture)',async({page})=>{
@@ -1335,8 +1339,8 @@ test('directory classification has ordered rules and responsive editing (fixture
 
 test('external API has independent scopes, real status verification and revocation (isolated)',async({page})=>{
  await fixtureLogin(page);await page.goto('/external-api');await expect(page.getByRole('heading',{name:'外部API',exact:true})).toBeVisible()
- const response=await page.request.post('/api/v1/external-api/keys',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned isolated API',scopes:['status.read'],expiresAt:new Date(Date.now()+3600000).toISOString(),confirm:true}});expect(response.status()).toBe(201);const key=(await response.json()).data
- const status=await page.request.get('/api/external/v1/status',{headers:{Authorization:'Bearer '+key.token}});expect(status.status()).toBe(200);expect((await status.json()).data.version).toBe('0.25.0-dev')
+ const response=await page.request.post('/api/v1/external-api/keys',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned isolated API',scopes:['status.read'],confirm:true}});expect(response.status()).toBe(201);const key=(await response.json()).data;expect(key.expiresAt).toBeNull();await expect(page.getByText('有效天数',{exact:true})).toHaveCount(0)
+ const status=await page.request.get('/api/external/v1/status',{headers:{Authorization:'Bearer '+key.token}});expect(status.status()).toBe(200);expect((await status.json()).data.version).toBe('0.26.0-dev')
  expect((await page.request.get('/api/external/v1/downloads',{headers:{Authorization:'Bearer '+key.token}})).status()).toBe(403);expect((await page.request.get('/api/external/v1/status')).status()).toBe(401)
  await page.getByRole('button',{name:'刷新记录',exact:true}).click();await expect(page.getByLabel('完整API凭据')).toHaveValue(key.token)
  for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`external-api-${width}.png`),fullPage:true,animations:'disabled',mask:[page.getByLabel('完整API凭据')]})}
@@ -1358,4 +1362,30 @@ test('verified instant upload shows processing completion without inventing sent
 test('classification real defaults render without null collection failures (isolated)',async({page})=>{
  await fixtureLogin(page);const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/classification');await expect(page.getByRole('heading',{name:'目录分类',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'动漫',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'电影',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'电视剧',exact:true})).toBeVisible();await expect(page.getByText('电影/日韩电影',{exact:true})).toBeVisible();expect(errors).toEqual([])
  for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`classification-real-${width}.png`),fullPage:true,animations:'disabled'})}
+})
+
+test('classification checkbox editor preserves original countries and genre IDs (fixture)',async({page})=>{
+ await fixtureLogin(page)
+ const value={groups:[{id:'movies',name:'电影',directory:'电影',mediaType:'movie',genreIds:[],enabled:true,rules:[{id:'owned',name:'旧值回显',directory:'自定义',enabled:true,genreIds:[999999],countries:['ZZ','CN'],languages:['zh']}]}]}
+ let saved:any;await page.route('**/api/v1/classification',r=>{if(r.request().method()==='PUT'){saved=r.request().postDataJSON();return r.fulfill({json:{data:saved}})}return r.fulfill({json:{data:{value,revision:1}}})})
+ await page.goto('/classification');await page.getByRole('button',{name:'编辑旧值回显',exact:true}).click();const dialog=page.getByRole('dialog',{name:'子分类规则'})
+ await expect(dialog.getByRole('checkbox',{name:'已保存地区 ZZ ZZ',exact:true})).toBeChecked();await expect(dialog.getByRole('checkbox',{name:'中国 CN',exact:true})).toBeChecked();await expect(dialog.getByRole('checkbox',{name:'已保存题材 999999 999999',exact:true})).toBeChecked()
+ await dialog.getByRole('checkbox',{name:'纪录片 99',exact:true}).check();await dialog.getByLabel('筛选国家地区').fill('日本');await dialog.getByRole('checkbox',{name:'日本 JP',exact:true}).check();await expect(dialog.locator('input:not([type="checkbox"])')).toHaveCount(4)
+ for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`classification-checkbox-${width}.png`),animations:'disabled'})}
+ await dialog.getByRole('button',{name:'应用到待保存规则'}).click();await page.getByRole('button',{name:'保存规则',exact:true}).click();await expect.poll(()=>saved?.value.groups[0].rules[0].countries).toEqual(['ZZ','CN','JP']);expect(saved.value.groups[0].rules[0].genreIds).toEqual([999999,99]);expect(saved.value.groups[0].rules[0].languages).toEqual(['zh'])
+})
+
+test('system operations has real bounded health, paginated tasks and details (isolated)',async({page})=>{
+ await fixtureLogin(page);await page.goto('/jobs');await expect(page.getByRole('heading',{name:'系统运维与后台任务',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Cron 调度',exact:true})).toBeVisible();await expect(page.getByText('连接正常',{exact:true})).toHaveCount(2)
+ const health=await page.request.get('/api/v1/system/operations');expect(health.status()).toBe(200);expect(health.headers()['cache-control']).toBe('no-store');const snapshot=(await health.json()).data;expect(snapshot.migration).toBe(49);expect(snapshot.unavailable).toEqual([]);expect(snapshot.workers.some((w:any)=>w.online)).toBe(true);expect(snapshot.schedules.some((s:any)=>s.id==='core'&&s.cron==='*/15 * * * * *')).toBe(true)
+ const response=await page.request.post('/api/v1/jobs',{headers:{'X-Requested-With':'media-tool'},data:{kind:'system.check'}});expect(response.status()).toBe(201);const job=(await response.json()).data;await page.getByLabel('任务关键词').fill(job.id);await page.getByRole('button',{name:'筛选任务',exact:true}).click();await expect(page.getByRole('button',{name:`查看任务 ${job.id}`,exact:true})).toBeVisible();await page.getByRole('button',{name:`查看任务 ${job.id}`,exact:true}).click();const dialog=page.getByRole('dialog',{name:'后台任务详情',exact:true});await expect(dialog).toContainText(job.id);await expect(dialog).toContainText('不提供通用强制重放');await dialog.getByRole('button',{name:'关闭此对话框'}).click();await expect(dialog).not.toBeVisible()
+ expect((await page.request.get('/api/v1/jobs/browse?page=0')).status()).toBe(400);expect((await page.request.get('/api/v1/jobs/not-a-uuid')).status()).toBe(400);const empty=await page.request.get(`/api/v1/jobs/browse?page=2&pageSize=25&q=${job.id}`);expect((await empty.json()).data).toEqual({items:[],total:1})
+ for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`system-operations-${width}.png`),fullPage:true,animations:'disabled'})}
+})
+
+test('history entries separate media paths time and safe actions at mobile widths (fixture)',async({page})=>{
+ await fixtureLogin(page);const item={id:'owned-history-ui',kind:'transfer',state:'imported',source:'/data/下载目录/Owned.Film.2026.1080p.WEB-DL.mkv',destination:'/115/电影/华语电影/自有影片 (2026)/自有影片 (2026) - 1080p.mkv',origin:'download',method:'transfer',batchId:'owned-batch',media:{title:'自有影片',year:'2026',mediaType:'movie'},category:'华语电影',message:'云端校验、STRM输出均完成，保留做种源',updatedAt:'2026-10-15T01:00:00Z',createdAt:'2026-10-15T00:00:00Z',details:{phase:'verified',bytesTransferred:5,size:5}}
+ await page.route('**/api/v1/library/activity?*',r=>r.fulfill({json:{data:{items:[item],total:1}}}));await page.goto('/organize-history');const row=page.locator('.history-row');await expect(row.locator('time')).toHaveCount(1);await expect(row.locator('.history-media strong')).toHaveText('自有影片 (2026)');await expect(row.locator('.history-files')).toContainText(item.source);await expect(row.locator('.history-files')).toContainText(item.destination)
+ for(const width of [1440,768,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await row.locator('summary').click();await expect(row.getByRole('button',{name:'查看步骤详情',exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,`history-compact-${width}.png`),fullPage:true,animations:'disabled'});await row.locator('summary').click()}
+ await row.locator('summary').click();await row.getByRole('button',{name:'查看步骤详情',exact:true}).click();await expect(page.getByRole('dialog',{name:'步骤证据与恢复',exact:true})).toContainText('源SHA1')
 })

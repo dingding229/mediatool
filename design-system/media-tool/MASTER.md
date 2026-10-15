@@ -115,3 +115,13 @@ history subscription controls24px separation and center PT info/action areas.
 History uses real page-scoped counts, stage controls, named source/target blocks
 and collapsed raw JSON; failed/unknown remain visually distinct. UA request
 cards show IP and only server-verified Emby identity. No fabricated media data.
+
+## Compact organization / operations · 2026-10-15
+Classification uses one ordered panel per group and compact rule rows, not three
+columns of nested cards. Metadata and actions occupy separate cells; mobile
+stacks cells with 44px actions. Country and genre selection uses labeled native
+checkboxes, searchable regions, and explicit retained unknown values.
+Organization history uses one media identity, one timestamp and separate
+source/target evidence per row; no overlapping CSS override layers. The task
+page reuses panel/table/status tokens for measured health, workers, Cron and
+server-side pagination. Missing telemetry never masquerades as healthy zero.

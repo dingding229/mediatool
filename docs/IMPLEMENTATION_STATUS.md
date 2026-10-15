@@ -2,7 +2,7 @@
 
 # 当前实现与验证状态
 
-更新：2026-10-15。源码版本0.25.0-dev，数据库迁移48；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
+更新：2026-10-15。源码版本0.26.0-dev，数据库迁移49；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
 
 主要业务已实现，本轮继续完成不依赖真实账号的可靠性与管理功能。**测试服务通过不等于真实115/PT/Emby客户端通过；整体项目未宣布验收完成。** 历史过程保留在 WORK_LOG.md，本文件只记录当前状态。
 
@@ -383,3 +383,7 @@ pt-request-headers正式版本、schema22无迁移。加密JSON凭据入口、�
 资源输入与独立持久结果页分离，统一最近记录/缓存查看路由；小海报外框、缓存无大小/设置、可复用TTL倒计时和统一操作。PT用户ID/RSS提供验证后的手动覆盖及自动获取；六站Feed已实站确认，HDSKY原认证空结果快照已正确接受，挑战/损坏响应仍拒绝。代理按TMDB/PT作用域加密保存、路由/缓存版本隔离，不影响115直链/CD2/Emby；没有指定的实际代理地址时保持关闭。订阅H&R拒绝规则和下载前复核，未知始终拒绝；归档保留历史评估/下载关联。
 
 本轮不改文件与入库业务，不移动媒体、不启动真实下载。其下一阶段详细计划见plans/20261014-files-and-library-roadmap.md。正式发布以GitHub Actions不可变Hub镜像和任务私有验收报告为准；测试证据不等同完整媒体下载/上传/解码验收。
+
+## 2026-10-15 系统运维与紧凑UI
+
+已完成目录分类紧凑规则行及国家/题材复选、整理历史结构重写、永久API凭据（迁移49）、只读健康/Worker/队列/Cron运维总览和任务筛选分页详情。范围及限制见 [SYSTEM_OPERATIONS.md](SYSTEM_OPERATIONS.md)，实施计划见 [plans/20261015-system-operations-and-ui.md](plans/20261015-system-operations-and-ui.md)。验证/发布结果以本轮验收记录为准。

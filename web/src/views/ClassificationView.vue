@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { ElMessageBox, ElMessage } from "element-plus";
-import { request, post } from "../api/client";
+import { request } from "../api/client";
 import {
   Plus,
   Edit,
@@ -9,6 +9,11 @@ import {
   ArrowUp,
   ArrowDown,
 } from "@element-plus/icons-vue";
+import {
+  genres,
+  genreChoices,
+  countryChoices,
+} from "../classification/options";
 interface Rule {
   id: string;
   name: string;
@@ -39,20 +44,35 @@ const record = ref<{ value: { groups: Group[] }; revision: number }>(),
     directory: "",
     mediaType: "movie",
     enabled: true,
-    genres: "",
-    countries: "",
+    genres: [] as number[],
+    countries: [] as string[],
     languages: "",
   });
-const genreNames: Record<number, string> = {
-  16: "动画",
-  99: "纪录片",
-  10402: "音乐",
-  10762: "儿童",
-  10764: "真人秀",
-  10767: "脱口秀",
-};
+const genreNames = Object.fromEntries(genres.map((g) => [g.value, g.label]));
+const countryQuery = ref("");
+const genreOptions = computed(() =>
+  genreChoices(
+    isGroup.value
+      ? form.value.mediaType
+      : record.value?.value.groups[groupIndex.value]?.mediaType || "movie",
+    form.value.genres,
+  ),
+);
+const countryOptions = computed(() =>
+  countryChoices(form.value.countries).filter((c) =>
+    `${c.label} ${c.value}`
+      .toLowerCase()
+      .includes(countryQuery.value.toLowerCase()),
+  ),
+);
+const selectedCountryOptions = computed(() =>
+  countryChoices(form.value.countries).filter((c) =>
+    form.value.countries.includes(c.value),
+  ),
+);
 async function load() {
   busy.value = true;
+  error.value = "";
   try {
     record.value = await request("/classification");
   } catch (e) {
@@ -74,10 +94,11 @@ function edit(g: number, r = -1) {
     directory: x?.directory ?? "",
     mediaType: (x as Group)?.mediaType ?? "movie",
     enabled: x?.enabled ?? true,
-    genres: x?.genreIds?.join(",") ?? "",
-    countries: (x as Rule)?.countries?.join(",") ?? "",
+    genres: [...(x?.genreIds ?? [])],
+    countries: [...((x as Rule)?.countries ?? [])],
     languages: (x as Rule)?.languages?.join(",") ?? "",
   };
+  countryQuery.value = "";
   dialog.value = true;
 }
 function addRule(g: number) {
@@ -88,22 +109,23 @@ function addRule(g: number) {
     directory: "",
     mediaType: "movie",
     enabled: true,
-    genres: "",
-    countries: "",
+    genres: [] as number[],
+    countries: [] as string[],
     languages: "",
   };
 }
 function apply() {
   if (!record.value) return;
+  if (!form.value.name.trim()) {
+    ElMessage.warning("请填写分类名称");
+    return;
+  }
   const x = {
     id: `rule-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
     name: form.value.name,
     directory: form.value.directory || form.value.name,
     enabled: form.value.enabled,
-    genreIds: form.value.genres
-      .split(/[\s,]+/)
-      .filter(Boolean)
-      .map(Number),
+    genreIds: [...form.value.genres],
   };
   if (isGroup.value) {
     const g = { ...x, mediaType: form.value.mediaType, rules: [] };
@@ -120,10 +142,7 @@ function apply() {
     const rows = record.value.value.groups[groupIndex.value]!.rules;
     const r = {
       ...x,
-      countries: form.value.countries
-        .toUpperCase()
-        .split(/[\s,]+/)
-        .filter(Boolean),
+      countries: [...form.value.countries],
       languages: form.value.languages
         .toLowerCase()
         .split(/[\s,]+/)
@@ -194,77 +213,91 @@ onMounted(load);
   <p class="field-hint">
     模板路径前加分类目录，国家缺失不猜测。修改规则不会自动整理或迁移已有文件。
   </p>
-  <div class="classification-grid">
+  <div class="classification-grid" v-loading="busy">
     <section
-      v-for="(g, gi) in record?.value.groups"
+      v-for="(g, gi) in record?.value.groups ?? []"
       :key="g.id"
       class="panel category-group"
     >
       <header>
-        <div>
+        <div class="group-heading">
+          <span class="order">{{ gi + 1 }}</span>
           <h2>{{ g.name }}</h2>
-          <small
-            >{{ g.mediaType === "movie" ? "电影" : "剧集" }} ·
-            {{ g.directory }} · {{ g.rules.length }}个子分类</small
-          >
+          <el-tag size="small">{{
+            g.mediaType === "series" ? "剧集" : "电影"
+          }}</el-tag
+          ><el-tag v-if="!g.enabled" type="info" size="small">已停用</el-tag
+          ><span class="muted">{{ g.rules.length }} 条规则</span>
         </div>
         <div class="rule-actions">
-          <el-button :aria-label="`向上移动${g.name}`" @click="move(gi, -1, -1)"
+          <el-button
+            :disabled="gi === 0"
+            :aria-label="`向上移动${g.name}`"
+            @click="move(gi, -1, -1)"
             ><ArrowUp /></el-button
-          ><el-button :aria-label="`向下移动${g.name}`" @click="move(gi, -1, 1)"
+          ><el-button
+            :disabled="gi === (record?.value.groups.length ?? 0) - 1"
+            :aria-label="`向下移动${g.name}`"
+            @click="move(gi, -1, 1)"
             ><ArrowDown /></el-button
           ><el-button :aria-label="`编辑${g.name}`" @click="edit(gi)"
-            ><Edit /></el-button
+            ><Edit />编辑组</el-button
           ><el-button :aria-label="`删除${g.name}`" @click="remove(gi)"
             ><Delete /></el-button
           ><el-button :aria-label="`为${g.name}添加规则`" @click="addRule(gi)"
-            ><Plus
-          /></el-button>
+            ><Plus />添加规则</el-button
+          >
+        </div>
+        <div class="group-meta">
+          <code>{{ g.directory }}/</code
+          ><span v-for="id in g.genreIds" :key="id">{{
+            genreNames[id] ?? id
+          }}</span>
         </div>
       </header>
-      <el-tag v-if="!g.enabled" type="info">分类组已停用</el-tag>
       <article v-for="(r, ri) in g.rules" :key="r.id" class="category-rule">
         <div class="rule-title">
-          <strong
-            ><span>{{ ri + 1 }}</span
-            >{{ r.name }}</strong
-          ><el-tag v-if="!r.enabled" type="info">已停用</el-tag>
+          <span class="order">{{ ri + 1 }}</span
+          ><strong>{{ r.name }}</strong
+          ><el-tag v-if="!r.enabled" type="info" size="small">已停用</el-tag>
         </div>
-        <p>
-          <el-tag v-for="id in r.genreIds" :key="id" size="small">{{
+        <div class="rule-conditions">
+          <span v-for="id in r.genreIds" :key="id">{{
             genreNames[id] ?? id
-          }}</el-tag
-          ><el-tag v-for="c in r.countries" :key="c" size="small" type="info">{{
-            c
-          }}</el-tag
-          ><el-tag
-            v-for="l in r.languages"
-            :key="l"
-            size="small"
-            type="success"
-            >{{ l }}</el-tag
+          }}</span
+          ><span v-for="c in r.countries" :key="c"
+            >{{ countryChoices([c]).find((x) => x.value === c)?.label }} ·
+            {{ c }}</span
+          ><span v-for="l in r.languages" :key="l">语言 {{ l }}</span
           ><span
             v-if="
-              !(r.genreIds?.length??0) && !(r.countries?.length??0) && !(r.languages?.length??0)
+              !r.genreIds.length && !r.countries.length && !r.languages.length
             "
             class="muted"
             >兜底 / 所有题材</span
-          >
-        </p>
-        <code>{{ g.directory }}/{{ r.directory }}</code>
+          ><code>{{ g.directory }}/{{ r.directory }}</code>
+        </div>
         <div class="rule-actions">
-          <el-button @click="edit(gi, ri)"><Edit />编辑</el-button
+          <el-button :aria-label="`编辑${r.name}`" @click="edit(gi, ri)"
+            ><Edit />编辑</el-button
           ><el-button
+            :disabled="ri === 0"
             :aria-label="`向上移动${r.name}`"
             @click="move(gi, ri, -1)"
             ><ArrowUp /></el-button
-          ><el-button :aria-label="`向下移动${r.name}`" @click="move(gi, ri, 1)"
+          ><el-button
+            :disabled="ri === g.rules.length - 1"
+            :aria-label="`向下移动${r.name}`"
+            @click="move(gi, ri, 1)"
             ><ArrowDown /></el-button
           ><el-button :aria-label="`删除${r.name}`" @click="remove(gi, ri)"
             ><Delete
           /></el-button>
         </div>
       </article>
+      <p v-if="!g.rules.length" class="muted">
+        尚无子规则，可添加规则设置分类目录。
+      </p>
     </section>
   </div>
   <el-dialog
@@ -284,15 +317,43 @@ onMounted(load);
           ><el-option label="电影" value="movie" /><el-option
             label="剧集"
             value="series" /></el-select></el-form-item
-      ><el-form-item label="题材ID（逗号分隔）"
-        ><el-input v-model="form.genres" /><small
-          >16动画、99纪录片、10402音乐、10762儿童、10764真人秀、10767脱口秀</small
-        ></el-form-item
-      ><template v-if="!isGroup"
-        ><el-form-item label="国家/地区代码"
-          ><el-input
-            v-model="form.countries"
-            placeholder="CN,HK,TW,JP,US" /></el-form-item
+      ><el-form-item label="题材（多选，留空不限）"
+        ><div class="choice-grid">
+          <label v-for="option in genreOptions" :key="option.value"
+            ><input
+              v-model="form.genres"
+              type="checkbox"
+              :value="option.value"
+            />{{ option.label }} <small>{{ option.value }}</small></label
+          >
+        </div></el-form-item
+      >
+      <template v-if="!isGroup"
+        ><el-form-item label="国家 / 地区（多选，留空不限）"
+          ><div class="country-picker">
+            <el-input
+              v-model="countryQuery"
+              aria-label="筛选国家地区"
+              placeholder="搜索中文名称或地区代码"
+              clearable
+            />
+            <p class="selected-countries">
+              已选：{{
+                selectedCountryOptions
+                  .map((c) => `${c.label} (${c.value})`)
+                  .join("、") || "不限"
+              }}
+            </p>
+            <div class="choice-grid country-options">
+              <label v-for="option in countryOptions" :key="option.value"
+                ><input
+                  v-model="form.countries"
+                  type="checkbox"
+                  :value="option.value"
+                />{{ option.label }} <small>{{ option.value }}</small></label
+              >
+            </div>
+          </div></el-form-item
         ><el-form-item label="原语言代码"
           ><el-input
             v-model="form.languages"
@@ -310,68 +371,148 @@ onMounted(load);
 <style scoped>
 .classification-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  gap: 16px;
 }
 .category-group {
   min-width: 0;
 }
 .category-group header {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
+  align-items: center;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
 }
-.category-group h2 {
-  margin: 0 0 8px;
-}
-.category-rule {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-  margin: 12px 0;
-}
+.group-heading,
 .rule-title {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
-.rule-title span {
-  margin-right: 8px;
+.group-heading {
+  flex: 1;
+  flex-wrap: wrap;
+}
+.group-heading h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.group-meta {
+  display: flex;
+  gap: 12px;
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--muted);
+}
+.order {
   color: var(--el-color-primary);
+  font-variant-numeric: tabular-nums;
+  min-width: 20px;
 }
-.category-rule p {
+.category-rule {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding: 10px 0;
+}
+.rule-title {
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+.rule-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 12px;
+}
+.rule-conditions code {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+.rule-actions {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
-.category-rule code {
-  overflow-wrap: anywhere;
-  display: block;
-  margin: 12px 0;
-}
-.rule-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
 .rule-actions .el-button {
   margin: 0;
-  min-height: 44px;
+  padding: 7px 9px;
 }
-.rule-actions svg {
-  width: 16px;
-}
+.rule-actions svg,
 .heading-actions svg {
-  width: 16px;
+  width: 15px;
 }
-@media (max-width: 1200px) {
-  .classification-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+}
+.choice-grid label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.choice-grid small {
+  color: var(--muted);
+}
+.choice-grid input {
+  accent-color: var(--el-color-primary);
+  width: 16px;
+  height: 16px;
+}
+.country-picker {
+  width: 100%;
+}
+.country-options {
+  max-height: 240px;
+  overflow: auto;
+}
+.selected-countries {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1050px) {
+  .category-rule {
+    grid-template-columns: 120px minmax(0, 1fr);
+  }
+  .category-rule > .rule-actions {
+    grid-column: 2;
   }
 }
-@media (max-width: 760px) {
-  .classification-grid {
+@media (max-width: 600px) {
+  .category-rule {
     grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px 0;
+  }
+  .category-rule > .rule-actions {
+    grid-column: 1;
+  }
+  .rule-actions .el-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .category-group header > .rule-actions {
+    flex-basis: 100%;
+  }
+  .choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .choice-grid label {
+    min-height: 44px;
+  }
+  .group-meta {
+    overflow-wrap: anywhere;
   }
 }
 </style>

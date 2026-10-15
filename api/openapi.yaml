@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.25.0-dev
+  version: 0.26.0-dev
   description: 'Playback UA admission precedes resolver/cache/upstream; unmatched UA returns403 player_ua_denied, policy failure503 player_ua_unavailable. UA is client-controlled, never replaces media authorization. Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -791,6 +791,42 @@ paths:
                       $ref: '#/components/schemas/Module'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /api/v1/system/operations:
+    get:
+      operationId: systemOperations
+      summary: 管理员只读运行快照（依赖、Worker、队列、Cron）
+      responses:
+        '200':
+          description: 带sampledAt及unavailable的真实采样，缺失不视为健康；Cache-Control no-store。
+        '401':
+          description: 需要管理员会话。
+  /api/v1/jobs/browse:
+    get:
+      operationId: browseJobs
+      summary: 管理员任务筛选分页
+      parameters:
+        - {in: query, name: page, schema: {type: integer, minimum: 1, maximum: 20000}}
+        - {in: query, name: pageSize, schema: {type: integer, minimum: 1, maximum: 100}}
+        - {in: query, name: state, schema: {type: string, maxLength: 32}}
+        - {in: query, name: kind, schema: {type: string, maxLength: 100}}
+        - {in: query, name: queue, schema: {type: string, maxLength: 100}}
+        - {in: query, name: q, schema: {type: string, maxLength: 200}}
+      responses:
+        '200':
+          description: data包含items和total；空页仍返回当前筛选总数。
+        '400':
+          description: 参数无效。
+  /api/v1/jobs/{id}:
+    get:
+      operationId: jobDetail
+      summary: 管理员查看完整任务及租约时间，不返回租约令牌
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: data为完整任务详情。
+        '404':
+          description: 任务不存在。
   /api/v1/jobs:
     get:
       operationId: listJobs

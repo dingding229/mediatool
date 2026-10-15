@@ -1,6 +1,6 @@
 # 分类命名、STRM目录与外部API
 
-2026-10-15 · 0.25.0-dev · migration48
+2026-10-15 · 0.26.0-dev · migration49
 
 ## 分类与模板
 
@@ -16,7 +16,7 @@
 
 ## 外部API
 
-管理员在“外部API”创建独立凭据，默认只读，有效期最多366天、可撤销、每分钟120次限额。通过HTTPS发送 Authorization: Bearer，不使用URL参数、管理员密码或后台Cookie替代。后台可回显完整凭据，数据加密存储；外部接口不暴露管理员凭据、原始数据库及PT鉴权参数。
+管理员在“外部API”创建独立凭据，默认只读，全部永久有效（包括已有凭据）、可主动撤销、每分钟120次限额。通过HTTPS发送 Authorization: Bearer，不使用URL参数、管理员密码或后台Cookie替代。后台可回显完整凭据，数据加密存储；外部接口不暴露管理员凭据、原始数据库及PT鉴权参数。
 
 - status.read：GET /api/external/v1/status
 - library.read：GET /api/external/v1/strm?kind=strm&mediaType=movie；GET /api/external/v1/strm/{assetId}/content?path=URL编码的STRM相对路径

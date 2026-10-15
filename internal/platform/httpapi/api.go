@@ -185,6 +185,9 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/files/operations/{id}/reconcile", a.protected(a.reconcileFileOperation))
 	mux.HandleFunc("GET /api/v1/jobs", a.protected(a.listJobs))
 	mux.HandleFunc("POST /api/v1/jobs", a.protected(a.createJob))
+	mux.HandleFunc("GET /api/v1/jobs/browse", a.protected(a.browseJobs))
+	mux.HandleFunc("GET /api/v1/jobs/{id}", a.protected(a.jobDetail))
+	mux.HandleFunc("GET /api/v1/system/operations", a.protected(a.operations))
 	mux.HandleFunc("GET /api/v1/jobs/events", a.protected(a.events))
 	mux.HandleFunc("POST /api/v1/strm/preview", a.protected(a.preview))
 	mux.HandleFunc("GET /api/v1/diagnostics/playback/preflight", a.protected(a.playbackPreflight))
@@ -515,7 +518,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.25.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.26.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }
@@ -607,7 +610,7 @@ func (a *API) createJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if body.Kind != "system.check" {
-		fail(w, 400, "unsupported_job", "框架阶段只支持 system.check，不会创建虚假的下载或上传任务")
+		fail(w, 400, "unsupported_job", "运维入口仅支持只读系统检查；下载、上传等任务请在对应业务模块创建")
 		return
 	}
 	if a.Deps.DB == nil {

@@ -7,7 +7,7 @@ interface Key {
   name: string;
   token: string;
   scopes: string[];
-  expiresAt: string;
+  expiresAt: null;
   revokedAt?: string;
   lastUsedAt?: string;
 }
@@ -25,7 +25,6 @@ const keys = ref<Key[]>([]),
   error = ref(""),
   dialog = ref(false),
   name = ref(""),
-  days = ref(90),
   scopes = ref(["status.read", "library.read", "layout.preview", "tasks.read"]);
 const origin = window.location.origin;
 const options = [
@@ -53,7 +52,6 @@ async function create() {
     await post("/external-api/keys", {
       name: name.value,
       scopes: scopes.value,
-      expiresAt: new Date(Date.now() + days.value * 86400000).toISOString(),
       confirm: true,
     });
     dialog.value = false;
@@ -84,7 +82,9 @@ onMounted(load);
     <div>
       <span class="page-kicker">SYSTEM / 外部接入</span>
       <h1>外部API</h1>
-      <p>独立凭据、分级权限和有效期。默认只读，不复用管理员密码或播放Key。</p>
+      <p>
+        独立凭据永久有效，支持分级权限和主动撤销。默认只读，不复用管理员密码或播放Key。
+      </p>
     </div>
     <div class="heading-actions">
       <el-button @click="load">刷新记录</el-button
@@ -120,11 +120,7 @@ POST /api/external/v1/downloads</pre
     <article v-for="k in keys" :key="k.id" class="api-key">
       <div>
         <strong>{{ k.name }}</strong
-        ><span>{{
-          k.revokedAt
-            ? "已撤销"
-            : "有效期至 " + new Date(k.expiresAt).toLocaleString()
-        }}</span
+        ><span>{{ k.revokedAt ? "已撤销" : "永久有效" }}</span
         ><el-button
           :disabled="!!k.revokedAt"
           type="danger"
@@ -170,8 +166,6 @@ POST /api/external/v1/downloads</pre
   <el-dialog v-model="dialog" title="创建独立API凭据" width="min(580px,94vw)"
     ><el-form label-position="top"
       ><el-form-item label="凭据名称"><el-input v-model="name" /></el-form-item
-      ><el-form-item label="有效天数"
-        ><el-input-number v-model="days" :min="1" :max="366" /></el-form-item
       ><el-form-item label="明确授权的权限"
         ><el-checkbox-group v-model="scopes"
           ><el-checkbox v-for="o in options" :key="o.id" :value="o.id">{{

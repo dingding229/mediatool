@@ -259,7 +259,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 			defer func() { watchCancel(); <-watchDone }()
 			cronLogger := scheduling.Logger{Log: logger.With("module", "scheduler")}
 			scheduler := cron.New(cron.WithSeconds(), cron.WithLogger(cronLogger), cron.WithChain(cron.Recover(cronLogger), cron.SkipIfStillRunning(cronLogger)))
-			_, scheduleErr := scheduler.AddFunc("*/15 * * * * *", func() {
+			_, scheduleErr := scheduler.AddFunc(scheduling.CoreReconcileCron, func() {
 				logger.Debug("scheduler reconciliation cycle")
 				check, cancel := context.WithTimeout(watchCtx, 2*time.Minute)
 				defer cancel()

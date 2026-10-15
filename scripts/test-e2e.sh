@@ -22,6 +22,7 @@ test_db_exec(){
 }
 go run ./cmd/migrate -test-only -cleanup-test-plugins >/dev/null
 test_db_exec 'TRUNCATE site_template_loads,subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,external_api_keys,administrator_accounts,administrator_auth_limits,media_users,media_user_auth_limits CASCADE'
+test_db_exec "INSERT INTO directory_classification(singleton,value,revision)VALUES(true,'null',1) ON CONFLICT(singleton) DO UPDATE SET value='null',revision=1"
 test_db_exec "UPDATE player_ua_policy SET enabled=false,revision=1 WHERE id='main'"
 test_db_exec 'TRUNCATE player_ua_rules,player_ua_observations,player_access_events'
 

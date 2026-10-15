@@ -28,10 +28,9 @@ func (a *API) createAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Name      string    `json:"name"`
-		Scopes    []string  `json:"scopes"`
-		ExpiresAt time.Time `json:"expiresAt"`
-		Confirm   bool      `json:"confirm"`
+		Name    string   `json:"name"`
+		Scopes  []string `json:"scopes"`
+		Confirm bool     `json:"confirm"`
 	}
 	if !decode(w, r, &in) {
 		return
@@ -40,7 +39,7 @@ func (a *API) createAPIKey(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "confirmation_required", "请明确确认创建独立API凭据")
 		return
 	}
-	out, err := a.apiKeys().Create(r.Context(), in.Name, in.Scopes, in.ExpiresAt)
+	out, err := a.apiKeys().Create(r.Context(), in.Name, in.Scopes)
 	if err != nil {
 		fail(w, 400, "api_key_invalid", err.Error())
 		return
@@ -143,7 +142,7 @@ func (a *API) registerExternal(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/external-api/keys/{id}/revoke", a.protected(a.revokeAPIKey))
 	mux.HandleFunc("GET /api/v1/external-api/calls", a.protected(a.listAPICalls))
 	mux.HandleFunc("GET /api/external/v1/status", a.external("status.read", func(w http.ResponseWriter, r *http.Request) {
-		write(w, 200, map[string]any{"name": "Media Tool", "version": "0.25.0-dev", "databaseConfigured": a.Deps.DB != nil})
+		write(w, 200, map[string]any{"name": "Media Tool", "version": "0.26.0-dev", "databaseConfigured": a.Deps.DB != nil})
 	}))
 	mux.HandleFunc("GET /api/external/v1/classification", a.external("layout.preview", a.getClassification))
 	mux.HandleFunc("POST /api/external/v1/layout/preview", a.external("layout.preview", a.previewClassification))

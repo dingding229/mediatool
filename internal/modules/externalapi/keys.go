@@ -19,7 +19,7 @@ type Key struct {
 	Token      string     `json:"token,omitempty"`
 	Prefix     string     `json:"prefix"`
 	Scopes     []string   `json:"scopes"`
-	ExpiresAt  time.Time  `json:"expiresAt"`
+	ExpiresAt  *time.Time `json:"expiresAt"`
 	RevokedAt  *time.Time `json:"revokedAt"`
 	LastUsedAt *time.Time `json:"lastUsedAt"`
 	CreatedAt  time.Time  `json:"createdAt"`
@@ -30,14 +30,14 @@ type Repository struct {
 }
 
 var Scopes = map[string]bool{"status.read": true, "library.read": true, "layout.preview": true, "tasks.read": true, "search.run": true, "downloads.run": true}
-var ErrUnauthorized = errors.New("API凭据无效、过期或已撤销")
+var ErrUnauthorized = errors.New("API凭据无效或已撤销")
 var ErrForbidden = errors.New("API凭据没有此接口权限")
 var ErrRate = errors.New("API每分钟最多120次调用")
 
-func (r Repository) Create(ctx context.Context, name string, scopes []string, expires time.Time) (Key, error) {
-	out := Key{ID: jobs.UUID(), Name: name, Scopes: scopes, ExpiresAt: expires}
-	if len(name) < 1 || len(name) > 100 || len(scopes) == 0 || len(scopes) > len(Scopes) || !expires.After(time.Now()) || expires.After(time.Now().Add(366*24*time.Hour)) {
-		return out, errors.New("名称、权限或有效期无效（最多366天）")
+func (r Repository) Create(ctx context.Context, name string, scopes []string) (Key, error) {
+	out := Key{ID: jobs.UUID(), Name: name, Scopes: scopes}
+	if len(name) < 1 || len(name) > 100 || len(scopes) == 0 || len(scopes) > len(Scopes) {
+		return out, errors.New("名称或权限无效")
 	}
 	seen := map[string]bool{}
 	for _, s := range scopes {
@@ -58,7 +58,7 @@ func (r Repository) Create(ctx context.Context, name string, scopes []string, ex
 		return out, err
 	}
 	scopeJSON, _ := json.Marshal(scopes)
-	err = r.DB.QueryRow(ctx, `INSERT INTO external_api_keys(id,name,token_digest,token_ciphertext,prefix,scopes,expires_at)VALUES($1,$2,$3,$4,$5,$6,$7)RETURNING created_at`, out.ID, name, digest[:], cipher, out.Prefix, scopeJSON, expires).Scan(&out.CreatedAt)
+	err = r.DB.QueryRow(ctx, `INSERT INTO external_api_keys(id,name,token_digest,token_ciphertext,prefix,scopes)VALUES($1,$2,$3,$4,$5,$6)RETURNING created_at`, out.ID, name, digest[:], cipher, out.Prefix, scopeJSON).Scan(&out.CreatedAt)
 	return out, err
 }
 func (r Repository) List(ctx context.Context) ([]Key, error) {
@@ -108,7 +108,7 @@ func (r Repository) Admit(ctx context.Context, token, scope, method, path string
 	defer tx.Rollback(ctx)
 	var id string
 	var raw []byte
-	if err = tx.QueryRow(ctx, `SELECT id::text,scopes FROM external_api_keys WHERE token_digest=$1 AND revoked_at IS NULL AND expires_at>now() FOR UPDATE`, sum[:]).Scan(&id, &raw); err != nil {
+	if err = tx.QueryRow(ctx, `SELECT id::text,scopes FROM external_api_keys WHERE token_digest=$1 AND revoked_at IS NULL FOR UPDATE`, sum[:]).Scan(&id, &raw); err != nil {
 		return "", 0, ErrUnauthorized
 	}
 	var scopes []string

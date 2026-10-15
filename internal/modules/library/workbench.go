@@ -131,7 +131,9 @@ func (e Engine) History(ctx context.Context, f HistoryFilter) ([]HistoryEntry, i
 			}
 		}
 		if h.Media.Title == "" {
-			h.Media.Title = path.Base(h.Source)
+			if base := path.Base(h.Source); base != "." && base != "/" {
+				h.Media.Title = base
+			}
 		}
 		if h.Media.MediaType == "movie" || h.Media.MediaType == "series" {
 			h.Category = policy.Value.Match(h.Media).Name

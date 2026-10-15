@@ -183,6 +183,10 @@ function stageFilter(value: string) {
   apply();
 }
 function itemTitle(item: Entry) {
+  if (item.media?.title)
+    return `${item.media.title}${item.media.year ? ` (${item.media.year})` : ""}`;
+  if (item.source === "." || item.source === "/")
+    return kindLabels[item.kind] || "业务记录";
   return (
     item.details.plan?.items?.[0]?.source.path.split("/").pop() ||
     item.source?.split("/").pop() ||
@@ -373,70 +377,71 @@ onMounted(load);
           <img
             v-if="item.poster"
             :src="item.poster"
-            :alt="item.media?.title || itemTitle(item)"
+            :alt="itemTitle(item)"
             loading="lazy"
           />
-          <div>
-            <strong
-              >{{ item.media?.title || itemTitle(item)
-              }}<span v-if="item.media?.year">
-                ({{ item.media.year }})</span
-              ></strong
-            ><small v-if="item.episodes?.length"
+          <div v-else class="poster-placeholder" aria-hidden="true">
+            {{ kindLabels[item.kind]?.slice(0, 2) }}
+          </div>
+          <div class="history-identity">
+            <div class="history-head">
+              <el-checkbox
+                v-if="removable(item)"
+                :model-value="
+                  selected.some(
+                    (row) => row.id === item.id && row.kind === item.kind,
+                  )
+                "
+                :aria-label="`选择历史 ${item.id}`"
+                @change="select(item, !!$event)"
+              /><strong>{{ itemTitle(item) }}</strong>
+            </div>
+            <div class="history-badges">
+              <el-tag size="small">{{ kindLabels[item.kind] }}</el-tag
+              ><StatusBadge
+                :state="item.state"
+                :label="stateNames[item.state] || item.state"
+              />
+            </div>
+            <small v-if="item.episodes?.length"
               >第{{ item.season }}季 · {{ item.episodes.join(",") }}集</small
-            ><small>{{ item.category || kindLabels[item.kind] }}</small>
+            ><small v-if="item.category">{{ item.category }}</small>
           </div>
         </div>
-        <div class="history-head">
-          <el-checkbox
-            v-if="removable(item)"
-            :model-value="
-              selected.some(
-                (row) => row.id === item.id && row.kind === item.kind,
-              )
-            "
-            :aria-label="`选择历史 ${item.id}`"
-            @change="select(item, !!$event)"
-          /><strong>{{ itemTitle(item) }}</strong
-          ><el-tag size="small">{{ kindLabels[item.kind] }}</el-tag
-          ><StatusBadge
-            :state="item.state"
-            :label="stateNames[item.state] || item.state"
-          /><time>{{ new Date(item.updatedAt).toLocaleString() }}</time>
-        </div>
         <div class="history-files">
-          <code v-if="item.source">{{ item.source }}</code
-          ><template v-if="item.destination"
-            ><span>↓</span
-            ><code class="target-path">{{ item.destination }}</code></template
+          <div v-if="item.source">
+            <small>来源</small><code>{{ item.source }}</code>
+          </div>
+          <div v-if="item.destination">
+            <small>目标</small
+            ><code class="target-path">{{ item.destination }}</code>
+          </div>
+          <template v-if="!item.destination"
+            ><div
+              v-for="(entry, index) in (item.details.plan?.items ?? []).slice(
+                0,
+                2,
+              )"
+              :key="index"
+            >
+              <small>目标</small><code>{{ entry.target }}</code>
+            </div>
+            <small v-if="(item.details.plan?.items.length ?? 0) > 2"
+              >另有
+              {{ (item.details.plan?.items.length ?? 0) - 2 }}
+              项，详见步骤详情</small
+            ></template
+          >
+          <p>{{ item.message || "查看步骤证据与恢复入口" }}</p>
+          <small v-if="item.batchId" class="batch-id"
+            >批次 {{ item.batchId }}</small
           >
         </div>
         <div class="history-origin">
           <span>{{ item.origin || "系统任务" }}</span
           ><small>方式：{{ item.method || kindLabels[item.kind] }}</small
-          ><small>{{ new Date(item.updatedAt).toLocaleString() }}</small>
+          ><time>{{ new Date(item.updatedAt).toLocaleString("zh-CN") }}</time>
         </div>
-        <p v-if="item.batchId" class="field-hint">批次 {{ item.batchId }}</p>
-        <div
-          v-for="(entry, index) in (item.destination
-            ? []
-            : (item.details.plan?.items ?? [])
-          ).slice(0, 2)"
-          :key="index"
-          class="history-path"
-        >
-          <div>
-            <small>来源</small><code>{{ entry.source.path }}</code>
-          </div>
-          <span>→</span>
-          <div>
-            <small>目标</small><code>{{ entry.target }}</code>
-          </div>
-        </div>
-        <p v-if="(item.details.plan?.items.length ?? 0) > 2" class="field-hint">
-          另有 {{ (item.details.plan?.items.length ?? 0) - 2 }} 项，详见步骤详情
-        </p>
-        <p class="field-hint">{{ item.message || "查看步骤证据与恢复入口" }}</p>
         <details class="history-action-menu">
           <summary :aria-label="`历史操作 ${item.id}`">⋮</summary>
           <div class="history-actions">
@@ -550,8 +555,75 @@ onMounted(load);
   </el-dialog>
 </template>
 <style scoped>
-.history-selection,
-.history-actions {
+.history-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.history-stages button {
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  color: var(--muted);
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.history-stages .active {
+  background: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+}
+.history-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.history-summary article {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.history-summary span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.history-summary strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+.history-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 12px;
+  align-items: end;
+}
+.history-advanced {
+  grid-column: 1/-1;
+  margin-bottom: 12px;
+}
+.history-advanced summary {
+  cursor: pointer;
+  min-height: 36px;
+  font-size: 13px;
+}
+.history-advanced > div {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 12px;
+}
+.history-filters :deep(.el-date-editor) {
+  width: 100%;
+  max-width: 100%;
+}
+.history-selection {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -559,72 +631,154 @@ onMounted(load);
   gap: 12px;
   margin-bottom: 16px;
 }
-.history-actions {
-  justify-content: flex-start;
-  margin: 16px 0 0;
-}
-.history-actions .el-button {
-  margin-left: 0;
-  min-height: 44px;
-}
+.history-table-heading,
 .history-row {
-  border-left: 3px solid var(--border);
-  padding-left: 20px !important;
-  margin-top: 20px;
-}
-.history-head :deep(.el-checkbox) {
-  min-height: 44px;
-}
-.history-head > .status-badge {
-  margin-left: auto;
-}
-.history-filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  align-items: end;
+  grid-template-columns:
+    minmax(180px, 1.1fr) minmax(0, 2fr) minmax(140px, 0.7fr)
+    44px;
+  gap: 16px;
+  align-items: center;
 }
-.history-filters > .el-form-item:nth-child(5) {
-  grid-column: span 2;
-}
-.history-filters :deep(.el-date-editor) {
-  width: 100%;
-  max-width: 100%;
-}
-.history-filters > .el-button {
-  min-height: 44px;
-  align-self: center;
+.history-table-heading {
+  background: var(--el-fill-color-light);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
 }
 .history-row {
-  padding: 24px 0;
+  padding: 16px 12px;
   border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.history-media {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+  align-items: flex-start;
+}
+.history-media img,
+.poster-placeholder {
+  width: 44px;
+  height: 66px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.poster-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--el-fill-color-light);
+  color: var(--muted);
+  font-size: 12px;
+}
+.history-identity {
+  min-width: 0;
 }
 .history-head {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
+  gap: 6px;
   align-items: center;
-  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
-.history-head time {
-  color: var(--muted);
-  font-size: 12px;
-  margin-left: auto;
-}
-.history-path {
-  display: grid;
-  grid-template-columns: 1fr 24px 1fr;
-  gap: 12px;
-  margin: 10px 0;
-}
-code {
-  line-height: 1.7;
+.history-head strong {
+  font-size: 14px;
   overflow-wrap: anywhere;
-  white-space: normal;
 }
-.el-pagination {
-  margin-top: 24px;
-  overflow: auto;
+.history-head :deep(.el-checkbox) {
+  margin: 0;
+  height: 28px;
+}
+.history-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+.history-identity small,
+.history-origin small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.history-files {
+  min-width: 0;
+  font-size: 12px;
+}
+.history-files > div {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 6px;
+  margin: 4px 0;
+}
+.history-files small {
+  color: var(--muted);
+}
+.history-files code {
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.target-path {
+  color: var(--el-color-primary);
+}
+.history-files p {
+  margin: 8px 0 0;
+  line-height: 1.6;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.batch-id {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 6px;
+}
+.history-origin {
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.history-origin time {
+  font-size: 11px;
+  color: var(--muted);
+}
+.history-action-menu {
+  position: relative;
+  align-self: start;
+}
+.history-action-menu summary {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  font-size: 23px;
+  list-style: none;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.history-action-menu summary::-webkit-details-marker {
+  display: none;
+}
+.history-actions {
+  position: absolute;
+  right: 0;
+  top: 44px;
+  z-index: 5;
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
+  padding: 12px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px #0002;
+}
+.history-actions .el-button {
+  margin: 0;
+  min-height: 40px;
 }
 .step-list {
   padding: 0;
@@ -632,272 +786,98 @@ code {
 }
 .step-list li {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.step-list code,
+.history-path code {
+  overflow-wrap: anywhere;
+}
+.history-path {
+  display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  border-bottom: 1px solid var(--border);
-  padding: 16px 0;
-}
-.step-list code {
-  flex-basis: 100%;
+  padding: 8px 0;
 }
 .evidence-json {
-  font-size: 13px;
-  line-height: 1.7;
+  max-height: 50vh;
+  overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  padding: 16px;
-  max-height: 45vh;
-  overflow: auto;
+  font-size: 12px;
 }
-.phase-note {
-  border-left: 3px solid var(--el-color-primary);
-  padding: 8px 16px;
-}
-:global(.history-detail) {
-  max-height: 90dvh;
-  display: flex;
-  flex-direction: column;
-}
-:global(.history-detail .el-dialog__body) {
-  overflow: auto;
-  min-height: 0;
-}
-@media (max-width: 680px) {
-  .history-filters,
-  .history-path {
-    grid-template-columns: 1fr;
-  }
-  .history-filters > .el-form-item:nth-child(5) {
-    grid-column: span 1;
-  }
-  .history-head time {
-    margin-left: 0;
-  }
-  .history-path > span:nth-child(2) {
-    width: auto;
-  }
-}
-</style>
-
-<style scoped>
-.history-stages {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-}
-.history-stages button {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: 8px;
-  padding: 10px 16px;
-  min-height: 44px;
-  cursor: pointer;
-  color: var(--text);
-}
-.history-stages .active {
-  background: var(--el-color-primary);
-  color: #fff;
-}
-.history-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.history-summary article {
-  padding: 20px;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-}
-.history-summary span {
-  display: block;
-  color: var(--muted);
-  font-size: 13px;
-}
-.history-summary strong {
-  display: block;
-  margin-top: 12px;
-  font-size: 24px;
-}
-.history-row {
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--el-color-primary);
-  border-radius: 12px;
-  padding: 20px !important;
-  background: var(--surface);
-  margin-bottom: 16px;
-}
-.history-path > div {
-  min-width: 0;
-}
-.history-path code {
-  display: block;
-}
-.history-path small {
-  color: var(--muted);
-  display: block;
-  margin-bottom: 8px;
+.history-raw {
+  margin: 16px 0;
 }
 .history-raw summary {
   cursor: pointer;
-  min-height: 44px;
-  padding: 12px 0;
-  color: var(--muted);
+  min-height: 40px;
 }
-@media (max-width: 680px) {
+.phase-note {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.el-pagination {
+  margin-top: 20px;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+@media (max-width: 1100px) {
+  .history-table-heading,
+  .history-row {
+    grid-template-columns: minmax(170px, 0.9fr) minmax(0, 1.4fr) 44px;
+  }
+  .history-table-heading span:nth-child(3) {
+    display: none;
+  }
+  .history-origin {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  .history-action-menu {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .history-summary article {
+    padding: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+@media (max-width: 650px) {
   .history-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .history-summary article {
-    padding: 16px;
+    flex-direction: row;
+    align-items: center;
   }
-  .history-row {
-    padding: 16px !important;
-  }
-}
-</style>
-
-<style scoped>
-.compact-history-filters {
-  grid-template-columns: minmax(160px, 1fr) minmax(220px, 2fr) auto;
-}
-.compact-history-filters > .el-form-item {
-  margin-bottom: 0;
-}
-.history-advanced {
-  grid-column: 1/-1;
-  grid-row: 2;
-}
-.history-advanced summary {
-  min-height: 44px;
-  padding: 12px 0;
-  color: var(--muted);
-  cursor: pointer;
-}
-.history-advanced > div {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 16px;
-}
-.history-advanced :deep(.el-form-item) {
-  margin-bottom: 0;
-}
-@media (max-width: 680px) {
-  .compact-history-filters {
-    grid-template-columns: 1fr;
-  }
-  .history-advanced {
-    grid-row: auto;
-    grid-column: 1;
+  .history-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .history-advanced > div {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
-  .compact-history-filters > .el-button {
-    width: 100%;
+  .history-table-heading {
+    display: none;
   }
-}
-</style>
-
-<style scoped>
-.history-row {
-  display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(260px, 2fr) 190px 80px;
-  gap: 16px 20px;
-  border: 0 !important;
-  border-bottom: 1px solid var(--border) !important;
-  border-radius: 0 !important;
-  align-items: center;
-  border-left: 0 !important;
-}
-.history-media {
-  display: flex;
-  gap: 12px;
-  min-width: 0;
-}
-.history-media img {
-  width: 54px;
-  aspect-ratio: 2/3;
-  object-fit: cover;
-  border-radius: 6px;
-}
-.history-media strong,
-.history-media small,
-.history-origin small {
-  display: block;
-  overflow-wrap: anywhere;
-  line-height: 1.8;
-}
-.history-media small {
-  color: var(--muted);
-}
-.history-files {
-  grid-column: 2;
-  grid-row: 1/3;
-  min-width: 0;
-}
-.history-files code {
-  display: block;
-  color: var(--el-color-primary);
-}
-.history-files .target-path {
-  color: #087b66;
-}
-.history-origin {
-  grid-column: 3;
-  grid-row: 1/3;
-  font-size: 13px;
-  line-height: 1.8;
-}
-.history-head {
-  grid-column: 1;
-  grid-row: 2;
-  font-size: 12px;
-  margin: 0;
-}
-.history-head > strong,
-.history-head > time {
-  display: none;
-}
-.history-action-menu {
-  grid-column: 4;
-  grid-row: 1/3;
-  position: relative;
-}
-.history-action-menu summary {
-  cursor: pointer;
-  list-style: none;
-  min-height: 44px;
-  font-size: 24px;
-  text-align: center;
-}
-.history-action-menu .history-actions {
-  position: absolute;
-  right: 0;
-  min-width: 180px;
-  padding: 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  z-index: 3;
-  box-shadow: 0 4px 16px #0001;
-  flex-direction: column;
-  align-items: stretch;
-}
-.history-row > .field-hint,
-.history-row > .history-path {
-  grid-column: 2;
-}
-@media (max-width: 1100px) {
   .history-row {
-    grid-template-columns: minmax(0, 1fr) 64px;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 10px;
+    padding: 16px 0;
   }
   .history-media {
     grid-column: 1;
+    grid-row: 1;
   }
   .history-action-menu {
     grid-column: 2;
@@ -905,52 +885,23 @@ code {
   }
   .history-files {
     grid-column: 1/-1;
-    grid-row: 3;
-  }
-  .history-origin {
-    grid-column: 1/-1;
-    grid-row: 4;
-  }
-  .history-head {
     grid-row: 2;
   }
-  .history-row > .field-hint,
-  .history-row > .history-path {
-    grid-column: 1/-1;
-  }
   .history-origin {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
+    grid-column: 1/-1;
+    grid-row: 3;
   }
-}
-</style>
-<style scoped>
-.compact-history-filters {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.compact-history-filters .history-advanced {
-  grid-row: auto;
-}
-@media (max-width: 680px) {
-  .compact-history-filters {
-    grid-template-columns: 1fr;
+  .history-action-menu summary,
+  .history-actions .el-button,
+  .history-stages button {
+    min-height: 44px;
+    min-width: 44px;
   }
-}
-</style>
-<style scoped>
-.history-table-heading {
-  display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(260px, 2fr) 190px 80px;
-  gap: 20px;
-  color: var(--muted);
-  font-size: 13px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-}
-@media (max-width: 1100px) {
-  .history-table-heading {
-    display: none;
+  .history-head :deep(.el-checkbox) {
+    min-height: 44px;
+  }
+  .history-summary strong {
+    font-size: 20px;
   }
 }
 </style>

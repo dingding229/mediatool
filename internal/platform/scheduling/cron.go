@@ -9,6 +9,8 @@ import (
 	_ "time/tzdata"
 )
 
+const CoreReconcileCron = "*/15 * * * * *"
+
 const Timezone = "Asia/Shanghai"
 
 func Next(expression string, now time.Time, minimum time.Duration) (time.Time, error) {
