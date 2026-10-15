@@ -129,7 +129,13 @@ func TestCancelledStreamLogsFixedReasonWithoutFabricated502(t *testing.T) {
 		}()
 		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/emby/videos/11/hls1/main/0.ts?api_key=NEVER-LOG", nil))
 	}()
-	if !strings.Contains(logs.String(), "request_cancelled") || strings.Contains(logs.String(), "502") || strings.Contains(logs.String(), "NEVER-LOG") {
+	// A random hexadecimal requestId can contain "502". Inspect the status
+	// field rather than making cancellation verification probabilistic.
+	var record map[string]any
+	if err := json.Unmarshal(logs.Bytes(), &record); err != nil {
+		t.Fatal("invalid cancellation log", err)
+	}
+	if record["msg"] != "HTTP stream aborted" || record["X-Media-Gateway-Reason"] != "request_cancelled" || record["status"] == float64(502) || strings.Contains(logs.String(), "NEVER-LOG") {
 		t.Fatal("misleading/unsafe cancellation log")
 	}
 }
