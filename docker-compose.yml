@@ -46,7 +46,7 @@ services:
       WORKER_LEASE: 90s
     ports: ["127.0.0.1:8080:8080", "127.0.0.1:8091:8091"]
     # 可直接换为 /your/host/data:/data；不需要在后台绑定本地目录。
-    volumes: [app-data:/data, downloads-data:/data/downloads:ro, /proc/loadavg:/host/proc/loadavg:ro, /proc/meminfo:/host/proc/meminfo:ro, /proc/uptime:/host/proc/uptime:ro]
+    volumes: [app-data:/data, downloads-data:/data/downloads:ro, /proc/loadavg:/host/proc/loadavg:ro, /proc/stat:/host/proc/stat:ro, /proc/meminfo:/host/proc/meminfo:ro, /proc/uptime:/host/proc/uptime:ro]
     user: "65532:65532"
     read_only: true
     tmpfs: [/tmp]
