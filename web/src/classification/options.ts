@@ -62,9 +62,9 @@ export function countryChoices(selected: string[]) {
   ];
 }
 
-// ISO 639-1 language identifiers plus TMDB's Cantonese/no-language values.
+// ISO 639-1 language identifiers plus TMDB's Cantonese/no-language values and the saved Cantonese ISO 639-3 code.
 const languageCodes =
-  "aa ab ae af ak am an ar as av ay az ba be bg bh bi bm bn bo br bs ca ce ch co cr cs cu cv cy da de dv dz ee el en eo es et eu fa ff fi fj fo fr fy ga gd gl gn gu gv ha he hi ho hr ht hu hy hz ia id ie ig ii ik io is it iu ja jv ka kg ki kj kk kl km kn ko kr ks ku kv kw ky la lb lg li ln lo lt lu lv mg mh mi mk ml mn mr ms mt my na nb nd ne ng nl nn no nr nv ny oc oj om or os pa pi pl ps pt qu rm rn ro ru rw sa sc sd se sg si sk sl sm sn so sq sr ss st su sv sw ta te tg th ti tk tl tn to tr ts tt tw ty ug uk ur uz ve vi vo wa wo xh yi yo za zh zu cn xx".split(" ");
+  "aa ab ae af ak am an ar as av ay az ba be bg bh bi bm bn bo br bs ca ce ch co cr cs cu cv cy da de dv dz ee el en eo es et eu fa ff fi fj fo fr fy ga gd gl gn gu gv ha he hi ho hr ht hu hy hz ia id ie ig ii ik io is it iu ja jv ka kg ki kj kk kl km kn ko kr ks ku kv kw ky la lb lg li ln lo lt lu lv mg mh mi mk ml mn mr ms mt my na nb nd ne ng nl nn no nr nv ny oc oj om or os pa pi pl ps pt qu rm rn ro ru rw sa sc sd se sg si sk sl sm sn so sq sr ss st su sv sw ta te tg th ti tk tl tn to tr ts tt tw ty ug uk ur uz ve vi vo wa wo xh yi yo za zh zu cn xx yue".split(" ");
 const languageNames = new Intl.DisplayNames(["zh-CN"], {
   type: "language",
   fallback: "none",
@@ -73,17 +73,28 @@ const languageLabels: Record<string, string> = {
   zh: "汉语（普通话）",
   cn: "粤语",
   xx: "无对白",
+  yue: "粤语",
+  cmn: "汉语（普通话）",
 };
+export function languageLabel(value: string): string {
+  // Recognized saved three-letter identifiers keep their original matching code.
+  // Unknown values remain visible and selectable instead of being discarded.
+  try {
+    return languageLabels[value] || languageNames.of(value) || `已保存语言 ${value}`;
+  } catch {
+    return `已保存语言 ${value}`;
+  }
+}
 export const languages = languageCodes.map((value) => ({
   value,
-  label: languageLabels[value] || languageNames.of(value) || value,
+  label: languageLabel(value),
 }));
 export function languageChoices(selected: string[]) {
   return [
     ...languages,
     ...[...new Set(selected)]
       .filter((value) => !languages.some((language) => language.value === value))
-      .map((value) => ({ value, label: `已保存语言 ${value}` })),
+      .map((value) => ({ value, label: languageLabel(value) })),
   ];
 }
 export interface Choice<T extends string | number = string | number> {

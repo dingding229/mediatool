@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { genres, countries, genreChoices, countryChoices, languages, languageChoices, filterChoices } from "./options";
+import { genres, countries, genreChoices, countryChoices, languages, languageChoices, languageLabel, filterChoices } from "./options";
 describe("classification checkbox vocabulary", () => {
   it("has canonical country and genre identifiers without duplicates", () => {
     expect(countries.find((c) => c.value === "CN")?.label).toBe("中国");
@@ -23,6 +23,10 @@ describe("searchable classification choices", () => {
   it("shows Chinese language names, canonical codes and saved unknown values", () => {
     expect(languages.find((language) => language.value === "en")?.label).toBe("英语");
     expect(languages.find((language) => language.value === "cn")?.label).toBe("粤语");
+    expect(languageChoices(["yue", "cmn"]).find((language) => language.value === "yue")?.label).toBe("粤语");
+    expect(languageLabel("cmn")).toBe("汉语（普通话）");
+    expect(languageLabel("zho")).toMatch(/[\u3400-\u9fff]/);
+    expect(languageLabel("bad_bad")).toBe("已保存语言 bad_bad");
     expect(languages.find((language) => language.value === "zh")?.label).toContain("汉语");
     expect(new Set(languages.map((language) => language.value)).size).toBe(languages.length);
     expect(languages.every((language) => /[\u3400-\u9fff]/.test(language.label))).toBe(true);

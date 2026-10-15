@@ -15,6 +15,7 @@ import {
   genreChoices,
   countryChoices,
   languageChoices,
+  languageLabel,
 } from "../classification/options";
 interface Rule {
   id: string;
@@ -63,9 +64,6 @@ const countryOptions = computed(() => countryChoices(form.value.countries));
 const languageOptions = computed(() => languageChoices(form.value.languages));
 const countryLabels = Object.fromEntries(
   countryChoices([]).map((c) => [c.value, c.label]),
-);
-const languageLabels = Object.fromEntries(
-  languageChoices([]).map((language) => [language.value, language.label]),
 );
 const ruleCount = computed(
   () =>
@@ -334,7 +332,7 @@ onMounted(load);
                 }}</span
                 ><span v-for="c in r.countries" :key="c"
                   >{{ countryLabels[c] ?? "已保存地区" }} · {{ c }}</span
-                ><span v-for="l in r.languages" :key="l">{{ languageLabels[l] ?? "已保存语言" }} · {{ l }}</span
+                ><span v-for="l in r.languages" :key="l">{{ languageLabel(l) }} · {{ l }}</span
                 ><span
                   v-if="
                     !r.genreIds.length &&
