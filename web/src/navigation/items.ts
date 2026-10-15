@@ -30,7 +30,7 @@ export const navigationGroups: NavigationGroup[] = [
     { id: 'organize-history', name: '整理历史', icon: Timer, keywords: '命名 对账 记录' },
   ] },
   { id: 'operate', name: '系统运维', items: [
-    { id: 'jobs', name: '任务队列', icon: Operation, keywords: 'Worker 重试 后台任务 健康 Cron 调度 运维' },
+    { id: 'jobs', name: '任务队列', icon: Operation, keywords: 'Worker 重试 后台任务 健康 Cron 调度 运维 备份 恢复 告警 趋势' },
     { id: 'notifications', name: '通知中心', icon: Bell, keywords: 'Telegram 通知配置' },
     { id: 'integrations', name: '服务连接', icon: Grid, keywords: '只读 连接状态' },
     { id: 'plugins', name: '插件扩展', icon: MagicStick, keywords: 'Webhook 扩展' },
@@ -46,6 +46,7 @@ export function searchNavigation(query: string) {
   return navigationItems.filter(item => terms.every(term => `${item.name} ${item.keywords} ${item.group}`.toLocaleLowerCase().includes(term)))
 }
 export function navigationLocation(path: string) {
+ if(path==='/maintenance')return navigationItems.find(item=>item.id==='jobs')
   return navigationItems.find(item => path === `/${item.id}` || path.startsWith(`/${item.id}/`))
     ?? (path === '/emby' ? navigationItems.find(item => item.id === 'mediaLibrary') : undefined)
 }

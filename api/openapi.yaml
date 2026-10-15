@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Media Tool framework API
-  version: 0.26.0-dev
+  version: 0.27.0-dev
   description: 'Playback UA admission precedes resolver/cache/upstream; unmatched UA returns403 player_ua_denied, policy failure503 player_ua_unavailable. UA is client-controlled, never replaces media authorization. Offline hardening beta: database-driven playback validation, durable encrypted artifact journal, fenced upload
     controls, paginated library/batch confirmation/identity correction, subtree scan schedules, offline master-key rekey and
     pinned public Emby origin. Real-provider acceptance remains separate.'
@@ -791,6 +791,60 @@ paths:
                       $ref: '#/components/schemas/Module'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /api/v1/ops:
+    get:
+      operationId: maintenanceOverview
+      summary: 管理员维护中心，备份/演练/版本/审批/告警/策略/维护窗口
+      responses:
+        '200':
+          description: 管理员会话专用，no-store；不返回主密钥或执行任意命令。
+  /api/v1/ops/policy:
+    put:
+      operationId: saveMaintenancePolicy
+      summary: 使用revision保存五字段Cron、备份/采样保留、告警阈值/连续次数/冷却
+      responses:
+        '200': {description: 已保存}
+        '409': {description: 修订已变化}
+  /api/v1/ops/backups:
+    post:
+      operationId: createMaintenanceBackup
+      summary: confirm=true后排队；202不等于备份成功
+      responses:
+        '202': {description: data.id为本模块备份UUID}
+  /api/v1/ops/backups/{id}/drill:
+    post:
+      operationId: createRestoreDrill
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '202': {description: 只向随机隔离库恢复，不执行正式业务}
+  /api/v1/ops/backups/{id}/download:
+    get:
+      operationId: downloadOwnedBackup
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: 经过摘要校验的敏感备份tar；仅管理员/no-store}
+  /api/v1/ops/requests/preview:
+    post:
+      operationId: previewOwnerMaintenance
+      summary: kind=restore或rollback及id，返回10分钟预览/精确确认短语/固定owner命令
+      responses:
+        '200': {description: 仅保存预览，不恢复或回滚}
+  /api/v1/ops/requests/{id}/approve:
+    post:
+      operationId: approveOwnerMaintenance
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: confirm+digest+精确text通过后等待宿主机，不自动执行}
+  /api/v1/ops/trends:
+    get:
+      operationId: maintenanceTrends
+      parameters:
+        - {in: query, name: hours, required: true, schema: {type: integer, minimum: 1, maximum: 2160}}
+      responses:
+        '200': {description: 最多500个真实时间桶，未知值为null，不补造历史}
   /api/v1/system/operations:
     get:
       operationId: systemOperations

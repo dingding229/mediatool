@@ -20,6 +20,7 @@ import (
 
 type Config struct {
 	LogDir                                                   string
+	MaintenanceDir                                           string
 	PasswordResetFile                                        string
 	LocalBrowseRoots                                         []string
 	AuthAllowedOrigins                                       []string
@@ -59,9 +60,10 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	secret := func(key string) string { value, _ := lookup(key); return value }
 	c := Config{
 		LogDir: get("APP_LOG_DIR", "./data/logs"), PasswordResetFile: get("PASSWORD_RESET_FILE", "./data/password"), LocalBrowseRoots: strings.Split(get("LOCAL_BROWSE_ROOTS", "./data"), ","),
-		LogLevel:      get("LOG_LEVEL", "info"),
-		HostProcDir:   get("HOST_PROC_DIR", "/proc"),
-		EmbyPublicURL: get("EMBY_PUBLIC_URL", ""), EmbyGatewayAddress: get("EMBY_GATEWAY_ADDR", "127.0.0.1:8091"), Environment: get("APP_ENV", "development"), Address: get("APP_ADDR", "127.0.0.1:8080"),
+		LogLevel:       get("LOG_LEVEL", "info"),
+		HostProcDir:    get("HOST_PROC_DIR", "/proc"),
+		MaintenanceDir: get("OPS_DATA_DIR", "/data/maintenance"),
+		EmbyPublicURL:  get("EMBY_PUBLIC_URL", ""), EmbyGatewayAddress: get("EMBY_GATEWAY_ADDR", "127.0.0.1:8091"), Environment: get("APP_ENV", "development"), Address: get("APP_ADDR", "127.0.0.1:8080"),
 		PublicURL: get("APP_PUBLIC_URL", "http://localhost:8080"), SessionKey: secret("SESSION_SECRET_KEY"), STRMKey: get("STRM_API_KEY", ""),
 		SecretKey: secret("APP_SECRET_KEY"), DatabaseURL: get("DATABASE_URL", ""), RedisURL: get("REDIS_URL", ""), STRMOutputDir: get("STRM_OUTPUT_DIR", "./data/strm"),
 		CloudDriveEndpoint: get("CLOUDDRIVE_ENDPOINT", ""), CloudDriveToken: get("CLOUDDRIVE_TOKEN", ""), EmbyUpstream: get("EMBY_UPSTREAM_URL", ""),

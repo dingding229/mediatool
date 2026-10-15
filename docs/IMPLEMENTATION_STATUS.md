@@ -2,7 +2,7 @@
 
 # 当前实现与验证状态
 
-更新：2026-10-15。源码版本0.26.0-dev，数据库迁移49；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
+更新：2026-10-15。源码版本0.27.0-dev，数据库迁移50；本轮插件/核心功能调整见PLUGIN_DEVELOPMENT.md及plans/core-sandbox-sites-20261012.md，前轮说明见WORKBENCH_EXPANSION.md。发布以GitHub Actions与服务器实际镜像/报告为准，历史段落不代替当前证据。
 
 主要业务已实现，本轮继续完成不依赖真实账号的可靠性与管理功能。**测试服务通过不等于真实115/PT/Emby客户端通过；整体项目未宣布验收完成。** 历史过程保留在 WORK_LOG.md，本文件只记录当前状态。
 
@@ -387,3 +387,7 @@ pt-request-headers正式版本、schema22无迁移。加密JSON凭据入口、�
 ## 2026-10-15 系统运维与紧凑UI
 
 已完成目录分类紧凑规则行及国家/题材复选、整理历史结构重写、永久API凭据（迁移49）、只读健康/Worker/队列/Cron运维总览和任务筛选分页详情。范围及限制见 [SYSTEM_OPERATIONS.md](SYSTEM_OPERATIONS.md)，实施计划见 [plans/20261015-system-operations-and-ui.md](plans/20261015-system-operations-and-ui.md)。验证/发布结果以本轮验收记录为准。
+
+## 2026-10-15 系统维护闭环
+
+定时备份与保留、下载/固定/删除、克隆恢复演练、受控恢复/回滚维护单及owner执行器、告警/恢复/确认和PG指标趋势已接入单app，迁移50。正式恢复/回滚须所有者离线执行并遵守同schema/保护摘要限制；不在正式服务器做破坏性验收。详见SYSTEM_OPERATIONS.md与plans/20261015-maintenance-completion.md，实际发布以Actions和私有收据为准。

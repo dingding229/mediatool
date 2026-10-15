@@ -13,7 +13,9 @@ COPY . .
 COPY --from=frontend /src/internal/platform/webui/assets/ ./internal/platform/webui/assets/
 ARG TARGETOS=linux
 ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/media-tool ./cmd/media-tool && \
+ARG SOURCE_REVISION
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X media-tool/internal/platform/buildinfo.Revision=${SOURCE_REVISION}" -o /out/media-tool ./cmd/media-tool && \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X media-tool/internal/platform/buildinfo.Revision=${SOURCE_REVISION}" -o /out/ops-control ./cmd/ops-control && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/backup-verify ./cmd/backup-verify && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/rekey ./cmd/rekey && \
@@ -24,9 +26,11 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/cloud-events-check ./cmd/cloud-events-check
 
 FROM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 AS runtime
-RUN apk add --no-cache ca-certificates && addgroup -S -g 65532 app && adduser -S -u 65532 -G app app && mkdir -p /data/strm /data/downloads /data/files && chown -R app:app /data
+RUN apk add --no-cache ca-certificates postgresql18-client && addgroup -S -g 65532 app && adduser -S -u 65532 -G app app && mkdir -p /data/strm /data/downloads /data/files && chown -R app:app /data
+LABEL org.opencontainers.image.schema="50"
 WORKDIR /app
 COPY --from=backend /out/media-tool /app/media-tool
+COPY --from=backend /out/ops-control /app/ops-control
 COPY --from=backend /out/migrate /app/migrate
 COPY --from=backend /out/backup-verify /app/backup-verify
 COPY --from=backend /out/rekey /app/rekey

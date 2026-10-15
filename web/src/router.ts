@@ -32,6 +32,7 @@ const router=createRouter({history:createWebHistory(),routes:[
   {path:'notifications',name:'notifications',component:()=>import('./views/NotificationsView.vue')},
   {path:'strm-tools',name:'strmTools',component:()=>import('./views/StrmToolsView.vue')},
   {path:'strm',name:'strm',component:()=>import('./views/StrmView.vue')},
+  {path:'maintenance',name:'maintenance',component:()=>import('./views/MaintenanceView.vue')},
   {path:'jobs',name:'jobs',component:()=>import('./views/JobsView.vue')},
   {path:'integrations',name:'integrations',component:()=>import('./views/IntegrationsView.vue')},
   {path:'integrations/:kind',name:'integrationService',redirect:to=>({path:connectionOwner(String(to.params.kind)),query:{connectionKind:String(to.params.kind)}})},

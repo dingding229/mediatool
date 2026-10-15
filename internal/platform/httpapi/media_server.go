@@ -5,6 +5,7 @@ import (
 	"errors"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/catalog"
+	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/modules/mediaserver"
 	"media-tool/internal/modules/mediausers"
 	"media-tool/internal/platform/auth"
@@ -200,6 +201,12 @@ func (a *API) memberProtected(next http.HandlerFunc) http.HandlerFunc {
 		if u.MustChangePassword && r.URL.Path != "/api/v1/member/auth/session" && r.URL.Path != "/api/v1/member/auth/password" && r.URL.Path != "/api/v1/member/auth/logout" {
 			fail(w, 403, "password_change_required", "请先修改媒体用户初始密码")
 			return
+		}
+		if r.Method != "GET" && r.Method != "HEAD" && r.URL.Path != "/api/v1/member/auth/logout" {
+			if paused, err := maintenance.Paused(r.Context(), a.Deps.DB); err != nil || paused {
+				fail(w, 423, "maintenance_paused", "维护期间暂停媒体用户写入")
+				return
+			}
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), memberContextKey{}, u)))
 	}

@@ -16,6 +16,7 @@ import (
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/linkcache"
+	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/modules/playback"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
@@ -269,6 +270,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 		mux.HandleFunc("/api/v1/"+module+"/", a.protected(notImplemented))
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) { fail(w, 404, "not_found", "接口不存在") })
+	a.registerMaintenance(mux)
 	a.registerMediaServer(mux)
 	a.registerPlayerAccess(mux)
 	a.registerSTRMTools(mux)
@@ -308,6 +310,15 @@ func (a *API) protected(next http.HandlerFunc) http.HandlerFunc {
 		if account.MustChangePassword && r.URL.Path != "/api/v1/auth/password" && r.URL.Path != "/api/v1/auth/logout" && r.URL.Path != "/api/v1/auth/session" {
 			fail(w, 403, "password_change_required", "请先重置临时密码，再访问工作台")
 			return
+		}
+		if r.Method != "GET" && r.Method != "HEAD" && !strings.HasPrefix(r.URL.Path, "/api/v1/ops/") && r.URL.Path != "/api/v1/auth/logout" {
+			if paused, err := maintenance.Paused(r.Context(), a.Deps.DB); err != nil {
+				fail(w, 503, "maintenance_unavailable", "维护状态不可读取")
+				return
+			} else if paused {
+				fail(w, 423, "maintenance_paused", "当前处于恢复/回滚维护窗口，业务写入暂停")
+				return
+			}
 		}
 		next(w, r)
 	}
@@ -518,7 +529,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": "0.26.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": "0.27.0-dev", "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.Config.PublicURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

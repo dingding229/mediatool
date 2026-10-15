@@ -27,6 +27,7 @@ services:
       STRM_OUTPUT_DIR: /data/strm
       LOCAL_BROWSE_ROOTS: /data,/mnt,/media
       PASSWORD_RESET_FILE: /data/password
+      OPS_DATA_DIR: /data/maintenance
       APP_LOG_DIR: /data/logs
       LOG_LEVEL: info
       STRM_LEGACY_KEY_ENABLED: "true"

@@ -88,10 +88,10 @@ func (r Repository) ClaimQueue(ctx context.Context, owner string, lease time.Dur
 	token := UUID()
 	var j Job
 	err = r.DB.QueryRow(ctx, `WITH candidate AS (
- SELECT id FROM jobs WHERE queue=$4 AND attempts<max_attempts AND
+ SELECT id FROM jobs WHERE queue=$4 AND (kind LIKE 'ops.%' OR NOT (SELECT paused FROM ops_mode WHERE singleton)) AND attempts<max_attempts AND
  ((state IN ('pending','retry') AND available_at<=now()) OR (state='running' AND lease_until<now()))
  ORDER BY available_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1
- ) UPDATE jobs j SET state='running',attempts=j.attempts+1,locked_by=$1,lease_token=$2,
+ ) UPDATE jobs j SET state='running',started_at=now(),attempts=j.attempts+1,locked_by=$1,lease_token=$2,
  lease_until=now()+($3::bigint*interval '1 millisecond'),updated_at=now()
  FROM candidate c WHERE j.id=c.id RETURNING j.id::text,j.kind,j.state,j.payload,j.attempts,j.max_attempts,coalesce(j.last_error,''),j.created_at,j.lease_token::text`, owner, token, lease.Milliseconds(), queue).Scan(&j.ID, &j.Kind, &j.State, &j.Payload, &j.Attempts, &j.MaxAttempts, &j.LastError, &j.CreatedAt, &j.LeaseToken)
 	if errors.Is(err, pgx.ErrNoRows) {

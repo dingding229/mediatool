@@ -53,9 +53,13 @@ jobs:
       - run: npm test --prefix web
       - run: npm run build --prefix web
       - run: bash scripts/test-go.sh
+        env:
+          TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
       - run: go vet ./...
       - run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Browser end-to-end tests (unified process)
+        env:
+          TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           npx --prefix web playwright install --with-deps --only-shell chromium
           bash scripts/test-e2e.sh
@@ -86,6 +90,7 @@ jobs:
         with:
           context: .
           file: deploy/Dockerfile
+          build-args: SOURCE_REVISION=${{ github.sha }}
           platforms: linux/amd64
           push: true
           tags: |

@@ -21,6 +21,9 @@ test_db_exec(){
  fi
 }
 go run ./cmd/migrate -test-only -cleanup-test-plugins >/dev/null
+test_db_exec 'TRUNCATE ops_samples,ops_alerts,ops_requests,ops_drills,ops_backups,ops_releases CASCADE'
+test_db_exec "UPDATE ops_policy SET value='{}',revision=1,next_sample_at=now(),next_backup_at=now()+interval '1 day' WHERE singleton"
+test_db_exec "UPDATE ops_mode SET paused=false,reason='',revision=1 WHERE singleton"
 test_db_exec 'TRUNCATE site_template_loads,subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,external_api_keys,administrator_accounts,administrator_auth_limits,media_users,media_user_auth_limits CASCADE'
 test_db_exec "INSERT INTO directory_classification(singleton,value,revision)VALUES(true,'null',1) ON CONFLICT(singleton) DO UPDATE SET value='null',revision=1"
 test_db_exec "UPDATE player_ua_policy SET enabled=false,revision=1 WHERE id='main'"
@@ -36,6 +39,7 @@ export APP_ENV=development APP_ADDR=127.0.0.1:18084 APP_PUBLIC_URL=http://localh
 export APP_SECRET_KEY="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
 export SESSION_SECRET_KEY="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
 export STRM_OUTPUT_DIR="$private/strm"
+export OPS_DATA_DIR="$private/maintenance"
 export APP_LOG_DIR="$private/logs" PASSWORD_RESET_FILE="$private/password" LOCAL_BROWSE_ROOTS="$private/files"
 mkdir -p "$STRM_OUTPUT_DIR"
 export E2E_FILE_ROOT="$private/files"

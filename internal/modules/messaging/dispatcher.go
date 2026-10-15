@@ -18,7 +18,7 @@ type Dispatcher struct {
 	Connections *integrations.Manager
 }
 
-var titles = map[string]string{"files.batch.succeeded": "媒体整理批次已完成", "files.batch.partial": "媒体整理批次部分完成（需检查剩余项）", "files.batch.needs_reconcile": "媒体整理结果未知（需读回核对）", "files.succeeded": "文件整理已完成", "files.needs_reconcile": "文件整理需核对", "files.failed": "文件整理未完成", "library.emby.visible": "托管输出逐路径可见（待完整播放验收）", "plugin.notice": "插件通知", "download.started": "下载已开始", "download.completed": "本地下载完成", "media.imported": "媒体 STRM 已生成", "media.batch_ready": "媒体文件已准备入库", "library.refresh_requested": "Emby 媒体库刷新已请求", "library.visible": "媒体已在Emby库中可见（待客户端播放验收）", "transfer.failed": "媒体上传失败"}
+var titles = map[string]string{"ops.alert.active": "系统运维告警", "ops.alert.recovered": "系统运维告警恢复", "ops.backup.failed": "系统备份失败", "ops.backup.ready": "系统备份完成", "ops.drill.failed": "恢复演练失败", "ops.drill.verified": "恢复演练通过", "ops.maintenance.resumed": "维护窗口解除", "files.batch.succeeded": "媒体整理批次已完成", "files.batch.partial": "媒体整理批次部分完成（需检查剩余项）", "files.batch.needs_reconcile": "媒体整理结果未知（需读回核对）", "files.succeeded": "文件整理已完成", "files.needs_reconcile": "文件整理需核对", "files.failed": "文件整理未完成", "library.emby.visible": "托管输出逐路径可见（待完整播放验收）", "plugin.notice": "插件通知", "download.started": "下载已开始", "download.completed": "本地下载完成", "media.imported": "媒体 STRM 已生成", "media.batch_ready": "媒体文件已准备入库", "library.refresh_requested": "Emby 媒体库刷新已请求", "library.visible": "媒体已在Emby库中可见（待客户端播放验收）", "transfer.failed": "媒体上传失败"}
 
 func (d Dispatcher) Prepare(ctx context.Context) error {
 	if _, err := d.DB.Exec(ctx, `UPDATE notification_deliveries SET state='outcome_unknown',last_error='Worker stopped before a confirmed send receipt; manual verification required'WHERE state='sending'AND started_at<now()-interval '2 minutes'`); err != nil {

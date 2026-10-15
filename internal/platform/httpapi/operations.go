@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
+	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/modules/plugins"
 	"media-tool/internal/modules/system"
 	"media-tool/internal/platform/scheduling"
@@ -20,6 +21,14 @@ func (a *API) operations(w http.ResponseWriter, r *http.Request) {
 	out := system.Inspect(ctx, a.Deps.DB, a.Deps.Redis)
 	out.Schedules = append([]system.Schedule{{ID: "core", Name: "核心协调（秒 分 时 日 月 周）", Cron: scheduling.CoreReconcileCron, Enabled: true, Timezone: scheduling.Timezone, Link: "/logs"}}, out.Schedules...)
 	if a.Deps.DB != nil && out.PostgreSQL.State == "ready" {
+		if policy, err := a.maintenance().Policy(ctx); err == nil {
+			next := policy.NextBackup
+			out.Schedules = append(out.Schedules, system.Schedule{ID: "ops-backup", Name: "系统备份", Cron: policy.Value.BackupCron, Enabled: policy.Value.BackupEnabled, Next: &next, Timezone: scheduling.Timezone, Link: "/maintenance"})
+			out.Schedules = append(out.Schedules, system.Schedule{ID: "ops-sample", Name: "运维采样/告警/保留清理", Cron: maintenance.SampleCron, Enabled: true, Timezone: scheduling.Timezone, Link: "/maintenance"})
+		} else {
+			out.Unavailable = append(out.Unavailable, "maintenanceSchedules")
+		}
+
 		rows, err := a.Deps.DB.Query(ctx, `SELECT p.id,p.name,p.enabled,p.manifest FROM extension_plugins p ORDER BY p.id LIMIT 100`)
 		type entry struct {
 			id, name string

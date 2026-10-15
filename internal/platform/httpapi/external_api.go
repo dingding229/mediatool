@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"media-tool/internal/modules/externalapi"
+	"media-tool/internal/modules/maintenance"
 	"net/http"
 	"strings"
 	"time"
@@ -133,6 +134,12 @@ func (a *API) external(scope string, next http.HandlerFunc) http.HandlerFunc {
 			a.Deps.DB.Exec(ctx, `UPDATE external_api_calls SET status=$2 WHERE id=$1`, call, out.status)
 			a.Deps.DB.Exec(ctx, `DELETE FROM external_api_calls WHERE id IN(SELECT id FROM external_api_calls ORDER BY id DESC OFFSET 10000)`)
 		}()
+		if r.Method != "GET" && r.Method != "HEAD" {
+			if paused, err := maintenance.Paused(r.Context(), a.Deps.DB); err != nil || paused {
+				fail(w, 423, "maintenance_paused", "维护期间暂停外部业务写入")
+				return
+			}
+		}
 		next(out, r)
 	}
 }
@@ -142,7 +149,7 @@ func (a *API) registerExternal(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/external-api/keys/{id}/revoke", a.protected(a.revokeAPIKey))
 	mux.HandleFunc("GET /api/v1/external-api/calls", a.protected(a.listAPICalls))
 	mux.HandleFunc("GET /api/external/v1/status", a.external("status.read", func(w http.ResponseWriter, r *http.Request) {
-		write(w, 200, map[string]any{"name": "Media Tool", "version": "0.26.0-dev", "databaseConfigured": a.Deps.DB != nil})
+		write(w, 200, map[string]any{"name": "Media Tool", "version": "0.27.0-dev", "databaseConfigured": a.Deps.DB != nil})
 	}))
 	mux.HandleFunc("GET /api/external/v1/classification", a.external("layout.preview", a.getClassification))
 	mux.HandleFunc("POST /api/external/v1/layout/preview", a.external("layout.preview", a.previewClassification))

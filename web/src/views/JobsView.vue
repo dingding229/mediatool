@@ -169,7 +169,7 @@ onUnmounted(() => {
         秒刷新，不重放业务。
       </p>
     </div>
-    <div class="heading-actions">
+    <div class="heading-actions"><RouterLink class="inline-link" to="/maintenance">备份与维护中心</RouterLink>
       <el-button :loading="loading" @click="refresh"
         ><Refresh aria-hidden="true" />刷新</el-button
       ><el-button type="primary" :loading="creating" @click="create"

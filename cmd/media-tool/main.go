@@ -18,6 +18,7 @@ import (
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/library"
+	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/modules/messaging"
 	"media-tool/internal/modules/plugins"
 	"media-tool/internal/modules/search"
@@ -26,6 +27,7 @@ import (
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
 	"media-tool/internal/modules/subscriptions"
+	"media-tool/internal/platform/buildinfo"
 	"media-tool/internal/platform/cache"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/database"
@@ -175,6 +177,7 @@ func run() error {
 			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "default", rc) },
 			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "transfer", rc) },
 			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "library", rc) },
+			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "maintenance", rc) },
 		)
 
 	default:
@@ -228,6 +231,29 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 			return nil
 		},
 	}}
+	ops := maintenance.Engine{DB: db, Redis: rc, DSN: c.DatabaseURL, Root: c.MaintenanceDir, OutputRoot: c.STRMOutputDir, Key: c.SecretKey, HostProc: c.HostProcDir, Revision: buildinfo.Revision}
+	w.Handlers["ops.backup"] = func(ctx context.Context, j jobs.Job) error {
+		var in struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal(j.Payload, &in) != nil {
+			return maintenance.ErrUnsafe
+		}
+		bounded, cancel := context.WithTimeout(ctx, 30*time.Minute)
+		defer cancel()
+		return ops.Backup(bounded, in.ID)
+	}
+	w.Handlers["ops.drill"] = func(ctx context.Context, j jobs.Job) error {
+		var in struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal(j.Payload, &in) != nil {
+			return maintenance.ErrUnsafe
+		}
+		bounded, cancel := context.WithTimeout(ctx, 30*time.Minute)
+		defer cancel()
+		return ops.Drill(bounded, in.ID)
+	}
 	if manager != nil {
 		engine := search.Engine{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc}
 		w.Handlers["search.run"] = engine.Process
@@ -264,6 +290,14 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 				check, cancel := context.WithTimeout(watchCtx, 2*time.Minute)
 				defer cancel()
 				check = trace.With(check, logger)
+				if err := ops.Schedule(check); err != nil {
+					logger.Warn("maintenance scheduling failed", "module", "maintenance", "error", err)
+				}
+				paused, pauseErr := maintenance.Paused(check, db)
+				if pauseErr != nil || paused {
+					return
+				}
+
 				if err := downloader.Reconcile(check); err != nil && ctx.Err() == nil {
 					logger.Warn("download reconciliation unavailable")
 				}

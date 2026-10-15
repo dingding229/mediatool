@@ -158,7 +158,7 @@ func (e Engine) protected(ctx context.Context, root Root, relative string) error
 	if actual, err := filepath.EvalSymlinks(full); err == nil {
 		full = actual
 	}
-	for _, private := range []string{e.Connections.Config.LogDir, e.Connections.Config.PasswordResetFile} {
+	for _, private := range []string{e.Connections.Config.LogDir, e.Connections.Config.MaintenanceDir, e.Connections.Config.PasswordResetFile} {
 		if private == "" {
 			continue
 		}
