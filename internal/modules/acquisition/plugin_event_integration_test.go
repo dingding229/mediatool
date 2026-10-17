@@ -20,6 +20,9 @@ func TestPluginRealBinaryDownloadAdded(t *testing.T) {
 	if runtime.GOOS != "linux" || os.Getenv("MEDIA_TOOL_PLUGIN_BINARY") == "" {
 		t.Skip("native same-binary worker kernel gate required")
 	}
+	if os.Getenv("MEDIA_TOOL_TEST_PLUGIN_UID") == "65532" && os.Getuid() != 65532 {
+		t.Fatal("native plugin host must run as UID 65532; check Go test binary executor mapping")
+	}
 	if err := sandbox.Parent(); err != nil {
 		t.Fatal(err)
 	}

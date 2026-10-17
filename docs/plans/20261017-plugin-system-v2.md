@@ -1310,3 +1310,7 @@ F1删除本仓库plugin-sdk/go/examples/plugins及旧上传/市场执行代码�
 
 9. 测试脚本保留Bash3 nounset兼容；Python隔离夹具显式模拟平台，新增Linux静态worker构建/
    清理断言，避免CI ambient UID/真实媒体开关改变只读隔离测试。最终Python29项通过。
+
+10. 专用UID接线后，原生CI中HTTP/识别/服务/整理事件与DownloadAdded均已通过，余下v2包
+    被Go的/v2语义版本后缀命名规则命名为plugins.test，未匹配旧v2.test分支，仍用runner UID。
+    补齐该名称与拒绝静默落回runner的断言；新增脚本映射回归，Python30项通过。

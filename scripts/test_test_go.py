@@ -98,3 +98,18 @@ print(json.dumps({'args':sys.argv[1:],'db':urllib.parse.urlsplit(os.environ['DAT
         for command in commands:
             self.assertEqual(command["db"], "/media_tool_test")
             self.assertEqual(command["redis"], "/15")
+
+    def test_go_major_version_binary_is_not_silently_run_as_runner(self):
+        adapter = Path(__file__).with_name("test-go-plugin-exec.sh")
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            env = os.environ.copy()
+            env["GITHUB_ACTIONS"] = "false"  # Must refuse before any sudo/chown.
+            for name in ("plugins.test", "v2.test", "httpapi.test", "acquisition.test"):
+                executable = root / name
+                executable.write_text("#!/bin/sh\necho SHOULD_NOT_RUN\n")
+                executable.chmod(0o700)
+                result = subprocess.run(["bash", str(adapter), str(executable)], env=env, capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0, name)
+                self.assertIn("Dedicated native CI identity required", result.stderr)
+                self.assertNotIn("SHOULD_NOT_RUN", result.stdout)
