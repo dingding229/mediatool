@@ -913,7 +913,8 @@ test('PWA registration, public-only cache, headers and generic offline page (loc
  await fixtureLogin(page);await page.goto('/settings?tab=mobile');await expect(page.getByRole('heading',{name:'移动端应用 / PWA',exact:true})).toBeVisible()
  await page.evaluate(async()=>{await navigator.serviceWorker.ready});await page.reload();await expect(page.getByRole('heading',{name:'移动端应用 / PWA',exact:true})).toBeVisible()
  const sw=await page.request.get('/sw.js');expect(sw.headers()['cache-control']).toBe('no-cache');expect(sw.headers()['service-worker-allowed']).toBe('/');expect(await sw.text()).not.toContain('__BUILD_ID__')
- const manifest=await page.request.get('/manifest.webmanifest');expect((await manifest.json()).display).toBe('standalone')
+ const manifest=await page.request.get('/manifest.webmanifest');expect(manifest.status()).toBe(200);const body=await manifest.json();expect(body).toMatchObject({name:'Media Tool 媒体工作台',start_url:'/dashboard',scope:'/',display:'standalone'});expect(new URL(body.start_url,manifest.url()).origin).toBe(new URL(process.env.E2E_BASE_URL!).origin)
+ for(const path of ['/manifest.webmanifest','/sw.js','/offline.html','/pwa/icon-192.png','/pwa/icon-512.png']){const reply=await page.request.get('http://localhost:18087'+path);expect(reply.status()).toBe(404);expect(reply.headers()['content-type']).toContain('application/json');expect(reply.headers()['service-worker-allowed']).toBeUndefined();expect(await reply.json()).toEqual({ResponseStatus:{ErrorCode:'NotFound',Message:'Not Found'}})}
  const keys=await page.evaluate(async()=>{const out:string[]=[];for(const name of await caches.keys()){if(name.startsWith('media-tool-public-'))for(const request of await (await caches.open(name)).keys())out.push(new URL(request.url).pathname)}return out});expect(keys).toContain('/offline.html');expect(keys.every(key=>key.startsWith('/assets/')||key.startsWith('/pwa/')||key==='/offline.html')).toBe(true)
  await context.setOffline(true);await page.goto('/data');await expect(page.getByRole('heading',{name:'当前处于离线状态',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'数据库浏览',exact:true})).toHaveCount(0);await context.setOffline(false)
 })
@@ -1109,7 +1110,7 @@ test('native media boundary is explicit and responsive without changing Emby',as
  await fixtureLogin(page)
  await page.goto('/media-server')
  await expect(page.getByRole('heading',{name:'自研媒体库',exact:true})).toBeVisible()
- await expect(page.getByText('目录预览阶段',{exact:true})).toBeVisible()
+ await expect(page.getByText('原生播放已接入',{exact:true})).toBeVisible()
  await expect(page.getByRole('link',{name:'继续使用现有 Emby 媒体库'})).toHaveAttribute('href','/mediaLibrary')
  for(const width of [375,768,1440]){
   await page.setViewportSize({width,height:900})
@@ -1120,56 +1121,10 @@ test('native media boundary is explicit and responsive without changing Emby',as
  await expect(page.getByRole('heading',{name:'媒体用户',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'添加媒体用户',exact:true}).click()
  await expect(page.getByRole('dialog')).toBeVisible()
+ await expect(page.getByRole('checkbox',{name:'要求修改密码（播放器登录将被拒绝）',exact:true})).not.toBeChecked()
+ await expect(page.getByRole('dialog')).toContainText('默认可直接在播放器登录')
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  await page.getByRole('button',{name:'取消',exact:true}).click()
-})
-
-test('media users have independent login forced password change and revocable scope',async({page,browser})=>{
- await fixtureLogin(page)
- await page.goto('/media-users')
- await page.getByRole('button',{name:'添加媒体用户',exact:true}).click()
- const dialog=page.getByRole('dialog')
- await dialog.getByLabel('媒体账号',{exact:true}).fill('e2e_media_member')
- await dialog.getByLabel('显示名称',{exact:true}).fill('独立媒体用户')
- await dialog.getByLabel('初始密码',{exact:true}).fill('MediaE2e123')
- await dialog.getByLabel('确认初始密码',{exact:true}).fill('MediaE2e123')
- await dialog.getByText('电影',{exact:true}).click()
- await dialog.getByRole('button',{name:'创建用户',exact:true}).click()
- await expect(page.getByRole('cell',{name:'e2e_media_member 独立媒体用户'})).toBeVisible()
- const context=await browser.newContext({baseURL:'http://localhost:18087',viewport:{width:375,height:812}})
- const member=await context.newPage()
- try{
-  await member.goto('/')
-  await expect(member.getByRole('heading',{name:'媒体用户登录',exact:true})).toBeVisible()
-  await member.getByLabel('媒体账号',{exact:true}).fill('e2e_media_member')
-  await member.getByLabel('媒体密码',{exact:true}).fill('MediaE2e123')
-  await member.getByRole('button',{name:'进入媒体库',exact:true}).click()
-  await expect(member.getByRole('heading',{name:'修改媒体密码',exact:true})).toBeVisible()
-  await member.getByLabel('当前媒体密码',{exact:true}).fill('MediaE2e123')
-  await member.getByLabel('新媒体密码',{exact:true}).fill('MediaE2e456')
-  await member.getByLabel('确认新媒体密码',{exact:true}).fill('MediaE2e456')
-  await member.getByRole('button',{name:'更新密码并重新登录',exact:true}).click()
-  await expect(member.getByText('密码已更新，请使用新密码重新登录',{exact:true})).toBeVisible()
-  await member.getByLabel('媒体密码',{exact:true}).fill('MediaE2e456')
-  await member.getByRole('button',{name:'进入媒体库',exact:true}).click()
-  await expect(member.getByRole('heading',{name:'我的媒体库',exact:true})).toBeVisible()
-  expect(await member.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
-  await member.screenshot({path:resolve(screenshots,'native-media-member-375.png'),fullPage:true})
-  const denied=await context.request.get('/api/v1/media-server/users');expect(denied.status()).toBe(404)
-  expect((await context.request.get('/logs')).status()).toBe(404)
-  await member.goto('/');await expect(member.getByRole('heading',{name:'我的媒体库',exact:true})).toBeVisible()
-  await page.getByRole('button',{name:'刷新',exact:true}).click()
-  await page.getByRole('button',{name:'撤销会话',exact:true}).click()
-  await page.getByRole('button',{name:'确认',exact:true}).click()
-  await expect(page.getByText('会话已撤销',{exact:true})).toBeVisible()
-  const revoked=await context.request.get('/api/v1/member/auth/session');expect(revoked.status()).toBe(401)
-  await member.reload();await expect(member.getByRole('heading',{name:'媒体用户登录',exact:true})).toBeVisible()
-  // An administrator cookie alone does not sign in as a media user.
-  expect((await page.request.get('/watch')).status()).toBe(404)
-  await page.goto('/media-users');await expect(page.getByRole('heading',{name:'媒体用户',exact:true})).toBeVisible()
-  await page.getByRole('button',{name:'删除',exact:true}).click();await page.getByRole('button',{name:'确认',exact:true}).click()
-  await expect(page.getByRole('cell',{name:'e2e_media_member 独立媒体用户'})).not.toBeVisible()
- }finally{await context.close()}
 })
 
 test('player UA observations can be approved and enforce whitelist before all playback paths',async({page})=>{
@@ -1477,7 +1432,7 @@ test('settings functional pages are consistent and preserve drafts while switchi
 test('domain settings validate origins and update generated STRM without touching old output (isolated)',async({page})=>{
  await fixtureLogin(page);await page.goto('/settings?tab=access');const initial=(await(await page.request.get('/api/v1/settings/access')).json()).data
  try{
-  await page.getByLabel('后台访问域名',{exact:true}).fill('https://admin.fixture.invalid');await page.getByLabel('STRM播放域名',{exact:true}).fill('https://play.fixture.invalid');await page.getByLabel('内置媒体入口域名',{exact:true}).fill('https://member.fixture.invalid');await page.getByRole('button',{name:'保存域名设置',exact:true}).click();await expect(page.getByText(/域名已保存，新生成链接立即使用新地址/)).toBeVisible()
+  await page.getByLabel('后台访问域名',{exact:true}).fill('https://admin.fixture.invalid');await page.getByLabel('STRM播放域名',{exact:true}).fill('https://play.fixture.invalid');await page.getByLabel('内置媒体库域名',{exact:true}).fill('https://member.fixture.invalid');await page.getByRole('button',{name:'保存域名设置',exact:true}).click();await expect(page.getByText(/域名已保存，新生成链接立即使用新地址/)).toBeVisible()
   const current=(await(await page.request.get('/api/v1/settings/access')).json()).data;expect(current.effective.memberUrl).toBe('https://member.fixture.invalid')
   const bad=await page.request.put('/api/v1/settings/access',{headers:{'X-Requested-With':'media-tool'},data:{value:{...current.value,managementUrl:'https://example.com/watch'},revision:current.revision}});expect(bad.status()).toBe(400)
   const preview=await page.request.post('/api/v1/strm/preview',{headers:{'X-Requested-With':'media-tool'},data:{path:((await(await page.request.get('/api/v1/system/status')).json()).data.allowedRoots[0]||'/115')+'/Owned.mkv'}});expect(preview.status()).toBe(200);expect(JSON.stringify((await preview.json()).data)).toContain('https://play.fixture.invalid')
@@ -1510,4 +1465,136 @@ test('friendly log details keep raw values and copy controls without redundant U
  await page.route('**/api/v1/logs/query?*',route=>route.fulfill({json:{data:{items:[{msg:'HTTP request',level:'INFO',module:'playback',time:'2026-10-15T00:00:00Z',url,location,status:302,durationMs:4,requestId:'owned-full-request'},{msg:'player UA denied',level:'WARN',userAgent:'Owned-UA',time:'2026-10-15T00:00:00Z'}],total:2,page:1,pageSize:200,modules:['playback'],before:'2026-10-15T01:00:00Z',truncated:false}}}))
  await page.goto('/logs');await expect(page.getByText('已返回跳转地址，等待客户端直连',{exact:true})).toBeVisible();await expect(page.locator('.log-row .log-detail-toggle')).toHaveCount(2);await expect(page.getByRole('button',{name:'查看请求与跳转链接',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'查看第1条日志详情',exact:true}).click();const detail=page.getByRole('dialog',{name:'日志详情',exact:true});await expect(detail.getByLabel('完整请求地址',{exact:true})).toHaveValue(url);await expect(detail.getByLabel('302跳转目标',{exact:true})).toHaveValue(location);await expect(detail.locator('pre')).toContainText('owned-full-request');await detail.getByRole('button',{name:'复制跳转地址',exact:true}).click();const copy=page.getByRole('dialog',{name:'复制原始日志',exact:true});await expect(copy.getByLabel('待复制日志')).toHaveValue(location);await copy.getByRole('button',{name:'关闭',exact:true}).click();await detail.getByRole('button',{name:'关闭',exact:true}).click();await page.getByRole('button',{name:'查看第2条日志详情',exact:true}).click();await expect(detail.getByRole('button',{name:'复制跳转地址',exact:true})).toHaveCount(0);await expect(detail).toContainText('白名单');await detail.getByRole('button',{name:'关闭',exact:true}).click()
  for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`logs-friendly-${width}.png`),animations:'disabled'})}
+})
+
+test('native preprocessing controls, statistics, retry confirmation and bounded GC (UI contract)',async({page})=>{
+ // Real administrator login; deterministic preprocessing API fixtures isolate
+ // browser interactions from 115/ffmpeg. Queue mutations are real in Go tests.
+ const c=JSON.parse(readFileSync(resolve(root,'internal/platform/httpapi/testdata/contracts/native-processing.json'),'utf8'))
+ let settings={...c.summary.response.data.settings},single=0,batches=0,gcs=0
+ await page.route('**/api/v1/media-server/native/processing**',async route=>{
+  const request=route.request(),path=new URL(request.url()).pathname
+  if(path.endsWith('/settings')){expect(request.method()).toBe('PUT');expect(request.headers()['x-requested-with']).toBe('media-tool');expect(request.postDataJSON()).toEqual(c.settings.request);settings={...c.settings.response.data};return route.fulfill({json:c.settings.response})}
+  if(path.endsWith('/tasks'))return route.fulfill({json:c.tasks.response})
+  if(path.endsWith('/retry')){const body=request.postDataJSON();expect(request.method()).toBe('POST');expect(request.headers()['x-requested-with']).toBe('media-tool');if(body.bulk){batches++;expect(body).toEqual(c.batch.request);return route.fulfill({status:202,json:c.batch.response})}single++;expect(body).toEqual(c.retry.request);return route.fulfill({status:202,json:c.retry.response})}
+  if(path.endsWith('/gc')){gcs++;expect(request.method()).toBe('POST');return route.fulfill({json:c.gc.response})}
+  return route.fulfill({json:{data:{...c.summary.response.data,settings}}})
+ })
+ await fixtureLogin(page)
+ // This request is NOT intercepted by page.route: verify real runtime wiring,
+ // admin auth/CSRF and one bounded GC in the isolated temporary stills root.
+ const realStatus=await page.request.get('/api/v1/media-server/native/processing');expect(realStatus.status()).toBe(200)
+ expect((await realStatus.json()).data.settings.enabled).toBe(false)
+ const realGC=await page.request.post('/api/v1/media-server/native/processing/gc',{headers:{'X-Requested-With':'media-tool'}});expect(realGC.status()).toBe(200)
+ const gcReport=(await realGC.json()).data;expect(gcReport.scanned).toBeLessThanOrEqual(200);expect(gcReport.reclaimed).toBe(0)
+ await navigate(page,'自研媒体库')
+ await expect(page.getByRole('heading',{name:'媒体预处理',exact:true})).toBeVisible()
+ await expect(page.getByRole('region',{name:'探测统计'})).toContainText('失败')
+ await expect(page.getByRole('region',{name:'截图容量'})).toContainText('2048.0 MiB')
+ await expect(page.getByRole('switch',{name:'原生媒体服务',exact:true})).not.toBeChecked()
+ await page.locator('label[for="native-service-enabled"]').click()
+ await page.getByRole('button',{name:'保存开关',exact:true}).click()
+ await expect(page.getByText('预处理开关已保存',{exact:true})).toBeVisible()
+ const row=page.locator('.processing-table tr').filter({hasText:'合成电影'})
+ await expect(row).toContainText('115 授权失效')
+ await row.getByRole('button',{name:'重试',exact:true}).click()
+ await expect(page.getByRole('status').filter({hasText:'本次选中 1 条'})).toContainText('已排队 1 条')
+ expect(single).toBe(1)
+ await page.getByRole('button',{name:'重试当前筛选结果（最多 500 条）',exact:true}).click()
+ await page.getByRole('button',{name:'取消',exact:true}).click();expect(batches).toBe(0)
+ await page.getByRole('button',{name:'重试当前筛选结果（最多 500 条）',exact:true}).click()
+ await page.getByRole('button',{name:'确认重试',exact:true}).click()
+ await expect(page.getByRole('status').filter({hasText:'本次选中 500 条'})).toContainText('失败 1 条');expect(batches).toBe(1)
+ await page.getByRole('button',{name:'执行一轮 GC',exact:true}).click()
+ await expect(page.getByRole('status').filter({hasText:'本轮 GC'})).toContainText('扫描 8 项，回收 2 个文件');expect(gcs).toBe(1)
+ await expect(page.locator('.el-message')).toHaveCount(0,{timeout:6000});await page.getByRole('heading',{name:'媒体预处理',exact:true}).click();await page.evaluate(()=>window.scrollTo(0,0))
+ mkdirSync(screenshots,{recursive:true});await page.screenshot({path:resolve(screenshots,'native-processing-desktop.png'),fullPage:true})
+ await page.setViewportSize({width:390,height:844});await expect(page.getByRole('heading',{name:'媒体预处理',exact:true})).toBeVisible()
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
+ await page.screenshot({path:resolve(screenshots,'native-processing-mobile.png'),fullPage:true})
+})
+
+test('P4 native settings, media user limits, device revoke and history (isolated)', async ({page}) => {
+ page.setDefaultTimeout(5000)
+ await fixtureLogin(page)
+ const headers={'X-Requested-With':'media-tool'}
+ const savedResponse=await page.request.get('/api/v1/media-server/native/settings');expect(savedResponse.status()).toBe(200)
+ const saved=(await savedResponse.json()).data
+ const username='p4_fixture_member'
+ let userId=''
+ try {
+  await page.goto('/media-server')
+  await expect(page.getByRole('heading',{name:'内置媒体库连接',exact:true})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'Infuse 添加',exact:true})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'SenPlayer 添加',exact:true})).toBeVisible()
+  await page.getByLabel('服务名称（ServerName）',{exact:true}).fill('P4 Synthetic Living Room')
+  const enabled=page.getByRole('switch',{name:'启用内置媒体库',exact:true})
+  if(await enabled.getAttribute('aria-checked')!=='true')await page.locator('label[for="native-library-enabled"]').click()
+  await page.getByRole('button',{name:'保存媒体库设置',exact:true}).click()
+  await expect(page.getByText('内置媒体库设置已保存',{exact:true})).toBeVisible()
+  await expect.poll(async()=>{const info=await page.request.get('http://127.0.0.1:18087/System/Info/Public');expect(info.status()).toBe(200);return(await info.json()).ServerName}).toBe('P4 Synthetic Living Room')
+  await expect(page.getByRole('heading',{name:'在线会话 / 正在播放',exact:true})).toBeVisible()
+  await page.goto('/media-users')
+  await page.getByRole('button',{name:'添加媒体用户',exact:true}).click()
+  let dialog=page.getByRole('dialog',{name:'添加媒体用户',exact:true})
+  await dialog.getByLabel('媒体账号',{exact:true}).fill(username)
+  await dialog.getByLabel('初始密码',{exact:true}).fill('Fixture123')
+  await dialog.getByLabel('确认初始密码',{exact:true}).fill('Fixture123')
+  await dialog.getByRole('spinbutton',{name:'同时播放上限',exact:true}).fill('3')
+  await dialog.getByRole('spinbutton',{name:'家长分级上限',exact:true}).fill('65')
+  await dialog.locator('#media-expiry').fill('2030-01-01T12:00')
+  await dialog.getByRole('button',{name:'创建用户',exact:true}).click()
+  await expect(dialog).not.toBeVisible()
+  let users=(await (await page.request.get('/api/v1/media-server/users')).json()).data
+  const user=users.find((u:any)=>u.username===username);expect(user).toBeTruthy();userId=user.id
+  expect(user.maxStreams).toBe(3);expect(user.maxParentalRating).toBe(65);expect(user.expiresAt).toBeTruthy()
+  const login=async(device:string)=>{
+   const response=await page.request.post('http://127.0.0.1:18087/Users/AuthenticateByName',{data:{Username:username,Pw:'Fixture123'},headers:{'X-Emby-Authorization':`MediaBrowser Client="Infuse", Device="P4 iPad", DeviceId="${device}", Version="8.0"`}})
+   expect(response.status()).toBe(200);return await response.json()
+  }
+  const token=await login('p4-first'), other=await login('p4-other')
+  await page.reload()
+  const row=page.locator('.user-table .el-table__row').filter({hasText:username})
+  await row.getByRole('button',{name:'设备与历史',exact:true}).click()
+  dialog=page.getByRole('dialog',{name:username+' · 设备与历史',exact:true})
+  const deviceRow=dialog.locator('.el-table__row').first()
+  await expect(deviceRow).toContainText('Infuse')
+  const devices=(await (await page.request.get(`/api/v1/media-server/users/${userId}/devices`)).json()).data.items
+  const deviceId=devices[0].id
+  await deviceRow.getByRole('button',{name:'撤销设备',exact:true}).click()
+  await page.getByRole('button',{name:'确认撤销',exact:true}).click()
+  await expect(page.getByText('设备登录已撤销',{exact:true})).toBeVisible()
+  const tokens=[token,other]
+  // Device session identity is the DTO's SessionInfo.Id, never shown in the UI.
+  for(const result of tokens){
+   const r=await page.request.get(`http://127.0.0.1:18087/Users/${result.User.Id}`,{headers:{'X-Emby-Token':result.AccessToken}})
+   expect(r.status()).toBe(result.SessionInfo.Id===deviceId?401:200)
+  }
+  await dialog.getByRole('tab',{name:'观看历史',exact:true}).click()
+  await expect(dialog.getByText('没有观看历史',{exact:true})).toBeVisible()
+  await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
+  await row.getByRole('button',{name:'编辑',exact:true}).click()
+  dialog=page.getByRole('dialog',{name:'编辑媒体用户',exact:true})
+  await dialog.getByRole('button',{name:'不限制分级',exact:true}).click()
+  await dialog.getByRole('button',{name:'永不过期',exact:true}).click()
+  await dialog.getByRole('button',{name:'保存用户',exact:true}).click()
+  await expect(dialog).not.toBeVisible()
+  users=(await (await page.request.get('/api/v1/media-server/users')).json()).data
+  const cleared=users.find((u:any)=>u.id===userId)
+  expect(cleared.maxStreams).toBe(3);expect(cleared.maxParentalRating).toBeNull();expect(cleared.expiresAt).toBeNull()
+  for(const width of [375,1440]){
+   await page.setViewportSize({width,height:1000});await page.goto('/media-server')
+   await expect(page.getByRole('heading',{name:'内置媒体库连接',exact:true})).toBeVisible()
+   await expect(page.getByLabel('服务名称（ServerName）',{exact:true})).toHaveValue('P4 Synthetic Living Room')
+   await expect(page.getByRole('switch',{name:'启用内置媒体库',exact:true})).toBeChecked()
+   await expect(page.getByRole('button',{name:'保存开关',exact:true})).toBeEnabled()
+   await expect(page.getByText('原生播放已接入',{exact:true})).toBeVisible()
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
+   mkdirSync(screenshots,{recursive:true});await page.screenshot({path:resolve(screenshots,`native-p4-${width}.png`),fullPage:true,animations:'disabled'})
+  }
+ } finally {
+  if(userId){const u=(await(await page.request.get('/api/v1/media-server/users/'+userId)).json()).data;const removed=await page.request.delete('/api/v1/media-server/users/'+userId,{headers,data:{revision:u.revision}});expect(removed.status()).toBe(200)}
+  const current=(await(await page.request.get('/api/v1/media-server/native/settings')).json()).data
+  const response=await page.request.put('/api/v1/media-server/native/settings',{headers,data:{serverName:saved.serverName,enabled:saved.enabled,revision:current.revision}});expect(response.status()).toBe(200)
+ }
 })

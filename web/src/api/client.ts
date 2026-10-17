@@ -6,7 +6,7 @@ export async function request<T>(path:string,options:RequestInit={}):Promise<T>{
  const response=await fetch(`/api/v1${path}`,{...options,headers,credentials:'same-origin'})
  let body:{data?:T;error?:{code:string;message:string}}
  try{body=await response.json()}catch{throw new APIError(response.status,'invalid_response','后端未返回有效 JSON，请检查服务与代理配置')}
- if(response.status===401&&!path.startsWith('/auth/')&&!path.startsWith('/member/')&&typeof window!=='undefined')window.dispatchEvent(new Event('media-tool:session-expired'))
+ if(response.status===401&&!path.startsWith('/auth/')&&typeof window!=='undefined')window.dispatchEvent(new Event('media-tool:session-expired'))
  if(!response.ok||body.error)throw new APIError(response.status,body.error?.code??'request_failed',body.error?.message??'请求失败')
  return body.data as T
 }

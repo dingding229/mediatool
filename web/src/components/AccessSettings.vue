@@ -20,7 +20,7 @@ const record = ref<Record>(),
 const fields: [keyof Origins, string, string][] = [
   ["managementUrl", "后台访问域名", "https://admin.example.com"],
   ["playbackUrl", "STRM播放域名", "https://play.example.com"],
-  ["memberUrl", "内置媒体入口域名", "https://media.example.com"],
+  ["memberUrl", "内置媒体库域名", "https://media.example.com"],
   ["embyUrl", "Emby网关域名", "https://emby.example.com"],
 ];
 async function load() {
@@ -59,7 +59,7 @@ onMounted(load);
     <div class="panel-title">
       <div>
         <h2>访问与域名</h2>
-        <p class="field-hint">后台、固定播放链接和媒体用户入口分别配置。</p>
+        <p class="field-hint">后台、固定播放链接和内置媒体库域名分别配置。</p>
       </div>
       <el-button @click="load" :loading="busy">重新读取域名</el-button>
     </div>
@@ -105,7 +105,7 @@ onMounted(load);
         </p>
         <p>
           管理端：{{ record.listeners.management }} · 内置媒体：{{
-            record.listeners.member || "未启用"
+            record.listeners.member || "未启用（T07 接入前不可访问）"
           }}
           · Emby：{{
             record.listeners.emby || "未启用"

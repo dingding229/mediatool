@@ -2,10 +2,8 @@ import { createRouter,createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import {connectionOwner} from './integrations/owners'
 import Layout from './layouts/AppLayout.vue'
-const memberRealm=document.querySelector('meta[name="media-tool-realm"]')?.getAttribute('content')==='member'
-const memberRoutes=[{path:'/',name:'member',alias:['/login','/password'],component:()=>import('./views/MemberView.vue'),meta:{public:true,realm:'member'}},{path:'/:pathMatch(.*)*',redirect:'/'}]
 const moduleRoutes:never[]=[]
-const router=createRouter({history:createWebHistory(),routes:memberRealm?memberRoutes:[
+const router=createRouter({history:createWebHistory(),routes:[
  {path:'/login',name:'login',component:()=>import('./views/LoginView.vue'),meta:{public:true}},
  {path:'/reset-password',name:'resetPassword',component:()=>import('./views/ForcePasswordView.vue')},
  {path:'/',component:Layout,children:[
@@ -47,7 +45,6 @@ const router=createRouter({history:createWebHistory(),routes:memberRealm?memberR
  {path:'/:pathMatch(.*)*',redirect:'/dashboard'},
 ]})
 router.beforeEach(async(to)=>{
- if(to.meta.realm==='member'){document.title='媒体用户 · Media Tool';return true}
  const auth=useAuthStore()
  try{await auth.ensure()}catch{return to.name==='login'?true:{name:'login'}}
  if(auth.authenticated&&auth.account?.mustChangePassword&&to.name!=='resetPassword')return{name:'resetPassword'}
