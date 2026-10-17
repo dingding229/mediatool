@@ -7,6 +7,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/search"
 	"media-tool/internal/modules/subscriptionpolicy"
+	deferutil "media-tool/internal/platform/cleanup"
 )
 
 func (e Engine) guardSubscriptionAdd(ctx context.Context, d taskDetails, resourceID string) (func(), error) {
@@ -18,7 +19,7 @@ func (e Engine) guardSubscriptionAdd(ctx context.Context, d taskDetails, resourc
 		return nil, err
 	}
 	fail := func() (func(), error) {
-		tx.Rollback(ctx)
+		deferutil.Rollback(ctx, tx)
 		return nil, errors.Join(jobs.ErrOperatorRequired, errors.New("订阅已归档、停用、规则或H&R证明已变更，请重新评估"))
 	}
 	var enabled, archived bool
@@ -40,5 +41,5 @@ func (e Engine) guardSubscriptionAdd(ctx context.Context, d taskDetails, resourc
 	if ok, _ := subscriptionpolicy.Filter(candidate, d.Media, rules); !ok {
 		return fail()
 	}
-	return func() { tx.Rollback(context.Background()) }, nil
+	return func() { deferutil.Rollback(context.Background(), tx) }, nil
 }

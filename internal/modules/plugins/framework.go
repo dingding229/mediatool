@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"net/http"
 	"net/url"
 	"strings"
@@ -157,12 +159,12 @@ func ValidateModule(ctx context.Context, module []byte) error {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	runtime := wasmRuntime(ctx)
-	defer runtime.Close(ctx)
+	defer deferutil.CloseContext(ctx, runtime, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	compiled, e := runtime.CompileModule(ctx, module)
 	if e != nil {
 		return ErrInvalid
 	}
-	defer compiled.Close(ctx)
+	defer deferutil.CloseContext(ctx, compiled, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	start := compiled.ExportedFunctions()["_start"]
 	if start == nil || len(start.ParamTypes()) != 0 || len(start.ResultTypes()) != 0 {
 		return ErrInvalid
@@ -186,7 +188,7 @@ func executeWASM(ctx context.Context, module []byte, m Manifest, event Event, da
 	bounded, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
 	runtime := wasmRuntime(bounded)
-	defer runtime.Close(context.Background())
+	defer deferutil.CloseContext(context.Background(), runtime, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	return executeWASMRuntime(bounded, runtime, module, m, event, data, host)
 }
 
@@ -261,7 +263,7 @@ func executeWASMRuntime(bounded context.Context, runtime wazero.Runtime, module 
 		if e != nil {
 			return 0
 		}
-		defer response.Body.Close()
+		defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		body, e := io.ReadAll(io.LimitReader(response.Body, 60<<10))
 		if e != nil {
 			return 0
@@ -319,7 +321,7 @@ func executeWASMRuntime(bounded context.Context, runtime wazero.Runtime, module 
 	if e != nil {
 		return result, ErrInvalid
 	}
-	defer compiled.Close(context.Background())
+	defer deferutil.CloseContext(context.Background(), compiled, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	_, e = runtime.InstantiateModule(bounded, compiled, wazero.NewModuleConfig().WithStdin(strings.NewReader(string(input))).WithStdout(stdout).WithStderr(stderr).WithArgs("plugin").WithSysWalltime().WithSysNanotime().WithSysNanosleep().WithRandSource(rand.Reader))
 	if exit, ok := e.(*sys.ExitError); ok && exit.ExitCode() == 0 {
 		e = nil
@@ -368,7 +370,7 @@ func (r Registry) invokeFramework(ctx context.Context, m Manifest, event Event, 
 	if err = conn.QueryRow(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1,0))`, "plugin:"+m.ID).Scan(&locked); err != nil || !locked {
 		return nil, ErrInvalid
 	}
-	defer conn.Exec(context.WithoutCancel(ctx), `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "plugin:"+m.ID)
+	defer dbutil.Unlock(context.WithoutCancel(ctx), conn, `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "plugin:"+m.ID)
 
 	var module, data, raw []byte
 	var revision int64
@@ -487,7 +489,7 @@ func (r Registry) Clone(ctx context.Context, id, newID, name string, revision in
 	if e != nil {
 		return e
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var raw, cipher, module, files []byte
 	var digest, readme, ui string
 	e = tx.QueryRow(ctx, `SELECT manifest,config_ciphertext,wasm_module,package_files,package_digest,readme,ui_html FROM extension_plugins WHERE id=$1 AND revision=$2 FOR SHARE`, id, revision).Scan(&raw, &cipher, &module, &files, &digest, &readme, &ui)

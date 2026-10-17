@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"regexp"
 	"sync"
@@ -82,7 +83,7 @@ func nativeFetch(ctx context.Context, address string) ([]byte, error) {
 	if e != nil {
 		return nil, errors.New("native site repository unreachable")
 	}
-	defer response.Body.Close()
+	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if response.StatusCode != 200 {
 		return nil, errors.New("native repository request failed")
 	}
@@ -205,7 +206,7 @@ func (r Repository) importSnapshot(ctx context.Context, ids []string, commit str
 	if e != nil {
 		return nil, errors.New("site import transaction unavailable")
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	for _, definition := range definitions {
 		if _, e = tx.Exec(ctx, definitionInsert, definitionArguments(definition)...); e != nil {
 			return nil, errors.New("site import transaction failed")

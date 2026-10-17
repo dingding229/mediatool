@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"os"
 	"strings"
@@ -162,7 +163,7 @@ func (m *Manager) ProbeCredentials(ctx context.Context, c Credentials) (CheckRes
 		root, err = os.OpenRoot(c.String("rootPath"))
 		if err == nil {
 			_, err = root.Stat(".")
-			root.Close()
+			deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		}
 		if err == nil {
 			message = "本地目录可读取；文件操作仅限此根目录"
@@ -226,7 +227,7 @@ func (m *Manager) ProbeCredentials(ctx context.Context, c Credentials) (CheckRes
 			response, requestErr := client.Do(request)
 			err = requestErr
 			if err == nil {
-				defer response.Body.Close()
+				defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 				var info []struct {
 					ID string `json:"Id"`
 				}

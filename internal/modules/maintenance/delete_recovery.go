@@ -3,6 +3,7 @@ package maintenance
 import (
 	"context"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"time"
 )
@@ -73,7 +74,7 @@ func (e Engine) recoverDeletingBackups(ctx context.Context, now time.Time) (map[
 	if err != nil {
 		return recovered, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(91220880)`); err != nil {
 		return recovered, err
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path"
 	"path/filepath"
@@ -80,7 +81,7 @@ func (l *Local) List(ctx context.Context, p string) ([]File, error) {
 	if err != nil {
 		return nil, ErrMissing
 	}
-	defer folder.Close()
+	defer deferutil.Close(folder, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	entries, err := folder.ReadDir(5001)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, ErrUnavailable
@@ -150,12 +151,12 @@ func (l *Local) Relocate(ctx context.Context, source, target string) error {
 	if err != nil {
 		return ErrUnavailable
 	}
-	defer from.Close()
+	defer deferutil.Close(from, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	to, err := l.Root.Open(path.Dir(target))
 	if err != nil {
 		return ErrUnavailable
 	}
-	defer to.Close()
+	defer deferutil.Close(to, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if err = renameNoReplace(from, path.Base(source), to, path.Base(target)); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return ErrConflict

@@ -19,7 +19,9 @@ func (r Repository) Get(ctx context.Context, id string) (Definition, error) {
 	if err != nil {
 		return d, errors.New("site definition unavailable; import the matching configuration")
 	}
-	json.Unmarshal(compatibility, &d.Compatibility)
+	if checkedErr := json.Unmarshal(compatibility, &d.Compatibility); checkedErr != nil {
+		return Definition{}, checkedErr
+	}
 	d.refreshCompatibility()
 	return d, nil
 }
@@ -36,7 +38,9 @@ func (r Repository) List(ctx context.Context) ([]Definition, error) {
 		if err = rows.Scan(&d.ID, &d.Name, &d.Schema, &d.SourceCommit, &d.RawJSON, &d.CommonJSON, &raw, &d.SourceRepository); err != nil {
 			return nil, err
 		}
-		json.Unmarshal(raw, &d.Compatibility)
+		if checkedErr := json.Unmarshal(raw, &d.Compatibility); checkedErr != nil {
+			return nil, checkedErr
+		}
 		d.refreshCompatibility()
 		out = append(out, d)
 	}

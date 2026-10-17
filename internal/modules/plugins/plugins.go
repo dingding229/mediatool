@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/releasename"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/secrets"
 	"regexp"
 	"strings"
@@ -261,7 +262,11 @@ func (r Registry) Organized(ctx context.Context, event Event) {
 			state, message = "unknown", "扩展事件未确认成功；不自动重复发送"
 		}
 		finish, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
-		r.DB.Exec(finish, `UPDATE extension_deliveries SET state=$3,message=$4,updated_at=now() WHERE event_id=$1 AND plugin_id=$2`, eventID, item.Manifest.ID, state, message)
+		if _, checkedErr := r.DB.Exec(finish, `UPDATE extension_deliveries SET state=$3,message=$4,updated_at=now() WHERE event_id=$1 AND plugin_id=$2`, eventID, item.Manifest.ID, state, message); checkedErr != nil {
+			deferutil.Report(checkedErr, "internal/modules/plugins/plugins.go:Organized")
+			cancel()
+			return
+		}
 		cancel()
 	}
 }

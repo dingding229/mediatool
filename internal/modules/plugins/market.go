@@ -5,6 +5,7 @@ import (
 	"io"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/playback"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"net/url"
 	"time"
@@ -46,7 +47,7 @@ func publicFetch(ctx context.Context, target string, limit int64) ([]byte, error
 	if e != nil {
 		return nil, e
 	}
-	defer response.Body.Close()
+	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if response.StatusCode != 200 {
 		return nil, ErrInvalid
 	}

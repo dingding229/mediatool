@@ -6,6 +6,7 @@ import (
 	"errors"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/metadata"
+	deferutil "media-tool/internal/platform/cleanup"
 )
 
 // Correct retains assetId/grant and cloud/source media. Output path changes
@@ -61,7 +62,7 @@ func (e Engine) Correct(ctx context.Context, assetID string, in Confirmation) er
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if err = checkScrapeSettings(ctx, tx, item); err != nil {
 		return err
 	}

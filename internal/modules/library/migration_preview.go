@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"sort"
 
 	"github.com/jackc/pgx/v5"
@@ -142,7 +143,7 @@ func (e Engine) PreviewIdentityMigration(ctx context.Context, assetID string, in
 	if err != nil {
 		return MigrationPreview{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,715))`, assetID); err != nil {
 		return MigrationPreview{}, err
 	}

@@ -12,6 +12,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/playbackgrants"
 	"media-tool/internal/modules/strm"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/url"
 	"os"
 	"path"
@@ -125,7 +126,7 @@ func (e Engine) inspectSTRM(ctx context.Context, tx pgx.Tx, item STRMRepairItem)
 	if err != nil {
 		return item, nil, err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	raw, err := readRegular(fs, item.Path)
 	if err == nil {
 		sum := sha256.Sum256(raw)
@@ -164,7 +165,7 @@ func (e Engine) PreviewSTRMRepair(ctx context.Context, assets []string) (STRMRep
 	if err != nil {
 		return out, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	for _, asset := range assets {
 		if !ValidArchiveID(asset) || seen[asset] {
 			return out, errors.New("资产ID无效或重复")
@@ -258,7 +259,7 @@ func (e Engine) ApproveSTRMRepair(ctx context.Context, id, digest string, confir
 	if err != nil {
 		return STRMRepairBatch{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var state, stored string
 	var expires time.Time
 	if err = tx.QueryRow(ctx, `SELECT state,digest,expires_at FROM strm_repair_batches WHERE id=$1 FOR UPDATE`, id).Scan(&state, &stored, &expires); err != nil {
@@ -332,7 +333,7 @@ func (e Engine) ProcessSTRMRepair(ctx context.Context, job jobs.Job) error {
 				return err
 			}
 			if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,715))`, i.AssetID); err != nil {
-				tx.Rollback(ctx)
+				deferutil.Rollback(ctx, tx)
 				return err
 			}
 			checked, raw, err := e.inspectSTRM(ctx, tx, i)
@@ -341,7 +342,7 @@ func (e Engine) ProcessSTRMRepair(ctx context.Context, job jobs.Job) error {
 				checked.Message = "归属摘要已变化，请重新预览"
 			}
 			if err != nil {
-				tx.Rollback(ctx)
+				deferutil.Rollback(ctx, tx)
 				return err
 			}
 			if checked.State != "missing" {
@@ -349,7 +350,7 @@ func (e Engine) ProcessSTRMRepair(ctx context.Context, job jobs.Job) error {
 				if err == nil {
 					err = tx.Commit(ctx)
 				} else {
-					tx.Rollback(ctx)
+					deferutil.Rollback(ctx, tx)
 				}
 				if err != nil {
 					return err
@@ -372,7 +373,7 @@ func (e Engine) ProcessSTRMRepair(ctx context.Context, job jobs.Job) error {
 			if err == nil {
 				err = tx.Commit(ctx)
 			} else {
-				tx.Rollback(ctx)
+				deferutil.Rollback(ctx, tx)
 			}
 			if err != nil {
 				return err
@@ -404,7 +405,7 @@ func (e Engine) RetrySTRMRepair(ctx context.Context, id, digest string, confirm 
 	if err != nil {
 		return STRMRepairBatch{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var state, stored, jobState string
 	if err = tx.QueryRow(ctx, `SELECT b.state,b.digest,coalesce(j.state,'') FROM strm_repair_batches b LEFT JOIN jobs j ON j.id=b.job_id WHERE b.id=$1 FOR UPDATE OF b`, id).Scan(&state, &stored, &jobState); err != nil {
 		return STRMRepairBatch{}, err

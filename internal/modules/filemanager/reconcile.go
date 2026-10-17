@@ -3,6 +3,7 @@ package filemanager
 import (
 	"context"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"time"
 )
 
@@ -36,7 +37,7 @@ func (e Engine) Reconcile(ctx context.Context, id string) (Result, error) {
 	if err != nil {
 		return out, err
 	}
-	defer b.Close()
+	defer deferutil.Close(b, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	completed := out.CompletedSteps
 	for completed < len(out.Plan.Steps) {
 		step := out.Plan.Steps[completed]

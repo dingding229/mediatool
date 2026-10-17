@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"mime"
 	"net"
 	"net/http"
@@ -202,7 +203,10 @@ func (e *Engine) serve(w http.ResponseWriter, r *http.Request, ref storage.FileR
 	}
 }
 func (e *Engine) proxy(w http.ResponseWriter, r *http.Request, ref storage.FileRef, link storage.DownloadLink) {
-	http.NewResponseController(w).SetWriteDeadline(time.Time{})
+	if checkedErr := http.NewResponseController(w).SetWriteDeadline(time.Time{}); checkedErr != nil && !errors.Is(checkedErr, http.ErrNotSupported) {
+		deferutil.Report(checkedErr, "internal/modules/playback/engine.go:proxy")
+		return
+	}
 	if r.Method != "GET" && r.Method != "HEAD" {
 		writeError(w, 405, "method_not_allowed", "播放仅支持 GET/HEAD")
 		return
@@ -241,7 +245,7 @@ func (e *Engine) proxy(w http.ResponseWriter, r *http.Request, ref storage.FileR
 			return
 		}
 		if attempt == 0 && (response.StatusCode == 401 || response.StatusCode == 403) {
-			response.Body.Close()
+			deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			if invalidator, ok := e.Resolver.(interface {
 				Invalidate(context.Context, storage.FileRef)
 			}); ok {
@@ -263,7 +267,7 @@ func (e *Engine) proxy(w http.ResponseWriter, r *http.Request, ref storage.FileR
 		}
 		break
 	}
-	defer response.Body.Close()
+	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	switch response.StatusCode {
 	case 200, 206, 304, 416:
 		if response.StatusCode == 200 || response.StatusCode == 206 {
@@ -282,11 +286,17 @@ func (e *Engine) proxy(w http.ResponseWriter, r *http.Request, ref storage.FileR
 			}
 		}
 		w.Header().Set("X-Media-Delivery", "proxy")
-		http.NewResponseController(w).SetWriteDeadline(time.Time{})
+		if checkedErr := http.NewResponseController(w).SetWriteDeadline(time.Time{}); checkedErr != nil && !errors.Is(checkedErr, http.ErrNotSupported) {
+			deferutil.Report(checkedErr, "internal/modules/playback/engine.go:proxy")
+			return
+		}
 		w.WriteHeader(response.StatusCode)
 		if r.Method != "HEAD" && response.StatusCode != 304 {
 			buffer := make([]byte, 32<<10)
-			io.CopyBuffer(w, response.Body, buffer)
+			if _, checkedErr := io.CopyBuffer(w, response.Body, buffer); checkedErr != nil {
+				deferutil.Report(checkedErr, "internal/modules/playback/engine.go:proxy")
+				return
+			}
 		}
 	default:
 		writeError(w, 502, "media_upstream_rejected", "播放源拒绝读取，请重新检查文件、令牌或访问条件")
@@ -329,7 +339,10 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": code, "message": message}})
+	if checkedErr := json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": code, "message": message}}); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/modules/playback/engine.go:writeError")
+		return
+	}
 }
 
 // NativeClientHeaders advertises only the non-secret UA needed by the CDN.

@@ -78,7 +78,9 @@ func (e Engine) LibrarySelection(ctx context.Context, candidates, assets []strin
 		}
 		out.Files = append(out.Files, File{ID: id, Name: path.Base(full), Path: full, Size: size})
 		var item metadata.Item
-		json.Unmarshal(mediaJSON, &item)
+		if checkedErr := json.Unmarshal(mediaJSON, &item); checkedErr != nil {
+			return LibrarySelection{}, checkedErr
+		}
 		policy, policyErr := (classification.Repository{DB: e.DB}).Get(ctx)
 		if policyErr != nil {
 			rows.Close()

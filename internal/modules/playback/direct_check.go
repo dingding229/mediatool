@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"mime"
 	"net/http"
 	"regexp"
@@ -157,7 +158,7 @@ func (e *Engine) probeDirect(ctx context.Context, link storage.DownloadLink, age
 	if err != nil {
 		return false
 	}
-	defer res.Body.Close()
+	defer deferutil.Close(res.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if res.StatusCode != 206 {
 		return false
 	}

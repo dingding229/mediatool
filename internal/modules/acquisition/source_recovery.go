@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"path"
 	"strings"
 
@@ -260,7 +261,7 @@ func (e Engine) ReconfirmSource(ctx context.Context, id string, in SourceReconfi
 	if err != nil {
 		return answer, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	// Per-task advisory serialization matches Add; it does not hold network locks.
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "download-task:"+id); err != nil {
 		return answer, err

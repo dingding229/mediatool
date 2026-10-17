@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -79,13 +80,13 @@ func audit(directory, commit string) (report, error) {
 	if err != nil {
 		return result, &auditFailure{"directory_open", err}
 	}
-	defer root.Close()
+	defer deferutil.Close(root, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 	read := func(path string) ([]byte, error) {
 		file, err := root.Open(path)
 		if err != nil {
 			return nil, err
 		}
-		defer file.Close()
+		defer deferutil.Close(file, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 		raw, err := io.ReadAll(io.LimitReader(file, (2<<20)+1))
 		if err != nil || len(raw) > 2<<20 {
 			return nil, errors.New("configuration exceeds limit")

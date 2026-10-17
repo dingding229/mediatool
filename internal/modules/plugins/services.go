@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/scheduling"
 
 	"time"
@@ -16,7 +17,7 @@ func (r Registry) Schedule(ctx context.Context) error {
 	if e != nil {
 		return e
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var locked bool
 	if e = tx.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(91220863)`).Scan(&locked); e != nil || !locked {
 		return e
@@ -106,7 +107,7 @@ func (r Registry) RunService(ctx context.Context, id, service string, revision i
 	if e != nil {
 		return e
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var raw []byte
 	var current int64
 	var enabled bool

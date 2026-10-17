@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/sites"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/trace"
 	"time"
 )
@@ -25,7 +26,7 @@ func (e Engine) Collect(ctx context.Context, id string) error {
 	defer func() {
 		closeCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
-		conn.Close(closeCtx)
+		deferutil.CloseContext(closeCtx, conn, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	}()
 	var locked bool
 	if err = conn.QueryRow(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1,71352))`, id).Scan(&locked); err != nil {

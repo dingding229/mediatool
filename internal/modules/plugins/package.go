@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	deferutil "media-tool/internal/platform/cleanup"
 	"path"
 	"regexp"
 	"strconv"
@@ -67,7 +68,7 @@ func ParsePackage(data []byte) (Package, error) {
 			return out, ErrInvalid
 		}
 		raw, e := io.ReadAll(io.LimitReader(reader, MaxUnpackedBytes+1))
-		reader.Close()
+		deferutil.Close(reader, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if e != nil || len(raw) > MaxUnpackedBytes {
 			return out, ErrInvalid
 		}
@@ -204,7 +205,7 @@ func (r Registry) Install(ctx context.Context, p Package, revision int64) error 
 	if e != nil {
 		return e
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	raw, _ := json.Marshal(p.Manifest)
 	files, _ := json.Marshal(p.Files)
 	if revision == 0 {
@@ -353,8 +354,14 @@ func (r Registry) recordRun(ctx context.Context, id, kind, state, message string
 	if r.DB == nil {
 		return
 	}
-	r.DB.Exec(ctx, `INSERT INTO extension_runs(id,plugin_id,kind,state,message,finished_at)VALUES(gen_random_uuid(),$1,$2,$3,$4,now())`, id, kind, state, message)
-	r.DB.Exec(ctx, `DELETE FROM extension_runs WHERE id IN(SELECT id FROM extension_runs WHERE plugin_id=$1 ORDER BY created_at DESC OFFSET 100)`, id)
+	if _, checkedErr := r.DB.Exec(ctx, `INSERT INTO extension_runs(id,plugin_id,kind,state,message,finished_at)VALUES(gen_random_uuid(),$1,$2,$3,$4,now())`, id, kind, state, message); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/modules/plugins/package.go:recordRun")
+		return
+	}
+	if _, checkedErr := r.DB.Exec(ctx, `DELETE FROM extension_runs WHERE id IN(SELECT id FROM extension_runs WHERE plugin_id=$1 ORDER BY created_at DESC OFFSET 100)`, id); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/modules/plugins/package.go:recordRun")
+		return
+	}
 }
 func (r Registry) Test(ctx context.Context, id, filename string) (json.RawMessage, error) {
 	items, e := r.List(ctx)

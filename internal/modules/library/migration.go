@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path"
 	"sort"
@@ -45,7 +46,7 @@ func (e Engine) stageOutputMigration(ctx context.Context, tx pgx.Tx, assetID, cl
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	j := Journal{DB: e.DB, Vault: e.Connections.Repository.Vault}
 	writes := []string{}
 	retire := map[string]ownedOutput{}
@@ -225,7 +226,7 @@ func stageMigrationWrite(ctx context.Context, j Journal, tx pgx.Tx, root, relati
 	if err != nil {
 		return "", err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	raw, readErr := readRegular(fs, relative)
 	if readErr == nil {
 		if ownerScope == "" || !digestEqual(raw, previous) {

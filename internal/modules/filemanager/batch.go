@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
 	"time"
 )
 
@@ -68,7 +69,7 @@ func (e Engine) PreviewBatch(ctx context.Context, inputs []Input) (Batch, error)
 	if err != nil {
 		return out, ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `INSERT INTO file_batches(id,digest,expires_at)VALUES($1,$2,$3)`, out.ID, out.Digest, out.ExpiresAt); err != nil {
 		return out, ErrUnavailable
 	}
@@ -121,7 +122,7 @@ func (e Engine) ApproveBatch(ctx context.Context, id, digest string, confirm boo
 	if err != nil {
 		return Batch{}, ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var state, stored string
 	var expires time.Time
 	if err = tx.QueryRow(ctx, `SELECT state,digest,expires_at FROM file_batches WHERE id=$1 FOR UPDATE`, id).Scan(&state, &stored, &expires); err != nil {
@@ -184,7 +185,9 @@ func (e Engine) ProcessBatch(ctx context.Context, job jobs.Job) error {
 			continue
 		}
 		if item.State != "preview" || item.Result == nil {
-			e.finishBatch(context.WithoutCancel(ctx), body.ID)
+			if checkedErr := e.finishBatch(context.WithoutCancel(ctx), body.ID); checkedErr != nil {
+				return checkedErr
+			}
 			return jobs.ErrOperatorRequired
 		}
 		if ctx.Err() != nil {
@@ -210,7 +213,9 @@ func (e Engine) ProcessBatch(ctx context.Context, job jobs.Job) error {
 			return err
 		}
 		if state == "needs_reconcile" {
-			e.finishBatch(context.WithoutCancel(ctx), body.ID)
+			if checkedErr := e.finishBatch(context.WithoutCancel(ctx), body.ID); checkedErr != nil {
+				return checkedErr
+			}
 			return jobs.ErrOperatorRequired
 		}
 	}
@@ -221,7 +226,7 @@ func (e Engine) finishBatch(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var state string
 	if err = tx.QueryRow(ctx, `SELECT CASE WHEN bool_or(state IN ('running','needs_reconcile')) THEN 'needs_reconcile' WHEN bool_and(state='succeeded') THEN 'succeeded' ELSE 'partial' END FROM file_batch_items WHERE batch_id=$1`, id).Scan(&state); err != nil {
 		return err

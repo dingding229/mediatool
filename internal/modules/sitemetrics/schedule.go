@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/scheduling"
 	"media-tool/internal/platform/trace"
 	"time"
@@ -50,7 +51,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var s ScheduleConfig
 	err = tx.QueryRow(ctx, `SELECT cron_expression,revision FROM site_metric_schedule WHERE singleton AND enabled AND next_run_at<=now() FOR UPDATE SKIP LOCKED`).Scan(&s.Cron, &s.Revision)
 	if errors.Is(err, pgx.ErrNoRows) {

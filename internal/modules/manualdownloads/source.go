@@ -8,6 +8,7 @@ import (
 	"io"
 	"media-tool/internal/modules/downloads"
 	"media-tool/internal/modules/playback"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"net/url"
 	"strings"
@@ -121,7 +122,7 @@ func fetchTorrent(ctx context.Context, raw string, policy playback.Policy, clien
 	if err != nil {
 		return Source{}, errors.New("种子链接获取失败，请检查公网链接、认证和代理限制；不接受私网目标")
 	}
-	defer resp.Body.Close()
+	defer deferutil.Close(resp.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if resp.StatusCode != 200 || resp.ContentLength > MaxTorrent {
 		return Source{}, ErrSource
 	}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/schema"
 	"media-tool/internal/platform/secrets"
 	"regexp"
@@ -217,7 +218,9 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 	}
 	r.SecondMigrationIdempotent = equal(checked, twice, false)
 	r.Tables = len(all)
-	db.QueryRow(ctx, `SELECT max(version_id)FROM goose_db_version WHERE is_applied`).Scan(&r.FinalVersion)
+	if checkedErr := db.QueryRow(ctx, `SELECT max(version_id)FROM goose_db_version WHERE is_applied`).Scan(&r.FinalVersion); checkedErr != nil {
+		return Report{}, checkedErr
+	}
 	if !r.DryRunCiphertextsUnchanged || !r.SecondMigrationIdempotent {
 		return r, fmt.Errorf("clone immutability failed")
 	}
@@ -238,13 +241,16 @@ func ExportSnapshot(ctx context.Context, db *pgxpool.Pool) (Export, pgx.Tx, erro
 	out := Export{}
 	out.Tables, e = inventory(ctx, tx, nil)
 	if e != nil {
-		tx.Rollback(ctx)
+		deferutil.Rollback(ctx, tx)
 		return out, nil, e
 	}
 	if e = tx.QueryRow(ctx, `SELECT pg_export_snapshot()`).Scan(&out.Snapshot); e != nil {
-		tx.Rollback(ctx)
+		deferutil.Rollback(ctx, tx)
 		return out, nil, e
 	}
-	tx.QueryRow(ctx, `SELECT max(version_id)FROM goose_db_version WHERE is_applied`).Scan(&out.Version)
+	if checkedErr := tx.QueryRow(ctx, `SELECT max(version_id)FROM goose_db_version WHERE is_applied`).Scan(&out.Version); checkedErr != nil {
+		deferutil.Rollback(ctx, tx)
+		return Export{}, nil, checkedErr
+	}
 	return out, tx, nil
 }

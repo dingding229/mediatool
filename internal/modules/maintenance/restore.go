@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"io"
 	"media-tool/internal/platform/backupverify"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/database"
 	"net/url"
 	"os"
@@ -66,7 +67,7 @@ func (e Engine) restoreClone(ctx context.Context, name, dir string, m Manifest) 
 		return "", noop, err
 	}
 	err = e.pg(ctx, "pg_restore", dsn, []string{"--exit-on-error", "--no-owner", "--no-acl", "--dbname=" + name}, dump, io.Discard)
-	dump.Close()
+	deferutil.Close(dump, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if err != nil {
 		return "", noop, err
 	}
@@ -94,7 +95,7 @@ func (e Engine) restoreOutputs(ctx context.Context, archive string, proofs []Fil
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	expected := map[string]FileProof{}
 	for _, proof := range proofs {
 		if !safeRelative(proof.Path) || !Digest.MatchString(proof.Digest) || proof.Bytes < 0 || proof.Bytes > 64<<20 {
@@ -109,7 +110,7 @@ func (e Engine) restoreOutputs(ctx context.Context, archive string, proofs []Fil
 	if err != nil {
 		return err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	restore := map[string]bool{}
 	seen := map[string]bool{}
 	tr := tar.NewReader(file)
@@ -152,7 +153,7 @@ func (e Engine) restoreOutputs(ctx context.Context, archive string, proofs []Fil
 				return err
 			}
 			current, err := io.ReadAll(io.LimitReader(src, (64<<20)+1))
-			src.Close()
+			deferutil.Close(src, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			if err != nil || hash(current) != p.Digest {
 				return errors.New("已有输出与备份不同，禁止覆盖: " + h.Name)
 			}
@@ -213,7 +214,10 @@ func (e Engine) restoreOutputs(ctx context.Context, archive string, proofs []Fil
 		}
 		_, err = out.Write(raw)
 		syncErr := out.Sync()
-		out.Close()
+		closeErr := out.Close()
+		if err == nil {
+			err = closeErr
+		}
 		if os.Geteuid() == 0 {
 			if info, statErr := os.Stat(e.OutputRoot); statErr == nil {
 				if stat, ok := info.Sys().(*syscall.Stat_t); ok {

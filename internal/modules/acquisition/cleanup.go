@@ -9,6 +9,8 @@ import (
 	"io"
 	"media-tool/internal/adapters/qbittorrent"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"os"
 	"path"
 	"strings"
@@ -71,7 +73,7 @@ func (e Engine) Cleanup(ctx context.Context, job jobs.Job) (result error) {
 	if _, err = conn.Exec(ctx, `SELECT pg_advisory_lock(hashtextextended($1,0))`, "download-task:"+id); err != nil {
 		return err
 	}
-	defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "download-task:"+id)
+	defer dbutil.Unlock(context.Background(), conn, `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "download-task:"+id)
 	var cleanupState string
 	var evidence []byte
 	if err = e.DB.QueryRow(ctx, `SELECT state,evidence FROM download_cleanup_requests WHERE task_id=$1`, id).Scan(&cleanupState, &evidence); err != nil {
@@ -87,7 +89,10 @@ func (e Engine) Cleanup(ctx context.Context, job jobs.Job) (result error) {
 		if result != nil {
 			bounded, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 			defer cancel()
-			e.DB.Exec(bounded, `UPDATE download_cleanup_requests SET state=CASE WHEN state='deleting'THEN 'uncertain' ELSE 'blocked'END,message=$2,updated_at=now()WHERE task_id=$1`, id, result.Error())
+			if _, checkedErr := e.DB.Exec(bounded, `UPDATE download_cleanup_requests SET state=CASE WHEN state='deleting'THEN 'uncertain' ELSE 'blocked'END,message=$2,updated_at=now()WHERE task_id=$1`, id, result.Error()); checkedErr != nil {
+				result = errors.Join(result, checkedErr)
+				return
+			}
 		}
 	}()
 	resource, integration, hash, state, details, err := e.load(ctx, id)
@@ -100,7 +105,9 @@ func (e Engine) Cleanup(ctx context.Context, job jobs.Job) (result error) {
 	var allowHR struct {
 		Satisfied bool `json:"hrSatisfied"`
 	}
-	json.Unmarshal(evidence, &allowHR)
+	if checkedErr := json.Unmarshal(evidence, &allowHR); checkedErr != nil {
+		return checkedErr
+	}
 	var metadataRaw []byte
 	// HR admission is bound to the original frozen search result, never a
 	// mutable resource row changed by another search or promotion.
@@ -119,7 +126,9 @@ func (e Engine) Cleanup(ctx context.Context, job jobs.Job) (result error) {
 		}
 	}
 	var metadata map[string]any
-	json.Unmarshal(metadataRaw, &metadata)
+	if checkedErr := json.Unmarshal(metadataRaw, &metadata); checkedErr != nil {
+		return checkedErr
+	}
 	hr, known := metadata["hr"].(bool)
 	if (!known || hr) && !allowHR.Satisfied {
 		return errors.New("H&R未知或尚未确认满足站点做种要求，不自动清理；完成做种后可逐项明确批准")
@@ -161,7 +170,7 @@ func (e Engine) Cleanup(ctx context.Context, job jobs.Job) (result error) {
 	if err != nil {
 		return err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	for _, p := range proofs {
 		cloud, err := e.Connections.CloudByID(ctx, p.connection)
 		if err != nil {
@@ -180,12 +189,12 @@ func (e Engine) Cleanup(ctx context.Context, job jobs.Job) (result error) {
 		}
 		stat, err := file.Stat()
 		if err != nil || !stat.Mode().IsRegular() || stat.Size() != p.size {
-			file.Close()
+			deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			return errors.New("本地源文件已变化")
 		}
 		h := sha1.New()
 		_, err = io.Copy(h, file)
-		file.Close()
+		deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if err != nil || !strings.EqualFold(hex.EncodeToString(h.Sum(nil)), p.sha) {
 			return errors.New("本地SHA1已变化，保留源文件")
 		}
@@ -350,7 +359,7 @@ func (e Engine) ReconcileCleanup(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	for _, p := range paths {
 		if _, err := fs.Stat(p); !errors.Is(err, os.ErrNotExist) {
 			return errors.New("本地仍有文件或不可核验，不宣称删除完成")

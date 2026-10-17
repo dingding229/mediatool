@@ -7,6 +7,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"log/slog"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/migrations"
 	"os"
 	"time"
@@ -27,7 +28,7 @@ func main() {
 		slog.Error("database configuration invalid")
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer deferutil.Close(db, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	if err = db.PingContext(ctx); err != nil {

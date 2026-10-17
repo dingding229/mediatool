@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"strings"
 	"sync"
@@ -51,12 +52,12 @@ func Open(dir, level string) (*Store, error) {
 	s := &Store{root: root}
 	v, err := ParseLevel(level)
 	if err != nil {
-		root.Close()
+		deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		return nil, err
 	}
 	s.Level.Set(v)
 	if err = s.openCurrent(); err != nil {
-		root.Close()
+		deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		return nil, err
 	}
 	return s, nil
@@ -71,7 +72,7 @@ func (s *Store) openCurrent() error {
 	}
 	stat, e := f.Stat()
 	if e != nil {
-		f.Close()
+		deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		return e
 	}
 	s.file = f
@@ -151,11 +152,12 @@ func (s *Store) Close() error {
 		return nil
 	}
 	s.closed = true
+	var err error
 	if s.file != nil {
-		s.file.Close()
+		err = s.file.Close()
 		s.file = nil
 	}
-	return s.root.Close()
+	return errors.Join(err, s.root.Close())
 }
 func (s *Store) Stats() (Summary, error) {
 	s.mu.Lock()
@@ -196,11 +198,14 @@ func (s *Store) Read(level string, limit int) ([]map[string]any, error) {
 		}
 		stat, err := f.Stat()
 		if err != nil || !stat.Mode().IsRegular() {
-			f.Close()
+			deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			return nil, errors.New("unsafe log source")
 		}
 		offset := max(int64(0), stat.Size()-(2<<20))
-		f.Seek(offset, io.SeekStart)
+		if _, checkedErr := f.Seek(offset, io.SeekStart); checkedErr != nil {
+			deferutil.Close(f, "Failed read-only seek; release descriptor before returning the primary error")
+			return nil, checkedErr
+		}
 		scanner := bufio.NewScanner(io.LimitReader(f, 2<<20))
 		scanner.Buffer(make([]byte, 4096), 1<<20)
 		records := []map[string]any{}
@@ -220,7 +225,7 @@ func (s *Store) Read(level string, limit int) ([]map[string]any, error) {
 			}
 			records = append(records, row)
 		}
-		f.Close()
+		deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if scanner.Err() != nil {
 			return nil, scanner.Err()
 		}
@@ -247,8 +252,11 @@ func (s *Store) Clear() (result error) {
 		}
 	}()
 	if s.file != nil {
-		s.file.Close()
+		err := s.file.Close()
 		s.file = nil
+		if err != nil {
+			return err
+		}
 	}
 	for _, name := range s.names() {
 		info, err := s.root.Lstat(name)

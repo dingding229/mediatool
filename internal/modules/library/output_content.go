@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path"
 	"strings"
@@ -38,7 +39,7 @@ func (e Engine) OutputContent(ctx context.Context, assetID, relative string) (Ou
 	if err != nil {
 		return out, err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	raw, err := readRegular(fs, relative)
 	if err != nil {
 		return out, err

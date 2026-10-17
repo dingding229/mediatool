@@ -13,6 +13,7 @@ import (
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/playback"
 	"media-tool/internal/modules/storage"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/database"
 	"media-tool/internal/platform/secrets"
@@ -88,7 +89,9 @@ func run() error {
 	probe, err := client.Probe(ctx, root)
 	if err != nil {
 		report["cloudReadAuthorized"] = false
-		json.NewEncoder(os.Stdout).Encode(report)
+		if checkedErr := json.NewEncoder(os.Stdout).Encode(report); checkedErr != nil {
+			return checkedErr
+		}
 		return errors.New("cloud probe failed")
 	}
 	report["cloudReadAuthorized"] = probe.PathReadable
@@ -200,7 +203,7 @@ func run() error {
 		if err != nil {
 			return 0, err
 		}
-		defer res.Body.Close()
+		defer deferutil.Close(res.Body, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 		if res.StatusCode != 200 {
 			return res.StatusCode, errors.New("provider rejected")
 		}
@@ -223,6 +226,8 @@ func run() error {
 		locations = append(locations, library.Locations...)
 	}
 	report["embyLibraryLocations"] = locations
-	json.NewEncoder(os.Stdout).Encode(report)
+	if checkedErr := json.NewEncoder(os.Stdout).Encode(report); checkedErr != nil {
+		return checkedErr
+	}
 	return nil
 }

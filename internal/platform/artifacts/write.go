@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path"
 	"strings"
@@ -18,7 +19,7 @@ func Write(rootDir, relative string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	defer root.Close()
+	defer deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if err = root.MkdirAll(path.Dir(relative), 0750); err != nil {
 		return err
 	}
@@ -31,7 +32,7 @@ func Write(rootDir, relative string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	defer root.Remove(temp)
+	defer deferutil.Do(func() error { return root.Remove(temp) }, "Temporary cleanup or final unlock only; resource close also releases locks and the primary result is authoritative")
 	_, err = file.Write(content)
 	if err == nil {
 		err = file.Sync()
@@ -50,7 +51,7 @@ func Write(rootDir, relative string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	defer directory.Close()
+	defer deferutil.Close(directory, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	return directory.Sync()
 }
 func Equal(rootDir, relative string, content []byte) (bool, error) {
@@ -58,7 +59,7 @@ func Equal(rootDir, relative string, content []byte) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer root.Close()
+	defer deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	file, err := root.Open(relative)
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
@@ -66,7 +67,7 @@ func Equal(rootDir, relative string, content []byte) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer file.Close()
+	defer deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	raw, err := io.ReadAll(io.LimitReader(file, int64(len(content))+1))
 	return string(raw) == string(content), err
 }
@@ -82,7 +83,7 @@ func Create(rootDir, relative string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	defer root.Close()
+	defer deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if err = root.MkdirAll(path.Dir(relative), 0750); err != nil {
 		return err
 	}
@@ -95,7 +96,7 @@ func Create(rootDir, relative string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	defer root.Remove(temp)
+	defer deferutil.Do(func() error { return root.Remove(temp) }, "Temporary cleanup or final unlock only; resource close also releases locks and the primary result is authoritative")
 	_, err = f.Write(content)
 	if err == nil {
 		err = f.Sync()
@@ -114,6 +115,6 @@ func Create(rootDir, relative string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	defer directory.Close()
+	defer deferutil.Close(directory, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	return directory.Sync()
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"media-tool/internal/platform/scheduling"
 	"time"
 
@@ -120,7 +122,7 @@ func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
 	if err != nil {
 		return Record{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var cronExpression string
 	// Serialize cron assignment with system-setting updates, including new rows.
 	if err = tx.QueryRow(ctx, `SELECT value->>'subscriptionCron' FROM application_settings WHERE singleton FOR SHARE`).Scan(&cronExpression); err != nil {
@@ -166,7 +168,7 @@ func (e Engine) Queue(ctx context.Context, id string, preview bool) (string, err
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	record, err := scanRecord(tx.QueryRow(ctx, `SELECT `+subscriptionColumns+` FROM subscriptions WHERE id=$1 FOR UPDATE`, id))
 	if err != nil {
 		return "", err
@@ -217,7 +219,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 	if err = conn.QueryRow(ctx, `SELECT pg_try_advisory_lock(74812911)`).Scan(&acquired); err != nil || !acquired {
 		return err
 	}
-	defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock(74812911)`)
+	defer dbutil.Unlock(context.Background(), conn, `SELECT pg_advisory_unlock(74812911)`)
 	rows, err := e.DB.Query(ctx, `SELECT id::text FROM subscriptions WHERE enabled AND archived_at IS NULL AND next_run_at<=now() ORDER BY next_run_at LIMIT 20`)
 	if err != nil {
 		return err
@@ -243,7 +245,7 @@ func (e Engine) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var active int
 	if err = tx.QueryRow(ctx, `SELECT count(*) FROM subscription_runs WHERE subscription_id=$1 AND state IN ('pending','running')`, id).Scan(&active); err != nil {
 		return err

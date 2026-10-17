@@ -13,6 +13,7 @@ import (
 	"io"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/artifacts"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/secrets"
 	"os"
 	"path"
@@ -84,7 +85,7 @@ func (j Journal) Apply(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var relative string
 	if err = tx.QueryRow(ctx, `SELECT relative_path FROM media_artifact_journal WHERE id=$1`, id).Scan(&relative); err != nil {
 		return err
@@ -127,32 +128,34 @@ func (j Journal) Apply(ctx context.Context, id string) error {
 	f, openErr := fs.Open(relative)
 	if openErr == nil {
 		raw, readErr := io.ReadAll(io.LimitReader(f, (20<<20)+1))
-		f.Close()
+		deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if readErr != nil {
-			fs.Close()
+			deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			return readErr
 		}
 		current := sha256.Sum256(raw)
 		if !bytes.Equal(current[:], digest) && !bytes.Equal(current[:], previous) {
-			fs.Close()
-			tx.Exec(ctx, `UPDATE media_artifact_journal SET state='conflict',updated_at=now()WHERE id=$1`, id)
+			deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
+			if _, checkedErr := tx.Exec(ctx, `UPDATE media_artifact_journal SET state='conflict',updated_at=now()WHERE id=$1`, id); checkedErr != nil {
+				return checkedErr
+			}
 			if err = tx.Commit(ctx); err != nil {
 				return err
 			}
 			return ErrArtifactConflict
 		}
 	} else if !errors.Is(openErr, os.ErrNotExist) {
-		fs.Close()
+		deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		return openErr
 	}
-	fs.Close()
+	deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if values["restoreOnly"] == "true" {
 		fs, openErr := os.OpenRoot(root)
 		if openErr != nil {
 			return openErr
 		}
 		current, readErr := readRegular(fs, relative)
-		fs.Close()
+		deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if readErr == nil {
 			sum := sha256.Sum256(current)
 			if !bytes.Equal(sum[:], digest) {
@@ -182,7 +185,7 @@ func (j Journal) Write(ctx context.Context, root, relative, assetID, scope, kind
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	id, err := j.Stage(ctx, tx, root, relative, assetID, scope, kind, content)
 	if err != nil {
 		return err
@@ -238,7 +241,7 @@ func (e Engine) FinalizeRecovered(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	rows, err := tx.Query(ctx, `SELECT c.id::text,c.asset_id::text FROM library_candidates c WHERE state IN ('artifacts_pending','needs_output_reconciliation') AND EXISTS(SELECT 1 FROM media_artifact_journal j WHERE j.asset_id=c.asset_id AND j.state='applied' AND j.artifact_kind IN ('strm','nfo')) AND NOT EXISTS(SELECT 1 FROM media_artifact_journal j WHERE j.asset_id=c.asset_id AND j.state<>'applied') FOR UPDATE OF c`)
 	if err != nil {
 		return err

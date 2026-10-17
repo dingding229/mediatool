@@ -54,7 +54,11 @@ func (s Store) searchEntry(ctx context.Context, id string, detail bool) (Entry, 
 		return x, err
 	}
 	var context map[string]any
-	json.Unmarshal(media, &context)
+	if len(media) > 0 {
+		if checkedErr := json.Unmarshal(media, &context); checkedErr != nil {
+			return Entry{}, checkedErr
+		}
+	}
 	x.PosterPath, _ = context["posterPath"].(string)
 	if key != "" {
 		if cached, err := s.Redis.Get(ctx, key).Result(); err == nil && cached == id {

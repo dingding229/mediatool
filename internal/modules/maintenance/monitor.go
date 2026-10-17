@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"golang.org/x/sys/unix"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/scheduling"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var locked bool
 	if err = tx.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(91220881)`).Scan(&locked); err != nil || !locked {
 		return err
@@ -165,7 +166,7 @@ func (e Engine) evaluate(ctx context.Context, p Policy, v map[string]any) error 
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	for _, rule := range rules {
 		if _, err = tx.Exec(ctx, `INSERT INTO ops_alerts(code)VALUES($1)ON CONFLICT DO NOTHING`, rule.code); err != nil {
 			return err

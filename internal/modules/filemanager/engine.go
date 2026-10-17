@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"path"
 	"path/filepath"
 	"strings"
@@ -60,7 +61,7 @@ func (e Engine) Roots(ctx context.Context) ([]Root, error) {
 				root.Capabilities = Capabilities{ReadOnly: true, Role: "workspace", Reason: "目录不可读取"}
 			} else {
 				root.Capabilities, err = e.capability(ctx, root, ".", b, nil)
-				b.Close()
+				deferutil.Close(b, "Read/descriptor teardown only; primary operations handle their own I/O result")
 				if err != nil {
 					return nil, err
 				}
@@ -112,7 +113,7 @@ func (e Engine) List(ctx context.Context, id, relative string, limit, offset int
 	if err != nil {
 		return nil, err
 	}
-	defer b.Close()
+	defer deferutil.Close(b, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	capability, err := e.capability(ctx, root, p, b, nil)
 	if err != nil {
 		return nil, err
@@ -205,7 +206,7 @@ func (e Engine) Preview(ctx context.Context, in Input) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	defer b.Close()
+	defer deferutil.Close(b, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if in.ExpectedFileID != "" || in.ExpectedSize != nil {
 		source, err := b.Find(ctx, in.Source)
 		if err != nil {
@@ -399,7 +400,7 @@ func (e Engine) lock(ctx context.Context, id string) (func(), error) {
 		defer cancel()
 		var released bool
 		if conn.QueryRow(c, `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "files:"+id).Scan(&released) != nil || !released {
-			conn.Conn().Close(c)
+			deferutil.CloseContext(c, conn.Conn(), "Read/descriptor teardown only; primary operations handle their own I/O result")
 		}
 		conn.Release()
 	}, nil
@@ -409,7 +410,7 @@ func (e Engine) claim(ctx context.Context, p Plan) error {
 	if err != nil {
 		return ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var rev int64
 	var enabled bool
 	if err = tx.QueryRow(ctx, `SELECT revision,enabled FROM integrations WHERE id=$1 FOR UPDATE`, p.ConnectionID).Scan(&rev, &enabled); err != nil || rev != p.Revision || !enabled {
@@ -440,7 +441,7 @@ func (e Engine) finish(ctx context.Context, id, state, message string, completed
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `UPDATE file_operations SET state=$2,message=$3,completed_steps=$4,updated_at=now() WHERE id=$1`, id, state, message, completed); err != nil {
 		return err
 	}
@@ -487,7 +488,7 @@ func (e Engine) Execute(ctx context.Context, id, digest string, confirm bool) (R
 	if err != nil {
 		return out, err
 	}
-	defer b.Close()
+	defer deferutil.Close(b, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	for _, item := range out.Plan.Items {
 		if item.Source.ID == "" {
 			continue
@@ -579,7 +580,7 @@ func (e Engine) recordStep(ctx context.Context, p Plan, step Step, completed int
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if step.Action == "mkdir" && len(observed) == 1 {
 		raw, _ := json.Marshal(observed[0])
 		if _, err = tx.Exec(ctx, `INSERT INTO file_batch_parents(batch_id,integration_id,path,identity) SELECT batch_id,$2,$3,$4 FROM file_batch_items WHERE operation_id=$1 ON CONFLICT DO NOTHING`, p.ID, p.ConnectionID, step.Target, raw); err != nil {

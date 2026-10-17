@@ -35,5 +35,7 @@ func main() {
 	if e != nil {
 		os.Exit(1)
 	}
-	json.NewEncoder(os.Stdout).Encode(map[string]any{"loaded": len(loaded), "compiledGo": true})
+	if checkedErr := json.NewEncoder(os.Stdout).Encode(map[string]any{"loaded": len(loaded), "compiledGo": true}); checkedErr != nil {
+		os.Exit(1)
+	}
 }

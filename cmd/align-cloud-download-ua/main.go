@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"os"
 	"strings"
@@ -87,7 +88,7 @@ func run(agent string) error {
 		if err != nil {
 			return errors.New("native CDN bytes unavailable")
 		}
-		defer res.Body.Close()
+		defer deferutil.Close(res.Body, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 		sample, err := io.ReadAll(io.LimitReader(res.Body, 1024))
 		if err != nil || res.StatusCode != 206 || len(sample) != 1024 || !strings.HasPrefix(res.Header.Get("Content-Range"), "bytes 0-1023/") {
 			return errors.New("native UA not accepted")

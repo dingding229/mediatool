@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path"
 	"regexp"
@@ -126,7 +127,7 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if err = checkScrapeSettings(ctx, tx, item); err != nil {
 		return "", err
 	}
@@ -146,7 +147,9 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 		return "", err
 	}
 	var currentHashes map[uint32]string
-	json.Unmarshal(hashes, &currentHashes)
+	if checkedErr := json.Unmarshal(hashes, &currentHashes); checkedErr != nil {
+		return "", checkedErr
+	}
 	if evidenceDigest(storage.File{ID: providerID, Name: path.Base(cloudPath), Path: cloudPath, Size: fileSize, Hashes: currentHashes}) != evidenceDigest(indexed) {
 		return "", errors.New("indexed file changed during confirmation")
 	}

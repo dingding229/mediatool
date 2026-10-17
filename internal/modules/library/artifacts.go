@@ -8,6 +8,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path"
 	"sort"
@@ -147,7 +148,7 @@ func WriteNFO(ctx context.Context, db *pgxpool.Pool, vault *secrets.Vault, root,
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	ids, err := StageNFO(ctx, j, tx, root, output, assetID, item, season, episode)
 	if err != nil {
 		return err
@@ -195,14 +196,14 @@ func collectSubtitleOutputs(sourceRoot, relativeVideo string, outputs []string) 
 	if err != nil {
 		return nil, err
 	}
-	defer root.Close()
+	defer deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	directory := path.Dir(relativeVideo)
 	folder, err := root.Open(directory)
 	if err != nil {
 		return nil, err
 	}
 	entries, err := folder.ReadDir(-1)
-	folder.Close()
+	deferutil.Close(folder, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +309,7 @@ func CopySubtitlesOutputsVerified(ctx context.Context, db *pgxpool.Pool, vault *
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	j := Journal{DB: db, Vault: vault}
 	ids := []string{}
 	for _, part := range parts {

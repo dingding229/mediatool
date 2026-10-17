@@ -9,6 +9,7 @@ import (
 	"media-tool/internal/modules/downloads"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
 	"path"
 	"strings"
 	"time"
@@ -66,7 +67,7 @@ func (e Engine) Create(ctx context.Context, s Source) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var existing string
 	err = tx.QueryRow(ctx, `INSERT INTO manual_download_tasks(id,integration_id,info_hash,title,source_kind,source_label,payload_ciphertext,endpoint,save_path,category) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(integration_id,info_hash) DO UPDATE SET info_hash=excluded.info_hash RETURNING id::text`, id, c.Record.ID, s.Meta.InfoHash, s.Meta.Name, s.Kind, s.Label, encrypted, c.String("endpoint"), save, category).Scan(&existing)
 	if err != nil {
@@ -115,7 +116,9 @@ func (e Engine) Process(ctx context.Context, j jobs.Job) error {
 	if err != nil {
 		bounded, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		e.DB.Exec(bounded, `UPDATE manual_download_tasks SET state=CASE WHEN submit_attempted THEN 'uncertain' ELSE 'blocked' END,message=$2,updated_at=now() WHERE id=$1 AND state NOT IN('downloading','completed','uncertain')`, in.ID, err.Error())
+		if _, checkedErr := e.DB.Exec(bounded, `UPDATE manual_download_tasks SET state=CASE WHEN submit_attempted THEN 'uncertain' ELSE 'blocked' END,message=$2,updated_at=now() WHERE id=$1 AND state NOT IN('downloading','completed','uncertain')`, in.ID, err.Error()); checkedErr != nil {
+			return checkedErr
+		}
 	}
 	return err
 }
@@ -137,7 +140,10 @@ func (e Engine) submit(ctx context.Context, id string) error {
 	defer func() {
 		c, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		conn.Exec(c, `SELECT pg_advisory_unlock(hashtextextended($1,913))`, id)
+		if _, checkedErr := conn.Exec(c, `SELECT pg_advisory_unlock(hashtextextended($1,913))`, id); checkedErr != nil {
+			deferutil.Report(checkedErr, "internal/modules/manualdownloads/tasks.go:")
+			return
+		}
 	}()
 	var integration, hash, endpoint, save, category, state, kind string
 	var encrypted []byte
@@ -164,7 +170,9 @@ func (e Engine) submit(ctx context.Context, id string) error {
 		return inspectErr
 	}
 	if attempted {
-		conn.Exec(ctx, `UPDATE manual_download_tasks SET state='uncertain',message='此前已提交，下载器尚未发现匹配hash；仅允许刷新核对，不自动重复添加',updated_at=now() WHERE id=$1`, id)
+		if _, checkedErr := conn.Exec(ctx, `UPDATE manual_download_tasks SET state='uncertain',message='此前已提交，下载器尚未发现匹配hash；仅允许刷新核对，不自动重复添加',updated_at=now() WHERE id=$1`, id); checkedErr != nil {
+			return checkedErr
+		}
 		return jobs.ErrOperatorRequired
 	}
 	payload, err := e.Connections.Repository.Vault.Open("manual-download:"+id, encrypted)
@@ -185,7 +193,9 @@ func (e Engine) submit(ctx context.Context, id string) error {
 		}
 	}
 	if err != nil {
-		conn.Exec(ctx, `UPDATE manual_download_tasks SET state='uncertain',message='下载器提交结果未知，请刷新核对；不会自动重新添加',updated_at=now() WHERE id=$1`, id)
+		if _, checkedErr := conn.Exec(ctx, `UPDATE manual_download_tasks SET state='uncertain',message='下载器提交结果未知，请刷新核对；不会自动重新添加',updated_at=now() WHERE id=$1`, id); checkedErr != nil {
+			return checkedErr
+		}
 		return errors.Join(jobs.ErrOperatorRequired, err)
 	}
 	_, err = conn.Exec(ctx, `UPDATE manual_download_tasks SET state='downloading',message='下载器已接受，等待进度同步',updated_at=now() WHERE id=$1`, id)
@@ -229,7 +239,9 @@ func (e Engine) Sync(ctx context.Context) error {
 			}
 		}
 		if err != nil {
-			e.DB.Exec(ctx, `UPDATE manual_download_tasks SET message=$2,updated_at=now() WHERE id=$1`, x.id, err.Error())
+			if _, checkedErr := e.DB.Exec(ctx, `UPDATE manual_download_tasks SET message=$2,updated_at=now() WHERE id=$1`, x.id, err.Error()); checkedErr != nil {
+				return checkedErr
+			}
 			problems = append(problems, err)
 		}
 	}

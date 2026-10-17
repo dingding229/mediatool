@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"media-tool/internal/modules/settings"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/url"
 	"strconv"
 	"strings"
@@ -75,7 +76,7 @@ func (e Engine) readEmby(ctx context.Context, route string, query url.Values, ou
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
+	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	raw, err := io.ReadAll(io.LimitReader(response.Body, (4<<20)+1))
 	if err != nil || len(raw) > 4<<20 || json.Unmarshal(raw, out) != nil {
 		return ErrUnavailable
@@ -193,7 +194,7 @@ func (e Engine) ImageType(ctx context.Context, id, typ string) ([]byte, string, 
 	if err != nil {
 		return nil, "", err
 	}
-	defer response.Body.Close()
+	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	content := strings.ToLower(strings.Split(response.Header.Get("Content-Type"), ";")[0])
 	if content != "image/jpeg" && content != "image/png" && content != "image/webp" {
 		return nil, "", ErrUnavailable

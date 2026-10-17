@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/trace"
 	"net/http"
 	"net/url"
@@ -206,7 +207,7 @@ func (c Client) callWithTarget(ctx context.Context, rule Map, vars map[string]st
 	if err != nil {
 		return nil, "", ErrRequest
 	}
-	defer response.Body.Close()
+	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if response.StatusCode == 401 || response.StatusCode == 403 {
 		return nil, "", ErrAuthentication
 	}

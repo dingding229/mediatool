@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"sort"
 	"strconv"
 
@@ -51,9 +53,15 @@ func (e Engine) Run(ctx context.Context, id string) (RunRecord, error) {
 		if err = rows.Scan(&decision.ID, &decision.ResourceID, &decision.Title, &decision.Action, &reasons, &episodes, &decision.DownloadTaskID, &checks); err != nil {
 			return run, err
 		}
-		json.Unmarshal(reasons, &decision.Reasons)
-		json.Unmarshal(episodes, &decision.Episodes)
-		json.Unmarshal(checks, &decision.Checks)
+		if checkedErr := json.Unmarshal(reasons, &decision.Reasons); checkedErr != nil {
+			return RunRecord{}, checkedErr
+		}
+		if checkedErr := json.Unmarshal(episodes, &decision.Episodes); checkedErr != nil {
+			return RunRecord{}, checkedErr
+		}
+		if checkedErr := json.Unmarshal(checks, &decision.Checks); checkedErr != nil {
+			return RunRecord{}, checkedErr
+		}
 		run.Decisions = append(run.Decisions, decision)
 	}
 	return run, rows.Err()
@@ -86,7 +94,7 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 	if _, err = lockConn.Exec(ctx, `SELECT pg_advisory_lock(hashtextextended($1,0))`, "subscription-media:"+lockKey); err != nil {
 		return err
 	}
-	defer lockConn.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "subscription-media:"+lockKey)
+	defer dbutil.Unlock(context.Background(), lockConn, `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "subscription-media:"+lockKey)
 	// Another worker/editor may have finished or changed this run while we waited.
 	run, err = e.Run(ctx, payload.RunID)
 	if err != nil {
@@ -122,15 +130,23 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 			if errors.Is(result, jobs.ErrOperatorRequired) {
 				message = ErrEvaluationRefresh.Error()
 			}
-			e.DB.Exec(context.WithoutCancel(ctx), `UPDATE subscriptions SET last_state='failed',last_message=$2 WHERE id=$1`, record.ID, message)
+			if _, checkedErr := e.DB.Exec(context.WithoutCancel(ctx), `UPDATE subscriptions SET last_state='failed',last_message=$2 WHERE id=$1`, record.ID, message); checkedErr != nil {
+				result = errors.Join(result, checkedErr)
+				return
+			}
 			if job.Attempts >= job.MaxAttempts && !errors.Is(result, jobs.ErrOperatorRequired) {
-				e.DB.Exec(context.WithoutCancel(ctx), `UPDATE subscription_runs SET state='failed',finished_at=now()WHERE id=$1`, run.ID)
+				if _, checkedErr := e.DB.Exec(context.WithoutCancel(ctx), `UPDATE subscription_runs SET state='failed',finished_at=now()WHERE id=$1`, run.ID); checkedErr != nil {
+					result = errors.Join(result, checkedErr)
+					return
+				}
 			}
 		}
 	}()
 	searcher := search.Engine{DB: e.DB, Vault: e.Connections.Repository.Vault, Connections: e.Connections}
 	var searchRunID string
-	e.DB.QueryRow(ctx, `SELECT coalesce(search_run_id::text,'')FROM subscription_runs WHERE id=$1`, run.ID).Scan(&searchRunID)
+	if checkedErr := e.DB.QueryRow(ctx, `SELECT coalesce(search_run_id::text,'')FROM subscription_runs WHERE id=$1`, run.ID).Scan(&searchRunID); checkedErr != nil {
+		return checkedErr
+	}
 	if searchRunID == "" {
 		searchRunID, err = searcher.StartInline(ctx, record.Rules.Keyword, record.Rules.AccountIDs)
 		if err != nil {
@@ -332,7 +348,7 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var currentRevision int64
 	var currentEnabled bool
 	if err = tx.QueryRow(ctx, `SELECT revision,enabled FROM subscriptions WHERE id=$1 FOR SHARE`, record.ID).Scan(&currentRevision, &currentEnabled); err != nil {
@@ -403,7 +419,9 @@ func (e Engine) coverage(ctx context.Context, record Record) (map[int]bool, bool
 				out[*episode] = true
 			}
 			var episodes []int
-			json.Unmarshal(raw, &episodes)
+			if checkedErr := json.Unmarshal(raw, &episodes); checkedErr != nil {
+				return *new(map[int]bool), false, checkedErr
+			}
 			for _, ep := range episodes {
 				out[ep] = true
 			}
@@ -417,13 +435,17 @@ func (e Engine) coverage(ctx context.Context, record Record) (map[int]bool, bool
 	defer rows.Close()
 	for rows.Next() {
 		var raw []byte
-		rows.Scan(&raw)
+		if checkedErr := rows.Scan(&raw); checkedErr != nil {
+			return *new(map[int]bool), false, checkedErr
+		}
 		movie = true
 		var details struct {
 			Season   *int  `json:"expectedSeason"`
 			Episodes []int `json:"expectedEpisodes"`
 		}
-		json.Unmarshal(raw, &details)
+		if checkedErr := json.Unmarshal(raw, &details); checkedErr != nil {
+			return *new(map[int]bool), false, checkedErr
+		}
 		if details.Season != nil && *details.Season == record.Rules.Season {
 			for _, ep := range details.Episodes {
 				out[ep] = true
@@ -449,7 +471,9 @@ func (e Engine) feeds(ctx context.Context, record Record, run RunRecord, searchR
 			if errors.Is(err, sites.ErrFeed) {
 				message = "RSS响应无效或种子标识不支持；未更新订阅基线"
 			}
-			e.DB.Exec(context.WithoutCancel(ctx), `UPDATE search_site_results SET state='failed',message=$3 WHERE run_id=$1 AND account_id=$2`, searchRunID, accountID, message)
+			if _, checkedErr := e.DB.Exec(context.WithoutCancel(ctx), `UPDATE search_site_results SET state='failed',message=$3 WHERE run_id=$1 AND account_id=$2`, searchRunID, accountID, message); checkedErr != nil {
+				return checkedErr
+			}
 			return err
 		}
 		if !run.Preview {

@@ -12,6 +12,7 @@ import (
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/playbackgrants"
 	"media-tool/internal/modules/settings"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path"
 	"path/filepath"
@@ -54,11 +55,15 @@ func (e Engine) PrepareTransfers(ctx context.Context) error {
 	for _, item := range items {
 		extension := strings.ToLower(path.Ext(item.name))
 		if extension != ".mkv" && extension != ".mp4" && extension != ".avi" && extension != ".mov" && extension != ".m4v" && extension != ".ts" {
-			e.DB.Exec(ctx, `UPDATE download_files SET media_state='non_media' WHERE id=$1`, item.fileID)
+			if _, checkedErr := e.DB.Exec(ctx, `UPDATE download_files SET media_state='non_media' WHERE id=$1`, item.fileID); checkedErr != nil {
+				return checkedErr
+			}
 			continue
 		}
 		if strings.EqualFold(strings.TrimSuffix(path.Base(item.name), path.Ext(item.name)), "sample") || strings.Contains(strings.ToLower(item.name), "/sample/") {
-			e.DB.Exec(ctx, `UPDATE download_files SET media_state='sample' WHERE id=$1`, item.fileID)
+			if _, checkedErr := e.DB.Exec(ctx, `UPDATE download_files SET media_state='sample' WHERE id=$1`, item.fileID); checkedErr != nil {
+				return checkedErr
+			}
 			continue
 		}
 		var details taskDetails
@@ -75,7 +80,9 @@ func (e Engine) PrepareTransfers(ctx context.Context) error {
 		}
 		season, episodes, parseErr := coverage(item.name, details.Media.MediaType)
 		if parseErr != nil {
-			e.DB.Exec(ctx, `UPDATE download_files SET media_state='needs_confirmation'WHERE id=$1`, item.fileID)
+			if _, checkedErr := e.DB.Exec(ctx, `UPDATE download_files SET media_state='needs_confirmation'WHERE id=$1`, item.fileID); checkedErr != nil {
+				return checkedErr
+			}
 			continue
 		}
 		rel, match, layoutErr := classification.Render(policy.Value, details.Media, item.name, prefs.Value.MovieTemplate, prefs.Value.SeriesTemplate, extension, season, episodes)
@@ -98,7 +105,7 @@ func (e Engine) PrepareTransfers(ctx context.Context) error {
 			_, err = tx.Exec(ctx, `INSERT INTO jobs(id,kind,payload,queue,idempotency_key)VALUES($1,'transfer.upload',$2,'transfer',$3)`, jobs.UUID(), payload, "transfer:"+id)
 		}
 		if err != nil {
-			tx.Rollback(ctx)
+			deferutil.Rollback(ctx, tx)
 			return err
 		}
 		if err = tx.Commit(ctx); err != nil {
@@ -192,12 +199,12 @@ func (e Engine) Transfer(ctx context.Context, job jobs.Job) (result error) {
 	if err != nil {
 		return errors.New("shared download root unavailable")
 	}
-	defer localRoot.Close()
+	defer deferutil.Close(localRoot, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	file, err := localRoot.Open(filepath.FromSlash(relative))
 	if err != nil {
 		return errors.New("upload source outside allowed root or missing")
 	}
-	defer file.Close()
+	defer deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	stat, err := file.Stat()
 	if err != nil || !stat.Mode().IsRegular() || stat.Size() != size {
 		return errors.New("upload source size changed")
@@ -207,7 +214,10 @@ func (e Engine) Transfer(ctx context.Context, job jobs.Job) (result error) {
 			failure := context.WithoutCancel(ctx)
 			bounded, cancel := context.WithTimeout(failure, 3*time.Second)
 			defer cancel()
-			e.DB.Exec(bounded, `UPDATE transfer_tasks SET last_error=$2,updated_at=now() WHERE id=$1`, payload.ID, "上传或入库失败，请检查任务和连接；敏感上游详情已隐藏")
+			if _, checkedErr := e.DB.Exec(bounded, `UPDATE transfer_tasks SET last_error=$2,updated_at=now() WHERE id=$1`, payload.ID, "上传或入库失败，请检查任务和连接；敏感上游详情已隐藏"); checkedErr != nil {
+				result = errors.Join(result, checkedErr)
+				return
+			}
 		}
 	}()
 	hashValue := storedHash
@@ -307,7 +317,9 @@ func (e Engine) Transfer(ctx context.Context, job jobs.Job) (result error) {
 	}})
 	if err != nil {
 		if session == "" {
-			e.DB.Exec(context.WithoutCancel(ctx), `UPDATE transfer_tasks SET state='uncertain' WHERE id=$1 AND control_revision=$2`, payload.ID, controlRevision)
+			if _, checkedErr := e.DB.Exec(context.WithoutCancel(ctx), `UPDATE transfer_tasks SET state='uncertain' WHERE id=$1 AND control_revision=$2`, payload.ID, controlRevision); checkedErr != nil {
+				return checkedErr
+			}
 		}
 		return err
 	}
@@ -336,7 +348,7 @@ func (e Engine) markVerifiedRecord(ctx context.Context, id string, remote storag
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var fileID, connectionID string
 	if err = tx.QueryRow(ctx, `SELECT download_file_id::text,integration_id::text FROM transfer_tasks WHERE id=$1 FOR UPDATE`, id).Scan(&fileID, &connectionID); err != nil {
 		return err
@@ -446,7 +458,7 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,714))`, transferID); err != nil {
 		return err
 	}
@@ -533,7 +545,7 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 	if err != nil {
 		return err
 	}
-	defer final.Rollback(ctx)
+	defer deferutil.Rollback(ctx, final)
 	var finalState string
 	if err = final.QueryRow(ctx, `SELECT state FROM transfer_tasks WHERE id=$1 FOR UPDATE`, transferID).Scan(&finalState); err != nil {
 		return err
@@ -563,7 +575,7 @@ func (e Engine) finishTask(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var state string
 	var raw []byte
 	if err = tx.QueryRow(ctx, `SELECT download_state,details FROM download_tasks WHERE id=$1 FOR UPDATE`, id).Scan(&state, &raw); err != nil {

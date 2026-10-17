@@ -3,6 +3,7 @@ package subscriptions
 import (
 	"context"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/search"
@@ -25,7 +26,7 @@ func (e Engine) beginCollection(ctx context.Context, record Record, runID, searc
 	if err != nil {
 		return false, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var lockedRun string
 	if err = tx.QueryRow(ctx, `SELECT id::text FROM search_runs WHERE id=$1 FOR UPDATE`, searchRunID).Scan(&lockedRun); err != nil {
 		return false, err
@@ -78,7 +79,7 @@ func (e Engine) completeCollection(ctx context.Context, record Record, runID, se
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var revision int64
 	var enabled bool
 	if err = tx.QueryRow(ctx, `SELECT revision,enabled FROM subscriptions WHERE id=$1 FOR SHARE`, record.ID).Scan(&revision, &enabled); err != nil {

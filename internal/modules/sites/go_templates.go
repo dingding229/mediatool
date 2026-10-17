@@ -3,6 +3,7 @@ package sites
 import (
 	"context"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"runtime/debug"
 
 	mediatoolsite "github.com/dingding229/mediatool-site"
@@ -29,7 +30,7 @@ func (r Repository) RegisterGoTemplates(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `INSERT INTO site_template_loads(template_id)
  SELECT DISTINCT settings->>'definitionId' FROM integrations WHERE kind='ptsite'
  AND settings->>'definitionId'=ANY($1::text[]) ON CONFLICT DO NOTHING`, templateIDs()); err != nil {
@@ -80,7 +81,7 @@ func (r Repository) LoadGoTemplates(ctx context.Context, ids []string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if err = registerTemplates(ctx, tx, ids); err != nil {
 		return err
 	}

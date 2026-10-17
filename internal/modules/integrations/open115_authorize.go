@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"strconv"
 	"time"
 
@@ -59,7 +60,7 @@ func (m *Manager) StartOfficialAuthorization(ctx context.Context, id, owner stri
 	if err != nil {
 		return OfficialAuthorization{}, ErrUnavailable
 	}
-	defer tx.Rollback(context.Background())
+	defer deferutil.Rollback(context.Background(), tx)
 	// Lock the integration before replacing old pending sessions, so two start
 	// requests cannot leave both sessions active. App edits invalidate the flow.
 	current, err := m.Repository.scan(tx.QueryRow(ctx, `SELECT `+columns+` FROM integrations WHERE id=$1 FOR UPDATE`, id))
@@ -118,7 +119,7 @@ func (m *Manager) PollOfficialAuthorization(ctx context.Context, id, session, ow
 	if err != nil {
 		return OfficialAuthorization{}, err
 	}
-	defer tx.Rollback(context.Background())
+	defer deferutil.Rollback(context.Background(), tx)
 	result := stored.response(session)
 	if stored.state != "pending" && stored.state != "exchanging" {
 		return result, nil
@@ -204,7 +205,7 @@ func (m *Manager) lockOfficialAuth(ctx context.Context, id, session, owner strin
 		s, err = scanOfficialAuth(tx.QueryRow(ctx, `SELECT `+officialAuthColumns+` FROM open115_authorizations WHERE id=$1 AND integration_id=$2 FOR UPDATE`, session, id), owner, version)
 	}
 	if err != nil {
-		tx.Rollback(context.Background())
+		deferutil.Rollback(context.Background(), tx)
 		return nil, c, s, err
 	}
 	return tx, c, s, nil
@@ -242,7 +243,7 @@ func (m *Manager) completeOfficialAuth(ctx context.Context, id, session, owner s
 	if err != nil {
 		return OfficialAuthorization{}, err
 	}
-	defer tx.Rollback(context.Background())
+	defer deferutil.Rollback(context.Background(), tx)
 	result := stored.response(session)
 	if stored.state != "exchanging" {
 		return result, nil

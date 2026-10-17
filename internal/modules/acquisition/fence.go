@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
 	"time"
 )
 
@@ -17,30 +18,30 @@ func (e Engine) uploadFence(ctx context.Context, id string, revision int64, leas
 		return nil, err
 	}
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,714))`, id); err != nil {
-		tx.Rollback(ctx)
+		deferutil.Rollback(ctx, tx)
 		return nil, err
 	}
 	var current int64
 	var state string
 	if err = tx.QueryRow(ctx, `SELECT control_revision,state FROM transfer_tasks WHERE id=$1`, id).Scan(&current, &state); err != nil || current != revision || (state != "pending" && state != "starting" && state != "uploading") {
-		tx.Rollback(ctx)
+		deferutil.Rollback(ctx, tx)
 		return nil, ErrUploadStopped
 	}
 	if len(leases) > 0 {
 		var owned bool
 		j := leases[0]
 		if j.LeaseToken == "" {
-			tx.Rollback(ctx)
+			deferutil.Rollback(ctx, tx)
 			return nil, jobs.ErrLeaseLost
 		}
 		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM jobs WHERE id=$1 AND lease_token=$2 AND state='running' AND lease_until>now())`, j.ID, j.LeaseToken).Scan(&owned); err != nil || !owned {
-			tx.Rollback(ctx)
+			deferutil.Rollback(ctx, tx)
 			return nil, jobs.ErrLeaseLost
 		}
 	}
 	return func() {
 		bounded, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 		defer cancel()
-		tx.Rollback(bounded)
+		deferutil.Rollback(bounded, tx)
 	}, nil
 }

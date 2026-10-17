@@ -96,7 +96,9 @@ func (e Engine) History(ctx context.Context, f HistoryFilter) ([]HistoryEntry, i
 				} `json:"items"`
 			} `json:"plan"`
 		}
-		json.Unmarshal(h.Details, &details)
+		if checkedErr := json.Unmarshal(h.Details, &details); checkedErr != nil {
+			return nil, 0, checkedErr
+		}
 		h.Media = details.Media
 		h.Method = h.Kind
 		h.Origin = "系统任务"
@@ -123,11 +125,15 @@ func (e Engine) History(ctx context.Context, f HistoryFilter) ([]HistoryEntry, i
 			var season *int
 			var episodes []byte
 			if e.DB.QueryRow(ctx, `SELECT m.metadata,b.season,b.episodes FROM media_asset_bindings b JOIN media_items m ON m.id=b.media_id WHERE b.asset_id=$1`, asset).Scan(&raw, &season, &episodes) == nil {
-				json.Unmarshal(raw, &h.Media)
+				if checkedErr := json.Unmarshal(raw, &h.Media); checkedErr != nil {
+					return nil, 0, checkedErr
+				}
 				if season != nil {
 					h.Season = *season
 				}
-				json.Unmarshal(episodes, &h.Episodes)
+				if checkedErr := json.Unmarshal(episodes, &h.Episodes); checkedErr != nil {
+					return nil, 0, checkedErr
+				}
 			}
 		}
 		if h.Media.Title == "" {

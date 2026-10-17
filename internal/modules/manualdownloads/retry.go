@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"time"
 
 	"media-tool/internal/adapters/qbittorrent"
@@ -38,7 +39,7 @@ func (e Engine) Retry(ctx context.Context, id string, confirm, acceptDuplicateRi
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var locked bool
 	if err = tx.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(hashtextextended($1,913))`, id).Scan(&locked); err != nil {
 		return err
@@ -96,7 +97,10 @@ func (e Engine) Reconcile(ctx context.Context, id string) (string, error) {
 	defer func() {
 		c, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
 		defer cancel()
-		conn.Exec(c, `SELECT pg_advisory_unlock(hashtextextended($1,913))`, id)
+		if _, checkedErr := conn.Exec(c, `SELECT pg_advisory_unlock(hashtextextended($1,913))`, id); checkedErr != nil {
+			deferutil.Report(checkedErr, "internal/modules/manualdownloads/retry.go:")
+			return
+		}
 	}()
 	var integration, hash, endpoint, save, category, state string
 	var attempted bool

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/scheduling"
 	"path"
 	"strings"
@@ -55,7 +56,7 @@ func (e Engine) SaveSchedule(ctx context.Context, in ScheduleConfig) (ScheduleCo
 	if err != nil {
 		return in, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if in.ID == "" {
 		in.ID = jobs.UUID()
 		err = tx.QueryRow(ctx, `INSERT INTO library_scan_schedules(id,integration_id,root,enabled,cron_expression,watch_changes,watch_state)VALUES($1,$2,$3,$4,$5,$6,CASE WHEN $4 AND $6 THEN 'waiting' ELSE 'disabled' END)RETURNING revision,next_run_at,change_scan_after,last_change_at,watch_state,watch_message`, in.ID, c.Record.ID, in.Root, in.Enabled, in.Cron, in.WatchChanges).Scan(&in.Revision, &in.NextRun, &in.ChangeScanAfter, &in.LastChangeAt, &in.WatchState, &in.WatchMessage)
@@ -102,7 +103,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	rows, err := tx.Query(ctx, `SELECT s.id::text,s.integration_id::text,s.root,s.cron_expression,coalesce(s.watch_changes AND s.change_scan_after<=now(),false) FROM library_scan_schedules s JOIN integrations i ON i.id=s.integration_id WHERE s.enabled AND i.enabled AND (s.next_run_at<=now() OR (s.watch_changes AND s.change_scan_after<=now())) ORDER BY s.next_run_at LIMIT 10 FOR UPDATE OF s SKIP LOCKED`)
 	if err != nil {
 		return err

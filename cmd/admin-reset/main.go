@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/auth"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/database"
 	"os"
 	"strings"
@@ -55,7 +56,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var id string
 	if err = tx.QueryRow(ctx, `UPDATE administrator_accounts SET password_hash=$2,credential_version=credential_version+1,must_change_password=false,temporary_password_expires_at=NULL,updated_at=now()WHERE username=$1 RETURNING id::text`, name, hash).Scan(&id); err != nil {
 		return err

@@ -3,6 +3,7 @@ package integrations
 import (
 	"context"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"path"
 	"strconv"
 	"strings"
@@ -27,7 +28,7 @@ func (m *Manager) officialToken(ctx context.Context, id, rejected string, playba
 	if err != nil {
 		return "", ErrUnavailable
 	}
-	defer tx.Rollback(context.Background())
+	defer deferutil.Rollback(context.Background(), tx)
 	c, err := m.Repository.scan(tx.QueryRow(ctx, `SELECT `+columns+` FROM integrations WHERE id=$1 FOR UPDATE`, id))
 	if err != nil {
 		return "", err

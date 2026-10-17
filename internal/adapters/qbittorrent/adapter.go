@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	deferutil "media-tool/internal/platform/cleanup"
 	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
@@ -53,7 +54,7 @@ func (a *Adapter) login(ctx context.Context) error {
 	if err != nil {
 		return ErrUnavailable
 	}
-	defer response.Body.Close()
+	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	raw, _ := io.ReadAll(io.LimitReader(response.Body, 1024))
 	if response.StatusCode != http.StatusNoContent && (response.StatusCode != 200 || strings.TrimSpace(string(raw)) != "Ok.") {
 		return ErrUnavailable
@@ -88,7 +89,7 @@ func (a *Adapter) request(ctx context.Context, method, endpoint, contentType str
 			return nil, ErrUnavailable
 		}
 		raw, err := io.ReadAll(io.LimitReader(response.Body, 4<<20))
-		response.Body.Close()
+		deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if (response.StatusCode == 403 || response.StatusCode == 401) && attempt == 0 {
 			if err = a.login(ctx); err != nil {
 				return nil, err
@@ -124,13 +125,23 @@ func (a *Adapter) Add(ctx context.Context, in downloads.Request) (string, error)
 	if err != nil {
 		return "", ErrUnavailable
 	}
-	part.Write(in.Torrent)
-	writer.WriteField("savepath", in.SavePath)
-	writer.WriteField("category", in.Category)
-	if len(in.Tags) > 0 {
-		writer.WriteField("tags", strings.Join(in.Tags, ","))
+	if _, err = part.Write(in.Torrent); err != nil {
+		return "", ErrUnavailable
 	}
-	writer.Close()
+	if err = writer.WriteField("savepath", in.SavePath); err != nil {
+		return "", ErrUnavailable
+	}
+	if err = writer.WriteField("category", in.Category); err != nil {
+		return "", ErrUnavailable
+	}
+	if len(in.Tags) > 0 {
+		if err = writer.WriteField("tags", strings.Join(in.Tags, ",")); err != nil {
+			return "", ErrUnavailable
+		}
+	}
+	if err = writer.Close(); err != nil {
+		return "", ErrUnavailable
+	}
 	raw, err := a.request(ctx, "POST", "torrents/add", writer.FormDataContentType(), body.Bytes())
 	if err != nil {
 		return "", err

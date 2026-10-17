@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"path"
 	"strings"
 	"time"
@@ -80,7 +81,7 @@ func (e Engine) Start(ctx context.Context, root string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	id, _, err := startScanTx(ctx, tx, connection.Record.ID, root)
 	if err != nil {
 		return "", err
@@ -170,7 +171,7 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		defer cancel()
 		var unlocked bool
 		if lock.QueryRow(c, `SELECT pg_advisory_unlock(hashtextextended($1,842))`, body.ScanID).Scan(&unlocked) != nil || !unlocked {
-			lock.Conn().Close(c)
+			deferutil.CloseContext(c, lock.Conn(), "Read/descriptor teardown only; primary operations handle their own I/O result")
 		}
 	}()
 	if err := e.DB.QueryRow(ctx, `SELECT integration_id::text,root,state,integration_revision,generation FROM library_scans WHERE id=$1`, body.ScanID).Scan(&connectionID, &root, &state, &expectedRevision, &generation); err != nil {
@@ -188,7 +189,7 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		defer cancel()
 		var released bool
 		if lock.QueryRow(c, `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "files:"+connectionID).Scan(&released) != nil || !released {
-			lock.Conn().Close(c)
+			deferutil.CloseContext(c, lock.Conn(), "Read/descriptor teardown only; primary operations handle their own I/O result")
 		}
 	}()
 	if body.Generation == 0 {
@@ -213,7 +214,10 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 			if job.Attempts >= job.MaxAttempts {
 				status = "failed"
 			}
-			e.DB.Exec(context.WithoutCancel(ctx), `UPDATE library_scans SET state=$2,updated_at=now(),message=$4 WHERE id=$1 AND generation=$3 AND state='running'`, body.ScanID, status, generation, "目录扫描未完成；不会据此标记缺失或清理输出："+result.Error())
+			if _, checkedErr := e.DB.Exec(context.WithoutCancel(ctx), `UPDATE library_scans SET state=$2,updated_at=now(),message=$4 WHERE id=$1 AND generation=$3 AND state='running'`, body.ScanID, status, generation, "目录扫描未完成；不会据此标记缺失或清理输出："+result.Error()); checkedErr != nil {
+				result = errors.Join(result, checkedErr)
+				return
+			}
 		}
 	}()
 	if job.Attempts > 1 || generation > 1 {
@@ -221,7 +225,7 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback(ctx)
+		defer deferutil.Rollback(ctx, tx)
 		var state string
 		var current int64
 		if err = tx.QueryRow(ctx, `SELECT state,generation FROM library_scans WHERE id=$1 FOR UPDATE`, body.ScanID).Scan(&state, &current); err != nil {
@@ -346,7 +350,7 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var finalState string
 	var finalGeneration int64
 	if err = tx.QueryRow(ctx, `SELECT state,generation FROM library_scans WHERE id=$1 FOR UPDATE`, body.ScanID).Scan(&finalState, &finalGeneration); err != nil {
@@ -384,7 +388,7 @@ func (e Engine) indexFile(ctx context.Context, connectionID string, file storage
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var id string
 	err = tx.QueryRow(ctx, `SELECT id::text FROM cloud_files WHERE storage_id=$1 AND full_path=$2 FOR UPDATE`, connectionID, file.Path).Scan(&id)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -404,7 +408,9 @@ func (e Engine) indexFile(ctx context.Context, connectionID string, file storage
 				continue
 			}
 			var hashes map[uint32]string
-			json.Unmarshal(raw, &hashes)
+			if checkedErr := json.Unmarshal(raw, &hashes); checkedErr != nil {
+				return "", checkedErr
+			}
 			if size == file.Size && hashes[2] != "" && strings.EqualFold(hashes[2], file.Hashes[2]) {
 				matches = append(matches, existing)
 			}

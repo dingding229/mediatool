@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"net/url"
 	"path"
@@ -118,7 +119,7 @@ func (e Engine) ConfirmEmby(ctx context.Context, job jobs.Job) error {
 			return errors.New("Emby item confirmation unavailable")
 		}
 		if response.StatusCode != 200 {
-			response.Body.Close()
+			deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			return errors.New("Emby item confirmation refused")
 		}
 		var data struct {
@@ -133,7 +134,7 @@ func (e Engine) ConfirmEmby(ctx context.Context, job jobs.Job) error {
 			Total int `json:"TotalRecordCount"`
 		}
 		decodeErr := json.NewDecoder(io.LimitReader(response.Body, 4<<20)).Decode(&data)
-		response.Body.Close()
+		deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if decodeErr != nil {
 			return errors.New("Emby item response invalid")
 		}
@@ -165,7 +166,7 @@ func (e Engine) ConfirmEmby(ctx context.Context, job jobs.Job) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	for _, m := range matches {
 		if m.item == "" {
 			return errors.New("Emby item has no ID")

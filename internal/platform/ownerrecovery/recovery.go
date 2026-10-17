@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 	"io"
 	"media-tool/internal/platform/auth"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -31,7 +32,7 @@ func Apply(ctx context.Context, db *pgxpool.Pool, marker string, console io.Writ
 	if err != nil {
 		return false, errors.New("owner recovery directory unavailable")
 	}
-	defer dir.Close()
+	defer deferutil.Close(dir, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	base := filepath.Base(marker)
 	pending := "." + base + ".pending"
 	info, err := dir.Lstat(base)
@@ -54,11 +55,11 @@ func Apply(ctx context.Context, db *pgxpool.Pool, marker string, console io.Writ
 	if err != nil {
 		return false, errors.New("owner recovery lock unavailable")
 	}
-	defer lock.Close()
+	defer deferutil.Close(lock, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if err = unix.Flock(int(lock.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		return false, errors.New("owner recovery already active")
 	}
-	defer unix.Flock(int(lock.Fd()), unix.LOCK_UN)
+	defer deferutil.Do(func() error { return unix.Flock(int(lock.Fd()), unix.LOCK_UN) }, "Temporary cleanup or final unlock only; resource close also releases locks and the primary result is authoritative")
 	if current, e := dir.Lstat(base); e == nil {
 		if !os.SameFile(info, current) || current.Size() != 0 {
 			return false, errors.New("password marker changed")
@@ -84,7 +85,7 @@ func Apply(ctx context.Context, db *pgxpool.Pool, marker string, console io.Writ
 	if err != nil {
 		return false, errors.New("owner recovery database unavailable")
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(718)`); err != nil {
 		return false, err
 	}

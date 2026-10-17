@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"time"
 )
 
@@ -21,7 +22,7 @@ func (e Engine) HideHistory(ctx context.Context, items []HistorySelection, confi
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	seen := map[string]bool{}
 	for _, item := range items {
 		key := item.Kind + ":" + item.ID

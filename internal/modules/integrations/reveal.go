@@ -3,6 +3,7 @@ package integrations
 import (
 	"context"
 	"encoding/json"
+	deferutil "media-tool/internal/platform/cleanup"
 )
 
 // Reveal is an explicitly authorized management operation, never part of List.
@@ -15,7 +16,7 @@ func (r Repository) Reveal(ctx context.Context, id string, revision int64, field
 	if err != nil {
 		return nil, ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	c, err := r.scan(tx.QueryRow(ctx, `SELECT `+columns+` FROM integrations WHERE id=$1 FOR SHARE`, id))
 	if err != nil {
 		return nil, err

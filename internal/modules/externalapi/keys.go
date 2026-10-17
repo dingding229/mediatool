@@ -9,6 +9,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/secrets"
 	"time"
 )
@@ -105,7 +106,7 @@ func (r Repository) Admit(ctx context.Context, token, scope, method, path string
 	if err != nil {
 		return "", 0, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var id string
 	var raw []byte
 	if err = tx.QueryRow(ctx, `SELECT id::text,scopes FROM external_api_keys WHERE token_digest=$1 AND revoked_at IS NULL FOR UPDATE`, sum[:]).Scan(&id, &raw); err != nil {

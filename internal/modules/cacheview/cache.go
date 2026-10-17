@@ -180,7 +180,9 @@ func (s Store) Get(ctx context.Context, kind, id string, detail bool) (Entry, er
 		}
 		if detail {
 			var results any
-			json.Unmarshal(items, &results)
+			if checkedErr := json.Unmarshal(items, &results); checkedErr != nil {
+				return Entry{}, checkedErr
+			}
 			x.Data = map[string]any{"searchRunId": runID, "resources": results, "previewLimit": 50}
 		}
 	}

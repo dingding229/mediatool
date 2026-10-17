@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"strings"
 	"time"
@@ -50,7 +51,7 @@ func (c Client) call(ctx context.Context, method string, body any) (Response, er
 	if err != nil {
 		return Response{}, &RequestError{Unknown: true}
 	}
-	defer resp.Body.Close()
+	defer deferutil.Close(resp.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	var result Response
 	if json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&result) != nil {
 		return result, &RequestError{Unknown: true, HTTPCode: resp.StatusCode}

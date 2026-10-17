@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	deferutil "media-tool/internal/platform/cleanup"
 	"regexp"
 	"strconv"
 	"strings"
@@ -121,7 +122,7 @@ func (e Engine) Rows(ctx context.Context, name string, page, size int) (map[stri
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT set_config('statement_timeout','2500ms',true)`); err != nil {
 		return nil, err
 	}

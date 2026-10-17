@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"sort"
 	"time"
 
@@ -90,7 +91,7 @@ func (r Repository) Save(ctx context.Context, id string, in Input) (Record, erro
 	if err != nil {
 		return Record{}, ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if in.Kind == "tmdb" {
 		if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('tmdb',716))`); err != nil {
 			return Record{}, ErrUnavailable
@@ -244,7 +245,7 @@ func (r Repository) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	tag, err := tx.Exec(ctx, `DELETE FROM integrations WHERE id=$1`, id)
 	if err != nil {
 		return ErrUnavailable

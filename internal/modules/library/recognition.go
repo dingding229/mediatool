@@ -60,7 +60,9 @@ func (e Engine) candidateFile(ctx context.Context, id string) (Candidate, string
 	f.Path = c.Path
 	f.Name = c.Name
 	f.Size = c.Size
-	json.Unmarshal(raw, &f.Hashes)
+	if checkedErr := json.Unmarshal(raw, &f.Hashes); checkedErr != nil {
+		return Candidate{}, "", storage.File{}, checkedErr
+	}
 	return c, connection, f, nil
 }
 func fileMatches(a, b storage.File) bool {

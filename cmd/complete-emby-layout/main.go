@@ -10,6 +10,7 @@ import (
 	"io"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/library"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/database"
 	"media-tool/internal/platform/secrets"
@@ -80,14 +81,16 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		defer response.Body.Close()
+		defer deferutil.Close(response.Body, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 		if response.StatusCode != 200 && response.StatusCode != 204 {
 			return fmt.Errorf("provider refused")
 		}
 		if out != nil {
 			return json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(out)
 		}
-		io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		if _, checkedErr := io.Copy(io.Discard, io.LimitReader(response.Body, 4096)); checkedErr != nil {
+			return checkedErr
+		}
 		return nil
 	}
 	type folder struct {
@@ -102,7 +105,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	defer root.Close()
+	defer deferutil.Close(root, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 	created := []string{}
 	for _, plan := range []struct{ name, kind, sub string }{{"Media Tool 电影", "movies", "Movies"}, {"Media Tool 剧集", "tvshows", "TV"}} {
 		target := "/strm/" + plan.sub
@@ -156,6 +159,8 @@ func run() error {
 	if scanErr == nil {
 		report["scanId"] = scanID
 	}
-	json.NewEncoder(os.Stdout).Encode(report)
+	if checkedErr := json.NewEncoder(os.Stdout).Encode(report); checkedErr != nil {
+		return checkedErr
+	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -114,7 +115,7 @@ func (e Engine) embyRequest(ctx context.Context, route string, q url.Values) (*h
 		return nil, ErrUnavailable
 	}
 	if response.StatusCode != 200 {
-		response.Body.Close()
+		deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		return nil, ErrUnavailable
 	}
 	return response, nil
@@ -135,7 +136,7 @@ func (e Engine) embyList(ctx context.Context, out Page, q, kind string) (Page, e
 	if err != nil {
 		return out, err
 	}
-	defer response.Body.Close()
+	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	raw, err := io.ReadAll(io.LimitReader(response.Body, (4<<20)+1))
 	if err != nil || len(raw) > 4<<20 {
 		return out, ErrUnavailable
@@ -188,7 +189,7 @@ func (e Engine) Image(ctx context.Context, id string) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	defer response.Body.Close()
+	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	content := strings.ToLower(strings.Split(response.Header.Get("Content-Type"), ";")[0])
 	if content != "image/jpeg" && content != "image/png" && content != "image/webp" && content != "image/gif" {
 		return nil, "", ErrUnavailable

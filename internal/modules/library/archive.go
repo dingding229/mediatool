@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path"
 	"path/filepath"
@@ -69,7 +70,7 @@ func readRegular(fs *os.Root, relative string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	actual, err := file.Stat()
 	if err != nil || !os.SameFile(info, actual) {
 		return nil, ErrArtifactConflict
@@ -100,7 +101,7 @@ func archiveFile(root, relative, archive string, expected []byte) error {
 	if err != nil {
 		return err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	saved, savedErr := readRegular(fs, archive)
 	if savedErr == nil {
 		if !digestEqual(saved, expected) {
@@ -133,12 +134,12 @@ func archiveFile(root, relative, archive string, expected []byte) error {
 	if err != nil {
 		return err
 	}
-	defer sourceDirectory.Close()
+	defer deferutil.Close(sourceDirectory, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	archiveDirectory, err := fs.Open(path.Dir(archive))
 	if err != nil {
 		return err
 	}
-	defer archiveDirectory.Close()
+	defer deferutil.Close(archiveDirectory, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if err = renameNoReplace(sourceDirectory, path.Base(relative), archiveDirectory, path.Base(archive)); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return ErrArtifactConflict
@@ -158,7 +159,7 @@ func archiveFile(root, relative, archive string, expected []byte) error {
 			return err
 		}
 		syncErr := dir.Sync()
-		dir.Close()
+		deferutil.Close(dir, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if syncErr != nil {
 			return syncErr
 		}
@@ -196,7 +197,7 @@ func (j Journal) applyArchive(ctx context.Context, tx pgx.Tx, id, root, relative
 	if err != nil {
 		return err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	for _, d := range dependencies {
 		shared := d.kind == "nfo" && path.Base(d.relative) == "tvshow.nfo" && strings.HasPrefix(d.scope, "tmdb:series:")
 		if d.state != "applied" || d.operation != "write" || d.root != root || (d.asset != asset && !shared) {

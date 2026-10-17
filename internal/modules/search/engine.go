@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/url"
 	"strings"
 	"sync"
@@ -122,7 +123,7 @@ func (e Engine) start(ctx context.Context, keyword string, accountIDs []string, 
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	id := jobs.UUID()
 	accounts, _ := json.Marshal(accountIDs)
 	mediaJSON := []byte("null")
@@ -313,7 +314,10 @@ func (e Engine) runSite(ctx context.Context, runID, keyword, accountID string) {
 	if err != nil {
 		count = 0
 	}
-	e.DB.Exec(ctx, `UPDATE search_site_results SET state=$3,message=$4,result_count=$5 WHERE run_id=$1 AND account_id=$2`, runID, accountID, state, message, count)
+	if _, checkedErr := e.DB.Exec(ctx, `UPDATE search_site_results SET state=$3,message=$4,result_count=$5 WHERE run_id=$1 AND account_id=$2`, runID, accountID, state, message, count); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/modules/search/engine.go:runSite")
+		return
+	}
 }
 
 // A retry replaces this account's attempt, never unions a previous attempt's
@@ -323,7 +327,7 @@ func (e Engine) beginSiteAttempt(ctx context.Context, runID, accountID string) e
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var locked string
 	if err = tx.QueryRow(ctx, `SELECT id::text FROM search_runs WHERE id=$1 FOR UPDATE`, runID).Scan(&locked); err != nil {
 		return err
@@ -361,7 +365,7 @@ func (e Engine) saveResourcesWithSource(ctx context.Context, runID, accountID st
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var lockedRun string
 	if err = tx.QueryRow(ctx, `SELECT id::text FROM search_runs WHERE id=$1 FOR UPDATE`, runID).Scan(&lockedRun); err != nil {
 		return err

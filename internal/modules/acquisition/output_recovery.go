@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -29,7 +30,7 @@ func (e Engine) blockOutputImport(ctx context.Context, id, fileID string) error 
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,714))`, id); err != nil {
 		return err
 	}
@@ -145,7 +146,7 @@ func (e Engine) outputSnapshot(ctx context.Context, tx pgx.Tx, id string, allowA
 	if err != nil {
 		return s, err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 
 	// Include every active asset-owned NFO/subtitle, not only the playback URL.
 	extra, err := tx.Query(ctx, `SELECT relative_path,content_digest,owner_scope FROM managed_media_artifacts WHERE asset_id=$1 AND owner_scope=$2 AND artifact_kind<>'strm' ORDER BY relative_path`, s.Preview.AssetID, "asset:"+s.Preview.AssetID)
@@ -194,12 +195,12 @@ func (e Engine) outputSnapshot(ctx context.Context, tx pgx.Tx, id string, allowA
 		}
 		actual, readErr := f.Stat()
 		if readErr != nil || !os.SameFile(info, actual) {
-			f.Close()
+			deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			s.Preview.NeedsArtifactRecovery = true
 			continue
 		}
 		raw, readErr := io.ReadAll(io.LimitReader(f, (20<<20)+1))
-		f.Close()
+		deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		sum := sha256.Sum256(raw)
 		if readErr != nil || !reflect.DeepEqual(sum[:], p.digest) {
 			s.Preview.NeedsArtifactRecovery = true
@@ -228,7 +229,7 @@ func (e Engine) outputSnapshot(ctx context.Context, tx pgx.Tx, id string, allowA
 			continue
 		}
 		raw, readErr := func() ([]byte, error) {
-			defer f.Close()
+			defer deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			actual, err := f.Stat()
 			if err != nil || !os.SameFile(info, actual) {
 				return nil, errors.New("文件身份变化")
@@ -309,7 +310,7 @@ func (e Engine) outputSnapshot(ctx context.Context, tx pgx.Tx, id string, allowA
 			return s, nil
 		}
 		sourceInfo, sourceErr := sourceFS.Lstat(filepath.FromSlash(s.Relative))
-		sourceFS.Close()
+		deferutil.Close(sourceFS, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if sourceErr != nil || !sourceInfo.Mode().IsRegular() || sourceInfo.Size() != fileSize {
 			s.Preview.Ready = false
 			s.Preview.Message = "原做种源文件缺失/大小或身份变化，请先核对，不猜测恢复"
@@ -347,7 +348,7 @@ func (e Engine) PreviewOutputResume(ctx context.Context, id string) (OutputResum
 	if err != nil {
 		return OutputResumePreview{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	s, err := e.outputSnapshot(ctx, tx, id)
 	return s.Preview, err
 }
@@ -356,7 +357,7 @@ func (e Engine) ResumeOutputImport(ctx context.Context, id string, revision int6
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,714))`, id); err != nil {
 		return err
 	}
@@ -368,7 +369,9 @@ func (e Engine) ResumeOutputImport(ctx context.Context, id string, revision int6
 	// Safe replay of the same approval does not queue another operation.
 	if state == outputApprovedState {
 		var phase string
-		tx.QueryRow(ctx, `SELECT phase FROM transfer_tasks WHERE id=$1`, id).Scan(&phase)
+		if checkedErr := tx.QueryRow(ctx, `SELECT phase FROM transfer_tasks WHERE id=$1`, id).Scan(&phase); checkedErr != nil {
+			return checkedErr
+		}
 		if current == revision+1 && phase == "output_resume:"+digest {
 			return nil
 		}
@@ -416,7 +419,7 @@ func (e Engine) RunOutputImport(ctx context.Context, job jobs.Job) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,714))`, p.ID); err != nil {
 		return err
 	}
@@ -490,7 +493,7 @@ func (e Engine) resumePersistedImport(ctx context.Context, id, fileID string) er
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,714))`, id); err != nil {
 		return err
 	}
@@ -509,7 +512,7 @@ func (e Engine) resumePersistedImport(ctx context.Context, id, fileID string) er
 		return err
 	}
 	if s.Preview.NeedsMigration {
-		tx.Rollback(ctx)
+		deferutil.Rollback(ctx, tx)
 		return e.blockOutputImport(ctx, id, fileID)
 	}
 	// Apply only exact original pending intents, not a new provider schema.

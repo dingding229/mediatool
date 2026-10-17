@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"os"
 	"path"
 	"path/filepath"
@@ -172,7 +174,7 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var subscriptionID string
 	if subscriptionRunID != "" {
 		var currentRevision, runRevision int64
@@ -345,7 +347,7 @@ func (e Engine) Add(ctx context.Context, job jobs.Job) (result error) {
 	if _, lockErr = lockConn.Exec(ctx, `SELECT pg_advisory_lock(hashtextextended($1,0))`, "download-task:"+payload.TaskID); lockErr != nil {
 		return lockErr
 	}
-	defer lockConn.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "download-task:"+payload.TaskID)
+	defer dbutil.Unlock(context.Background(), lockConn, `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "download-task:"+payload.TaskID)
 	resource, connectionID, hash, state, details, err := e.load(ctx, payload.TaskID)
 	loaded := err == nil
 	defer func() {
@@ -359,7 +361,10 @@ func (e Engine) Add(ctx context.Context, job jobs.Job) (result error) {
 			raw, _ := json.Marshal(details)
 			bounded, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 			defer cancel()
-			e.DB.Exec(bounded, `UPDATE download_tasks SET details=$2,source_control_revision=CASE WHEN $3 AND NOT source_recovery_required THEN source_control_revision+1 ELSE source_control_revision END,source_recovery_required=source_recovery_required OR $3,updated_at=now()WHERE id=$1`, payload.TaskID, raw, errors.Is(result, jobs.ErrOperatorRequired))
+			if _, checkedErr := e.DB.Exec(bounded, `UPDATE download_tasks SET details=$2,source_control_revision=CASE WHEN $3 AND NOT source_recovery_required THEN source_control_revision+1 ELSE source_control_revision END,source_recovery_required=source_recovery_required OR $3,updated_at=now()WHERE id=$1`, payload.TaskID, raw, errors.Is(result, jobs.ErrOperatorRequired)); checkedErr != nil {
+				result = errors.Join(result, checkedErr)
+				return
+			}
 		}
 	}()
 	if err != nil {
@@ -472,7 +477,7 @@ func (e Engine) transition(ctx context.Context, id, state, event string, details
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	raw, _ := json.Marshal(details)
 	tag, err := tx.Exec(ctx, `UPDATE download_tasks SET download_state=$2,details=details||($3::jsonb - 'syncedAt' - 'syncAttemptAt' - 'syncError' - 'progress' - 'qbState' - 'downloadSpeed' - 'uploadSpeed' - 'seeds' - 'peers' - 'trackers' - 'trackerError'),updated_at=now() WHERE id=$1 AND download_state<>$2`, id, state, raw)
 	if err != nil {
@@ -494,7 +499,9 @@ func (e Engine) Reconcile(ctx context.Context) error {
 	ids := []string{}
 	for rows.Next() {
 		var id string
-		rows.Scan(&id)
+		if checkedErr := rows.Scan(&id); checkedErr != nil {
+			return checkedErr
+		}
 		ids = append(ids, id)
 	}
 	rows.Close()
@@ -533,13 +540,16 @@ func (e Engine) reconcileTask(ctx context.Context, id string) {
 	if err != nil {
 		return
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	remoteRoot := path.Clean(details.DownloadPath)
 	actualSave := path.Clean(strings.ReplaceAll(task.SavePath, "\\", "/"))
 	if actualSave != remoteRoot && !strings.HasPrefix(actualSave, strings.TrimRight(remoteRoot, "/")+"/") {
 		details.Message = "下载器保存路径不在共享映射范围内，需人工修正映射"
 		raw, _ := json.Marshal(details)
-		e.DB.Exec(ctx, `UPDATE download_tasks SET details=jsonb_set(details,'{message}',($2::jsonb)->'message') WHERE id=$1`, id, raw)
+		if _, checkedErr := e.DB.Exec(ctx, `UPDATE download_tasks SET details=jsonb_set(details,'{message}',($2::jsonb)->'message') WHERE id=$1`, id, raw); checkedErr != nil {
+			deferutil.Report(checkedErr, "internal/modules/acquisition/downloads.go:reconcileTask")
+			return
+		}
 		return
 	}
 	prefix := strings.TrimPrefix(strings.TrimPrefix(actualSave, remoteRoot), "/")
@@ -547,7 +557,7 @@ func (e Engine) reconcileTask(ctx context.Context, id string) {
 	if err != nil {
 		return
 	}
-	defer root.Close()
+	defer deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	wanted := 0
 	for _, file := range files {
 		if file.Priority == 0 {
@@ -567,7 +577,7 @@ func (e Engine) reconcileTask(ctx context.Context, id string) {
 			return
 		}
 		stat, err := local.Stat()
-		local.Close()
+		deferutil.Close(local, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if err != nil || !stat.Mode().IsRegular() || stat.Size() != file.Size {
 			return
 		}
@@ -581,7 +591,10 @@ func (e Engine) reconcileTask(ctx context.Context, id string) {
 	if err = tx.Commit(ctx); err != nil {
 		return
 	}
-	e.transition(ctx, id, "local_complete", "download.completed", details)
+	if checkedErr := e.transition(ctx, id, "local_complete", "download.completed", details); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/modules/acquisition/downloads.go:reconcileTask")
+		return
+	}
 }
 
 func sourceSnapshotError(err error) bool {

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path"
 	"path/filepath"
@@ -68,7 +69,7 @@ func (e Engine) SaveArchivePolicy(ctx context.Context, in ArchivePolicy) (Archiv
 	if err != nil {
 		return in, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	err = tx.QueryRow(ctx, `UPDATE media_archive_policy SET retention_days=$1,revision=revision+1,updated_at=now() WHERE singleton AND revision=$2 RETURNING revision`, in.RetentionDays, in.Revision).Scan(&in.Revision)
 	if err != nil {
 		return in, errors.New("archive policy changed; reload before editing")
@@ -139,7 +140,7 @@ func (e Engine) cleanupPlan(ctx context.Context, tx pgx.Tx, ids []string) (Archi
 	if err != nil {
 		return p, err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	type proof struct {
 		ID, Asset, Root, Path, Archive, Kind, Digest string
 		Archived                                     time.Time
@@ -201,7 +202,7 @@ func (e Engine) PreviewArchiveCleanup(ctx context.Context, ids []string) (Archiv
 	if err != nil {
 		return ArchiveCleanupPreview{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	return e.cleanupPlan(ctx, tx, ordered)
 }
 
@@ -218,7 +219,7 @@ func (e Engine) ConfirmArchiveCleanup(ctx context.Context, in ArchiveCleanupRequ
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,719))`, in.RequestID); err != nil {
 		return nil, err
 	}
@@ -301,7 +302,7 @@ func (e Engine) ArchiveCleanupResults(ctx context.Context, request string) ([]Ar
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	return e.cleanupResults(ctx, tx, request)
 }
 
@@ -338,7 +339,7 @@ func activeArchiveOutputs(ctx context.Context, tx pgx.Tx, asset, root string) er
 	if err != nil {
 		return err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	for _, o := range list {
 		if o.scope == nil || o.owner == nil || *o.scope != "asset:"+asset || *o.owner != asset {
 			return ErrArtifactDependency

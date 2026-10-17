@@ -3,6 +3,7 @@ package clouddrive2
 import (
 	"context"
 	"media-tool/internal/modules/storage"
+	deferutil "media-tool/internal/platform/cleanup"
 )
 
 type operationKey struct{}
@@ -23,7 +24,7 @@ func (a *Adapter) acquire(ctx context.Context) (context.Context, func(), error) 
 		defer a.lifecycle.Unlock()
 		a.active--
 		if a.retired && a.active == 0 {
-			a.conn.Close()
+			deferutil.Close(a.conn, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		}
 	}, nil
 }
@@ -34,6 +35,6 @@ func (a *Adapter) Retire() {
 	defer a.lifecycle.Unlock()
 	a.retired = true
 	if a.active == 0 {
-		a.conn.Close()
+		deferutil.Close(a.conn, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	}
 }

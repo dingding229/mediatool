@@ -11,6 +11,7 @@ import (
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/settings"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"net/url"
 	"path"
@@ -163,7 +164,7 @@ func (e Engine) CheckEmby(ctx context.Context, job jobs.Job) (result error) {
 			return err
 		}
 		if response.StatusCode != 200 {
-			response.Body.Close()
+			deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			return errors.New("Emby visibility request refused")
 		}
 		var data struct {
@@ -179,7 +180,7 @@ func (e Engine) CheckEmby(ctx context.Context, job jobs.Job) (result error) {
 			Total int `json:"TotalRecordCount"`
 		}
 		err = json.NewDecoder(io.LimitReader(response.Body, 4<<20)).Decode(&data)
-		response.Body.Close()
+		deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if err != nil {
 			return errors.New("invalid Emby item evidence")
 		}
@@ -230,7 +231,7 @@ func (e Engine) CheckEmby(ctx context.Context, job jobs.Job) (result error) {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	currentPrefs, err := (settings.Repository{DB: e.DB}).Get(ctx)
 	if err != nil {
 		return err
@@ -324,8 +325,10 @@ func requestEmbyUpdates(ctx context.Context, c integrations.Credentials, updates
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
-	io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
+	if _, checkedErr := io.Copy(io.Discard, io.LimitReader(response.Body, 4096)); checkedErr != nil {
+		return checkedErr
+	}
 	if response.StatusCode != 200 && response.StatusCode != 204 {
 		return fmt.Errorf("Emby targeted refresh refused (%d)", response.StatusCode)
 	}

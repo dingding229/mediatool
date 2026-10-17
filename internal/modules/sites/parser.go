@@ -175,7 +175,9 @@ func (d document) fieldWithResolver(name string, rule Map, scope any, vars map[s
 			if n, ok := scope.(*html.Node); ok {
 				node = n
 			}
-			html.Render(&b, node)
+			if checkedErr := html.Render(&b, node); checkedErr != nil {
+				return *new(any), checkedErr
+			}
 			out = append(out, b.String())
 		} else {
 			for _, v := range values {

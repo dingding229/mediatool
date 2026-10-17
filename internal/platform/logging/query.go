@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"sort"
 	"strings"
@@ -93,7 +94,7 @@ func (s *Store) queryFiles() ([]queryFile, error) {
 	files := []queryFile{}
 	closeAll := func() {
 		for _, f := range files {
-			f.file.Close()
+			deferutil.Close(f.file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		}
 	}
 	for _, name := range s.names() {
@@ -112,7 +113,7 @@ func (s *Store) queryFiles() ([]queryFile, error) {
 		}
 		stat, err := f.Stat()
 		if err != nil || !stat.Mode().IsRegular() {
-			f.Close()
+			deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			closeAll()
 			return nil, errors.New("unsafe log source")
 		}
@@ -140,7 +141,7 @@ func (s *Store) Query(ctx context.Context, q Query) (QueryResult, error) {
 	}
 	defer func() {
 		for _, f := range files {
-			f.file.Close()
+			deferutil.Close(f.file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		}
 	}()
 	window := []map[string]any{}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	deferutil "media-tool/internal/platform/cleanup"
 )
 
 type CipherColumn struct {
@@ -36,7 +37,7 @@ func Rekey(ctx context.Context, db *pgxpool.Pool, old, next *Vault, dryRun bool)
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	counts := map[string]int{}
 	for _, spec := range CipherColumns {
 		table := pgx.Identifier{spec.Table}.Sanitize()

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5/pgconn"
+	deferutil "media-tool/internal/platform/cleanup"
 	"path/filepath"
 	"strings"
 	"time"
@@ -143,7 +144,9 @@ func (e Engine) Preview(ctx context.Context, kind, id string) (Request, error) {
 		}
 		p.BackupID = id
 		var digest string
-		e.DB.QueryRow(ctx, `SELECT digest FROM ops_backups WHERE id=$1`, id).Scan(&digest)
+		if checkedErr := e.DB.QueryRow(ctx, `SELECT digest FROM ops_backups WHERE id=$1`, id).Scan(&digest); checkedErr != nil {
+			return Request{}, checkedErr
+		}
 		p.ManifestDigest = digest
 	case "rollback":
 		if id == e.Revision || !SHA.MatchString(id) {
@@ -208,7 +211,9 @@ func (e Engine) CheckRequest(ctx context.Context, id string) (Request, error) {
 			return r, err
 		}
 		var digest string
-		e.DB.QueryRow(ctx, `SELECT digest FROM ops_backups WHERE id=$1`, r.Payload.BackupID).Scan(&digest)
+		if checkedErr := e.DB.QueryRow(ctx, `SELECT digest FROM ops_backups WHERE id=$1`, r.Payload.BackupID).Scan(&digest); checkedErr != nil {
+			return Request{}, checkedErr
+		}
 		if digest != r.Payload.ManifestDigest {
 			return r, ErrConflict
 		}
@@ -250,7 +255,7 @@ func (e Engine) Claim(ctx context.Context, id string) (Request, error) {
 	if err != nil {
 		return r, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var paused bool
 	if err = tx.QueryRow(ctx, `SELECT paused FROM ops_mode WHERE singleton FOR UPDATE`).Scan(&paused); err != nil {
 		return r, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	deferutil "media-tool/internal/platform/cleanup"
 )
 
 // Maintenance history must not disappear when restoring an older application
@@ -13,7 +14,7 @@ func (e Engine) copyCurrentMetadata(ctx context.Context, clone *pgxpool.Pool) er
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `TRUNCATE ops_drills,ops_backups,ops_requests,ops_releases,ops_samples,ops_alerts,ops_policy,ops_mode`); err != nil {
 		return err
 	}

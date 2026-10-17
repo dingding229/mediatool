@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path"
 	"path/filepath"
@@ -27,7 +28,7 @@ func quarantineArchive(root, archive, quarantine string, digest []byte) (bool, e
 	if err != nil {
 		return false, err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	q, qErr := readRegular(fs, quarantine)
 	if qErr == nil {
 		if !digestEqual(q, digest) {
@@ -49,7 +50,7 @@ func quarantineArchive(root, archive, quarantine string, digest []byte) (bool, e
 	if err != nil {
 		return false, err
 	}
-	defer directory.Close()
+	defer deferutil.Close(directory, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if err = renameNoReplace(directory, path.Base(archive), directory, path.Base(quarantine)); err != nil {
 		return false, err
 	}
@@ -74,7 +75,7 @@ func removeQuarantined(root, archive, quarantine string, digest []byte) (bool, e
 	if err != nil {
 		return false, err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if _, err = fs.Lstat(archive); !errors.Is(err, os.ErrNotExist) {
 		return false, ErrArtifactConflict
 	}
@@ -92,7 +93,7 @@ func removeQuarantined(root, archive, quarantine string, digest []byte) (bool, e
 	if err != nil {
 		return false, err
 	}
-	defer directory.Close()
+	defer deferutil.Close(directory, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	return true, directory.Sync()
 }
 
@@ -105,7 +106,7 @@ func (e Engine) ApplyArchiveCleanup(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var relative string
 	if err = tx.QueryRow(ctx, `SELECT j.relative_path FROM media_archive_cleanup_operations c JOIN media_artifact_journal j ON j.id=c.journal_id WHERE c.id=$1`, id).Scan(&relative); err != nil {
 		return err

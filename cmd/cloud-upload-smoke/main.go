@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"os"
 	"path"
@@ -75,7 +76,7 @@ func run(source, report string, resume bool) (result error) {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer deferutil.Close(file, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 	size, sha1sum, sha256sum, err := sourceIdentity(file)
 	if err != nil {
 		return err
@@ -151,7 +152,10 @@ func run(source, report string, resume bool) (result error) {
 			result = errors.New("failed to preserve diagnostic journal")
 		}
 		// The session ID/path remain private. Public output contains only facts.
-		json.NewEncoder(os.Stdout).Encode(map[string]any{"state": j.State, "sessionPersisted": j.SessionID != "", "sourceSize": j.SourceSize, "remoteSize": j.RemoteSize, "remoteHashMatched": j.RemoteHashMatched, "downloadStatus": j.DownloadStatus, "downloadBytes": j.DownloadBytes, "downloadHashMatched": j.DownloadHashMatched, "failureClass": j.FailureClass, "businessDownloadRecordsCreated": false, "mediaIdentityAssigned": false, "sourcePreserved": j.SourcePreserved})
+		if checkedErr := json.NewEncoder(os.Stdout).Encode(map[string]any{"state": j.State, "sessionPersisted": j.SessionID != "", "sourceSize": j.SourceSize, "remoteSize": j.RemoteSize, "remoteHashMatched": j.RemoteHashMatched, "downloadStatus": j.DownloadStatus, "downloadBytes": j.DownloadBytes, "downloadHashMatched": j.DownloadHashMatched, "failureClass": j.FailureClass, "businessDownloadRecordsCreated": false, "mediaIdentityAssigned": false, "sourcePreserved": j.SourcePreserved}); checkedErr != nil {
+			result = errors.Join(result, checkedErr)
+			return
+		}
 	}()
 	existing, lookupErr := client.Find(ctx, j.Destination)
 	if lookupErr == nil {
@@ -239,7 +243,7 @@ func saveJournal(file string, j *journal) error {
 		return err
 	}
 	name := temp.Name()
-	defer os.Remove(name)
+	defer deferutil.Do(func() error { return os.Remove(name) }, "Temporary cleanup or final unlock only; resource close also releases locks and the primary result is authoritative")
 	if err = temp.Chmod(0o600); err == nil {
 		_, err = temp.Write(data)
 	}
@@ -260,7 +264,7 @@ func saveJournal(file string, j *journal) error {
 	if err != nil {
 		return err
 	}
-	defer directory.Close()
+	defer deferutil.Close(directory, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 	return directory.Sync()
 }
 func failureClass(err error) string {

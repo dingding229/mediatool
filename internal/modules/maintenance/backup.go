@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/url"
 	"os"
 	"os/exec"
@@ -125,7 +126,7 @@ func digestFile(file string) (string, int64, error) {
 	if err != nil {
 		return "", 0, err
 	}
-	defer f.Close()
+	defer deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	info, err := f.Stat()
 	if err != nil || !info.Mode().IsRegular() {
 		return "", 0, ErrUnsafe
@@ -185,7 +186,10 @@ func (e Engine) Backup(ctx context.Context, id string) (err error) {
 					partial += info.Size()
 				}
 			}
-			e.DB.Exec(cleanup, `UPDATE ops_backups SET state='failed',message=$2,bytes=$3,completed_at=now() WHERE id=$1`, id, err.Error(), partial)
+			if _, checkedErr := e.DB.Exec(cleanup, `UPDATE ops_backups SET state='failed',message=$2,bytes=$3,completed_at=now() WHERE id=$1`, id, err.Error(), partial); checkedErr != nil {
+				err = errors.Join(err, checkedErr)
+				return
+			}
 			e.notice(cleanup, "ops.backup.failed", "备份失败", err.Error())
 		}
 	}()
@@ -202,7 +206,7 @@ func (e Engine) Backup(ctx context.Context, id string) (err error) {
 	defer func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		tx.Rollback(cleanup)
+		deferutil.Rollback(cleanup, tx)
 	}()
 	var snapshot string
 	if err = tx.QueryRow(ctx, `SELECT pg_export_snapshot()`).Scan(&snapshot); err != nil {
@@ -228,7 +232,10 @@ func (e Engine) Backup(ctx context.Context, id string) (err error) {
 	}
 	err = e.pg(ctx, "pg_dump", e.DSN, []string{"--format=custom", "--no-owner", "--no-acl", "--snapshot=" + snapshot}, nil, dump)
 	syncErr := dump.Sync()
-	dump.Close()
+	closeErr := dump.Close()
+	if err == nil {
+		err = closeErr
+	}
 	if err != nil {
 		return err
 	}
@@ -264,12 +271,12 @@ func (e Engine) Backup(ctx context.Context, id string) (err error) {
 		return err
 	}
 	tw := tar.NewWriter(out)
-	defer out.Close()
+	defer deferutil.Close(out, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	fs, err := os.OpenRoot(e.OutputRoot)
 	if err != nil {
 		return err
 	}
-	defer fs.Close()
+	defer deferutil.Close(fs, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	seen := map[string]bool{}
 	for _, file := range files {
 		if seen[file.path] {
@@ -294,7 +301,7 @@ func (e Engine) Backup(ctx context.Context, id string) (err error) {
 			return openErr
 		}
 		raw, readErr := io.ReadAll(io.LimitReader(src, (64<<20)+1))
-		src.Close()
+		deferutil.Close(src, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if readErr != nil || int64(len(raw)) != info.Size() {
 			return errors.New("托管文件读取期间发生变化")
 		}
@@ -316,7 +323,9 @@ func (e Engine) Backup(ctx context.Context, id string) (err error) {
 	if err = out.Sync(); err != nil {
 		return err
 	}
-	out.Close()
+	if err = out.Close(); err != nil {
+		return err
+	}
 	m.OutputsDigest, _, err = digestFile(filepath.Join(dir, "outputs.tar"))
 	if err != nil {
 		return err
@@ -331,7 +340,10 @@ func (e Engine) Backup(ctx context.Context, id string) (err error) {
 	}
 	_, err = mf.Write(raw)
 	syncErr = mf.Sync()
-	mf.Close()
+	closeErr = mf.Close()
+	if err == nil {
+		err = closeErr
+	}
 	if syncErr != nil {
 		return syncErr
 	}
@@ -343,7 +355,7 @@ func (e Engine) Backup(ctx context.Context, id string) (err error) {
 		return directoryErr
 	}
 	syncErr = directory.Sync()
-	directory.Close()
+	deferutil.Close(directory, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if syncErr != nil {
 		return syncErr
 	}
@@ -382,7 +394,10 @@ func (e Engine) Drill(ctx context.Context, id string) (err error) {
 			message = err.Error()
 		}
 		raw, _ := json.Marshal(report)
-		e.DB.Exec(cleanup, `UPDATE ops_drills SET state=$2,report=$3,message=$4,completed_at=now() WHERE id=$1`, id, state, raw, message)
+		if _, checkedErr := e.DB.Exec(cleanup, `UPDATE ops_drills SET state=$2,report=$3,message=$4,completed_at=now() WHERE id=$1`, id, state, raw, message); checkedErr != nil {
+			err = errors.Join(err, checkedErr)
+			return
+		}
 		e.notice(cleanup, "ops.drill."+state, "备份恢复演练", message)
 	}()
 	m, dir, err := e.VerifyBundle(ctx, backup)
@@ -421,7 +436,7 @@ func (e Engine) Drill(ctx context.Context, id string) (err error) {
 		return err
 	}
 	err = e.pg(ctx, "pg_restore", dsn, []string{"--exit-on-error", "--no-owner", "--no-acl", "--dbname=" + name}, dump, io.Discard)
-	dump.Close()
+	deferutil.Close(dump, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if err != nil {
 		return err
 	}
@@ -498,5 +513,8 @@ func sameTables(a, b map[string]backupverify.Table) bool {
 }
 func (e Engine) notice(ctx context.Context, kind, title, body string) {
 	raw, _ := json.Marshal(map[string]string{"title": title, "message": body})
-	e.DB.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)VALUES($1,$2,$1,$3)`, newID(), kind, raw)
+	if _, checkedErr := e.DB.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)VALUES($1,$2,$1,$3)`, newID(), kind, raw); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/modules/maintenance/backup.go:notice")
+		return
+	}
 }

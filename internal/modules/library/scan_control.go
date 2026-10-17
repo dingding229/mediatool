@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
 	"strconv"
 )
 
@@ -17,7 +18,7 @@ func (e Engine) ControlScan(ctx context.Context, id, action string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var state, connection string
 	var generation int64
 	if err = tx.QueryRow(ctx, `SELECT state,integration_id::text,generation FROM library_scans WHERE id=$1 FOR UPDATE`, id).Scan(&state, &connection, &generation); err != nil {

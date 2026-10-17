@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"media-tool/internal/modules/storage"
+	deferutil "media-tool/internal/platform/cleanup"
 	"strings"
 )
 
@@ -20,7 +21,7 @@ func (e Engine) Control(ctx context.Context, id string, in UploadControl) error 
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,714))`, id); err != nil {
 		return err
 	}

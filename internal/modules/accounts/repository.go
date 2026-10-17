@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/auth"
+	deferutil "media-tool/internal/platform/cleanup"
 	"regexp"
 	"strings"
 )
@@ -60,7 +61,7 @@ func (r Repository) Register(ctx context.Context, username, password, token stri
 	if err != nil {
 		return Account{}, ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(716)`); err != nil {
 		return Account{}, ErrUnavailable
 	}
@@ -122,7 +123,7 @@ func (r Repository) CreateSession(ctx context.Context, account Account, token st
 	if err != nil {
 		return ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var current int64
 	if err = tx.QueryRow(ctx, `SELECT credential_version FROM administrator_accounts WHERE id=$1 FOR SHARE`, account.ID).Scan(&current); err != nil {
 		return ErrUnavailable
@@ -174,7 +175,7 @@ func (r Repository) ChangePassword(ctx context.Context, a Account, current, next
 	if err != nil {
 		return ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	tag, err := tx.Exec(ctx, `UPDATE administrator_accounts SET password_hash=$2,credential_version=credential_version+1,must_change_password=false,temporary_password_expires_at=NULL,updated_at=now()WHERE id=$1 AND credential_version=$3`, a.ID, hash, a.Version)
 	if err != nil {
 		return ErrUnavailable

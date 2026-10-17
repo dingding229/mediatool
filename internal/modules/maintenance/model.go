@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5"
+	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -139,7 +140,7 @@ func (e Engine) QueueBackup(ctx context.Context, origin string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(91220880)`); err != nil {
 		return "", err
 	}
@@ -179,7 +180,7 @@ func (e Engine) QueueDrill(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(91220880)`); err != nil {
 		return "", err
 	}
@@ -188,7 +189,9 @@ func (e Engine) QueueDrill(ctx context.Context, id string) (string, error) {
 		return "", ErrUnsafe
 	}
 	var active bool
-	tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ops_drills WHERE state IN('pending','running'))`).Scan(&active)
+	if checkedErr := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ops_drills WHERE state IN('pending','running'))`).Scan(&active); checkedErr != nil {
+		return "", checkedErr
+	}
 	if active {
 		return "", ErrConflict
 	}

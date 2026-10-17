@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -59,7 +60,7 @@ func (e Engine) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(91220880)`); err != nil {
 		return err
 	}
@@ -151,7 +152,7 @@ func (e Engine) Delete(ctx context.Context, id string) error {
 	if finishErr != nil {
 		return finishErr
 	}
-	defer finish.Rollback(ctx)
+	defer deferutil.Rollback(ctx, finish)
 	finishTag, finishErr := finish.Exec(ctx, `UPDATE ops_backups SET state='deleted',message='本模块备份已删除，业务媒体未删除',completed_at=now() WHERE id=$1 AND state='deleting' AND deletion_started_at=$2`, id, deletionStarted)
 	if finishErr != nil {
 		return finishErr
@@ -170,9 +171,15 @@ func (e Engine) Retain(ctx context.Context, p Policy) error {
 	if err != nil {
 		return err
 	}
-	e.DB.Exec(ctx, `UPDATE ops_requests SET state='expired',message='批准已过期' WHERE state IN('preview','approved')AND expires_at<now()`)
-	e.DB.Exec(ctx, `UPDATE ops_backups b SET state='interrupted',message='任务中断，不重放旧备份会话',completed_at=now() WHERE state IN('pending','running')AND NOT EXISTS(SELECT 1 FROM jobs j WHERE j.id=b.job_id AND j.state IN('pending','running','retry'))`)
-	e.DB.Exec(ctx, `UPDATE ops_drills d SET state='interrupted',message='演练中断；核对临时库后再清理',completed_at=now() WHERE state IN('pending','running')AND NOT EXISTS(SELECT 1 FROM jobs j WHERE j.id=d.job_id AND j.state IN('pending','running','retry'))`)
+	if _, checkedErr := e.DB.Exec(ctx, `UPDATE ops_requests SET state='expired',message='批准已过期' WHERE state IN('preview','approved')AND expires_at<now()`); checkedErr != nil {
+		return checkedErr
+	}
+	if _, checkedErr := e.DB.Exec(ctx, `UPDATE ops_backups b SET state='interrupted',message='任务中断，不重放旧备份会话',completed_at=now() WHERE state IN('pending','running')AND NOT EXISTS(SELECT 1 FROM jobs j WHERE j.id=b.job_id AND j.state IN('pending','running','retry'))`); checkedErr != nil {
+		return checkedErr
+	}
+	if _, checkedErr := e.DB.Exec(ctx, `UPDATE ops_drills d SET state='interrupted',message='演练中断；核对临时库后再清理',completed_at=now() WHERE state IN('pending','running')AND NOT EXISTS(SELECT 1 FROM jobs j WHERE j.id=d.job_id AND j.state IN('pending','running','retry'))`); checkedErr != nil {
+		return checkedErr
+	}
 
 	// A deletion recovered in this cycle requires an administrator retry;
 	// do not immediately start a second physical cleanup attempt.
@@ -277,7 +284,9 @@ func (e Engine) CleanupDrill(ctx context.Context, id string) error {
 	}
 	if err == nil {
 		var current string
-		e.DB.QueryRow(ctx, `SELECT current_user`).Scan(&current)
+		if checkedErr := e.DB.QueryRow(ctx, `SELECT current_user`).Scan(&current); checkedErr != nil {
+			return checkedErr
+		}
 		if owner != current {
 			return ErrUnsafe
 		}

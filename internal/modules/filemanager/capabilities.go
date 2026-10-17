@@ -2,6 +2,7 @@ package filemanager
 
 import (
 	"context"
+	deferutil "media-tool/internal/platform/cleanup"
 	"path"
 	"path/filepath"
 	"strings"
@@ -150,7 +151,7 @@ func (l *Local) writable(raw string) (bool, error) {
 			if err != nil {
 				return false, ErrUnavailable
 			}
-			defer dir.Close()
+			defer deferutil.Close(dir, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			st, err := dir.Stat()
 			if err != nil {
 				return false, ErrUnavailable

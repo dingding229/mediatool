@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	pb "media-tool/internal/adapters/clouddrive2/proto"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -59,7 +60,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer deferutil.Close(conn, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	result, err := pb.NewCloudDriveFileSrvClient(conn).GetSystemInfo(ctx, &emptypb.Empty{})
@@ -72,7 +73,9 @@ func run() error {
 		report["providerReady"] = result.GetSystemReady()
 		report["providerLoggedIn"] = result.GetIsLogin()
 	}
-	json.NewEncoder(os.Stdout).Encode(report)
+	if checkedErr := json.NewEncoder(os.Stdout).Encode(report); checkedErr != nil {
+		return checkedErr
+	}
 	if err != nil && status.Code(err) != codes.Unauthenticated && status.Code(err) != codes.PermissionDenied {
 		return fmt.Errorf("gRPC unavailable")
 	}

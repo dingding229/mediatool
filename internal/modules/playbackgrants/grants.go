@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/url"
 	"strings"
 
@@ -91,6 +92,9 @@ func (s Service) Authorize(ctx context.Context, assetID, token string) (Ref, err
 	var digest []byte
 	var state string
 	err := s.DB.QueryRow(ctx, `SELECT a.id::text,f.storage_id::text,f.full_path,f.state,g.token_digest FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id JOIN playback_grants g ON g.asset_id=a.id WHERE a.id=$1 AND g.revoked_at IS NULL`, assetID).Scan(&ref.AssetID, &ref.StorageID, &ref.CloudPath, &state, &digest)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return ref, storage.ContextFailure(ctx, storage.ErrUnavailable)
+	}
 	if err != nil || state != "present" {
 		return ref, ErrDenied
 	}
@@ -120,7 +124,7 @@ func (s Service) Revoke(ctx context.Context, assetID string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `UPDATE playback_grants SET revoked_at=now(),updated_at=now()WHERE asset_id=$1`, assetID); err != nil {
 		return err
 	}
@@ -134,7 +138,7 @@ func (s Service) Rotate(ctx context.Context, assetID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	link, err := s.RotateTx(ctx, tx, assetID)
 	if err != nil {
 		return "", err

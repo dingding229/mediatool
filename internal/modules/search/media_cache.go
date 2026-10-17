@@ -22,7 +22,12 @@ func (e Engine) StartMediaCached(ctx context.Context, keyword string, ids []stri
 		if err == nil {
 			run, err := e.Get(ctx, id, 1, 1)
 			var saved metadata.Item
-			json.Unmarshal(run.Media, &saved)
+			// A missing/invalid cache identity is a miss, never a valid saved search.
+			if err == nil {
+				if decodeErr := json.Unmarshal(run.Media, &saved); decodeErr != nil {
+					err = decodeErr
+				}
+			}
 			if err == nil && saved.ID == media.ID && saved.MediaType == media.MediaType && (run.State == "succeeded" || run.State == "partial") && run.FinishedAt != nil && time.Since(*run.FinishedAt) < ttl {
 				var visible bool
 				if e.DB.QueryRow(ctx, `SELECT NOT cache_hidden FROM search_runs WHERE id=$1`, id).Scan(&visible) == nil && visible {

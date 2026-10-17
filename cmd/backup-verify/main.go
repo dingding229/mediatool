@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"media-tool/internal/platform/backupverify"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/database"
 	"net/url"
 	"os"
@@ -44,9 +45,13 @@ func main() {
 		if e != nil {
 			os.Exit(1)
 		}
-		json.NewEncoder(os.Stdout).Encode(out)
-		bufio.NewReader(os.Stdin).ReadString('\n')
-		tx.Rollback(ctx)
+		if checkedErr := json.NewEncoder(os.Stdout).Encode(out); checkedErr != nil {
+			os.Exit(1)
+		}
+		if _, checkedErr := bufio.NewReader(os.Stdin).ReadString('\n'); checkedErr != nil {
+			os.Exit(1)
+		}
+		deferutil.Rollback(ctx, tx)
 		return
 	}
 	r, e := backupverify.Verify(ctx, db, dsn, *name, os.Getenv("APP_SECRET_KEY"), *test)
@@ -54,5 +59,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Restore verification failed; clone guard, migration or ciphertext validation did not pass. No credentials exported.")
 		os.Exit(1)
 	}
-	json.NewEncoder(os.Stdout).Encode(r)
+	if checkedErr := json.NewEncoder(os.Stdout).Encode(r); checkedErr != nil {
+		os.Exit(1)
+	}
 }

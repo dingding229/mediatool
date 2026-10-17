@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	deferutil "media-tool/internal/platform/cleanup"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -28,7 +29,7 @@ func (d Dispatcher) Prepare(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	rows, err := tx.Query(ctx, `SELECT id::text,event_type,payload FROM outbox_events WHERE dispatched_at IS NULL ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 100`)
 	if err != nil {
 		return err
@@ -52,12 +53,16 @@ func (d Dispatcher) Prepare(ctx context.Context) error {
 	}
 	var telegramID string
 	var telegramRevision int64
-	tx.QueryRow(ctx, `SELECT id::text,revision FROM integrations WHERE kind='telegram'AND enabled LIMIT 1`).Scan(&telegramID, &telegramRevision)
+	if checkedErr := tx.QueryRow(ctx, `SELECT id::text,revision FROM integrations WHERE kind='telegram'AND enabled LIMIT 1`).Scan(&telegramID, &telegramRevision); checkedErr != nil && !errors.Is(checkedErr, pgx.ErrNoRows) {
+		return checkedErr
+	}
 	for _, e := range events {
 		title, notify := titles[e.kind]
 		if notify {
 			var data map[string]any
-			json.Unmarshal(e.payload, &data)
+			if checkedErr := json.Unmarshal(e.payload, &data); checkedErr != nil {
+				return checkedErr
+			}
 			name, _ := data["title"].(string)
 			body := title
 			if name != "" {
@@ -94,7 +99,7 @@ func (d Dispatcher) Deliver(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var id, connectionID, body string
 	var attempts int
 	var savedRevision *int64
@@ -205,7 +210,7 @@ func (d Dispatcher) Retry(ctx context.Context, id string, acceptDuplicateRisk bo
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var state, connectionID string
 	var revision *int64
 	err = tx.QueryRow(ctx, `SELECT state,integration_id::text,integration_revision FROM notification_deliveries WHERE id=$1 FOR UPDATE`, id).Scan(&state, &connectionID, &revision)

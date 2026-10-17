@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/sites"
+	deferutil "media-tool/internal/platform/cleanup"
 	"time"
 )
 
@@ -24,7 +25,7 @@ func (e Engine) Save(ctx context.Context, id string, revision int64, fingerprint
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var current int64
 	var enabled bool
 	var definitionID string

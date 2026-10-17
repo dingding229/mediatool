@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	deferutil "media-tool/internal/platform/cleanup"
 	"path"
 	"strings"
 	"time"
@@ -32,7 +33,7 @@ func (e Engine) recordChange(ctx context.Context, connection string, revision in
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	rows, err := tx.Query(ctx, `SELECT s.id::text,s.root,coalesce(i.settings->>'cloudRoot','') FROM library_scan_schedules s JOIN integrations i ON i.id=s.integration_id WHERE s.integration_id=$1 AND s.enabled AND s.watch_changes AND i.enabled AND i.kind='clouddrive2' AND i.revision=$2 FOR UPDATE OF s`, connection, revision)
 	if err != nil {
 		return err
