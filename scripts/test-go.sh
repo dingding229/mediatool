@@ -23,9 +23,20 @@ for package in "$@"; do
 done
 if [[ "$#" -eq 0 ]]; then set -- ./...; fi
 go run ./cmd/migrate -test-only -action up -cleanup-test-plugins
+# Exercise the actual CGO-free release worker, not a race-instrumented test
+# executable under production RLIMIT_AS/RSS. The host test itself remains -race.
+# This also makes the HTTP/downloader same-binary tests mandatory on Linux.
+if [[ "$(uname -s)" == Linux ]]; then
+ worker_dir=$(mktemp -d "${TMPDIR:-/tmp}/media-tool-test-worker.XXXXXX")
+ trap 'chmod -R u+w "$worker_dir"; rm -rf "$worker_dir"' EXIT
+ CGO_ENABLED=0 go build -trimpath -o "$worker_dir/media-tool" ./cmd/media-tool
+ export MEDIA_TOOL_PLUGIN_BINARY="$worker_dir/media-tool"
+ echo 'Real static app plugin-worker REQUIRED on Linux (host tests still use -race).'
+fi
 if [[ "${MEDIA_TOOL_REQUIRE_FFMPEG:-}" == 1 ]]; then
  command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
  echo 'Real media tests REQUIRED (missing binary/encoder is a failure); verbose output enabled.'
- exec go test -p 1 -race -count=1 -v "$@"
+ go test -p 1 -race -count=1 -v "$@"
+ exit "$?"
 fi
-exec go test -p 1 -race -count=1 "$@"
+go test -p 1 -race -count=1 "$@"

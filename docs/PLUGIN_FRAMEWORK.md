@@ -157,3 +157,9 @@ Host调用再与实时实例授权相交；不能从参数伪造或提升该上�
 
 F2仅完成框架和三条真实触发点，F3业务Host、F4全面事件/Telegram入站、F5完善与F6验收
 插件仍待执行。F2发布镜像但不部署，R-F才访问自有服务器。
+
+
+Linux race 集成测试由test-go.sh先构建CGO_ENABLED=0的真实app worker，宿主仍开-race；
+不把race测试执行器充当生产worker（它与生产AS/RSS画像并非同一种程序）。独立的非root、
+cap-drop/no-new-privileges静态内核门禁仍完整保留，不扩大任何生产资源限额。启动失败仅记
+stage/常量错误类、RSS超限记数值，不记录参数、载荷或原始stderr。

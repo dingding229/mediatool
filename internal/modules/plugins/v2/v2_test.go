@@ -180,7 +180,8 @@ func TestRealSameBinaryWorkerWritesKVAndStops(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("worker not running")
+			rows, err := s.List(context.Background(), 0, 200)
+			t.Fatal("worker not running", rows, err)
 		}
 		time.Sleep(50 * time.Millisecond)
 	}

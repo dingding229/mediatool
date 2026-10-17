@@ -1297,3 +1297,8 @@ F1删除本仓库plugin-sdk/go/examples/plugins及旧上传/市场执行代码�
    入口按设计Skip，真实ffmpeg未Skip。最终精确pin只增加可选配置容错的解释注释，补跑相关
    race/迁移15项通过；SDK race三轮与库CI通过。Vue112项、全量E2E108项、Python28项通过。
    原生AMD64及Hub以本次提交后Actions为准，不以本地ARM64代替。
+7. 首次主程序CI 39037190487在Linux race测试执行器充当worker的生命周期测试失败：KV已写入，
+   未进入running；publish未启动。修正测试宿主：Linux先构建真实CGO_ENABLED=0 app，宿主继续
+   -race，原有AS/RSS/NPROC限制和非root静态内核门禁一律不放宽；新增前置原生AMD64真实
+   worker/race-host检查，避免最后才发现同类问题。增加无载荷/无原始stderr的stage/错误类及
+   RSS数值诊断。具体race执行器受限原因未从首轮无诊断日志中证明，不假称已得到OOM结论。

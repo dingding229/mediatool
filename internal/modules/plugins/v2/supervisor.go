@@ -214,6 +214,7 @@ func (s Supervisor) execute(parent context.Context, l Lease) Reason {
 	}
 	protocol := make(chan error, 1)
 	go func() {
+		phase := "initialize"
 		initCtx, stop := context.WithTimeout(ctx, 5*time.Second)
 		var out contracts.Initialized
 		e := peer.Call(initCtx, "plugin.initialize", contracts.Initialize{ContractVersion: 2, InstanceID: l.ID, Generation: l.Token, ConfigRevision: l.Config.Revision, DefinitionFingerprint: l.Fingerprint, CatalogBuild: BuildID(), Capabilities: l.Scopes}, &out)
@@ -222,11 +223,13 @@ func (s Supervisor) execute(parent context.Context, l Lease) Reason {
 			e = ErrUnavailable
 		}
 		if e == nil {
+			phase = "init"
 			initCtx, stop = context.WithTimeout(ctx, 15*time.Second)
 			e = peer.Call(initCtx, "plugin.init", l.Config, nil)
 			stop()
 		}
 		if e == nil {
+			phase = "state"
 			initCtx, stop = context.WithTimeout(ctx, 2*time.Second)
 			var ready bool
 			e = peer.Call(initCtx, "plugin.get_state", nil, &ready)
@@ -236,13 +239,23 @@ func (s Supervisor) execute(parent context.Context, l Lease) Reason {
 			}
 		}
 		if e == nil {
+			phase = "describe"
 			describeCtx, stop := context.WithTimeout(ctx, 5*time.Second)
 			var snapshot contracts.Snapshot
 			e = peer.Call(describeCtx, "plugin.describe", nil, &snapshot)
 			if e == nil {
+				phase = "publish"
 				e = s.Store.Publish(describeCtx, l, snapshot)
 			}
 			stop()
+		}
+		if e != nil {
+			code := "internal"
+			var rpc *contracts.Error
+			if errors.As(e, &rpc) {
+				code = "rpc_" + strconv.Itoa(int(rpc.Code))
+			}
+			s.Logger.Warn("Plugin startup failed", "module", "plugins", "instance", l.ID, "stage", phase, "error_class", code)
 		}
 		protocol <- e
 	}()
@@ -348,6 +361,7 @@ loop:
 				cpuWindow = 0
 			}
 			if rss > s.PerWorkerRSS {
+				s.Logger.Warn("Plugin RSS limit reached", "module", "plugins", "instance", l.ID, "rss_bytes", rss, "limit_bytes", s.PerWorkerRSS)
 				result = ResourceLimit
 				break loop
 			}
