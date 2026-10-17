@@ -3778,243 +3778,107 @@ paths:
               - revision
               properties:
                 revision: *native_id005
-  /api/v1/member/auth/login:
-    post:
-      operationId: memberLogin
-      description: 独立媒体账号登录；PG全局/实际IP/账号限流；HttpOnly媒体会话cookie；不接受管理员或Emby账号。
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '503':
-          $ref: '#/components/responses/Unavailable'
-      security: []
-      parameters:
-      - name: X-Requested-With
-        in: header
-        required: true
-        schema:
-          type: string
-          const: media-tool
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-              - username
-              - password
-              properties:
-                username:
-                  type: string
-                password: *native_id006
-  /api/v1/member/auth/session:
+  /api/v1/media-server/users/{id}/devices:
     get:
-      operationId: memberSession
-      description: 本人媒体会话；管理员cookie无效。
+      operationId: mediaUserDevices
+      description: 管理员分页读取登录设备；不包含device_key、IP、UA或任何令牌。
       responses:
         '200':
           $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '503':
           $ref: '#/components/responses/Unavailable'
-      security:
-      - MemberSession: []
-  /api/v1/member/auth/password:
-    post:
-      operationId: memberChangePassword
-      description: 核对当前密码；新密码6–20字符；成功撤销所有媒体会话，须重新登录。
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '503':
-          $ref: '#/components/responses/Unavailable'
-      security:
-      - MemberSession: []
-      parameters:
-      - name: X-Requested-With
-        in: header
-        required: true
-        schema:
-          type: string
-          const: media-tool
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-              - currentPassword
-              - newPassword
-              - confirmPassword
-              properties:
-                currentPassword: *native_id006
-                newPassword: *native_id006
-                confirmPassword: *native_id006
-  /api/v1/member/auth/logout:
-    post:
-      operationId: memberLogout
-      description: 撤销当前媒体会话。
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '503':
-          $ref: '#/components/responses/Unavailable'
-      security:
-      - MemberSession: []
-      parameters:
-      - name: X-Requested-With
-        in: header
-        required: true
-        schema:
-          type: string
-          const: media-tool
-  /api/v1/member/libraries:
-    get:
-      operationId: memberLibraries
-      description: 实时有效授权范围；未改初始密码返回403。
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '503':
-          $ref: '#/components/responses/Unavailable'
-      security:
-      - MemberSession: []
-  /api/v1/member/libraries/{library}/items:
-    get:
-      operationId: memberLibraryItems
-      description: 仅已确认/ready且present的资产，不含文件路径、pickCode、STRM密钥或上游配置。
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '503':
-          $ref: '#/components/responses/Unavailable'
-      security:
-      - MemberSession: []
-      parameters:
-      - name: library
-        in: path
-        required: true
-        schema:
-          type: string
-          enum:
-          - movies
-          - series
-      - name: page
-        in: query
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 10000
-          default: 1
-      - name: pageSize
-        in: query
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 50
-      - name: q
-        in: query
-        schema:
-          type: string
-          maxLength: 200
-  /api/v1/member/libraries/{library}/items/{item}/poster:
-    get:
-      operationId: memberMediaPoster
-      description: 实时验证用户/媒体库/在库资产，再读取固定TMDB图片源；no-store。
-      responses:
-        '200':
-          description: Authorized poster
-          content:
-            image/jpeg:
-              schema:
-                type: string
-                format: binary
-            image/png:
-              schema:
-                type: string
-                format: binary
-            image/webp:
-              schema:
-                type: string
-                format: binary
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '503':
-          $ref: '#/components/responses/Unavailable'
-      security:
-      - MemberSession: []
-      parameters:
-      - name: library
-        in: path
-        required: true
-        schema:
-          type: string
-          enum:
-          - movies
-          - series
-      - name: item
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-  /api/v1/member/libraries/{library}/items/{item}/playback:
-    post:
-      operationId: memberPlaybackReserved
-      description: 预留短期可撤销播放票据；先校验播放权限与在库资产。没有权限403、不存在404、有权限但未实现501；不转授永久STRM密钥。
-      responses:
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '503':
-          $ref: '#/components/responses/Unavailable'
-        '501':
-          $ref: '#/components/responses/NotImplemented'
         '404':
-          description: 媒体不存在或已离库
-      security:
-      - MemberSession: []
+          description: 用户或设备不存在
       parameters:
-      - name: library
+      - name: id
         in: path
         required: true
         schema:
           type: string
-          enum:
-          - movies
-          - series
-      - name: item
+          format: uuid
+      - name: startIndex
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+  /api/v1/media-server/users/{id}/history:
+    get:
+      operationId: mediaUserHistory
+      description: 管理员分页读取该用户每条目的最近观看记录，不是逐次事件日志。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '404':
+          description: 用户或设备不存在
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: startIndex
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+  /api/v1/media-server/users/{id}/devices/{deviceId}/revoke:
+    post:
+      operationId: mediaUserRevokeDevice
+      description: 撤销指定设备所有令牌并释放播放槽位，幂等且写审计，其他设备不变。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '404':
+          description: 用户或设备不存在
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: deviceId
         in: path
         required: true
         schema:
@@ -4026,6 +3890,122 @@ paths:
         schema:
           type: string
           const: media-tool
+  /api/v1/media-server/native/library-mappings:
+    get:
+      operationId: nativeLibraryMappings
+      description: 分类库对应关系的白名单投影，不包含目录路径。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: startIndex
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+  /api/v1/media-server/native/sessions:
+    get:
+      operationId: nativeActiveSessions
+      description: 最近5分钟内的活跃播放/暂停会话，分页最多200。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      parameters:
+      - name: startIndex
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+  /api/v1/media-server/native/settings:
+    get:
+      operationId: nativeServerSettings
+      description: 管理员读取ServerName、开关、脱敏安全的公开媒体地址和监听端口。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    put:
+      operationId: saveNativeServerSettings
+      description: 保存ServerName和enabled，revision乐观并发；不修改监听端口和公开地址。
+      responses:
+        '200':
+          $ref: '#/components/responses/OK'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '409':
+          description: 设置修订冲突，刷新后重试
+      parameters:
+      - name: X-Requested-With
+        in: header
+        required: true
+        schema:
+          type: string
+          const: media-tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [serverName, enabled, revision]
+              properties:
+                serverName:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                enabled:
+                  type: boolean
+                revision:
+                  type: integer
+                  minimum: 1
   /api/v1/player-access/policy:
     get:
       operationId: playerUAPolicy
@@ -4459,16 +4439,466 @@ paths:
                   pattern: ^[a-f0-9]{64}$
                 confirm:
                   const: true
+  /System/Info/Public:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeSystemPublic
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /System/Info:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeSystemInfo
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security:
+      - NativeTokenHeader: []
+      - NativeTokenQuery: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /System/Endpoint:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeEndpointInfo
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            application/json:
+              example: {"IsLocal":false,"IsInNetwork":false}
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /Branding/Configuration:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeBranding
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            application/json:
+              example: {"LoginDisclaimer":"","CustomCss":""}
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /Branding/Css:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeBrandingCss
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            text/css:
+              schema:
+                type: string
+                const: ""
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /Branding/Css.css:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeBrandingCssAlias
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            text/css:
+              schema:
+                type: string
+                const: ""
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /DisplayPreferences:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeDisplayDefaults
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security:
+      - NativeTokenHeader: []
+      - NativeTokenQuery: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            application/json:
+              example: {"Id":"usersettings","ViewType":"Poster","SortBy":"SortName","IndexBy":"","RememberIndexing":false,"PrimaryImageHeight":250,"PrimaryImageWidth":166,"CustomPrefs":{},"ScrollDirection":"Vertical","ShowBackdrop":true,"RememberSorting":false,"SortOrder":"Ascending","ShowSidebar":true,"Client":"emby"}
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /DisplayPreferences/{id}:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeDisplayDefaultsById
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security:
+      - NativeTokenHeader: []
+      - NativeTokenQuery: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 36
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            application/json:
+              example: {"Id":"usersettings","ViewType":"Poster","SortBy":"SortName","IndexBy":"","RememberIndexing":false,"PrimaryImageHeight":250,"PrimaryImageWidth":166,"CustomPrefs":{},"ScrollDirection":"Vertical","ShowBackdrop":true,"RememberSorting":false,"SortOrder":"Ascending","ShowSidebar":true,"Client":"emby"}
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /Users/{userId}/Configuration:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeUserConfiguration
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security:
+      - NativeTokenHeader: []
+      - NativeTokenQuery: []
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 36
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            application/json:
+              example: {"SubtitleMode":"Default"}
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /Sessions:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeStartupSessions
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security:
+      - NativeTokenHeader: []
+      - NativeTokenQuery: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            application/json:
+              example: []
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /Users/Public:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativePublicUsers
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /socket:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeSocketRefused
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security:
+      - NativeTokenHeader: []
+      - NativeTokenQuery: []
+      responses:
+        '501':
+          description: 明确不支持WebSocket，无101/Upgrade；客户端继续使用REST。
+          content:
+            application/json:
+              example: {"ResponseStatus":{"ErrorCode":"NotImplemented","Message":"不支持 WebSocket，请使用 REST 查询和播放上报"}}
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /Localization/Countries:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeLocalizationCountries
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security:
+      - NativeTokenHeader: []
+      - NativeTokenQuery: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            application/json:
+              example: []
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /Localization/Cultures:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeLocalizationCultures
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security:
+      - NativeTokenHeader: []
+      - NativeTokenQuery: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            application/json:
+              example: []
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /Localization/ParentalRatings:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeLocalizationParentalRatings
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security:
+      - NativeTokenHeader: []
+      - NativeTokenQuery: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            application/json:
+              example: []
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
+  /Localization/Options:
+    servers:
+    - url: http://127.0.0.1:8092
+      description: 媒体端口示例，实际使用后台memberUrl或MEMBER_PUBLIC_URL；不在管理端口注册。
+    get:
+      operationId: nativeLocalizationOptions
+      description: 支持无前缀、/emby、/mediabrowser及大小写变体。仅本地合法默认值，不返回管理员配置或任意远程资源。
+      security:
+      - NativeTokenHeader: []
+      - NativeTokenQuery: []
+      responses:
+        '200':
+          description: 原生Emby JSON响应，不使用管理端data包装。
+          content:
+            application/json:
+              example: []
+        '400':
+          description: 参数无效
+        '401':
+          description: 需媒体用户令牌，拒绝管理员Cookie和全局STRM key
+        '403':
+          description: UserId与令牌用户不一致
+        '413':
+          description: 请求正文超过上限
+        '429':
+          description: 匿名启动请求每IP每分钟600次，带Retry-After
+        '503':
+          description: 服务关闭、过载或暂不可用
 components:
   securitySchemes:
+    NativeTokenHeader:
+      type: apiKey
+      in: header
+      name: X-Emby-Token
+      description: 当前媒体用户token，也兼容MediaBrowser/Emby Authorization Token；不是全局apiKey。
+    NativeTokenQuery:
+      type: apiKey
+      in: query
+      name: api_key
+      description: 当前媒体用户token；多来源有冲突时拒绝。
     ExternalAPIKey:
       type: http
       scheme: bearer
-    MemberSession:
-      type: apiKey
-      in: cookie
-      name: media_tool_member_session
-      description: 独立媒体用户随机会话，不能访问管理后台；Path=/api/v1/member，8小时，实时撤销。
     AdminSession:
       type: apiKey
       in: cookie

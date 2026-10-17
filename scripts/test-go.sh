@@ -23,4 +23,9 @@ for package in "$@"; do
 done
 if [[ "$#" -eq 0 ]]; then set -- ./...; fi
 go run ./cmd/migrate -test-only -action up -cleanup-test-plugins
+if [[ "${MEDIA_TOOL_REQUIRE_FFMPEG:-}" == 1 ]]; then
+ command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
+ echo 'Real media tests REQUIRED (missing binary/encoder is a failure); verbose output enabled.'
+ exec go test -p 1 -race -count=1 -v "$@"
+fi
 exec go test -p 1 -race -count=1 "$@"

@@ -21,7 +21,7 @@
 ## 接口边界
 
 - 管理端 `/api/v1/media-server/providers`、`/libraries`、`/users`、`/users/{id}`、`/users/{id}/password`、`/users/{id}/sessions/revoke`。
-- 用户端 `/api/v1/member/auth/login|session|password|logout`、`/libraries`、`/libraries/{id}/items`、`/libraries/{id}/items/{item}/poster`、`/libraries/{id}/items/{item}/playback`。
+- 用户端 `member 专用登录、会话、改密、退出 API`、`/libraries`、`/libraries/{id}/items`、`/libraries/{id}/items/{item}/poster`、`/libraries/{id}/items/{item}/playback`。
 - Provider 仅报告自身实际能力；member 端仅 builtin，Emby 的管理 API Key 不转授用户。
 - 未来票据必须绑定用户、资源、设备/UA、短 TTL 与授权版本，支持撤销；服务端以实际播放 UA 解析115临时 URL 后302到 CDN，禁止媒体流量代理/转码。未实现前不签发票据。
 
