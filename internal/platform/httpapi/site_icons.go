@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	mediatoolsite "github.com/dingding229/mediatool-site"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 )
 
@@ -22,5 +23,8 @@ func (a *API) ptTemplateIcon(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
-	w.Write(raw)
+	if _, checkedErr := w.Write(raw); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/platform/httpapi/site_icons.go:ptTemplateIcon")
+		return
+	}
 }

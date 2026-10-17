@@ -1,0 +1,9 @@
+[
+ {"method":"POST","path":"/emby/Sessions/Playing","body":{"ItemId":"100034","PlaySessionId":"aaaaaaaa-0000-4000-8000-000000000034","MediaSourceId":"bbbbbbbb-0000-4000-8000-000000000034","PositionTicks":0},"status":204,"kind":"playing"},
+ {"method":"POST","path":"/Sessions/Playing/Progress","body":{"PlaySessionId":"aaaaaaaa-0000-4000-8000-000000000034","PositionTicks":1200000000,"IsPaused":true},"status":204,"kind":"progress"},
+ {"method":"POST","path":"/Sessions/Playing/Stopped","body":{"PlaySessionId":"aaaaaaaa-0000-4000-8000-000000000034","PositionTicks":5800000000},"status":204,"kind":"stopped"},
+ {"method":"POST","path":"/Sessions/Playing/Ping?PlaySessionId=aaaaaaaa-0000-4000-8000-000000000034","body":null,"status":204,"kind":"ping"},
+ {"method":"POST","path":"/Users/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/PlayingItems/100034?MediaSourceId=bbbbbbbb-0000-4000-8000-000000000034","body":null,"status":204,"kind":"playing"},
+ {"method":"POST","path":"/Users/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/PlayingItems/100034/Progress?PositionTicks=1200000000&IsPaused=false","body":{"EventName":"Unpause"},"status":204,"kind":"progress"},
+ {"method":"DELETE","path":"/Users/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/PlayingItems/100034?PositionTicks=1200000000","body":null,"status":204,"kind":"stopped"}
+]

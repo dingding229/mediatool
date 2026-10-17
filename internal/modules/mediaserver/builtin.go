@@ -3,7 +3,6 @@ package mediaserver
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"regexp"
@@ -12,7 +11,7 @@ import (
 type Builtin struct{ DB *pgxpool.Pool }
 
 func (Builtin) Describe() Description {
-	return Description{ID: "builtin", Name: "内置媒体库", Contract: ContractVersion, Runtime: "go-embedded", Stage: "catalog-preview", Capabilities: Capabilities{Catalog: true, MemberAuth: true, LibraryPermissions: true}, Note: "已确认资产的只读目录与独立媒体用户可用。播放票据、播放进度、设备管理和Emby协议替代尚未实现。"}
+	return Description{ID: "builtin", Name: "内置媒体库", Contract: ContractVersion, Runtime: "go-embedded", Stage: "auth-ready", Capabilities: Capabilities{Catalog: true, MemberAuth: true, LibraryPermissions: true}, Note: "Emby设备令牌认证、媒体用户与后台目录投影已接入；浏览端点、权限判定、播放票据、进度和设备管理仍按后续任务实现。"}
 }
 func (b Builtin) Libraries(ctx context.Context, a Access) ([]Library, error) {
 	out := []Library{}
@@ -76,19 +75,15 @@ func (b Builtin) List(ctx context.Context, a Access, q Query) (Page, error) {
 		return out, err
 	}
 	where := memberAssets + ` AND ($4='' OR m.title ILIKE '%'||$4||'%')`
-	rows, err := b.DB.Query(ctx, `SELECT a.id::text,m.title,m.release_year,m.media_type,coalesce(m.metadata->>'overview',''),coalesce(m.metadata->>'posterPath',''),b.season,b.episode`+where+` ORDER BY m.title,a.id LIMIT $5 OFFSET $6`, a.UserID, a.Revision, q.LibraryID, q.Text, q.PageSize, (q.Page-1)*q.PageSize)
+	rows, err := b.DB.Query(ctx, `SELECT a.id::text,m.title,m.release_year,m.media_type,coalesce(m.metadata->>'overview',''),b.season,b.episode`+where+` ORDER BY m.title,a.id LIMIT $5 OFFSET $6`, a.UserID, a.Revision, q.LibraryID, q.Text, q.PageSize, (q.Page-1)*q.PageSize)
 	if err != nil {
 		return out, ErrUnavailable
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var i Item
-		var poster string
-		if err = rows.Scan(&i.ID, &i.Title, &i.Year, &i.MediaType, &i.Overview, &poster, &i.Season, &i.Episode); err != nil {
+		if err = rows.Scan(&i.ID, &i.Title, &i.Year, &i.MediaType, &i.Overview, &i.Season, &i.Episode); err != nil {
 			return out, ErrUnavailable
-		}
-		if safePoster.MatchString(poster) {
-			i.Poster = fmt.Sprintf("/api/v1/member/libraries/%s/items/%s/poster", q.LibraryID, i.ID)
 		}
 		out.Items = append(out.Items, i)
 	}

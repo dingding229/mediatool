@@ -3,6 +3,7 @@ package httpapi
 import (
 	"media-tool/internal/modules/classification"
 	"media-tool/internal/modules/metadata"
+	"media-tool/internal/modules/nativelibrary/catalog"
 	"media-tool/internal/modules/settings"
 	"net/http"
 )
@@ -20,7 +21,7 @@ func (a *API) saveClassification(w http.ResponseWriter, r *http.Request) {
 	if !decodeLimit(w, r, &in, 200<<10) {
 		return
 	}
-	out, err := (classification.Repository{DB: a.Deps.DB}).Save(r.Context(), in.Value, in.Revision)
+	out, err := (catalog.Repository{DB: a.Deps.DB}).SavePolicy(r.Context(), in.Value, in.Revision)
 	if err != nil {
 		fail(w, 409, "classification_invalid", err.Error())
 		return

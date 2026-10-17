@@ -19,6 +19,9 @@ import (
 )
 
 type Config struct {
+	NativeStillsRoot                                         string
+	NativeStillsMaxBytes                                     int64
+	NativeStillsFrameTimeout                                 time.Duration
 	MemberAddress, MemberPublicURL                           string
 	LogDir                                                   string
 	MaintenanceDir                                           string
@@ -60,7 +63,8 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	}
 	secret := func(key string) string { value, _ := lookup(key); return value }
 	c := Config{
-		MemberAddress: get("MEMBER_ADDR", "127.0.0.1:8092"), MemberPublicURL: get("MEMBER_PUBLIC_URL", ""),
+		NativeStillsRoot: get("NATIVE_STILLS_ROOT", "/data/native-media/stills"),
+		MemberAddress:    get("MEMBER_ADDR", "127.0.0.1:8092"), MemberPublicURL: get("MEMBER_PUBLIC_URL", ""),
 		LogDir: get("APP_LOG_DIR", "./data/logs"), PasswordResetFile: get("PASSWORD_RESET_FILE", "./data/password"), LocalBrowseRoots: strings.Split(get("LOCAL_BROWSE_ROOTS", "./data"), ","),
 		LogLevel:       get("LOG_LEVEL", "info"),
 		HostProcDir:    get("HOST_PROC_DIR", "/proc"),
@@ -185,6 +189,17 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	c.PlaybackResolveTimeout, err = time.ParseDuration(get("PLAYBACK_RESOLVE_TIMEOUT", requestbudget.DefaultResolve.String()))
 	if err != nil || c.PlaybackResolveTimeout < requestbudget.MinConfiguredResolve || c.PlaybackResolveTimeout > requestbudget.MaxConfiguredResolve {
 		return c, errors.New("PLAYBACK_RESOLVE_TIMEOUT must be 5s..1m")
+	}
+	c.NativeStillsFrameTimeout, err = time.ParseDuration(get("NATIVE_STILLS_FRAME_TIMEOUT", "45s"))
+	if err != nil || c.NativeStillsFrameTimeout <= 0 || c.NativeStillsFrameTimeout > 2*time.Minute {
+		return c, errors.New("NATIVE_STILLS_FRAME_TIMEOUT must be positive and <=2m")
+	}
+	c.NativeStillsMaxBytes, err = strconv.ParseInt(get("NATIVE_STILLS_MAX_BYTES", "2147483648"), 10, 64)
+	if err != nil || c.NativeStillsMaxBytes < 1 || c.NativeStillsMaxBytes > 1<<40 {
+		return c, errors.New("NATIVE_STILLS_MAX_BYTES must be 1..1099511627776")
+	}
+	if !path.IsAbs(c.NativeStillsRoot) || path.Clean(c.NativeStillsRoot) != c.NativeStillsRoot || !strings.HasSuffix(c.NativeStillsRoot, "/native-media/stills") {
+		return c, errors.New("NATIVE_STILLS_ROOT must be a clean absolute native-media/stills directory")
 	}
 	c.CloudDriveRequestTimeout, err = time.ParseDuration(get("CLOUDDRIVE_REQUEST_TIMEOUT", "10s"))
 	if err != nil || c.CloudDriveRequestTimeout < 500*time.Millisecond || c.CloudDriveRequestTimeout > time.Minute {

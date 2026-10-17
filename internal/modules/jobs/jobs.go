@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	deferutil "media-tool/internal/platform/cleanup"
 	"time"
 )
 
@@ -43,7 +44,7 @@ func (r Repository) Create(ctx context.Context, kind string, payload json.RawMes
 	if err != nil {
 		return Job{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if len(payload) == 0 {
 		payload = json.RawMessage(`{}`)
 	}
@@ -140,16 +141,29 @@ func (r Repository) Finish(ctx context.Context, j Job, workErr error) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
-	tag, err := tx.Exec(ctx, `UPDATE jobs SET state=$3,last_error=NULLIF($4,''),available_at=now()+($5::integer*interval '1 second'),lease_until=NULL,lease_token=NULL,locked_by=NULL,updated_at=now() WHERE id=$1 AND lease_token=$2 AND state='running' AND lease_until>now()`, j.ID, j.LeaseToken, state, message, delay)
+	defer deferutil.Rollback(ctx, tx)
+	tag, err := tx.Exec(ctx, `UPDATE jobs SET
+ state=CASE WHEN $3='succeeded' AND payload->>'rerun'='true' THEN 'pending' ELSE $3 END,
+ attempts=CASE WHEN $3='succeeded' AND payload->>'rerun'='true' THEN 0 ELSE attempts END,
+ payload=CASE WHEN $3='succeeded' AND payload->>'rerun'='true' THEN payload-'rerun' ELSE payload END,
+ last_error=NULLIF($4,''),available_at=CASE WHEN $3='succeeded' AND payload->>'rerun'='true' THEN now() ELSE now()+($5::integer*interval '1 second') END,
+ lease_until=NULL,lease_token=NULL,locked_by=NULL,updated_at=now()
+ WHERE id=$1 AND lease_token=$2 AND state='running' AND lease_until>now()`, j.ID, j.LeaseToken, state, message, delay)
 	if err != nil {
 		return err
 	}
 	if tag.RowsAffected() != 1 {
 		return ErrLeaseLost
 	}
-	body, _ := json.Marshal(map[string]string{"kind": j.Kind, "state": state})
-	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload) VALUES($1,$2,$3,$4)`, UUID(), "job."+state, j.ID, body); err != nil {
+	var persistedState string
+	if err = tx.QueryRow(ctx, `SELECT state FROM jobs WHERE id=$1`, j.ID).Scan(&persistedState); err != nil {
+		return err
+	}
+	body, marshalErr := json.Marshal(map[string]string{"kind": j.Kind, "state": persistedState})
+	if marshalErr != nil {
+		return marshalErr
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload) VALUES($1,$2,$3,$4)`, UUID(), "job."+persistedState, j.ID, body); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
@@ -160,7 +174,7 @@ func (r Repository) expireExhausted(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	rows, err := tx.Query(ctx, `UPDATE jobs SET state='failed',last_error='lease expired after final attempt',lease_until=NULL,lease_token=NULL,locked_by=NULL,updated_at=now() WHERE state='running' AND lease_until<now() AND attempts>=max_attempts RETURNING id::text,kind`)
 	if err != nil {
 		return err

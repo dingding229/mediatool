@@ -8,10 +8,8 @@ import (
 	"media-tool/internal/modules/settings"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
-	"media-tool/internal/platform/webui"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 	"time"
 )
@@ -157,23 +155,4 @@ func (a *API) directPlayOnly(ctx context.Context) bool {
 		}
 	}
 	return a.Config.EmbyDirectPlayOnly
-}
-
-// MemberHandler exposes only the member realm on its dedicated root listener.
-// It never forwards an administrator API or the Emby gateway.
-func MemberHandler(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resourcePath := r.URL.Path
-		if path.Clean(resourcePath) != resourcePath && resourcePath != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		api := strings.HasPrefix(resourcePath, "/api/v1/member/")
-		static := strings.HasPrefix(resourcePath, "/assets/") || strings.HasPrefix(resourcePath, "/pwa/") || resourcePath == "/sw.js" || resourcePath == "/manifest.webmanifest" || resourcePath == "/offline.html"
-		if !api && !static && resourcePath != "/" && resourcePath != "/login" && resourcePath != "/password" && resourcePath != "/readyz" {
-			http.NotFound(w, r)
-			return
-		}
-		handler.ServeHTTP(w, webui.MemberRequest(r))
-	})
 }

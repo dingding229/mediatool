@@ -1,0 +1,23 @@
+{
+  "Items": [
+    {
+      "BackdropImageTags": [],
+      "Chapters": [],
+      "Genres": [],
+      "Id": "100003",
+      "IndexNumber": 0,
+      "IsFolder": true,
+      "LocationType": "FileSystem",
+      "MediaSources": [],
+      "MediaStreams": [],
+      "MediaType": "Video",
+      "Name": "特别篇",
+      "ParentBackdropImageTags": [],
+      "People": [],
+      "SeriesId": "100002",
+      "Type": "Season"
+    }
+  ],
+  "StartIndex": 0,
+  "TotalRecordCount": 1
+}

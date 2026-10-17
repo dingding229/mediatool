@@ -1,40 +1,45 @@
 package httpapi
 
 import (
-	"net/http"
+	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-func TestMemberListenerBlocksAdministrativeSurface(t *testing.T) {
-	h, _ := testHandler(nil)
-	member := MemberHandler(h)
-	for _, p := range []string{"/api/v1/auth/login", "/api/v1/settings/access", "/api/v1/downloads/manual", "/api/v1/media-server/users", "/emby/Users", "/logs", "/watch", "/assets/../api/v1/settings/access"} {
-		r := httptest.NewRequest("GET", p, nil)
-		w := httptest.NewRecorder()
-		member.ServeHTTP(w, r)
-		if w.Code != 404 {
-			t.Fatalf("%s %d", p, w.Code)
+func TestNativeListenerNeverExposesManagementOrPWA(t *testing.T) {
+	member, err := NativeMediaHandler(cfg(), Dependencies{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths := []string{"/", "/login", "/password", "/dashboard", "/assets/app.js", "/manifest.webmanifest", "/sw.js", "/offline.html", "/pwa/icon-192.png", "/pwa/icon-512.png", "/api/v1/media-server/users", "/api/v1/system/status"}
+	for _, prefix := range []string{"", "/emby", "/mediabrowser"} {
+		for _, method := range []string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"} {
+			for _, path := range paths {
+				w := httptest.NewRecorder()
+				member.ServeHTTP(w, httptest.NewRequest(method, prefix+path, nil))
+				if w.Code != 404 || (method == "HEAD" && w.Body.Len() != 0) || (method != "HEAD" && !json.Valid(w.Body.Bytes())) {
+					t.Fatalf("%s %s: %d %q", method, prefix+path, w.Code, w.Body.String())
+				}
+				if w.Header().Get("Service-Worker-Allowed") != "" {
+					t.Fatal("PWA scope leaked")
+				}
+			}
 		}
 	}
-	for _, p := range []string{"/", "/login", "/password"} {
-		r := httptest.NewRequest("GET", p, nil)
-		w := httptest.NewRecorder()
-		member.ServeHTTP(w, r)
-		if w.Code != 200 || !strings.Contains(w.Body.String(), `name="media-tool-realm" content="member"`) {
-			t.Fatalf("member root failed %s %d", p, w.Code)
-		}
-	}
-	manifestWriter := httptest.NewRecorder()
-	member.ServeHTTP(manifestWriter, httptest.NewRequest("GET", "/manifest.webmanifest", nil))
-	if manifestWriter.Code != 200 || !strings.Contains(manifestWriter.Body.String(), `"start_url":"/"`) {
-		t.Fatal("member PWA points at management route", manifestWriter.Body.String())
-	}
-	r := httptest.NewRequest("GET", "/api/v1/member/auth/session", nil)
 	w := httptest.NewRecorder()
-	member.ServeHTTP(w, r)
-	if w.Code == http.StatusOK {
-		t.Fatal("anonymous member authenticated")
+	member.ServeHTTP(w, httptest.NewRequest("GET", "/System/Info/Public", nil))
+	if w.Code != 503 {
+		t.Fatal("settings failure should fail closed", w.Code)
+	}
+	management := New(cfg(), Dependencies{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	for _, path := range []string{"/System/Info/Public", "/System/Ping", "/Users/Public", "/Items/100001/PlaybackInfo"} {
+		w := httptest.NewRecorder()
+		management.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if strings.Contains(w.Body.String(), `"ServerName"`) || strings.Contains(w.Body.String(), `"ResponseStatus"`) || strings.Contains(w.Body.String(), `"StartupWizardCompleted"`) {
+			t.Fatal("native protocol exposed by management", path, w.Body.String())
+		}
 	}
 }

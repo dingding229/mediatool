@@ -1,0 +1,23 @@
+{
+  "data": {
+    "items": [
+      {
+        "id": "r:movie:doc",
+        "itemId": "100000",
+        "name": "纪录片",
+        "collectionType": "movies",
+        "directory": "电影/纪录片",
+        "hidden": false,
+        "sortOrder": 0,
+        "groupId": "movie",
+        "ruleId": "doc",
+        "groupName": "电影",
+        "ruleName": "纪录片",
+        "assetCount": 0
+      }
+    ],
+    "total": 1,
+    "startIndex": 0,
+    "limit": 200
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "ServerName": "Synthetic Native Server",
+  "Version": "4.8.11.1",
+  "ProductName": "Emby Server",
+  "LocalAddress": "https://native.fixture.invalid",
+  "StartupWizardCompleted": true
+}

@@ -1,0 +1,46 @@
+{
+  "BackdropImageTags": [],
+  "Chapters": [],
+  "DateCreated": "2026-10-16T00:00:00.0000000Z",
+  "Genres": [
+    "Drama"
+  ],
+  "Id": "100001",
+  "IsFolder": false,
+  "LocationType": "FileSystem",
+  "MediaSources": [
+    {
+      "Chapters": [],
+      "Container": "mkv",
+      "Id": "synthetic-source",
+      "IsRemote": true,
+      "MediaStreams": [],
+      "Name": "版本 1",
+      "Protocol": "Http",
+      "RequiresClosing": false,
+      "RequiresOpening": false,
+      "SupportsDirectPlay": true,
+      "SupportsDirectStream": true,
+      "SupportsTranscoding": false
+    }
+  ],
+  "MediaStreams": [],
+  "MediaType": "Video",
+  "Name": "Synthetic Movie",
+  "Overview": "Synthetic overview",
+  "ParentBackdropImageTags": [],
+  "ParentId": "100000",
+  "Path": "Synthetic Movie.mkv",
+  "People": [],
+  "ProductionYear": 2025,
+  "ProviderIds": {
+    "Tmdb": "900001"
+  },
+  "ServerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "SortName": "Synthetic Movie",
+  "Type": "Movie",
+  "UserData": {
+    "IsFavorite": false,
+    "Played": false
+  }
+}

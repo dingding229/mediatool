@@ -1,0 +1,23 @@
+{
+ "devices": {
+  "request": {"userId":"aaaaaaaa-0000-4000-8000-000000000043","startIndex":0,"limit":50},
+  "response":{"data":{"items":[{"id":"bbbbbbbb-0000-4000-8000-000000000043","name":"Synthetic iPad","client":"Infuse","appVersion":"8.0","lastSeenAt":"2026-10-17T00:00:00Z","createdAt":"2026-10-16T00:00:00Z","activeTokens":1}],"total":1,"startIndex":0,"limit":50}}
+ },
+ "history": {
+  "request": {"userId":"aaaaaaaa-0000-4000-8000-000000000043","startIndex":0,"limit":50},
+  "response":{"data":{"items":[{"itemId":"100043","name":"Synthetic Episode s1e1","type":"episode","positionTicks":1200000000,"playCount":1,"played":false,"lastPlayedAt":"2026-10-17T00:00:00Z"}],"total":1,"startIndex":0,"limit":50}}
+ },
+ "revoke": {
+  "request":{"userId":"aaaaaaaa-0000-4000-8000-000000000043","deviceId":"bbbbbbbb-0000-4000-8000-000000000043"},
+  "response":{"data":{"revoked":true}}
+ },
+ "settings": {
+  "response":{"data":{"serverName":"Synthetic Native Server","enabled":true,"revision":1,"publicUrl":"https://native.synthetic.invalid","listenPort":"8092","addressSource":"MEMBER_PUBLIC_URL"}},
+  "request":{"serverName":"Synthetic Living Room","enabled":true,"revision":1},
+  "saved":{"data":{"serverName":"Synthetic Living Room","enabled":true,"revision":2}}
+ },
+ "mappings": {
+  "request":{"startIndex":0,"limit":50},
+  "response":{"data":{"items":[{"id":"g:synthetic","itemId":"100001","name":"Synthetic Movies","collectionType":"movies","hidden":false,"sortOrder":0,"groupId":"synthetic","ruleId":"","groupName":"Synthetic Group","ruleName":"","assetCount":1}],"total":1,"startIndex":0,"limit":50}}
+ }
+}

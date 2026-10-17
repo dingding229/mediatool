@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"net/url"
 	"os"
@@ -322,7 +323,7 @@ func (g *Gateway) get(ctx context.Context, in *http.Request, endpoint string, ex
 	if err != nil {
 		return errors.New("Emby diagnostic request failed")
 	}
-	defer response.Body.Close()
+	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if response.StatusCode != 200 {
 		return &upstreamError{Status: response.StatusCode}
 	}
@@ -357,52 +358,19 @@ func (g *Gateway) reference(ctx context.Context, raw string) (storage.FileRef, e
 		if err != nil {
 			return storage.FileRef{}, errors.New("STRM output unavailable")
 		}
-		defer root.Close()
+		defer deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		file, err := root.Open(relative)
 		if err != nil {
 			return storage.FileRef{}, errors.New("STRM file unavailable")
 		}
-		defer file.Close()
+		defer deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		data, err := io.ReadAll(io.LimitReader(file, 8193))
 		if err != nil || len(data) > 8192 {
 			return storage.FileRef{}, errors.New("STRM exceeds size limit")
 		}
 		raw = strings.TrimSpace(string(data))
 	}
-	u, err := url.Parse(raw)
-	if err != nil || u.User != nil || u.Fragment != "" || u.Path != strm.Endpoint || u.RawPath != "" || strings.ContainsAny(raw, "\r\n\x00") {
-		return storage.FileRef{}, errors.New("not a managed STRM URL")
-	}
-	origin := u.Scheme + "://" + u.Host
-	allowed := origin == strings.TrimRight(g.options.Builder.BaseURL, "/")
-	for _, extra := range g.options.ResolverOrigins {
-		if origin == strings.TrimRight(extra, "/") {
-			allowed = true
-		}
-	}
-	if !allowed {
-		return storage.FileRef{}, errors.New("unknown STRM origin")
-	}
-	query, err := url.ParseQuery(u.RawQuery)
-	if err != nil {
-		return storage.FileRef{}, errors.New("invalid STRM query")
-	}
-	for k, v := range query {
-		if (k != "apiKey" && k != "path" && k != "pickCode" && k != "assetId") || len(v) != 1 {
-			return storage.FileRef{}, errors.New("ambiguous STRM query")
-		}
-	}
-	if query.Get("assetId") != "" {
-		if g.options.ManagedURL == nil {
-			return storage.FileRef{}, errors.New("file-grant lookup unavailable")
-		}
-		return g.options.ManagedURL(ctx, raw)
-	}
-	if !g.options.LegacyEnabled || !auth.Match(g.options.Builder.APIKey, query.Get("apiKey")) {
-		return storage.FileRef{}, errors.New("unmanaged STRM key")
-	}
-	ref := storage.FileRef{Path: query.Get("path"), PickCode: query.Get("pickCode")}
-	return ref, g.options.Builder.Validate(ref)
+	return strm.ParseStable(ctx, raw, strm.ParseOptions{Builder: g.options.Builder, Origins: g.options.ResolverOrigins, LegacyEnabled: g.options.LegacyEnabled, ManagedURL: g.options.ManagedURL})
 }
 
 // CheckItem reports metadata authorization and mapping only. It never claims
@@ -436,7 +404,10 @@ func gatewayError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": code, "message": message}})
+	if checkedErr := json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": code, "message": message}}); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/modules/emby/gateway.go:gatewayError")
+		return
+	}
 }
 
 func queryFold(q url.Values, key string) string {
@@ -537,7 +508,7 @@ func (g *Gateway) observeSession(response *http.Response) error {
 	}
 	raw, err := io.ReadAll(io.LimitReader(response.Body, (1<<20)+1))
 	if err != nil {
-		response.Body.Close()
+		deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		return errors.New("Emby authentication response unavailable")
 	}
 	if len(raw) > 1<<20 {
@@ -545,7 +516,7 @@ func (g *Gateway) observeSession(response *http.Response) error {
 		response.Body = &joinedReadCloser{Reader: io.MultiReader(bytes.NewReader(raw), response.Body), Closer: response.Body}
 		return nil
 	}
-	response.Body.Close()
+	deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	response.Body = io.NopCloser(bytes.NewReader(raw))
 	var result struct {
 		AccessToken string       `json:"AccessToken"`

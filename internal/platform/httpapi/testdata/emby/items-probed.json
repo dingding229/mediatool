@@ -1,0 +1,109 @@
+{
+  "Items": [
+    {
+      "Id": "100101",
+      "Name": "Synthetic HTTP Movie",
+      "SortName": "Synthetic HTTP Movie",
+      "ServerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "ParentId": "100001",
+      "Type": "Movie",
+      "MediaType": "Video",
+      "LocationType": "FileSystem",
+      "IsFolder": false,
+      "Path": "Synthetic HTTP Movie.mkv",
+      "RunTimeTicks": 615000000,
+      "Container": "mp4",
+      "Size": 1234,
+      "Bitrate": 100000,
+      "Width": 1920,
+      "Height": 1080,
+      "ProductionYear": 2025,
+      "OfficialRating": "G",
+      "ParentBackdropImageTags": [],
+      "DateCreated": "2026-01-01T00:00:00.0000000Z",
+      "Genres": [
+        "Drama"
+      ],
+      "People": [],
+      "BackdropImageTags": [],
+      "ProviderIds": {
+        "Tmdb": "987001"
+      },
+      "MediaSources": [
+        {
+          "Width": 1920,
+          "Height": 1080,
+          "Id": "synthetic-source",
+          "Name": "版本 1",
+          "Container": "mp4",
+          "RunTimeTicks": 615000000,
+          "Size": 1234,
+          "Bitrate": 100000,
+          "MediaStreams": [
+            {
+              "VideoRange": "HDR",
+              "VideoRangeType": "HDR10",
+              "Type": "Video",
+              "Codec": "hevc",
+              "DisplayTitle": "1080p HEVC HDR10",
+              "Index": 0,
+              "Width": 1920,
+              "Height": 1080
+            },
+            {
+              "DeliveryMethod": "Embed",
+              "IsTextSubtitleStream": true,
+              "Type": "Subtitle",
+              "Codec": "srt",
+              "Language": "eng",
+              "DisplayTitle": "English SRT",
+              "Index": 5,
+              "IsExternal": false
+            }
+          ],
+          "Chapters": [],
+          "Protocol": "Http",
+          "IsRemote": true,
+          "SupportsDirectPlay": true,
+          "SupportsDirectStream": true,
+          "SupportsTranscoding": false,
+          "RequiresOpening": false,
+          "RequiresClosing": false
+        }
+      ],
+      "MediaStreams": [
+        {
+          "VideoRange": "HDR",
+          "VideoRangeType": "HDR10",
+          "Type": "Video",
+          "Codec": "hevc",
+          "DisplayTitle": "1080p HEVC HDR10",
+          "Index": 0,
+          "Width": 1920,
+          "Height": 1080
+        },
+        {
+          "DeliveryMethod": "Embed",
+          "IsTextSubtitleStream": true,
+          "Type": "Subtitle",
+          "Codec": "srt",
+          "Language": "eng",
+          "DisplayTitle": "English SRT",
+          "Index": 5,
+          "IsExternal": false
+        }
+      ],
+      "Chapters": [],
+      "UserData": {
+        "Key": "100101",
+        "PlayedPercentage": 0,
+        "PlaybackPositionTicks": 0,
+        "PlayCount": 0,
+        "Played": false,
+        "IsFavorite": false
+      }
+    }
+  ],
+  "TotalRecordCount": 1,
+  "StartIndex": 0
+}

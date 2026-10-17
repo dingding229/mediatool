@@ -1,0 +1,20 @@
+{
+  "MediaSources": [
+    {
+      "Id": "aaaaaaaa-0000-4000-8000-000000000032",
+      "Name": "版本 1",
+      "Path": "https://native.synthetic.invalid/Videos/100031/stream.mkv?MediaSourceId=aaaaaaaa-0000-4000-8000-000000000032\u0026Static=true\u0026api_key=synthetic-user-token",
+      "DirectStreamUrl": "/Videos/100031/stream.mkv?MediaSourceId=aaaaaaaa-0000-4000-8000-000000000032\u0026Static=true\u0026api_key=synthetic-user-token",
+      "MediaStreams": [],
+      "Chapters": [],
+      "Protocol": "Http",
+      "IsRemote": true,
+      "SupportsDirectPlay": true,
+      "SupportsDirectStream": true,
+      "SupportsTranscoding": false,
+      "RequiresOpening": false,
+      "RequiresClosing": false
+    }
+  ],
+  "PlaySessionId": "aaaaaaaa-0000-4000-8000-000000000031"
+}

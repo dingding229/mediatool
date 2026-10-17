@@ -3,6 +3,7 @@ package playeraccess
 import (
 	"context"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
 	"time"
 )
 
@@ -41,7 +42,7 @@ func (r Repository) RecordEvent(ctx context.Context, in Request, d Decision) (st
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `DELETE FROM player_access_events WHERE id IN(SELECT id FROM player_access_events ORDER BY created_at,id LIMIT greatest((SELECT count(*) FROM player_access_events)-10000+1,0) FOR UPDATE SKIP LOCKED)`); err != nil {
 		return "", ErrUnavailable
 	}

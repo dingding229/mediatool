@@ -6,12 +6,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"media-tool/internal/modules/playeraccess/clientinfo"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
 
-const MaxUABytes = 4096
+const MaxUABytes = clientinfo.MaxUABytes
 const MaxRules = 128
 const MaxObservations = 2000
 
@@ -72,17 +73,7 @@ type Page struct {
 	PolicyRevision int64         `json:"policyRevision"`
 }
 
-func ValidUA(ua string) bool {
-	if len(ua) > MaxUABytes || !utf8.ValidString(ua) {
-		return false
-	}
-	for _, c := range ua {
-		if c < 32 || c == 127 {
-			return false
-		}
-	}
-	return true
-}
+func ValidUA(ua string) bool         { return clientinfo.ValidUA(ua) }
 func ObservationID(ua string) string { d := sha256.Sum256([]byte(ua)); return hex.EncodeToString(d[:]) }
 func validID(id string) bool {
 	if len(id) != 36 {

@@ -1,0 +1,22 @@
+{
+  "Items": [
+    {
+      "BackdropImageTags": [],
+      "Chapters": [],
+      "CollectionType": "movies",
+      "Genres": [],
+      "Id": "100000",
+      "IsFolder": true,
+      "LocationType": "FileSystem",
+      "MediaSources": [],
+      "MediaStreams": [],
+      "MediaType": "Video",
+      "Name": "Synthetic Library",
+      "ParentBackdropImageTags": [],
+      "People": [],
+      "ServerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Type": "CollectionFolder"
+    }
+  ],
+  "TotalRecordCount": 1
+}

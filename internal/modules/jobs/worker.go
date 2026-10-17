@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/trace"
 	"time"
 )
@@ -48,7 +49,10 @@ func (w Worker) Run(ctx context.Context) error {
 		<-heartbeatDone
 		cleanup, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		w.Repository.DB.Exec(cleanup, `DELETE FROM worker_heartbeats WHERE owner=$1`, w.Owner)
+		if _, checkedErr := w.Repository.DB.Exec(cleanup, `DELETE FROM worker_heartbeats WHERE owner=$1`, w.Owner); checkedErr != nil {
+			deferutil.Report(checkedErr, "internal/modules/jobs/worker.go:")
+			return
+		}
 	}()
 	timer := time.NewTimer(0)
 	defer timer.Stop()

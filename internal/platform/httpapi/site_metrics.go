@@ -33,7 +33,10 @@ func (a *API) siteMetrics(w http.ResponseWriter, r *http.Request) {
 		}
 		iconURL := ""
 		var m any
-		json.Unmarshal(raw, &m)
+		if checkedErr := json.Unmarshal(raw, &m); checkedErr != nil {
+			fail(w, 503, "operation_failed", "读取或写入失败，请稍后重试")
+			return
+		}
 		if cfg, e := sites.DecodeStored(definition, common); e == nil {
 			if t, ok := sites.GoTemplate(cfg.ID); ok {
 				name = t.Name

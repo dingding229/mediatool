@@ -20,7 +20,12 @@ import (
 	"media-tool/internal/modules/library"
 	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/modules/manualdownloads"
+	"media-tool/internal/modules/mediaprobe/probequeue"
+	"media-tool/internal/modules/mediaprobe/stillrunner"
 	"media-tool/internal/modules/messaging"
+	"media-tool/internal/modules/nativelibrary/catalog"
+	playbackruntime "media-tool/internal/modules/nativeplayback/runtime"
+	"media-tool/internal/modules/nativetmdb"
 	"media-tool/internal/modules/plugins"
 	"media-tool/internal/modules/search"
 	"media-tool/internal/modules/sitemetrics"
@@ -30,6 +35,7 @@ import (
 	"media-tool/internal/modules/subscriptions"
 	"media-tool/internal/platform/buildinfo"
 	"media-tool/internal/platform/cache"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/database"
 	"media-tool/internal/platform/httpapi"
@@ -57,7 +63,7 @@ func main() {
 	}
 }
 func run() error {
-	queue := flag.String("queue", "default", "worker queue: default, transfer or library")
+	queue := flag.String("queue", "default", "worker queue: default, transfer, library, metadata, maintenance or probe")
 	role := flag.String("role", "all", "all (default), server, worker, healthcheck, strm, or account-info")
 	cloudPath := flag.String("cloud-path", "", "CloudDrive2 full path for one STRM")
 	relative := flag.String("strm-relative", "", "relative .strm output under STRM_OUTPUT_DIR")
@@ -113,7 +119,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	defer logStore.Close()
+	defer deferutil.Close(logStore, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 	logger, err := logging.NewRawControlled(io.MultiWriter(os.Stdout, logStore), c.LogLevel, &logStore.Level)
 	if err != nil {
 		return err
@@ -134,7 +140,7 @@ func run() error {
 		return errors.New("invalid Redis configuration")
 	}
 	if rc != nil {
-		defer rc.Close()
+		defer deferutil.Close(rc, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 	}
 	var manager *integrations.Manager
 	if db != nil && c.SecretKey != "" {
@@ -145,10 +151,34 @@ func run() error {
 		manager = integrations.NewManager(integrations.Repository{DB: db, Vault: vault}, c)
 		defer manager.Close()
 	}
+	var stills *stillrunner.Service
+	if manager != nil {
+		stills, err = stillrunner.New(manager, logger, c.NativeStillsRoot, c.NativeStillsMaxBytes)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := stills.Close(); err != nil {
+				logger.Warn("Native still cache close deferred")
+			}
+		}()
+	}
 	switch *role {
 	case "worker":
+		if *queue == "still" {
+			if stills == nil {
+				return errors.New("native still worker requires manager")
+			}
+			return stills.Run(ctx)
+		}
+		if *queue == "probe" {
+			return probequeue.Run(ctx, manager, logger)
+		}
 		return runWorker(ctx, c, db, manager, logger, *queue, rc)
 	case "server":
+		if stills != nil {
+			return supervise(ctx, func(ctx context.Context) error { return runServer(ctx, c, db, rc, manager, logger, logStore, stills) }, stills.MaintainLoop)
+		}
 		return runServer(ctx, c, db, rc, manager, logger, logStore)
 	case "all":
 		if db == nil || rc == nil || manager == nil {
@@ -174,11 +204,14 @@ func run() error {
 			return err
 		}
 		return supervise(ctx,
-			func(ctx context.Context) error { return runServer(ctx, c, db, rc, manager, logger, logStore) },
+			func(ctx context.Context) error { return runServer(ctx, c, db, rc, manager, logger, logStore, stills) },
+			func(ctx context.Context) error { return stills.Run(ctx) },
 			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "default", rc) },
 			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "transfer", rc) },
 			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "library", rc) },
 			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "maintenance", rc) },
+			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "metadata", rc) },
+			func(ctx context.Context) error { return probequeue.Run(ctx, manager, logger) },
 		)
 
 	default:
@@ -199,7 +232,7 @@ func healthcheck() error {
 	if err != nil {
 		return errors.New("readiness check failed")
 	}
-	defer resp.Body.Close()
+	defer deferutil.Close(resp.Body, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 	if resp.StatusCode != 200 {
 		return errors.New("service not ready")
 	}
@@ -271,6 +304,32 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		fileEngine := filemanager.Engine{DB: db, Connections: manager}
 		w.Handlers["files.batch"] = fileEngine.ProcessBatch
 		w.Handlers["library.refresh"] = libraryEngine.Refresh
+		probeRepo := probequeue.Repository{DB: db}
+		assignmentEngine := catalog.Engine{DB: db}
+		detailsEngine := nativetmdb.Engine{DB: db, Connections: manager}
+		w.Handlers["native.tmdb.fetch"] = detailsEngine.Process
+		w.Handlers["native.assign"] = func(ctx context.Context, j jobs.Job) error {
+			if err := assignmentEngine.Process(ctx, j); err != nil {
+				return err
+			}
+			var in struct {
+				ID string `json:"assetId"`
+			}
+			if err := json.Unmarshal(j.Payload, &in); err != nil {
+				return err
+			}
+			if _, err := probeRepo.Enqueue(ctx, in.ID); err != nil && !errors.Is(err, probequeue.ErrDisabled) && !errors.Is(err, probequeue.ErrNotExposable) {
+				logger.Warn("Native probe enqueue deferred", "assetId", in.ID)
+			}
+			language, err := detailsEngine.Language(ctx)
+			if err == nil {
+				err = (nativetmdb.Repository{DB: db}).EnqueueAsset(ctx, in.ID, language)
+			}
+			if err != nil {
+				logger.Warn("TMDB详情稍后重试排队", "module", "native", "error", err)
+			}
+			return nil // Provider unavailability must not fail asset assignment.
+		}
 		w.Handlers["library.emby.confirm"] = libraryEngine.CheckEmby
 		downloader := acquisition.Engine{DB: db, Connections: manager, Search: engine}
 		w.Handlers["download.manual.add"] = (manualdownloads.Engine{DB: db, Connections: manager}).Process
@@ -287,6 +346,9 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 			defer func() { watchCancel(); <-watchDone }()
 			cronLogger := scheduling.Logger{Log: logger.With("module", "scheduler")}
 			scheduler := cron.New(cron.WithSeconds(), cron.WithLogger(cronLogger), cron.WithChain(cron.Recover(cronLogger), cron.SkipIfStillRunning(cronLogger)))
+			var nativeIDCursor int64 // Only this non-overlapping cron callback owns the cursor.
+			var nativeTMDBCursor string
+			var nativeProbeCursor string
 			_, scheduleErr := scheduler.AddFunc(scheduling.CoreReconcileCron, func() {
 				logger.Debug("scheduler reconciliation cycle")
 				check, cancel := context.WithTimeout(watchCtx, 2*time.Minute)
@@ -300,6 +362,32 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 					return
 				}
 
+				nextProbe, countProbe, probeErr := probeRepo.ScheduleBatch(check, nativeProbeCursor)
+				nativeProbeCursor = nextProbe
+				if probeErr != nil {
+					logger.Warn("Native probe sweep deferred")
+				} else if countProbe < 200 {
+					nativeProbeCursor = ""
+				}
+				if language, err := detailsEngine.Language(check); err == nil {
+					next, count, scheduleErr := (nativetmdb.Repository{DB: db}).ScheduleBatch(check, language, nativeTMDBCursor)
+					nativeTMDBCursor = next
+					if scheduleErr != nil {
+						logger.Warn("TMDB详情调度暂不可用", "module", "native", "error", scheduleErr)
+					} else if count < 200 {
+						nativeTMDBCursor = ""
+					}
+				}
+				if _, err := catalog.PreallocateIDBatch(check, db); err != nil {
+					logger.Warn("native ID preallocation unavailable", "module", "native", "error", err)
+				}
+				if next, count, err := catalog.RefreshIDLifecycle(check, db, nativeIDCursor); err != nil {
+					logger.Warn("native ID lifecycle unavailable", "module", "native", "error", err)
+				} else if count < 500 {
+					nativeIDCursor = 0
+				} else {
+					nativeIDCursor = next
+				}
 				if err := downloader.Reconcile(check); err != nil && ctx.Err() == nil {
 					logger.Warn("download reconciliation unavailable")
 				}
@@ -357,7 +445,17 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 
 }
 
-func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis.Client, manager *integrations.Manager, logger *slog.Logger, logStore *logging.Store) error {
+func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis.Client, manager *integrations.Manager, logger *slog.Logger, logStore *logging.Store, native ...*stillrunner.Service) error {
+	if db != nil {
+		if err := (catalog.Repository{DB: db}).SyncCurrent(ctx); err != nil {
+			return fmt.Errorf("native library startup sync failed: %w", err)
+		}
+	}
+	sessionCtx, stopSessions := context.WithCancel(ctx)
+	defer stopSessions()
+	if db != nil {
+		go playbackruntime.MaintainSessions(sessionCtx, db, logger)
+	}
 	var resolver storage.PlaybackResolver
 	if manager != nil {
 		resolver = integrations.DynamicStorage{Manager: manager}
@@ -366,10 +464,14 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 		if openErr != nil {
 			return openErr
 		}
-		defer adapter.Close()
+		defer deferutil.Close(adapter, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 		resolver = adapter
 	}
-	handler := httpapi.New(c, httpapi.Dependencies{Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore})
+	managementDeps := httpapi.Dependencies{Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
+	if len(native) > 0 && native[0] != nil {
+		managementDeps.NativeStills = native[0]
+	}
+	handler := httpapi.New(c, managementDeps)
 	server := &http.Server{Addr: c.Address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
 	listener, err := net.Listen("tcp", c.Address)
 	if err != nil {
@@ -378,14 +480,25 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	done := make(chan error, 3)
 	var memberServer *http.Server
 	if c.MemberAddress != "" {
+		deps := httpapi.Dependencies{DB: db, Logger: logger, Integrations: manager, Redis: rc}
+		if len(native) > 0 {
+			deps.NativeStills = native[0]
+		}
+		nativeHandler, err := httpapi.NativeMediaHandler(c, deps)
+		if err != nil {
+			if closeErr := listener.Close(); closeErr != nil {
+				logger.Debug("Management listener close interrupted")
+			}
+			return errors.New("cannot initialize native media handler")
+		}
 		memberListener, err := net.Listen("tcp", c.MemberAddress)
 		if err != nil {
-			listener.Close()
+			deferutil.Close(listener, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 			return errors.New("cannot bind MEMBER_ADDR")
 		}
-		memberServer = &http.Server{Handler: httpapi.MemberHandler(handler), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
+		memberServer = &http.Server{Handler: nativeHandler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
 		go func() {
-			logger.Info("Media member listener started", "address", c.MemberAddress)
+			logger.Info("Native Emby listener started", "address", c.MemberAddress)
 			done <- memberServer.Serve(memberListener)
 		}()
 	}
@@ -393,9 +506,9 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	if c.EmbyGatewayAddress != "" {
 		gatewayListener, err := net.Listen("tcp", c.EmbyGatewayAddress)
 		if err != nil {
-			listener.Close()
+			deferutil.Close(listener, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 			if memberServer != nil {
-				memberServer.Close()
+				deferutil.Close(memberServer, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 			}
 			return errors.New("cannot bind EMBY_GATEWAY_ADDR")
 		}
@@ -415,16 +528,16 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 		defer cancel()
 		if memberServer != nil {
 			if memberServer.Shutdown(shutdown) != nil {
-				memberServer.Close()
+				deferutil.Close(memberServer, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 			}
 		}
 		if gatewayServer != nil {
 			if gatewayServer.Shutdown(shutdown) != nil {
-				gatewayServer.Close()
+				deferutil.Close(gatewayServer, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 			}
 		}
 		if server.Shutdown(shutdown) != nil {
-			server.Close()
+			deferutil.Close(server, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 		}
 	}()
 	select {

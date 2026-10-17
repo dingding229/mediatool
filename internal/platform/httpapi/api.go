@@ -17,11 +17,13 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/linkcache"
 	"media-tool/internal/modules/maintenance"
+	"media-tool/internal/modules/nativeplayback"
 	"media-tool/internal/modules/playback"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
 	"media-tool/internal/modules/system"
 	"media-tool/internal/platform/auth"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/requestbudget"
@@ -38,15 +40,22 @@ type SessionReader interface {
 	Session(context.Context, []byte) (accounts.Account, error)
 }
 type Dependencies struct {
-	Logs         *logging.Store
-	AuthSessions SessionReader
-	PlayerAccess PlayerAdmission
-	Integrations *integrations.Manager
-	DB           *pgxpool.Pool
-	Redis        *redis.Client
-	Storage      storage.PlaybackResolver
-	Logger       *slog.Logger
-	Playback     *playback.Engine
+	NativeSessions    NativeSessionReader
+	NativePlayback    nativeplayback.Service
+	NativeProcessing  NativeProcessingService
+	NativeStills      StillReader
+	NativeLibraries   NativeLibraryReader
+	NativeTMDBRefresh NativeTMDBRefresher
+	NativeProbeRetry  NativeProbeRetrier
+	Logs              *logging.Store
+	AuthSessions      SessionReader
+	PlayerAccess      PlayerAdmission
+	Integrations      *integrations.Manager
+	DB                *pgxpool.Pool
+	Redis             *redis.Client
+	Storage           storage.PlaybackResolver
+	Logger            *slog.Logger
+	Playback          *playback.Engine
 }
 type API struct {
 	Config         config.Config
@@ -95,6 +104,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 		a.Gateway = emby.NewGateway(emby.GatewayOptions{Identities: a.EmbyIdentities, Upstream: target, PublicOrigin: embyPublicOrigin(c.EmbyPublicURL), Enable302: c.Emby302Enabled, DirectPlayOnly: c.EmbyDirectPlayOnly, LegacyEnabled: c.LegacyPlaybackEnabled, OwnedAsset: a.ownedAsset, Builder: a.Builder, STRMOutputDir: c.STRMOutputDir, STRMPathPrefix: c.EmbySTRMPathPrefix, ResolverOrigins: c.EmbyResolverOrigins, Playback: a.Engine})
 	}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/media-server/native/sessions", a.protected(a.nativeSessions))
 	mux.HandleFunc("GET /api/v1/media/emby/items/{id}", a.protected(a.catalogItem))
 	mux.HandleFunc("GET /api/v1/media/tmdb/image", a.protected(a.tmdbPoster))
 	mux.HandleFunc("GET /api/v1/media/library/emby/home", a.protected(a.catalogHome))
@@ -334,7 +344,10 @@ func (a *API) protected(next http.HandlerFunc) http.HandlerFunc {
 func (a *API) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		nonce := make([]byte, 12)
-		rand.Read(nonce)
+		if _, checkedErr := rand.Read(nonce); checkedErr != nil {
+			deferutil.Report(checkedErr, "internal/platform/httpapi/api.go:")
+			return
+		}
 		id := hex.EncodeToString(nonce)
 		w.Header().Set("X-Request-ID", id)
 		r = r.WithContext(context.WithValue(r.Context(), playerVisitKey{}, &playerVisit{}))
@@ -420,12 +433,18 @@ func (a *API) middleware(next http.Handler) http.Handler {
 func write(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(Envelope{Data: data})
+	if checkedErr := json.NewEncoder(w).Encode(Envelope{Data: data}); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/platform/httpapi/api.go:write")
+		return
+	}
 }
 func fail(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(Envelope{Error: &APIError{Code: code, Message: message}})
+	if checkedErr := json.NewEncoder(w).Encode(Envelope{Error: &APIError{Code: code, Message: message}}); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/platform/httpapi/api.go:fail")
+		return
+	}
 }
 func decode(w http.ResponseWriter, r *http.Request, target any) bool {
 	return decodeLimit(w, r, target, 16<<10)
@@ -653,7 +672,10 @@ func (a *API) events(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Accel-Buffering", "no")
 	controller := http.NewResponseController(w)
-	controller.SetWriteDeadline(time.Time{})
+	if checkedErr := controller.SetWriteDeadline(time.Time{}); checkedErr != nil && !errors.Is(checkedErr, http.ErrNotSupported) {
+		deferutil.Report(checkedErr, "internal/platform/httpapi/api.go:events")
+		return
+	}
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -681,7 +703,10 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
 
 func longStream(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.NewResponseController(w).SetWriteDeadline(time.Time{})
+		if checkedErr := http.NewResponseController(w).SetWriteDeadline(time.Time{}); checkedErr != nil && !errors.Is(checkedErr, http.ErrNotSupported) {
+			deferutil.Report(checkedErr, "internal/platform/httpapi/api.go:")
+			return
+		}
 		next.ServeHTTP(w, r)
 	})
 }

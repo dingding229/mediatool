@@ -1,0 +1,14 @@
+{
+  "SearchHints": [
+    {
+      "Id": "100004",
+      "ItemId": "100004",
+      "Name": "Synthetic Episode",
+      "PrimaryImageTag": "synthetic-tag",
+      "Series": "Synthetic Show",
+      "SeriesId": "100002",
+      "Type": "Episode"
+    }
+  ],
+  "TotalRecordCount": 1
+}

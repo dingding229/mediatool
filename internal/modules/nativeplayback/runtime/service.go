@@ -1,0 +1,202 @@
+package runtime
+
+import (
+	"context"
+	"errors"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"media-tool/internal/modules/embyapi/dto"
+	"media-tool/internal/modules/mediausers/contracts"
+	"media-tool/internal/modules/nativelibrary"
+	"media-tool/internal/modules/nativelibrary/catalog"
+	"media-tool/internal/modules/nativeplayback"
+	"media-tool/internal/modules/playeraccess"
+	"strconv"
+	"time"
+)
+
+type Links interface {
+	Resolve(context.Context, string, string, string) (nativeplayback.RedirectTarget, error)
+}
+type Service struct {
+	DB     *pgxpool.Pool
+	Browse nativelibrary.BrowseService
+	Links  Links
+}
+type source struct {
+	dto.MediaSourceInfo
+	play, download bool
+}
+
+func (s *Service) sources(ctx context.Context, a nativeplayback.Actor, q nativeplayback.Request) ([]source, error) {
+	if n, e := strconv.ParseInt(q.ItemID, 10, 64); e != nil || n < 1 {
+		return nil, nativeplayback.ErrNotFound
+	}
+	if s.DB == nil || s.Browse == nil || a.Permissions == nil {
+		return nil, nativeplayback.ErrUpstream
+	}
+	if !a.User.Enabled || a.User.MustChangePassword || a.User.ExpiresAt != nil && !a.User.ExpiresAt.After(time.Now()) {
+		return nil, nativeplayback.ErrForbidden
+	}
+	items, _, err := s.Browse.Query(ctx, a.User, a.Permissions, nativelibrary.ItemQuery{IDs: []string{q.ItemID}, Limit: 1})
+	if errors.Is(err, nativelibrary.ErrNotFound) {
+		return nil, nativeplayback.ErrNotFound
+	}
+	if err != nil {
+		if errors.Is(err, contracts.ErrForbidden) || errors.Is(err, contracts.ErrUnauthenticated) {
+			return nil, nativeplayback.ErrForbidden
+		}
+		return nil, nativeplayback.ErrUpstream
+	}
+	if len(items) != 1 || items[0].Type != dto.Movie && items[0].Type != dto.Episode {
+		return nil, nativeplayback.ErrNotFound
+	}
+	ids := []string{}
+	for _, v := range items[0].MediaSources {
+		ids = append(ids, v.Id)
+	}
+	visible, err := a.Permissions.VisibleLibraries(ctx, a.User)
+	if err != nil {
+		return nil, nativeplayback.ErrUpstream
+	}
+	rows, err := s.DB.Query(ctx, `WITH eligible AS (`+catalog.ExposableAssetsSQL+`) SELECT e.asset_id::text,l.id FROM eligible e JOIN native_asset_libraries a ON a.asset_id=e.asset_id JOIN native_libraries l ON l.id=a.library_id WHERE e.asset_id=ANY($1::uuid[]) AND l.id=ANY($2::text[]) AND NOT l.hidden LIMIT 20000`, ids, visible)
+	if err != nil {
+		return nil, nativeplayback.ErrUpstream
+	}
+	type membership struct{ id, lib string }
+	members := []membership{}
+	for rows.Next() {
+		var v membership
+		if err = rows.Scan(&v.id, &v.lib); err != nil {
+			break
+		}
+		members = append(members, v)
+	}
+	err = errors.Join(err, rows.Err())
+	rows.Close()
+	if err != nil {
+		return nil, nativeplayback.ErrUpstream
+	}
+	grants := map[string][2]bool{}
+	for _, v := range members {
+		id, lib := v.id, v.lib
+		if e := a.Permissions.CanBrowse(ctx, a.User, lib); e != nil {
+			if errors.Is(e, contracts.ErrUnavailable) {
+				err = e
+				break
+			}
+			continue
+		}
+		g := grants[id]
+		if e := a.Permissions.CanPlay(ctx, a.User, lib); e == nil {
+			g[0] = true
+		} else if !errors.Is(e, contracts.ErrForbidden) {
+			err = e
+			break
+		}
+		if q.Download {
+			if e := a.Permissions.CanDownload(ctx, a.User, lib); e == nil {
+				g[1] = true
+			} else if !errors.Is(e, contracts.ErrForbidden) {
+				err = e
+				break
+			}
+		}
+		grants[id] = g
+	}
+	if err != nil {
+		return nil, nativeplayback.ErrUpstream
+	}
+	out := []source{}
+	anyAllowed := false
+	for _, v := range items[0].MediaSources {
+		g, visible := grants[v.Id]
+		if !visible {
+			continue
+		}
+		// Known visible versions are permission-checked before UA admission.
+		// Unknown/foreign IDs are deliberately not rejected until AFTER UA.
+		if q.MediaSourceID == v.Id && (!g[0] || q.Download && !g[1]) {
+			return nil, nativeplayback.ErrForbidden
+		}
+		out = append(out, source{v, g[0], g[1]})
+		anyAllowed = anyAllowed || g[0] && (!q.Download || g[1])
+	}
+	if len(out) == 0 {
+		return nil, nativeplayback.ErrNotFound
+	}
+	if !anyAllowed {
+		return nil, nativeplayback.ErrForbidden
+	}
+	return out, nil
+}
+func selectSource(sources []source, id string, download bool) (source, error) {
+	for _, s := range sources {
+		if (id == "" && s.play && (!download || s.download)) || s.Id == id {
+			if !s.play || download && !s.download {
+				return source{}, nativeplayback.ErrForbidden
+			}
+			return s, nil
+		}
+	}
+	return source{}, nativeplayback.ErrNotFound
+}
+func (s *Service) Info(ctx context.Context, a nativeplayback.Actor, q nativeplayback.Request) (dto.PlaybackInfoResponse, error) {
+	out := dto.PlaybackInfoResponse{}
+	sources, err := s.sources(ctx, a, q)
+	if err != nil {
+		return out, err
+	}
+	chosen, err := selectSource(sources, q.MediaSourceID, false)
+	if err != nil {
+		return out, err
+	}
+	for _, v := range sources {
+		if !v.play || q.MediaSourceID != "" && v.Id != q.MediaSourceID {
+			continue
+		}
+		v.Path, v.DirectStreamUrl, err = nativeplayback.StreamURLs(a.Origin, q.ItemID, v.Id, v.Container, a.Token)
+		if err != nil {
+			return out, nativeplayback.ErrUpstream
+		}
+		out.MediaSources = append(out.MediaSources, v.MediaSourceInfo)
+	}
+	r, err := s.session(ctx, a, q.ItemID, chosen.Id, false)
+	out.PlaySessionId = r.ID
+	return out, err
+}
+func (s *Service) Stream(ctx context.Context, a nativeplayback.Actor, q nativeplayback.Request) (nativeplayback.RedirectTarget, error) {
+	sources, err := s.sources(ctx, a, q)
+	if err != nil {
+		return nativeplayback.RedirectTarget{}, err
+	}
+	gate := playeraccess.Repository{DB: s.DB}
+	req := playeraccess.Request{UserAgent: a.UserAgent, Entry: "emby", Method: a.Method, ClientIP: a.Address.ClientIP, ConnectionIP: a.Address.ConnectionIP, IPSource: a.Address.Source, IPPublic: a.Address.Public}
+	decision, err := gate.Check(ctx, req)
+	if err != nil {
+		return nativeplayback.RedirectTarget{}, nativeplayback.ErrUpstream
+	}
+	if !decision.Allowed {
+		return nativeplayback.RedirectTarget{}, nativeplayback.ErrUADenied
+	}
+	chosen, err := selectSource(sources, q.MediaSourceID, q.Download)
+	if err != nil {
+		return nativeplayback.RedirectTarget{}, err
+	}
+	if s.Links == nil {
+		return nativeplayback.RedirectTarget{}, nativeplayback.ErrUpstream
+	}
+	slot, err := s.session(ctx, a, q.ItemID, chosen.Id, true)
+	if err != nil {
+		return nativeplayback.RedirectTarget{}, err
+	}
+	target, err := s.Links.Resolve(ctx, chosen.Id, a.UserAgent, a.Address.ClientIP)
+	if err != nil {
+		if release := s.release(ctx, slot); release != nil {
+			return nativeplayback.RedirectTarget{}, nativeplayback.ErrUpstream
+		}
+		return nativeplayback.RedirectTarget{}, err
+	}
+	return target, nil
+}
+
+var _ nativeplayback.Service = (*Service)(nil)

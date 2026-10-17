@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"media-tool/internal/modules/manualdownloads"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"strings"
 	"time"
@@ -42,13 +43,13 @@ func (a *API) createManualDownload(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400, "invalid_torrent", "种子表单无效或超过10MiB")
 			return
 		}
-		defer r.MultipartForm.RemoveAll()
+		defer deferutil.Do(func() error { return r.MultipartForm.RemoveAll() }, "Temporary cleanup or final unlock only; resource close also releases locks and the primary result is authoritative")
 		file, header, openErr := r.FormFile("torrent")
 		if openErr != nil {
 			fail(w, 400, "invalid_torrent", "请选择torrent文件")
 			return
 		}
-		defer file.Close()
+		defer deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if !strings.HasSuffix(strings.ToLower(header.Filename), ".torrent") {
 			fail(w, 400, "invalid_torrent", "请选择.torrent文件")
 			return

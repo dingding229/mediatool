@@ -237,7 +237,10 @@ func (a *API) savePTAccount(w http.ResponseWriter, r *http.Request) {
 		integrationError(w, e)
 		return
 	}
-	a.Deps.Integrations.Repository.RecordCheck(ctx, record.ID, record.Revision, "ready", "站点登录已验证")
+	if checkedErr := a.Deps.Integrations.Repository.RecordCheck(ctx, record.ID, record.Revision, "ready", "站点登录已验证"); checkedErr != nil {
+		fail(w, 503, "operation_failed", "读取或写入失败，请稍后重试")
+		return
+	}
 	write(w, 200, map[string]any{"id": record.ID, "saved": true, "rssState": rssState, "rssMessage": func() string {
 		if rssErr != nil {
 			return "RSS未获取，已保留原值；可编辑后再次保存获取"

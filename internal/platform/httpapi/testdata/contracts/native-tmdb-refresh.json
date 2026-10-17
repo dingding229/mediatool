@@ -1,0 +1,4 @@
+{
+  "request": {"type":"season","tmdbId":900001,"season":0},
+  "response": {"data":{"detailId":"aaaaaaaa-0000-4000-8000-000000000058","queued":true}}
+}

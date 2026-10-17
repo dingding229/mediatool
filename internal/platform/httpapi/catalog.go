@@ -6,6 +6,7 @@ import (
 	"media-tool/internal/modules/catalog"
 	"media-tool/internal/modules/mediaserver"
 	"media-tool/internal/modules/playback"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"regexp"
 	"strings"
@@ -54,7 +55,10 @@ func (a *API) catalogImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", mime)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(200)
-	w.Write(image)
+	if _, checkedErr := w.Write(image); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/platform/httpapi/catalog.go:catalogImage")
+		return
+	}
 }
 
 func (a *API) catalogHome(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +91,7 @@ func (a *API) tmdbPoster(w http.ResponseWriter, r *http.Request) {
 		fail(w, 404, "poster_unavailable", "海报不可用")
 		return
 	}
-	defer res.Body.Close()
+	defer deferutil.Close(res.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	content := strings.Split(res.Header.Get("Content-Type"), ";")[0]
 	if res.StatusCode != 200 || content != "image/jpeg" && content != "image/png" && content != "image/webp" {
 		fail(w, 404, "poster_unavailable", "海报不可用")
@@ -100,7 +104,10 @@ func (a *API) tmdbPoster(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", content)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Write(raw)
+	if _, checkedErr := w.Write(raw); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/platform/httpapi/catalog.go:tmdbPoster")
+		return
+	}
 }
 func (a *API) catalogItem(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)

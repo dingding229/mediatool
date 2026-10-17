@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"media-tool/internal/modules/plugins"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"strconv"
 )
@@ -15,14 +16,14 @@ func (a *API) pluginPackage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.MultipartForm != nil {
-		defer r.MultipartForm.RemoveAll()
+		defer deferutil.Do(func() error { return r.MultipartForm.RemoveAll() }, "Temporary cleanup or final unlock only; resource close also releases locks and the primary result is authoritative")
 	}
 	file, _, e := r.FormFile("package")
 	if e != nil {
 		fail(w, 400, "invalid_package", "请选择ZIP插件包")
 		return
 	}
-	defer file.Close()
+	defer deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	raw, e := io.ReadAll(io.LimitReader(file, plugins.MaxPackageBytes+1))
 	if e != nil {
 		fail(w, 400, "invalid_package", "压缩包读取失败")
@@ -98,7 +99,10 @@ func (a *API) testPlugin(w http.ResponseWriter, r *http.Request) {
 	}
 	var data any
 	if len(raw) > 0 {
-		json.Unmarshal(raw, &data)
+		if checkedErr := json.Unmarshal(raw, &data); checkedErr != nil {
+			fail(w, 503, "operation_failed", "读取或写入失败，请稍后重试")
+			return
+		}
 	}
 
 	write(w, 200, map[string]any{"result": data, "mediaModified": false})

@@ -48,9 +48,6 @@ func (a *API) sameOrigin(r *http.Request) bool {
 	defer cancel()
 	v := a.access(ctx)
 	origin := v.ManagementURL
-	if strings.HasPrefix(r.URL.Path, "/api/v1/member/") {
-		origin = v.MemberURL
-	}
 	check.AllowedOrigins = append(append([]string{}, check.AllowedOrigins...), origin, settings.OriginKey(origin))
 	return check.SameOrigin(r)
 }

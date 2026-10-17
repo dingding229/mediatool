@@ -121,3 +121,17 @@ func TestPlaybackResolveBudgetIsBoundedAndIndependentOfCloudScanTimeout(t *testi
 		}
 	}
 }
+
+func TestNativeStillStorageConfiguration(t *testing.T) {
+	c, err := FromLookup(lookup(validEnv()))
+	if err != nil || c.NativeStillsFrameTimeout != 45*time.Second || c.NativeStillsMaxBytes != 2<<30 || c.NativeStillsRoot != "/data/native-media/stills" {
+		t.Fatal(c.NativeStillsRoot, c.NativeStillsMaxBytes, err)
+	}
+	for _, kv := range [][2]string{{"NATIVE_STILLS_MAX_BYTES", "-1"}, {"NATIVE_STILLS_MAX_BYTES", "1099511627777"}, {"NATIVE_STILLS_ROOT", "relative/native-media/stills"}, {"NATIVE_STILLS_ROOT", "/data/../native-media/stills"}} {
+		env := validEnv()
+		env[kv[0]] = kv[1]
+		if _, err := FromLookup(lookup(env)); err == nil {
+			t.Fatal("unsafe still configuration", kv[0])
+		}
+	}
+}

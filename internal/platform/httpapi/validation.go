@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"media-tool/internal/modules/integrations"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"os"
 )
@@ -66,13 +67,13 @@ func (a *API) assetSTRM(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "strm_unavailable", "STRM目录不可用")
 		return
 	}
-	defer root.Close()
+	defer deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	f, err := root.Open(output)
 	if err != nil {
 		fail(w, 404, "strm_unavailable", "STRM文件不可用")
 		return
 	}
-	defer f.Close()
+	defer deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	raw, err := io.ReadAll(io.LimitReader(f, 8193))
 	if err != nil || len(raw) > 8192 {
 		fail(w, 409, "strm_invalid", "STRM无效")
@@ -91,7 +92,10 @@ func (a *API) assetSTRM(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", `attachment; filename="media.strm"`)
 	w.Header().Set("Cache-Control", "no-store")
-	w.Write(raw)
+	if _, checkedErr := w.Write(raw); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/platform/httpapi/validation.go:assetSTRM")
+		return
+	}
 }
 
 func (a *API) assetValidationRef(w http.ResponseWriter, r *http.Request) {

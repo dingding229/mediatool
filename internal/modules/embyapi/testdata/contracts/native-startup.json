@@ -1,0 +1,9 @@
+{
+ "endpoint":{"IsLocal":false,"IsInNetwork":false},
+ "branding":{"LoginDisclaimer":"","CustomCss":""},
+ "display":{"Id":"usersettings","ViewType":"Poster","SortBy":"SortName","IndexBy":"","RememberIndexing":false,"PrimaryImageHeight":250,"PrimaryImageWidth":166,"CustomPrefs":{},"ScrollDirection":"Vertical","ShowBackdrop":true,"RememberSorting":false,"SortOrder":"Ascending","ShowSidebar":true,"Client":"emby"},
+ "localization":[],
+ "sessions":[],
+ "configuration":{"SubtitleMode":"Default"},
+ "socket":{"ResponseStatus":{"ErrorCode":"NotImplemented","Message":"不支持 WebSocket，请使用 REST 查询和播放上报"}}
+}

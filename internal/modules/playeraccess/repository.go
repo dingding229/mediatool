@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
 )
 
 type Repository struct{ DB *pgxpool.Pool }
@@ -22,7 +23,7 @@ func (r Repository) begin(ctx context.Context) (pgx.Tx, error) {
 		return nil, ErrUnavailable
 	}
 	if _, err = tx.Exec(ctx, `SET LOCAL lock_timeout='1s'; SELECT pg_advisory_xact_lock(745)`); err != nil {
-		tx.Rollback(ctx)
+		deferutil.Rollback(ctx, tx)
 		return nil, ErrUnavailable
 	}
 	return tx, nil
@@ -54,7 +55,7 @@ func (r Repository) Policy(ctx context.Context) (Policy, error) {
 	if err != nil {
 		return Policy{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	p, err := readPolicy(ctx, tx)
 	if err != nil {
 		return p, err
@@ -113,7 +114,7 @@ func (r Repository) Save(ctx context.Context, in Policy) (Policy, error) {
 	if err != nil {
 		return Policy{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	out, err := replace(ctx, tx, in)
 	if err != nil {
 		return out, err
@@ -175,7 +176,7 @@ func (r Repository) AllowObservation(ctx context.Context, id, label string, revi
 	if err != nil {
 		return Policy{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	p, err := readPolicy(ctx, tx)
 	if err != nil {
 		return p, err
@@ -225,7 +226,7 @@ func (r Repository) Observations(ctx context.Context, q, filter string, page, si
 	if err != nil {
 		return out, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	p, err := readPolicy(ctx, tx)
 	if err != nil {
 		return out, err
@@ -268,7 +269,7 @@ func (r Repository) Clear(ctx context.Context, confirm bool, revision int64) err
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	p, err := readPolicy(ctx, tx)
 	if err != nil {
 		return err

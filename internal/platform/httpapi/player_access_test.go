@@ -54,7 +54,7 @@ func TestUAAdmissionBeforeResolverCacheAndAllPublicPlaybackEntries(t *testing.T)
 	}
 	before := calls.Load()
 	policy.Store(true)
-	for _, c := range []struct{ method, path string }{{"GET", linkTarget()}, {"HEAD", linkTarget()}, {"GET", "/emby/Videos/11/original.mkv"}, {"POST", "/emby/Items/11/PlaybackInfo"}, {"GET", "/emby/Emby//videos/11/stream"}, {"POST", "/api/v1/member/libraries/movies/items/asset/playback"}} {
+	for _, c := range []struct{ method, path string }{{"GET", linkTarget()}, {"HEAD", linkTarget()}, {"GET", "/emby/Videos/11/original.mkv"}, {"POST", "/emby/Items/11/PlaybackInfo"}, {"GET", "/emby/Emby//videos/11/stream"}} {
 		w := invokeUA(c.method, c.path, "OwnedPlayer/1")
 		if w.Code != 403 || w.Header().Get("Location") != "" || w.Header().Get("Cache-Control") != "no-store" {
 			t.Fatal(c, w.Code, w.Body.String())

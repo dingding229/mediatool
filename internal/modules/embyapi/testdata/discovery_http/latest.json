@@ -1,0 +1,18 @@
+[
+  {
+    "BackdropImageTags": [],
+    "Chapters": [],
+    "Genres": [],
+    "Id": "100001",
+    "IsFolder": false,
+    "LocationType": "FileSystem",
+    "MediaSources": [],
+    "MediaStreams": [],
+    "MediaType": "Video",
+    "Name": "Synthetic Movie",
+    "ParentBackdropImageTags": [],
+    "People": [],
+    "ServerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "Type": "Movie"
+  }
+]

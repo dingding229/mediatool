@@ -7,6 +7,7 @@ import (
 	"io"
 	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/platform/buildinfo"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"os"
 	"os/exec"
@@ -96,7 +97,10 @@ func (a *API) opsOverview(w http.ResponseWriter, r *http.Request) {
 	_, dumpErr := exec.LookPath("pg_dump")
 	_, restoreErr := exec.LookPath("pg_restore")
 	var total int64
-	e.DB.QueryRow(ctx, `SELECT coalesce(sum(bytes),0)FROM ops_backups WHERE state<>'deleted'`).Scan(&total)
+	if checkedErr := e.DB.QueryRow(ctx, `SELECT coalesce(sum(bytes),0)FROM ops_backups WHERE state<>'deleted'`).Scan(&total); checkedErr != nil {
+		fail(w, 503, "operation_failed", "读取或写入失败，请稍后重试")
+		return
+	}
 	write(w, 200, map[string]any{"policy": policy, "backups": backups, "drills": drills, "releases": releases, "requests": requests, "alerts": alerts, "mode": map[string]any{"paused": paused, "reason": reason, "revision": revision}, "toolsReady": dumpErr == nil && restoreErr == nil, "totalBytes": total, "revision": buildinfo.Revision, "version": buildinfo.Version, "schema": buildinfo.Schema})
 }
 func (a *API) opsPolicy(w http.ResponseWriter, r *http.Request) {
@@ -193,7 +197,7 @@ func (a *API) opsDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/x-tar")
 	w.Header().Set("Content-Disposition", `attachment; filename="mediatool-backup-`+r.PathValue("id")+`.tar"`)
 	tw := tar.NewWriter(w)
-	defer tw.Close()
+	defer deferutil.Close(tw, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	for _, name := range []string{"manifest.json", "database.dump", "outputs.tar"} {
 		file, err := os.Open(filepath.Join(dir, name))
 		if err != nil {
@@ -201,15 +205,15 @@ func (a *API) opsDownload(w http.ResponseWriter, r *http.Request) {
 		}
 		info, err := file.Stat()
 		if err != nil {
-			file.Close()
+			deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			return
 		}
 		if err = tw.WriteHeader(&tar.Header{Name: name, Mode: 0600, Size: info.Size()}); err != nil {
-			file.Close()
+			deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			return
 		}
 		_, err = io.Copy(tw, file)
-		file.Close()
+		deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if err != nil {
 			return
 		}

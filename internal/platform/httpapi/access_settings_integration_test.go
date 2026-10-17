@@ -41,7 +41,7 @@ func TestSavedOriginsDoNotTrustForwardedHost(t *testing.T) {
 	for _, test := range []struct {
 		path, origin string
 		allowed      bool
-	}{{"/api/v1/auth/login", "https://admin.fixture.invalid", true}, {"/api/v1/auth/login", "https://member.fixture.invalid", false}, {"/api/v1/member/auth/login", "https://member.fixture.invalid", true}, {"/api/v1/auth/login", "https://evil.fixture.invalid", false}} {
+	}{{"/api/v1/auth/login", "https://admin.fixture.invalid", true}, {"/api/v1/auth/login", "https://member.fixture.invalid", false}, {"/api/v1/auth/login", "https://evil.fixture.invalid", false}} {
 		r := httptest.NewRequest("POST", test.path, nil)
 		r.Header.Set("X-Requested-With", "media-tool")
 		r.Header.Set("Origin", test.origin)

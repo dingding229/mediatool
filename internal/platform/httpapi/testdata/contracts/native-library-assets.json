@@ -1,0 +1,16 @@
+{
+  "data": {
+    "items": [
+      {
+        "assetId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "title": "T12 synthetic",
+        "outputPaths": ["电影/华语电影/T12.strm"],
+        "source": "output_directory",
+        "diagnostic": {}
+      }
+    ],
+    "total": 1,
+    "startIndex": 0,
+    "limit": 200
+  }
+}

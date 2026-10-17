@@ -1,0 +1,43 @@
+{
+  "RawQuery": "StartIndex=4&Limit=200&SortBy=Name,DateCreated&SortOrder=Ascending,Descending&Fields=Overview,Genres&Ids=100001,100002&IncludeItemTypes=Movie,Series&ExcludeItemTypes=Episode&ParentId=100000&Recursive=true&IsFolder=false&IsPlayed=1&IsFavorite=0&Genres=Drama&Years=2026&SearchTerm=Synthetic&IsResumable=1",
+  "Expected": {
+    "StartIndex": 4,
+    "Limit": 200,
+    "SortBy": [
+      "Name",
+      "DateCreated"
+    ],
+    "SortOrder": [
+      "Ascending",
+      "Descending"
+    ],
+    "Fields": [
+      "Overview",
+      "Genres"
+    ],
+    "IDs": [
+      "100001",
+      "100002"
+    ],
+    "IncludeItemTypes": [
+      "Movie",
+      "Series"
+    ],
+    "ExcludeItemTypes": [
+      "Episode"
+    ],
+    "ParentID": "100000",
+    "Recursive": true,
+    "IsFolder": false,
+    "IsPlayed": true,
+    "IsFavorite": false,
+    "Genres": [
+      "Drama"
+    ],
+    "Years": [
+      "2026"
+    ],
+    "SearchTerm": "Synthetic",
+    "IsResumable": true
+  }
+}

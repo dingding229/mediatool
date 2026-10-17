@@ -17,6 +17,7 @@ func Open(rawURL string) (*redis.Client, error) {
 	options.ReadTimeout = time.Second
 	options.WriteTimeout = time.Second
 	options.MaxRetries = 0
+	options.ContextTimeoutEnabled = true
 	options.PoolSize = 10
 	return redis.NewClient(options), nil
 }

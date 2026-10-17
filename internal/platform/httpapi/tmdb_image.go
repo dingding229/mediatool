@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"regexp"
 	"time"
@@ -55,7 +56,7 @@ func (a *API) tmdbImage(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "image unavailable", 502)
 			return
 		}
-		defer response.Body.Close()
+		defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		if response.StatusCode != 200 {
 			http.Error(w, "image unavailable", 502)
 			return
@@ -85,5 +86,8 @@ func (a *API) tmdbImage(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(304)
 		return
 	}
-	w.Write(raw)
+	if _, checkedErr := w.Write(raw); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/platform/httpapi/tmdb_image.go:tmdbImage")
+		return
+	}
 }

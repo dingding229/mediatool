@@ -1,0 +1,156 @@
+{
+  "summary": {
+    "response": {
+      "data": {
+        "settings": {
+          "enabled": false,
+          "probeEnabled": true,
+          "stillsEnabled": true,
+          "revision": 1
+        },
+        "probe": [
+          {
+            "state": "pending",
+            "count": 0
+          },
+          {
+            "state": "probing",
+            "count": 0
+          },
+          {
+            "state": "ready",
+            "count": 0
+          },
+          {
+            "state": "failed",
+            "count": 1
+          },
+          {
+            "state": "needs_action",
+            "count": 0
+          }
+        ],
+        "still": [
+          {
+            "state": "pending",
+            "count": 0
+          },
+          {
+            "state": "grabbing",
+            "count": 0
+          },
+          {
+            "state": "ready",
+            "count": 0
+          },
+          {
+            "state": "failed",
+            "count": 1
+          },
+          {
+            "state": "needs_action",
+            "count": 0
+          },
+          {
+            "state": "skipped",
+            "count": 0
+          }
+        ],
+        "capacity": {
+          "usedBytes": 1024,
+          "reservedBytes": 0,
+          "limitBytes": 2147483648,
+          "unknownSizes": 0
+        }
+      }
+    }
+  },
+  "settings": {
+    "request": {
+      "enabled": true,
+      "probeEnabled": true,
+      "stillsEnabled": true,
+      "revision": 1
+    },
+    "response": {
+      "data": {
+        "enabled": true,
+        "probeEnabled": true,
+        "stillsEnabled": true,
+        "revision": 2
+      }
+    }
+  },
+  "tasks": {
+    "request": {
+      "kind": "probe",
+      "state": "failed",
+      "page": 1,
+      "pageSize": 50
+    },
+    "response": {
+      "data": {
+        "items": [
+          {
+            "id": "aaaaaaaa-0000-4000-8000-000000000026",
+            "name": "合成电影",
+            "state": "failed",
+            "errorReason": "authorization",
+            "attempts": 2,
+            "nextAttemptAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "total": 1,
+        "page": 1,
+        "pageSize": 50
+      }
+    }
+  },
+  "retry": {
+    "request": {
+      "kind": "probe",
+      "id": "aaaaaaaa-0000-4000-8000-000000000026",
+      "state": "failed",
+      "bulk": false,
+      "confirmed": false
+    },
+    "response": {
+      "data": {
+        "selected": 1,
+        "queued": 1,
+        "skipped": 0,
+        "failed": 0,
+        "limitReached": false
+      }
+    }
+  },
+  "batch": {
+    "request": {
+      "kind": "probe",
+      "id": "",
+      "state": "failed",
+      "bulk": true,
+      "confirmed": true
+    },
+    "response": {
+      "data": {
+        "selected": 500,
+        "queued": 499,
+        "skipped": 0,
+        "failed": 1,
+        "limitReached": true
+      }
+    }
+  },
+  "gc": {
+    "response": {
+      "data": {
+        "scanned": 8,
+        "reclaimed": 2,
+        "reclaimedBytes": 1024,
+        "done": false,
+        "partial": false
+      }
+    }
+  }
+}

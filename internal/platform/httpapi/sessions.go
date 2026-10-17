@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/auth"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"time"
 )
@@ -42,7 +43,7 @@ func (a *API) revokeSession(r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(bounded)
+	defer deferutil.Rollback(bounded, tx)
 	if _, err = tx.Exec(bounded, `UPDATE administrator_sessions SET revoked_at=now()WHERE token_digest=$1`, digest[:]); err != nil {
 		return err
 	}

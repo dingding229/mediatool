@@ -1,0 +1,11 @@
+{
+  "400":{"ResponseStatus":{"ErrorCode":"BadRequest","Message":"Bad Request"}},
+  "401":{"ResponseStatus":{"ErrorCode":"Unauthorized","Message":"Unauthorized"}},
+  "403":{"ResponseStatus":{"ErrorCode":"Forbidden","Message":"Forbidden"}},
+  "404":{"ResponseStatus":{"ErrorCode":"NotFound","Message":"Not Found"}},
+  "405":{"ResponseStatus":{"ErrorCode":"MethodNotAllowed","Message":"Method Not Allowed"}},
+  "409":{"ResponseStatus":{"ErrorCode":"Conflict","Message":"Conflict"}},
+  "500":{"ResponseStatus":{"ErrorCode":"InternalServerError","Message":"Internal Server Error"}},
+  "501":{"ResponseStatus":{"ErrorCode":"NotImplemented","Message":"Not Implemented"}},
+  "503":{"ResponseStatus":{"ErrorCode":"ServiceUnavailable","Message":"Service Unavailable"}}
+}

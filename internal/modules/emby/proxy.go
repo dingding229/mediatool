@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -101,10 +102,10 @@ func newProxyWithTransport(target *url.URL, managed ManagedPredicate, observer f
 				return err
 			}
 			if len(raw) > 16<<20 {
-				originalBody.Close()
+				deferutil.Close(originalBody, "Read/descriptor teardown only; primary operations handle their own I/O result")
 				return errors.New("metadata exceeds safe rewrite limit")
 			}
-			originalBody.Close()
+			deferutil.Close(originalBody, "Read/descriptor teardown only; primary operations handle their own I/O result")
 			var value any
 			decoder := json.NewDecoder(bytes.NewReader(raw))
 			decoder.UseNumber()

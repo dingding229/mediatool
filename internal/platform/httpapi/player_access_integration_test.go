@@ -149,7 +149,6 @@ func TestPostgresUAAdminWorkflowCachedSTRMAndUnavailableDenial(t *testing.T) {
 	bad = httptest.NewRecorder()
 	root.ServeHTTP(bad, r)
 	expect(bad, 403)
-	expect(call("POST", "/api/v1/member/libraries/movies/items/aaaaaaaa-0000-0000-0000-000000000006/playback", ua, map[string]any{}, nil), 403)
 	expect(call("GET", "/api/v1/player-access/observations?q=Owned-Player&filter=unlisted", "", nil, admin), 200)
 	// An unavailable policy/aggregate write is not permission to return a URL.
 	tx, err := db.Begin(ctx)

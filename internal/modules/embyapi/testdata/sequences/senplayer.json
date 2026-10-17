@@ -1,0 +1,1318 @@
+{
+  "authenticate": {
+    "status": 200,
+    "bytes": 795,
+    "body": {
+      "AccessToken": "synthetic-user-token",
+      "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "SessionInfo": {
+        "ApplicationVersion": "1.0",
+        "Client": "SenPlayer",
+        "DeviceId": "senplayer-sequence-device",
+        "DeviceName": "Synthetic iPad",
+        "Id": "cccccccc-0000-4000-8000-000000000036",
+        "LastActivityDate": "2026-10-17T00:00:00.0000000Z",
+        "UserId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "UserName": "browse.member"
+      },
+      "User": {
+        "Configuration": {
+          "SubtitleMode": "Default"
+        },
+        "HasConfiguredPassword": true,
+        "HasPassword": true,
+        "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "Name": "browse.member",
+        "Policy": {
+          "EnableAllFolders": false,
+          "EnableContentDownloading": false,
+          "EnableMediaPlayback": true,
+          "EnabledFolders": [],
+          "IsAdministrator": false,
+          "IsDisabled": false,
+          "IsHidden": false,
+          "SimultaneousStreamLimit": 2
+        },
+        "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    }
+  },
+  "counts": {
+    "status": 200,
+    "bytes": 49,
+    "body": {
+      "EpisodeCount": 2,
+      "MovieCount": 2,
+      "SeriesCount": 1
+    }
+  },
+  "cross-user": {
+    "status": 403,
+    "bytes": 66,
+    "body": {
+      "ResponseStatus": {
+        "ErrorCode": "Forbidden",
+        "Message": "Forbidden"
+      }
+    }
+  },
+  "detail": {
+    "status": 200,
+    "bytes": 1869,
+    "body": {
+      "BackdropImageTags": [],
+      "Bitrate": 100000,
+      "Chapters": [],
+      "CollectionType": "tvshows",
+      "Container": "mp4",
+      "DateCreated": "2026-01-01T00:00:00.0000000Z",
+      "Genres": [
+        "Drama"
+      ],
+      "Height": 1080,
+      "Id": "100001",
+      "IndexNumber": 1,
+      "IsFolder": false,
+      "LocationType": "FileSystem",
+      "MediaSources": [
+        {
+          "Bitrate": 100000,
+          "Chapters": [],
+          "Container": "mp4",
+          "Height": 1080,
+          "Id": "eeeeeeee-0000-4000-8000-000000000036",
+          "IsRemote": true,
+          "MediaStreams": [
+            {
+              "Codec": "hevc",
+              "DisplayTitle": "1080p HEVC HDR10",
+              "Height": 1080,
+              "Index": 0,
+              "Type": "Video",
+              "VideoRange": "HDR",
+              "VideoRangeType": "HDR10",
+              "Width": 1920
+            },
+            {
+              "Codec": "srt",
+              "DeliveryMethod": "Embed",
+              "DisplayTitle": "English SRT",
+              "Index": 5,
+              "IsExternal": false,
+              "IsTextSubtitleStream": true,
+              "Language": "eng",
+              "Type": "Subtitle"
+            }
+          ],
+          "Name": "版本 1",
+          "Protocol": "Http",
+          "RequiresClosing": false,
+          "RequiresOpening": false,
+          "RunTimeTicks": 6000000000,
+          "Size": 1234,
+          "SupportsDirectPlay": true,
+          "SupportsDirectStream": true,
+          "SupportsTranscoding": false,
+          "Width": 1920
+        }
+      ],
+      "MediaStreams": [
+        {
+          "Codec": "hevc",
+          "DisplayTitle": "1080p HEVC HDR10",
+          "Height": 1080,
+          "Index": 0,
+          "Type": "Video",
+          "VideoRange": "HDR",
+          "VideoRangeType": "HDR10",
+          "Width": 1920
+        },
+        {
+          "Codec": "srt",
+          "DeliveryMethod": "Embed",
+          "DisplayTitle": "English SRT",
+          "Index": 5,
+          "IsExternal": false,
+          "IsTextSubtitleStream": true,
+          "Language": "eng",
+          "Type": "Subtitle"
+        }
+      ],
+      "MediaType": "Video",
+      "Name": "Synthetic Episode 1",
+      "OfficialRating": "G",
+      "ParentBackdropImageTags": [],
+      "ParentBackdropItemId": "100011",
+      "ParentId": "100010",
+      "ParentIndexNumber": 1,
+      "Path": "Synthetic Episode 1.mkv",
+      "People": [],
+      "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+      "RunTimeTicks": 6000000000,
+      "SeasonId": "100010",
+      "SeasonName": "第 1 季",
+      "SeriesId": "100011",
+      "SeriesName": "Synthetic Sequence Show",
+      "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "Size": 1234,
+      "Type": "Episode",
+      "UserData": {
+        "IsFavorite": false,
+        "Key": "100001",
+        "PlayCount": 0,
+        "PlaybackPositionTicks": 0,
+        "Played": false,
+        "PlayedPercentage": 0
+      },
+      "Width": 1920
+    }
+  },
+  "episodes": {
+    "status": 200,
+    "bytes": 3043,
+    "body": {
+      "Items": [
+        {
+          "BackdropImageTags": [],
+          "Bitrate": 100000,
+          "Chapters": [],
+          "CollectionType": "tvshows",
+          "Container": "mp4",
+          "DateCreated": "2026-01-01T00:00:00.0000000Z",
+          "Genres": [
+            "Drama"
+          ],
+          "Height": 1080,
+          "Id": "100001",
+          "IndexNumber": 1,
+          "IsFolder": false,
+          "LocationType": "FileSystem",
+          "MediaSources": [
+            {
+              "Bitrate": 100000,
+              "Chapters": [],
+              "Container": "mp4",
+              "Height": 1080,
+              "Id": "eeeeeeee-0000-4000-8000-000000000036",
+              "IsRemote": true,
+              "MediaStreams": [
+                {
+                  "Codec": "hevc",
+                  "DisplayTitle": "1080p HEVC HDR10",
+                  "Height": 1080,
+                  "Index": 0,
+                  "Type": "Video",
+                  "VideoRange": "HDR",
+                  "VideoRangeType": "HDR10",
+                  "Width": 1920
+                },
+                {
+                  "Codec": "srt",
+                  "DeliveryMethod": "Embed",
+                  "DisplayTitle": "English SRT",
+                  "Index": 5,
+                  "IsExternal": false,
+                  "IsTextSubtitleStream": true,
+                  "Language": "eng",
+                  "Type": "Subtitle"
+                }
+              ],
+              "Name": "版本 1",
+              "Protocol": "Http",
+              "RequiresClosing": false,
+              "RequiresOpening": false,
+              "RunTimeTicks": 6000000000,
+              "Size": 1234,
+              "SupportsDirectPlay": true,
+              "SupportsDirectStream": true,
+              "SupportsTranscoding": false,
+              "Width": 1920
+            }
+          ],
+          "MediaStreams": [
+            {
+              "Codec": "hevc",
+              "DisplayTitle": "1080p HEVC HDR10",
+              "Height": 1080,
+              "Index": 0,
+              "Type": "Video",
+              "VideoRange": "HDR",
+              "VideoRangeType": "HDR10",
+              "Width": 1920
+            },
+            {
+              "Codec": "srt",
+              "DeliveryMethod": "Embed",
+              "DisplayTitle": "English SRT",
+              "Index": 5,
+              "IsExternal": false,
+              "IsTextSubtitleStream": true,
+              "Language": "eng",
+              "Type": "Subtitle"
+            }
+          ],
+          "MediaType": "Video",
+          "Name": "Synthetic Episode 1",
+          "OfficialRating": "G",
+          "ParentBackdropImageTags": [],
+          "ParentBackdropItemId": "100011",
+          "ParentId": "100010",
+          "ParentIndexNumber": 1,
+          "Path": "Synthetic Episode 1.mkv",
+          "People": [],
+          "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+          "RunTimeTicks": 6000000000,
+          "SeasonId": "100010",
+          "SeasonName": "第 1 季",
+          "SeriesId": "100011",
+          "SeriesName": "Synthetic Sequence Show",
+          "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "Size": 1234,
+          "Type": "Episode",
+          "UserData": {
+            "IsFavorite": false,
+            "Key": "100001",
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 0,
+            "Played": false,
+            "PlayedPercentage": 0
+          },
+          "Width": 1920
+        },
+        {
+          "BackdropImageTags": [],
+          "Chapters": [],
+          "CollectionType": "tvshows",
+          "DateCreated": "2026-01-01T00:00:00.0000000Z",
+          "Genres": [
+            "Drama"
+          ],
+          "Id": "100002",
+          "IndexNumber": 2,
+          "IsFolder": false,
+          "LocationType": "FileSystem",
+          "MediaSources": [
+            {
+              "Chapters": [],
+              "Container": "mkv",
+              "Id": "ffffffff-0000-4000-8000-000000000036",
+              "IsRemote": true,
+              "MediaStreams": [],
+              "Name": "版本 1",
+              "Protocol": "Http",
+              "RequiresClosing": false,
+              "RequiresOpening": false,
+              "RunTimeTicks": 14400000000,
+              "SupportsDirectPlay": true,
+              "SupportsDirectStream": true,
+              "SupportsTranscoding": false
+            }
+          ],
+          "MediaStreams": [],
+          "MediaType": "Video",
+          "Name": "Synthetic Episode 2",
+          "OfficialRating": "G",
+          "ParentBackdropImageTags": [],
+          "ParentBackdropItemId": "100011",
+          "ParentId": "100010",
+          "ParentIndexNumber": 1,
+          "Path": "Synthetic Episode 2.mkv",
+          "People": [],
+          "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+          "RunTimeTicks": 14400000000,
+          "SeasonId": "100010",
+          "SeasonName": "第 1 季",
+          "SeriesId": "100011",
+          "SeriesName": "Synthetic Sequence Show",
+          "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "Type": "Episode",
+          "UserData": {
+            "IsFavorite": false,
+            "Key": "100002",
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 0,
+            "Played": false,
+            "PlayedPercentage": 0
+          }
+        }
+      ],
+      "StartIndex": 0,
+      "TotalRecordCount": 2
+    }
+  },
+  "favorite-add": {
+    "status": 200,
+    "bytes": 110,
+    "body": {
+      "IsFavorite": true,
+      "Key": "100008",
+      "PlayCount": 0,
+      "PlaybackPositionTicks": 0,
+      "Played": false,
+      "PlayedPercentage": 0
+    }
+  },
+  "favorite-delete": {
+    "status": 200,
+    "bytes": 111,
+    "body": {
+      "IsFavorite": false,
+      "Key": "100008",
+      "PlayCount": 0,
+      "PlaybackPositionTicks": 0,
+      "Played": false,
+      "PlayedPercentage": 0
+    }
+  },
+  "items": {
+    "status": 200,
+    "bytes": 1241,
+    "body": {
+      "Items": [
+        {
+          "BackdropImageTags": [],
+          "Chapters": [],
+          "DateCreated": "2026-01-01T00:00:00.0000000Z",
+          "Genres": [],
+          "Id": "100008",
+          "IsFolder": false,
+          "LocationType": "FileSystem",
+          "MediaSources": [
+            {
+              "Chapters": [],
+              "Container": "mp4",
+              "Id": "eeeeeeee-0000-4000-8000-000000000032",
+              "IsRemote": true,
+              "MediaStreams": [],
+              "Name": "版本 1",
+              "Protocol": "Http",
+              "RequiresClosing": false,
+              "RequiresOpening": false,
+              "SupportsDirectPlay": true,
+              "SupportsDirectStream": true,
+              "SupportsTranscoding": false
+            },
+            {
+              "Chapters": [],
+              "Container": "mkv",
+              "Id": "eeeeeeee-0000-4000-8000-000000000031",
+              "IsRemote": true,
+              "MediaStreams": [],
+              "Name": "版本 2",
+              "Protocol": "Http",
+              "RequiresClosing": false,
+              "RequiresOpening": false,
+              "SupportsDirectPlay": true,
+              "SupportsDirectStream": true,
+              "SupportsTranscoding": false
+            }
+          ],
+          "MediaStreams": [],
+          "MediaType": "Video",
+          "Name": "Synthetic Playback Film",
+          "OfficialRating": "G",
+          "ParentBackdropImageTags": [],
+          "ParentId": "100006",
+          "Path": "Synthetic Playback Film.mp4",
+          "People": [],
+          "ProductionYear": 2026,
+          "ProviderIds": {
+            "Tmdb": "3132001"
+          },
+          "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "SortName": "Synthetic Playback Film",
+          "Type": "Movie",
+          "UserData": {
+            "IsFavorite": false,
+            "Key": "100008",
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 0,
+            "Played": false,
+            "PlayedPercentage": 0
+          }
+        }
+      ],
+      "StartIndex": 0,
+      "TotalRecordCount": 1
+    }
+  },
+  "latest": {
+    "status": 200,
+    "bytes": 2750,
+    "body": [
+      {
+        "BackdropImageTags": [],
+        "Chapters": [],
+        "DateCreated": "2026-01-03T00:00:00.0000000Z",
+        "Genres": [],
+        "Id": "100009",
+        "IsFolder": false,
+        "LocationType": "FileSystem",
+        "MediaSources": [
+          {
+            "Chapters": [],
+            "Container": "mkv",
+            "Id": "eeeeeeee-0000-4000-8000-000000000033",
+            "IsRemote": true,
+            "MediaStreams": [],
+            "Name": "版本 1",
+            "Protocol": "Http",
+            "RequiresClosing": false,
+            "RequiresOpening": false,
+            "SupportsDirectPlay": true,
+            "SupportsDirectStream": true,
+            "SupportsTranscoding": false
+          }
+        ],
+        "MediaStreams": [],
+        "MediaType": "Video",
+        "Name": "Other Synthetic Film",
+        "ParentBackdropImageTags": [],
+        "ParentId": "100007",
+        "Path": "Other Synthetic Film.mkv",
+        "People": [],
+        "ProductionYear": 2026,
+        "ProviderIds": {
+          "Tmdb": "3132002"
+        },
+        "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "SortName": "Other Synthetic Film",
+        "Type": "Movie",
+        "UserData": {
+          "IsFavorite": false,
+          "Key": "100009",
+          "PlayCount": 0,
+          "PlaybackPositionTicks": 0,
+          "Played": false,
+          "PlayedPercentage": 0
+        }
+      },
+      {
+        "BackdropImageTags": [],
+        "Chapters": [],
+        "DateCreated": "2026-01-01T00:00:00.0000000Z",
+        "Genres": [],
+        "Id": "100008",
+        "IsFolder": false,
+        "LocationType": "FileSystem",
+        "MediaSources": [
+          {
+            "Chapters": [],
+            "Container": "mp4",
+            "Id": "eeeeeeee-0000-4000-8000-000000000032",
+            "IsRemote": true,
+            "MediaStreams": [],
+            "Name": "版本 1",
+            "Protocol": "Http",
+            "RequiresClosing": false,
+            "RequiresOpening": false,
+            "SupportsDirectPlay": true,
+            "SupportsDirectStream": true,
+            "SupportsTranscoding": false
+          },
+          {
+            "Chapters": [],
+            "Container": "mkv",
+            "Id": "eeeeeeee-0000-4000-8000-000000000031",
+            "IsRemote": true,
+            "MediaStreams": [],
+            "Name": "版本 2",
+            "Protocol": "Http",
+            "RequiresClosing": false,
+            "RequiresOpening": false,
+            "SupportsDirectPlay": true,
+            "SupportsDirectStream": true,
+            "SupportsTranscoding": false
+          }
+        ],
+        "MediaStreams": [],
+        "MediaType": "Video",
+        "Name": "Synthetic Playback Film",
+        "OfficialRating": "G",
+        "ParentBackdropImageTags": [],
+        "ParentId": "100006",
+        "Path": "Synthetic Playback Film.mp4",
+        "People": [],
+        "ProductionYear": 2026,
+        "ProviderIds": {
+          "Tmdb": "3132001"
+        },
+        "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "SortName": "Synthetic Playback Film",
+        "Type": "Movie",
+        "UserData": {
+          "IsFavorite": false,
+          "Key": "100008",
+          "PlayCount": 0,
+          "PlaybackPositionTicks": 0,
+          "Played": false,
+          "PlayedPercentage": 0
+        }
+      },
+      {
+        "BackdropImageTags": [],
+        "Chapters": [],
+        "ChildCount": 1,
+        "DateCreated": "2026-01-01T00:00:00.0000000Z",
+        "Genres": [
+          "Drama"
+        ],
+        "Id": "100011",
+        "IsFolder": true,
+        "LocationType": "FileSystem",
+        "MediaSources": [],
+        "MediaStreams": [],
+        "MediaType": "Video",
+        "Name": "Synthetic Sequence Show",
+        "OfficialRating": "G",
+        "ParentBackdropImageTags": [],
+        "ParentId": "100005",
+        "People": [],
+        "ProductionYear": 2026,
+        "ProviderIds": {
+          "Tmdb": "3536100"
+        },
+        "RecursiveItemCount": 2,
+        "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "SortName": "Synthetic Sequence Show",
+        "Type": "Series",
+        "UserData": {
+          "IsFavorite": false,
+          "Key": "100011",
+          "PlayCount": 0,
+          "PlaybackPositionTicks": 0,
+          "Played": false,
+          "PlayedPercentage": 0,
+          "UnplayedItemCount": 2
+        }
+      }
+    ]
+  },
+  "legacy-playing": {
+    "status": 204,
+    "bytes": 0
+  },
+  "legacy-progress": {
+    "status": 204,
+    "bytes": 0
+  },
+  "legacy-stopped": {
+    "status": 204,
+    "bytes": 0
+  },
+  "next-before": {
+    "status": 200,
+    "bytes": 48,
+    "body": {
+      "Items": [],
+      "StartIndex": 0,
+      "TotalRecordCount": 0
+    }
+  },
+  "next-progress": {
+    "status": 200,
+    "bytes": 1975,
+    "body": {
+      "Items": [
+        {
+          "BackdropImageTags": [],
+          "Bitrate": 100000,
+          "Chapters": [],
+          "CollectionType": "tvshows",
+          "Container": "mp4",
+          "DateCreated": "2026-01-01T00:00:00.0000000Z",
+          "Genres": [
+            "Drama"
+          ],
+          "Height": 1080,
+          "Id": "100001",
+          "IndexNumber": 1,
+          "IsFolder": false,
+          "LocationType": "FileSystem",
+          "MediaSources": [
+            {
+              "Bitrate": 100000,
+              "Chapters": [],
+              "Container": "mp4",
+              "Height": 1080,
+              "Id": "eeeeeeee-0000-4000-8000-000000000036",
+              "IsRemote": true,
+              "MediaStreams": [
+                {
+                  "Codec": "hevc",
+                  "DisplayTitle": "1080p HEVC HDR10",
+                  "Height": 1080,
+                  "Index": 0,
+                  "Type": "Video",
+                  "VideoRange": "HDR",
+                  "VideoRangeType": "HDR10",
+                  "Width": 1920
+                },
+                {
+                  "Codec": "srt",
+                  "DeliveryMethod": "Embed",
+                  "DisplayTitle": "English SRT",
+                  "Index": 5,
+                  "IsExternal": false,
+                  "IsTextSubtitleStream": true,
+                  "Language": "eng",
+                  "Type": "Subtitle"
+                }
+              ],
+              "Name": "版本 1",
+              "Protocol": "Http",
+              "RequiresClosing": false,
+              "RequiresOpening": false,
+              "RunTimeTicks": 6000000000,
+              "Size": 1234,
+              "SupportsDirectPlay": true,
+              "SupportsDirectStream": true,
+              "SupportsTranscoding": false,
+              "Width": 1920
+            }
+          ],
+          "MediaStreams": [
+            {
+              "Codec": "hevc",
+              "DisplayTitle": "1080p HEVC HDR10",
+              "Height": 1080,
+              "Index": 0,
+              "Type": "Video",
+              "VideoRange": "HDR",
+              "VideoRangeType": "HDR10",
+              "Width": 1920
+            },
+            {
+              "Codec": "srt",
+              "DeliveryMethod": "Embed",
+              "DisplayTitle": "English SRT",
+              "Index": 5,
+              "IsExternal": false,
+              "IsTextSubtitleStream": true,
+              "Language": "eng",
+              "Type": "Subtitle"
+            }
+          ],
+          "MediaType": "Video",
+          "Name": "Synthetic Episode 1",
+          "OfficialRating": "G",
+          "ParentBackdropImageTags": [],
+          "ParentBackdropItemId": "100011",
+          "ParentId": "100010",
+          "ParentIndexNumber": 1,
+          "Path": "Synthetic Episode 1.mkv",
+          "People": [],
+          "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+          "RunTimeTicks": 6000000000,
+          "SeasonId": "100010",
+          "SeasonName": "第 1 季",
+          "SeriesId": "100011",
+          "SeriesName": "Synthetic Sequence Show",
+          "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "Size": 1234,
+          "Type": "Episode",
+          "UserData": {
+            "IsFavorite": false,
+            "Key": "100001",
+            "LastPlayedDate": "2026-10-17T00:00:00.0000000Z",
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 1200000000,
+            "Played": false,
+            "PlayedPercentage": 20
+          },
+          "Width": 1920
+        }
+      ],
+      "StartIndex": 0,
+      "TotalRecordCount": 1
+    }
+  },
+  "next-stopped": {
+    "status": 200,
+    "bytes": 1173,
+    "body": {
+      "Items": [
+        {
+          "BackdropImageTags": [],
+          "Chapters": [],
+          "CollectionType": "tvshows",
+          "DateCreated": "2026-01-01T00:00:00.0000000Z",
+          "Genres": [
+            "Drama"
+          ],
+          "Id": "100002",
+          "IndexNumber": 2,
+          "IsFolder": false,
+          "LocationType": "FileSystem",
+          "MediaSources": [
+            {
+              "Chapters": [],
+              "Container": "mkv",
+              "Id": "ffffffff-0000-4000-8000-000000000036",
+              "IsRemote": true,
+              "MediaStreams": [],
+              "Name": "版本 1",
+              "Protocol": "Http",
+              "RequiresClosing": false,
+              "RequiresOpening": false,
+              "RunTimeTicks": 14400000000,
+              "SupportsDirectPlay": true,
+              "SupportsDirectStream": true,
+              "SupportsTranscoding": false
+            }
+          ],
+          "MediaStreams": [],
+          "MediaType": "Video",
+          "Name": "Synthetic Episode 2",
+          "OfficialRating": "G",
+          "ParentBackdropImageTags": [],
+          "ParentBackdropItemId": "100011",
+          "ParentId": "100010",
+          "ParentIndexNumber": 1,
+          "Path": "Synthetic Episode 2.mkv",
+          "People": [],
+          "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+          "RunTimeTicks": 14400000000,
+          "SeasonId": "100010",
+          "SeasonName": "第 1 季",
+          "SeriesId": "100011",
+          "SeriesName": "Synthetic Sequence Show",
+          "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "Type": "Episode",
+          "UserData": {
+            "IsFavorite": false,
+            "Key": "100002",
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 0,
+            "Played": false,
+            "PlayedPercentage": 0
+          }
+        }
+      ],
+      "StartIndex": 0,
+      "TotalRecordCount": 1
+    }
+  },
+  "ping": {
+    "status": 204,
+    "bytes": 0
+  },
+  "playback-info": {
+    "status": 200,
+    "bytes": 1057,
+    "body": {
+      "MediaSources": [
+        {
+          "Bitrate": 100000,
+          "Chapters": [],
+          "Container": "mp4",
+          "DirectStreamUrl": "/Videos/100007/stream.mp4?MediaSourceId=eeeeeeee-0000-4000-8000-000000000036\u0026Static=true\u0026api_key=synthetic-user-token",
+          "Height": 1080,
+          "Id": "eeeeeeee-0000-4000-8000-000000000036",
+          "IsRemote": true,
+          "MediaStreams": [
+            {
+              "Codec": "hevc",
+              "DisplayTitle": "1080p HEVC HDR10",
+              "Height": 1080,
+              "Index": 0,
+              "Type": "Video",
+              "VideoRange": "HDR",
+              "VideoRangeType": "HDR10",
+              "Width": 1920
+            },
+            {
+              "Codec": "srt",
+              "DeliveryMethod": "Embed",
+              "DisplayTitle": "English SRT",
+              "Index": 5,
+              "IsExternal": false,
+              "IsTextSubtitleStream": true,
+              "Language": "eng",
+              "Type": "Subtitle"
+            }
+          ],
+          "Name": "版本 1",
+          "Path": "http://native.synthetic.invalid/Videos/100001/stream.mp4?MediaSourceId=eeeeeeee-0000-4000-8000-000000000036\u0026Static=true\u0026api_key=synthetic-user-token",
+          "Protocol": "Http",
+          "RequiresClosing": false,
+          "RequiresOpening": false,
+          "RunTimeTicks": 6000000000,
+          "Size": 1234,
+          "SupportsDirectPlay": true,
+          "SupportsDirectStream": true,
+          "SupportsTranscoding": false,
+          "Width": 1920
+        }
+      ],
+      "PlaySessionId": "dddddddd-0000-4000-8000-000000000036"
+    }
+  },
+  "played-add": {
+    "status": 200,
+    "bytes": 160,
+    "body": {
+      "IsFavorite": false,
+      "Key": "100008",
+      "LastPlayedDate": "2026-10-17T00:00:00.0000000Z",
+      "PlayCount": 1,
+      "PlaybackPositionTicks": 0,
+      "Played": true,
+      "PlayedPercentage": 100
+    }
+  },
+  "played-delete": {
+    "status": 200,
+    "bytes": 111,
+    "body": {
+      "IsFavorite": false,
+      "Key": "100008",
+      "PlayCount": 0,
+      "PlaybackPositionTicks": 0,
+      "Played": false,
+      "PlayedPercentage": 0
+    }
+  },
+  "playing": {
+    "status": 204,
+    "bytes": 0
+  },
+  "progress": {
+    "status": 204,
+    "bytes": 0
+  },
+  "public": {
+    "status": 200,
+    "bytes": 195,
+    "body": {
+      "Id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "LocalAddress": "http://native.synthetic.invalid",
+      "ProductName": "Emby Server",
+      "ServerName": "Media Tool",
+      "StartupWizardCompleted": true,
+      "Version": "4.8.10.0"
+    }
+  },
+  "resume-before": {
+    "status": 200,
+    "bytes": 48,
+    "body": {
+      "Items": [],
+      "StartIndex": 0,
+      "TotalRecordCount": 0
+    }
+  },
+  "resume-progress": {
+    "status": 200,
+    "bytes": 1975,
+    "body": {
+      "Items": [
+        {
+          "BackdropImageTags": [],
+          "Bitrate": 100000,
+          "Chapters": [],
+          "CollectionType": "tvshows",
+          "Container": "mp4",
+          "DateCreated": "2026-01-01T00:00:00.0000000Z",
+          "Genres": [
+            "Drama"
+          ],
+          "Height": 1080,
+          "Id": "100001",
+          "IndexNumber": 1,
+          "IsFolder": false,
+          "LocationType": "FileSystem",
+          "MediaSources": [
+            {
+              "Bitrate": 100000,
+              "Chapters": [],
+              "Container": "mp4",
+              "Height": 1080,
+              "Id": "eeeeeeee-0000-4000-8000-000000000036",
+              "IsRemote": true,
+              "MediaStreams": [
+                {
+                  "Codec": "hevc",
+                  "DisplayTitle": "1080p HEVC HDR10",
+                  "Height": 1080,
+                  "Index": 0,
+                  "Type": "Video",
+                  "VideoRange": "HDR",
+                  "VideoRangeType": "HDR10",
+                  "Width": 1920
+                },
+                {
+                  "Codec": "srt",
+                  "DeliveryMethod": "Embed",
+                  "DisplayTitle": "English SRT",
+                  "Index": 5,
+                  "IsExternal": false,
+                  "IsTextSubtitleStream": true,
+                  "Language": "eng",
+                  "Type": "Subtitle"
+                }
+              ],
+              "Name": "版本 1",
+              "Protocol": "Http",
+              "RequiresClosing": false,
+              "RequiresOpening": false,
+              "RunTimeTicks": 6000000000,
+              "Size": 1234,
+              "SupportsDirectPlay": true,
+              "SupportsDirectStream": true,
+              "SupportsTranscoding": false,
+              "Width": 1920
+            }
+          ],
+          "MediaStreams": [
+            {
+              "Codec": "hevc",
+              "DisplayTitle": "1080p HEVC HDR10",
+              "Height": 1080,
+              "Index": 0,
+              "Type": "Video",
+              "VideoRange": "HDR",
+              "VideoRangeType": "HDR10",
+              "Width": 1920
+            },
+            {
+              "Codec": "srt",
+              "DeliveryMethod": "Embed",
+              "DisplayTitle": "English SRT",
+              "Index": 5,
+              "IsExternal": false,
+              "IsTextSubtitleStream": true,
+              "Language": "eng",
+              "Type": "Subtitle"
+            }
+          ],
+          "MediaType": "Video",
+          "Name": "Synthetic Episode 1",
+          "OfficialRating": "G",
+          "ParentBackdropImageTags": [],
+          "ParentBackdropItemId": "100011",
+          "ParentId": "100010",
+          "ParentIndexNumber": 1,
+          "Path": "Synthetic Episode 1.mkv",
+          "People": [],
+          "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+          "RunTimeTicks": 6000000000,
+          "SeasonId": "100010",
+          "SeasonName": "第 1 季",
+          "SeriesId": "100011",
+          "SeriesName": "Synthetic Sequence Show",
+          "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "Size": 1234,
+          "Type": "Episode",
+          "UserData": {
+            "IsFavorite": false,
+            "Key": "100001",
+            "LastPlayedDate": "2026-10-17T00:00:00.0000000Z",
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 1200000000,
+            "Played": false,
+            "PlayedPercentage": 20
+          },
+          "Width": 1920
+        }
+      ],
+      "StartIndex": 0,
+      "TotalRecordCount": 1
+    }
+  },
+  "resume-stopped": {
+    "status": 200,
+    "bytes": 48,
+    "body": {
+      "Items": [],
+      "StartIndex": 0,
+      "TotalRecordCount": 0
+    }
+  },
+  "season-detail": {
+    "status": 200,
+    "bytes": 636,
+    "body": {
+      "BackdropImageTags": [],
+      "Chapters": [],
+      "ChildCount": 2,
+      "DateCreated": "2026-01-01T00:00:00.0000000Z",
+      "Genres": [
+        "Drama"
+      ],
+      "Id": "100010",
+      "IndexNumber": 1,
+      "IsFolder": true,
+      "LocationType": "FileSystem",
+      "MediaSources": [],
+      "MediaStreams": [],
+      "MediaType": "Video",
+      "Name": "第 1 季",
+      "OfficialRating": "G",
+      "ParentBackdropImageTags": [],
+      "ParentId": "100011",
+      "People": [],
+      "ProductionYear": 2026,
+      "SeriesId": "100011",
+      "SeriesName": "Synthetic Sequence Show",
+      "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "Type": "Season",
+      "UserData": {
+        "IsFavorite": false,
+        "Key": "100010",
+        "PlayCount": 0,
+        "PlaybackPositionTicks": 0,
+        "Played": false,
+        "PlayedPercentage": 0,
+        "UnplayedItemCount": 2
+      }
+    }
+  },
+  "seasons": {
+    "status": 200,
+    "bytes": 684,
+    "body": {
+      "Items": [
+        {
+          "BackdropImageTags": [],
+          "Chapters": [],
+          "ChildCount": 2,
+          "DateCreated": "2026-01-01T00:00:00.0000000Z",
+          "Genres": [
+            "Drama"
+          ],
+          "Id": "100010",
+          "IndexNumber": 1,
+          "IsFolder": true,
+          "LocationType": "FileSystem",
+          "MediaSources": [],
+          "MediaStreams": [],
+          "MediaType": "Video",
+          "Name": "第 1 季",
+          "OfficialRating": "G",
+          "ParentBackdropImageTags": [],
+          "ParentId": "100011",
+          "People": [],
+          "ProductionYear": 2026,
+          "SeriesId": "100011",
+          "SeriesName": "Synthetic Sequence Show",
+          "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "Type": "Season",
+          "UserData": {
+            "IsFavorite": false,
+            "Key": "100010",
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 0,
+            "Played": false,
+            "PlayedPercentage": 0,
+            "UnplayedItemCount": 2
+          }
+        }
+      ],
+      "StartIndex": 0,
+      "TotalRecordCount": 1
+    }
+  },
+  "series-detail": {
+    "status": 200,
+    "bytes": 668,
+    "body": {
+      "BackdropImageTags": [],
+      "Chapters": [],
+      "ChildCount": 1,
+      "DateCreated": "2026-01-01T00:00:00.0000000Z",
+      "Genres": [
+        "Drama"
+      ],
+      "Id": "100011",
+      "IsFolder": true,
+      "LocationType": "FileSystem",
+      "MediaSources": [],
+      "MediaStreams": [],
+      "MediaType": "Video",
+      "Name": "Synthetic Sequence Show",
+      "OfficialRating": "G",
+      "ParentBackdropImageTags": [],
+      "ParentId": "100005",
+      "People": [],
+      "ProductionYear": 2026,
+      "ProviderIds": {
+        "Tmdb": "3536100"
+      },
+      "RecursiveItemCount": 2,
+      "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "SortName": "Synthetic Sequence Show",
+      "Type": "Series",
+      "UserData": {
+        "IsFavorite": false,
+        "Key": "100011",
+        "PlayCount": 0,
+        "PlaybackPositionTicks": 0,
+        "Played": false,
+        "PlayedPercentage": 0,
+        "UnplayedItemCount": 2
+      }
+    }
+  },
+  "stopped": {
+    "status": 204,
+    "bytes": 0
+  },
+  "stream-get": {
+    "status": 302,
+    "bytes": 0,
+    "location": "https://cdn.synthetic.invalid/original?signature=SYNTHETIC_VISIBLE"
+  },
+  "stream-head": {
+    "status": 302,
+    "bytes": 0,
+    "location": "https://cdn.synthetic.invalid/original?signature=SYNTHETIC_VISIBLE"
+  },
+  "user": {
+    "status": 200,
+    "bytes": 405,
+    "body": {
+      "Configuration": {
+        "SubtitleMode": "Default"
+      },
+      "HasConfiguredPassword": true,
+      "HasPassword": true,
+      "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Name": "browse.member",
+      "Policy": {
+        "EnableAllFolders": false,
+        "EnableContentDownloading": false,
+        "EnableMediaPlayback": true,
+        "EnabledFolders": [],
+        "IsAdministrator": false,
+        "IsDisabled": false,
+        "IsHidden": false,
+        "SimultaneousStreamLimit": 2
+      },
+      "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  },
+  "userdata-progress": {
+    "status": 200,
+    "bytes": 169,
+    "body": {
+      "IsFavorite": false,
+      "Key": "100001",
+      "LastPlayedDate": "2026-10-17T00:00:00.0000000Z",
+      "PlayCount": 0,
+      "PlaybackPositionTicks": 1200000000,
+      "Played": false,
+      "PlayedPercentage": 20
+    }
+  },
+  "userdata-stopped": {
+    "status": 200,
+    "bytes": 160,
+    "body": {
+      "IsFavorite": false,
+      "Key": "100001",
+      "LastPlayedDate": "2026-10-17T00:00:00.0000000Z",
+      "PlayCount": 1,
+      "PlaybackPositionTicks": 0,
+      "Played": true,
+      "PlayedPercentage": 100
+    }
+  },
+  "userdata-update": {
+    "status": 200,
+    "bytes": 168,
+    "body": {
+      "IsFavorite": false,
+      "Key": "100008",
+      "LastPlayedDate": "2026-10-17T00:00:00.0000000Z",
+      "PlayCount": 0,
+      "PlaybackPositionTicks": 1200000000,
+      "Played": false,
+      "PlayedPercentage": 0
+    }
+  },
+  "views": {
+    "status": 200,
+    "bytes": 1367,
+    "body": {
+      "Items": [
+        {
+          "BackdropImageTags": [],
+          "Chapters": [],
+          "CollectionType": "tvshows",
+          "Genres": [],
+          "Id": "100005",
+          "IsFolder": true,
+          "LocationType": "FileSystem",
+          "MediaSources": [],
+          "MediaStreams": [],
+          "MediaType": "Video",
+          "Name": "sequence-tv",
+          "ParentBackdropImageTags": [],
+          "People": [],
+          "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "Type": "CollectionFolder",
+          "UserData": {
+            "IsFavorite": false,
+            "Key": "100005",
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 0,
+            "Played": false,
+            "PlayedPercentage": 0
+          }
+        },
+        {
+          "BackdropImageTags": [],
+          "Chapters": [],
+          "CollectionType": "movies",
+          "Genres": [],
+          "Id": "100006",
+          "IsFolder": true,
+          "LocationType": "FileSystem",
+          "MediaSources": [],
+          "MediaStreams": [],
+          "MediaType": "Video",
+          "Name": "test-a",
+          "ParentBackdropImageTags": [],
+          "People": [],
+          "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "Type": "CollectionFolder",
+          "UserData": {
+            "IsFavorite": false,
+            "Key": "100006",
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 0,
+            "Played": false,
+            "PlayedPercentage": 0
+          }
+        },
+        {
+          "BackdropImageTags": [],
+          "Chapters": [],
+          "CollectionType": "movies",
+          "Genres": [],
+          "Id": "100007",
+          "IsFolder": true,
+          "LocationType": "FileSystem",
+          "MediaSources": [],
+          "MediaStreams": [],
+          "MediaType": "Video",
+          "Name": "test-b",
+          "ParentBackdropImageTags": [],
+          "People": [],
+          "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "Type": "CollectionFolder",
+          "UserData": {
+            "IsFavorite": false,
+            "Key": "100007",
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 0,
+            "Played": false,
+            "PlayedPercentage": 0
+          }
+        }
+      ],
+      "TotalRecordCount": 3
+    }
+  }
+}

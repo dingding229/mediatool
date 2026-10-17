@@ -79,7 +79,7 @@ func (b Builder) Build(ref storage.FileRef) (string, error) {
 
 // WriteAtomic only writes .strm files below an existing trusted root. os.Root
 // confines symlink traversal; rename replaces a complete file atomically.
-func WriteAtomic(rootDir, relative, link string) error {
+func WriteAtomic(rootDir, relative, link string) (result error) {
 	if relative == "" || strings.HasPrefix(relative, "/") || strings.Contains(relative, "\\") || path.Clean(relative) != relative || strings.HasPrefix(relative, "../") || !strings.HasSuffix(strings.ToLower(relative), ".strm") {
 		return errors.New("expected a safe relative .strm path")
 	}
@@ -94,7 +94,7 @@ func WriteAtomic(rootDir, relative, link string) error {
 	if err != nil {
 		return err
 	}
-	defer root.Close()
+	defer func() { result = errors.Join(result, root.Close()) }()
 	dir := path.Dir(relative)
 	if err = root.MkdirAll(dir, 0750); err != nil {
 		return err
@@ -108,7 +108,11 @@ func WriteAtomic(rootDir, relative, link string) error {
 	if err != nil {
 		return err
 	}
-	defer root.Remove(tmp)
+	defer func() {
+		if err := root.Remove(tmp); err != nil && !errors.Is(err, os.ErrNotExist) {
+			result = errors.Join(result, err)
+		}
+	}()
 	_, writeErr := fmt.Fprintln(f, link)
 	if writeErr == nil {
 		writeErr = f.Sync()

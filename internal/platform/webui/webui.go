@@ -1,9 +1,7 @@
 package webui
 
 import (
-	"context"
 	"embed"
-	"encoding/json"
 	"io/fs"
 	"net/http"
 	"path"
@@ -13,12 +11,6 @@ import (
 //go:embed all:assets
 var assets embed.FS
 
-type realmKey struct{}
-
-func MemberRequest(r *http.Request) *http.Request {
-	return r.WithContext(context.WithValue(r.Context(), realmKey{}, true))
-}
-func IsMember(r *http.Request) bool { v, _ := r.Context().Value(realmKey{}).(bool); return v }
 func Handler() http.Handler {
 	files, _ := fs.Sub(assets, "assets")
 	server := http.FileServer(http.FS(files))
@@ -38,15 +30,16 @@ func Handler() http.Handler {
 			if err != nil {
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.WriteHeader(http.StatusServiceUnavailable)
-				w.Write([]byte(`<html lang="zh-CN"><meta charset="utf-8"><title>Media Tool</title><h1>前端尚未构建</h1><p>请运行 make build-web，或启动 Vue 开发服务器。</p></html>`))
+				if _, writeErr := w.Write([]byte(`<html lang="zh-CN"><meta charset="utf-8"><title>Media Tool</title><h1>前端尚未构建</h1><p>请运行 make build-web，或启动 Vue 开发服务器。</p></html>`)); writeErr != nil {
+					// The response has already started; there is no safe status to append.
+				}
 				return
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-store")
-			if IsMember(r) {
-				data = []byte(strings.Replace(string(data), "<head>", `<head><meta name="media-tool-realm" content="member">`, 1))
+			if _, err := w.Write(data); err != nil {
+				// The response has already started; there is no safe status to append.
 			}
-			w.Write(data)
 			return
 		}
 		if _, err := fs.Stat(files, name); err != nil {
@@ -60,20 +53,6 @@ func Handler() http.Handler {
 		}
 		if name == "sw.js" {
 			w.Header().Set("Service-Worker-Allowed", "/")
-		}
-		if name == "manifest.webmanifest" && IsMember(r) {
-			data, err := fs.ReadFile(files, name)
-			var manifest map[string]any
-			if err != nil || json.Unmarshal(data, &manifest) != nil {
-				http.Error(w, "manifest unavailable", http.StatusServiceUnavailable)
-				return
-			}
-			manifest["start_url"] = "/"
-			manifest["name"] = "Media Tool 媒体库"
-			manifest["description"] = "独立媒体用户的授权目录"
-			w.Header().Set("Content-Type", "application/manifest+json")
-			json.NewEncoder(w).Encode(manifest)
-			return
 		}
 		server.ServeHTTP(w, r)
 	})

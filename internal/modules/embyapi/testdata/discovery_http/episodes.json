@@ -1,0 +1,24 @@
+{
+  "Items": [
+    {
+      "BackdropImageTags": [],
+      "Chapters": [],
+      "Genres": [],
+      "Id": "100004",
+      "IsFolder": false,
+      "LocationType": "FileSystem",
+      "MediaSources": [],
+      "MediaStreams": [],
+      "MediaType": "Video",
+      "Name": "Synthetic Episode",
+      "ParentBackdropImageTags": [],
+      "People": [],
+      "SeasonId": "100003",
+      "SeriesId": "100002",
+      "SeriesName": "Synthetic Show",
+      "Type": "Episode"
+    }
+  ],
+  "StartIndex": 0,
+  "TotalRecordCount": 1
+}

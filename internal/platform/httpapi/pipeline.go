@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"media-tool/internal/modules/acquisition"
 	"media-tool/internal/modules/messaging"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"strings"
 	"time"
@@ -59,7 +60,10 @@ func (a *API) listMedia(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		var meta map[string]any
-		json.Unmarshal(raw, &meta)
+		if checkedErr := json.Unmarshal(raw, &meta); checkedErr != nil {
+			fail(w, 503, "operation_failed", "读取或写入失败，请稍后重试")
+			return
+		}
 		out = append(out, map[string]any{"id": id, "metadata": meta, "assetCount": count})
 	}
 	write(w, 200, out)
@@ -90,7 +94,7 @@ func (a *API) retryPipeline(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "retry_unavailable", "数据库暂不可用")
 		return
 	}
-	defer tx.Rollback(r.Context())
+	defer deferutil.Rollback(r.Context(), tx)
 	var pattern string
 	if kind == "downloads" {
 		var state string

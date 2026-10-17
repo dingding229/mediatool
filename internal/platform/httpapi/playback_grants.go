@@ -8,6 +8,7 @@ import (
 	"media-tool/internal/modules/playbackgrants"
 	"media-tool/internal/modules/strm"
 	"media-tool/internal/platform/auth"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"net/url"
 	"os"
@@ -98,7 +99,7 @@ func (a *API) rotateGrant(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "grant_unavailable", "数据库不可用")
 		return
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,715))`, id); err != nil {
 		fail(w, 503, "grant_unavailable", "数据库不可用")
 		return
@@ -142,7 +143,7 @@ func (a *API) rotateGrant(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, "grant_artifact_failed", "输出目录不可用")
 		return
 	}
-	defer root.Close()
+	defer deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	// Safely adopt only older database-owned STRM whose token and asset match.
 	for _, output := range outputs {
 		if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,713))`, output); err != nil {
@@ -150,7 +151,10 @@ func (a *API) rotateGrant(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var exists bool
-		tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM managed_media_artifacts WHERE relative_path=$1)`, output).Scan(&exists)
+		if checkedErr := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM managed_media_artifacts WHERE relative_path=$1)`, output).Scan(&exists); checkedErr != nil {
+			fail(w, 503, "operation_failed", "读取或写入失败，请稍后重试")
+			return
+		}
 		if exists {
 			continue
 		}
@@ -163,7 +167,7 @@ func (a *API) rotateGrant(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		raw, readErr := io.ReadAll(io.LimitReader(f, 8193))
-		f.Close()
+		deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		u, parseErr := url.Parse(strings.TrimSpace(string(raw)))
 		if readErr != nil || len(raw) > 8192 || parseErr != nil || u.User != nil || u.Fragment != "" || u.RawPath != "" || u.Path != strm.Endpoint || u.Scheme+"://"+u.Host != a.Config.PublicURL || u.Query().Get("assetId") != id || !auth.Match(values["token"], u.Query().Get("apiKey")) {
 			fail(w, 409, "grant_artifact_failed", "旧STRM未通过归属验证，不覆盖手工内容")

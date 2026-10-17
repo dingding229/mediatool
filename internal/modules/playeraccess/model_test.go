@@ -48,7 +48,7 @@ func TestPolicyInputValidation(t *testing.T) {
 	}
 }
 func TestPlaybackEntryBoundary(t *testing.T) {
-	for _, c := range []struct{ path, entry string }{{"/api/v1/cloudStorage/strm302", "strm"}, {"/api/v1/member/libraries/movies/items/asset/playback", "member"}, {"/emby/Items/11/PlaybackInfo", "emby"}, {"/emby/Videos/11/original.mkv", "emby"}, {"/emby/EmBy//videos/11/master.m3u8", "emby"}, {"/emby/Audio/11/universal", "emby"}, {"/emby/Items/11/Download", "emby"}, {"/emby/LiveTv/LiveStream/id/stream.ts", "emby"}, {"/emby/Sync/id/File", "emby"}, {"/emby/Videos/11/Subtitles/0/Stream.srt", ""}, {"/emby/Audio/11/Attachments/a", ""}, {"/emby/Items/11", ""}, {"/emby/Users/AuthenticateByName", ""}, {"/emby/web/index.html", ""}, {"/api/v1/media-server/providers", ""}, {"/watch", ""}, {"/api/v1/player-access/policy", ""}, {"/embyNotMount/Videos/11/stream", ""}} {
+	for _, c := range []struct{ path, entry string }{{"/api/v1/cloudStorage/strm302", "strm"}, {"/emby/Items/11/PlaybackInfo", "emby"}, {"/emby/Videos/11/original.mkv", "emby"}, {"/emby/EmBy//videos/11/master.m3u8", "emby"}, {"/emby/Audio/11/universal", "emby"}, {"/emby/Items/11/Download", "emby"}, {"/emby/LiveTv/LiveStream/id/stream.ts", "emby"}, {"/emby/Sync/id/File", "emby"}, {"/emby/Videos/11/Subtitles/0/Stream.srt", ""}, {"/emby/Audio/11/Attachments/a", ""}, {"/emby/Items/11", ""}, {"/emby/Users/AuthenticateByName", ""}, {"/emby/web/index.html", ""}, {"/api/v1/media-server/providers", ""}, {"/watch", ""}, {"/api/v1/player-access/policy", ""}, {"/embyNotMount/Videos/11/stream", ""}} {
 		if got := Entry(c.path); got != c.entry {
 			t.Fatal(c, got)
 		}

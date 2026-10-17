@@ -1,0 +1,4 @@
+{
+  "request": {"startIndex": 0, "limit": 100},
+  "response": {"data": {"items": [{"id":"aaaaaaaa-0000-4000-8000-000000000034","userId":"bbbbbbbb-0000-4000-8000-000000000034","userName":"synthetic.member","deviceId":"cccccccc-0000-4000-8000-000000000034","deviceName":"Synthetic iPad","itemId":"100034","itemName":"Synthetic Episode","state":"paused","positionTicks":1200000000,"lastProgressAt":"2026-10-17T00:00:00Z"}],"total":1,"startIndex":0,"limit":100}}
+}

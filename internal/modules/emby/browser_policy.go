@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"io"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -102,7 +103,7 @@ func rewriteBrowserAsset(response *http.Response, policy browserAssetPolicy) err
 		response.Body = joinedReadCloser{Reader: io.MultiReader(bytes.NewReader(raw), original), Closer: original}
 		return nil
 	}
-	original.Close()
+	deferutil.Close(original, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	updated, changed := rewriteBrowserPolicyBytes(raw, policy)
 	response.Body = io.NopCloser(bytes.NewReader(updated))
 	if !changed {

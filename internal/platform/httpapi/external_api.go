@@ -5,6 +5,7 @@ import (
 	"errors"
 	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/modules/maintenance"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"strings"
 	"time"
@@ -131,8 +132,14 @@ func (a *API) external(scope string, next http.HandlerFunc) http.HandlerFunc {
 		defer func() {
 			ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Second)
 			defer cancel()
-			a.Deps.DB.Exec(ctx, `UPDATE external_api_calls SET status=$2 WHERE id=$1`, call, out.status)
-			a.Deps.DB.Exec(ctx, `DELETE FROM external_api_calls WHERE id IN(SELECT id FROM external_api_calls ORDER BY id DESC OFFSET 10000)`)
+			if _, checkedErr := a.Deps.DB.Exec(ctx, `UPDATE external_api_calls SET status=$2 WHERE id=$1`, call, out.status); checkedErr != nil {
+				deferutil.Report(checkedErr, "internal/platform/httpapi/external_api.go:")
+				return
+			}
+			if _, checkedErr := a.Deps.DB.Exec(ctx, `DELETE FROM external_api_calls WHERE id IN(SELECT id FROM external_api_calls ORDER BY id DESC OFFSET 10000)`); checkedErr != nil {
+				deferutil.Report(checkedErr, "internal/platform/httpapi/external_api.go:")
+				return
+			}
 		}()
 		if r.Method != "GET" && r.Method != "HEAD" {
 			if paused, err := maintenance.Paused(r.Context(), a.Deps.DB); err != nil || paused {

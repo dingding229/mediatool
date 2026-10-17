@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"media-tool/internal/modules/plugins"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"time"
 )
@@ -233,7 +234,10 @@ func (a *API) pluginUI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; sandbox allow-scripts")
-	w.Write([]byte(html))
+	if _, checkedErr := w.Write([]byte(html)); checkedErr != nil {
+		deferutil.Report(checkedErr, "internal/platform/httpapi/plugin_framework.go:pluginUI")
+		return
+	}
 }
 
 func (a *API) clonePlugin(w http.ResponseWriter, r *http.Request) {

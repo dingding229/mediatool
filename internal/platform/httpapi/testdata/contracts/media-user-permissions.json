@@ -1,0 +1,70 @@
+{
+  "update": {
+    "username": "synthetic.member",
+    "displayName": "Synthetic Member",
+    "enabled": true,
+    "mustChangePassword": false,
+    "revision": 1,
+    "maxStreams": 3,
+    "maxParentalRating": 65,
+    "expiresAt": "2030-01-01T00:00:00Z",
+    "grants": [
+      {
+        "libraryId": "g:synthetic",
+        "canPlay": true,
+        "canDownload": true
+      }
+    ]
+  },
+  "response": {
+    "username": "synthetic.member",
+    "displayName": "Synthetic Member",
+    "enabled": true,
+    "mustChangePassword": false,
+    "revision": 2,
+    "maxStreams": 3,
+    "maxParentalRating": 65,
+    "expiresAt": "2030-01-01T00:00:00Z",
+    "grants": [
+      {
+        "libraryId": "g:synthetic",
+        "canPlay": true,
+        "canDownload": true
+      }
+    ],
+    "id": "aaaaaaaa-0000-4000-8000-000000000042",
+    "activeSessions": 0,
+    "createdAt": "2026-10-16T00:00:00Z",
+    "updatedAt": "2026-10-16T00:00:00Z"
+  },
+  "omittedUpdate": {
+    "username": "synthetic.member",
+    "displayName": "Synthetic Member",
+    "enabled": true,
+    "mustChangePassword": false,
+    "revision": 1,
+    "grants": [
+      {
+        "libraryId": "g:synthetic",
+        "canPlay": true,
+        "canDownload": true
+      }
+    ]
+  },
+  "clearUpdate": {
+    "username": "synthetic.member",
+    "displayName": "Synthetic Member",
+    "enabled": true,
+    "mustChangePassword": false,
+    "revision": 1,
+    "grants": [
+      {
+        "libraryId": "g:synthetic",
+        "canPlay": true,
+        "canDownload": true
+      }
+    ],
+    "maxParentalRating": null,
+    "expiresAt": null
+  }
+}
