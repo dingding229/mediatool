@@ -66,6 +66,14 @@ func inventory(ctx context.Context, db querier, baseline map[string]Table) (map[
 		if baseline != nil {
 			old, ok := baseline[name]
 			if !ok {
+				for _, pair := range [][2]string{{"extension_plugins", "plugin_legacy_wasm_plugins"}, {"extension_deliveries", "plugin_legacy_wasm_deliveries"}, {"extension_runs", "plugin_legacy_wasm_runs"}, {"extension_repositories", "plugin_legacy_wasm_repositories"}, {"extension_jobs", "plugin_legacy_wasm_jobs"}, {"extension_service_ticks", "plugin_legacy_wasm_service_ticks"}} {
+					if name == pair[1] {
+						old, ok = baseline[pair[0]]
+						break
+					}
+				}
+			}
+			if !ok {
 				continue
 			}
 			selected = old.Columns
@@ -79,7 +87,20 @@ func inventory(ctx context.Context, db querier, baseline map[string]Table) (map[
 		if e = db.QueryRow(ctx, query).Scan(&value.Rows, &value.Digest); e != nil {
 			return nil, errors.New("table checksum unavailable")
 		}
-		out[name] = value
+		key := name
+		if baseline != nil {
+			if _, ok := baseline[name]; !ok {
+				for _, pair := range [][2]string{{"extension_plugins", "plugin_legacy_wasm_plugins"}, {"extension_deliveries", "plugin_legacy_wasm_deliveries"}, {"extension_runs", "plugin_legacy_wasm_runs"}, {"extension_repositories", "plugin_legacy_wasm_repositories"}, {"extension_jobs", "plugin_legacy_wasm_jobs"}, {"extension_service_ticks", "plugin_legacy_wasm_service_ticks"}} {
+					if name == pair[1] {
+						if _, ok = baseline[pair[0]]; ok {
+							key = pair[0]
+						}
+						break
+					}
+				}
+			}
+		}
+		out[key] = value
 	}
 	return out, nil
 }

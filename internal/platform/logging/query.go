@@ -23,6 +23,7 @@ const LogQueryMaxRecords = 20000
 type Query struct {
 	Keyword  string
 	Level    string
+	Instance string
 	Module   string
 	From     time.Time
 	To       time.Time
@@ -43,7 +44,7 @@ type QueryResult struct {
 }
 
 func (q Query) Validate() error {
-	if q.Page < 1 || q.Page > 10000 || q.PageSize < 1 || q.PageSize > 200 || utf8.RuneCountInString(q.Keyword) > 200 || len(q.Module) > 120 {
+	if q.Page < 1 || q.Page > 10000 || q.PageSize < 1 || q.PageSize > 200 || utf8.RuneCountInString(q.Keyword) > 200 || len(q.Module) > 120 || len(q.Instance) > 64 {
 		return errors.New("invalid log query")
 	}
 	if q.Level != "" {
@@ -213,6 +214,9 @@ func (s *Store) Query(ctx context.Context, q Query) (QueryResult, error) {
 		module := fmt.Sprint(row["module"])
 		modules[module] = true
 		if level != "" && !strings.EqualFold(fmt.Sprint(row["level"]), level) {
+			continue
+		}
+		if q.Instance != "" && fmt.Sprint(row["instance"]) != q.Instance {
 			continue
 		}
 		if q.Module != "" && module != q.Module {

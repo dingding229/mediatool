@@ -2,6 +2,7 @@ package secrets
 
 import (
 	"context"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/database"
 	"os"
@@ -180,7 +181,7 @@ func TestPostgresRekeyIncludesScopedSearchSnapshots(t *testing.T) {
 	}
 	for _, dry := range []bool{true, false} {
 		counts, err := Rekey(ctx, db, old, next, dry)
-		if err != nil || counts["search_run_resources"] != 1 || len(counts) != len(CipherColumns) {
+		if err != nil || counts["search_run_resources"] != 1 || len(counts) != existingCipherColumns(t, ctx, db) {
 			t.Fatal("run-scoped hint omitted from master-key rotation", counts, err)
 		}
 		var cipher []byte
@@ -196,4 +197,19 @@ func TestPostgresRekeyIncludesScopedSearchSnapshots(t *testing.T) {
 			t.Fatal("snapshot AAD/secret lost", err)
 		}
 	}
+}
+
+func existingCipherColumns(t *testing.T, ctx context.Context, db *pgxpool.Pool) int {
+	t.Helper()
+	n := 0
+	for _, c := range CipherColumns {
+		var exists bool
+		if e := db.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, c.Table).Scan(&exists); e != nil {
+			t.Fatal(e)
+		}
+		if exists {
+			n++
+		}
+	}
+	return n
 }

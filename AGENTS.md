@@ -24,3 +24,22 @@
 - Site templates are compiled Go definitions from the pinned github.com/dingding229/mediatool-site module and load only after administrator selection. On upgrade/startup refresh selected definitions and retain templates used by existing PT accounts; never auto-load the entire catalog. Never download pre-dessert-sites/common inheritance, dynamically compile remote Go, or expose source/commit choices in the template UI. Preserve accounts/credentials when changing definition sources, and invalidate prior definition fingerprints.
 
 - Development updates do not maintain compatibility with obsolete data/plugin formats. This is not authorization to erase live credentials, 115 authorization, media, or unrelated services.
+
+- Plugins are compiled Go definitions from the pinned
+  github.com/dingding229/mediatool-plugin module. Its sdk/ owns public contracts,
+  typed Host clients and test tools; plugins/<id>/ and registry/ supply the built-in
+  library. Only administrator-selected definitions create instances/data, and only
+  enabled instances execute through this app binary's plugin-worker subprocess
+  under the supervisor. Keep package initialization side-effect-free and preserve
+  the worker's secret-environment and resource isolation. Never accept plugin source,
+  ZIP/binary uploads, external repositories/URLs, runtime code downloads or dynamic
+  compilation. Do not expose source/commit/version selectors in plugin UI.
+  On startup/upgrade refresh installed definitions only; expanded permissions stop
+  the instance pending administrator confirmation. Removed definitions become
+  unavailable while preserving configuration/KV/data. Bundle plugin ESM at image
+  build time from the same pin, under plugin-ID namespaces; never load remote UI
+  code. New/changed plugins must be tested and pushed to dingding229/mediatool-plugin
+  first, then pinned in mediatool and released through its standard
+  Actions -> Docker Hub immutable image -> backed-up server deployment flow.
+  Use this project's approved Git credentials for both repositories; report missing
+  access instead of using other credentials or alternate plugin distribution.

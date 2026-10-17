@@ -51,11 +51,11 @@ func main() {
 	}
 	if *cleanupPlugins && *action == "up" {
 		var exists bool
-		if err = db.QueryRowContext(ctx, `SELECT to_regclass('public.extension_plugins') IS NOT NULL`).Scan(&exists); err != nil {
+		if err = db.QueryRowContext(ctx, `SELECT to_regclass('public.plugin_v2_instances') IS NOT NULL`).Scan(&exists); err != nil {
 			os.Exit(1)
 		}
 		if exists {
-			if _, err = db.ExecContext(ctx, `TRUNCATE extension_plugins CASCADE`); err != nil {
+			if _, err = db.ExecContext(ctx, `TRUNCATE plugin_v2_definitions CASCADE`); err != nil {
 				os.Exit(1)
 			}
 		}

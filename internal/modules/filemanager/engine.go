@@ -450,12 +450,9 @@ func (e Engine) finish(ctx context.Context, id, state, message string, completed
 		return err
 	}
 	trace.Info(ctx, "filemanager", "file operation result", "operationId", id, "state", state, "completedSteps", completed, "message", message)
-	if state == "succeeded" {
-		_, err = tx.Exec(ctx, `INSERT INTO jobs(id,kind,payload,idempotency_key) SELECT $1,'plugin.dispatch',jsonb_build_object('operationId',$2::text),$3 WHERE EXISTS(SELECT 1 FROM extension_plugins WHERE enabled AND manifest->'capabilities' ? 'media.organized') ON CONFLICT(idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING`, jobs.UUID(), id, "plugin.organized:"+id)
-		if err != nil {
-			return err
-		}
-	}
+	// V1 plugin.dispatch is retired. The transactional files.* outbox event above
+	// remains intact; F2/F4 consumes it through the new event bridge.
+
 	return tx.Commit(ctx)
 }
 func (e Engine) Execute(ctx context.Context, id, digest string, confirm bool) (Result, error) {

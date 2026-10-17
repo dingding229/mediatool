@@ -7,6 +7,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.4
 	github.com/antchfx/htmlquery v1.3.7
 	github.com/antchfx/xmlquery v1.5.2
+	github.com/dingding229/mediatool-plugin v0.0.0-20261017081253-7db725679179
 	github.com/dingding229/mediatool-site v0.0.0-20261013180133-7dfba442a392
 	github.com/felixge/httpsnoop v1.1.0
 	github.com/jackc/pgx/v5 v5.11.0
@@ -14,7 +15,6 @@ require (
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
-	github.com/tetratelabs/wazero v1.12.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/net v0.60.0
 	golang.org/x/sync v0.23.0

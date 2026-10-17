@@ -2,62 +2,10 @@ package httpapi
 
 import (
 	"context"
-	"media-tool/internal/modules/plugins"
-	"media-tool/internal/platform/pluginhost"
 	"net/http"
-	"strconv"
 	"time"
 )
 
-func (a *API) pluginRegistry() plugins.Registry {
-	r := plugins.Registry{DB: a.Deps.DB}
-	if a.Deps.Integrations != nil {
-		r.Vault = a.Deps.Integrations.Repository.Vault
-		r.Host = pluginhost.New(a.Deps.DB, a.Deps.Integrations)
-	}
-	return r
-}
-func (a *API) pluginList(w http.ResponseWriter, r *http.Request) {
-	items, err := (a.pluginRegistry()).List(r.Context())
-	if err != nil {
-		fail(w, 503, "plugins_unavailable", "扩展列表不可用")
-		return
-	}
-	write(w, 200, items)
-}
-func (a *API) pluginSave(w http.ResponseWriter, r *http.Request) {
-	var in struct {
-		Manifest plugins.Manifest `json:"manifest"`
-		Enabled  bool             `json:"enabled"`
-		Consent  bool             `json:"consent"`
-		Revision int64            `json:"revision"`
-	}
-	if !decode(w, r, &in) {
-		return
-	}
-	if err := (a.pluginRegistry()).Save(r.Context(), in.Manifest, in.Enabled, in.Consent, in.Revision); err != nil {
-		fail(w, 400, "invalid_plugin", "仅可启停已安装的WASM插件；修订已变化或尚未明确授权。请通过ZIP安装新插件")
-		return
-	}
-	a.Deps.Logger.Info("extension configuration saved", "pluginId", in.Manifest.ID, "enabled", in.Enabled)
-	write(w, 200, map[string]bool{"saved": true})
-}
-func (a *API) pluginDelete(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Query().Get("confirm") != "true" {
-		fail(w, 400, "plugin_confirmation_required", "请明确确认卸载插件及设置/执行记录")
-		return
-	}
-	revision, e := strconv.ParseInt(r.URL.Query().Get("revision"), 10, 64)
-	if e != nil {
-		fail(w, 400, "invalid_revision", "请刷新插件修订再卸载")
-		return
-	}
-	if err := (a.pluginRegistry()).DeleteRevision(r.Context(), r.PathValue("id"), revision); err != nil {
-		fail(w, 400, "invalid_plugin", "插件ID无效、修订已变化或删除未确认")
-		return
-	}
-	write(w, 200, map[string]bool{"deleted": true})
-}
 func (a *API) organizeHistory(w http.ResponseWriter, r *http.Request) {
 	if a.Deps.DB == nil {
 		fail(w, 503, "history_unavailable", "数据库不可用")

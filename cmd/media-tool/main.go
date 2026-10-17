@@ -26,7 +26,8 @@ import (
 	"media-tool/internal/modules/nativelibrary/catalog"
 	playbackruntime "media-tool/internal/modules/nativeplayback/runtime"
 	"media-tool/internal/modules/nativetmdb"
-	"media-tool/internal/modules/plugins"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
+	"media-tool/internal/modules/plugins/v2/sandbox"
 	"media-tool/internal/modules/search"
 	"media-tool/internal/modules/sitemetrics"
 	"media-tool/internal/modules/sites"
@@ -41,7 +42,6 @@ import (
 	"media-tool/internal/platform/httpapi"
 	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/ownerrecovery"
-	"media-tool/internal/platform/pluginhost"
 	"media-tool/internal/platform/scheduling"
 	"media-tool/internal/platform/schema"
 	"media-tool/internal/platform/secrets"
@@ -55,6 +55,17 @@ import (
 )
 
 func main() {
+	if err := sandbox.Parent(); err != nil {
+		fmt.Fprintln(os.Stderr, "process protection unavailable")
+		os.Exit(1)
+	}
+	if len(os.Args) > 1 && os.Args[1] == "plugin-worker" {
+		if err := pluginv2.Worker(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "plugin worker unavailable")
+			os.Exit(1)
+		}
+		return
+	}
 	logger, _ := logging.New(os.Stdout, "info")
 	slog.SetDefault(logger)
 	if err := run(); err != nil {
@@ -291,9 +302,9 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 	if manager != nil {
 		engine := search.Engine{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc}
 		w.Handlers["search.run"] = engine.Process
-		pluginRegistry := plugins.Registry{DB: db, Vault: manager.Repository.Vault, Host: pluginhost.New(db, manager)}
-		w.Handlers["plugin.service"] = pluginRegistry.ProcessService
-		w.Handlers["plugin.dispatch"] = pluginRegistry.Process
+		// Retired jobs are acknowledged, never retried/executed against archived WASM tables.
+		w.Handlers["plugin.service"] = func(context.Context, jobs.Job) error { return nil }
+		w.Handlers["plugin.dispatch"] = func(context.Context, jobs.Job) error { return nil }
 		metricEngine := sitemetrics.Engine{DB: db, Connections: manager}
 		w.Handlers["site.metrics.refresh"] = metricEngine.Process
 		subscriptionEngine := subscriptions.Engine{DB: db, Connections: manager}
@@ -401,12 +412,6 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 					if err := metricEngine.Schedule(check); err != nil {
 						logger.Warn("site metrics schedule unavailable", "error", err)
 					}
-					if err := pluginRegistry.Schedule(check); err != nil {
-						logger.Warn("plugin schedule unavailable", "error", err)
-					}
-					if err := pluginRegistry.DispatchEvents(check); err != nil {
-						logger.Warn("plugin events unavailable", "error", err)
-					}
 					if err := subscriptionEngine.Schedule(check); err != nil {
 						logger.Warn("subscription schedule unavailable", "error", err)
 					}
@@ -468,6 +473,34 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 		resolver = adapter
 	}
 	managementDeps := httpapi.Dependencies{Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
+	if db != nil && manager != nil {
+		store := pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot}
+		if err := pluginv2.SelfCheck(); err != nil {
+			return err
+		}
+		if err := store.Refresh(ctx); err != nil {
+			return fmt.Errorf("plugin definition refresh: %w", err)
+		}
+		managementDeps.PluginInstances = store
+		executable, e := os.Executable()
+		if e != nil {
+			return errors.New("plugin executable unavailable")
+		}
+		supervisor := pluginv2.Supervisor{Store: store, Executable: executable, Logger: logger}
+		finished := make(chan error, 1)
+		go func() { finished <- supervisor.Run(sessionCtx) }()
+		defer func() {
+			stopSessions()
+			select {
+			case e := <-finished:
+				if e != nil {
+					logger.Warn("Plugin supervisor stopped", "module", "plugins")
+				}
+			case <-time.After(35 * time.Second):
+				logger.Warn("Plugin supervisor shutdown pending", "module", "plugins")
+			}
+		}()
+	}
 	if len(native) > 0 && native[0] != nil {
 		managementDeps.NativeStills = native[0]
 	}

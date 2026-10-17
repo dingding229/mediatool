@@ -40,6 +40,7 @@ type SessionReader interface {
 	Session(context.Context, []byte) (accounts.Account, error)
 }
 type Dependencies struct {
+	PluginInstances   PluginInstances
 	NativeSessions    NativeSessionReader
 	NativePlayback    nativeplayback.Service
 	NativeProcessing  NativeProcessingService
@@ -108,26 +109,11 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/media/emby/items/{id}", a.protected(a.catalogItem))
 	mux.HandleFunc("GET /api/v1/media/tmdb/image", a.protected(a.tmdbPoster))
 	mux.HandleFunc("GET /api/v1/media/library/emby/home", a.protected(a.catalogHome))
-	mux.HandleFunc("POST /api/v1/plugins/package", a.protected(a.pluginPackage))
-	mux.HandleFunc("GET /api/v1/plugins/{id}/settings", a.protected(a.pluginSettings))
-	mux.HandleFunc("PUT /api/v1/plugins/{id}/settings", a.protected(a.savePluginSettings))
-	mux.HandleFunc("POST /api/v1/plugins/{id}/test", a.protected(a.testPlugin))
-	mux.HandleFunc("GET /api/v1/plugins/{id}/runs", a.protected(a.pluginRuns))
-	mux.HandleFunc("GET /api/v1/plugin-market/repositories", a.protected(a.pluginRepositories))
-	mux.HandleFunc("POST /api/v1/plugin-market/repositories", a.protected(a.addPluginRepository))
-	mux.HandleFunc("DELETE /api/v1/plugin-market/repositories/{id}", a.protected(a.deletePluginRepository))
-	mux.HandleFunc("GET /api/v1/plugin-market/repositories/{id}/catalog", a.protected(a.pluginMarket))
-	mux.HandleFunc("POST /api/v1/plugin-market/package", a.protected(a.marketPreview))
-	mux.HandleFunc("POST /api/v1/plugins/{id}/clone", a.protected(a.clonePlugin))
-	mux.HandleFunc("GET /api/v1/plugins/{id}/ui", a.protected(a.pluginUI))
-	mux.HandleFunc("GET /api/v1/plugins/{id}/state", a.protected(a.pluginState))
-	mux.HandleFunc("DELETE /api/v1/plugins/{id}/data", a.protected(a.clearPluginData))
-	mux.HandleFunc("GET /api/v1/plugins/{id}/view/{kind}/{key}", a.protected(a.pluginFrameworkCall))
-	mux.HandleFunc("POST /api/v1/plugins/{id}/view/{kind}/{key}", a.protected(a.pluginFrameworkCall))
-	mux.HandleFunc("POST /api/v1/plugins/{id}/services/{key}", a.protected(a.pluginServiceRun))
-	mux.HandleFunc("GET /api/v1/plugins", a.protected(a.pluginList))
-	mux.HandleFunc("POST /api/v1/plugins", a.protected(a.pluginSave))
-	mux.HandleFunc("DELETE /api/v1/plugins/{id}", a.protected(a.pluginDelete))
+	mux.HandleFunc("GET /api/v1/plugins/resources", a.protected(a.pluginV2Resources))
+	mux.HandleFunc("GET /api/v1/plugins/catalog", a.protected(a.pluginV2Catalog))
+	mux.HandleFunc("POST /api/v1/plugins/operations", a.protected(a.pluginV2Operation))
+	mux.HandleFunc("GET /api/v1/plugins/{id}", a.protected(a.pluginV2Inspect))
+	mux.HandleFunc("GET /api/v1/plugins", a.protected(a.pluginV2List))
 	mux.HandleFunc("GET /api/v1/media/organize-history", a.protected(a.organizeHistory))
 	mux.HandleFunc("GET /api/v1/cache/{kind}", a.protected(a.viewCache))
 	mux.HandleFunc("GET /api/v1/cache/{kind}/{id}", a.protected(a.cacheDetail))

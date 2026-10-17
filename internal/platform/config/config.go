@@ -19,6 +19,7 @@ import (
 )
 
 type Config struct {
+	PluginDataRoot                                           string
 	NativeStillsRoot                                         string
 	NativeStillsMaxBytes                                     int64
 	NativeStillsFrameTimeout                                 time.Duration
@@ -63,6 +64,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	}
 	secret := func(key string) string { value, _ := lookup(key); return value }
 	c := Config{
+		PluginDataRoot:   get("PLUGIN_DATA_ROOT", "/data/plugins"),
 		NativeStillsRoot: get("NATIVE_STILLS_ROOT", "/data/native-media/stills"),
 		MemberAddress:    get("MEMBER_ADDR", "127.0.0.1:8092"), MemberPublicURL: get("MEMBER_PUBLIC_URL", ""),
 		LogDir: get("APP_LOG_DIR", "./data/logs"), PasswordResetFile: get("PASSWORD_RESET_FILE", "./data/password"), LocalBrowseRoots: strings.Split(get("LOCAL_BROWSE_ROOTS", "./data"), ","),
@@ -197,6 +199,9 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	c.NativeStillsMaxBytes, err = strconv.ParseInt(get("NATIVE_STILLS_MAX_BYTES", "2147483648"), 10, 64)
 	if err != nil || c.NativeStillsMaxBytes < 1 || c.NativeStillsMaxBytes > 1<<40 {
 		return c, errors.New("NATIVE_STILLS_MAX_BYTES must be 1..1099511627776")
+	}
+	if !path.IsAbs(c.PluginDataRoot) || path.Clean(c.PluginDataRoot) != c.PluginDataRoot || !strings.HasSuffix(c.PluginDataRoot, "/plugins") {
+		return c, errors.New("PLUGIN_DATA_ROOT must be a clean absolute plugins directory")
 	}
 	if !path.IsAbs(c.NativeStillsRoot) || path.Clean(c.NativeStillsRoot) != c.NativeStillsRoot || !strings.HasSuffix(c.NativeStillsRoot, "/native-media/stills") {
 		return c, errors.New("NATIVE_STILLS_ROOT must be a clean absolute native-media/stills directory")

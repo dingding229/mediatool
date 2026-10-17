@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -10,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/maintenance"
-	"media-tool/internal/modules/plugins"
 	"media-tool/internal/modules/system"
 	"media-tool/internal/platform/scheduling"
 )
@@ -29,55 +27,8 @@ func (a *API) operations(w http.ResponseWriter, r *http.Request) {
 			out.Unavailable = append(out.Unavailable, "maintenanceSchedules")
 		}
 
-		rows, err := a.Deps.DB.Query(ctx, `SELECT p.id,p.name,p.enabled,p.manifest FROM extension_plugins p ORDER BY p.id LIMIT 100`)
-		type entry struct {
-			id, name string
-			enabled  bool
-			raw      []byte
-		}
-		list := []entry{}
-		if err == nil {
-			for rows.Next() {
-				var e entry
-				if err = rows.Scan(&e.id, &e.name, &e.enabled, &e.raw); err != nil {
-					break
-				}
-				list = append(list, e)
-			}
-			if rows.Err() != nil {
-				err = rows.Err()
-			}
-			rows.Close()
-		}
-		if err != nil {
-			out.Unavailable = append(out.Unavailable, "pluginSchedules")
-		} else {
-			for _, e := range list {
-				var m plugins.Manifest
-				if json.Unmarshal(e.raw, &m) != nil {
-					out.Unavailable = append(out.Unavailable, "plugin:"+e.id)
-					continue
-				}
-				if len(m.Services) == 0 {
-					continue
-				}
-				values, _, _, configErr := a.pluginRegistry().Settings(ctx, e.id)
-				for _, service := range m.Services {
-					item := system.Schedule{ID: e.id + ":" + service.ID, Name: e.name + " · " + service.Name, Cron: service.Cron, Enabled: e.enabled, Link: "/plugins", Timezone: scheduling.Timezone}
-					if service.ScheduleSetting != "" {
-						item.Cron = values[service.ScheduleSetting]
-					}
-					if configErr != nil {
-						item.Error = configErr.Error()
-					}
-					err := a.Deps.DB.QueryRow(ctx, `SELECT next_at FROM extension_service_ticks WHERE plugin_id=$1 AND service_id=$2`, e.id, service.ID).Scan(&item.Next)
-					if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-						item.Error = err.Error()
-					}
-					out.Schedules = append(out.Schedules, item)
-				}
-			}
-		}
+		// V1 schedules are archived; V2 service schedules are introduced in F2.
+
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	write(w, 200, out)

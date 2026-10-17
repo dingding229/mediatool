@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"media-tool/internal/modules/dataview"
+	"media-tool/internal/modules/releasename"
 	"media-tool/internal/modules/settings"
 	"media-tool/internal/platform/logging"
 	"net/http"
@@ -60,7 +61,8 @@ func (a *API) parseReleaseName(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_name", "文件名无效")
 		return
 	}
-	hint, messages := (a.pluginRegistry()).Recognize(r.Context(), in.Name)
+	// Retired WASM definitions are not queried. F2 introduces NameRecognize dispatch.
+	hint, messages := releasename.Parse(in.Name), []string{}
 	write(w, 200, map[string]any{"hint": hint, "pluginMessages": messages})
 }
 func (a *API) logsSummary(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +104,7 @@ func (a *API) queryLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	values := r.URL.Query()
-	q := logging.Query{Keyword: values.Get("keyword"), Level: values.Get("level"), Module: values.Get("module"), Page: 1, PageSize: 100}
+	q := logging.Query{Instance: values.Get("instance"), Keyword: values.Get("keyword"), Level: values.Get("level"), Module: values.Get("module"), Page: 1, PageSize: 100}
 	for key, target := range map[string]*int{"page": &q.Page, "pageSize": &q.PageSize} {
 		if raw := values.Get(key); raw != "" {
 			n, err := strconv.Atoi(raw)

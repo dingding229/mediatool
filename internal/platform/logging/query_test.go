@@ -157,3 +157,20 @@ func TestLogQueryRedactionAndSafeSource(t *testing.T) {
 		t.Fatal(out.Items[0])
 	}
 }
+
+func TestInstanceFilterIsExactAndCombinedWithModule(t *testing.T) {
+	s, e := Open(t.TempDir(), "info")
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer s.Close()
+	for _, line := range []string{`{"time":"2026-10-17T00:00:00Z","level":"INFO","module":"plugins","instance":"first","msg":"one"}`, `{"time":"2026-10-17T00:00:00Z","level":"INFO","module":"plugins","instance":"first-extra","msg":"two"}`, `{"time":"2026-10-17T00:00:00Z","level":"INFO","module":"jobs","instance":"first","msg":"three"}`} {
+		if _, e = s.Write([]byte(line + "\n")); e != nil {
+			t.Fatal(e)
+		}
+	}
+	out, e := s.Query(context.Background(), Query{Page: 1, PageSize: 50, Module: "plugins", Instance: "first"})
+	if e != nil || out.Total != 1 || out.Items[0]["msg"] != "one" {
+		t.Fatal(out, e)
+	}
+}

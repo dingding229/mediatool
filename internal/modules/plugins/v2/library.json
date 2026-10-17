@@ -1,0 +1,57 @@
+{
+  "pin": "v0.0.0-20261017081253-7db725679179",
+  "contractVersion": 2,
+  "manifests": [
+    {
+      "contractVersion": 2,
+      "id": "hello-go",
+      "name": "Hello Go",
+      "version": "1.0.0",
+      "author": "Example Author",
+      "description": "实例隔离与持久计数示例",
+      "level": 1,
+      "icon": "icon.svg",
+      "history": {
+        "1.0.0": "Initial example"
+      },
+      "permissions": [
+        {
+          "scope": "plugin.config.read"
+        },
+        {
+          "scope": "plugin.data.read"
+        },
+        {
+          "scope": "plugin.data.write"
+        },
+        {
+          "scope": "plugin.state.read"
+        },
+        {
+          "scope": "ui.json"
+        }
+      ],
+      "extensions": {
+        "forms": true,
+        "pages": [
+          "overview"
+        ]
+      },
+      "ui": {
+        "mode": "json"
+      },
+      "resources": {
+        "addressSpaceMiB": 8192,
+        "rssMiB": 256,
+        "cpuQuotaPercent": 100,
+        "processes": 64,
+        "openFiles": 256,
+        "dataMiB": 256,
+        "tmpMiB": 64
+      },
+      "configSchemaVersion": 1,
+      "dataSchemaVersion": 1
+    }
+  ],
+  "resources": []
+}

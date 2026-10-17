@@ -1,0 +1,20 @@
+{
+  "request": {
+    "operationKey": "fixture-install-1",
+    "kind": "install",
+    "pluginId": "hello-go",
+    "fingerprint": "1111111111111111111111111111111111111111111111111111111111111111",
+    "expectedRevision": 0,
+    "confirm": true,
+    "scopes": ["plugin.config.read", "plugin.data.read", "plugin.data.write", "plugin.state.read", "ui.json"],
+    "config": {}
+  },
+  "response": {
+    "id": "11111111-0000-4000-8000-000000000062",
+    "pluginId": "hello-go",
+    "desiredState": "disabled",
+    "state": "stopped",
+    "revision": 1,
+    "reason": ""
+  }
+}

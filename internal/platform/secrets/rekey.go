@@ -14,9 +14,13 @@ type CipherColumn struct {
 }
 
 var CipherColumns = []CipherColumn{
+	{Table: "plugin_v2_configs", Column: "ciphertext", AADPrefix: "plugin:v2:config:"},
+	{Table: "plugin_v2_kv", Column: "ciphertext", AADPrefix: "plugin:v2:kv:"},
 	{Table: "manual_download_tasks", Column: "payload_ciphertext", AADPrefix: "manual-download:"},
 	{Table: "external_api_keys", Column: "token_ciphertext", AADPrefix: "api-key:"},
 	{Table: "network_proxy_settings", Column: "url_ciphertext", AADPrefix: "network-proxy:", AllowEmpty: true},
+	{Table: "plugin_legacy_wasm_plugins", Column: "plugin_data_ciphertext", AADPrefix: "plugin-data:", AllowEmpty: true},
+	{Table: "plugin_legacy_wasm_plugins", Column: "config_ciphertext", AADPrefix: "plugin:", AllowEmpty: true},
 	{Table: "extension_plugins", Column: "plugin_data_ciphertext", AADPrefix: "plugin-data:", AllowEmpty: true},
 	{Table: "extension_plugins", Column: "config_ciphertext", AADPrefix: "plugin:", AllowEmpty: true},
 	{Table: "integrations", Column: "credentials_ciphertext"},
@@ -40,6 +44,13 @@ func Rekey(ctx context.Context, db *pgxpool.Pool, old, next *Vault, dryRun bool)
 	defer deferutil.Rollback(ctx, tx)
 	counts := map[string]int{}
 	for _, spec := range CipherColumns {
+		var exists bool
+		if err = tx.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, spec.Table).Scan(&exists); err != nil {
+			return nil, err
+		}
+		if !exists && (spec.Table == "extension_plugins" || spec.Table == "plugin_legacy_wasm_plugins" || spec.Table == "plugin_v2_configs" || spec.Table == "plugin_v2_kv") {
+			continue
+		}
 		table := pgx.Identifier{spec.Table}.Sanitize()
 		column := pgx.Identifier{spec.Column}.Sanitize()
 		if _, err = tx.Exec(ctx, "LOCK TABLE "+table+" IN ACCESS EXCLUSIVE MODE"); err != nil {
