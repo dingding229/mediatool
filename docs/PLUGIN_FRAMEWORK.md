@@ -163,3 +163,10 @@ Linux race 集成测试由test-go.sh先构建CGO_ENABLED=0的真实app worker，
 不把race测试执行器充当生产worker（它与生产AS/RSS画像并非同一种程序）。独立的非root、
 cap-drop/no-new-privileges静态内核门禁仍完整保留，不扩大任何生产资源限额。启动失败仅记
 stage/常量错误类、RSS超限记数值，不记录参数、载荷或原始stderr。
+
+
+原生 CI 进一步确认：RLIMIT_NPROC=64按真实UID累计线程，共享runner UID测试前已有51线程，
+叠加race宿主会触发worker创建线程失败。CI只对v2/httpapi/acquisition三个插件集成测试执行器
+使用专用UID65532、cap-drop ALL/no-new-privileges（宿主仍开race）；其余包与独立静态内核门禁
+不变。此adapter只存在于测试脚本，不进入镜像，不是生产setuid launcher，不新增UID池或helper。
+生产NPROC保持64，不提高限额；同UID资源共享这一残余限制明确保留。

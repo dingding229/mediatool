@@ -1302,3 +1302,8 @@ F1删除本仓库plugin-sdk/go/examples/plugins及旧上传/市场执行代码�
    -race，原有AS/RSS/NPROC限制和非root静态内核门禁一律不放宽；新增前置原生AMD64真实
    worker/race-host检查，避免最后才发现同类问题。增加无载荷/无原始stderr的stage/错误类及
    RSS数值诊断。具体race执行器受限原因未从首轮无诊断日志中证明，不假称已得到OOM结论。
+
+8. CI 39040958952已取得明确常量诊断worker_process_limit；runner UID在测试前已有51线程。
+   确认RLIMIT_NPROC的真实UID累计语义导致共享runner环境干扰，非原生AMD64模拟器问题。
+   仅CI的三个插件相关包经Go -exec以UID65532运行race宿主，保留NPROC64、cap-drop、NNP和
+   独立静态内核门禁；adapter不进入运行镜像，也不属于被禁止的生产setuid/跨UID helper。
