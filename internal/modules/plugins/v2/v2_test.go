@@ -479,3 +479,16 @@ func TestLinuxWorkerRSSLimitConverges(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 }
+
+func TestStderrFatalCategorySurvivesTruncationWithoutPayload(t *testing.T) {
+	var out stderrLimit
+	if _, err := out.Write([]byte("runtime: failed to create new OS thread /private?token=NEVER_EXPORT")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := out.Write([]byte(strings.Repeat("safe-stack\n", 600))); err != nil {
+		t.Fatal(err)
+	}
+	if out.category() != "worker_process_limit" || len(out.tail) > 4096 {
+		t.Fatal("classification")
+	}
+}

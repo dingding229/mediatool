@@ -443,18 +443,31 @@ loop:
 
 // Consume all stderr without retaining/forwarding raw secret-bearing errors or unbounded output.
 type stderrLimit struct {
-	window     time.Time
-	mu         sync.Mutex
-	bytes      int
-	tail       []byte
-	landlock   bool
-	exceeded   chan struct{}
-	over       bool
-	onLandlock func()
+	window        time.Time
+	mu            sync.Mutex
+	bytes         int
+	tail          []byte
+	landlock      bool
+	fatalCategory string
+	exceeded      chan struct{}
+	over          bool
+	onLandlock    func()
 }
 
 func (s *stderrLimit) Write(b []byte) (int, error) {
 	s.mu.Lock()
+	if s.fatalCategory == "" {
+		for _, signature := range []string{"newosproc", "pthread_create", "failed to create new OS thread", "Resource temporarily unavailable"} {
+			if bytes.Contains(b, []byte(signature)) {
+				s.fatalCategory = "worker_process_limit"
+			}
+		}
+		for _, signature := range []string{"out of memory", "cannot allocate memory", "ThreadSanitizer"} {
+			if bytes.Contains(b, []byte(signature)) {
+				s.fatalCategory = "worker_memory_limit"
+			}
+		}
+	}
 	if s.window.IsZero() || time.Since(s.window) >= time.Minute {
 		s.window = time.Now()
 		s.bytes = 0
@@ -506,6 +519,14 @@ func workerEnvironment(dir, instance string) []string {
 func (s *stderrLimit) category() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.fatalCategory != "" {
+		return s.fatalCategory
+	}
+	for _, phase := range []string{"limits", "landlock", "registry", "transport", "runtime"} {
+		if bytes.Contains(s.tail, []byte("stage="+phase)) {
+			return "worker_setup_" + phase
+		}
+	}
 	for _, code := range []contracts.Code{contracts.InvalidRequest, contracts.InvalidParams, contracts.Conflict, contracts.NeedsAction, contracts.InternalError, contracts.PayloadTooLarge} {
 		if bytes.Contains(s.tail, []byte("reason="+contracts.Reason(code))) {
 			return "worker_rpc_" + contracts.Reason(code)
