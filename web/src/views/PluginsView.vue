@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import PluginForm from '../plugins/PluginForm.vue'
+import { requestUUID } from '../utils/request-uuid'
 import inventory from '../../../internal/modules/plugins/v2/library.json'
 import { computed, onMounted, ref } from 'vue'
 import { ElMessageBox } from 'element-plus'
@@ -13,9 +14,10 @@ const extensionStates:Record<string,string>={pending:'等待执行',running:'执
 async function openExtensions(i:PluginInstance){selected.value=i;extensionsOpen.value=true;historyPage.value=1;await refreshExtensions()}
 async function refreshExtensions(){if(!selected.value)return;extensionBusy.value=true;try{const [snapshot,runs]=await Promise.all([extensions(selected.value.id),runHistory(selected.value.id,historyPage.value)]);extensionSnapshot.value=snapshot;history.value=runs}catch(e){error.value=e instanceof Error?e.message:'扩展信息读取失败'}finally{extensionBusy.value=false}}
 async function triggerExtension(d:ExtensionDescriptor){if(!selected.value||extensionBusy.value)return
- try{await ElMessageBox.confirm('执行此实例的'+(d.name??d.id)+'？只提交一次，unknown不自动重试。','确认执行扩展',{type:'warning',confirmButtonText:'确认执行',cancelButtonText:'取消'})}catch{return}
- extensionBusy.value=true;const fingerprint=selected.value.id+':'+d.handler;let key=pending.get(fingerprint);if(!key){key=crypto.randomUUID();pending.set(fingerprint,key)}
- try{await runExtension(selected.value.id,{kind:d.kind,id:d.id,operationKey:key,confirm:true});pending.delete(fingerprint);queued.value='已加入队列，等待执行结果（不是执行成功）';await refreshExtensions()}catch(e){error.value=e instanceof Error?e.message:'提交失败'}finally{extensionBusy.value=false}}
+ try{await ElMessageBox.confirm('执行此实例的'+(d.name??d.id)+'？只提交一次，unknown不自动重试。','确认执行扩展',{type:'warning',confirmButtonText:'确认执行',cancelButtonText:'取消',customClass:'plugin-confirm-dialog'})}catch{return}
+ extensionBusy.value=true;error.value='';queued.value=''
+ try{const fingerprint=selected.value.id+':'+d.handler;let key=pending.get(fingerprint);if(!key){key=requestUUID();pending.set(fingerprint,key)}
+ await runExtension(selected.value.id,{kind:d.kind,id:d.id,operationKey:key,confirm:true});pending.delete(fingerprint);queued.value='已加入队列，等待执行结果（不是执行成功）';await refreshExtensions()}catch(e){error.value=e instanceof Error?e.message:'提交失败'}finally{extensionBusy.value=false}}
 async function historyMove(delta:number){historyPage.value=Math.max(1,historyPage.value+delta);await refreshExtensions()}
 const consent=ref<PluginDefinition|null>(null),consentKind=ref<'install'|'review'>('install'),confirmed=ref(false)
 const consentOpen=computed({get:()=>consent.value!==null,set:(value:boolean)=>{if(!value)consent.value=null}})
@@ -27,8 +29,8 @@ async function load(){if(typeof window!=='undefined')window.dispatchEvent(new Ev
 async function apply(input:Omit<PluginOperation,'operationKey'|'confirm'>){
  if(busy.value)return
  busy.value=true;error.value=''
- const fingerprint=JSON.stringify(input);let key=pending.get(fingerprint);if(!key){key=crypto.randomUUID();pending.set(fingerprint,key)}
- try{await operate({...input,confirm:true,operationKey:key});pending.delete(fingerprint);consent.value=null;configOpen.value=false;await load()}
+ try{const fingerprint=JSON.stringify(input);let key=pending.get(fingerprint);if(!key){key=requestUUID();pending.set(fingerprint,key)}
+ await operate({...input,confirm:true,operationKey:key});pending.delete(fingerprint);consent.value=null;configOpen.value=false;await load()}
  catch(e){error.value=e instanceof Error?e.message:'操作失败'}finally{busy.value=false}
 }
 function install(d:PluginDefinition){selected.value=null;consentKind.value='install';confirmed.value=false;consent.value=d}
@@ -36,7 +38,7 @@ function review(i:PluginInstance){const d=names.value.get(i.pluginId);if(!d)retu
 async function accept(){const d=consent.value;if(!d||!confirmed.value)return;await apply({kind:consentKind.value,pluginId:d.manifest.id,instanceId:selected.value?.id,fingerprint:d.fingerprint,expectedRevision:selected.value?.revision??0,scopes:d.manifest.permissions.map(p=>p.scope),...(consentKind.value==='install'?{config:{}}:{})})}
 async function action(i:PluginInstance,kind:'enable'|'disable'|'clone'|'remove'){
  const d=names.value.get(i.pluginId)
- try{await ElMessageBox.confirm(kind==='remove'?'停止并卸载此实例？保留加密数据，重新安装创建独立实例。':kind==='clone'?'复制配置及 KV，新分身默认停用，数据目录独立。':kind==='enable'?'启用此受信插件？它可以在已确认的权限内执行代码。':'停止此实例及其全部子进程？','确认插件操作',{type:'warning',confirmButtonText:'确认操作',cancelButtonText:'取消'})}catch{return}
+ try{await ElMessageBox.confirm(kind==='remove'?'停止并卸载此实例？保留加密数据，重新安装创建独立实例。':kind==='clone'?'复制配置及 KV，新分身默认停用，数据目录独立。':kind==='enable'?'启用此受信插件？它可以在已确认的权限内执行代码。':'停止此实例及其全部子进程？','确认插件操作',{type:'warning',confirmButtonText:'确认操作',cancelButtonText:'取消',customClass:'plugin-confirm-dialog'})}catch{return}
  let fp=d?.fingerprint;if(!fp){try{fp=(await inspect(i.id)).fingerprint}catch(e){error.value=String(e);return}}
  await apply({kind,instanceId:i.id,fingerprint:fp,expectedRevision:i.revision,scopes:d?.manifest.permissions.map(p=>p.scope)??[]})
 }
@@ -66,5 +68,8 @@ onMounted(load)
  </el-dialog>
 </template>
 <style scoped>
+/* MessageBox teleports outside this SFC. Bound the box, not only its viewport-sized overlay. */
+:global(.el-message-box.plugin-confirm-dialog){width:min(420px,calc(100vw - 32px));max-width:420px;overflow-wrap:anywhere}
+
 .permission-consent{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer}.permission-consent input{width:18px;height:18px;accent-color:var(--el-color-primary)}.plugin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;margin-block:16px}.note-panel p{line-height:1.7;margin-block:12px}.plugin-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-block:16px}.plugin-actions :deep(.el-button),.plugin-actions a{min-height:44px;margin-left:0}.instance-card code,small{overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:340px;overflow:auto}li{margin-block:12px}.page-header{display:flex;justify-content:space-between;gap:16px}
 </style>

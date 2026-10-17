@@ -1,15 +1,17 @@
 import { afterEach,beforeEach,expect,it,vi } from 'vitest'
 import type { PluginInstance } from '../api/plugins'
 import PluginsView from './PluginsView.vue'
+import { requestUUID } from '../utils/request-uuid'
 import {setupComponent,flush} from '../test/setup-component'
 import {catalog,instances,inspect,operate,dangerousScope,extensions,runHistory,runExtension} from '../api/plugins'
 import extensionContract from '../../../internal/platform/httpapi/testdata/contracts/plugin-v2-extensions.json'
 import fixture from '../../../internal/platform/httpapi/testdata/contracts/plugin-v2-instances.json'
 vi.mock('../api/plugins',()=>({catalog:vi.fn(),instances:vi.fn(),inspect:vi.fn(),operate:vi.fn(),extensions:vi.fn(),runHistory:vi.fn(),runExtension:vi.fn(),dangerousScope:(s:string)=>s==='system.exec',pluginPin:'pinned'}))
+vi.mock('../utils/request-uuid',()=>({requestUUID:vi.fn()}))
 vi.mock('element-plus',()=>({ElMessageBox:{confirm:vi.fn().mockResolvedValue('confirm')}}))
 let view:ReturnType<typeof setupComponent>
 const d={manifest:{id:'hello-go',name:'Hello Go',version:'1.0.0',description:'fixture',permissions:fixture.request.scopes.map(scope=>({scope}))},fingerprint:fixture.request.fingerprint}
-beforeEach(async()=>{vi.clearAllMocks();vi.stubGlobal('crypto',{randomUUID:()=>fixture.request.operationKey});vi.mocked(catalog).mockResolvedValue({items:[d],total:1});vi.mocked(instances).mockResolvedValue([]);view=setupComponent(PluginsView);await flush()})
+beforeEach(async()=>{vi.clearAllMocks();vi.mocked(operate).mockReset().mockResolvedValue(fixture.response as PluginInstance);vi.mocked(runExtension).mockReset().mockResolvedValue({runId:'fixture-run'});vi.mocked(requestUUID).mockReset().mockReturnValue(fixture.request.operationKey);vi.mocked(catalog).mockResolvedValue({items:[d],total:1});vi.mocked(instances).mockResolvedValue([]);view=setupComponent(PluginsView);await flush()})
 afterEach(()=>{view.unmount();vi.unstubAllGlobals()})
 it('requires consent and matches the exact shared operation contract',async()=>{view.state.install(d);await view.state.accept();expect(operate).not.toHaveBeenCalled();view.state.confirmed=true;await view.state.accept();expect(operate).toHaveBeenCalledWith({...fixture.request,instanceId:undefined})})
 it('retains operationKey for an ambiguous retry, exposes errors, does not claim success',async()=>{vi.mocked(operate).mockRejectedValue(new Error('unavailable'));view.state.install(d);view.state.confirmed=true;await view.state.accept();expect(view.state.error).toBe('unavailable');await view.state.accept();expect(vi.mocked(operate).mock.calls[0]![0].operationKey).toBe(vi.mocked(operate).mock.calls[1]![0].operationKey)})
@@ -17,3 +19,30 @@ it('sends encrypted config through CAS and refuses malformed JSON',async()=>{con
 it('missing plugin remains inspectable and page navigation is bounded',async()=>{vi.mocked(instances).mockResolvedValue([fixture.response as PluginInstance]);await view.state.changePage(-2);expect(instances).toHaveBeenLastCalledWith(1);expect(dangerousScope('system.exec')).toBe(true)})
 
 it('shows queued status honestly and never auto-retries unknown results',async()=>{vi.mocked(extensions).mockResolvedValue(extensionContract.snapshot);vi.mocked(runHistory).mockResolvedValue(extensionContract.history);await view.state.openExtensions(fixture.response);expect(view.state.history[0].state).toBe('unknown');expect(runExtension).not.toHaveBeenCalled();await view.state.triggerExtension(view.state.runnableExtensions[0]);expect(runExtension).toHaveBeenCalledWith(fixture.response.id,extensionContract.request);expect(view.state.queued).toContain('不是执行成功')})
+
+it('releases install busy after UUID failure and allows retry without a false success',async()=>{
+ vi.mocked(requestUUID).mockImplementationOnce(()=>{throw new Error('entropy unavailable')})
+ view.state.install(d);view.state.confirmed=true;await view.state.accept()
+ expect(view.state.busy).toBe(false);expect(view.state.error).toBe('entropy unavailable');expect(operate).not.toHaveBeenCalled();expect(view.state.consent).not.toBeNull()
+ await view.state.accept();expect(operate).toHaveBeenCalledTimes(1);expect(view.state.busy).toBe(false);expect(view.state.consent).toBeNull();expect(view.state.error).toBe('')
+})
+it('releases busy even when serializing input fails',async()=>{
+ const input:any={kind:'configure'};input.config=input
+ await view.state.apply(input);expect(view.state.busy).toBe(false);expect(view.state.error).not.toBe('');expect(operate).not.toHaveBeenCalled()
+ await view.state.apply({kind:'disable'});expect(operate).toHaveBeenCalledTimes(1)
+})
+it('releases busy after HTTP failure and retries the same operation key',async()=>{
+ vi.mocked(operate).mockRejectedValueOnce(new Error('timeout'));view.state.install(d);view.state.confirmed=true
+ await view.state.accept();expect(view.state.busy).toBe(false)
+ await view.state.accept();expect(view.state.busy).toBe(false);expect(requestUUID).toHaveBeenCalledTimes(1)
+})
+it('releases extension busy after UUID and HTTP failures, preserves retry identity',async()=>{
+ vi.mocked(extensions).mockResolvedValue(extensionContract.snapshot);vi.mocked(runHistory).mockResolvedValue([])
+ await view.state.openExtensions(fixture.response);const command=view.state.runnableExtensions[0]
+ vi.mocked(requestUUID).mockImplementationOnce(()=>{throw new Error('entropy unavailable')})
+ await view.state.triggerExtension(command);expect(view.state.extensionBusy).toBe(false);expect(runExtension).not.toHaveBeenCalled();expect(view.state.queued).toBe('')
+ vi.mocked(runExtension).mockRejectedValueOnce(new Error('timeout'))
+ await view.state.triggerExtension(command);expect(view.state.extensionBusy).toBe(false);expect(view.state.error).toBe('timeout');expect(view.state.queued).toBe('')
+ await view.state.triggerExtension(command);expect(view.state.extensionBusy).toBe(false);expect(runExtension).toHaveBeenCalledTimes(2)
+ expect(vi.mocked(runExtension).mock.calls[0]![1]).toEqual(vi.mocked(runExtension).mock.calls[1]![1]);expect(view.state.queued).toContain('不是执行成功')
+})

@@ -1635,3 +1635,102 @@ test('F2 plugin JSON form, shared ESM, multi-key dashboards and sidebar (UI cont
  await page.getByRole('button',{name:'插件应用',exact:true}).click()
  await expect(page.getByRole('link',{name:'Hello Go · Hello 插件',exact:true})).toBeVisible()
 })
+
+// Exercise real Vue click handlers without the secure-context-only browser API.
+// Backend fixtures isolate layout/error recovery; the next Linux test uses real workers.
+test('R-F3 HTTP plugin install, enable and execute recover from failures with bounded confirms (UI contract)',async({page})=>{
+ await page.addInitScript(()=>Object.defineProperty(window.crypto,'randomUUID',{value:undefined,configurable:true}))
+ const contract=JSON.parse(readFileSync(resolve(root,'internal/platform/httpapi/testdata/contracts/plugin-v2-instances.json'),'utf8'))
+ const ext=JSON.parse(readFileSync(resolve(root,'internal/platform/httpapi/testdata/contracts/plugin-v2-extensions.json'),'utf8'))
+ const definition={manifest:{id:'hello-go',name:'Hello Go',version:'1.0.0',description:'HTTP regression fixture',permissions:contract.request.scopes.map((scope:string)=>({scope}))},fingerprint:contract.request.fingerprint}
+ let instance:any=null,failInstall=true,failRun=true;const operations:any[]=[],runs:any[]=[]
+ await page.route('**/api/v1/plugins/catalog?*',r=>r.fulfill({json:{data:{items:[definition],total:1}}}))
+ await page.route('**/api/v1/plugins?*',r=>r.fulfill({json:{data:instance?[instance]:[]}}))
+ await page.route('**/api/v1/plugins/operations',async r=>{
+  const input=r.request().postDataJSON();operations.push(input)
+  if(input.kind==='install'&&failInstall){failInstall=false;await r.fulfill({status:503,json:{error:{message:'安装暂不可用'}}});return}
+  instance=input.kind==='install'?{...contract.response}:{...instance,desiredState:'enabled',state:'running',revision:2}
+  await r.fulfill({json:{data:instance}})
+ })
+ await page.route(`**/api/v1/plugins/${contract.response.id}/extensions`,r=>r.fulfill({json:{data:ext.snapshot}}))
+ await page.route(`**/api/v1/plugins/${contract.response.id}/runs?*`,r=>r.fulfill({json:{data:[]}}))
+ await page.route(`**/api/v1/plugins/${contract.response.id}/run`,async r=>{
+  runs.push(r.request().postDataJSON())
+  if(failRun){failRun=false;await r.fulfill({status:503,json:{error:{message:'执行暂不可用'}}});return}
+  await r.fulfill({status:202,json:{data:{runId:'owned-run'}}})
+ })
+ const bounded=async(title:string,width:number)=>{
+  const dialog=page.getByRole('dialog',{name:title,exact:true});await expect(dialog).toBeVisible()
+  const panel=dialog.locator('.el-message-box.plugin-confirm-dialog');const box=await panel.boundingBox();expect(box).not.toBeNull();expect(box!.width).toBeLessThanOrEqual(420);expect(box!.width).toBeLessThanOrEqual(width-32);expect(box!.x).toBeGreaterThanOrEqual(16)
+  expect(await panel.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+  return dialog
+ }
+ await fixtureLogin(page);await page.goto('/plugins')
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
+ await page.getByRole('button',{name:'安装插件',exact:true}).click()
+ const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await consent.getByRole('checkbox').check()
+ await consent.getByRole('button',{name:'确认安装或授权',exact:true}).click();await expect(page.getByRole('alert')).toContainText('安装暂不可用')
+ await expect(consent.getByRole('button',{name:'确认安装或授权',exact:true})).toBeEnabled()
+ await consent.getByRole('button',{name:'确认安装或授权',exact:true}).click();await expect(consent).toBeHidden()
+ expect(operations[0].operationKey).toBe(operations[1].operationKey)
+ const card=page.locator('.instance-card');await expect(card).toContainText('期望停用')
+ for(const width of [1440,375]){
+  await page.setViewportSize({width,height:1000});await card.getByRole('button',{name:'启用',exact:true}).click()
+  await bounded('确认插件操作',width);await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'确认插件操作',exact:true})).toBeHidden()
+ }
+ await card.getByRole('button',{name:'启用',exact:true}).click()
+ await (await bounded('确认插件操作',375)).getByRole('button',{name:'确认操作',exact:true}).click();await expect(card).toContainText('期望启用')
+ await page.setViewportSize({width:1440,height:1000});await card.getByRole('button',{name:'服务与命令',exact:true}).click()
+ const extensions=page.getByRole('dialog',{name:'服务与命令',exact:true})
+ for(const width of [1440,375]){
+  await page.setViewportSize({width,height:1000});await extensions.getByRole('button',{name:'手动执行',exact:true}).click()
+  await bounded('确认执行扩展',width)
+  await page.getByRole('dialog',{name:'确认执行扩展',exact:true}).locator('.plugin-confirm-dialog').screenshot({path:resolve(screenshots,`plugin-confirm-${width}.png`)})
+  await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'确认执行扩展',exact:true})).toBeHidden()
+ }
+ await page.setViewportSize({width:1440,height:1000})
+ for(let attempt=0;attempt<2;attempt++){
+  await extensions.getByRole('button',{name:'手动执行',exact:true}).click()
+  await page.getByRole('dialog',{name:'确认执行扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click()
+  if(!attempt)await expect(page.getByRole('alert').filter({hasText:'执行暂不可用'})).toBeVisible()
+  else await expect(extensions).toContainText('不是执行成功')
+  await expect(extensions.getByRole('button',{name:'手动执行',exact:true})).toBeEnabled()
+ }
+ expect(runs[0].operationKey).toBe(runs[1].operationKey)
+ for(const input of [...operations,...runs])expect(input.operationKey).toMatch(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
+ expect(errors).toEqual([])
+})
+
+test('R-F3 HTTP clicks install, enable, execute and disable the real same-binary plugin (Linux)',async({page})=>{
+ test.skip(process.platform!=='linux','Actual worker process accounting requires Linux; native AMD64 CI runs this test')
+ await page.addInitScript(()=>Object.defineProperty(window.crypto,'randomUUID',{value:undefined,configurable:true}))
+ await fixtureLogin(page);await page.goto('/plugins')
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
+ let id=''
+ try{
+  const installation=page.waitForResponse(r=>r.url().endsWith('/api/v1/plugins/operations')&&r.request().postDataJSON().kind==='install')
+  await page.getByRole('button',{name:'安装插件',exact:true}).click()
+  const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await consent.getByRole('checkbox').check();await consent.getByRole('button',{name:'确认安装或授权',exact:true}).click()
+  const installed=await installation;expect(installed.status()).toBe(200);id=(await installed.json()).data.id
+  const card=page.locator('.instance-card').filter({hasText:id})
+  await card.getByRole('button',{name:'启用',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click()
+  await expect.poll(async()=>{await page.getByRole('button',{name:'刷新',exact:true}).click();return card.getByRole('button',{name:'服务与命令',exact:true}).isEnabled()},{timeout:20000}).toBe(true)
+  await card.getByRole('button',{name:'服务与命令',exact:true}).click()
+  const dialog=page.getByRole('dialog',{name:'服务与命令',exact:true})
+  await dialog.getByRole('button',{name:'手动执行',exact:true}).first().click()
+  const execution=page.waitForResponse(r=>r.url().endsWith(`/plugins/${id}/run`))
+  await page.getByRole('dialog',{name:'确认执行扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click();expect((await execution).status()).toBe(202)
+  await expect.poll(async()=>((await (await page.request.get(`/api/v1/plugins/${id}/runs?page=1&pageSize=50`)).json()).data as any[]).some(r=>r.state==='succeeded'),{timeout:20000}).toBe(true)
+  await dialog.getByRole('button',{name:'Close this dialog',exact:true}).click()
+  await card.getByRole('button',{name:'查看 KV',exact:true}).click();await expect(page.getByRole('dialog',{name:'实例 KV 数据',exact:true})).toContainText('value')
+  await page.getByRole('dialog',{name:'实例 KV 数据',exact:true}).getByRole('button',{name:'Close this dialog',exact:true}).click()
+  await card.getByRole('button',{name:'停用',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click();await expect(card).toContainText('期望停用')
+  expect(errors).toEqual([])
+ }finally{
+  if(id){
+   const detail=(await (await page.request.get(`/api/v1/plugins/${id}`)).json()).data
+   const response=await page.request.post('/api/v1/plugins/operations',{headers:{Origin:'http://localhost:18084','X-Requested-With':'media-tool'},data:{kind:'remove',instanceId:id,fingerprint:detail.fingerprint,expectedRevision:detail.instance.revision,operationKey:`rf3-cleanup-${id}`,confirm:true}})
+   expect(response.status()).toBe(200)
+  }
+ }
+})
