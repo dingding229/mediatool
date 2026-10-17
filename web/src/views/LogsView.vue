@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useRoute } from 'vue-router'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessageBox, ElMessage, ElDatePicker } from 'element-plus'
 import { Refresh, Delete, CopyDocument, Download, Setting, Search } from '@element-plus/icons-vue'
@@ -11,7 +12,8 @@ interface LogPage { items:LogRecord[]; total:number; page:number; pageSize:numbe
 const linkOpen=ref(false),linkRow=ref<LogRecord|null>(null),friendly=ref(true)
 function inspectLog(row:LogRecord){linkRow.value=row;linkOpen.value=true}
 async function copyLink(value:unknown){const text=String(value??'');try{if(!navigator.clipboard?.writeText)throw new Error();await navigator.clipboard.writeText(text);ElMessage.success('完整链接已复制')}catch{copyContent.value=text;copyOpen.value=true}}
-const summary=ref<Summary|null>(null),rows=ref<LogRecord[]>([]),level=ref(''),module=ref(''),keyword=ref(''),range=ref<Date[]|null>(null)
+const route=useRoute();const instance=ref(typeof route.query.instance==='string'?route.query.instance:'')
+const summary=ref<Summary|null>(null),rows=ref<LogRecord[]>([]),level=ref(''),module=ref(typeof route.query.module==='string'?route.query.module:''),keyword=ref(''),range=ref<Date[]|null>(null)
 const busy=ref(false),summaryBusy=ref(false),error=ref(''),clean=ref(false),settingsOpen=ref(false),copyOpen=ref(false),copyContent=ref('')
 const page=ref(1),pageSize=ref(200),total=ref(0),modules=ref<string[]>([]),before=ref(''),truncated=ref(false),expanded=ref(new Set<number>())
 let controller:AbortController|undefined,epoch=0,timer:ReturnType<typeof setTimeout>|undefined
@@ -20,6 +22,7 @@ async function loadSummary(){summaryBusy.value=true;try{summary.value=await requ
 async function load(){
  const current=++epoch;controller?.abort();controller=new AbortController();busy.value=true;error.value='';expanded.value.clear()
  const params=new URLSearchParams({page:String(page.value),pageSize:String(pageSize.value),level:level.value,module:module.value,keyword:keyword.value})
+ if(instance.value)params.set('instance',instance.value)
  if(before.value)params.set('before',before.value)
  if(range.value?.length===2){params.set('from',range.value[0].toISOString());params.set('to',range.value[1].toISOString())}
  try{const out=await request<LogPage>('/logs/query?'+params,{signal:controller.signal});if(current!==epoch)return;rows.value=out.items;total.value=out.total;modules.value=out.modules;before.value=out.before;truncated.value=out.truncated}
@@ -47,7 +50,7 @@ onUnmounted(()=>{++epoch;controller?.abort();if(timer)clearTimeout(timer)})
 </script>
 <template>
  <section class="log-workspace" aria-label="系统日志控制台">
-  <header class="log-toolbar">
+  <p v-if="instance" class="field-hint">实例筛选：{{instance}} <el-button @click="instance='';refresh()">清除实例筛选</el-button></p><header class="log-toolbar">
    <div class="log-title"><h1>程序日志</h1><span>系统日志控制台</span></div>
    <div class="log-actions">
     <div class="clean-toggle"><el-switch v-model="friendly" aria-label="友好说明"/><span>友好说明</span></div><div class="clean-toggle"><el-switch id="log-clean-mode" v-model="clean" aria-label="简约模式"/><label for="log-clean-mode">简约模式</label></div>

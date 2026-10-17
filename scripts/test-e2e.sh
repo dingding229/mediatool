@@ -9,6 +9,7 @@ import os,urllib.parse,socket
 if urllib.parse.urlsplit(os.environ['DATABASE_URL']).path!='/media_tool_test':raise SystemExit('E2E may only use media_tool_test, never the business database.')
 for port in (18084,18085,18086,18087):
  with socket.socket()as sock:
+  sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)  # TIME_WAIT is not a live listener.
   try:sock.bind(('127.0.0.1',port))
   except OSError:raise SystemExit('Isolated E2E ports busy; no existing process will be stopped.')
 PY
@@ -26,6 +27,7 @@ test_db_exec "UPDATE ops_policy SET value='{}',revision=1,next_sample_at=now(),n
 test_db_exec "UPDATE ops_mode SET paused=false,reason='',revision=1 WHERE singleton"
 test_db_exec 'TRUNCATE site_template_loads,subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,external_api_keys,administrator_accounts,administrator_auth_limits,media_users,media_user_auth_limits CASCADE'
 test_db_exec "INSERT INTO directory_classification(singleton,value,revision)VALUES(true,'null',1) ON CONFLICT(singleton) DO UPDATE SET value='null',revision=1"
+test_db_exec "INSERT INTO native_server_settings(server_id)VALUES(replace(gen_random_uuid()::text,'-','')) ON CONFLICT(singleton)DO NOTHING"
 test_db_exec "UPDATE native_server_settings SET enabled=false,probe_enabled=true,stills_enabled=true,revision=revision+1 WHERE singleton"
 test_db_exec "UPDATE player_ua_policy SET enabled=false,revision=1 WHERE id='main'"
 test_db_exec 'TRUNCATE player_ua_rules,player_ua_observations,player_access_events'
@@ -41,6 +43,7 @@ export AUTH_ALLOWED_ORIGINS=https://proxy.fixture.invalid
 export APP_ENV=development APP_ADDR=127.0.0.1:18084 APP_PUBLIC_URL=http://localhost:18084 EMBY_GATEWAY_ADDR=127.0.0.1:18085
 export APP_SECRET_KEY="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
 export SESSION_SECRET_KEY="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
+export PLUGIN_DATA_ROOT="$private/plugins"
 export NATIVE_STILLS_ROOT="$private/native-media/stills"
 export STRM_OUTPUT_DIR="$private/strm"
 export OPS_DATA_DIR="$private/maintenance"

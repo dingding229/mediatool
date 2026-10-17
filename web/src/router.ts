@@ -37,7 +37,6 @@ const router=createRouter({history:createWebHistory(),routes:[
   {path:'integrations/:kind',name:'integrationService',redirect:to=>({path:connectionOwner(String(to.params.kind)),query:{connectionKind:String(to.params.kind)}})},
   {path:'logs',name:'logs',component:()=>import('./views/LogsView.vue')},
  {path:'data',name:'data',component:()=>import('./views/DataView.vue')},
- {path:'plugins/:id/:page',name:'pluginPage',component:()=>import('./views/PluginPageView.vue')},
  {path:'plugins',name:'plugins',component:()=>import('./views/PluginsView.vue')},
  {path:'organize-history',name:'organizeHistory',component:()=>import('./views/OrganizeHistoryView.vue')},
  {path:'settings',name:'settings',component:()=>import('./views/SettingsView.vue')},

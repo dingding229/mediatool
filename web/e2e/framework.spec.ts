@@ -732,8 +732,8 @@ test('TMDB and site-direct search have distinct cache controls (fixture)',async(
 
 test('automatic roots, 0day hints, history and safe plugin manifests',async({page})=>{
  await fixtureLogin(page);await page.goto('/files');await expect(page.getByText(/本地目录/).first()).toBeVisible();const parsed=await page.request.post('/api/v1/media/recognize-name',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned.Show.2026.S01E03.1080p.WEB-DL.x265-TEAM.mkv'}});expect(parsed.status()).toBe(200);expect((await parsed.json()).data.hint).toMatchObject({title:'Owned Show',year:'2026',mediaType:'series',season:1,episode:3})
- await page.goto('/organize-history');await expect(page.getByRole('heading',{name:'文件与入库历史',exact:true})).toBeVisible();await page.goto('/plugins');await expect(page.getByRole('heading',{name:'尚未安装插件',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'0day 文件名识别',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'电影与剧集命名模板',exact:true})).toHaveCount(0);await expect(page.getByText('兼容入口：导入扩展 Manifest',{exact:true})).toHaveCount(0)
- const rejected=await page.request.post('/api/v1/plugins',{headers:{'X-Requested-With':'media-tool'},data:{manifest:{id:'owned-plugin',name:'Owned',version:'1',contractVersion:1,runtime:'webhook',endpoint:'https://owned.example',capabilities:['media.organized']},enabled:false,consent:false,revision:0}});expect(rejected.status()).toBe(400);await page.screenshot({path:resolve(screenshots,'workbench-plugins-desktop.png'),animations:'disabled'})
+ await page.goto('/organize-history');await expect(page.getByRole('heading',{name:'文件与入库历史',exact:true})).toBeVisible();await page.goto('/plugins');await expect(page.getByRole('heading',{name:'内置目录',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'0day 文件名识别',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'电影与剧集命名模板',exact:true})).toHaveCount(0);await expect(page.getByText('兼容入口：导入扩展 Manifest',{exact:true})).toHaveCount(0)
+ const rejected=await page.request.post('/api/v1/plugins',{headers:{'X-Requested-With':'media-tool'},data:{manifest:{id:'owned-plugin',name:'Owned',version:'1',contractVersion:1,runtime:'webhook',endpoint:'https://owned.example',capabilities:['media.organized']},enabled:false,consent:false,revision:0}});expect([404,405]).toContain(rejected.status());await page.screenshot({path:resolve(screenshots,'workbench-plugins-desktop.png'),animations:'disabled'})
 })
 
 test('temporary-password sessions are routed to compulsory reset without web recovery (fixture)',async({page})=>{
@@ -869,27 +869,23 @@ test('log query failures are visible and do not present stale content as current
  await expect(page.getByText('自有日志读取失败',{exact:true})).toBeVisible();await expect(page.getByText('自有旧快照',{exact:true})).toHaveCount(0)
 })
 
-test('ZIP plugins install, configure encrypted fields, explicitly run, record and uninstall (isolated)',async({page})=>{
+test('built-in plugins consent, config, enable, instance logs, uninstall (isolated)',async({page})=>{
  await fixtureLogin(page);await page.goto('/plugins')
- await page.getByLabel('选择ZIP插件包',{exact:true}).setInputFiles(resolve(root,'examples/plugins/automation.zip'))
- await page.getByRole('button',{name:'预览插件包',exact:true}).click()
- const preview=page.getByRole('dialog',{name:'插件包安装预览',exact:true});await expect(preview).toBeVisible()
- await preview.getByRole('button',{name:'确认安装或升级',exact:true}).click()
- const card=page.locator('.plugin-grid article').filter({has:page.getByRole('heading',{name:'自动化插件示例',exact:true})})
- await expect(card).toBeVisible();await expect(card.getByRole('button',{name:'测试',exact:true})).toBeDisabled()
- await card.getByRole('button',{name:'设置',exact:true}).click()
- await page.getByLabel('工作台标题',{exact:true}).fill('Owned Title')
- await page.getByLabel('插件自己的测试密钥',{exact:true}).fill('owned-secret-e2e-only')
- await page.getByRole('button',{name:'保存插件设置',exact:true}).click();await expect(page.getByRole('dialog',{name:'自动化插件示例 插件设置',exact:true})).toBeHidden()
- const config=await page.request.get('/api/v1/plugins/example-automation/settings');expect(config.status()).toBe(200);const data=(await config.json()).data;expect(data.secretFields).toContain('apiKey');expect(data.values.apiKey).toBe('owned-secret-e2e-only')
- await card.getByRole('button',{name:'授权并启用',exact:true}).click()
- await page.getByRole('dialog',{name:'启用插件',exact:true}).getByRole('button',{name:'授权并启用',exact:true}).click()
- await expect(card.getByRole('button',{name:'测试',exact:true})).toBeEnabled();await card.getByRole('button',{name:'测试',exact:true}).click()
- await page.getByLabel('测试文件名',{exact:true}).fill('Example.Show.2026.S01E03.mkv');await page.getByRole('button',{name:'执行测试',exact:true}).click();await page.getByRole('dialog',{name:'测试插件',exact:true}).getByRole('button',{name:'确认测试',exact:true}).click()
- const testDialog=page.getByRole('dialog',{name:'测试插件（不修改媒体）',exact:true});await expect(testDialog.locator('pre')).toContainText('WASM沙箱测试通过');await expect(testDialog.locator('pre')).toContainText('"mediaModified": false')
- await page.screenshot({path:resolve(screenshots,'zip-plugin-test.png'),animations:'disabled'});await testDialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
- await card.getByRole('button',{name:'记录',exact:true}).click();const history=page.getByRole('dialog',{name:'插件最近执行记录',exact:true});await expect(history).toContainText('succeeded');await history.getByRole('button',{name:'关闭此对话框',exact:true}).click()
- await card.getByRole('button',{name:'卸载',exact:true}).click();await page.getByRole('dialog',{name:'卸载插件',exact:true}).getByRole('button',{name:'确认卸载',exact:true}).click();await expect(card).toHaveCount(0)
+ await expect(page.getByLabel('选择ZIP插件包')).toHaveCount(0)
+ await page.getByRole('button',{name:'安装插件',exact:true}).click()
+ const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await expect(consent).toContainText('plugin.data.write')
+ const install=consent.getByRole('button',{name:'确认安装或授权',exact:true});await expect(install).toBeDisabled();console.info('plugin-e2e: consent dialog ready')
+ await consent.getByText('我已阅读并同意以上权限',{exact:true}).click();await expect(consent.getByRole('checkbox',{name:'我已阅读并同意以上权限',exact:true})).toBeChecked();console.info('plugin-e2e: explicit consent checked');await install.click();await expect(consent).toBeHidden()
+ const card=page.locator('.instance-card').first();await expect(card).toContainText('期望停用')
+ await card.getByRole('button',{name:'配置',exact:true}).click();await page.getByLabel('配置 JSON',{exact:true}).fill('{"greeting":"Owned fixture"}');await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByRole('dialog',{name:'实例配置',exact:true})).toBeHidden()
+ await card.getByRole('button',{name:'启用',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click();await expect(card).toContainText('期望启用')
+ await card.getByRole('button',{name:'停用',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click();await expect(card).toContainText('期望停用')
+ await card.getByRole('button',{name:'查看 KV',exact:true}).click();await expect(page.getByRole('dialog',{name:'实例 KV 数据',exact:true})).toBeVisible();await page.getByRole('dialog',{name:'实例 KV 数据',exact:true}).getByRole('button',{name:'关闭此对话框'}).click()
+ await card.getByRole('link',{name:'实例日志',exact:true}).click();await expect(page).toHaveURL(/instance=/);await expect(page.getByText(/实例筛选：/)).toBeVisible()
+ await page.goto('/plugins');await page.screenshot({path:resolve(screenshots,'builtin-plugins-desktop.png'),animations:'disabled'})
+ const items=(await(await page.request.get('/api/v1/plugins')).json()).data
+ const catalog=(await(await page.request.get('/api/v1/plugins/catalog')).json()).data.items
+ for(const i of items){expect((await page.request.post('/api/v1/plugins/operations',{headers:{'X-Requested-With':'media-tool'},data:{kind:'remove',operationKey:crypto.randomUUID(),instanceId:i.id,fingerprint:catalog.find((d:any)=>d.manifest.id===i.pluginId).fingerprint,expectedRevision:i.revision,confirm:true,scopes:[]}})).status()).toBe(200)}
 })
 
 test('PT metrics show actual coverage, zero and unknown separately, with mobile layout (fixture)',async({page})=>{
@@ -938,15 +934,15 @@ test('site-result filters issue server query and preserve selection binding (fix
  await page.screenshot({path:resolve(screenshots,'site-resource-filters.png'),animations:'disabled'})
 })
 
-test('WASM plugin lifecycle, page, command, API, dashboard, service and isolated clone (isolated)',async({page})=>{
- await fixtureLogin(page);await page.goto('/plugins');await page.getByLabel('选择ZIP插件包',{exact:true}).setInputFiles(resolve(root,'examples/plugins/automation.zip'));await page.getByRole('button',{name:'预览插件包',exact:true}).click();const preview=page.getByRole('dialog',{name:'插件包安装预览',exact:true});await expect(preview).toContainText('自动化插件示例');const installedReply=page.waitForResponse(r=>r.url().endsWith('/api/v1/plugins/package')&&r.request().method()==='POST',{timeout:30000});await preview.getByRole('button',{name:'确认安装或升级',exact:true}).click();const installed=await installedReply;expect(installed.status()).toBe(200);expect((await installed.json()).data.installed).toBe(true);const card=page.locator('.plugin-grid article').filter({has:page.getByRole('heading',{name:'自动化插件示例',exact:true})});await expect(card).toBeVisible();await card.getByRole('button',{name:'授权并启用',exact:true}).click();await page.getByRole('dialog',{name:'启用插件',exact:true}).getByRole('button',{name:'授权并启用',exact:true}).click();await expect(card.getByRole('button',{name:'停用扩展',exact:true})).toBeVisible()
- await card.getByRole('link',{name:'示例工作台',exact:true}).click();await expect(page.getByRole('heading',{name:'自动化插件示例',exact:true}).first()).toBeVisible();await page.getByRole('button',{name:'增加计数',exact:true}).click();await page.getByRole('dialog',{name:'执行插件命令',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click();await expect(page.locator('.plugin-metrics').first()).toContainText('1')
- const api=await page.request.get('/api/v1/plugins/example-automation/view/api/status');expect(api.status()).toBe(200);expect((await api.json()).data.count).toBe(1)
- const ui=await page.request.get('/api/v1/plugins/example-automation/ui');expect(ui.headers()['content-security-policy']).toContain("connect-src 'none'");expect(ui.headers()['content-security-policy']).toContain('sandbox allow-scripts');await expect(page.getByTitle('插件独立界面')).toBeVisible();const frame=page.frameLocator('iframe[title="插件独立界面"]');await frame.getByRole('button',{name:'读取本插件数据',exact:true}).click();await expect(frame.locator('#result')).toContainText('"count": 1')
- await page.screenshot({path:resolve(screenshots,'wasm-plugin-page.png'),animations:'disabled'});await page.goto('/dashboard');await expect(page.locator('.plugin-dashboard-grid')).toContainText('执行计数');await page.goto('/plugins');await card.getByRole('button',{name:'创建分身',exact:true}).click();await page.getByLabel('插件分身ID',{exact:true}).fill('owned-clone');await page.getByLabel('插件分身名称',{exact:true}).fill('Owned Clone');await page.getByRole('button',{name:'确认创建停用分身',exact:true}).click();await expect(page.getByRole('heading',{name:'Owned Clone',exact:true})).toBeVisible();const state=await page.request.get('/api/v1/plugins/owned-clone/state');expect((await state.json()).data).toMatchObject({enabled:false,data:{}})
- const services=await page.request.post('/api/v1/plugins/example-automation/services/counter-tick',{headers:{'X-Requested-With':'media-tool'},data:{confirm:true,revision:2}});expect(services.status()).toBe(202)
- // Scope cleanup to these two owned fixture plugins in the isolated database.
- const items=(await(await page.request.get('/api/v1/plugins')).json()).data;for(const id of ['owned-clone','example-automation']){const item=items.find((x:any)=>x.manifest.id===id);expect((await page.request.delete(`/api/v1/plugins/${id}?confirm=true&revision=${item.revision}`,{headers:{'X-Requested-With':'media-tool'}})).status()).toBe(200)}
+test('built-in clone retains config, isolated identities, no runtime upload/market (isolated)',async({page})=>{
+ await fixtureLogin(page)
+ const d=(await(await page.request.get('/api/v1/plugins/catalog')).json()).data.items[0]
+ const op=async(kind:string,extra:any={})=>{const r=await page.request.post('/api/v1/plugins/operations',{headers:{'X-Requested-With':'media-tool'},data:{kind,operationKey:crypto.randomUUID(),pluginId:d.manifest.id,fingerprint:d.fingerprint,expectedRevision:0,confirm:true,scopes:d.manifest.permissions.map((p:any)=>p.scope),config:{fixture:'owned'},...extra}});expect(r.status()).toBe(200);return(await r.json()).data}
+ const first=await op('install');const clone=await op('clone',{instanceId:first.id,expectedRevision:first.revision});expect(clone.id).not.toBe(first.id);expect(clone.desiredState).toBe('disabled')
+ const data=(await(await page.request.get('/api/v1/plugins/'+clone.id)).json()).data;expect(data.config.value).toEqual({fixture:'owned'})
+ for(const path of ['/api/v1/plugins/package','/api/v1/plugin-market/package','/api/v1/plugin-market/repositories']){const r=await page.request.post(path,{headers:{'X-Requested-With':'media-tool'},data:{}});expect([404,405]).toContain(r.status())}
+ await page.goto('/plugins');await expect(page.locator('.instance-card')).toHaveCount(2);await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true)
+ for(const i of [first,clone])await op('remove',{instanceId:i.id,expectedRevision:i.revision})
 })
 
 test('subscription structured filters persist and preview displays individual reasons (fixture)',async({page})=>{

@@ -6,7 +6,7 @@ Go + Vue 3 的模块化媒体自动化程序。PostgreSQL保存业务事实/任�
 
 **当前0.27.0-dev，源码迁移50。主要业务已实现；真实115授权、默认Sen UA的网关302/CDN206与非零Range样本已通过，真实PT入库全链路和客户端完整验收仍未完成，不宣称完整1.0。** 不注入模拟账号、示例下载或假直链。
 
-本轮新增：HDSKY做种/分页证据、订阅结构化筛选、功能型Go/WASM插件、原始业务日志及隔离备份验证。
+本轮新增：HDSKY做种/分页证据、订阅结构化筛选、内置Go插件V2（固定pin、独立worker）、原始业务日志及隔离备份验证。
 插件功能和权限见 [PLUGIN_FRAMEWORK.md](docs/PLUGIN_FRAMEWORK.md)，日志/备份见 [RAW_LOGS_AND_BACKUP.md](docs/RAW_LOGS_AND_BACKUP.md)。
 
 本轮新增：内置媒体库 Provider v1、独立媒体用户管理和独立媒体端口根路径 `/` 的授权只读目录。播放票据及完整 Emby 替代尚未实现；现有播放不切换。详见 [内置媒体库与媒体用户](docs/NATIVE_MEDIA_SERVER.md)。

@@ -1,73 +1,50 @@
-# 可执行沙箱插件开发指南
+# Go 内置插件开发（V2）
 
-更新：2026-10-12；只定义当前版本，不提供旧版插件兼容。
+## 仓库与构建
 
-## 1. 运行方式
+SDK、Host DTO、事件枚举、transport、mock host和golden工具均在独立Go module
+`github.com/dingding229/mediatool-plugin/sdk`，插件在 `plugins/<id>/`，registry显式登记
+元数据与工厂。不导入主程序internal，避免循环依赖。主程序已删除plugin-sdk/go和
+examples/plugins。hello-go是F1真实worker示例，不是WASM或脚本插件。
 
-参考MoviePilot-Plugins的V3 `docs/Plugin_Development.md`（固定提交`0f3fdd3c377747727d00528bcb78e472ad8b97ba`）及MoviePilot的代码加载/生命周期实现（`6ef8408f432dde643aee2ba7078f59d2776f84ce`）。参考的是**实际执行插件代码**和宿主提供的扩展点，不是把插件简化为配置规则。
+1. 在插件仓库修改manifest和Go接口实现；依赖编译期锁定（可vendor），禁止包初始化I/O、
+   init函数及非纯顶级求值，不能在import时创建实例。
+2. 使用SDK测试工具跑单元、mock Host、真实Go二进制stdio golden；插件仓库CI vet/test/race。
+3. 推送 `dingding229/mediatool-plugin`；主程序精确bump伪版本（不使用replace作为发布证据）。
+4. `go run ./cmd/plugin-check` 审计registry全部非标准库传递依赖的初始化。
+   `go run ./cmd/plugin-assets` 从固定pin导出本地只读资源清单；`--check`用于CI。
+5. 主程序按标准Actions→Hub不可变镜像流程发布。运行时无编译器、包下载器、外部市场。
 
-本程序的区别：宿主是Go，插件代码编译为WASI WebAssembly，由app容器内wazero解释器执行；不需要额外插件容器、不启用Python解释器、没有Shell/exec接口，也不兼容MoviePilot Python包。MoviePilot文档描述的是同一Python进程/依赖环境；这里保留同一app进程，但将代码放在能力沙箱。
+所有Go构建使用CGO_ENABLED=0的linux/amd64；同一app以plugin-worker子命令执行。
+主程序和前端消费同一个 `library.json`，插件ESM位于其仓库`plugins/<id>/ui/dist/`，
+构建期复制到`/plugins/<id>/ui/dist/`，不从网络加载。F1只提供资源清单，执行/共享Vue
+加载器是F2范围；没有相关插件时资源数组为空。
 
-ZIP根目录必须有`manifest.json`和`plugin.wasm`；允许附加`settings.json`、`README.md`和`ui.html`。只写manifest不能安装。`rules.json`、endpoint、Webhook、规则运行时、空runtime和手填Manifest导入已删除。0day识别与电影/剧集命名模板属于核心功能，不是内置插件。
+## 接口与能力
 
-## 2. 扩展点映射
+必选 `InitPlugin/GetState/StopService` 与可选接口表达
+GetForm/GetPage/GetAPI/GetService/GetCommand/GetDashboard(+Meta)/GetModule/GetActions。
+辅助客户端提供Config、SaveData/GetData/DelData、DataPath、PostMessage等。
+每次Host请求携带本实例身份/generation，Host强制声明scope与最新授权；不暴露SQL、
+数据库连接、Redis连接或115令牌。配置/KV返回revision，写操作传expectedRevision。
 
-| MoviePilot开发接口 | 本程序代码调用/声明 | 用途 |
-|---|---|---|
-| init_plugin(config) | plugin.init，event.settings | 启用后执行代码初始化；配置必须支持重复启用 |
-| get_state() | 宿主enabled/revision与插件持久data | 启停状态由宿主管理，插件不能自行越权启用 |
-| get_form() | manifest.settings | 声明表单、默认值；执行时将本实例原始配置交给代码 |
-| get_page() | plugin.page，manifest.pages | 代码返回详情数据，或隔离ui.html交互页面 |
-| get_dashboard() | plugin.dashboard，manifest.dashboard | 代码生成首页卡片内容 |
-| get_command() | plugin.command，manifest.commands | 管理员确认后执行代码 |
-| get_api() | plugin.api，manifest.routes | 实例命名空间内的会话保护API |
-| get_service() | plugin.service，manifest.services | 主程序以五字段Cron调度（Asia/Shanghai）；代码执行实际工作，不支持intervalSeconds或@every |
-| 事件注册 | manifest.events，实际事件kind | Outbox投递并执行插件代码，不自动重放未知结果 |
-| stop_service() | plugin.stop，宿主修订门禁 | 停用时执行清理代码，旧修订待执行服务取消 |
-| save_data/get_data | 输入data/输出data | 实例专属加密JSON；命令/服务可以持久写入 |
-| SDK访问业务/HTTP | plugin-sdk/go的Host、HTTP | 声明和授权后的受限能力桥接 |
+F1 hello-go只使用当前已实现的config.read、data.read/write、state.read、ui.json。
+业务Host覆盖在F3；F2-A将API/Service/Command/Action的Go函数直接绑定为稳定handler id，
+并补充线上descriptor元数据。不要把G1现有字符串descriptor当作最终的作者绑定API。
 
-声明是宿主注册、校验和授权的边界，不替代插件业务代码。不能在初始化中建立宿主线程、进程或直接连接数据库。每次调用创建新沙箱、完成后关闭；跨调用状态通过data持久化。页面、GET API、仪表盘和测试都是只读，不写data、不发通知、不执行POST出站。
+数据在PG加密，AAD绑定实例/行；私有文件目录默认`/data/plugins/<UUID>/{data,tmp}`。
+开发/隔离测试可用`PLUGIN_DATA_ROOT`设置干净绝对plugins目录，不影响生产默认。
+子进程env不包含主程序秘密，不能通过环境获取数据库/主密钥/115授权。
+调用超时不代表副作用未发生；保留operationKey并查询/重试同一操作，不能创建新幂等键
+盲目重放。写入有CAS/fence；撤权/升级后旧generation拒绝。
 
-## 3. 输入输出与真实代码
+## 资源与调试
 
-宿主通过stdin发送JSON：
+同UID65532，rlimit和整树RSS/CPU看门狗，崩溃退避重启。进程组停止、Pdeathsig及subreaper
+处理孤儿。Landlock只做best effort；同UID可读共享文件的残余风险由受信代码审核兜底。
+不要在stdout输出普通日志（stdout专供RPC）；stderr有截断/限速，宿主module=plugins、
+instance字段用于过滤。不得把私密日志、配置或令牌提交到公共仓库或CI工件。
 
-```json
-{"contractVersion":1,"pluginId":"example-automation","event":{"contractVersion":1,"kind":"plugin.command","data":{"command":"increment"},"settings":{"name":"我的工作台"}},"data":{"count":1}}
-```
-
-插件代码由WASI `_start`执行，从stdin解析请求、进行运算/调用授权SDK，再向stdout输出一份JSON：
-
-```json
-{"result":{"count":2},"data":{"count":2},"logs":[{"level":"info","message":"计数任务完成"}]}
-```
-
-示例`examples/plugins/automation/main.go`是实际Go代码：初始化写入状态，命令/定时服务增加持久计数，API读取状态，页面/仪表盘返回内容，测试尝试读取宿主文件/环境并证明访问不可用。不是预设响应的静态规则。对应ZIP随源码提供，可在隔离测试实例安装、启用并执行。不要为了验收而自动向正式实例安装示例。
-
-## 4. 开发和打包
-
-```sh
-GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags='-s -w' -o /tmp/plugin.wasm ./examples/plugins/automation
-python3 scripts/build-plugin-example.py
-```
-
-第二条命令确定性重建示例ZIP和市场索引摘要；临时WASM不会保存在仓库。自定义包先在自己的构建目录准备可执行文件，再用`scripts/package-plugin.py`打包。后端校验ZIP路径、大小、Manifest字段、WASM入口、内存和导入；安装/升级默认停用，启用需明确授权。分身复制代码和配置，但数据/任务与原实例隔离。
-
-完整Manifest见`examples/plugins/automation/manifest.json`；授权业务桥接见`plugin-sdk/go/sdk_wasm.go`。只使用本实例配置和声明权限，不能读取主程序其他账号的Cookie/密钥、任意PG SQL或Redis数据。
-
-## 5. 沙箱与故障行为
-
-- 64MiB线性内存、4秒执行、256KiB stdout、16KiB stderr、128KiB持久data。
-- 无宿主目录挂载、不继承环境变量、无直接网络/进程执行；WASI的文件/套接字接口不会自动获得宿主资源。
-- 宿主导入仅接受`mediatool.http_request`和`mediatool_host.request`，禁止外部内存导入；有效WASI `_start`必须存在。
-- HTTP仅访问manifest列出的HTTPS公有origin，限制调用次数/超时，拒绝私网、重绑定、重定向和含凭据URL。
-- 插件不能绕过主程序媒体身份、路径、来源证明、账号权限或原STRM302策略。
-- 内存越界、输出过量、错误JSON或超时执行失败，记录日志/执行状态；外部副作用不能保证撤销，因此未知结果不自动重试。
-- 沙箱是能力限制，不是完整虚拟机或对任意不可信代码的安全保证。依赖升级、资源限制和宿主桥接仍需持续审计。
-
-## 6. 验收
-
-必须真正安装、授权、执行代码，而不只是编译/Manifest校验。隔离测试覆盖：初始化→命令→持久状态→API/页面/仪表盘→定时服务→停用→旧任务取消→升级/分身隔离；超时、中断、内存上限和无宿主文件/环境，以及无可执行代码/旧包拒绝。
-
-不能把当前框架称为实现MoviePilot文档的全部扩展能力：Agent、认证提供者、插件独立SQL模型、浏览器自动化和任意模块替换不在本程序当前开放权限中，需要单独定义安全宿主接口后再扩展。
+本机测试用media_tool_test/Redis DB15且串行。真实隔离不能以macOS或CGO/race降级测试
+冒充；主CI `scripts/test-plugin-kernel.sh`在原生AMD64验证静态worker、父proc拒读、
+实例目录、Landlock warning、FD/rlimit、崩溃收敛与double-fork收割。

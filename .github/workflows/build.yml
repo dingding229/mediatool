@@ -50,6 +50,11 @@ jobs:
             fd=os.open(name,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
             with os.fdopen(fd,'w') as f:f.write(content)
           PY
+      - name: Pinned plugin initialization and resource inventory gate
+        run: |
+          go run ./cmd/plugin-check
+          go run ./cmd/plugin-assets --check
+          go run ./cmd/plugin-assets
       - run: npm ci --prefix web --no-fund --no-audit
       - run: npm test --prefix web
       - run: npm run build --prefix web
@@ -64,6 +69,8 @@ jobs:
           TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
       - name: Native AMD64 media concurrency verification (real media required)
         run: go test -race -count=3 -v ./internal/modules/mediaprobe/...
+      - name: Native AMD64 release worker isolation kernel gate (static, non-root)
+        run: bash scripts/test-plugin-kernel.sh
       - run: go vet ./...
       - name: Production error-handling boundary (exclude private local diagnostics and test fixtures)
         run: go run github.com/kisielk/errcheck@v1.9.0 -ignoretests ./cmd/... ./internal/... ./migrations/... ./tests/...

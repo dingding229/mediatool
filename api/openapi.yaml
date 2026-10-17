@@ -357,103 +357,6 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/OK'
-  /api/v1/plugins:
-    get:
-      operationId: listPlugins
-      description: 内置能力与停用/启用的受约束HTTPS扩展Manifest
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-  /api/v1/plugins/package:
-    post:
-      operationId: installPluginZIP
-      description: 8MiB ZIP（展开24MiB），支持rules/webhook/WASM及UI；同摘要和revision确认安装，默认停用。
-      parameters:
-      - $ref: '#/components/parameters/CSRFHeader'
-      - {name: preview, in: query, schema: {type: boolean}}
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: [package]
-              properties:
-                package: {type: string, format: binary}
-                digest: {type: string}
-                confirm: {type: string, enum: ['true']}
-                revision: {type: string}
-      responses:
-        '200': {$ref: '#/components/responses/OK'}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '409': {description: 安装修订冲突或未确认}
-  /api/v1/plugins/{id}/settings:
-    get:
-      operationId: readPluginSettings
-      description: 管理员原始设置，存储仍加密
-      parameters:
-      - {name: id, in: path, required: true, schema: {type: string}}
-      responses:
-        '200': {$ref: '#/components/responses/OK'}
-    put:
-      operationId: writePluginSettings
-      description: 加密保存；秘密空值保留、clear明确清除；保存后停用
-      parameters:
-      - $ref: '#/components/parameters/CSRFHeader'
-      - {name: id, in: path, required: true, schema: {type: string}}
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [revision, values]
-              properties:
-                revision: {type: integer, minimum: 1}
-                values: {type: object, additionalProperties: {type: string}}
-                clear: {type: array, items: {type: string}}
-      responses:
-        '200': {$ref: '#/components/responses/OK'}
-        '409': {description: 设置无效或修订冲突}
-  /api/v1/plugins/{id}/test:
-    post:
-      operationId: testPlugin
-      description: 明确confirm=true；测试不写媒体，管理员原始结果，无自动重发
-      parameters:
-      - $ref: '#/components/parameters/CSRFHeader'
-      - {name: id, in: path, required: true, schema: {type: string}}
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [confirm]
-              properties:
-                confirm: {type: boolean, const: true}
-                filename: {type: string, maxLength: 1024}
-      responses:
-        '200': {$ref: '#/components/responses/OK'}
-        '502': {description: 未启用或执行失败}
-  /api/v1/plugins/{id}/runs:
-    get:
-      operationId: listPluginRuns
-      description: 最近100次执行，失败/unknown不表示自动重试
-      parameters:
-      - {name: id, in: path, required: true, schema: {type: string}}
-      responses:
-        '200': {$ref: '#/components/responses/OK'}
-  /api/v1/plugins/{id}:
-    delete:
-      operationId: uninstallPlugin
-      description: 删除插件配置/执行记录，不删除媒体
-      parameters:
-      - $ref: '#/components/parameters/CSRFHeader'
-      - {name: id, in: path, required: true, schema: {type: string}}
-      - {name: confirm, in: query, required: true, schema: {type: boolean, const: true}}
-      - {name: revision, in: query, required: true, schema: {type: integer, minimum: 1}}
-      responses:
-        '200': {$ref: '#/components/responses/OK'}
-        '409': {description: 修订冲突}
   /api/v1/sites/metrics:
     get:
       operationId: readSiteMetrics
@@ -476,225 +379,6 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/OK'}
         '503': {description: 存储不可用或结果未确认}
-  /api/v1/plugin-market/repositories:
-    get:
-      operationId: get__api_v1_plugin_market_repositories
-      description: 插件仓库列表/添加
-      parameters: []
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
-    post:
-      operationId: post__api_v1_plugin_market_repositories
-      description: 插件仓库列表/添加
-      parameters:
-      - $ref: '#/components/parameters/CSRFHeader'
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
-  /api/v1/plugin-market/repositories/{id}:
-    delete:
-      operationId: delete__api_v1_plugin_market_repositories_id
-      description: 确认删除自定义仓库
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-      - $ref: '#/components/parameters/CSRFHeader'
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
-  /api/v1/plugin-market/repositories/{id}/catalog:
-    get:
-      operationId: get__api_v1_plugin_market_repositories_id_catalog
-      description: 有界HTTPS公开清单
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
-  /api/v1/plugin-market/package:
-    post:
-      operationId: post__api_v1_plugin_market_package
-      description: 同摘要及身份预览/确认升级
-      parameters:
-      - $ref: '#/components/parameters/CSRFHeader'
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
-  /api/v1/plugins/{id}/state:
-    get:
-      operationId: get__api_v1_plugins_id_state
-      description: 管理员原始实例数据/状态
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
-  /api/v1/plugins/{id}/data:
-    delete:
-      operationId: delete__api_v1_plugins_id_data
-      description: 确认清理实例数据并停用
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-      - $ref: '#/components/parameters/CSRFHeader'
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
-  /api/v1/plugins/{id}/clone:
-    post:
-      operationId: post__api_v1_plugins_id_clone
-      description: 停用分身：代码/配置复制，数据服务独立
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-      - $ref: '#/components/parameters/CSRFHeader'
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
-  /api/v1/plugins/{id}/ui:
-    get:
-      operationId: get__api_v1_plugins_id_ui
-      description: 隔离自定义UI，no-store/无网络/无同源
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
-  /api/v1/plugins/{id}/view/{kind}/{key}:
-    get:
-      operationId: get__api_v1_plugins_id_view_kind_key
-      description: 声明页面/仪表盘/API/命令，写操作确认
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: kind
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: key
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
-    post:
-      operationId: post__api_v1_plugins_id_view_kind_key
-      description: 声明页面/仪表盘/API/命令，写操作确认
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: kind
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: key
-        in: path
-        required: true
-        schema:
-          type: string
-      - $ref: '#/components/parameters/CSRFHeader'
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
-  /api/v1/plugins/{id}/services/{key}:
-    post:
-      operationId: post__api_v1_plugins_id_services_key
-      description: 当前修订服务单次触发
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: key
-        in: path
-        required: true
-        schema:
-          type: string
-      - $ref: '#/components/parameters/CSRFHeader'
-      responses:
-        '200':
-          $ref: '#/components/responses/OK'
-        '401':
-          description: 需要管理员会话
-        '409':
-          description: 确认/修订/能力冲突
   /api/v1/auth/login:
     post:
       operationId: login
@@ -4884,6 +4568,66 @@ paths:
           description: 匿名启动请求每IP每分钟600次，带Retry-After
         '503':
           description: 服务关闭、过载或暂不可用
+  /api/v1/plugins:
+    get:
+      operationId: listPluginV2Instances
+      description: 管理员分页实例，未选择定义零实例；pageSize最多200
+      parameters:
+      - {name: page, in: query, schema: {type: integer, minimum: 1}}
+      - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 200}}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+  /api/v1/plugins/catalog:
+    get:
+      operationId: listBuiltInPluginCatalog
+      description: 只读固定pin目录，无工厂调用或实例创建；分页最多200
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+  /api/v1/plugins/resources:
+    get:
+      operationId: readPinnedPluginResources
+      description: 管理员只读清单；前后端同pin，资源仅构建期打包
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+  /api/v1/plugins/{id}:
+    get:
+      operationId: inspectPluginV2Instance
+      description: 仅管理员；本实例原始配置与最多50条KV；存储加密
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: after, in: query, schema: {type: string, maxLength: 128}}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+        '404': {description: 实例不存在或已卸载}
+  /api/v1/plugins/operations:
+    post:
+      operationId: operatePluginV2Instance
+      description: 管理员会话+CSRF；幂等+CAS+权限指纹确认+审计；无运行期升级
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operationKey, kind, fingerprint, expectedRevision, confirm, scopes]
+              properties:
+                operationKey: {type: string, minLength: 8, maxLength: 100}
+                kind: {type: string, enum: [install, enable, disable, clone, configure, review, remove]}
+                instanceId: {type: string, format: uuid}
+                pluginId: {type: string}
+                fingerprint: {type: string, pattern: '^[a-f0-9]{64}$'}
+                expectedRevision: {type: integer, minimum: 0}
+                confirm: {type: boolean, enum: [true]}
+                scopes: {type: array, items: {type: string}}
+                config: {}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+        '202': {description: 状态变更已接受，worker异步收敛}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {description: 定义或修订变化，刷新后重新确认}
+
 components:
   securitySchemes:
     NativeTokenHeader:

@@ -19,3 +19,6 @@ coverage.out
 # Python script caches
 __pycache__/
 *.pyc
+
+# Build-only resources exported from the exact mediatool-plugin pin
+/web/public/plugins/
