@@ -6,10 +6,11 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 class GoIsolationTests(unittest.TestCase):
-    def invoke(self, database="media_tool_test", arguments=()):
+    def invoke(self, database="media_tool_test", arguments=(), require_media=False):
         with tempfile.TemporaryDirectory() as root:
             root = Path(root)
             (root / "scripts").mkdir()
@@ -22,7 +23,13 @@ import json,os,sys,urllib.parse
 print(json.dumps({'args':sys.argv[1:],'db':urllib.parse.urlsplit(os.environ['DATABASE_URL']).path,'redis':urllib.parse.urlsplit(os.environ['TEST_REDIS_URL']).path}))
 """)
             (root / "go").chmod(0o700)
+            # The fixture owns this flag; a CI-wide real-media requirement must
+            # not change the command/output shape of isolation-only assertions.
             env = os.environ.copy()
+            env["MEDIA_TOOL_REQUIRE_FFMPEG"] = "1" if require_media else "0"
+            for tool in ("ffmpeg", "ffprobe"):
+                (root / tool).write_text("#!/bin/sh\nexit 0\n")
+                (root / tool).chmod(0o700)
             env["PATH"] = str(root) + os.pathsep + env["PATH"]
             result = subprocess.run(["bash", str(root / "scripts/test-go.sh"), *arguments], env=env, capture_output=True, text=True)
             return result
@@ -50,3 +57,22 @@ print(json.dumps({'args':sys.argv[1:],'db':urllib.parse.urlsplit(os.environ['DAT
         refused = self.invoke(arguments=("-p=8",))
         self.assertNotEqual(refused.returncode, 0)
         self.assertEqual(refused.stdout, "")
+
+    def test_ambient_real_media_flag_is_isolated(self):
+        with patch.dict(os.environ, {"MEDIA_TOOL_REQUIRE_FFMPEG": "1"}):
+            result = self.invoke()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        commands = [json.loads(line) for line in result.stdout.splitlines()]
+        self.assertEqual(len(commands), 2)
+        self.assertNotIn("-v", commands[1]["args"])
+
+    def test_explicit_real_media_mode_preserves_guards_and_verbose_output(self):
+        result = self.invoke(require_media=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        migration, required, test = result.stdout.splitlines()
+        self.assertIn("Real media tests REQUIRED", required)
+        commands = [json.loads(migration), json.loads(test)]
+        self.assertEqual(commands[1]["args"], ["test", "-p", "1", "-race", "-count=1", "-v", "./..."])
+        for command in commands:
+            self.assertEqual(command["db"], "/media_tool_test")
+            self.assertEqual(command["redis"], "/15")
