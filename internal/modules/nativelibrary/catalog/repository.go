@@ -164,7 +164,13 @@ func syncLibraries(ctx context.Context, tx pgx.Tx, plans []byte, revision int64)
 		return err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE native_libraries SET hidden=true,policy_revision=$2,updated_at=now()
-  WHERE NOT hidden AND NOT EXISTS(SELECT 1 FROM jsonb_to_recordset($1::jsonb)AS p(id text) WHERE p.id=native_libraries.id)`, string(plans), revision); err != nil {
+  WHERE NOT hidden AND id NOT IN('f:movie','f:series') AND NOT EXISTS(SELECT 1 FROM jsonb_to_recordset($1::jsonb)AS p(id text) WHERE p.id=native_libraries.id)`, string(plans), revision); err != nil {
+		return err
+	}
+	// Fallbacks are assignment-owned, never classification-plan members. Repair
+	// their persisted visibility in this transaction, including on startup, and
+	// before expanding legacy grants to the resulting visible libraries.
+	if err := hideFallback(ctx, tx); err != nil {
 		return err
 	}
 	rows, err := tx.Query(ctx, `SELECT user_id,media_type,can_play FROM media_user_legacy_grants FOR UPDATE`)

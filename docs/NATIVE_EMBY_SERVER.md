@@ -221,6 +221,7 @@ Infuse / SenPlayer / 其他 Emby 客户端
 - 库 ID 使用 `g:<groupId>` 或 `r:<groupId>:<ruleId>`，通过 `native_item_ids` 稳定分配 `itemId`；分类禁用/删除只隐藏库，不删除 ID 或授权，重新启用复用原 ID。
 - 目录使用与 `classification.Render` 相同的分组/规则相对目录；显示名重复时追加 ` · <分组名>` 消歧。
 - 分类保存、粒度变更和启动同步均在单个事务内读取策略/设置并更新库。首次同步将 legacy movie/series 授权展开到当前可见电影/剧集库并删除对应 legacy 行；之后新库默认无授权。分组有启用子规则但均未命中时，资产按 T12 实际输出目录进入相应兜底库。
+- **R3 兜底库可见性**：分类计划的隐藏操作明确排除 `f:movie` / `f:series`；分类/粒度/启动同步在同一事务中复用资产归属规则重算这两个库（有归属则可见，无归属则隐藏），并修复旧启动遗留的错误隐藏状态。浏览、NextUp、层级查询仍要求未隐藏、用户授权及有效可暴露资产，不绕过权限、不重写 STRM、不改变条目 ID。回归覆盖电影/剧集四种归属组合、空库、普通分类删除、新连接重复启动同步，以及 Views→电影/剧→季→集和 NextUp/撤销授权。
 - 管理端 GET `/api/v1/media-server/native/libraries` 返回分页库列表和每库 `assetCount`；GET `/api/v1/media-server/native/libraries/{id}/assets` 返回资产标题、STRM 输出路径、归属来源和诊断信息；媒体端不会暴露这些接口。
 
 ## T07 运行与冒烟边界
