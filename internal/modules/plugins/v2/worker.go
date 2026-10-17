@@ -16,7 +16,19 @@ import (
 )
 
 // Worker is called BEFORE app configuration, logging store, migration or DB setup.
-func Worker(args []string) error {
+func Worker(args []string) (failure error) {
+	// Fixed protocol reason only: never print user arguments or raw errors.
+	defer func() {
+		if failure != nil {
+			reason := "unavailable"
+			var rpc *contracts.Error
+			if errors.As(failure, &rpc) {
+				reason = contracts.Reason(rpc.Code)
+			}
+			slog.New(slog.NewTextHandler(os.Stderr, nil)).Warn("Plugin worker stopped", "module", "plugins", "reason", reason)
+		}
+	}()
+
 	flags := flag.NewFlagSet("plugin-worker", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	plugin := flags.String("plugin", "", "")

@@ -506,6 +506,11 @@ func workerEnvironment(dir, instance string) []string {
 func (s *stderrLimit) category() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	for _, code := range []contracts.Code{contracts.InvalidRequest, contracts.InvalidParams, contracts.Conflict, contracts.NeedsAction, contracts.InternalError, contracts.PayloadTooLarge} {
+		if bytes.Contains(s.tail, []byte("reason="+contracts.Reason(code))) {
+			return "worker_rpc_" + contracts.Reason(code)
+		}
+	}
 	for _, v := range []string{"newosproc", "pthread_create", "Resource temporarily unavailable"} {
 		if bytes.Contains(s.tail, []byte(v)) {
 			return "worker_process_limit"
