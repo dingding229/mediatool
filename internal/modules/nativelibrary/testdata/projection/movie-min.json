@@ -1,0 +1,26 @@
+{
+  "Id": "100102",
+  "Name": "Minimal Film",
+  "SortName": "Minimal Film",
+  "ParentId": "100001",
+  "Type": "Movie",
+  "MediaType": "Video",
+  "LocationType": "FileSystem",
+  "IsFolder": false,
+  "Path": "Minimal Film.mkv",
+  "ParentBackdropImageTags": [],
+  "DateCreated": "2026-10-16T00:00:00.0000000Z",
+  "Genres": [],
+  "People": [],
+  "BackdropImageTags": [],
+  "ProviderIds": {
+    "Tmdb": "900102"
+  },
+  "MediaSources": [],
+  "MediaStreams": [],
+  "Chapters": [],
+  "UserData": {
+    "Played": false,
+    "IsFavorite": false
+  }
+}

@@ -1,8 +1,7 @@
 package mediausers
 
 import (
-	"net/http"
-	"net/http/httptest"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -28,36 +27,30 @@ func TestValidationDefaultsAndPermissions(t *testing.T) {
 		t.Fatal("edit bypasses reset flow")
 	}
 }
-func TestMemberCookiesAreIndependentAndStrict(t *testing.T) {
-	first, err := NewToken()
-	if err != nil {
-		t.Fatal(err)
-	}
-	second, _ := NewToken()
-	if first == second || len(first) != 43 {
-		t.Fatal("token entropy")
-	}
-	w := httptest.NewRecorder()
-	SetCookie(w, first, true)
-	c := w.Result().Cookies()[0]
-	if c.Name != "media_tool_member_session" || c.Path != "/api/v1/member" || !c.Secure || !c.HttpOnly || c.SameSite != http.SameSiteStrictMode || c.MaxAge != 28800 {
-		t.Fatal(c)
-	}
-	r := httptest.NewRequest("GET", "/api/v1/member/auth/session", nil)
-	r.AddCookie(c)
-	if Token(r) != first {
-		t.Fatal("cookie not recognized")
-	}
-	for _, value := range []string{"", strings.Repeat("!", 43), strings.Repeat("a", 44)} {
-		rr := httptest.NewRequest("GET", "/", nil)
-		rr.AddCookie(&http.Cookie{Name: CookieName, Value: value})
-		if Token(rr) != "" {
-			t.Fatal("invalid token")
+
+func TestNativePermissionInputValidation(t *testing.T) {
+	for _, raw := range []string{
+		`{"username":"member","revision":1,"maxStreams":0}`,
+		`{"username":"member","revision":1,"maxStreams":21}`,
+		`{"username":"member","revision":1,"maxParentalRating":-1}`,
+		`{"username":"member","revision":1,"maxParentalRating":101}`,
+		`{"username":"member","revision":1,"grants":[{"libraryId":"g:test","canDownload":true}]}`,
+		`{"username":"member","revision":1,"expiresAt":"invalid-date"}`,
+		`{"username":"member","revision":1,"unknown":true}`,
+	} {
+		var in Input
+		if err := json.Unmarshal([]byte(raw), &in); err == nil && in.Validate(false) == nil {
+			t.Fatal("invalid permission input accepted", raw)
 		}
 	}
-	w = httptest.NewRecorder()
-	ClearCookie(w, true)
-	if w.Result().Cookies()[0].MaxAge != -1 || w.Result().Cookies()[0].Path != c.Path {
-		t.Fatal("incorrect clearing path")
+	var omitted, cleared Input
+	if err := json.Unmarshal([]byte(`{"username":"member","revision":1}`), &omitted); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(`{"username":"member","revision":1,"maxParentalRating":null,"expiresAt":null}`), &cleared); err != nil {
+		t.Fatal(err)
+	}
+	if omitted.parentalSet || omitted.expirySet || !cleared.parentalSet || !cleared.expirySet {
+		t.Fatal("nullable update semantics lost")
 	}
 }

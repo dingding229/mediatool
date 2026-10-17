@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "durationTicks": 1234560000,
+  "container": "mkv",
+  "bitRate": 987654,
+  "size": 1234567,
+  "streams": [
+    {
+      "index": 0,
+      "type": "Video",
+      "codec": "h264",
+      "profile": "High",
+      "level": 40,
+      "width": 1920,
+      "height": 1080,
+      "bitRate": 800000,
+      "averageFrameRate": 23.976025,
+      "realFrameRate": 24,
+      "pixelFormat": "yuv420p",
+      "bitDepth": 8,
+      "aspectRatio": "16:9",
+      "videoRange": "SDR",
+      "videoRangeType": "SDR",
+      "isInterlaced": true,
+      "rotation": -90,
+      "isDefault": true,
+      "displayTitle": "1080p H264 SDR"
+    },
+    {
+      "index": 2,
+      "type": "Audio",
+      "codec": "aac",
+      "profile": "LC",
+      "bitRate": 192000,
+      "channels": 6,
+      "channelLayout": "5.1(side)",
+      "sampleRate": 48000,
+      "language": "zho",
+      "title": "合成中文音轨",
+      "isDefault": true,
+      "displayTitle": "Chinese AAC 5.1 Default"
+    },
+    {
+      "index": 4,
+      "type": "Subtitle",
+      "codec": "srt",
+      "language": "eng",
+      "title": "English captions",
+      "isForced": true,
+      "isHearingImpaired": true,
+      "isTextSubtitleStream": true,
+      "displayTitle": "English SRT Forced Hearing Impaired"
+    }
+  ]
+}

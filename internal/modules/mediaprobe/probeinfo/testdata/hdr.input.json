@@ -1,0 +1,6 @@
+{"format":{"format_name":"mpegts","duration":3,"filename":"https://synthetic.invalid/DO_NOT_STORE.m2ts?sig=DO_NOT_STORE"},"streams":[
+ {"index":0,"codec_type":"video","codec_name":"hevc","profile":"Main 10","width":3840,"height":2160,"pix_fmt":"yuv420p10le","bits_per_raw_sample":"10","color_transfer":"smpte2084","color_primaries":"bt2020","side_data_list":[{"side_data_type":"DOVI configuration record","dv_profile":8,"DO_NOT_STORE":"secret"}]},
+ {"index":1,"codec_type":"video","codec_name":"hevc","pix_fmt":"p010le","color_transfer":"arib-std-b67","color_primaries":"bt2020"},
+ {"index":2,"codec_type":"video","codec_name":"hevc","pix_fmt":"yuv420p10le","color_transfer":"smpte2084","color_primaries":"bt2020"},
+ {"index":3,"codec_type":"subtitle","codec_name":"hdmv_pgs_subtitle","tags":{"language":"jpn"},"disposition":{"default":1,"forced":1}}
+]}

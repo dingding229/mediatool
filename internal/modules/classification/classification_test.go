@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"media-tool/internal/modules/metadata"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -47,5 +48,52 @@ func TestDefaultPolicySerializesCollectionFieldsAsArrays(t *testing.T) {
 	}
 	if strings.Contains(string(raw), `"genreIds":null`) || strings.Contains(string(raw), `"countries":null`) || strings.Contains(string(raw), `"languages":null`) || strings.Contains(string(raw), `"rules":null`) {
 		t.Fatal(string(raw))
+	}
+}
+
+func TestMatchGroupWithoutEnabledRulesUsesGroupDirectory(t *testing.T) {
+	policy := Policy{Groups: []Group{{ID: "g", Name: "自定义电影", Directory: "自定义电影", MediaType: "movie", Enabled: true, Rules: []Rule{{ID: "disabled", Name: "失效", Directory: "失效", Enabled: false}}}}}
+	got := policy.Match(metadata.Item{MediaType: "movie", Title: "Synthetic"})
+	if got.Directory != "自定义电影" || got.GroupID != "g" || got.RuleID != "" {
+		t.Fatalf("group fallback=%+v", got)
+	}
+}
+func TestMatchDisabledGroupUsesTypeFallback(t *testing.T) {
+	policy := Policy{Groups: []Group{{ID: "g", Name: "关闭组", Directory: "关闭组", MediaType: "movie", Enabled: false}}}
+	got := policy.Match(metadata.Item{MediaType: "movie", Title: "Synthetic"})
+	if got.Directory != "电影" || got.GroupID != "" {
+		t.Fatalf("disabled group fallback=%+v", got)
+	}
+}
+func TestMatchEnabledRulesWithNoMatchUsesTypeFallback(t *testing.T) {
+	policy := Policy{Groups: []Group{{ID: "g", Name: "按地区", Directory: "按地区", MediaType: "movie", Enabled: true, Rules: []Rule{{ID: "cn", Name: "华语", Directory: "华语", Enabled: true, Countries: []string{"CN"}}}}}}
+	got := policy.Match(metadata.Item{MediaType: "movie", Title: "Synthetic", Countries: []string{"US"}})
+	if got.Directory != "电影" || got.GroupID != "" {
+		t.Fatalf("unmatched rule fallback=%+v", got)
+	}
+}
+
+func TestDecodeRecordMissingOrNullGroupsUseDefaultPolicy(t *testing.T) {
+	want := Defaults()
+	for _, raw := range []string{`{}`, `{"groups":null}`} {
+		record, err := DecodeRecord([]byte(raw), 7)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(record.Value.Groups) != len(want.Groups) {
+			t.Fatalf("%s groups=%d want=%d", raw, len(record.Value.Groups), len(want.Groups))
+		}
+	}
+}
+func TestDecodeRecordOmittedNestedFieldsMatchOnlineLegacySemantics(t *testing.T) {
+	raw := []byte(`{"groups":[{"id":"synthetic","name":"自定义","directory":"自定义","mediaType":"movie","enabled":true,"rules":[{"id":"rule","name":"规则","directory":"规则","enabled":true}]}]}`)
+	record, err := DecodeRecord(raw, 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defaults := Defaults()
+	group := record.Value.Groups[0]
+	if !reflect.DeepEqual(group.GenreIDs, defaults.Groups[0].GenreIDs) || len(group.Rules) != 1 || !reflect.DeepEqual(group.Rules[0].Countries, defaults.Groups[0].Rules[0].Countries) {
+		t.Fatalf("legacy nested inheritance changed: %+v", group)
 	}
 }

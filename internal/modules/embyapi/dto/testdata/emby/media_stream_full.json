@@ -1,0 +1,17 @@
+{
+  "Type": "Video",
+  "Codec": "h264",
+  "Language": "eng",
+  "DisplayTitle": "Synthetic 1080p",
+  "Index": 0,
+  "BitRate": 0,
+  "Width": 1920,
+  "Height": 1080,
+  "Channels": 2,
+  "SampleRate": 48000,
+  "BitDepth": 8,
+  "AverageFrameRate": 24,
+  "IsDefault": true,
+  "IsForced": true,
+  "IsExternal": true
+}

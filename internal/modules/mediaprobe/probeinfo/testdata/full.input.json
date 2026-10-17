@@ -1,0 +1,11 @@
+{
+ "format":{"format_name":"matroska,webm","duration":"123.456","size":"1234567","bit_rate":"987654","filename":"https://synthetic.invalid/DO_NOT_STORE?api_key=DO_NOT_STORE","tags":{"title":"DO_NOT_STORE"}},
+ "streams":[
+  {"index":0,"codec_type":"video","codec_name":"h264","profile":"High","level":40,"width":1920,"height":1080,"bit_rate":"800000","avg_frame_rate":"24000/1001","r_frame_rate":"24/1","pix_fmt":"yuv420p","display_aspect_ratio":"16:9","field_order":"tt","tags":{"rotate":"90","filename":"DO_NOT_STORE"},"side_data_list":[{"side_data_type":"Display Matrix","rotation":-90}],"disposition":{"default":1}},
+  {"index":1,"codec_type":"video","codec_name":"mjpeg","disposition":{"attached_pic":1},"tags":{"title":"DO_NOT_STORE"}},
+  {"index":2,"codec_type":"audio","codec_name":"aac","profile":"LC","channels":6,"channel_layout":"5.1(side)","sample_rate":"48000","bit_rate":"192000","tags":{"language":"chi","title":"合成中文音轨"},"disposition":{"default":1}},
+  {"index":4,"codec_type":"subtitle","codec_name":"subrip","tags":{"language":"en","title":"English captions"},"disposition":{"forced":1,"hearing_impaired":1}},
+  {"index":5,"codec_type":"data","tags":{"title":"DO_NOT_STORE"}},
+  {"index":8,"codec_type":"attachment","codec_name":"ttf","tags":{"filename":"DO_NOT_STORE.ttf"}}
+ ]
+}

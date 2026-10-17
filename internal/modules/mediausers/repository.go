@@ -12,6 +12,7 @@ import (
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/auth"
+	deferutil "media-tool/internal/platform/cleanup"
 )
 
 type Repository struct{ DB *pgxpool.Pool }
@@ -42,11 +43,14 @@ func validID(id string) bool {
 	return true
 }
 
-const userColumns = `id::text,username,display_name,enabled,must_change_password,credential_version,created_at,updated_at`
+const userColumns = `id::text,username,display_name,enabled,must_change_password,credential_version,created_at,updated_at,max_streams,max_parental_rating,expires_at`
 
+func userDest(u *User) []any {
+	return []any{&u.ID, &u.Username, &u.DisplayName, &u.Enabled, &u.MustChangePassword, &u.Revision, &u.CreatedAt, &u.UpdatedAt, &u.MaxStreams, &u.MaxParentalRating, &u.ExpiresAt}
+}
 func scanUser(row pgx.Row) (u User, err error) {
 	u.Grants = []Grant{}
-	err = row.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Enabled, &u.MustChangePassword, &u.Revision, &u.CreatedAt, &u.UpdatedAt)
+	err = row.Scan(userDest(&u)...)
 	return
 }
 func audit(ctx context.Context, tx pgx.Tx, actor, action, id string) error {
@@ -59,14 +63,17 @@ func writeGrants(ctx context.Context, tx pgx.Tx, id string, grants []Grant) erro
 		return err
 	}
 	for _, g := range grants {
-		if _, err := tx.Exec(ctx, `INSERT INTO media_user_library_grants(user_id,library_id,can_play)VALUES($1,$2,$3)`, id, g.LibraryID, g.CanPlay); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO media_user_library_grants(user_id,library_id,can_play,can_download)VALUES($1,$2,$3,$4)`, id, g.LibraryID, g.CanPlay, g.CanDownload); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 func revoke(ctx context.Context, tx pgx.Tx, id string) error {
-	_, err := tx.Exec(ctx, `UPDATE media_user_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, id)
+	if _, err := tx.Exec(ctx, `UPDATE media_user_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, id); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `UPDATE media_user_tokens SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, id)
 	return err
 }
 func (r Repository) Save(ctx context.Context, id string, in Input) (User, error) {
@@ -91,15 +98,15 @@ func (r Repository) Save(ctx context.Context, id string, in Input) (User, error)
 	if err != nil {
 		return User{}, ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var u User
 	action := "media_user.updated"
 	if id == "" {
 		id = jobs.UUID()
 		action = "media_user.created"
-		u, err = scanUser(tx.QueryRow(ctx, `INSERT INTO media_users(id,username,display_name,password_hash,enabled)VALUES($1,$2,$3,$4,$5)RETURNING `+userColumns, id, in.Username, in.DisplayName, hash, in.Enabled))
+		u, err = scanUser(tx.QueryRow(ctx, `INSERT INTO media_users(id,username,display_name,password_hash,enabled,must_change_password,max_streams,max_parental_rating,expires_at)VALUES($1,$2,$3,$4,$5,coalesce($6,false),coalesce($7,2),$8,$9)RETURNING `+userColumns, id, in.Username, in.DisplayName, hash, in.Enabled, in.MustChangePassword, in.MaxStreams, in.MaxParentalRating, in.ExpiresAt))
 	} else {
-		u, err = scanUser(tx.QueryRow(ctx, `UPDATE media_users SET username=$2,display_name=$3,enabled=$4,credential_version=credential_version+1,updated_at=now() WHERE id=$1 AND credential_version=$5 RETURNING `+userColumns, id, in.Username, in.DisplayName, in.Enabled, in.Revision))
+		u, err = scanUser(tx.QueryRow(ctx, `UPDATE media_users SET username=$2,display_name=$3,enabled=$4,must_change_password=coalesce($6,must_change_password),max_streams=coalesce($7,max_streams),max_parental_rating=CASE WHEN $10 THEN $8 ELSE max_parental_rating END,expires_at=CASE WHEN $11 THEN $9 ELSE expires_at END,credential_version=credential_version+1,updated_at=now() WHERE id=$1 AND credential_version=$5 RETURNING `+userColumns, id, in.Username, in.DisplayName, in.Enabled, in.Revision, in.MustChangePassword, in.MaxStreams, in.MaxParentalRating, in.ExpiresAt, in.parentalSet || in.MaxParentalRating != nil, in.expirySet || in.ExpiresAt != nil))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return User{}, ErrConflict
 		}
@@ -128,7 +135,7 @@ func (r Repository) List(ctx context.Context) ([]User, error) {
 		return out, ErrUnavailable
 	}
 	// One snapshot avoids pairing an old user revision with new permissions.
-	rows, err := r.DB.Query(ctx, `SELECT `+userColumns+`,(SELECT count(*) FROM media_user_sessions s WHERE s.user_id=u.id AND s.revoked_at IS NULL AND s.expires_at>now() AND s.credential_version=u.credential_version),coalesce((SELECT jsonb_agg(jsonb_build_object('libraryId',g.library_id,'canPlay',g.can_play) ORDER BY g.library_id) FROM media_user_library_grants g WHERE g.user_id=u.id),'[]'::jsonb) FROM media_users u ORDER BY created_at DESC LIMIT 500`)
+	rows, err := r.DB.Query(ctx, `SELECT `+userColumns+`,(SELECT count(*) FROM media_user_tokens s WHERE s.user_id=u.id AND s.revoked_at IS NULL AND s.expires_at>now() AND s.credential_version=u.credential_version),coalesce((SELECT jsonb_agg(jsonb_build_object('libraryId',g.library_id,'canPlay',g.can_play,'canDownload',g.can_download) ORDER BY g.library_id) FROM media_user_library_grants g WHERE g.user_id=u.id),'[]'::jsonb) FROM media_users u ORDER BY created_at DESC LIMIT 500`)
 	if err != nil {
 		return out, ErrUnavailable
 	}
@@ -136,7 +143,7 @@ func (r Repository) List(ctx context.Context) ([]User, error) {
 	for rows.Next() {
 		var u User
 		var raw []byte
-		if err = rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Enabled, &u.MustChangePassword, &u.Revision, &u.CreatedAt, &u.UpdatedAt, &u.ActiveSessions, &raw); err != nil {
+		if err = rows.Scan(append(userDest(&u), &u.ActiveSessions, &raw)...); err != nil {
 			return out, ErrUnavailable
 		}
 		if err = json.Unmarshal(raw, &u.Grants); err != nil {
@@ -172,7 +179,7 @@ func (r Repository) Login(ctx context.Context, username, password, token string)
 	if err != nil {
 		return User{}, ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var current User
 	current, err = scanUser(tx.QueryRow(ctx, `SELECT `+userColumns+` FROM media_users WHERE id=$1 AND enabled AND credential_version=$2 FOR SHARE`, u.ID, u.Revision))
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -212,7 +219,7 @@ func (r Repository) Session(ctx context.Context, token string) (User, error) {
 }
 
 // Mutations fence the credential/permission revision and revoke every session.
-func (r Repository) Mutate(ctx context.Context, id string, revision int64, action, password string) error {
+func (r Repository) Mutate(ctx context.Context, id string, revision int64, action, password string, requireChange ...bool) error {
 	if !validID(id) || revision < 1 {
 		return ErrInvalid
 	}
@@ -233,14 +240,15 @@ func (r Repository) Mutate(ctx context.Context, id string, revision int64, actio
 	if err != nil {
 		return ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	sql := `UPDATE media_users SET credential_version=credential_version+1,updated_at=now() WHERE id=$1 AND credential_version=$2`
 	args := []any{id, revision}
 	if action == "delete" {
 		sql = `DELETE FROM media_users WHERE id=$1 AND credential_version=$2`
 	} else if action == "password" {
-		sql = `UPDATE media_users SET password_hash=$3,must_change_password=true,credential_version=credential_version+1,updated_at=now() WHERE id=$1 AND credential_version=$2`
-		args = append(args, hash)
+		sql = `UPDATE media_users SET password_hash=$3,must_change_password=$4,credential_version=credential_version+1,updated_at=now() WHERE id=$1 AND credential_version=$2`
+		force := len(requireChange) > 0 && requireChange[0]
+		args = append(args, hash, force)
 	}
 	tag, err := tx.Exec(ctx, sql, args...)
 	if err != nil {
@@ -285,7 +293,7 @@ func (r Repository) ChangePassword(ctx context.Context, u User, current, next st
 	if err != nil {
 		return ErrUnavailable
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	tag, err := tx.Exec(ctx, `UPDATE media_users SET password_hash=$3,must_change_password=false,credential_version=credential_version+1,updated_at=now() WHERE id=$1 AND credential_version=$2 AND enabled`, u.ID, u.Revision, hash)
 	if err != nil {
 		return ErrUnavailable
@@ -321,4 +329,27 @@ func (r Repository) TakeAttempt(ctx context.Context, secret, scope string, limit
 	var n int
 	err := r.DB.QueryRow(ctx, `INSERT INTO media_user_auth_limits(scope_digest,window_start,attempts)VALUES($1,now(),1)ON CONFLICT(scope_digest)DO UPDATE SET window_start=CASE WHEN media_user_auth_limits.window_start<now()-interval '1 minute' THEN now() ELSE media_user_auth_limits.window_start END,attempts=CASE WHEN media_user_auth_limits.window_start<now()-interval '1 minute' THEN 1 ELSE media_user_auth_limits.attempts+1 END RETURNING attempts`, h.Sum(nil)).Scan(&n)
 	return n <= limit, dbError(err)
+}
+
+// Get is management-only and deliberately includes hidden-library grants.
+func (r Repository) Get(ctx context.Context, id string) (User, error) {
+	if !validID(id) {
+		return User{}, ErrInvalid
+	}
+	if r.DB == nil {
+		return User{}, ErrUnavailable
+	}
+	var u User
+	var raw []byte
+	err := r.DB.QueryRow(ctx, `SELECT `+userColumns+`,(SELECT count(*) FROM media_user_tokens t WHERE t.user_id=u.id AND t.revoked_at IS NULL AND t.expires_at>now() AND t.credential_version=u.credential_version),coalesce((SELECT jsonb_agg(jsonb_build_object('libraryId',g.library_id,'canPlay',g.can_play,'canDownload',g.can_download) ORDER BY g.library_id) FROM media_user_library_grants g WHERE g.user_id=u.id),'[]'::jsonb) FROM media_users u WHERE id=$1`, id).Scan(append(userDest(&u), &u.ActiveSessions, &raw)...)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return u, ErrNotFound
+	}
+	if err != nil {
+		return u, ErrUnavailable
+	}
+	if err = json.Unmarshal(raw, &u.Grants); err != nil {
+		return u, ErrUnavailable
+	}
+	return u, nil
 }

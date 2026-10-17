@@ -1,0 +1,149 @@
+{
+  "Id": "session-0001",
+  "UserId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "UserName": "Synthetic User",
+  "DeviceId": "device-0001",
+  "DeviceName": "Synthetic TV",
+  "Client": "Synthetic Client",
+  "ApplicationVersion": "1.0.0",
+  "LastActivityDate": "2026-10-16T00:09:10.1234567Z",
+  "NowPlayingItem": {
+    "Id": "100005",
+    "Name": "Synthetic Episode",
+    "OriginalTitle": "Synthetic Original",
+    "SortName": "Synthetic Episode",
+    "ServerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ParentId": "100004",
+    "SeriesId": "100003",
+    "SeasonId": "100004",
+    "SeriesName": "Synthetic Series",
+    "Type": "Episode",
+    "MediaType": "Video",
+    "LocationType": "FileSystem",
+    "IsFolder": false,
+    "CollectionType": "tvshows",
+    "Path": "Synthetic Episode.mkv",
+    "Overview": "Entirely synthetic contract metadata.",
+    "RunTimeTicks": 72000000000,
+    "IndexNumber": 0,
+    "IndexNumberEnd": 0,
+    "ParentIndexNumber": 0,
+    "ChildCount": 0,
+    "RecursiveItemCount": 0,
+    "ProductionYear": 2026,
+    "CommunityRating": 8.5,
+    "OfficialRating": "PG",
+    "PremiereDate": "2026-10-16T00:09:10.1234567Z",
+    "ParentBackdropImageTags": [],
+    "DateCreated": "2026-10-16T00:09:10.1234567Z",
+    "Genres": [
+      "Synthetic Drama"
+    ],
+    "People": [
+      {
+        "Name": "Synthetic Actor",
+        "Id": "900001",
+        "Type": "Actor",
+        "Role": "Synthetic lead",
+        "PrimaryImageTag": "synthetic-person-tag"
+      }
+    ],
+    "BackdropImageTags": [
+      "synthetic-backdrop-tag"
+    ],
+    "ImageTags": {
+      "Primary": "synthetic-poster-tag"
+    },
+    "ProviderIds": {
+      "Imdb": "tt0000001",
+      "Tmdb": "901001"
+    },
+    "MediaSources": [
+      {
+        "Id": "source-0001",
+        "Name": "Synthetic edition",
+        "Path": "https://media.synthetic.invalid/Videos/100005/stream.mkv?Static=true\u0026MediaSourceId=source-0001\u0026api_key=synthetic-user-token",
+        "Container": "mkv",
+        "RunTimeTicks": 72000000000,
+        "Size": 0,
+        "Bitrate": 5000000,
+        "DefaultAudioStreamIndex": 0,
+        "DefaultSubtitleStreamIndex": -1,
+        "MediaStreams": [
+          {
+            "Type": "Video",
+            "Codec": "h264",
+            "Language": "eng",
+            "DisplayTitle": "Synthetic 1080p",
+            "Index": 0,
+            "BitRate": 0,
+            "Width": 1920,
+            "Height": 1080,
+            "Channels": 2,
+            "SampleRate": 48000,
+            "BitDepth": 8,
+            "AverageFrameRate": 24,
+            "IsDefault": true,
+            "IsForced": true,
+            "IsExternal": true
+          }
+        ],
+        "Chapters": [
+          {
+            "StartPositionTicks": 0,
+            "Name": "Synthetic opening",
+            "ImageTag": "synthetic-chapter-tag"
+          }
+        ],
+        "Protocol": "Http",
+        "IsRemote": true,
+        "SupportsDirectPlay": true,
+        "SupportsDirectStream": true,
+        "SupportsTranscoding": false,
+        "RequiresOpening": false,
+        "RequiresClosing": false
+      }
+    ],
+    "MediaStreams": [
+      {
+        "Type": "Video",
+        "Codec": "h264",
+        "Language": "eng",
+        "DisplayTitle": "Synthetic 1080p",
+        "Index": 0,
+        "BitRate": 0,
+        "Width": 1920,
+        "Height": 1080,
+        "Channels": 2,
+        "SampleRate": 48000,
+        "BitDepth": 8,
+        "AverageFrameRate": 24,
+        "IsDefault": true,
+        "IsForced": true,
+        "IsExternal": true
+      }
+    ],
+    "Chapters": [
+      {
+        "StartPositionTicks": 0,
+        "Name": "Synthetic opening",
+        "ImageTag": "synthetic-chapter-tag"
+      }
+    ],
+    "UserData": {
+      "PlaybackPositionTicks": 0,
+      "PlayCount": 0,
+      "Played": true,
+      "IsFavorite": true,
+      "LastPlayedDate": "2026-10-16T00:09:10.1234567Z",
+      "UnplayedItemCount": 0
+    }
+  },
+  "PlayState": {
+    "PositionTicks": 0,
+    "IsPaused": true,
+    "IsMuted": true,
+    "VolumeLevel": 0,
+    "PlayMethod": "DirectPlay"
+  }
+}

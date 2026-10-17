@@ -1,0 +1,9 @@
+{
+  "IsAdministrator": false,
+  "IsHidden": false,
+  "IsDisabled": false,
+  "EnableAllFolders": false,
+  "EnableMediaPlayback": false,
+  "EnableContentDownloading": false,
+  "EnabledFolders": []
+}

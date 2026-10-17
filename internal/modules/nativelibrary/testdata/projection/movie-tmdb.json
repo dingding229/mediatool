@@ -1,0 +1,42 @@
+{
+  "Id": "100103",
+  "Name": "Snapshot Film",
+  "SortName": "Snapshot Film",
+  "ParentId": "100001",
+  "Type": "Movie",
+  "MediaType": "Video",
+  "LocationType": "FileSystem",
+  "IsFolder": false,
+  "Path": "Snapshot Film.mkv",
+  "RunTimeTicks": 72000000000,
+  "ProductionYear": 2026,
+  "CommunityRating": 8.8,
+  "OfficialRating": "PG-13",
+  "PremiereDate": "2026-03-04T00:00:00.0000000Z",
+  "ParentBackdropImageTags": [],
+  "DateCreated": "2026-10-16T00:00:00.0000000Z",
+  "Genres": [
+    "Drama"
+  ],
+  "People": [
+    {
+      "Name": "Synthetic Actor",
+      "Id": "901",
+      "Type": "Actor",
+      "Role": "Lead",
+      "PrimaryImageTag": "4d36873ccf1bbfdd0dce2c8bd86645022f8fc43369957923833332c5e7cf903b"
+    }
+  ],
+  "BackdropImageTags": [],
+  "ProviderIds": {
+    "Imdb": "tt900103",
+    "Tmdb": "900103"
+  },
+  "MediaSources": [],
+  "MediaStreams": [],
+  "Chapters": [],
+  "UserData": {
+    "Played": false,
+    "IsFavorite": false
+  }
+}

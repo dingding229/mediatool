@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "durationTicks": 0,
+  "container": "mp4",
+  "streams": [
+    {
+      "index": 0,
+      "type": "Video",
+      "codec": "h264",
+      "width": 160,
+      "height": 90,
+      "averageFrameRate": 24.008003,
+      "realFrameRate": 24,
+      "pixelFormat": "yuv420p",
+      "bitDepth": 8,
+      "aspectRatio": "16:9",
+      "videoRange": "SDR",
+      "videoRangeType": "SDR",
+      "isDefault": true,
+      "displayTitle": "90p H264 SDR"
+    },
+    {
+      "index": 1,
+      "type": "Audio",
+      "codec": "aac",
+      "channels": 1,
+      "channelLayout": "mono",
+      "sampleRate": 44100,
+      "language": "zho",
+      "isDefault": true,
+      "displayTitle": "Chinese AAC Mono Default"
+    }
+  ]
+}

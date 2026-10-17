@@ -134,7 +134,11 @@ func (p Policy) Match(i metadata.Item) Match {
 		if !g.Enabled || g.MediaType != i.MediaType || !genres(g.GenreIDs, i) {
 			continue
 		}
+		hasEnabledRules := false
 		for _, r := range g.Rules {
+			if r.Enabled {
+				hasEnabledRules = true
+			}
 			if !r.Enabled || !genres(r.GenreIDs, i) {
 				continue
 			}
@@ -153,6 +157,9 @@ func (p Policy) Match(i metadata.Item) Match {
 				continue
 			}
 			return Match{GroupID: g.ID, RuleID: r.ID, Name: g.Name + " / " + r.Name, Directory: path.Join(g.Directory, r.Directory), Reason: "按有序规则首次匹配；类型及不同字段AND，同字段多值OR"}
+		}
+		if !hasEnabledRules {
+			return Match{GroupID: g.ID, Name: g.Name, Directory: g.Directory, Reason: "分组没有启用子规则，使用分组目录"}
 		}
 	}
 	dir := "电影"
@@ -187,23 +194,42 @@ func normalize(p *Policy) {
 		}
 	}
 }
-func (r Repository) Get(ctx context.Context) (Record, error) {
-	out := Record{Value: Defaults(), Revision: 1}
-	normalize(&out.Value)
-	if r.DB == nil {
-		return out, nil
-	}
-	var raw []byte
-	if err := r.DB.QueryRow(ctx, `SELECT value,revision FROM directory_classification WHERE singleton`).Scan(&raw, &out.Revision); err != nil {
-		return out, err
-	}
+func DecodeRecord(raw []byte, revision int64) (Record, error) {
+	out := Record{Value: Defaults(), Revision: revision}
 	if string(raw) != "null" {
-		if err := json.Unmarshal(raw, &out.Value); err != nil {
+		var object map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &object); err != nil {
 			return out, err
+		}
+		// Online compatibility: missing/null groups means the default policy remains.
+		if groups, ok := object["groups"]; ok && string(groups) != "null" {
+			if err := json.Unmarshal(raw, &out.Value); err != nil {
+				return out, err
+			}
+		} else {
+			delete(object, "groups")
+			sanitized, err := json.Marshal(object)
+			if err != nil {
+				return out, err
+			}
+			if err = json.Unmarshal(sanitized, &out.Value); err != nil {
+				return out, err
+			}
 		}
 	}
 	normalize(&out.Value)
 	return out, out.Value.Validate()
+}
+func (r Repository) Get(ctx context.Context) (Record, error) {
+	if r.DB == nil {
+		return DecodeRecord([]byte("null"), 1)
+	}
+	var raw []byte
+	var revision int64
+	if err := r.DB.QueryRow(ctx, `SELECT value,revision FROM directory_classification WHERE singleton`).Scan(&raw, &revision); err != nil {
+		return Record{}, err
+	}
+	return DecodeRecord(raw, revision)
 }
 func (r Repository) Save(ctx context.Context, p Policy, rev int64) (Record, error) {
 	normalize(&p)

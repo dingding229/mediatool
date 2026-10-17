@@ -8,6 +8,7 @@ import (
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/playeraccess"
 	"media-tool/internal/modules/releasename"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/scheduling"
 	"regexp"
 	"strings"
@@ -96,7 +97,7 @@ func (r Repository) Save(ctx context.Context, v Value, revision int64) (Record, 
 	if err != nil {
 		return Record{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer deferutil.Rollback(ctx, tx)
 	var previous []byte
 	if err = tx.QueryRow(ctx, `SELECT value FROM application_settings WHERE singleton FOR UPDATE`).Scan(&previous); err != nil {
 		return Record{}, err

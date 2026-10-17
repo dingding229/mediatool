@@ -1,0 +1,35 @@
+{
+  "Id": "100202",
+  "Name": "特别篇",
+  "ParentId": "100201",
+  "SeriesId": "100201",
+  "SeriesName": "Synthetic Series",
+  "Type": "Season",
+  "MediaType": "Video",
+  "LocationType": "FileSystem",
+  "IsFolder": true,
+  "IndexNumber": 0,
+  "ChildCount": 1,
+  "ProductionYear": 2025,
+  "SeriesPrimaryImageTag": "97e1faac194de8e33142c748930d81bf16d68b52eed89e215732d11190996374",
+  "ParentBackdropImageTags": [],
+  "DateCreated": "2026-10-16T00:00:00.0000000Z",
+  "Genres": [],
+  "People": [],
+  "BackdropImageTags": [],
+  "ImageTags": {
+    "Primary": "9f24f4e48b21573f879cc385845fa039924e0e9c5effac017a06cb78a1512356"
+  },
+  "MediaSources": [],
+  "MediaStreams": [],
+  "Chapters": [],
+  "UserData": {
+    "Key": "100202",
+    "PlayedPercentage": 0,
+    "PlaybackPositionTicks": 0,
+    "PlayCount": 0,
+    "Played": false,
+    "IsFavorite": false,
+    "UnplayedItemCount": 1
+  }
+}

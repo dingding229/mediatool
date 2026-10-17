@@ -1,0 +1,17 @@
+{
+  "Id": "100001",
+  "Name": "Synthetic Movies",
+  "ServerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "Type": "CollectionFolder",
+  "MediaType": "Video",
+  "LocationType": "FileSystem",
+  "IsFolder": true,
+  "CollectionType": "movies",
+  "ParentBackdropImageTags": [],
+  "Genres": [],
+  "People": [],
+  "BackdropImageTags": [],
+  "MediaSources": [],
+  "MediaStreams": [],
+  "Chapters": []
+}

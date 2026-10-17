@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "durationTicks": 0,
+  "container": "mkv",
+  "streams": [
+    {
+      "index": 0,
+      "type": "Video",
+      "codec": "hevc",
+      "width": 160,
+      "height": 90,
+      "averageFrameRate": 24,
+      "realFrameRate": 24,
+      "pixelFormat": "yuv420p10le",
+      "bitDepth": 10,
+      "aspectRatio": "16:9",
+      "videoRange": "HDR",
+      "videoRangeType": "HDR10",
+      "displayTitle": "90p HEVC HDR10"
+    }
+  ]
+}

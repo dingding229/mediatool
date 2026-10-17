@@ -1,0 +1,9 @@
+{
+  "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "ServerName": "Synthetic Media",
+  "Version": "4.8.10.0",
+  "ProductName": "Emby Server",
+  "LocalAddress": "https://media.synthetic.invalid",
+  "OperatingSystem": "Linux",
+  "StartupWizardCompleted": true
+}

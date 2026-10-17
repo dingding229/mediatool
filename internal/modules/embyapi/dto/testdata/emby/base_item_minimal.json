@@ -1,0 +1,14 @@
+{
+  "Id": "100000",
+  "Type": "CollectionFolder",
+  "MediaType": "Video",
+  "LocationType": "FileSystem",
+  "IsFolder": true,
+  "ParentBackdropImageTags": [],
+  "Genres": [],
+  "People": [],
+  "BackdropImageTags": [],
+  "MediaSources": [],
+  "MediaStreams": [],
+  "Chapters": []
+}

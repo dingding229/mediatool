@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "durationTicks": 30000000,
+  "container": "m2ts",
+  "streams": [
+    {
+      "index": 0,
+      "type": "Video",
+      "codec": "hevc",
+      "profile": "Main 10",
+      "width": 3840,
+      "height": 2160,
+      "pixelFormat": "yuv420p10le",
+      "bitDepth": 10,
+      "videoRange": "HDR",
+      "videoRangeType": "DOVI",
+      "displayTitle": "2160p HEVC Dolby Vision"
+    },
+    {
+      "index": 1,
+      "type": "Video",
+      "codec": "hevc",
+      "pixelFormat": "p010le",
+      "bitDepth": 10,
+      "videoRange": "HDR",
+      "videoRangeType": "HLG",
+      "displayTitle": "HEVC HLG"
+    },
+    {
+      "index": 2,
+      "type": "Video",
+      "codec": "hevc",
+      "pixelFormat": "yuv420p10le",
+      "bitDepth": 10,
+      "videoRange": "HDR",
+      "videoRangeType": "HDR10",
+      "displayTitle": "HEVC HDR10"
+    },
+    {
+      "index": 3,
+      "type": "Subtitle",
+      "codec": "pgssub",
+      "language": "jpn",
+      "isDefault": true,
+      "isForced": true,
+      "displayTitle": "Japanese PGSSUB Default Forced"
+    }
+  ]
+}

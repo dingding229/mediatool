@@ -1,0 +1,74 @@
+{
+  "Id": "100203",
+  "Name": "Synthetic Episode",
+  "ParentId": "100202",
+  "SeriesId": "100201",
+  "SeasonId": "100202",
+  "SeriesName": "Synthetic Series",
+  "SeasonName": "特别篇",
+  "Type": "Episode",
+  "MediaType": "Video",
+  "LocationType": "FileSystem",
+  "IsFolder": false,
+  "CollectionType": "tvshows",
+  "Path": "Synthetic Episode.mkv",
+  "Overview": "episode overview",
+  "RunTimeTicks": 14400000000,
+  "IndexNumber": 1,
+  "IndexNumberEnd": 3,
+  "ParentIndexNumber": 0,
+  "PremiereDate": "2025-02-03T00:00:00.0000000Z",
+  "SeriesPrimaryImageTag": "97e1faac194de8e33142c748930d81bf16d68b52eed89e215732d11190996374",
+  "ParentBackdropItemId": "100201",
+  "ParentBackdropImageTags": [
+    "462587510b10b5b98fc2d5669d4e88e077d9df77542bbc49ff4de2613c221b40"
+  ],
+  "DateCreated": "2026-10-16T00:00:00.0000000Z",
+  "Genres": [],
+  "People": [],
+  "BackdropImageTags": [],
+  "ImageTags": {
+    "Primary": "0d4f763cbdbdf411b3d9af721e17b7fbd182540e1d10440fb52eeeb3c3002bf5"
+  },
+  "MediaSources": [
+    {
+      "Id": "asset-1",
+      "Name": "版本 1",
+      "Container": "mkv",
+      "RunTimeTicks": 14400000000,
+      "MediaStreams": [],
+      "Chapters": [],
+      "Protocol": "Http",
+      "IsRemote": true,
+      "SupportsDirectPlay": true,
+      "SupportsDirectStream": true,
+      "SupportsTranscoding": false,
+      "RequiresOpening": false,
+      "RequiresClosing": false
+    },
+    {
+      "Id": "asset-2",
+      "Name": "版本 2",
+      "Container": "mp4",
+      "MediaStreams": [],
+      "Chapters": [],
+      "Protocol": "Http",
+      "IsRemote": true,
+      "SupportsDirectPlay": true,
+      "SupportsDirectStream": true,
+      "SupportsTranscoding": false,
+      "RequiresOpening": false,
+      "RequiresClosing": false
+    }
+  ],
+  "MediaStreams": [],
+  "Chapters": [],
+  "UserData": {
+    "Key": "100203",
+    "PlayedPercentage": 0,
+    "PlaybackPositionTicks": 0,
+    "PlayCount": 0,
+    "Played": false,
+    "IsFavorite": false
+  }
+}

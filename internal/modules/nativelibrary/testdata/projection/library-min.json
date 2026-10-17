@@ -1,0 +1,16 @@
+{
+  "Id": "100002",
+  "Name": "Minimal Library",
+  "Type": "CollectionFolder",
+  "MediaType": "Video",
+  "LocationType": "FileSystem",
+  "IsFolder": true,
+  "CollectionType": "tvshows",
+  "ParentBackdropImageTags": [],
+  "Genres": [],
+  "People": [],
+  "BackdropImageTags": [],
+  "MediaSources": [],
+  "MediaStreams": [],
+  "Chapters": []
+}

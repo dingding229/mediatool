@@ -18,35 +18,57 @@ var ErrRequest = errors.New("TMDB request failed; check access token or connecti
 type Client struct {
 	Token, Language string
 	HTTP            *http.Client
+	// BaseURL is test-only/controlled injection; production defaults to TMDB.
+	BaseURL string
 }
 
-func (c Client) get(ctx context.Context, path string, query url.Values, out any) error {
+func (c Client) get(ctx context.Context, endpoint string, query url.Values, out any) error {
+	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+	release, err := admitRequest(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	client := c.HTTP
 	if client == nil {
 		client = &http.Client{Timeout: 12 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	}
-	if query == nil {
-		query = url.Values{}
+	copyQuery := url.Values{}
+	for key, values := range query {
+		copyQuery[key] = append([]string(nil), values...)
 	}
 	language := c.Language
 	if language == "" {
 		language = "zh-CN"
 	}
-	query.Set("language", language)
-	r, err := http.NewRequestWithContext(ctx, "GET", "https://api.themoviedb.org/3"+path+"?"+query.Encode(), nil)
+	copyQuery.Set("language", language)
+	base := strings.TrimRight(c.BaseURL, "/")
+	if base == "" {
+		base = "https://api.themoviedb.org/3"
+	}
+	request, err := http.NewRequestWithContext(ctx, "GET", base+endpoint+"?"+copyQuery.Encode(), nil)
 	if err != nil {
 		return ErrRequest
 	}
-	r.Header.Set("Authorization", "Bearer "+c.Token)
-	response, err := client.Do(r)
+	request.Header.Set("Authorization", "Bearer "+c.Token)
+	response, err := client.Do(request)
 	if err != nil {
 		return ErrRequest
 	}
-	defer response.Body.Close()
-	if response.StatusCode != 200 {
-		return ErrRequest
+	if response.StatusCode != http.StatusOK {
+		delay := retryDelay(response.Header.Get("Retry-After"))
+		if response.StatusCode == 429 {
+			pauseRequests(max(delay, 2*time.Second))
+		}
+		if closeErr := response.Body.Close(); closeErr != nil {
+			return ErrRequest
+		}
+		return &ResponseError{Status: response.StatusCode, RetryAfter: delay}
 	}
-	if json.NewDecoder(io.LimitReader(response.Body, 4<<20)).Decode(out) != nil {
+	raw, err := io.ReadAll(io.LimitReader(response.Body, (4<<20)+1))
+	closeErr := response.Body.Close()
+	if err != nil || closeErr != nil || len(raw) > 4<<20 || json.Unmarshal(raw, out) != nil {
 		return ErrRequest
 	}
 	return nil

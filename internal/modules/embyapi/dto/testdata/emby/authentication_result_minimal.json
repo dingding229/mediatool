@@ -1,0 +1,18 @@
+{
+  "User": {
+    "Id": "",
+    "HasPassword": false,
+    "HasConfiguredPassword": false,
+    "Policy": {
+      "IsAdministrator": false,
+      "IsHidden": false,
+      "IsDisabled": false,
+      "EnableAllFolders": false,
+      "EnableMediaPlayback": false,
+      "EnableContentDownloading": false,
+      "EnabledFolders": []
+    },
+    "Configuration": {}
+  },
+  "ServerId": ""
+}

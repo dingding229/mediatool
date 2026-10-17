@@ -8,6 +8,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/lock"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/migrations"
 )
 
@@ -16,7 +17,7 @@ func Up(ctx context.Context, dsn string) error {
 	if err != nil {
 		return errors.New("invalid migration configuration")
 	}
-	defer db.Close()
+	defer deferutil.Close(db, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	db.SetMaxOpenConns(2)
 	if err = db.PingContext(ctx); err != nil {
 		return errors.New("database unavailable for startup migration")

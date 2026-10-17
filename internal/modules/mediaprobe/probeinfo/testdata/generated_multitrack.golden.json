@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "durationTicks": 0,
+  "container": "mkv",
+  "streams": [
+    {
+      "index": 0,
+      "type": "Video",
+      "codec": "h264",
+      "width": 160,
+      "height": 90,
+      "averageFrameRate": 24,
+      "realFrameRate": 24,
+      "pixelFormat": "yuv420p",
+      "bitDepth": 8,
+      "aspectRatio": "16:9",
+      "videoRange": "SDR",
+      "videoRangeType": "SDR",
+      "displayTitle": "90p H264 SDR"
+    },
+    {
+      "index": 1,
+      "type": "Audio",
+      "codec": "aac",
+      "channels": 1,
+      "channelLayout": "mono",
+      "sampleRate": 44100,
+      "language": "zho",
+      "isDefault": true,
+      "displayTitle": "Chinese AAC Mono Default"
+    },
+    {
+      "index": 2,
+      "type": "Audio",
+      "codec": "aac",
+      "channels": 1,
+      "channelLayout": "mono",
+      "sampleRate": 44100,
+      "language": "eng",
+      "displayTitle": "English AAC Mono"
+    },
+    {
+      "index": 3,
+      "type": "Subtitle",
+      "codec": "srt",
+      "language": "eng",
+      "isForced": true,
+      "isTextSubtitleStream": true,
+      "displayTitle": "English SRT Forced"
+    },
+    {
+      "index": 4,
+      "type": "Subtitle",
+      "codec": "srt",
+      "language": "zho",
+      "isHearingImpaired": true,
+      "isTextSubtitleStream": true,
+      "displayTitle": "Chinese SRT Hearing Impaired"
+    }
+  ]
+}

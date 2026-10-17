@@ -38,12 +38,15 @@ func (c Client) image(ctx context.Context, p string) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	defer res.Body.Close()
 	if res.StatusCode != 200 {
+		if closeErr := res.Body.Close(); closeErr != nil {
+			return nil, "", closeErr
+		}
 		return nil, "", errors.New("TMDB artwork request refused")
 	}
 	data, err := io.ReadAll(io.LimitReader(res.Body, (8<<20)+1))
-	if err != nil || len(data) > 8<<20 {
+	closeErr := res.Body.Close()
+	if err != nil || closeErr != nil || len(data) > 8<<20 {
 		return nil, "", errors.New("artwork exceeds 8MiB limit")
 	}
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))

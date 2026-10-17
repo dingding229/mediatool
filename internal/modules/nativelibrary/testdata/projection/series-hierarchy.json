@@ -1,0 +1,56 @@
+{
+  "Id": "100201",
+  "Name": "Synthetic Series",
+  "OriginalTitle": "Synthetic Series Original",
+  "SortName": "Synthetic Series",
+  "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "ParentId": "100001",
+  "Type": "Series",
+  "MediaType": "Video",
+  "LocationType": "FileSystem",
+  "IsFolder": true,
+  "Overview": "series overview",
+  "ChildCount": 2,
+  "RecursiveItemCount": 3,
+  "ProductionYear": 2025,
+  "CommunityRating": 8.7,
+  "OfficialRating": "TV-14",
+  "PremiereDate": "2025-01-02T00:00:00.0000000Z",
+  "EndDate": "2026-03-01T00:00:00.0000000Z",
+  "Status": "Ended",
+  "ParentBackdropImageTags": [],
+  "DateCreated": "2026-10-16T00:00:00.0000000Z",
+  "Genres": [
+    "Drama"
+  ],
+  "People": [
+    {
+      "Name": "Lead",
+      "Id": "1",
+      "Type": "Actor",
+      "PrimaryImageTag": "ebd961876f411026659fb6aa39f494707790c9ea8da4d5f19202223197c5d21e"
+    }
+  ],
+  "BackdropImageTags": [
+    "462587510b10b5b98fc2d5669d4e88e077d9df77542bbc49ff4de2613c221b40"
+  ],
+  "ImageTags": {
+    "Primary": "97e1faac194de8e33142c748930d81bf16d68b52eed89e215732d11190996374"
+  },
+  "ProviderIds": {
+    "Imdb": "tt123456",
+    "Tmdb": "90201"
+  },
+  "MediaSources": [],
+  "MediaStreams": [],
+  "Chapters": [],
+  "UserData": {
+    "Key": "100201",
+    "PlayedPercentage": 0,
+    "PlaybackPositionTicks": 0,
+    "PlayCount": 0,
+    "Played": false,
+    "IsFavorite": false,
+    "UnplayedItemCount": 3
+  }
+}

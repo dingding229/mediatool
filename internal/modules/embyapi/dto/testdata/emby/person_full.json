@@ -1,0 +1,7 @@
+{
+  "Name": "Synthetic Actor",
+  "Id": "900001",
+  "Type": "Actor",
+  "Role": "Synthetic lead",
+  "PrimaryImageTag": "synthetic-person-tag"
+}

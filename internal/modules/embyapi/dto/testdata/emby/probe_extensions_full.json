@@ -1,0 +1,53 @@
+{
+  "Id": "100101",
+  "Name": "Synthetic Probe Movie",
+  "Type": "Movie",
+  "MediaType": "Video",
+  "LocationType": "FileSystem",
+  "IsFolder": false,
+  "Container": "mkv",
+  "Size": 0,
+  "Bitrate": 0,
+  "Width": 1920,
+  "Height": 1080,
+  "ParentBackdropImageTags": [],
+  "Genres": [],
+  "People": [],
+  "BackdropImageTags": [],
+  "MediaSources": [
+    {
+      "Width": 1920,
+      "Height": 1080,
+      "MediaStreams": [
+        {
+          "Profile": "Main 10",
+          "Level": 0,
+          "RealFrameRate": 24,
+          "PixelFormat": "yuv420p10le",
+          "AspectRatio": "16:9",
+          "VideoRange": "HDR",
+          "VideoRangeType": "HDR10",
+          "IsInterlaced": true,
+          "Rotation": 0,
+          "ChannelLayout": "5.1",
+          "Title": "Synthetic Track",
+          "IsTextSubtitleStream": true,
+          "IsHearingImpaired": true,
+          "Type": "Video",
+          "Codec": "hevc",
+          "Index": 0
+        }
+      ],
+      "Chapters": [],
+      "Protocol": "Http",
+      "IsRemote": true,
+      "SupportsDirectPlay": true,
+      "SupportsDirectStream": true,
+      "SupportsTranscoding": false,
+      "RequiresOpening": false,
+      "RequiresClosing": false
+    }
+  ],
+  "MediaStreams": [],
+  "Chapters": []
+}

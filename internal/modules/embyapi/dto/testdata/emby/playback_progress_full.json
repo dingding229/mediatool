@@ -1,0 +1,15 @@
+{
+  "ItemId": "100005",
+  "MediaSourceId": "source-0001",
+  "PlaySessionId": "play-session-0001",
+  "SessionId": "session-0001",
+  "PositionTicks": 9007199254740993,
+  "RunTimeTicks": 9007199254741993,
+  "AudioStreamIndex": 0,
+  "SubtitleStreamIndex": -1,
+  "VolumeLevel": 0,
+  "IsPaused": true,
+  "IsMuted": true,
+  "CanSeek": true,
+  "PlayMethod": "DirectPlay"
+}

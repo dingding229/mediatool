@@ -1,0 +1,40 @@
+{
+  "Id": "100204",
+  "Name": "Synthetic Local Frame",
+  "ParentId": "100202",
+  "SeriesId": "100201",
+  "SeasonId": "100202",
+  "SeriesName": "Synthetic Series",
+  "SeasonName": "特别篇",
+  "Type": "Episode",
+  "MediaType": "Video",
+  "LocationType": "FileSystem",
+  "IsFolder": false,
+  "CollectionType": "tvshows",
+  "Path": "Synthetic Local Frame.mkv",
+  "IndexNumber": 2,
+  "ParentIndexNumber": 0,
+  "SeriesPrimaryImageTag": "97e1faac194de8e33142c748930d81bf16d68b52eed89e215732d11190996374",
+  "ParentBackdropItemId": "100201",
+  "ParentBackdropImageTags": [
+    "462587510b10b5b98fc2d5669d4e88e077d9df77542bbc49ff4de2613c221b40"
+  ],
+  "DateCreated": "2026-10-16T00:00:00.0000000Z",
+  "Genres": [],
+  "People": [],
+  "BackdropImageTags": [],
+  "ImageTags": {
+    "Primary": "0e65a14a6166fc38a23619135f7829d6f67d940392f8d70e0cd28772d3682203"
+  },
+  "MediaSources": [],
+  "MediaStreams": [],
+  "Chapters": [],
+  "UserData": {
+    "Key": "100204",
+    "PlayedPercentage": 0,
+    "PlaybackPositionTicks": 0,
+    "PlayCount": 0,
+    "Played": false,
+    "IsFavorite": false
+  }
+}

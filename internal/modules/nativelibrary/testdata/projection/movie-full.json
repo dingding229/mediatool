@@ -1,0 +1,72 @@
+{
+  "Id": "100101",
+  "Name": "Synthetic Film",
+  "OriginalTitle": "Synthetic Original",
+  "SortName": "Synthetic Film, The",
+  "ServerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "ParentId": "100001",
+  "Type": "Movie",
+  "MediaType": "Video",
+  "LocationType": "FileSystem",
+  "IsFolder": false,
+  "Path": "Synthetic Film.mkv",
+  "Overview": "Synthetic overview",
+  "ProductionYear": 2026,
+  "CommunityRating": 8.4,
+  "OfficialRating": "PG-13",
+  "PremiereDate": "2026-01-02T00:00:00.0000000Z",
+  "ParentBackdropImageTags": [],
+  "DateCreated": "2026-10-16T00:00:00.0000000Z",
+  "Genres": [
+    "Drama",
+    "Science Fiction"
+  ],
+  "People": [],
+  "BackdropImageTags": [
+    "dbb5fc61145c56c1614ae8843709bb43aadbc3ca0cd1629e7cfb5bea9b1494d3"
+  ],
+  "ImageTags": {
+    "Primary": "37eb5ccb47ad14b5602a62aae414dc16db1356f733911cc0f00d27cd3e058b12"
+  },
+  "ProviderIds": {
+    "Imdb": "tt900101",
+    "Tmdb": "900101"
+  },
+  "MediaSources": [
+    {
+      "Id": "asset-101",
+      "Name": "版本 1",
+      "Container": "mkv",
+      "RunTimeTicks": 72000000000,
+      "MediaStreams": [],
+      "Chapters": [],
+      "Protocol": "Http",
+      "IsRemote": true,
+      "SupportsDirectPlay": true,
+      "SupportsDirectStream": true,
+      "SupportsTranscoding": false,
+      "RequiresOpening": false,
+      "RequiresClosing": false
+    },
+    {
+      "Id": "asset-102",
+      "Name": "版本 2",
+      "Container": "mp4",
+      "MediaStreams": [],
+      "Chapters": [],
+      "Protocol": "Http",
+      "IsRemote": true,
+      "SupportsDirectPlay": true,
+      "SupportsDirectStream": true,
+      "SupportsTranscoding": false,
+      "RequiresOpening": false,
+      "RequiresClosing": false
+    }
+  ],
+  "MediaStreams": [],
+  "Chapters": [],
+  "UserData": {
+    "Played": false,
+    "IsFavorite": false
+  }
+}

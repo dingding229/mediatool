@@ -1,0 +1,29 @@
+{
+  "Id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "Name": "Synthetic User",
+  "ServerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "HasPassword": true,
+  "HasConfiguredPassword": true,
+  "LastLoginDate": "2026-10-16T00:09:10.1234567Z",
+  "LastActivityDate": "2026-10-16T00:09:10.1234567Z",
+  "Policy": {
+    "IsAdministrator": false,
+    "IsHidden": false,
+    "IsDisabled": false,
+    "EnableAllFolders": false,
+    "EnableMediaPlayback": true,
+    "EnableContentDownloading": true,
+    "EnabledFolders": [
+      "100000"
+    ],
+    "MaxParentalRating": 0,
+    "SimultaneousStreamLimit": 2
+  },
+  "Configuration": {
+    "AudioLanguagePreference": "zho",
+    "SubtitleLanguagePreference": "eng",
+    "SubtitleMode": "Default",
+    "PlayDefaultAudioTrack": true,
+    "EnableNextEpisodeAutoPlay": true
+  }
+}

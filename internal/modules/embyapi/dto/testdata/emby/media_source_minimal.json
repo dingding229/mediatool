@@ -1,0 +1,11 @@
+{
+  "MediaStreams": [],
+  "Chapters": [],
+  "Protocol": "Http",
+  "IsRemote": true,
+  "SupportsDirectPlay": true,
+  "SupportsDirectStream": true,
+  "SupportsTranscoding": false,
+  "RequiresOpening": false,
+  "RequiresClosing": false
+}
