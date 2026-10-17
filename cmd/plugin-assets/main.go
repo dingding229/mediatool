@@ -57,8 +57,15 @@ func export(check bool) error {
 	sort.Slice(defs, func(i, j int) bool { return defs[i].Manifest.ID < defs[j].Manifest.ID })
 	out := inventory{Pin: module.Version, ContractVersion: contracts.ContractVersion, Manifests: []contracts.Manifest{}, Resources: []resource{}}
 	destination := "web/public/plugins"
+	buildSources := "web/plugin-ui"
 	if !check {
 		if e = safeOutput(destination); e != nil {
+			return e
+		}
+		if e = safeOutput(buildSources); e != nil {
+			return e
+		}
+		if e = os.RemoveAll(buildSources); e != nil {
 			return e
 		}
 		if e = os.RemoveAll(destination); e != nil {
@@ -110,7 +117,14 @@ func export(check bool) error {
 			if e = os.MkdirAll(filepath.Dir(target), 0755); e != nil {
 				return e
 			}
-			return os.WriteFile(target, b, 0644)
+			if e = os.WriteFile(target, b, 0644); e != nil {
+				return e
+			}
+			buildTarget := filepath.Join(buildSources, d.Manifest.ID, filepath.FromSlash(name))
+			if e = os.MkdirAll(filepath.Dir(buildTarget), 0755); e != nil {
+				return e
+			}
+			return os.WriteFile(buildTarget, b, 0644)
 		})
 		if e != nil {
 			return e
@@ -137,7 +151,7 @@ func export(check bool) error {
 	return nil
 }
 func safeOutput(dir string) error {
-	if filepath.Clean(dir) != "web/public/plugins" || strings.Contains(dir, "..") {
+	if (filepath.Clean(dir) != "web/public/plugins" && filepath.Clean(dir) != "web/plugin-ui") || strings.Contains(dir, "..") {
 		return errors.New("invalid output root")
 	}
 	for _, p := range []string{"web", "web/public", dir} {

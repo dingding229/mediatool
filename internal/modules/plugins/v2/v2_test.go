@@ -87,7 +87,7 @@ func fixture(t *testing.T) Store {
 		t.Fatal(e)
 	}
 	// Copy only the G2 tables into a disposable schema; serial migration tests establish their source schema.
-	tables := []string{"plugin_v2_definitions", "plugin_v2_instances", "plugin_v2_configs", "plugin_v2_kv", "plugin_v2_grants", "plugin_v2_operations", "audit_logs", "outbox_events"}
+	tables := []string{"plugin_v2_definitions", "plugin_v2_instances", "plugin_v2_configs", "plugin_v2_kv", "plugin_v2_grants", "plugin_v2_operations", "audit_logs", "outbox_events", "jobs", "plugin_v2_snapshots", "plugin_v2_extensions", "plugin_v2_schedules", "plugin_v2_event_journal", "plugin_v2_subscriptions", "plugin_v2_runs", "plugin_v2_api_keys", "plugin_v2_api_limits", "plugin_v2_manual_requests"}
 	for _, table := range tables {
 		if _, e = base.Exec(context.Background(), `CREATE TABLE `+pgx.Identifier{schema, table}.Sanitize()+` (LIKE public.`+table+` INCLUDING ALL)`); e != nil {
 			t.Fatal(e)
@@ -354,7 +354,7 @@ func TestAuthorizedCoreHostDispatcher(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, scope := range []string{"plugin.config.write", "notifications.send"} {
-		if _, e = s.DB.Exec(context.Background(), `INSERT INTO plugin_v2_grants(instance_id,scope,fingerprint)VALUES($1,$2,$3)`, l.ID, scope, l.Fingerprint); e != nil {
+		if _, e = s.DB.Exec(context.Background(), `INSERT INTO plugin_v2_grants(instance_id,scope,fingerprint)VALUES($1,$2,$3) ON CONFLICT(instance_id,scope)DO NOTHING`, l.ID, scope, l.Fingerprint); e != nil {
 			t.Fatal(e)
 		}
 	}
@@ -374,14 +374,6 @@ func TestAuthorizedCoreHostDispatcher(t *testing.T) {
 	config, e := call("plugin.config.get", struct{}{}, nil)
 	if e != nil || config.(contracts.Config).Revision != 1 {
 		t.Fatal(e, config)
-	}
-	one := int64(1)
-	value, e := call("plugin.config.update", map[string]any{"value": map[string]string{"greeting": "second"}}, &one)
-	if e != nil || value.(contracts.Revision).Revision != 2 {
-		t.Fatal(e, value)
-	}
-	if _, e = call("plugin.config.update", map[string]any{"value": map[string]string{}}, &one); e == nil {
-		t.Fatal("stale config write")
 	}
 	path, e := call("plugin.data.path", struct{}{}, nil)
 	if e != nil || !strings.Contains(fmt.Sprint(path), in.ID) {
@@ -406,6 +398,22 @@ func TestAuthorizedCoreHostDispatcher(t *testing.T) {
 	if _, e = call("plugin.data.list", map[string]any{"after": "", "limit": 201}, nil); e == nil {
 		t.Fatal("unbounded KV list")
 	}
+	one := int64(1)
+	value, e := call("plugin.config.update", map[string]any{"value": map[string]string{"greeting": "second"}}, &one)
+	if e != nil || value.(contracts.Revision).Revision != 2 {
+		t.Fatal(e, value)
+	}
+	if _, e = call("plugin.config.update", map[string]any{"value": map[string]string{}}, &one); e == nil {
+		t.Fatal("stale config write")
+	}
+	var grant int64
+	if e = s.DB.QueryRow(context.Background(), `SELECT grant_revision FROM plugin_v2_instances WHERE id=$1`, l.ID).Scan(&grant); e != nil || grant <= l.GrantRevision {
+		t.Fatal("config change did not fence old generation", grant, e)
+	}
+	if _, e = s.hostCall(context.Background(), l, json.RawMessage(`{"method":"plugin.state.get","args":{}}`)); e == nil {
+		t.Fatal("old worker remained authorized after config update")
+	}
+
 }
 
 func TestLinuxWorkerRSSLimitConverges(t *testing.T) {

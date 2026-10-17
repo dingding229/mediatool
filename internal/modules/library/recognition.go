@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"media-tool/internal/modules/metadata"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/modules/releasename"
 	"media-tool/internal/modules/storage"
 	"path"
@@ -81,6 +82,9 @@ func (e Engine) Recognize(ctx context.Context, id string) (Recognition, error) {
 	out := Recognition{Candidate: c, Hint: releasename.Parse(c.Name), Matches: []metadata.Item{}, Evidence: []string{}, NeedsConfirmation: true}
 	if err != nil {
 		return out, err
+	}
+	if e.Connections != nil {
+		out.Hint = (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).RecognizeName(ctx, c.Name)
 	}
 	actual, err := e.observe(ctx, connection, c.Path)
 	if err != nil {

@@ -483,6 +483,8 @@ func (e Engine) transition(ctx context.Context, id, state, event string, details
 	if err != nil {
 		return err
 	}
+	// A new UUID is an occurrence identity. The fenced state UPDATE prevents
+	// duplicate retries, while a later new transition on this task remains a new fact.
 	if tag.RowsAffected() > 0 && event != "" {
 		body, _ := json.Marshal(map[string]any{"taskId": id, "title": details.Media.Title, "state": state})
 		if _, err = tx.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)VALUES($1,$2,$3,$4)`, jobs.UUID(), event, id, body); err != nil {

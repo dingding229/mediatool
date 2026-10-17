@@ -4628,6 +4628,118 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '409': {description: 定义或修订变化，刷新后重新确认}
 
+
+  /api/v1/plugin/{instance}/{path}:
+    parameters:
+    - {name: instance, in: path, required: true, schema: {type: string, format: uuid}}
+    - {name: path, in: path, required: true, schema: {type: string, maxLength: 200}}
+    get:
+      operationId: invokeBuiltInPluginGET
+      description: 精确path；按当前descriptor选择admin/apikey/bearer/public。admin GET仍需会话，凭据不下发worker，响应体64KiB/总预算5秒。
+      responses:
+        '200': {description: 插件原始JSON或白名单text/plain响应，不另包data}
+        '401': {description: 凭据缺失或已撤销}
+        '429': {description: 每实例60次/分钟或调用信箱已满}
+        '503': {description: 实例停用、超时或结果未知}
+    post:
+      operationId: invokeBuiltInPluginPOST
+      description: 必须由descriptor声明；admin会话需CSRF，public需api.public.write明确授权；请求体64KiB。
+      responses:
+        '200': {description: 插件原始白名单响应}
+        '403': {description: CSRF被拒绝}
+        '503': {description: 实例停用、超时或结果未知}
+  /api/v1/plugins/{id}/extensions:
+    get:
+      operationId: pluginExtensionSnapshot
+      description: 仅管理员，返回descriptorVersion=2当前版本快照
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+  /api/v1/plugins/{id}/runs:
+    get:
+      operationId: pluginRunHistory
+      description: 仅管理员，有界历史；参数/结果加密，不在列表返回
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: page, in: query, schema: {type: integer, minimum: 1}}
+      - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 200}}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+  /api/v1/plugins/{id}/run:
+    post:
+      operationId: pluginManualRun
+      description: 管理员+CSRF+confirm+operationKey，service/command/action；202不是执行成功，unknown不自动重试
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '202': {description: 已加入持久队列或合并到同一服务在途任务}
+        '409': {description: 幂等键与原请求不一致或授权换代}
+  /api/v1/plugins/{id}/api-keys:
+    post:
+      operationId: pluginCreateAPIKey
+      description: 管理员+CSRF+confirm；name/routes/expiresAt，routes为routeID:METHOD，随机凭据只展示一次且仅存摘要
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '201': {description: 新建实例专属凭据，响应不可缓存}
+  /api/v1/plugins/{id}/api-keys/{key}/revoke:
+    post:
+      operationId: pluginRevokeAPIKey
+      description: 管理员+CSRF+confirm；立即拒绝后续认证，写审计
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: key, in: path, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+  /api/v1/plugins/{id}/events/replay:
+    post:
+      operationId: pluginReplayEvents
+      description: 管理员+CSRF+confirm；after cursor/limit最多200；unknown另需confirmUnknown，审计且不改变通知消费者游标
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      - $ref: '#/components/parameters/CSRFHeader'
+      responses:
+        '202': {description: 有界回放已接受，未确认的unknown不重放}
+
+  /api/v1/plugins/ui-surfaces:
+    get:
+      operationId: listLivePluginUISurfaces
+      description: 仅管理监听器。管理员会话，最多8个已启用且当前generation有效的界面实例，不返回配置或凭据。
+      responses:
+        '200':
+          description: data数组，每项instanceId和pluginId；未安装或未启用不会创建实例。
+        '401':
+          description: 需要管理员会话。
+  /api/v1/plugins/{id}/ui/{kind}:
+    get:
+      operationId: invokePluginUIProvider
+      description: 仅管理监听器，管理员会话。kind为form/page/dashboard/meta，key必须在manifest声明。128KiB、树256节点12层；不返回远程UI代码。
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+      - in: path
+        name: kind
+        required: true
+        schema: {type: string, enum: [form, page, dashboard, meta]}
+      - in: query
+        name: key
+        schema: {type: string, maxLength: 64}
+      responses:
+        '200':
+          description: form为content/defaults，page/dashboard为content，meta为key/title/refresh/border/cols数组。配置提交使用既有operations CAS/CSRF/审计。
+        '401':
+          description: 需要管理员会话。
+        '404':
+          description: 未启用或未声明。
+        '503':
+          description: worker忙、换代或不可用，界面降级。
+
 components:
   securitySchemes:
     NativeTokenHeader:

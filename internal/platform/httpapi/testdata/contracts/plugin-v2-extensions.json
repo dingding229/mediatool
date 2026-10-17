@@ -1,0 +1,39 @@
+{
+  "snapshot": {
+    "id": "11111111-0000-4000-8000-000000000063",
+    "instanceId": "11111111-0000-4000-8000-000000000062",
+    "hash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "metadata": {
+      "version": 2,
+      "descriptors": [
+        {
+          "kind": "command",
+          "id": "hello",
+          "handler": "command.example",
+          "requiredScopes": [
+            "commands.register"
+          ],
+          "cmd": "hello",
+          "description": "合成命令"
+        }
+      ]
+    }
+  },
+  "request": {
+    "kind": "command",
+    "id": "hello",
+    "operationKey": "fixture-install-1",
+    "confirm": true
+  },
+  "history": [
+    {
+      "id": "11111111-0000-4000-8000-000000000064",
+      "kind": "command",
+      "handler": "command.example",
+      "state": "unknown",
+      "reason": "worker_lost",
+      "createdAt": "2026-10-17T00:00:00Z",
+      "instanceId": "11111111-0000-4000-8000-000000000062"
+    }
+  ]
+}

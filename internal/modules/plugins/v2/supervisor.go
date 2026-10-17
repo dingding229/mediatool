@@ -50,12 +50,21 @@ func (s Supervisor) Run(ctx context.Context) error {
 	}
 	owner := jobs.UUID()
 	active := map[string]bool{}
+	nextMaintenance := time.Time{}
 	finished := make(chan string, capacity)
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	for {
+		if time.Now().After(nextMaintenance) {
+			bounded, stop := context.WithTimeout(ctx, 5*time.Second)
+			if e := s.Store.MaintainExtensions(bounded); e != nil && ctx.Err() == nil {
+				s.Logger.Warn("Plugin extension reconciliation deferred", "module", "plugins")
+			}
+			stop()
+			nextMaintenance = time.Now().Add(time.Second)
+		}
 		activeIDs := []string{}
 		for id := range active {
 			activeIDs = append(activeIDs, id)
@@ -177,12 +186,21 @@ func (s Supervisor) execute(parent context.Context, l Lease) Reason {
 	}
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
+	pumpDone := make(chan error, 1)
+	pumpStarted := false
+	defer func() {
+		cancel()
+		if pumpStarted {
+			<-pumpDone
+		}
+	}()
 	defer func() { _ = peer.Close() }() // Close retains the primary protocol error; no payload write is acknowledged here.
 	descendants := map[int]sandbox.Process{}
 	cpuPrevious := map[string]time.Duration{}
 	var cpuWindow time.Duration
 	cpuSince := time.Now()
-	if e = peer.Handle("host.call", s.Store.Host(l)); e != nil {
+	gate := &hostGate{}
+	if e = peer.Handle("host.call", s.Store.scopedHost(l, gate)); e != nil {
 		_ = sandbox.KillGroup(cmd.Process.Pid)
 		<-exited
 		return WorkerFailed
@@ -217,6 +235,15 @@ func (s Supervisor) execute(parent context.Context, l Lease) Reason {
 				e = ErrUnavailable
 			}
 		}
+		if e == nil {
+			describeCtx, stop := context.WithTimeout(ctx, 5*time.Second)
+			var snapshot contracts.Snapshot
+			e = peer.Call(describeCtx, "plugin.describe", nil, &snapshot)
+			if e == nil {
+				e = s.Store.Publish(describeCtx, l, snapshot)
+			}
+			stop()
+		}
 		protocol <- e
 	}()
 	var result Reason = WorkerFailed
@@ -234,6 +261,9 @@ loop:
 				result = NoReason
 			}
 			break loop
+		case <-pumpDone:
+			pumpStarted = false
+			break loop
 		case <-peer.Done():
 			break loop
 		case <-exited:
@@ -247,6 +277,8 @@ loop:
 			if e = s.Store.Renew(ctx, l, true); e != nil {
 				break loop
 			}
+			pumpStarted = true
+			go func() { pumpDone <- s.Store.pump(ctx, l, peer, gate) }()
 		case <-renew.C:
 			bounded, stop := context.WithTimeout(ctx, 3*time.Second)
 			e := s.Store.Renew(bounded, l, running)

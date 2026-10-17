@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	"media-tool/internal/platform/outbox"
 	"path"
 	"path/filepath"
 	"strings"
@@ -445,13 +446,11 @@ func (e Engine) finish(ctx context.Context, id, state, message string, completed
 	if _, err = tx.Exec(ctx, `UPDATE file_operations SET state=$2,message=$3,completed_steps=$4,updated_at=now() WHERE id=$1`, id, state, message, completed); err != nil {
 		return err
 	}
-	payload, _ := json.Marshal(map[string]string{"operationId": id, "state": state, "message": message})
-	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)SELECT $1,$2,$3,$4 WHERE NOT EXISTS(SELECT 1 FROM outbox_events WHERE aggregate_id=$3 AND event_type=$2)`, jobs.UUID(), "files."+state, id, payload); err != nil {
+	if err = outbox.EmitTx(ctx, tx, "files."+state, id, map[string]string{"operationId": id, "state": state, "message": message}); err != nil {
 		return err
 	}
 	trace.Info(ctx, "filemanager", "file operation result", "operationId", id, "state", state, "completedSteps", completed, "message", message)
-	// V1 plugin.dispatch is retired. The transactional files.* outbox event above
-	// remains intact; F2/F4 consumes it through the new event bridge.
+	// Plugin deliveries and notifications independently consume the committed files.* fact.
 
 	return tx.Commit(ctx)
 }

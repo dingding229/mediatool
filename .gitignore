@@ -22,3 +22,6 @@ __pycache__/
 
 # Build-only resources exported from the exact mediatool-plugin pin
 /web/public/plugins/
+
+# Build-time plugin ESM copied from the exact Go module pin.
+web/plugin-ui/

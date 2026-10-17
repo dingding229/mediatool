@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/platform/secrets"
 	"net/http"
@@ -37,6 +38,17 @@ func (a *API) pluginInstances() (PluginInstances, error) {
 	return pluginv2.Store{DB: a.Deps.DB, Vault: vault, Root: root}, nil
 }
 func pluginV2Error(w http.ResponseWriter, e error) {
+	var rpc *contracts.Error
+	if errors.As(e, &rpc) && rpc.Code == contracts.PermissionDenied {
+		fail(w, 403, "plugin_permission_denied", "插件扩展缺少已确认的权限")
+		return
+	}
+	if errors.As(e, &rpc) && rpc.Code == contracts.Busy {
+		w.Header().Set("Retry-After", "1")
+		fail(w, 429, "plugin_busy", "插件执行队列繁忙")
+		return
+	}
+
 	switch {
 	case errors.Is(e, pluginv2.ErrInvalid):
 		fail(w, 400, "invalid_plugin_request", "插件参数或权限确认无效")

@@ -102,7 +102,7 @@ func BuildID() string {
 			}
 		}
 	}
-	return "v0.0.0-20261017081253-7db725679179"
+	return "v0.0.0-20261017132453-f259a018ba77"
 }
 func digest(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
 func Catalog() ([]Definition, error) {

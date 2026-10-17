@@ -14,6 +14,8 @@ type CipherColumn struct {
 }
 
 var CipherColumns = []CipherColumn{
+	{Table: "plugin_v2_runs", Column: "args_ciphertext", AADPrefix: "plugin:v2:call-args:"},
+	{Table: "plugin_v2_runs", Column: "result_ciphertext", AADPrefix: "plugin:v2:call-result:"},
 	{Table: "plugin_v2_configs", Column: "ciphertext", AADPrefix: "plugin:v2:config:"},
 	{Table: "plugin_v2_kv", Column: "ciphertext", AADPrefix: "plugin:v2:kv:"},
 	{Table: "manual_download_tasks", Column: "payload_ciphertext", AADPrefix: "manual-download:"},
@@ -48,7 +50,7 @@ func Rekey(ctx context.Context, db *pgxpool.Pool, old, next *Vault, dryRun bool)
 		if err = tx.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, spec.Table).Scan(&exists); err != nil {
 			return nil, err
 		}
-		if !exists && (spec.Table == "extension_plugins" || spec.Table == "plugin_legacy_wasm_plugins" || spec.Table == "plugin_v2_configs" || spec.Table == "plugin_v2_kv") {
+		if !exists && (spec.Table == "plugin_v2_runs" || spec.Table == "extension_plugins" || spec.Table == "plugin_legacy_wasm_plugins" || spec.Table == "plugin_v2_configs" || spec.Table == "plugin_v2_kv") {
 			continue
 		}
 		table := pgx.Identifier{spec.Table}.Sanitize()

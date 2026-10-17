@@ -1,0 +1,15 @@
+{
+  "form": {
+    "content": [
+      {"component":"VTextField","model":"greeting","props":{"label":"问候语"}},
+      {"component":"VSwitch","model":"scheduled","props":{"label":"启用定时服务"}},
+      {"component":"Text","when":{"model":"scheduled","equals":true},"props":{"text":"定时服务已开启"}}
+    ],
+    "defaults":{"greeting":"Hello","scheduled":true}
+  },
+  "page":{"content":[{"component":"Text","props":{"text":"JSON 页面"}},{"component":"Unknown","props":{"innerHTML":"<script>no()</script>"}}]},
+  "meta":[
+    {"key":"starts","title":"启动次数","refresh":30,"border":true,"cols":6},
+    {"key":"events","title":"事件与扩展","refresh":60,"border":false,"cols":6}
+  ]
+}

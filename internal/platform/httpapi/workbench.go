@@ -61,8 +61,10 @@ func (a *API) parseReleaseName(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_name", "文件名无效")
 		return
 	}
-	// Retired WASM definitions are not queried. F2 introduces NameRecognize dispatch.
 	hint, messages := releasename.Parse(in.Name), []string{}
+	if store, e := a.pluginExtensionStore(); e == nil {
+		hint = store.RecognizeName(r.Context(), in.Name)
+	}
 	write(w, 200, map[string]any{"hint": hint, "pluginMessages": messages})
 }
 func (a *API) logsSummary(w http.ResponseWriter, r *http.Request) {

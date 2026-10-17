@@ -11,6 +11,7 @@ COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-fund --no-audit
 COPY web/ ./
 COPY --from=plugin-resources /src/web/public/ ./public/
+COPY --from=plugin-resources /src/web/plugin-ui/ ./plugin-ui/
 # D1 Vue tests/typechecks import the same public contract fixtures as Go.
 COPY internal/platform/httpapi/testdata/contracts/ /src/internal/platform/httpapi/testdata/contracts/
 COPY internal/modules/plugins/v2/library.json /src/internal/modules/plugins/v2/library.json
@@ -38,7 +39,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
 
 FROM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 AS runtime
 RUN apk add --no-cache ca-certificates postgresql18-client ffmpeg && addgroup -S -g 65532 app && adduser -S -u 65532 -G app app && mkdir -p /data/plugins && mkdir -p /data/strm /data/downloads /data/files /data/native-media/stills && chown -R app:app /data
-LABEL org.opencontainers.image.schema="62"
+LABEL org.opencontainers.image.schema="63"
 WORKDIR /app
 COPY --from=backend /out/media-tool /app/media-tool
 COPY --from=backend /out/ops-control /app/ops-control

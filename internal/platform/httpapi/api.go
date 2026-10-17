@@ -109,6 +109,15 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/media/emby/items/{id}", a.protected(a.catalogItem))
 	mux.HandleFunc("GET /api/v1/media/tmdb/image", a.protected(a.tmdbPoster))
 	mux.HandleFunc("GET /api/v1/media/library/emby/home", a.protected(a.catalogHome))
+	mux.HandleFunc("/api/v1/plugin/{instance}/{path...}", a.pluginGateway)
+	mux.HandleFunc("GET /api/v1/plugins/ui-surfaces", a.protected(a.pluginUISurfaces))
+	mux.HandleFunc("GET /api/v1/plugins/{id}/ui/{kind}", a.protected(a.pluginUI))
+	mux.HandleFunc("GET /api/v1/plugins/{id}/extensions", a.protected(a.pluginExtensions))
+	mux.HandleFunc("GET /api/v1/plugins/{id}/runs", a.protected(a.pluginRuns))
+	mux.HandleFunc("POST /api/v1/plugins/{id}/run", a.protected(a.pluginRunExtension))
+	mux.HandleFunc("POST /api/v1/plugins/{id}/api-keys", a.protected(a.pluginKeyCreate))
+	mux.HandleFunc("POST /api/v1/plugins/{id}/api-keys/{key}/revoke", a.protected(a.pluginKeyRevoke))
+	mux.HandleFunc("POST /api/v1/plugins/{id}/events/replay", a.protected(a.pluginReplay))
 	mux.HandleFunc("GET /api/v1/plugins/resources", a.protected(a.pluginV2Resources))
 	mux.HandleFunc("GET /api/v1/plugins/catalog", a.protected(a.pluginV2Catalog))
 	mux.HandleFunc("POST /api/v1/plugins/operations", a.protected(a.pluginV2Operation))
@@ -403,6 +412,20 @@ func (a *API) middleware(next http.Handler) http.Handler {
 			requestURL.Scheme = "http"
 			if r.TLS != nil {
 				requestURL.Scheme = "https"
+			}
+		}
+		if strings.HasPrefix(r.URL.Path, "/api/v1/plugin/") {
+			values, e := url.ParseQuery(requestURL.RawQuery)
+			if e != nil {
+				requestURL.RawQuery = "invalid-query"
+			} else {
+				for key := range values {
+					switch strings.ToLower(key) {
+					case "api_key", "apikey", "token", "access_token":
+						values[key] = []string{"[redacted]"}
+					}
+				}
+				requestURL.RawQuery = values.Encode()
 			}
 		}
 		fields := []any{"module", module, "url", requestURL.String(), "userAgent", r.UserAgent(), "range", r.Header.Get("Range"), "location", w.Header().Get("Location"), "method", r.Method, "path", r.URL.Path, "status", metrics.Code, "responseBytes", metrics.Written, "durationMs", metrics.Duration.Milliseconds(), "requestId", id}

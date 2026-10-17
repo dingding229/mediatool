@@ -1,18 +1,22 @@
 {
-  "pin": "v0.0.0-20261017081253-7db725679179",
+  "pin": "v0.0.0-20261017132453-f259a018ba77",
   "contractVersion": 2,
   "manifests": [
     {
       "contractVersion": 2,
       "id": "hello-go",
       "name": "Hello Go",
-      "version": "1.0.0",
+      "version": "1.2.0",
       "author": "Example Author",
       "description": "实例隔离与持久计数示例",
       "level": 1,
       "icon": "icon.svg",
       "history": {
-        "1.0.0": "Initial example"
+        "1.0.0": "Initial example",
+        "1.1.0": "Typed bindings, authenticated APIs, durable service and transfer event example",
+        "1.1.1": "Demonstrate POST admin API for CSRF contract",
+        "1.1.2": "Declare minimal per-route Host execution scopes",
+        "1.2.0": "Chain/module hooks, DownloadAdded, JSON forms, multi dashboards and bundled ESM"
       },
       "permissions": [
         {
@@ -29,16 +33,135 @@
         },
         {
           "scope": "ui.json"
+        },
+        {
+          "scope": "api.register"
+        },
+        {
+          "scope": "api.public"
+        },
+        {
+          "scope": "services.register"
+        },
+        {
+          "scope": "commands.register"
+        },
+        {
+          "scope": "actions.register"
+        },
+        {
+          "scope": "events.subscribe.library.organized"
+        },
+        {
+          "scope": "plugin.config.write"
+        },
+        {
+          "scope": "events.chain.name.recognize"
+        },
+        {
+          "scope": "module.metadata.name_recognize"
+        },
+        {
+          "scope": "events.subscribe.download.added"
+        },
+        {
+          "scope": "ui.trusted"
+        },
+        {
+          "scope": "ui.sidebar"
         }
       ],
       "extensions": {
         "forms": true,
         "pages": [
           "overview"
+        ],
+        "dashboards": [
+          "starts",
+          "events"
+        ],
+        "api": [
+          {
+            "id": "admin",
+            "path": "/admin",
+            "methods": [
+              "GET",
+              "POST"
+            ],
+            "auth": "admin",
+            "executionScopes": [
+              "plugin.data.read",
+              "plugin.data.write"
+            ],
+            "summary": "Hello counter"
+          },
+          {
+            "id": "apikey",
+            "path": "/apikey",
+            "methods": [
+              "GET"
+            ],
+            "auth": "apikey",
+            "executionScopes": [
+              "plugin.data.read"
+            ],
+            "summary": "Hello counter"
+          },
+          {
+            "id": "bearer",
+            "path": "/bearer",
+            "methods": [
+              "GET"
+            ],
+            "auth": "bearer",
+            "executionScopes": [
+              "plugin.data.read"
+            ],
+            "summary": "Hello counter"
+          },
+          {
+            "id": "public",
+            "path": "/public",
+            "methods": [
+              "GET"
+            ],
+            "auth": "public",
+            "executionScopes": [
+              "plugin.data.read"
+            ],
+            "summary": "Hello counter"
+          }
+        ],
+        "services": [
+          "tick"
+        ],
+        "commands": [
+          "hello"
+        ],
+        "events": [
+          "library.organized",
+          "download.added"
+        ],
+        "chains": [
+          "name.recognize"
+        ],
+        "modules": [
+          "metadata.name_recognize"
+        ],
+        "actions": [
+          "hello"
         ]
       },
       "ui": {
-        "mode": "json"
+        "mode": "vue",
+        "entry": "ui/dist/index.js",
+        "sidebar": [
+          {
+            "page": "overview",
+            "title": "Hello 插件",
+            "icon": "Box"
+          }
+        ]
       },
       "resources": {
         "addressSpaceMiB": 8192,
@@ -53,5 +176,11 @@
       "dataSchemaVersion": 1
     }
   ],
-  "resources": []
+  "resources": [
+    {
+      "id": "hello-go",
+      "path": "ui/dist/index.js",
+      "sha256": "be94cf0c944bf4b8916671f04640c0ba7658e3e71f1ec25eba50e286b04d37f1"
+    }
+  ]
 }

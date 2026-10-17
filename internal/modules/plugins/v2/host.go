@@ -343,7 +343,7 @@ func hostWrites(method string) bool {
 // The conditional UPDATE waits for any committed revocation/definition refresh,
 // then rechecks the current row. Zero rows rolls back *all* staged side effects.
 func fenceHost(ctx context.Context, tx pgx.Tx, l Lease, scope string) error {
-	tag, e := tx.Exec(ctx, `UPDATE plugin_v2_instances i SET updated_at=clock_timestamp(),revision=i.revision+CASE WHEN $6='plugin.config.write' THEN 1 ELSE 0 END FROM plugin_v2_definitions d WHERE i.id=$1 AND i.generation=$2 AND i.owner_id=$3 AND i.grant_revision=$4 AND i.desired_state='enabled' AND i.lease_until>clock_timestamp() AND d.id=i.plugin_id AND d.availability='available' AND d.fingerprint=i.approved_fingerprint AND i.approved_fingerprint=$5 AND EXISTS(SELECT 1 FROM plugin_v2_grants g WHERE g.instance_id=i.id AND g.scope=$6 AND g.fingerprint=$5)`, l.ID, l.Token, l.Owner, l.GrantRevision, l.Fingerprint, scope)
+	tag, e := tx.Exec(ctx, `UPDATE plugin_v2_instances i SET updated_at=clock_timestamp(),revision=i.revision+CASE WHEN $6='plugin.config.write' THEN 1 ELSE 0 END,grant_revision=i.grant_revision+CASE WHEN $6='plugin.config.write' THEN 1 ELSE 0 END,runtime_state=CASE WHEN $6='plugin.config.write' THEN 'stopping' ELSE i.runtime_state END FROM plugin_v2_definitions d WHERE i.id=$1 AND i.generation=$2 AND i.owner_id=$3 AND i.grant_revision=$4 AND i.desired_state='enabled' AND i.lease_until>clock_timestamp() AND d.id=i.plugin_id AND d.availability='available' AND d.fingerprint=i.approved_fingerprint AND i.approved_fingerprint=$5 AND EXISTS(SELECT 1 FROM plugin_v2_grants g WHERE g.instance_id=i.id AND g.scope=$6 AND g.fingerprint=$5)`, l.ID, l.Token, l.Owner, l.GrantRevision, l.Fingerprint, scope)
 	if e != nil {
 		return e
 	}
