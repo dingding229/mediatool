@@ -135,3 +135,22 @@ func TestNativeStillStorageConfiguration(t *testing.T) {
 		}
 	}
 }
+
+func TestPluginTaskBudget(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		want  int
+		valid bool
+	}{
+		{"", 256, true}, {"32", 32, true}, {"4096", 4096, true}, {"0", 0, false}, {"31", 0, false}, {"4097", 0, false}, {"bad", 0, false},
+	} {
+		env := validEnv()
+		if tc.value != "" {
+			env["PLUGIN_MAX_TASKS"] = tc.value
+		}
+		c, e := FromLookup(lookup(env))
+		if (e == nil) != tc.valid || (tc.valid && c.PluginMaxTasks != tc.want) {
+			t.Fatalf("%q: tasks=%d err=%v", tc.value, c.PluginMaxTasks, e)
+		}
+	}
+}

@@ -33,14 +33,14 @@ if [[ "$(uname -s)" == Linux ]]; then
  CGO_ENABLED=0 go build -trimpath -o "$worker_dir/media-tool" ./cmd/media-tool
  export MEDIA_TOOL_PLUGIN_BINARY="$worker_dir/media-tool"
  if [[ "${GITHUB_ACTIONS:-}" == true && "${MEDIA_TOOL_TEST_PLUGIN_UID:-}" == 65532 ]];then
-  # RLIMIT_NPROC counts all threads sharing a real UID, including the GitHub
-  # runner/.NET processes. Use the production identity for plugin host tests.
+  # Keep production UID/capabilities for isolation evidence. Task budgets are
+  # per worker tree, independent of other processes sharing this UID.
   chmod 755 "$worker_dir"
   mkdir -p "$worker_dir/uid-home" "$worker_dir/uid-tmp" "$worker_dir/uid-cache"
   sudo chown 65532:65532 "$worker_dir/uid-home" "$worker_dir/uid-tmp" "$worker_dir/uid-cache"
   export MEDIA_TOOL_TEST_UID_DIR="$worker_dir"
   test_exec+=(-exec "$PWD/scripts/test-go-plugin-exec.sh")
-  echo 'Plugin host packages use UID 65532 with cap-drop ALL/no-new-privileges; NPROC remains 64.'
+  echo 'Plugin host packages use UID 65532 with cap-drop ALL/no-new-privileges; per-worker task watchdog enabled (no UID-wide NPROC).'
  fi
  echo 'Real static app plugin-worker REQUIRED on Linux (host tests still use -race).'
 fi

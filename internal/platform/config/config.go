@@ -20,6 +20,7 @@ import (
 
 type Config struct {
 	PluginDataRoot                                           string
+	PluginMaxTasks                                           int
 	NativeStillsRoot                                         string
 	NativeStillsMaxBytes                                     int64
 	NativeStillsFrameTimeout                                 time.Duration
@@ -199,6 +200,10 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	c.NativeStillsMaxBytes, err = strconv.ParseInt(get("NATIVE_STILLS_MAX_BYTES", "2147483648"), 10, 64)
 	if err != nil || c.NativeStillsMaxBytes < 1 || c.NativeStillsMaxBytes > 1<<40 {
 		return c, errors.New("NATIVE_STILLS_MAX_BYTES must be 1..1099511627776")
+	}
+	c.PluginMaxTasks, err = strconv.Atoi(get("PLUGIN_MAX_TASKS", "256"))
+	if err != nil || c.PluginMaxTasks < 32 || c.PluginMaxTasks > 4096 {
+		return c, errors.New("PLUGIN_MAX_TASKS must be 32..4096")
 	}
 	if !path.IsAbs(c.PluginDataRoot) || path.Clean(c.PluginDataRoot) != c.PluginDataRoot || !strings.HasSuffix(c.PluginDataRoot, "/plugins") {
 		return c, errors.New("PLUGIN_DATA_ROOT must be a clean absolute plugins directory")

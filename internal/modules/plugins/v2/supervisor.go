@@ -26,6 +26,7 @@ type Supervisor struct {
 	Executable             string
 	Logger                 *slog.Logger
 	MaxWorkers             int
+	MaxTasks               int
 	PerWorkerRSS, TotalRSS uint64
 }
 
@@ -35,6 +36,12 @@ func (s Supervisor) Run(ctx context.Context) error {
 	}
 	if s.Logger == nil {
 		s.Logger = slog.Default()
+	}
+	if s.MaxTasks == 0 {
+		s.MaxTasks = 256
+	}
+	if s.MaxTasks < 32 || s.MaxTasks > 4096 {
+		return ErrInvalid
 	}
 	if s.MaxWorkers == 0 {
 		s.MaxWorkers = 8
@@ -275,6 +282,7 @@ func (s Supervisor) execute(parent context.Context, l Lease) Reason {
 	var result Reason = WorkerFailed
 	running := false
 	waited := false
+	tasksKilled := false
 	renew := time.NewTicker(5 * time.Second)
 	defer renew.Stop()
 	watch := time.NewTicker(200 * time.Millisecond)
@@ -335,7 +343,7 @@ loop:
 				result = ResourceLimit
 				break loop
 			}
-			var rss uint64
+			var rss, tasks uint64
 			for id, old := range descendants {
 				alive := false
 				for _, now := range all {
@@ -355,6 +363,12 @@ loop:
 			}
 			for _, p := range descendants {
 				rss += p.RSS
+				tasks += p.Tasks
+			}
+			if s.enforceTasks(tasks, l.ID, cmd.Process.Pid) {
+				tasksKilled = true
+				result = ResourceLimit
+				break loop
 			}
 			nextCPU := map[string]time.Duration{}
 			for _, p := range descendants {
@@ -381,7 +395,7 @@ loop:
 		}
 	}
 	stopCtx, stopGrace := context.WithTimeout(context.Background(), 10*time.Second)
-	if !waited {
+	if !waited && !tasksKilled {
 		if e := peer.Call(stopCtx, "plugin.stop_service", struct{}{}, nil); e != nil {
 			s.Logger.Debug("Plugin graceful stop unavailable; group termination follows", "module", "plugins", "instance", l.ID)
 		}
@@ -543,4 +557,21 @@ func (s *stderrLimit) category() string {
 		}
 	}
 	return "worker_stderr"
+}
+
+// /proc/<pid>/stat num_threads includes the process leader. Sum it once per
+// tracked PID, not process-count + thread-count (which double counts leaders).
+// This is a sampled per-worker budget, not a hard fork barrier; container
+// pids_limit provides the hard, UID-independent backstop.
+func (s Supervisor) enforceTasks(tasks uint64, instance string, group int) bool {
+	if tasks <= uint64(s.MaxTasks) {
+		return false
+	}
+	s.Logger.Warn("Plugin task limit reached", "module", "plugins", "instance", instance,
+		"reason", "tasks_exceeded", "tasks", tasks, "limit_tasks", s.MaxTasks)
+	// Skip graceful RPC: task exhaustion must not wait for worker cooperation.
+	if e := sandbox.KillGroup(group); e != nil {
+		s.Logger.Warn("Plugin task group signal deferred", "module", "plugins", "instance", instance)
+	}
+	return true
 }

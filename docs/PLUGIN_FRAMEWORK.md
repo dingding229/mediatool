@@ -169,7 +169,13 @@ stage/常量错误类、RSS超限记数值，不记录参数、载荷或原始st
 叠加race宿主会触发worker创建线程失败。CI只对v2/httpapi/acquisition三个插件集成测试执行器
 使用专用UID65532、cap-drop ALL/no-new-privileges（宿主仍开race）；其余包与独立静态内核门禁
 不变。此adapter只存在于测试脚本，不进入镜像，不是生产setuid launcher，不新增UID池或helper。
-生产NPROC保持64，不提高限额；同UID资源共享这一残余限制明确保留。
+R-F2审核后撤销此旧NPROC方案：共享真实UID限制不具备实例语义，且生产宿主UID65532
+已有约90线程（app约12），不能依赖CI专用UID掩盖。worker不再设置RLIMIT_NPROC，
+保留其他rlimit/隔离；RSS watchdog同次200ms快照累计整树num_threads（包含leader），
+每worker默认256，PLUGIN_MAX_TASKS可配置32–4096，超限立即SIGKILL进程组，
+收割后沿用崩溃退避。日志reason=tasks_exceeded，DB使用既有resource_limit类别。
+采样无法完全阻止瞬时fork风暴；生产先测app稳态tasks，再只为app增加pids_limit: 2048
+作为容器级硬兜底。除最终image digest和该一行，不改私有Compose其他设置。
 
 ## R-F：无识别 hook 的热路径
 

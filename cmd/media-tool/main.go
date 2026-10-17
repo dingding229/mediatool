@@ -487,7 +487,7 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 		if e != nil {
 			return errors.New("plugin executable unavailable")
 		}
-		supervisor := pluginv2.Supervisor{Store: store, Executable: executable, Logger: logger}
+		supervisor := pluginv2.Supervisor{Store: store, Executable: executable, Logger: logger, MaxTasks: c.PluginMaxTasks}
 		finished := make(chan error, 1)
 		go func() { finished <- supervisor.Run(sessionCtx) }()
 		defer func() {

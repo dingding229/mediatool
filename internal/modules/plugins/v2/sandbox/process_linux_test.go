@@ -112,17 +112,25 @@ func TestMain(m *testing.M) {
 		case "wait":
 			time.Sleep(60 * time.Second)
 		case "limits":
+			var before unix.Rlimit
+			if unix.Getrlimit(unix.RLIMIT_NPROC, &before) != nil {
+				os.Exit(12)
+			}
 			if Limits() != nil {
 				os.Exit(12)
 			}
 			for _, r := range []struct {
 				kind  int
 				value uint64
-			}{{unix.RLIMIT_AS, 8 << 30}, {unix.RLIMIT_NOFILE, 256}, {unix.RLIMIT_NPROC, 64}} {
+			}{{unix.RLIMIT_AS, 8 << 30}, {unix.RLIMIT_NOFILE, 256}, {unix.RLIMIT_NPROC, before.Cur}} {
 				var limit unix.Rlimit
 				if unix.Getrlimit(r.kind, &limit) != nil || limit.Cur != r.value {
 					os.Exit(13)
 				}
+			}
+			var after unix.Rlimit
+			if unix.Getrlimit(unix.RLIMIT_NPROC, &after) != nil || after != before {
+				os.Exit(13)
 			}
 		case "fds":
 			fd, _ := strconv.Atoi(os.Args[2])
@@ -327,5 +335,48 @@ func TestTreeIncludesChildrenGroupsAndAdoptedOrphans(t *testing.T) {
 	}
 	if len(selected) != 4 || rss != 15 {
 		t.Fatal(selected, rss)
+	}
+}
+
+func TestSnapshotCountsThreadsAndToleratesExits(t *testing.T) {
+	// Exercise real /proc reads while direct children disappear between enumeration
+	// and stat; ENOENT is a normal sampling race, not a worker-limit breach.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for range 60 {
+			_ = exec.Command("/bin/true").Run()
+		}
+	}()
+	for range 80 {
+		all, e := Snapshot()
+		if e != nil {
+			t.Fatal(e)
+		}
+		found := false
+		for _, p := range all {
+			if p.PID == os.Getpid() {
+				found = true
+				if p.Tasks < 1 {
+					t.Fatal("missing num_threads")
+				}
+			}
+		}
+		if !found {
+			t.Fatal("self missing")
+		}
+	}
+	<-done
+	root := t.TempDir()
+	for _, name := range []string{"123", "456"} {
+		if e := os.Mkdir(filepath.Join(root, name), 0700); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if e := os.WriteFile(filepath.Join(root, "456", "stat"), []byte("456 (exited) bad"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if all, e := snapshotAt(root); e != nil || len(all) != 0 {
+		t.Fatal("partial/exited process must be skipped", all, e)
 	}
 }

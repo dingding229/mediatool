@@ -122,12 +122,12 @@
 
 ### ADR A3：受信代码的缺陷隔离（审核后简化方案）
 
-威胁模型是维护者审核并编译进镜像的自有插件的缺陷，不是恶意代码。worker与app同UID **65532**；保持生产`cap_drop:[ALL]`及`no-new-privileges:true`，**不做setuid launcher、UID池、跨UID停止helper或seccomp，不为插件修改生产安全配置**。
+威胁模型是维护者审核并编译进镜像的自有插件的缺陷，不是恶意代码。worker与app同UID **65532**；保持生产`cap_drop:[ALL]`及`no-new-privileges:true`，**不做setuid launcher、UID池、跨UID停止helper或seccomp**；R-F2唯一授权的部署加固为app容器`pids_limit: 2048`，不改变capabilities/UID/NNP等其他配置。
 
 1. app父进程最早期调用`prctl(PR_SET_DUMPABLE,0)`，配合cap_drop ALL限制同UID worker读取父进程`/proc/<pid>/environ`、mem及ptrace；G2/F1-D在真实Linux实测，并核对Go所有线程/新线程与启动顺序，不能只测一个无Go线程的小进程。dumpable失败或平台/pprof/core等现有能力受影响必须如实报告，不声称已经秘密隔离。
 2. worker环境由白名单显式构造，不透传`os.Environ()`；DB/Redis/Vault/115/代理凭据不注入。FD只保留明确stdio/所需FD，其余close-on-exec；Pdeathsig、独立进程组、退出时整组kill并收割。G2验证父Go线程退出语义及孤儿回收，不许僵尸进程。
 3. 固定执行同一只读app的plugin-worker命令，ID由registry与父连接确定；worker最早分流，不初始化DB/Redis/Vault/业务配置。参数中的instanceId不能获得Host身份，身份/授权由Host连接绑定。
-4. rlimit默认AS8192MiB/NOFILE256/NPROC64，短命exec CPU30s；常驻worker不用30s累计CPU寿命。同UID的NPROC按真实UID汇总线程/进程而非实例独立计数，F1-D必须实测其与app现有线程的相互影响，失败不得伪称独立限额。整棵进程树RSS每200ms采样，单worker256MiB/总1GiB；cgroup可用时可选加强，不要求生产挂载或能力变更。
+4. rlimit保留AS8192MiB/NOFILE256/FSIZE256MiB及已有CPU/DATA/CORE策略，**不再设置RLIMIT_NPROC**：它按真实UID累计，不能约束同UID65532的独立实例，还会被宿主其他容器线程耗尽。常驻worker不用30s累计CPU寿命。现有200ms整树RSS采样同时累计`/proc/<pid>/stat.num_threads`（含进程主线程，每PID去重），默认每实例256个task，`PLUGIN_MAX_TASKS`可设32–4096，配置越界启动拒绝。进程组、子孙、已跟踪的逃逸后代均计入；超限立即整组SIGKILL，清理/收割后按崩溃退避重启，结构化日志原因`tasks_exceeded`。DB沿用`resource_limit`大类，不新增状态或迁移。单worker RSS256MiB/总1GiB不变。采样不能完全防止瞬时fork风暴；部署前实测app稳态task数，远低于2048才给私有Compose的app增加`pids_limit: 2048`容器级硬兜底。除最终image digest与该一行外，配置不变。
 5. **Landlock尽力加固**：利用容器已有no_new_privs，worker早分流后非特权自限制，只读运行库/证书/DNS和app代码，读写本实例data/tmp及已授权媒体根，拒绝其他/data与秘密文件。内核ABI不支持记录warning后继续，Host scope仍强制；不能fail closed。实现若超过约300行非测试代码或需要新依赖，先停下报告。G1只修订设计，不提前写此实现。
 6. 实例目录使用可信root、路径前缀/owner及无符号链接校验，不能扩大媒体DAC权限；SDK/Host按scope、selector、actor、generation执行授权。不因代码内置而给插件SQL/凭据或全表接口。
 7. **残余风险**：同UID进程仍可读取app可读文件（例如文件形式的主密钥、日志/备份/其他实例数据），Landlock不可用时尤其如此；dumpable不保护这些路径。相同UID也不是可靠的进程信号/实例机密隔离。没有seccomp时受信代码可能setsid/double-fork，进程组本身不保证收割逃逸后代，需supervisor整树跟踪及代码审核，不能宣称恶意代码沙箱或绝对RSS限制。
@@ -907,7 +907,7 @@ mediatool/
 | 地址空间 | RLIMIT_AS 8192MiB | 真实同app worker验证runtime映射；不是RSS硬限，F1-D实测不满足先说明 |
 | Go软内存 | GOMEMLIMIT 192MiB | 仅软目标、插件可更改；不能代替OS限制 |
 | RSS | 单worker256MiB，总1GiB | cgroup v2可委派时硬限，否则200ms整树采样看门狗，说明突刺风险 |
-| CPU/进程/FD | cpuQuotaPercent100；exec CPU30s；NPROC64；NOFILE256 | 常驻worker不设30s累计CPU寿命；NPROC包含线程需实测；fork/整树收敛单测 |
+| CPU/进程/FD | cpuQuotaPercent100；exec CPU30s；tasks256（32–4096）；NOFILE256 | 不设置共享真实UID的NPROC；200ms采样整树task，超限kill/reap/退避；pids_limit2048容器兜底（先核对稳态） |
 | 实例数据 | data256MiB/tmp64MiB，总可写4GiB | 代码/UI只在镜像；原子写、快照配额、禁止清业务媒体 |
 | 帧/队列 | 默认1MiB/硬4MiB；累计写队列4MiB | 读长度先限额，不猜测恢复污染stdout |
 | 日志 | 单行4KiB/尾64KiB/100行min、burst200 | 安全归集panic/stderr，实例精确过滤，不泄露Host secret |
@@ -1307,6 +1307,7 @@ F1删除本仓库plugin-sdk/go/examples/plugins及旧上传/市场执行代码�
    确认RLIMIT_NPROC的真实UID累计语义导致共享runner环境干扰，非原生AMD64模拟器问题。
    仅CI的三个插件相关包经Go -exec以UID65532运行race宿主，保留NPROC64、cap-drop、NNP和
    独立静态内核门禁；adapter不进入运行镜像，也不属于被禁止的生产setuid/跨UID helper。
+   此处记录F2历史决策；R-F2已按审核撤销NPROC并改为整树tasks采样，见§25。
 
 9. 测试脚本保留Bash3 nounset兼容；Python隔离夹具显式模拟平台，新增Linux静态worker构建/
    清理断言，避免CI ambient UID/真实媒体开关改变只读隔离测试。最终Python29项通过。
@@ -1323,3 +1324,15 @@ F1删除本仓库plugin-sdk/go/examples/plugins及旧上传/市场执行代码�
   DB pool隔离、槽位回收、查询失败；1万名称扫描race约2.31秒，仅一次TTL补查（旧路径每条两次SQL）。
 - 无新迁移/依赖；重新走主程序commit/push/AMD64 CI/Hub，新digest才可部署。生产验证限定
   只读与hello实例自身数据，迁移前备份与非插件表摘要对照；凭据不进入日志/报告/公共工件。
+
+
+## 25. R-F2：共享UID任务预算修订（2026-10-18）
+
+- R-F只读实测发现宿主UID65532约90个线程，而app约12个；对临时诊断子进程设NPROC64会直接fork失败。未改变生产主进程限制或部署。审核批准移除worker的UID级NPROC，其他隔离保留；不引入setuid/UID池/新依赖。
+- 新task预算与RSS使用同一200ms快照，不另扫task目录；Linux num_threads包含leader，不重复加进程数；采样期间已退出/不完整stat跳过，仍存活的PID用start-time身份跟踪。超限常量日志tasks_exceeded，持久状态为既有resource_limit并沿用lease/fence/退避。
+- CI保留专用非root UID race宿主与真实静态worker门禁；限制测试改为NPROC前后不变，增加有界40子进程/40锁线程杀止、正常负载不误杀和/proc消失竞态。
+- 采样不是瞬时fork硬屏障，残余风险由受信代码审查及容器pids_limit兜底；受信代码清除实例标签并逃逸进程树仍非恶意代码沙箱保证。
+- 本轮仅在管理员凭据文件就绪时才做备份/迁移62及63/部署/验证；否则发布后停止。R-F成功汇报后才执行C1，不能提前清理回滚材料。
+- 本地回归记录：全仓race已执行，迁移集成362.393秒通过；首轮HTTP的SPA用例因清理后未先构建嵌入前端而503，补前端构建后整个HTTP包race复跑通过。首轮E2E的ESM用例因未执行plugin-assets生成而失败，按CI顺序补齐同pin资源后重跑；不以改业务代码/删断言修复测试前置条件。
+- Linux ARM64非root/cap-drop ALL/NNP补充实测：全部静态sandbox用例、同UID旁路40线程不误杀、有界40子进程/40锁线程超限kill、真实supervisor采样→收割→fenced finish→backoff及迟到finish拒绝均通过。原生AMD64仍必须由后续Actions实际执行，不用本地ARM64代替。
+- 补齐构建前置后，最终Vue112项、Python30项、全套E2E108/108通过；Go build/vet、生产路径及Linux标签errcheck通过。未新增依赖或DB迁移；原生AMD64门禁/Hub摘要由提交后的Actions记录。

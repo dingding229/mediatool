@@ -40,7 +40,7 @@ F1 hello-go只使用当前已实现的config.read、data.read/write、state.read
 
 ## 资源与调试
 
-同UID65532，rlimit和整树RSS/CPU看门狗，崩溃退避重启。进程组停止、Pdeathsig及subreaper
+同UID65532，保留AS/NOFILE等rlimit（不设置按共享真实UID统计的NPROC）；整树RSS/CPU及task看门狗，崩溃退避重启。task默认256，可由PLUGIN_MAX_TASKS设置32–4096，200ms采样超限整组kill，原因tasks_exceeded；瞬时fork突刺由容器pids_limit兜底。进程组停止、Pdeathsig及subreaper
 处理孤儿。Landlock只做best effort；同UID可读共享文件的残余风险由受信代码审核兜底。
 不要在stdout输出普通日志（stdout专供RPC）；stderr有截断/限速，宿主module=plugins、
 instance字段用于过滤。不得把私密日志、配置或令牌提交到公共仓库或CI工件。

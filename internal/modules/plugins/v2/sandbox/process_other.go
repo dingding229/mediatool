@@ -18,6 +18,7 @@ type Process struct {
 	PID, PPID, Group int
 	Start            string
 	RSS              uint64
+	Tasks            uint64
 	CPU              time.Duration
 }
 

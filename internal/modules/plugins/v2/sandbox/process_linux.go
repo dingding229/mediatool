@@ -57,7 +57,7 @@ func Limits() error {
 	for _, r := range []struct {
 		kind int
 		max  uint64
-	}{{unix.RLIMIT_AS, 8 << 30}, {unix.RLIMIT_NOFILE, 256}, {unix.RLIMIT_NPROC, 64}, {unix.RLIMIT_FSIZE, 256 << 20}} {
+	}{{unix.RLIMIT_AS, 8 << 30}, {unix.RLIMIT_NOFILE, 256}, {unix.RLIMIT_FSIZE, 256 << 20}} {
 		var old unix.Rlimit
 		if e := unix.Getrlimit(r.kind, &old); e != nil {
 			return e
@@ -77,11 +77,14 @@ type Process struct {
 	PID, PPID, Group int
 	Start            string
 	RSS              uint64
+	Tasks            uint64
 	CPU              time.Duration
 }
 
-func Snapshot() ([]Process, error) {
-	entries, e := os.ReadDir("/proc")
+func Snapshot() ([]Process, error) { return snapshotAt("/proc") }
+
+func snapshotAt(root string) ([]Process, error) {
+	entries, e := os.ReadDir(root)
 	if e != nil {
 		return nil, e
 	}
@@ -94,7 +97,7 @@ func Snapshot() ([]Process, error) {
 		if e != nil {
 			continue
 		}
-		raw, e := os.ReadFile("/proc/" + d.Name() + "/stat")
+		raw, e := os.ReadFile(root + "/" + d.Name() + "/stat")
 		if e != nil {
 			continue
 		}
@@ -114,10 +117,11 @@ func Snapshot() ([]Process, error) {
 		}
 		utime, e4 := strconv.ParseUint(fields[11], 10, 64)
 		stime, e5 := strconv.ParseUint(fields[12], 10, 64)
-		if e4 != nil || e5 != nil {
+		tasks, e6 := strconv.ParseUint(fields[17], 10, 64)
+		if e4 != nil || e5 != nil || e6 != nil || tasks == 0 {
 			continue
 		}
-		out = append(out, Process{PID: pid, PPID: ppid, Group: group, Start: fields[19], RSS: pages * uint64(os.Getpagesize()), CPU: time.Duration(utime+stime) * 10 * time.Millisecond})
+		out = append(out, Process{PID: pid, PPID: ppid, Group: group, Start: fields[19], RSS: pages * uint64(os.Getpagesize()), Tasks: tasks, CPU: time.Duration(utime+stime) * 10 * time.Millisecond})
 	}
 	return out, nil
 }
