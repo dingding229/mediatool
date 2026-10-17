@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 
 class GoIsolationTests(unittest.TestCase):
-    def invoke(self, database="media_tool_test", arguments=(), require_media=False):
+    def invoke(self, database="media_tool_test", arguments=(), require_media=False, platform="Darwin"):
         with tempfile.TemporaryDirectory() as root:
             root = Path(root)
             (root / "scripts").mkdir()
@@ -23,10 +23,16 @@ import json,os,sys,urllib.parse
 print(json.dumps({'args':sys.argv[1:],'db':urllib.parse.urlsplit(os.environ['DATABASE_URL']).path,'redis':urllib.parse.urlsplit(os.environ['TEST_REDIS_URL']).path}))
 """)
             (root / "go").chmod(0o700)
+            # Keep guard-only assertions independent of the host OS. Exercise
+            # the real Linux static-worker branch separately below.
+            (root / "uname").write_text("#!/bin/sh\nprintf '%s\\n' " + platform + "\n")
+            (root / "uname").chmod(0o700)
             # The fixture owns this flag; a CI-wide real-media requirement must
             # not change the command/output shape of isolation-only assertions.
             env = os.environ.copy()
             env["MEDIA_TOOL_REQUIRE_FFMPEG"] = "1" if require_media else "0"
+            env.pop("MEDIA_TOOL_TEST_PLUGIN_UID", None)
+            env.pop("MEDIA_TOOL_TEST_UID_DIR", None)
             for tool in ("ffmpeg", "ffprobe"):
                 (root / tool).write_text("#!/bin/sh\nexit 0\n")
                 (root / tool).chmod(0o700)
@@ -73,6 +79,22 @@ print(json.dumps({'args':sys.argv[1:],'db':urllib.parse.urlsplit(os.environ['DAT
         self.assertIn("Real media tests REQUIRED", required)
         commands = [json.loads(migration), json.loads(test)]
         self.assertEqual(commands[1]["args"], ["test", "-p", "1", "-race", "-count=1", "-v", "./..."])
+        for command in commands:
+            self.assertEqual(command["db"], "/media_tool_test")
+            self.assertEqual(command["redis"], "/15")
+
+    def test_linux_builds_actual_static_worker_without_weakening_host_race(self):
+        result = self.invoke(platform="Linux")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lines = result.stdout.splitlines()
+        commands = [json.loads(line) for line in lines if line.startswith("{")]
+        self.assertEqual(len(commands), 3)
+        self.assertEqual(commands[1]["args"][:2], ["build", "-trimpath"])
+        self.assertEqual(commands[1]["args"][-1], "./cmd/media-tool")
+        self.assertEqual(commands[2]["args"], ["test", "-p", "1", "-race", "-count=1", "./..."])
+        self.assertIn("Real static app plugin-worker REQUIRED", result.stdout)
+        worker = commands[1]["args"][commands[1]["args"].index("-o") + 1]
+        self.assertFalse(Path(worker).parent.exists(), "scoped worker artifacts leaked")
         for command in commands:
             self.assertEqual(command["db"], "/media_tool_test")
             self.assertEqual(command["redis"], "/15")

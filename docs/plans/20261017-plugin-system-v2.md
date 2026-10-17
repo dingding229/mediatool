@@ -1307,3 +1307,6 @@ F1删除本仓库plugin-sdk/go/examples/plugins及旧上传/市场执行代码�
    确认RLIMIT_NPROC的真实UID累计语义导致共享runner环境干扰，非原生AMD64模拟器问题。
    仅CI的三个插件相关包经Go -exec以UID65532运行race宿主，保留NPROC64、cap-drop、NNP和
    独立静态内核门禁；adapter不进入运行镜像，也不属于被禁止的生产setuid/跨UID helper。
+
+9. 测试脚本保留Bash3 nounset兼容；Python隔离夹具显式模拟平台，新增Linux静态worker构建/
+   清理断言，避免CI ambient UID/真实媒体开关改变只读隔离测试。最终Python29项通过。
