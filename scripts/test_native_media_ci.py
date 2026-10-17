@@ -17,3 +17,10 @@ class NativeMediaCI(unittest.TestCase):
         script = (ROOT / 'scripts/test-go.sh').read_text()
         self.assertIn('command -v ffmpeg', script)
         self.assertIn('-race -count=1 -v', script)
+
+    def test_docker_frontend_copies_shared_contracts_before_typecheck(self):
+        dockerfile = (ROOT / 'deploy/Dockerfile').read_text()
+        frontend = dockerfile.split(' AS frontend', 1)[1].split(' AS backend', 1)[0]
+        contracts = 'COPY internal/platform/httpapi/testdata/contracts/ /src/internal/platform/httpapi/testdata/contracts/'
+        self.assertIn(contracts, frontend)
+        self.assertLess(frontend.index(contracts), frontend.index('RUN npm run build'))
