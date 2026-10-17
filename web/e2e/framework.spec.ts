@@ -1698,6 +1698,7 @@ test('R-F3 HTTP plugin install, enable and execute recover from failures with bo
  }
  expect(runs[0].operationKey).toBe(runs[1].operationKey)
  for(const input of [...operations,...runs])expect(input.operationKey).toMatch(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
+ await extensions.getByRole('button',{name:'关闭此对话框',exact:true}).click({timeout:5000});await expect(extensions).toBeHidden()
  expect(errors).toEqual([])
 })
 
@@ -1706,7 +1707,7 @@ test('R-F3 HTTP clicks install, enable, execute and disable the real same-binary
  await page.addInitScript(()=>Object.defineProperty(window.crypto,'randomUUID',{value:undefined,configurable:true}))
  await fixtureLogin(page);await page.goto('/plugins')
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
- let id=''
+ let id='',completed=false
  try{
   const installation=page.waitForResponse(r=>r.url().endsWith('/api/v1/plugins/operations')&&r.request().postDataJSON().kind==='install')
   await page.getByRole('button',{name:'安装插件',exact:true}).click()
@@ -1720,17 +1721,17 @@ test('R-F3 HTTP clicks install, enable, execute and disable the real same-binary
   await dialog.getByRole('button',{name:'手动执行',exact:true}).first().click()
   const execution=page.waitForResponse(r=>r.url().endsWith(`/plugins/${id}/run`))
   await page.getByRole('dialog',{name:'确认执行扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click();expect((await execution).status()).toBe(202)
-  await expect.poll(async()=>((await (await page.request.get(`/api/v1/plugins/${id}/runs?page=1&pageSize=50`)).json()).data as any[]).some(r=>r.state==='succeeded'),{timeout:20000}).toBe(true)
-  await dialog.getByRole('button',{name:'Close this dialog',exact:true}).click()
+  await expect.poll(async()=>((await (await page.request.get(`/api/v1/plugins/${id}/runs?page=1&pageSize=50`,{timeout:5000})).json()).data as any[]).some(r=>r.state==='succeeded'),{timeout:20000}).toBe(true)
+  await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click({timeout:5000})
   await card.getByRole('button',{name:'查看 KV',exact:true}).click();await expect(page.getByRole('dialog',{name:'实例 KV 数据',exact:true})).toContainText('value')
-  await page.getByRole('dialog',{name:'实例 KV 数据',exact:true}).getByRole('button',{name:'Close this dialog',exact:true}).click()
+  await page.getByRole('dialog',{name:'实例 KV 数据',exact:true}).getByRole('button',{name:'关闭此对话框',exact:true}).click({timeout:5000})
   await card.getByRole('button',{name:'停用',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click();await expect(card).toContainText('期望停用')
-  expect(errors).toEqual([])
+  expect(errors).toEqual([]);completed=true
  }finally{
-  if(id){
-   const detail=(await (await page.request.get(`/api/v1/plugins/${id}`)).json()).data
-   const response=await page.request.post('/api/v1/plugins/operations',{headers:{Origin:'http://localhost:18084','X-Requested-With':'media-tool'},data:{kind:'remove',instanceId:id,fingerprint:detail.fingerprint,expectedRevision:detail.instance.revision,operationKey:`rf3-cleanup-${id}`,confirm:true}})
+  if(id){try{
+   const detail=(await (await page.request.get(`/api/v1/plugins/${id}`,{timeout:5000})).json()).data
+   const response=await page.request.post('/api/v1/plugins/operations',{timeout:5000,headers:{Origin:'http://localhost:18084','X-Requested-With':'media-tool'},data:{kind:'remove',instanceId:id,fingerprint:detail.fingerprint,expectedRevision:detail.instance.revision,operationKey:`rf3-cleanup-${id}`,confirm:true}})
    expect(response.status()).toBe(200)
-  }
+  }catch(error){if(completed)throw error;console.info('Failed test cleanup deferred to isolated test-database reset; original error preserved')}}
  }
 })
