@@ -3,7 +3,6 @@ package acquisition
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"log/slog"
 	"media-tool/internal/modules/jobs"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
@@ -46,7 +45,7 @@ func TestPluginRealBinaryDownloadAdded(t *testing.T) {
 	ctx, cancel := context.WithCancel(f.ctx)
 	done := make(chan error, 1)
 	go func() {
-		done <- (pluginv2.Supervisor{Store: s, Executable: os.Getenv("MEDIA_TOOL_PLUGIN_BINARY"), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), MaxWorkers: 1}).Run(ctx)
+		done <- (pluginv2.Supervisor{Store: s, Executable: os.Getenv("MEDIA_TOOL_PLUGIN_BINARY"), Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)), MaxWorkers: 1}).Run(ctx)
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -78,7 +77,8 @@ func TestPluginRealBinaryDownloadAdded(t *testing.T) {
 			}
 			time.Sleep(30 * time.Millisecond)
 		}
-		t.Fatal(label)
+		rows, err := s.List(context.Background(), 0, 200)
+		t.Fatal(label, rows, err)
 	}
 	wait("descriptor ready", func() bool { _, err := s.Snapshot(f.ctx, instance.ID); return err == nil })
 	args, _ := json.Marshal(map[string]string{"taskId": f.taskID})

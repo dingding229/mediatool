@@ -142,7 +142,7 @@ func TestRealSameBinaryWorkerWritesKVAndStops(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	super := Supervisor{Store: s, Executable: exe, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	super := Supervisor{Store: s, Executable: exe, Logger: slog.New(slog.NewTextHandler(os.Stderr, nil))}
 	done := make(chan error, 1)
 	go func() { done <- super.Run(ctx) }()
 	t.Cleanup(func() {
@@ -210,7 +210,8 @@ func TestRealSameBinaryWorkerWritesKVAndStops(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("restarted worker not running")
+			rows, err := s.List(context.Background(), 0, 200)
+			t.Fatal("restarted worker not running", rows, err)
 		}
 		time.Sleep(50 * time.Millisecond)
 	}

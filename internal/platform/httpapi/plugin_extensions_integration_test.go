@@ -117,7 +117,7 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 	}
 	live, stop := context.WithCancel(ctx)
 	done := make(chan error, 2)
-	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	go func() {
 		done <- (pluginv2.Supervisor{Store: s, Executable: binary, Logger: logger, MaxWorkers: 1}).Run(live)
 	}()

@@ -8,6 +8,7 @@ import (
 	"github.com/dingding229/mediatool-plugin/sdk/schema"
 	"github.com/dingding229/mediatool-plugin/sdk/transport"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"io"
 	"log/slog"
 	"media-tool/internal/modules/jobs"
@@ -252,8 +253,20 @@ func (s Supervisor) execute(parent context.Context, l Lease) Reason {
 		if e != nil {
 			code := "internal"
 			var rpc *contracts.Error
-			if errors.As(e, &rpc) {
+			var pg *pgconn.PgError
+			switch {
+			case errors.As(e, &rpc):
 				code = "rpc_" + strconv.Itoa(int(rpc.Code))
+			case errors.As(e, &pg):
+				code = "db_" + pg.Code
+			case errors.Is(e, ErrInvalid):
+				code = "invalid"
+			case errors.Is(e, ErrConflict):
+				code = "conflict"
+			case errors.Is(e, context.DeadlineExceeded):
+				code = "deadline"
+			case errors.Is(e, context.Canceled):
+				code = "canceled"
 			}
 			s.Logger.Warn("Plugin startup failed", "module", "plugins", "instance", l.ID, "stage", phase, "error_class", code)
 		}
@@ -423,7 +436,7 @@ loop:
 		}
 	}
 	if tail.warned() {
-		s.Logger.Warn("Plugin reported best-effort isolation or stderr output", "module", "plugins", "instance", l.ID, "reason", "worker_stderr")
+		s.Logger.Warn("Plugin reported best-effort isolation or stderr output", "module", "plugins", "instance", l.ID, "reason", tail.category())
 	}
 	return result
 }
@@ -486,4 +499,22 @@ var _ io.Writer = (*stderrLimit)(nil)
 
 func workerEnvironment(dir, instance string) []string {
 	return []string{"PATH=/usr/bin:/bin", "HOME=" + filepath.Join(dir, "data"), "TMPDIR=" + filepath.Join(dir, "tmp"), "LANG=C.UTF-8", "TZ=UTC", "GOMEMLIMIT=192MiB", "GOMAXPROCS=2", "MEDIATOOL_PLUGIN_INSTANCE=" + instance}
+}
+
+// category reports only a bounded constant, never raw stderr (which may contain
+// business payloads or secrets). This is diagnostic only, not a security decision.
+func (s *stderrLimit) category() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, v := range []string{"newosproc", "pthread_create", "Resource temporarily unavailable"} {
+		if bytes.Contains(s.tail, []byte(v)) {
+			return "worker_process_limit"
+		}
+	}
+	for _, v := range []string{"out of memory", "cannot allocate memory", "ThreadSanitizer"} {
+		if bytes.Contains(s.tail, []byte(v)) {
+			return "worker_memory_limit"
+		}
+	}
+	return "worker_stderr"
 }
