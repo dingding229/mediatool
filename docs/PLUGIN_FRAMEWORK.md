@@ -170,3 +170,12 @@ stage/常量错误类、RSS超限记数值，不记录参数、载荷或原始st
 使用专用UID65532、cap-drop ALL/no-new-privileges（宿主仍开race）；其余包与独立静态内核门禁
 不变。此adapter只存在于测试脚本，不进入镜像，不是生产setuid launcher，不新增UID池或helper。
 生产NPROC保持64，不提高限额；同UID资源共享这一残余限制明确保留。
+
+## R-F：无识别 hook 的热路径
+
+NameRecognize 的 chain/module 注册表合并为一次有界查询。仅缓存“当前没有识别 hook”的
+负结论（2秒TTL、每进程最多32个DB pool槽）；不缓存描述符、权限或调用结果。实例操作、
+refresh、descriptor发布、Host配置换代、进入running/续租时清除负结论。epoch防止在途旧查询
+在失效之后回填；查询失败不记作“无hook”。同进程启停/授权变更立即生效，其他进程的变更
+最多2秒后重新查询；实际调用仍逐次执行实时授权和generation/fence检查。零插件整库识别
+不再逐条执行两次SQL；正结果也只执行一次注册表查询。200ms/handler、2秒总预算不变。

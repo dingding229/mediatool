@@ -76,6 +76,9 @@ func (s Store) claim(ctx context.Context, owner string, excluded []string) (Leas
 	return l, tx.Commit(ctx)
 }
 func (s Store) Renew(ctx context.Context, l Lease, running bool) error {
+	if running {
+		defer invalidateNameHooks(s.DB)
+	}
 	state := Starting
 	if running {
 		state = Running

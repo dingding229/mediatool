@@ -67,7 +67,8 @@ func TestCatalogIsPureAndPathsRejectSymlinks(t *testing.T) {
 		}
 	}
 }
-func fixture(t *testing.T) Store {
+func fixture(t *testing.T) Store { return fixtureTracer(t, nil) }
+func fixtureTracer(t *testing.T, tracer pgx.QueryTracer) Store {
 	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
@@ -77,6 +78,7 @@ func fixture(t *testing.T) Store {
 	if e != nil || cfg.ConnConfig.Database != "media_tool_test" {
 		t.Fatal("only media_tool_test is allowed")
 	}
+	cfg.ConnConfig.Tracer = tracer
 	schema := "plugin_g2_" + strings.ReplaceAll(jobs.UUID(), "-", "")
 	base, e := pgxpool.NewWithConfig(context.Background(), cfg)
 	if e != nil {

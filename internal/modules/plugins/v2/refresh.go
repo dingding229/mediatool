@@ -47,6 +47,7 @@ func SelfCheck() error {
 // Refresh only visits definitions selected by an administrator. The compiled
 // catalog is never persisted wholesale. Locks and revisions serialize publishers.
 func (s Store) Refresh(ctx context.Context) error {
+	defer invalidateNameHooks(s.DB)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	defs, e := Catalog()

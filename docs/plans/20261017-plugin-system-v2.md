@@ -1314,3 +1314,12 @@ F1删除本仓库plugin-sdk/go/examples/plugins及旧上传/市场执行代码�
 10. 专用UID接线后，原生CI中HTTP/识别/服务/整理事件与DownloadAdded均已通过，余下v2包
     被Go的/v2语义版本后缀命名规则命名为plugins.test，未匹配旧v2.test分支，仍用runner UID。
     补齐该名称与拒绝静默落回runner的断言；新增脚本映射回归，Python30项通过。
+
+## 24. R-F 发布准备（2026-10-17）
+
+- 发布前小修：识别chain/module合并查询，负结论进程缓存有界32槽/2秒，生命周期、refresh、
+  publish、config/grant换代和running转换失效；epoch防止迟到查询回填，绝不缓存授权。
+- 定向race覆盖零插件SQL次数、publication→running间隙、立即停用/撤权、refresh/config失效、
+  DB pool隔离、槽位回收、查询失败；1万名称扫描race约2.31秒，仅一次TTL补查（旧路径每条两次SQL）。
+- 无新迁移/依赖；重新走主程序commit/push/AMD64 CI/Hub，新digest才可部署。生产验证限定
+  只读与hello实例自身数据，迁移前备份与非插件表摘要对照；凭据不进入日志/报告/公共工件。

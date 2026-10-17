@@ -102,6 +102,9 @@ func (s Store) hostCall(parent context.Context, l Lease, raw json.RawMessage) (a
 	if contracts.Decode(raw, &call) != nil || len(call.Args) > 128<<10 {
 		return nil, contracts.NewError(contracts.InvalidParams)
 	}
+	if call.Method == "plugin.config.update" {
+		defer invalidateNameHooks(s.DB)
+	}
 	scope := hostScope(call.Method)
 	if scope == "" {
 		return nil, contracts.NewError(contracts.MethodNotFound)

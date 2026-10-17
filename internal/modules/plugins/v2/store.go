@@ -81,6 +81,7 @@ func (s Store) List(ctx context.Context, start, limit int) ([]Instance, error) {
 	return out, rows.Err()
 }
 func (s Store) Apply(ctx context.Context, actor string, in Request) (Instance, error) {
+	defer invalidateNameHooks(s.DB)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	out, e := s.apply(ctx, actor, in)

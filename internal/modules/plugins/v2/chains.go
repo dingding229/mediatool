@@ -57,6 +57,10 @@ func (s Store) RecognizeName(ctx context.Context, name string) releasename.Hint 
 	}
 	ctx, cancel := context.WithTimeout(context.WithValue(ctx, hookContext{}, true), 2*time.Second)
 	defer cancel()
+	lists, err := s.nameHooks(ctx)
+	if err != nil || len(lists["chain"])+len(lists["module"]) == 0 {
+		return base
+	}
 	value := contracts.NameRecognition{Name: name, Hint: contracts.NameHint{Title: base.Title, Year: base.Year, MediaType: base.MediaType, Season: base.Season, Episodes: base.Episodes}, Continue: true}
 	if contracts.ValidateName(value) != nil {
 		return base
@@ -66,10 +70,7 @@ func (s Store) RecognizeName(ctx context.Context, name string) releasename.Hint 
 		if kind == "module" {
 			key = "metadata.name_recognize"
 		}
-		list, e := s.hooks(ctx, kind, key)
-		if e != nil {
-			continue
-		}
+		list := lists[kind]
 		for _, h := range list {
 			// Closed DTOs contain only strings, ints, bools and RawMessage just produced
 			// by Marshal; they cannot contain unsupported values or cycles.

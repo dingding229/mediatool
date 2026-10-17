@@ -66,6 +66,7 @@ type Run struct {
 }
 
 func (s Store) Publish(ctx context.Context, l Lease, metadata contracts.Snapshot) error {
+	defer invalidateNameHooks(s.DB)
 	d, e := definition(l.PluginID)
 	if e != nil || d.Fingerprint != l.Fingerprint || contracts.ValidateSnapshot(d.Manifest, l.Scopes, metadata) != nil {
 		return ErrInvalid
