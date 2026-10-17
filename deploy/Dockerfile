@@ -26,8 +26,8 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/cloud-events-check ./cmd/cloud-events-check
 
 FROM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 AS runtime
-RUN apk add --no-cache ca-certificates postgresql18-client && addgroup -S -g 65532 app && adduser -S -u 65532 -G app app && mkdir -p /data/strm /data/downloads /data/files && chown -R app:app /data
-LABEL org.opencontainers.image.schema="54"
+RUN apk add --no-cache ca-certificates postgresql18-client ffmpeg && addgroup -S -g 65532 app && adduser -S -u 65532 -G app app && mkdir -p /data/strm /data/downloads /data/files /data/native-media/stills && chown -R app:app /data
+LABEL org.opencontainers.image.schema="61"
 WORKDIR /app
 COPY --from=backend /out/media-tool /app/media-tool
 COPY --from=backend /out/ops-control /app/ops-control
