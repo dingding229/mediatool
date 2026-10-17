@@ -6,8 +6,19 @@ export interface PluginDefinition { manifest:{id:string;name:string;version:stri
 export interface PluginInstance { id:string;pluginId:string;desiredState:'enabled'|'disabled'|'absent';state:string;revision:number;reason:string }
 export interface PluginOperation { operationKey:string;kind:'install'|'enable'|'disable'|'clone'|'configure'|'review'|'remove';instanceId?:string;pluginId?:string;fingerprint:string;expectedRevision:number;confirm:boolean;scopes:string[];config?:unknown }
 export interface Inspection { instance:PluginInstance;config:{value:unknown;revision:number};entries:Array<{key:string;value:unknown;revision:number}>;next:string;fingerprint:string }
-export const dangerousScope=(scope:string)=>/^(system\.exec|network|fs\.media|ui\.trusted|settings\.write|events\.chain\.|module\.)/.test(scope)||/\.(write|delete|execute)$/.test(scope)
+export const dangerousScope=(scope:string)=>/^(system\.exec|network|fs\.media|ui\.trusted|api\.public|settings\.write|events\.chain\.|module\.)/.test(scope)||/\.(write|delete|execute)$/.test(scope)
 export const catalog=()=>request<{items:PluginDefinition[];total:number}>('/plugins/catalog?pageSize=200')
 export const instances=(page=1)=>request<PluginInstance[]>(`/plugins?page=${page}&pageSize=50`)
 export const inspect=(id:string,after='')=>request<Inspection>(`/plugins/${encodeURIComponent(id)}?after=${encodeURIComponent(after)}`)
 export const operate=(input:PluginOperation)=>post<PluginInstance>('/plugins/operations',input)
+export interface ExtensionDescriptor {kind:string;id:string;handler:string;name?:string;cmd?:string;description?:string;trigger?:string;cron?:string;intervalMs?:number;auth?:string;path?:string;priority?:number;requiredScopes:string[]}
+export interface ExtensionSnapshot {id:string;instanceId:string;hash:string;metadata:{version:number;descriptors:ExtensionDescriptor[]}}
+export interface PluginRun {id:string;kind:string;handler:string;state:string;reason:string;createdAt:string;finishedAt?:string}
+export const extensions=(id:string)=>request<ExtensionSnapshot>(`/plugins/${encodeURIComponent(id)}/extensions`)
+export const runHistory=(id:string,page=1)=>request<PluginRun[]>(`/plugins/${encodeURIComponent(id)}/runs?page=${page}&pageSize=50`)
+export const runExtension=(id:string,input:{kind:string;id:string;operationKey:string;confirm:boolean;args?:unknown})=>post<{runId?:string;jobId?:string}>(`/plugins/${encodeURIComponent(id)}/run`,input)
+export interface PluginPage {content:import('../plugins/PluginJson').PluginNode[];defaults?:Record<string,unknown>}
+export interface DashboardMeta {key:string;title:string;refresh:number;border:boolean;cols:number}
+export const pluginUI=<T=PluginPage>(id:string,kind:'form'|'page'|'dashboard'|'meta',key='')=>request<T>(`/plugins/${encodeURIComponent(id)}/ui/${kind}?key=${encodeURIComponent(key)}`)
+
+export const uiSurfaces=()=>request<Array<{instanceId:string;pluginId:string}>>('/plugins/ui-surfaces')

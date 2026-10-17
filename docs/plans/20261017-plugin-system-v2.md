@@ -1,6 +1,6 @@
 # 插件系统 V2：PS0 设计与实施计划
 
-- 日期：2026-10-17（Asia/Shanghai）。状态：**PS0与F1-G1/G2已审核；F1-G3实施/门禁中，F2–F6待执行；不是全框架完成声明**。
+- 日期：2026-10-17（Asia/Shanghai）。状态：**PS0与F1-G1/G2已审核；F1已审核；F2-α已审核；F2-β已实现并完成本地门禁，CI/审核状态以本组汇报为准；F3–F6待执行；不是全框架完成声明**。
 - 最新决定覆盖原A2及修订1的分发设计：唯一插件来源为固定版本的 `github.com/dingding229/mediatool-plugin` Go module，SDK与插件源码同库；主程序pin提交，全部代码随app编译，只有管理员选择的实例才加载/启用。
 - 每启用实例由supervisor启动**同一app二进制的 `plugin-worker` 子命令**，继续采用JSON-RPC 2.0 over stdio。没有独立插件可执行包、上传、外部仓库、远程安装或运行时编译入口。
 - 历史审计基线：`7d8c67ca157d5c08137d311b154a814c0a2de731`（R3，Schema61）。G1已初始化插件库；G2精确pin其`7db7256`提交对应module版本，新增Schema62；G3统一提交并等待Actions，生产部署仍留R-F。
@@ -1240,3 +1240,60 @@ F1删除本仓库plugin-sdk/go/examples/plugins及旧上传/市场执行代码�
 - 迁移62 Up→Down→Up与D2枚举/非插件表不变通过；归档rekey干跑及实转、并发共享读/续租/撤权/写fence、重复刷新/权限确认/missing保留及幂等卸载覆盖。
 - Vue typecheck/build、33个文件104项单测通过；Python28项通过；整套E2E最终106/106通过（2.5分钟），原非插件用例保留。UI截图已只读目视核对，沿用现有主题并在390px下无横向溢出。
 - 本机非Linux的专项Skip不作隔离完成证据。原生Ubuntu AMD64静态内核＋真实同binary worker门禁必须由本次Actions实际通过，随后记录Hub digest；不部署、不访问生产。
+
+## 22. F2-α实施记录（2026-10-17）
+
+- 插件SDK直接Go函数绑定与descriptorVersion=2，稳定handler ID与plugin.invoke，hello示范API/service/command/action/TransferComplete；模块执行不提前进入β。主程序固定插件仓库已推送提交，无replace，主程序本组不提交/推送/部署。
+- 认证最终选择实例专属摘要key，与§6批准方案一致；apikey/bearer两种头格式，绑定route:METHOD、实例、指纹、授权修订、过期。没有扩展既有业务key权限或复用全局STRM/media token。
+- 持久加密调用信箱由当前owner的单lane RPC pump消费，先有额度再领取lease；消息不跨RPC持数据库事务。请求/结果加密列纳入rekey，无新依赖或PG扩展。
+- 迁移63仅增加插件专属表及files.*的outbox局部索引。周期服务复用jobs/scheduling；cron/interval/date/once、配置绑定、manual、misfire coalesce、lease/fence/unknown，普通worker重启保留once/订阅边界，授权/配置换代取消旧任务。
+- filemanager业务事务的EmitTx保留原files.*事实/通知行为；插件bridge采用独立journal cursor，不使用commit顺序不安全的时间高水位，白名单DTO去除路径/原文错误。按事件身份去重、cursor回放、unknown需明确确认。
+- 管理页增加服务/命令/动作二次确认与运行历史，202仅表示入队；JSON组件树/ESM/链式事件/模块执行留β，Telegram入站留F4。
+
+### α 回归补充
+
+- 将 service 的 due/once 状态、加密调用和 jobs 唤醒改为同事务提交；jobs重试只重复唤醒，不重新制造业务调用。手动同服务合并并保留每个operationKey原结果。
+- Host.UpdateConfig 同时推进grant revision，使旧generation立即失效，避免插件自更新配置后旧服务仍执行；KV写入不换代。断连/超时/非法结果保留unknown，晚到写回0行即放弃；unknown服务暂停同修订自动调度。
+- 本机已有ARM64 Linux容器真实执行：HTTP四种认证、admin POST/CSRF、服务写KV、真实整理→TransferComplete、重复回放不重做、禁用后拒绝；不冒称为原生AMD64。β的静态AMD64 CI脚本已追加真实HTTP用例，但本组主程序不推送。
+
+### α 验证与提交边界
+
+- SDK提交：bb53a17（函数绑定/descriptor/invoke）、a6ff1c4（admin POST/CSRF示例）、c06c754（逐API最小Host executionScopes）。最新固定module版本 `v0.0.0-20261017123507-c06c754016b8`，无replace。插件仓库Actions 39033109250全绿；主程序HEAD仍为8cd2045，本组代码只留工作区。
+- 迁移63 Up→Down→Up/D2与非插件表数据/列摘要通过；不新增Go依赖或PostgreSQL扩展。Run参数/结果加密列的主密钥轮换回归通过，旧归档AAD不变。
+- 全量Go race复跑通过（含436.258秒migrations）；早一轮旧3000集性能门禁在并行构建时出现6.16秒超6秒。未改SQL或阈值，串行复跑通过，再单独3轮测得3.553/2.509/2.012秒。
+- 本地Linux ARM64静态同binary测试：真实HTTP四auth、admin POST/CSRF、专属key撤销、凭据不下发、service→KV、真实filemanager整理→TransferComplete、禁用拒绝；V2整包静态测试通过。新HTTP用例已加入原生AMD64 CI脚本，待β主程序推送后实际执行，不把本机ARM结果称为AMD64。
+- Vue typecheck/build与105项单测、Python28项、整套E2E107项通过；API配置scope/fence补充另跑相关包及同binary链路。202不表述为业务成功；unknown不自动重复，晚到写回被fence。
+- 本组不访问生产、不提交/推送主程序、不发布新Hub镜像；F2-β统一提交并过CI，R-F才部署。JSON/ESM/链式事件/模块执行及NameRecognize/DownloadAdded接线仍未开始；Telegram入站留F4。
+
+### α 最终门禁与工作区边界
+
+- 最新SDK提交c06c754的Actions 39033109250成功（https://github.com/dingding229/mediatool-plugin/actions/runs/39033109250）。前后端清单与Go module固定同一提交，初始化副作用门禁与--check通过。
+- 最终Linux ARM64静态真实worker/HTTP及V2整包合计22项通过、0 Skip；新增API Host执行scope上限、Host配置换代fence均已再测。Linux/AMD64无CGO静态编译通过，新增原生AMD64运行证据待β CI，未连接生产。
+- 最新相关包race、build/vet/errcheck、Vue typecheck/build与105项单测、Python28项、107项整套E2E及最后4项插件相关E2E均通过。性能门禁单独3轮均在6秒预算内，未放宽阈值。
+- 非测试新增物理行（排除测试/golden/文档，计构建入口）：主仓库约1781行，SDK/hello约532行，合计约2313行；按SDK绑定、宿主API/授权、持久调度/广播与真实回归分段连续完成。
+- 主程序未暂存/提交/推送，HEAD仍8cd2045；源码/迁移/测试留工作区供β接续。插件仓库已推送且工作区干净。缓存清理的实测释放量在本组最终汇报记录，不清GOMODCACHE。
+
+
+## 23. F2-β实施记录（2026-10-17）
+
+1. E/I：链与模块共享已审核的实时授权/fenced信箱；200ms/handler、2s总预算、最多8项，
+   priority与稳定排序、schema验证、Continue拦截、递归保护，识别失败回内置。
+   接workbench.parseReleaseName与library.Engine.Recognize；模块点metadata.name_recognize。
+   DownloadAdded接acquisition.Add成功后的download.started一次事实，不以taskId永久去重；
+   实际整理TransferComplete仍是第一条广播。三个真实hook均有同binary端到端验证。
+2. F/G：JSON白名单树/model/when/props与config CAS；form/page/dashboard，未知组件占位。
+   同pin构建资源通过Vite共享chunk图、固定facade打包，拒绝动态/远程/跨namespace import。
+   多key dashboard meta/刷新/布局、实例侧栏；同页ESM受信非沙箱残余风险明确提示。
+3. 命令：全局注册冲突、管理确认手动执行、内部ExecuteCommand；Telegram入站留F4。
+4. 审核附注：EmitTx注释明确第二参数是一次事实ID；DownloadAdded用事务UUID；
+   API `{param}` 单段模板没有低成本增加，继续精确静态path并列未来项，不接受通配。
+5. 复用未发布00063，补chain/module/ui CHECK与下载事件partial index，不新增依赖/扩展。
+   插件库先推送，主程序精确pin（无replace），α+β一起提交并过原生AMD64核验与Hub门禁。
+   不访问生产，不部署；R-F后续单独安排。F3–F6尚未执行，不宣称全量MP能力已完成。
+
+6. 本地门禁：build/vet/errcheck/init/resource检查通过；串行全仓race 76测试包、909项顶层PASS，
+   迁移集成290.183秒，含00063 Up→Down→Up/D2/非插件数据不变。Darwin跳过4个Linux
+   worker项，已以Linux ARM64非root/cap-drop/no-new-privileges实测补齐；另2个导出/helper
+   入口按设计Skip，真实ffmpeg未Skip。最终精确pin只增加可选配置容错的解释注释，补跑相关
+   race/迁移15项通过；SDK race三轮与库CI通过。Vue112项、全量E2E108项、Python28项通过。
+   原生AMD64及Hub以本次提交后Actions为准，不以本地ARM64代替。

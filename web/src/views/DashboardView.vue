@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PluginDashboards from "../plugins/PluginDashboards.vue"
 import { onMounted, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { request } from '../api/client'
@@ -21,7 +22,7 @@ onMounted(refresh)
 </section>
 <section class="daily-grid"><RouterLink v-for="item in daily" :key="item.key" :to="item.to" class="panel"><span>{{item.label}}</span><strong>{{snapshot?.daily[item.key] ?? '—'}}</strong></RouterLink></section>
 <section class="panel"><div class="panel-title"><h2>最近搜索</h2><RouterLink to="/search-cache">查看搜索记录</RouterLink></div><div v-for="item in recent" :key="item.id" class="daily-search"><RouterLink :to="{path:`/search/results/${item.id}`}">{{item.keyword}}</RouterLink><StatusBadge :state="item.state"/><span>{{item.total}} 个资源</span></div><p v-if="!recent.length" class="field-hint">暂无搜索记录，前往资源搜索发现作品。</p></section>
-</template>
+<PluginDashboards/></template>
 <style scoped>
 .runtime-grid,.daily-grid{display:grid;gap:16px;margin-bottom:24px}.runtime-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.daily-grid{grid-template-columns:repeat(6,minmax(0,1fr))}article span,.daily-grid span{color:var(--muted);font-size:13px}strong{display:block;font-size:28px;margin:14px 0;letter-spacing:-.5px}.daily-grid a{color:var(--text);text-decoration:none}.daily-grid a:hover{border-color:var(--primary)}.daily-search{display:grid;grid-template-columns:1fr 110px 100px;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--border)}.daily-search a{overflow-wrap:anywhere}.daily-search:last-child{border-bottom:0}@media(max-width:1100px){.runtime-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.daily-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:600px){.runtime-grid,.daily-grid{grid-template-columns:repeat(2,minmax(0,1fr))}strong{font-size:23px}.runtime-grid article,.daily-grid a{padding:16px}.daily-search{grid-template-columns:1fr 90px}.daily-search>span:last-child{display:none}}
 </style>
