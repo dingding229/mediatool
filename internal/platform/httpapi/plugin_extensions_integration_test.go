@@ -283,7 +283,7 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 		t.Fatal(result, e)
 	}
 	var event string
-	if e = s.DB.QueryRow(ctx, `SELECT id::text FROM outbox_events WHERE aggregate_id=$1 AND event_type='files.succeeded'`, plan.ID).Scan(&event); e != nil {
+	if e = s.DB.QueryRow(ctx, `SELECT id::text FROM outbox_events WHERE payload->>'operationId'=$1 AND event_type='files.succeeded'`, plan.ID).Scan(&event); e != nil {
 		t.Fatal(e)
 	}
 	wait("TransferComplete delivered into real Go handler", func() bool {
@@ -300,6 +300,10 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 	})
 	if e = s.Bridge(ctx); e != nil {
 		t.Fatal(e)
+	}
+	var operation string
+	if e = s.DB.QueryRow(ctx, `SELECT payload->>'operationId' FROM plugin_v2_event_journal WHERE event_id=$1`, event).Scan(&operation); e != nil || operation != plan.ID {
+		t.Fatal("business operation identity lost after versioned fact", operation, e)
 	}
 	if _, e = s.Replay(ctx, "admin", in.ID, 0, 200, false); e != nil {
 		t.Fatal(e)

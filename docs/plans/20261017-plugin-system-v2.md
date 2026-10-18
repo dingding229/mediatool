@@ -1798,3 +1798,7 @@ SDK 测试推送→主程序精确 pin→全部门禁与 Actions→Hub 不可变
   payload 的 operationId 取业务身份（旧事实回退原 aggregate），避免换键后事件指向错误操作。
 - 数据库变更型测试始终共用 test-lock，串行只用 media_tool_test / Redis DB15。最终发布门禁以
   本组提交对应 Actions 为准；F4 尚未完成，不部署服务器，也不提前开始 F4-C。
+
+- 首轮原生 CI `39128154275` 的 F4-B 六事实/五链真实 worker 已 PASS。旧 HTTP 整理端到端用例仍用
+  operation ID 查 outbox aggregate，未适配本组版本化事实键，因此失败；仅更新测试按 payload.operationId
+  查事实，并新增断言 journal 中业务 operationId 原样保留。实际整理/投递/重放/权限断言均保留，不放宽门禁。
