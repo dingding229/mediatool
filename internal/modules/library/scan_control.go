@@ -5,6 +5,7 @@ import (
 	"errors"
 	"media-tool/internal/modules/jobs"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"strconv"
 )
 
@@ -78,7 +79,7 @@ func (e Engine) ControlScan(ctx context.Context, id, action string) error {
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','library.scan_control',jsonb_build_object('scanId',$1::text,'action',$2::text,'generation',$3::bigint))`, id, action, generation); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 
 func (e Engine) ScanByID(ctx context.Context, id string) (Scan, error) {

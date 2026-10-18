@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"media-tool/internal/modules/jobs"
+	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"strconv"
 )
 
@@ -23,6 +25,14 @@ func (e Engine) QueueRefresh(ctx context.Context, assetID string) error {
 	}
 	payload, _ := json.Marshal(map[string]string{"assetId": assetID})
 	key := refreshKey(assetID, revision)
-	_, err := e.DB.Exec(ctx, `INSERT INTO jobs(id,kind,payload,idempotency_key)VALUES($1,'library.refresh',$2,$3)ON CONFLICT(idempotency_key)WHERE idempotency_key IS NOT NULL DO UPDATE SET state=CASE WHEN jobs.state IN('failed','retry','paused') THEN 'pending' ELSE jobs.state END,attempts=CASE WHEN jobs.state IN('failed','retry','paused') THEN 0 ELSE jobs.attempts END,available_at=CASE WHEN jobs.state IN('failed','retry','paused') THEN now() ELSE jobs.available_at END,last_error=CASE WHEN jobs.state IN('failed','retry','paused') THEN NULL ELSE jobs.last_error END`, jobs.UUID(), payload, key)
-	return err
+	tx, err := e.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer deferutil.Rollback(ctx, tx)
+	_, err = tx.Exec(ctx, `INSERT INTO jobs(id,kind,payload,idempotency_key)VALUES($1,'library.refresh',$2,$3)ON CONFLICT(idempotency_key)WHERE idempotency_key IS NOT NULL DO UPDATE SET state=CASE WHEN jobs.state IN('failed','retry','paused') THEN 'pending' ELSE jobs.state END,attempts=CASE WHEN jobs.state IN('failed','retry','paused') THEN 0 ELSE jobs.attempts END,available_at=CASE WHEN jobs.state IN('failed','retry','paused') THEN now() ELSE jobs.available_at END,last_error=CASE WHEN jobs.state IN('failed','retry','paused') THEN NULL ELSE jobs.last_error END`, jobs.UUID(), payload, key)
+	if err != nil {
+		return err
+	}
+	return dbutil.Commit(ctx, tx)
 }

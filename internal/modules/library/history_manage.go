@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 )
 
@@ -76,5 +77,5 @@ func (e Engine) HideHistory(ctx context.Context, items []HistorySelection, confi
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','library.history_removed',$1)`, details); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }

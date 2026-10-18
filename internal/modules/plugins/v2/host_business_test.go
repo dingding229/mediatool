@@ -69,6 +69,16 @@ func TestEveryBusinessMethodLiveScopeAndRevocation(t *testing.T) {
 					t.Fatal("unsupported dispatched")
 				}
 			}
+
+			prior := s.Business
+			s.Business = businessFunc(func(context.Context, contracts.HostCall, contracts.Permission, func() error) (any, error) {
+				return nil, contracts.NewError(contracts.Unsupported)
+			})
+			unavailable := call
+			unavailable.OperationKey += "-unsupported"
+			_, e = s.hostDeclared(ctx, l, unavailable, manifest)
+			requireCode(t, e, contracts.Unsupported)
+			s.Business = prior
 			if _, e = s.DB.Exec(ctx, `DELETE FROM plugin_v2_grants WHERE instance_id=$1 AND scope=$2`, l.ID, m.Scope); e != nil {
 				t.Fatal(e)
 			}
@@ -248,5 +258,21 @@ func TestUnsupportedSelectorOnReviewedDefinitionNeverBroadensScope(t *testing.T)
 	requireCode(t, e, contracts.Unsupported)
 	if invoked {
 		t.Fatal("unsupported selector silently broadened")
+	}
+}
+
+func TestMediaBusinessResourceSelectorsNeverBroaden(t *testing.T) {
+	for _, scope := range []string{"fs.media:read", "fs.media:write", "storage.read", "storage.write"} {
+		if !validBusinessResources(contracts.Permission{Scope: scope, Resources: map[string][]string{"rootIds": {"exact-id"}, "storageIds": {"other-exact-id"}}}) {
+			t.Fatal(scope)
+		}
+		for _, v := range []map[string][]string{{"hosts": {"https://example.invalid"}}, {"rootIds": {"*"}}, {"rootIds": {}}, {"libraryIds": {"other"}}} {
+			if validBusinessResources(contracts.Permission{Scope: scope, Resources: v}) {
+				t.Fatal(scope, v)
+			}
+		}
+	}
+	if validBusinessResources(contracts.Permission{Scope: "library.read", Resources: map[string][]string{"libraryIds": {"g:movie"}}}) {
+		t.Fatal("unimplemented library selector broadened to global")
 	}
 }

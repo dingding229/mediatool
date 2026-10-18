@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/classification"
 	"media-tool/internal/modules/nativelibrary"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 )
 
@@ -42,7 +43,7 @@ func (r Repository) Sync(ctx context.Context, policy classification.Policy, revi
 	if err = syncLibraries(bounded, tx, raw, revision); err != nil {
 		return err
 	}
-	return tx.Commit(bounded)
+	return dbutil.Commit(bounded, tx)
 }
 func (r Repository) SyncCurrent(ctx context.Context) error {
 	_, err := r.sync(ctx, nil, 0, nil, 0)
@@ -142,7 +143,7 @@ func (r Repository) sync(ctx context.Context, p *classification.Policy, revision
 	if err = syncLibraries(bounded, tx, raw, record.Revision); err != nil {
 		return record, err
 	}
-	err = tx.Commit(bounded)
+	err = dbutil.Commit(bounded, tx)
 	return record, err
 }
 func syncLibraries(ctx context.Context, tx pgx.Tx, plans []byte, revision int64) error {

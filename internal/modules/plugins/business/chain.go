@@ -14,6 +14,7 @@ import (
 	"media-tool/internal/modules/manualdownloads"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/search"
+	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/subscriptionpolicy"
 	"media-tool/internal/modules/subscriptions"
 	"media-tool/internal/platform/secrets"
@@ -28,6 +29,7 @@ import (
 // AcquisitionHost is the sole business bridge. No SQL/engine/credential object is
 // exported to workers. Network calls run outside the plugin authorization tx.
 type AcquisitionHost struct {
+	Observe     func(context.Context, string, string) (storage.File, error) // optional native observer; nil uses configured provider
 	DB          *pgxpool.Pool
 	Vault       *secrets.Vault
 	Connections *integrations.Manager
@@ -114,6 +116,25 @@ func (h AcquisitionHost) Call(ctx context.Context, call contracts.HostCall, perm
 	}
 	if !spec.Supported {
 		return nil, unsupportedBusiness()
+	}
+	media := strings.HasPrefix(call.Method, "library.") || strings.HasPrefix(call.Method, "classification.") || strings.HasPrefix(call.Method, "fs.media.") || strings.HasPrefix(call.Method, "storage.") || strings.HasPrefix(call.Method, "strm.") || strings.HasPrefix(call.Method, "metadata.") && call.Method != "metadata.torrent.parse"
+	if media {
+		if spec.Scope != permit.Scope {
+			return nil, contracts.NewError(contracts.PermissionDenied)
+		}
+		if !mediaBounds(call.Args) {
+			return nil, invalidBusiness()
+		}
+		switch {
+		case strings.HasPrefix(call.Method, "fs.media."), strings.HasPrefix(call.Method, "storage."):
+			return h.callFiles(ctx, call, permit, admit)
+		case strings.HasPrefix(call.Method, "metadata."):
+			return h.callMetadata(ctx, call, admit)
+		case strings.HasPrefix(call.Method, "classification."):
+			return h.callClassification(ctx, call, admit)
+		default:
+			return h.callLibrary(ctx, call, admit)
+		}
 	}
 	se, ae, me, su := h.engines()
 

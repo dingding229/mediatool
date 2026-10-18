@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"media-tool/internal/modules/jobs"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 )
 
@@ -82,7 +83,7 @@ func (e Engine) PreviewBatch(ctx context.Context, inputs []Input) (Batch, error)
 			return out, ErrUnavailable
 		}
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return out, ErrUnavailable
 	}
 	return e.Batch(ctx, out.ID)
@@ -153,7 +154,7 @@ func (e Engine) ApproveBatch(ctx context.Context, id, digest string, confirm boo
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','files.batch_approved',jsonb_build_object('batchId',$1::text,'digest',$2::text))`, id, digest); err != nil {
 		return Batch{}, ErrUnavailable
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return Batch{}, ErrUnavailable
 	}
 	return e.Batch(ctx, id)
@@ -238,7 +239,7 @@ func (e Engine) finishBatch(ctx context.Context, id string) error {
 	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)SELECT $1,$2,$3,$4 WHERE NOT EXISTS(SELECT 1 FROM outbox_events WHERE aggregate_id=$3 AND event_type=$2)`, jobs.UUID(), "files.batch."+state, id, raw); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 func (e Engine) ReconcileBatch(ctx context.Context, id string) (Batch, error) {
 	unlock, err := e.lock(ctx, "batch:"+id)

@@ -14,6 +14,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/artifacts"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"media-tool/internal/platform/secrets"
 	"os"
 	"path"
@@ -81,6 +82,9 @@ func (j Journal) Stage(ctx context.Context, tx pgx.Tx, root, relative, assetID, 
 	return id, err
 }
 func (j Journal) Apply(ctx context.Context, id string) error {
+	if err := dbutil.CheckEffect(ctx); err != nil {
+		return err
+	}
 	tx, err := j.DB.Begin(ctx)
 	if err != nil {
 		return err
@@ -139,7 +143,7 @@ func (j Journal) Apply(ctx context.Context, id string) error {
 			if _, checkedErr := tx.Exec(ctx, `UPDATE media_artifact_journal SET state='conflict',updated_at=now()WHERE id=$1`, id); checkedErr != nil {
 				return checkedErr
 			}
-			if err = tx.Commit(ctx); err != nil {
+			if err = dbutil.Commit(ctx, tx); err != nil {
 				return err
 			}
 			return ErrArtifactConflict
@@ -178,7 +182,7 @@ func (j Journal) Apply(ctx context.Context, id string) error {
 	if _, err = tx.Exec(ctx, `UPDATE media_artifact_journal SET state='applied',content_ciphertext=CASE WHEN artifact_kind='strm' THEN content_ciphertext ELSE NULL END,updated_at=now()WHERE id=$1`, id); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 func (j Journal) Write(ctx context.Context, root, relative, assetID, scope, kind string, content []byte) error {
 	tx, err := j.DB.Begin(ctx)
@@ -190,7 +194,7 @@ func (j Journal) Write(ctx context.Context, root, relative, assetID, scope, kind
 	if err != nil {
 		return err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return err
 	}
 	return j.Apply(ctx, id)
@@ -335,5 +339,5 @@ func (e Engine) FinalizeRecovered(ctx context.Context) error {
 			return err
 		}
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }

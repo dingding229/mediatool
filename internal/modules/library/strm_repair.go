@@ -13,6 +13,7 @@ import (
 	"media-tool/internal/modules/playbackgrants"
 	"media-tool/internal/modules/strm"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"net/url"
 	"os"
 	"path"
@@ -215,7 +216,7 @@ func (e Engine) PreviewSTRMRepair(ctx context.Context, assets []string) (STRMRep
 			return out, err
 		}
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return out, err
 	}
 	return e.STRMRepairBatch(ctx, out.ID)
@@ -284,7 +285,7 @@ func (e Engine) ApproveSTRMRepair(ctx context.Context, id, digest string, confir
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','strm.batch_repair_approved',jsonb_build_object('batchId',$1::text,'digest',$2::text))`, id, digest); err != nil {
 		return STRMRepairBatch{}, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return STRMRepairBatch{}, err
 	}
 	return e.STRMRepairBatch(ctx, id)
@@ -348,7 +349,7 @@ func (e Engine) ProcessSTRMRepair(ctx context.Context, job jobs.Job) error {
 			if checked.State != "missing" {
 				_, err = tx.Exec(ctx, `UPDATE strm_repair_items SET state=$3,message=$4 WHERE batch_id=$1 AND ordinal=$2`, in.ID, i.Ordinal, checked.State, checked.Message)
 				if err == nil {
-					err = tx.Commit(ctx)
+					err = dbutil.Commit(ctx, tx)
 				} else {
 					deferutil.Rollback(ctx, tx)
 				}
@@ -371,7 +372,7 @@ func (e Engine) ProcessSTRMRepair(ctx context.Context, job jobs.Job) error {
 				_, err = tx.Exec(ctx, `UPDATE strm_repair_items SET state='staged',journal_id=$3 WHERE batch_id=$1 AND ordinal=$2`, in.ID, i.Ordinal, jid)
 			}
 			if err == nil {
-				err = tx.Commit(ctx)
+				err = dbutil.Commit(ctx, tx)
 			} else {
 				deferutil.Rollback(ctx, tx)
 			}
@@ -426,7 +427,7 @@ func (e Engine) RetrySTRMRepair(ctx context.Context, id, digest string, confirm 
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','strm.batch_repair_resumed',jsonb_build_object('batchId',$1::text))`, id); err != nil {
 		return STRMRepairBatch{}, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return STRMRepairBatch{}, err
 	}
 	return e.STRMRepairBatch(ctx, id)

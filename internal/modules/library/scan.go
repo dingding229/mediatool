@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"path"
 	"strings"
 	"time"
@@ -86,7 +87,7 @@ func (e Engine) Start(ctx context.Context, root string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return id, tx.Commit(ctx)
+	return id, dbutil.Commit(ctx, tx)
 }
 
 func startScanTx(ctx context.Context, tx pgx.Tx, connectionID, root string) (string, bool, error) {
@@ -243,7 +244,7 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		if _, err = tx.Exec(ctx, `INSERT INTO library_scan_directories(scan_id,path)VALUES($1,$2)`, body.ScanID, root); err != nil {
 			return err
 		}
-		if err = tx.Commit(ctx); err != nil {
+		if err = dbutil.Commit(ctx, tx); err != nil {
 			return err
 		}
 	}
@@ -381,7 +382,7 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		return err
 	}
 	trace.Info(ctx, "library", "complete scan coverage verified", "scanId", body.ScanID, "root", root, "generation", generation)
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 func (e Engine) indexFile(ctx context.Context, connectionID string, file storage.File) (string, error) {
 	tx, err := e.DB.Begin(ctx)
@@ -441,7 +442,7 @@ func (e Engine) indexFile(ctx context.Context, connectionID string, file storage
 	if err != nil {
 		return "", err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return "", err
 	}
 	return id, nil

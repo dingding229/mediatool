@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"os"
 	"path"
 	"path/filepath"
@@ -145,6 +146,9 @@ func (e Engine) ApplyArchiveCleanup(ctx context.Context, id string) error {
 		return e.cleanupConflict(ctx, tx, id, "当前托管STRM缺失或已修改；保留归档，请先恢复输出")
 	}
 	if state != "quarantined" {
+		if err = dbutil.CheckEffect(ctx); err != nil {
+			return err
+		}
 		ok, moveErr := quarantineArchive(root, archive, quarantine, expected)
 		if moveErr != nil || !ok {
 			return e.cleanupConflict(ctx, tx, id, "归档文件已修改/缺失或隔离目标冲突；保留文件，请核对后明确重试")
@@ -152,7 +156,7 @@ func (e Engine) ApplyArchiveCleanup(ctx context.Context, id string) error {
 		if _, err = tx.Exec(ctx, `UPDATE media_archive_cleanup_operations SET state='quarantined',message='',updated_at=now()WHERE id=$1`, id); err != nil {
 			return err
 		}
-		if err = tx.Commit(ctx); err != nil {
+		if err = dbutil.Commit(ctx, tx); err != nil {
 			return err
 		}
 		// Persisted phase is required before unlink. Cancellation stops here and is
@@ -161,6 +165,9 @@ func (e Engine) ApplyArchiveCleanup(ctx context.Context, id string) error {
 			return ctx.Err()
 		}
 		return e.ApplyArchiveCleanup(ctx, id)
+	}
+	if err = dbutil.CheckEffect(ctx); err != nil {
+		return err
 	}
 	done, removeErr := removeQuarantined(root, archive, quarantine, expected)
 	if removeErr != nil || !done {
@@ -176,13 +183,13 @@ func (e Engine) ApplyArchiveCleanup(ctx context.Context, id string) error {
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','archive.cleanup_completed',jsonb_build_object('cleanupId',$1::text,'archiveId',$2::text,'kind',$3::text))`, id, journal, kind); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 func (e Engine) cleanupConflict(ctx context.Context, tx pgx.Tx, id, message string) error {
 	if _, err := tx.Exec(ctx, `UPDATE media_archive_cleanup_operations SET state='conflict',message=$2,updated_at=now()WHERE id=$1`, id, message); err != nil {
 		return err
 	}
-	if err := tx.Commit(ctx); err != nil {
+	if err := dbutil.Commit(ctx, tx); err != nil {
 		return err
 	}
 	return ErrArtifactConflict

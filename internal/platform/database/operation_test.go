@@ -22,3 +22,24 @@ func TestOptionalCommitGuardIsContextLocalAndPropagatesFailure(t *testing.T) {
 		t.Fatal("guard escaped caller context")
 	}
 }
+
+func TestOptionalEffectGuardPreservesCancellationAndContextIsolation(t *testing.T) {
+	ctx := context.Background()
+	if e := CheckEffect(ctx); e != nil {
+		t.Fatal(e)
+	}
+	sentinel := errors.New("revoked before effect")
+	called := 0
+	guarded := WithEffectGuard(ctx, func() error { called++; return sentinel })
+	if !errors.Is(CheckEffect(guarded), sentinel) || called != 1 {
+		t.Fatal("effect guard bypassed")
+	}
+	if e := CheckEffect(ctx); e != nil {
+		t.Fatal("guard escaped context")
+	}
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if !errors.Is(CheckEffect(cancelled), context.Canceled) {
+		t.Fatal("cancellation bypassed")
+	}
+}

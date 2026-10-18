@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -137,7 +138,7 @@ func (r Repository) enqueue(ctx context.Context, t Target, language string, forc
 		return "", err
 	}
 	if !due {
-		return id, tx.Commit(ctx)
+		return id, dbutil.Commit(ctx, tx)
 	}
 	payload, e := json.Marshal(map[string]string{"detailId": id})
 	if e != nil {
@@ -153,5 +154,5 @@ func (r Repository) enqueue(ctx context.Context, t Target, language string, forc
 	if err != nil {
 		return "", err
 	}
-	return id, tx.Commit(ctx)
+	return id, dbutil.Commit(ctx, tx)
 }

@@ -275,9 +275,339 @@
       "scope": "subscriptions.read",
       "level": "R",
       "supported": false
+    },
+    {
+      "name": "library.assets",
+      "scope": "library.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "library.candidates",
+      "scope": "library.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "library.history",
+      "scope": "library.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "library.scans",
+      "scope": "library.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "library.recognize",
+      "scope": "library.recognize",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "library.suggest",
+      "scope": "library.recognize",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "library.organize.preview",
+      "scope": "library.organize",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "library.correct.preview",
+      "scope": "library.organize",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "library.archive.list",
+      "scope": "library.archive.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "library.archive.preview",
+      "scope": "library.archive.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "library.scan.start",
+      "scope": "library.scan",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "library.scan.control",
+      "scope": "library.scan",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "library.organize.confirm",
+      "scope": "library.organize",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "library.correct.apply",
+      "scope": "library.organize",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "library.refresh",
+      "scope": "library.refresh",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "library.history.hide",
+      "scope": "library.history.write",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "library.archive.confirmCleanup",
+      "scope": "library.archive.delete",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "fs.media.roots",
+      "scope": "fs.media:read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "fs.media.list",
+      "scope": "fs.media:read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "fs.media.stat",
+      "scope": "fs.media:read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "fs.media.get",
+      "scope": "fs.media:read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "fs.media.preview",
+      "scope": "fs.media:write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "fs.media.apply",
+      "scope": "fs.media:write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "fs.media.previewBatch",
+      "scope": "fs.media:write",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "fs.media.approveBatch",
+      "scope": "fs.media:write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "fs.media.readText",
+      "scope": "fs.media:read",
+      "level": "R",
+      "supported": false
+    },
+    {
+      "name": "storage.roots",
+      "scope": "storage.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "storage.list",
+      "scope": "storage.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "storage.stat",
+      "scope": "storage.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "storage.get",
+      "scope": "storage.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "storage.preview",
+      "scope": "storage.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "storage.apply",
+      "scope": "storage.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "storage.previewBatch",
+      "scope": "storage.write",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "storage.approveBatch",
+      "scope": "storage.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "storage.mkdir",
+      "scope": "storage.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "storage.relocate",
+      "scope": "storage.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "strm.entries",
+      "scope": "strm.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "strm.diagnostics",
+      "scope": "strm.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "strm.repair.preview",
+      "scope": "strm.repair",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "strm.repair.approve",
+      "scope": "strm.repair",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "strm.repair.retry",
+      "scope": "strm.repair",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "metadata.parse",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "metadata.attributes.parse",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "metadata.attributes.validate",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "metadata.name.render",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "metadata.episodes",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "metadata.normalize",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "metadata.search",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "metadata.details",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "metadata.storedDetails",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "metadata.refresh",
+      "scope": "metadata.refresh",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "classification.get",
+      "scope": "classification.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "classification.match",
+      "scope": "classification.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "classification.render",
+      "scope": "classification.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "classification.update",
+      "scope": "classification.write",
+      "level": "D",
+      "supported": true
     }
   ],
-  "pin": "v0.0.0-20261018035836-15bffff22603",
+  "pin": "v0.0.0-20261018050435-83446d71c2b0",
   "contractVersion": 2,
   "manifests": [
     {

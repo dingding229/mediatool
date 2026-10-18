@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"os"
 	"path"
 	"regexp"
@@ -222,6 +223,9 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 		return "", err
 	}
 	rootDir := e.Connections.Config.STRMOutputDir
+	if err = dbutil.CheckEffect(ctx); err != nil {
+		return "", err
+	}
 	if err = os.MkdirAll(rootDir, 0750); err != nil {
 		return "", err
 	}
@@ -256,7 +260,7 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','library.confirm',$1)`, audit); err != nil {
 		return "", err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return "", err
 	}
 	for _, intent := range intents {
@@ -264,10 +268,10 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 			return assetID, err
 		}
 	}
-	if _, err = e.DB.Exec(ctx, `UPDATE media_assets SET artifacts_state='ready' WHERE id=$1 AND NOT EXISTS(SELECT 1 FROM media_artifact_journal WHERE asset_id=$1 AND state<>'applied')`, assetID); err != nil {
+	if _, err = dbutil.Exec(ctx, e.DB, `UPDATE media_assets SET artifacts_state='ready' WHERE id=$1 AND NOT EXISTS(SELECT 1 FROM media_artifact_journal WHERE asset_id=$1 AND state<>'applied')`, assetID); err != nil {
 		return assetID, err
 	}
-	if _, err = e.DB.Exec(ctx, `UPDATE library_candidates SET state='confirmed',updated_at=now()WHERE id=$1`, id); err != nil {
+	if _, err = dbutil.Exec(ctx, e.DB, `UPDATE library_candidates SET state='confirmed',updated_at=now()WHERE id=$1`, id); err != nil {
 		return assetID, err
 	}
 	if err = e.QueueRefresh(ctx, assetID); err != nil {

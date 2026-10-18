@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"media-tool/internal/platform/outbox"
 	"path"
 	"path/filepath"
@@ -351,7 +352,7 @@ func (e Engine) Preview(ctx context.Context, in Input) (Plan, error) {
 		}
 	}
 	raw, _ := json.Marshal(p)
-	_, err = e.DB.Exec(ctx, `INSERT INTO file_operations(id,integration_id,integration_revision,backend_kind,operation,plan,plan_digest,expires_at)VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, p.ID, p.ConnectionID, p.Revision, p.BackendKind, p.Operation, raw, p.Digest, p.ExpiresAt)
+	_, err = dbutil.Exec(ctx, e.DB, `INSERT INTO file_operations(id,integration_id,integration_revision,backend_kind,operation,plan,plan_digest,expires_at)VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, p.ID, p.ConnectionID, p.Revision, p.BackendKind, p.Operation, raw, p.Digest, p.ExpiresAt)
 	if err != nil {
 		return p, ErrUnavailable
 	}
@@ -435,7 +436,7 @@ func (e Engine) claim(ctx context.Context, p Plan) error {
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','files.execute',$1)`, audit); err != nil {
 		return ErrUnavailable
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 func (e Engine) finish(ctx context.Context, id, state, message string, completed int) error {
 	tx, err := e.DB.Begin(ctx)
@@ -452,7 +453,7 @@ func (e Engine) finish(ctx context.Context, id, state, message string, completed
 	trace.Info(ctx, "filemanager", "file operation result", "operationId", id, "state", state, "completedSteps", completed, "message", message)
 	// Plugin deliveries and notifications independently consume the committed files.* fact.
 
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 func (e Engine) Execute(ctx context.Context, id, digest string, confirm bool) (Result, error) {
 	if !confirm || digest == "" {
@@ -520,6 +521,9 @@ func (e Engine) Execute(ctx context.Context, id, digest string, confirm bool) (R
 	for _, step := range out.Plan.Steps {
 		if ctx.Err() != nil {
 			err = ctx.Err()
+			break
+		}
+		if err = dbutil.CheckEffect(ctx); err != nil {
 			break
 		}
 		if step.Action == "mkdir" {
@@ -597,5 +601,5 @@ func (e Engine) recordStep(ctx context.Context, p Plan, step Step, completed int
 	if _, err = tx.Exec(ctx, `UPDATE file_operations SET completed_steps=$2,updated_at=now() WHERE id=$1`, p.ID, completed); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }

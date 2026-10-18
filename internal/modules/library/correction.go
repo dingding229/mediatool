@@ -7,6 +7,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/metadata"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 )
 
 // Correct retains assetId/grant and cloud/source media. Output path changes
@@ -155,7 +156,7 @@ func (e Engine) Correct(ctx context.Context, assetID string, in Confirmation) er
 	if err = saveScrapeReport(ctx, tx, assetID, item); err != nil {
 		return err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return err
 	}
 	for _, id := range intents {
@@ -163,7 +164,7 @@ func (e Engine) Correct(ctx context.Context, assetID string, in Confirmation) er
 			return err
 		}
 	}
-	if _, err = e.DB.Exec(ctx, `UPDATE media_assets SET artifacts_state='ready'WHERE id=$1 AND revision=$2`, assetID, revision+1); err != nil {
+	if _, err = dbutil.Exec(ctx, e.DB, `UPDATE media_assets SET artifacts_state='ready'WHERE id=$1 AND revision=$2`, assetID, revision+1); err != nil {
 		return err
 	}
 	return e.QueueRefresh(ctx, assetID)

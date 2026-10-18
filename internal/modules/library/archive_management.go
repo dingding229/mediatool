@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"os"
 	"path"
 	"path/filepath"
@@ -77,7 +78,7 @@ func (e Engine) SaveArchivePolicy(ctx context.Context, in ArchivePolicy) (Archiv
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','archive.retention_changed',jsonb_build_object('days',$1::int,'revision',$2::bigint))`, in.RetentionDays, in.Revision); err != nil {
 		return in, err
 	}
-	return in, tx.Commit(ctx)
+	return in, dbutil.Commit(ctx, tx)
 }
 
 var archiveUUID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
@@ -257,7 +258,7 @@ func (e Engine) ConfirmArchiveCleanup(ctx context.Context, in ArchiveCleanupRequ
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','archive.cleanup_approved',jsonb_build_object('requestId',$1::text,'count',$2::int))`, in.RequestID, len(ordered)); err != nil {
 		return nil, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return nil, err
 	}
 	// Only this explicit human request executes removals. There is no periodic
