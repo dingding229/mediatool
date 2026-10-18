@@ -217,7 +217,7 @@ func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *ho
 			<-watchDone
 			return e
 		}
-		if kind == "api" || kind == "chain" || kind == "module" {
+		if kind == "api" || kind == "chain" || kind == "module" || kind == "action" {
 			var scopes []string
 			if json.Unmarshal(scopeRaw, &scopes) != nil {
 				cancel()

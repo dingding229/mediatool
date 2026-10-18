@@ -1882,3 +1882,11 @@ plugins.effects.* 为框架专属状态，原其他键不变；不保存共享�
 - 发布统计以部署时间后的 `plugin_v2_runs(kind=chain)` 收据为分母，reason=deadline为超时回落；
   第一条（按generation/handler）与后续调用分开。无启用插件或无样本时报告N/A，不把0/0写成0%。
   F5再根据真实日志/收据评估预热，不直接放宽200ms。
+
+#### F4-0 发布前执行上限补强
+
+最终复核补齐动作执行的 Host scope ceiling：不只在DAG批准/提交时检查动作权限，
+worker pump 在 action.invoke 期间也将 Host RPC 上限设为该动作 descriptor.requiredScopes，
+与实时manifest/grant校验取交集；manual与workflow动作一致。hello动作显式声明自身KV读写。
+真实worker测试让实例已拥有、但该动作未声明的config.read调用被拒，并在加密动作结果里断言，
+只返回boolean，不带config内容。无启用实例的中间候选已回退F3，补强后重新走完整CI/Hub/备份发布。

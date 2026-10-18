@@ -57,7 +57,7 @@ func TestRealSameBinaryWorkflowAndBoundFakeProvider(t *testing.T) {
 	})
 	testworker.Ready(t, s.DB, in.ID, func(c context.Context) error { _, err := s.UI(c, in.ID, "form", ""); return err })
 	r := WorkflowRunner{s}
-	w := contracts.Workflow{ID: "real-workflow", Steps: []contracts.WorkflowStep{{ID: "one", InstanceID: in.ID, Action: "hello", Input: contracts.ActionContext{Data: map[string]json.RawMessage{}}}, {ID: "two", DependsOn: []string{"one"}, InstanceID: in.ID, Action: "f4-check", Input: contracts.ActionContext{Data: map[string]json.RawMessage{}}}}}
+	w := contracts.Workflow{ID: "real-workflow", Steps: []contracts.WorkflowStep{{ID: "one", InstanceID: in.ID, Action: "hello", Input: contracts.ActionContext{Data: map[string]json.RawMessage{}}}, {ID: "two", DependsOn: []string{"one"}, InstanceID: in.ID, Action: "f4-check", Input: contracts.ActionContext{Data: map[string]json.RawMessage{"scopeProbe": json.RawMessage(`true`)}}}}}
 	def, e := r.Save(ctx, "admin", w, 0)
 	if e != nil {
 		t.Fatal(e)
@@ -79,6 +79,16 @@ func TestRealSameBinaryWorkflowAndBoundFakeProvider(t *testing.T) {
 	}
 	if e = repo.Finish(ctx, *j, nil); e != nil {
 		t.Fatal(e)
+	}
+	var resultID string
+	var cipher []byte
+	if e = s.DB.QueryRow(ctx, `SELECT id::text,result_ciphertext FROM plugin_v2_runs WHERE dedupe_key=$1`, "workflow:"+run.ID+":two").Scan(&resultID, &cipher); e != nil {
+		t.Fatal(e)
+	}
+	raw, err := s.open("call-result", resultID, cipher)
+	var action contracts.ActionResult
+	if err != nil || contracts.Decode(raw, &action) != nil || string(action.Context.Data["configReadDenied"]) != "true" {
+		t.Fatal("real action escaped its declared Host scope ceiling")
 	}
 	status, e := r.Status(ctx, w.ID, run.ID)
 	if e != nil || status.State != "succeeded" {

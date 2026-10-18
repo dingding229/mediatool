@@ -925,14 +925,14 @@
       "supported": true
     }
   ],
-  "pin": "v0.0.0-20261018183503-a6d8f7c6b0e5",
+  "pin": "v0.0.0-20261018195001-45ef61b15052",
   "contractVersion": 2,
   "manifests": [
     {
       "contractVersion": 2,
       "id": "hello-go",
       "name": "Hello Go",
-      "version": "1.8.0",
+      "version": "1.8.1",
       "author": "Example Author",
       "description": "实例隔离与持久计数示例",
       "level": 1,
@@ -949,7 +949,8 @@
         "1.6.0": "Typed metadata/coverage and cached source no-op policies (F4-C)",
         "1.7.0": "F4-D typed system/notification/settings/Telegram facts; pre-effect module declines and /hello ingress example",
         "1.7.1": "Two-phase pure offer/execute module protocol; only pre-execute declines can fall back",
-        "1.8.0": "F4 bounded workflow and opt-in fake auth broker contracts; no real login provider"
+        "1.8.0": "F4 bounded workflow and opt-in fake auth broker contracts; no real login provider",
+        "1.8.1": "Declare hello action Host scopes; opt-in no-secret action ceiling probe"
       },
       "permissions": [
         {

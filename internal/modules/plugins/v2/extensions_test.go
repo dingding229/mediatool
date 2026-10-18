@@ -336,3 +336,16 @@ func TestAPIScopeCeilingCannotBeExpandedByWorkerParameters(t *testing.T) {
 		t.Fatal("API scope ceiling was not enforced", rpc)
 	}
 }
+
+func TestActionDeclaredScopesAreAnExecutionCeiling(t *testing.T) {
+	gate := &hostGate{}
+	gate.enter([]string{"actions.register", "plugin.data.read", "plugin.data.write"})
+	call := (Store{}).scopedHost(Lease{}, gate)
+	// The instance may hold these scopes, but this action did not declare them.
+	for _, raw := range []string{`{"method":"plugin.config.get","args":{}}`, `{"method":"settings.patch","args":{}}`, `{"method":"workflows.run","args":{}}`} {
+		_, rpc := call(context.Background(), json.RawMessage(raw))
+		if rpc == nil || rpc.Code != contracts.PermissionDenied {
+			t.Fatal("action scope ceiling", rpc)
+		}
+	}
+}
