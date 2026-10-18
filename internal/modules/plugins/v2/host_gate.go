@@ -28,7 +28,13 @@ func (g *hostGate) enterFor(scopes []string, action bool) {
 		g.scopes[s] = true
 	}
 }
-func (g *hostGate) leave() { g.mu.Lock(); defer g.mu.Unlock(); g.restricted = false; g.scopes = nil }
+func (g *hostGate) leave() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.restricted = false
+	g.action = false
+	g.scopes = nil
+}
 func (s Store) scopedHost(l Lease, g *hostGate) func(context.Context, json.RawMessage) (any, *contracts.Error) {
 	call := s.Host(l)
 	return func(ctx context.Context, raw json.RawMessage) (any, *contracts.Error) {
@@ -38,7 +44,7 @@ func (s Store) scopedHost(l Lease, g *hostGate) func(context.Context, json.RawMe
 		}
 		g.mu.RLock()
 		allowed := !g.restricted || g.scopes[hostScope(c.Method)]
-		if g.action && c.Method == "workflows.run" {
+		if g.restricted && g.action && c.Method == "workflows.run" {
 			allowed = false
 		} // No nested jobs may bypass the approved DAG depth/cycle bound.
 		if g.restricted {

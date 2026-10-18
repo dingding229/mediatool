@@ -349,3 +349,16 @@ func TestActionDeclaredScopesAreAnExecutionCeiling(t *testing.T) {
 		}
 	}
 }
+
+func TestActionScopeCeilingIsClearedAfterInvocation(t *testing.T) {
+	gate := &hostGate{}
+	gate.enterFor([]string{"actions.register"}, true)
+	gate.leave()
+	if gate.action || gate.restricted || gate.scopes != nil {
+		t.Fatal("action ceiling leaked outside invocation")
+	}
+	gate.enterFor([]string{"api.register", "workflows.run"}, false)
+	if gate.action || !gate.scopes["workflows.run"] {
+		t.Fatal("ordinary approved entry point inherited action restrictions")
+	}
+}
