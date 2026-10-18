@@ -1892,3 +1892,5 @@ worker pump 在 action.invoke 期间也将 Host RPC 上限设为该动作 descri
 只返回boolean，不带config内容。无启用实例的中间候选已回退F3，补强后重新走完整CI/Hub/备份发布。
 
 WorkflowRunner另将job lease/token条件UPDATE加入共享commit guard，覆盖每步初始及结果提交；max_attempts=1不替代lease fence。租约过期的在途结果不能写成功，交由status投影unknown，不重放。
+
+首期动作内拒绝再次workflows.run（即使实例持有该scope），防止跨job递归绕过已批准DAG的深度/成环限制；API/service等受批准入口仍可按精确workflowIds受理。

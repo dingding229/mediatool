@@ -339,7 +339,7 @@ func TestAPIScopeCeilingCannotBeExpandedByWorkerParameters(t *testing.T) {
 
 func TestActionDeclaredScopesAreAnExecutionCeiling(t *testing.T) {
 	gate := &hostGate{}
-	gate.enter([]string{"actions.register", "plugin.data.read", "plugin.data.write"})
+	gate.enterFor([]string{"actions.register", "plugin.data.read", "plugin.data.write", "workflows.run"}, true)
 	call := (Store{}).scopedHost(Lease{}, gate)
 	// The instance may hold these scopes, but this action did not declare them.
 	for _, raw := range []string{`{"method":"plugin.config.get","args":{}}`, `{"method":"settings.patch","args":{}}`, `{"method":"workflows.run","args":{}}`} {

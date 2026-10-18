@@ -224,7 +224,7 @@ func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *ho
 				<-watchDone
 				return ErrInvalid
 			}
-			gate.enter(scopes)
+			gate.enterFor(scopes, kind == "action")
 		}
 		var result json.RawMessage
 		e = peer.Call(bounded, "plugin.invoke", contracts.Invocation{Handler: handler, Args: args}, &result)

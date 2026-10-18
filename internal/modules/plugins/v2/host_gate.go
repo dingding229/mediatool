@@ -13,13 +13,16 @@ import (
 type hostGate struct {
 	mu         sync.RWMutex
 	restricted bool
+	action     bool
 	scopes     map[string]bool
 }
 
-func (g *hostGate) enter(scopes []string) {
+func (g *hostGate) enter(scopes []string) { g.enterFor(scopes, false) }
+func (g *hostGate) enterFor(scopes []string, action bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.restricted = true
+	g.action = action
 	g.scopes = map[string]bool{}
 	for _, s := range scopes {
 		g.scopes[s] = true
@@ -35,6 +38,9 @@ func (s Store) scopedHost(l Lease, g *hostGate) func(context.Context, json.RawMe
 		}
 		g.mu.RLock()
 		allowed := !g.restricted || g.scopes[hostScope(c.Method)]
+		if g.action && c.Method == "workflows.run" {
+			allowed = false
+		} // No nested jobs may bypass the approved DAG depth/cycle bound.
 		if g.restricted {
 			for _, extra := range b.RequiredScopes(c.Method) {
 				allowed = allowed && g.scopes[extra]
