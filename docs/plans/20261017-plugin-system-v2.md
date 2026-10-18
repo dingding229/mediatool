@@ -1890,3 +1890,5 @@ worker pump 在 action.invoke 期间也将 Host RPC 上限设为该动作 descri
 与实时manifest/grant校验取交集；manual与workflow动作一致。hello动作显式声明自身KV读写。
 真实worker测试让实例已拥有、但该动作未声明的config.read调用被拒，并在加密动作结果里断言，
 只返回boolean，不带config内容。无启用实例的中间候选已回退F3，补强后重新走完整CI/Hub/备份发布。
+
+WorkflowRunner另将job lease/token条件UPDATE加入共享commit guard，覆盖每步初始及结果提交；max_attempts=1不替代lease fence。租约过期的在途结果不能写成功，交由status投影unknown，不重放。

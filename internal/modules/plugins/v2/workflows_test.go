@@ -299,3 +299,32 @@ func TestWorkflowStartedDeliveryCommitRollbackRevokeAndSecretProjection(t *testi
 		t.Fatal("revoked event", n, e)
 	}
 }
+
+func TestWorkflowJobLeaseFencesEveryPreparedCommit(t *testing.T) {
+	s, _, r, w := workflowFixture(t)
+	ctx := context.Background()
+	d, e := r.Save(ctx, "admin", w, 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = r.Approve(ctx, "admin", w.ID, d.Fingerprint); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = r.Start(ctx, "admin", w.ID, "lease-fence-test"); e != nil {
+		t.Fatal(e)
+	}
+	j, e := (jobs.Repository{DB: s.DB}).Claim(ctx, "test", time.Minute)
+	if e != nil || j == nil {
+		t.Fatal(j, e)
+	}
+	prepared := workflowLeaseContext(ctx, *j)
+	if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.DB.Exec(ctx, `UPDATE jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1`, j.ID); e != nil {
+		t.Fatal(e)
+	}
+	if e = dbutil.CheckPrepared(prepared, s.DB); !errors.Is(e, jobs.ErrLeaseLost) {
+		t.Fatal("stale job committed", e)
+	}
+}

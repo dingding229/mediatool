@@ -279,7 +279,20 @@ func (r WorkflowRunner) BeforeStep(ctx context.Context, q contracts.WorkflowBefo
 	}
 	return ctx, e
 }
+func workflowLeaseContext(ctx context.Context, j jobs.Job) context.Context {
+	return dbutil.WithCommitGuard(ctx, func(c context.Context, tx pgx.Tx) error {
+		tag, e := tx.Exec(c, `UPDATE jobs SET updated_at=updated_at WHERE id=$1 AND lease_token=$2 AND state='running' AND lease_until>clock_timestamp()`, j.ID, j.LeaseToken)
+		if e != nil {
+			return e
+		}
+		if tag.RowsAffected() != 1 {
+			return jobs.ErrLeaseLost
+		}
+		return nil
+	})
+}
 func (r WorkflowRunner) Process(ctx context.Context, j jobs.Job) error {
+	ctx = workflowLeaseContext(ctx, j)
 	var q struct {
 		RunID string `json:"runId"`
 	}
