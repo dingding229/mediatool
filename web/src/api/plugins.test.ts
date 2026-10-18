@@ -14,3 +14,8 @@ it('uses the shared Go/Vue UI envelope and bounded declared key endpoint',async(
  vi.stubGlobal('fetch',fetcher)
  try{expect(await pluginUI('owned-instance','form')).toEqual(fixture.form);expect(fetcher.mock.calls[0][0]).toBe('/api/v1/plugins/owned-instance/ui/form?key=');fetcher.mockResolvedValueOnce(new Response(JSON.stringify({data:[]}),{status:200}));expect(await uiSurfaces()).toEqual([]);expect(fetcher.mock.calls[1][0]).toBe('/api/v1/plugins/ui-surfaces')}finally{vi.unstubAllGlobals()}
 })
+
+it('classifies every shared F3 dangerous method permission without frontend scope drift',()=>{
+ for(const method of inventory.hostMethods)if(method.level==='D')expect(dangerousScope(method.scope),method.name).toBe(true)
+ for(const scope of ['downloads.add','downloads.delete','sites.request','sites.templates.select','subscriptions.write'])expect(dangerousScope(scope),scope).toBe(true)
+})

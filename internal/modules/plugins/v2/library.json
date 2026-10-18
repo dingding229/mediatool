@@ -1,5 +1,283 @@
 {
-  "pin": "v0.0.0-20261017132453-f259a018ba77",
+  "hostMethods": [
+    {
+      "name": "downloads.list",
+      "scope": "downloads.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "downloads.get",
+      "scope": "downloads.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "downloads.progress",
+      "scope": "downloads.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "downloads.files",
+      "scope": "downloads.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "downloads.trackers",
+      "scope": "downloads.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "downloads.manualList",
+      "scope": "downloads.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "downloads.downloader.allHashes",
+      "scope": "downloads.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "downloads.downloader.inspect",
+      "scope": "downloads.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "downloads.cleanup.preview",
+      "scope": "downloads.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "downloads.addResource",
+      "scope": "downloads.add",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "downloads.manualCreate",
+      "scope": "downloads.add",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "downloads.pause",
+      "scope": "downloads.control",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "downloads.resume",
+      "scope": "downloads.control",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "downloads.retry",
+      "scope": "downloads.control",
+      "level": "W",
+      "supported": false
+    },
+    {
+      "name": "downloads.uploadControl",
+      "scope": "downloads.control",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "downloads.manualRetry",
+      "scope": "downloads.control",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "downloads.downloader.setPaused",
+      "scope": "downloads.control",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "downloads.cleanup.approve",
+      "scope": "downloads.delete",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "downloads.downloader.deleteOwned",
+      "scope": "downloads.delete",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "metadata.torrent.parse",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "search.list",
+      "scope": "search.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "search.get",
+      "scope": "search.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "search.resources",
+      "scope": "search.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "search.start",
+      "scope": "search.run",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "sites.list",
+      "scope": "sites.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "sites.get",
+      "scope": "sites.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "sites.metrics",
+      "scope": "sites.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "sites.rss.discover",
+      "scope": "sites.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "sites.request",
+      "scope": "sites.request",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "sites.checkin",
+      "scope": "sites.request",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "sites.metrics.collect",
+      "scope": "sites.refresh",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "sites.rss.refresh",
+      "scope": "sites.refresh",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "sites.templates.catalog",
+      "scope": "sites.templates.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "sites.templates.loaded",
+      "scope": "sites.templates.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "sites.templates.load",
+      "scope": "sites.templates.select",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "subscriptions.list",
+      "scope": "subscriptions.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "subscriptions.get",
+      "scope": "subscriptions.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "subscriptions.history",
+      "scope": "subscriptions.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "subscriptions.create",
+      "scope": "subscriptions.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "subscriptions.update",
+      "scope": "subscriptions.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "subscriptions.queue",
+      "scope": "subscriptions.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "subscriptions.delete",
+      "scope": "subscriptions.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "subscriptions.evaluateRules",
+      "scope": "subscriptions.rules",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "subscriptions.coverage",
+      "scope": "subscriptions.rules",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "downloads.recheck",
+      "scope": "downloads.control",
+      "level": "W",
+      "supported": false
+    },
+    {
+      "name": "subscriptions.completion",
+      "scope": "subscriptions.read",
+      "level": "R",
+      "supported": false
+    }
+  ],
+  "pin": "v0.0.0-20261018035836-15bffff22603",
   "contractVersion": 2,
   "manifests": [
     {

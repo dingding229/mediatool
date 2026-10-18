@@ -65,8 +65,12 @@ func scanRecord(row pgx.Row) (Record, error) {
 func (e Engine) Get(ctx context.Context, id string) (Record, error) {
 	return scanRecord(e.DB.QueryRow(ctx, `SELECT `+subscriptionColumns+` FROM subscriptions WHERE id=$1`, id))
 }
-func (e Engine) List(ctx context.Context) ([]Record, error) {
-	rows, err := e.DB.Query(ctx, `SELECT `+subscriptionColumns+` FROM subscriptions WHERE archived_at IS NULL ORDER BY created_at DESC LIMIT 200`)
+func (e Engine) List(ctx context.Context) ([]Record, error) { return e.Page(ctx, 0, 200, "", "") }
+func (e Engine) Page(ctx context.Context, start, limit int, query, id string) ([]Record, error) {
+	if start < 0 || start > 200000 || limit < 1 || limit > 200 || len(query) > 800 {
+		return nil, errors.New("invalid page")
+	}
+	rows, err := e.DB.Query(ctx, `SELECT `+subscriptionColumns+` FROM subscriptions WHERE archived_at IS NULL AND ($3='' OR title ILIKE '%'||$3||'%') AND ($4='' OR id::text=$4) ORDER BY created_at DESC,id LIMIT $1 OFFSET $2`, limit, start, query, id)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +162,7 @@ func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
 	if _, err = tx.Exec(ctx, `UPDATE subscriptions SET next_run_at=$2 WHERE id=$1`, id, next); err != nil {
 		return Record{}, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return Record{}, err
 	}
 	return e.Get(ctx, id)
@@ -207,7 +211,7 @@ func (e Engine) Queue(ctx context.Context, id string, preview bool) (string, err
 	if _, err = tx.Exec(ctx, `UPDATE subscriptions SET next_run_at=$2,last_state='pending',last_message=''WHERE id=$1`, id, next); err != nil {
 		return "", err
 	}
-	return runID, tx.Commit(ctx)
+	return runID, dbutil.Commit(ctx, tx)
 }
 func (e Engine) Schedule(ctx context.Context) error {
 	conn, err := e.DB.Acquire(ctx)
@@ -261,5 +265,5 @@ func (e Engine) Delete(ctx context.Context, id string) error {
 		return errors.New("订阅不存在或已归档")
 	}
 
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }

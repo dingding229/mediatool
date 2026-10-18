@@ -8,6 +8,7 @@ import (
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/sites"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 )
 
@@ -54,5 +55,5 @@ func (e Engine) Save(ctx context.Context, id string, revision int64, fingerprint
 	if err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }

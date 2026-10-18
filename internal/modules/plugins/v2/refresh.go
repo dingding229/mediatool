@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
 	"github.com/jackc/pgx/v5"
 	"reflect"
 	"time"
@@ -28,11 +29,12 @@ func SelfCheck() error {
 		return e
 	}
 	var inventory struct {
+		HostMethods     []b.Method        `json:"hostMethods"`
 		Pin             string            `json:"pin"`
 		ContractVersion int               `json:"contractVersion"`
 		Manifests       []json.RawMessage `json:"manifests"`
 	}
-	if json.Unmarshal(libraryInventory, &inventory) != nil || inventory.Pin != BuildID() || inventory.ContractVersion != contracts.ContractVersion || len(inventory.Manifests) != len(defs) {
+	if json.Unmarshal(libraryInventory, &inventory) != nil || !reflect.DeepEqual(inventory.HostMethods, b.Methods()) || inventory.Pin != BuildID() || inventory.ContractVersion != contracts.ContractVersion || len(inventory.Manifests) != len(defs) {
 		return ErrUnavailable
 	}
 	for i, d := range defs {

@@ -102,7 +102,13 @@ func BuildID() string {
 			}
 		}
 	}
-	return "v0.0.0-20261017132453-f259a018ba77"
+	var pin struct {
+		Pin string `json:"pin"`
+	}
+	if json.Unmarshal(libraryInventory, &pin) == nil {
+		return pin.Pin
+	}
+	return ""
 }
 func digest(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
 func Catalog() ([]Definition, error) {

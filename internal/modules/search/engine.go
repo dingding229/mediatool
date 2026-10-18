@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"net/url"
 	"strings"
 	"sync"
@@ -144,10 +145,14 @@ func (e Engine) start(ctx context.Context, keyword string, accountIDs []string, 
 			return "", err
 		}
 	}
-	return id, tx.Commit(ctx)
+	return id, dbutil.Commit(ctx, tx)
 }
-func (e Engine) List(ctx context.Context) ([]Run, error) {
-	rows, err := e.DB.Query(ctx, `SELECT id::text,keyword,state,created_at,finished_at,media_context,(SELECT count(*) FROM search_run_resources WHERE run_id=r.id) FROM search_runs r WHERE NOT cache_hidden ORDER BY created_at DESC LIMIT 50`)
+func (e Engine) List(ctx context.Context) ([]Run, error) { return e.Page(ctx, 0, 50, "", "") }
+func (e Engine) Page(ctx context.Context, start, limit int, query, id string) ([]Run, error) {
+	if start < 0 || start > 200000 || limit < 1 || limit > 200 || len(query) > 800 {
+		return nil, errors.New("invalid page")
+	}
+	rows, err := e.DB.Query(ctx, `SELECT id::text,keyword,state,created_at,finished_at,media_context,(SELECT count(*) FROM search_run_resources WHERE run_id=r.id) FROM search_runs r WHERE NOT cache_hidden AND ($3='' OR keyword ILIKE '%'||$3||'%') AND ($4='' OR r.id::text=$4) ORDER BY created_at DESC,id LIMIT $1 OFFSET $2`, limit, start, query, id)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +350,7 @@ func (e Engine) beginSiteAttempt(ctx context.Context, runID, accountID string) e
 	if _, err = tx.Exec(ctx, `UPDATE search_site_results SET state='running',message='',result_count=0,source_revision=NULL,definition_fingerprint=NULL,observed_at=NULL WHERE run_id=$1 AND account_id=$2`, runID, accountID); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 
 func (e Engine) saveResources(ctx context.Context, runID, accountID string, resources []sites.Resource) error {
@@ -412,7 +417,7 @@ func (e Engine) saveResourcesWithSource(ctx context.Context, runID, accountID st
 			return err
 		}
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 
 func publicURL(raw string) string {

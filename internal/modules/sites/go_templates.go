@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"runtime/debug"
 
 	mediatoolsite "github.com/dingding229/mediatool-site"
@@ -56,7 +57,7 @@ func (r Repository) RegisterGoTemplates(ctx context.Context) error {
 	if err = registerTemplates(ctx, tx, ids); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 
 func templateIDs() []string {
@@ -90,7 +91,7 @@ func (r Repository) LoadGoTemplates(ctx context.Context, ids []string) error {
 			return err
 		}
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 func registerTemplates(ctx context.Context, tx pgx.Tx, ids []string) error {
 	for _, id := range ids {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"media-tool/internal/modules/storage"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"strings"
 )
 
@@ -62,7 +63,7 @@ func (e Engine) Control(ctx context.Context, id string, in UploadControl) error 
 			if _, err = tx.Exec(ctx, `UPDATE transfer_tasks SET control_revision=control_revision+1 WHERE id=$1`, id); err != nil {
 				return err
 			}
-			if err = tx.Commit(ctx); err != nil {
+			if err = dbutil.Commit(ctx, tx); err != nil {
 				return err
 			}
 			return e.markVerified(ctx, id, remote)
@@ -86,7 +87,7 @@ func (e Engine) Control(ctx context.Context, id string, in UploadControl) error 
 		if _, err = tx.Exec(ctx, `UPDATE jobs SET state='pending',attempts=0,available_at=now(),last_error=NULL WHERE idempotency_key=$1 AND state IN ('failed','retry','paused','pending')`, "transfer:"+id); err != nil {
 			return err
 		}
-		return tx.Commit(ctx)
+		return dbutil.Commit(ctx, tx)
 	}
 	if state == "imported" || state == "verified" || state == "artifacts_pending" {
 		return errors.New("verified media cannot be controlled as a live upload")
@@ -127,7 +128,7 @@ func (e Engine) Control(ctx context.Context, id string, in UploadControl) error 
 		if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','transfer.session_bound',jsonb_build_object('transferId',$1::text))`, id); err != nil {
 			return err
 		}
-		return tx.Commit(ctx)
+		return dbutil.Commit(ctx, tx)
 	}
 	if in.Action == "resume" && state != "paused" {
 		return errors.New("only an explicitly paused upload can resume")
@@ -142,7 +143,7 @@ func (e Engine) Control(ctx context.Context, id string, in UploadControl) error 
 		if _, err = tx.Exec(ctx, `UPDATE jobs SET state='paused',lease_until=NULL,lease_token=NULL,locked_by=NULL WHERE idempotency_key=$1`, "transfer:"+id); err != nil {
 			return err
 		}
-		if commitErr := tx.Commit(ctx); commitErr != nil {
+		if commitErr := dbutil.Commit(ctx, tx); commitErr != nil {
 			return commitErr
 		}
 		return errors.New("remote control outcome unknown; reconcile before retrying")
@@ -172,5 +173,5 @@ func (e Engine) Control(ctx context.Context, id string, in UploadControl) error 
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','transfer.control',$1)`, audit); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }

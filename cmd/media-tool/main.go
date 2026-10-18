@@ -26,6 +26,7 @@ import (
 	"media-tool/internal/modules/nativelibrary/catalog"
 	playbackruntime "media-tool/internal/modules/nativeplayback/runtime"
 	"media-tool/internal/modules/nativetmdb"
+	pluginbusiness "media-tool/internal/modules/plugins/business"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/modules/plugins/v2/sandbox"
 	"media-tool/internal/modules/search"
@@ -476,6 +477,7 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	managementDeps := httpapi.Dependencies{Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
 	if db != nil && manager != nil {
 		store := pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot}
+		store.Business = pluginbusiness.AcquisitionHost{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc}
 		if err := pluginv2.SelfCheck(); err != nil {
 			return err
 		}

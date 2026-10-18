@@ -22,8 +22,16 @@ func (e Engine) ApproveCleanup(ctx context.Context, id string, confirm, hrSatisf
 		return errors.New("请明确确认删除此任务的本地下载文件和种子；此操作不可逆")
 	}
 	raw, _ := json.Marshal(map[string]any{"hrSatisfied": hrSatisfied})
-	_, err := e.DB.Exec(ctx, `INSERT INTO download_cleanup_requests(task_id,evidence)VALUES($1,$2) ON CONFLICT(task_id)DO UPDATE SET state=CASE WHEN download_cleanup_requests.state IN('blocked','pending')THEN 'pending' ELSE download_cleanup_requests.state END,evidence=CASE WHEN download_cleanup_requests.state IN('blocked','pending')THEN excluded.evidence ELSE download_cleanup_requests.evidence END,updated_at=now()`, id, raw)
-	return err
+	tx, err := e.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer deferutil.Rollback(ctx, tx)
+	_, err = tx.Exec(ctx, `INSERT INTO download_cleanup_requests(task_id,evidence)VALUES($1,$2) ON CONFLICT(task_id)DO UPDATE SET state=CASE WHEN download_cleanup_requests.state IN('blocked','pending')THEN 'pending' ELSE download_cleanup_requests.state END,evidence=CASE WHEN download_cleanup_requests.state IN('blocked','pending')THEN excluded.evidence ELSE download_cleanup_requests.evidence END,updated_at=now()`, id, raw)
+	if err != nil {
+		return err
+	}
+	return dbutil.Commit(ctx, tx)
 }
 func (e Engine) ScheduleCleanup(ctx context.Context) error {
 	// Intent is frozen on new tasks; enabling a setting never deletes old history.

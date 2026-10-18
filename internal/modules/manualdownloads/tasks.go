@@ -10,6 +10,7 @@ import (
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"path"
 	"strings"
 	"time"
@@ -80,10 +81,14 @@ func (e Engine) Create(ctx context.Context, s Source) (string, error) {
 			return "", err
 		}
 	}
-	return existing, tx.Commit(ctx)
+	return existing, dbutil.Commit(ctx, tx)
 }
-func (e Engine) List(ctx context.Context) ([]Task, error) {
-	rows, err := e.DB.Query(ctx, `SELECT id::text,info_hash,title,source_kind,source_label,endpoint,save_path,category,state,progress,qb_state,download_speed,upload_speed,total_bytes,message,synced_at,created_at,submit_attempted FROM manual_download_tasks ORDER BY created_at DESC LIMIT 200`)
+func (e Engine) List(ctx context.Context) ([]Task, error) { return e.Page(ctx, 0, 200, "", "", nil) }
+func (e Engine) Page(ctx context.Context, start, limit int, query, id string, downloaderIDs []string) ([]Task, error) {
+	if start < 0 || start > 200000 || limit < 1 || limit > 200 || len(query) > 800 {
+		return nil, errors.New("invalid page")
+	}
+	rows, err := e.DB.Query(ctx, `SELECT id::text,info_hash,title,source_kind,source_label,endpoint,save_path,category,state,progress,qb_state,download_speed,upload_speed,total_bytes,message,synced_at,created_at,submit_attempted FROM manual_download_tasks WHERE ($3='' OR title ILIKE '%'||$3||'%') AND ($4='' OR id::text=$4) AND(coalesce(cardinality($5::text[]),0)=0 OR integration_id::text=ANY($5)) ORDER BY created_at DESC,id LIMIT $1 OFFSET $2`, limit, start, query, id, downloaderIDs)
 	if err != nil {
 		return nil, err
 	}

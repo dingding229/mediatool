@@ -1336,3 +1336,112 @@ F1删除本仓库plugin-sdk/go/examples/plugins及旧上传/市场执行代码�
 - 本地回归记录：全仓race已执行，迁移集成362.393秒通过；首轮HTTP的SPA用例因清理后未先构建嵌入前端而503，补前端构建后整个HTTP包race复跑通过。首轮E2E的ESM用例因未执行plugin-assets生成而失败，按CI顺序补齐同pin资源后重跑；不以改业务代码/删断言修复测试前置条件。
 - Linux ARM64非root/cap-drop ALL/NNP补充实测：全部静态sandbox用例、同UID旁路40线程不误杀、有界40子进程/40锁线程超限kill、真实supervisor采样→收割→fenced finish→backoff及迟到finish拒绝均通过。原生AMD64仍必须由后续Actions实际执行，不用本地ARM64代替。
 - 补齐构建前置后，最终Vue112项、Python30项、全套E2E108/108通过；Go build/vet、生产路径及Linux标签errcheck通过。未新增依赖或DB迁移；原生AMD64门禁/Hub摘要由提交后的Actions记录。
+
+
+## F3-A 实施记录：获取链 Host API（2026-10-18）
+
+仅 F3-A；F3-B/C/D 未开始。本组不连接/部署生产，不新增迁移、数据库扩展或外部依赖。
+SDK ContractVersion=2，方法/权限/级别唯一清单在插件库 `sdk/host/business.Methods`；
+`cmd/plugin-assets` 从同一 pin 导出 `library.json.hostMethods`，Vue 危险权限标记消费它，
+启动 SelfCheck 对比 pin、manifest 和 Host method 表。SDK 的 schema 增加 `downloaderIds` selector；站点摘要只提供规范化 origin 与模板 ID（去除认证 userinfo/path/query），使插件无需复制站点秘密即可选择正确受控请求；
+schema 指纹与真实 Go 插件 lifecycle golden 同步，版本仍为兼容的 V2。
+
+### RPC 清单（R=读，W=写，D=危险且安装时明确同意）
+
+| RPC | scope | 级别 | 核心安全入口/结果语义 |
+|---|---|---|---|
+| `downloads.list` | `downloads.read` | R | acquisition.Engine.Page |
+| `downloads.get` | `downloads.read` | R | acquisition.Engine.Page + DownloaderService.Transfers |
+| `downloads.progress` | `downloads.read` | R | acquisition.Engine.Page + DownloaderService.Transfers |
+| `downloads.files` | `downloads.read` | R | DownloaderService.Files → Adapter.Files |
+| `downloads.trackers` | `downloads.read` | R | DownloaderService.Trackers → Adapter.Trackers |
+| `downloads.manualList` | `downloads.read` | R | manualdownloads.Engine.Page |
+| `downloads.downloader.allHashes` | `downloads.read` | R | Manager.QB → Adapter.AllHashes（上游≤1000，输出页≤200） |
+| `downloads.downloader.inspect` | `downloads.read` | R | Manager.QB → Adapter.Inspect；foreign 只读 |
+| `downloads.cleanup.preview` | `downloads.read` | R | DownloaderService.PreviewCleanup（非删除授权） |
+| `downloads.addResource` | `downloads.add` | D | search.MediaResource/RunResource → acquisition.StartExpectedFromRun |
+| `downloads.manualCreate` | `downloads.add` | D | manualdownloads.Magnet/File → Engine.Create |
+| `downloads.pause` | `downloads.control` | W | DownloaderService.SetPaused → Adapter.SetPaused |
+| `downloads.resume` | `downloads.control` | W | DownloaderService.SetPaused → Adapter.SetPaused |
+| `downloads.retry` | `downloads.control` | W | **unsupported**，不模拟能力或 MP 状态 |
+| `downloads.uploadControl` | `downloads.control` | W | DownloaderService.UploadControl → acquisition.Engine.Control（transfer ID） |
+| `downloads.manualRetry` | `downloads.control` | W | manualdownloads.Engine.Retry（不接受 duplicate-risk override） |
+| `downloads.downloader.setPaused` | `downloads.control` | W | DownloaderService.SetPaused，原 endpoint/hash/tag/path/category 验证 |
+| `downloads.cleanup.approve` | `downloads.delete` | D | DownloaderService.DeleteOwned（deleteFiles 显式）→ acquisition.ApproveCleanup |
+| `downloads.downloader.deleteOwned` | `downloads.delete` | D | 显式 deleteFiles：false 仅退休种子；true 原 cleanup worker 最终 DeleteOwned |
+| `metadata.torrent.parse` | `metadata.read` | R | downloads.ParseTorrent（纯函数，无 tracker 输出） |
+| `search.list` | `search.read` | R | search.Engine.Page（有界 SQL） |
+| `search.get` | `search.read` | R | search.Engine.HostRun（有界 SQL） |
+| `search.resources` | `search.read` | R | search.Engine.HostRun（query 在 SQL 中过滤） |
+| `search.start` | `search.run` | W | search.StartCached / StartMediaCached |
+| `sites.list` | `sites.read` | R | sitemetrics.Engine.Summaries（不解密账号） |
+| `sites.get` | `sites.read` | R | sitemetrics.Engine.Summaries（account UUID） |
+| `sites.metrics` | `sites.read` | R | sitemetrics.Engine.Summaries（白名单数值指标） |
+| `sites.rss.discover` | `sites.read` | R | Manager.Site → Client.DiscoverRSS；只返回可用状态/账号 handle，不返回 token feed URL |
+| `sites.request` | `sites.request` | D | Manager.Site → Client.Controlled |
+| `sites.checkin` | `sites.request` | D | 同上：2xx+显式 marker 才 matched；无 marker 为 unknown，验证码 needs_action |
+| `sites.metrics.collect` | `sites.refresh` | W | sitemetrics.Engine.Collect/Save |
+| `sites.rss.refresh` | `sites.refresh` | W | Manager.Site → Client.RSS（已配置 encrypted rssUrl；返回 observed，不声称入库/订阅完成） |
+| `sites.templates.catalog` | `sites.templates.read` | R | sites.GoTemplates + Repository.LoadedGoTemplates |
+| `sites.templates.loaded` | `sites.templates.read` | R | 同上，仅筛选已选模板 |
+| `sites.templates.load` | `sites.templates.select` | D | sites.Repository.LoadGoTemplates（仅 pin 编译定义） |
+| `subscriptions.list` | `subscriptions.read` | R | subscriptions.Engine.Page |
+| `subscriptions.get` | `subscriptions.read` | R | subscriptions.Engine.Get |
+| `subscriptions.history` | `subscriptions.read` | R | subscriptions.Engine.HistoryPage |
+| `subscriptions.create` | `subscriptions.write` | D | subscriptions.Engine.Save（原 TMDB/规则/账号校验） |
+| `subscriptions.update` | `subscriptions.write` | D | subscriptions.Engine.Save + revision CAS |
+| `subscriptions.queue` | `subscriptions.write` | D | subscriptions.Engine.Queue（原幂等/活动任务互斥） |
+| `subscriptions.delete` | `subscriptions.write` | D | subscriptions.Engine.DeleteRevision（先锁定 revision，活动 run 拒绝） |
+| `subscriptions.evaluateRules` | `subscriptions.rules` | R | subscriptionpolicy.ValidateKeywords/Evaluate（纯函数） |
+| `subscriptions.coverage` | `subscriptions.rules` | R | subscriptions.ManifestCoverage；evidence=filename_only_not_subscription_completion |
+| `downloads.recheck` | `downloads.control` | W | **unsupported**，不模拟能力或 MP 状态 |
+| `subscriptions.completion` | `subscriptions.read` | R | **unsupported**，不模拟能力或 MP 状态 |
+
+### 桥接、授权和事务
+
+- `plugins/v2` 只依赖纯 SDK 的 `BusinessBridge` 接口；具体适配器在 `plugins/business`。
+  这是为避免 acquisition → library → plugins/v2 的已有依赖形成反向循环；SDK 不引用核心 internal。
+- 逐 RPC 同时验证编译 manifest、当前定义 fingerprint、实例 desiredState、generation、owner、
+  grant_revision、lease 和已确认 grant；不缓存授权。API 调用还受 F2 execution scope ceiling。
+- 授权短事务在进入业务门面前结束，不拿实例/授权锁做网络请求。SQL 写门面复用原业务事务，
+  在提交前由 `database.WithCommitGuard/Commit` 执行相同 generation/grant fence；撤权后整笔回滚。
+  外部网络动作先提交短授权意图，无法撤回已经发往上游的请求，不许诺跨网络 exactly-once。已提交的原生搜索/下载任务继续由原业务状态机管理，停用插件不会删除或自动取消已批准的业务任务。
+- W/D 调用要求稳定 operationKey。使用加密本实例 KV 保留七天的 `.host/<time>/<hash>` 收据，
+  不更改 operations/run 表 CHECK，不新建表。相同 key/请求只观察已有结果，变更请求 Conflict；
+  崩溃/回写未完成为 ResultUnknown，不自动重放。业务意图与最终结果均留安全审计。
+  保留期外不得把旧 key 当可靠重试依据；应查询原业务任务并人工决策。
+- `.host/` 是宿主保留命名空间，worker KV get/put/delete/list 不可读写，clone 不复制；
+  主密钥轮换沿用既有 `plugin:v2:kv:<uuid>` AAD。每次写最多清理32条七天外收据，
+  与普通 KV 共用1024条/10MiB上限；逼近上限返回 Busy，而非丢失未知结果后自动执行。
+- selector 只接受当前门面实际能证明的 `siteIds/hosts/downloaderIds` 组合；空/通配 origin 拒绝。
+  host 必须匹配管理员配置账号的精确 origin，客户端只有相对 path，没有任意 headers/凭据参数。
+  无法归属站点的手动磁链/种子在 siteIds 限定下拒绝；资源添加绑定真实搜索 run/source 快照。
+
+### 新 Service 及安全边界
+
+- 受控站点请求/签到：宿主内部附 Cookie、APIKey 和已配置认证 header，禁止跳转和 cookie jar；
+  GET/POST、15秒、请求体16KiB、响应1MiB上限。响应仅 status/state/matched；
+  不返回任何响应 header、Set-Cookie、正文、认证材料。匹配 marker 前也剥离已知认证值，防止凭据匹配 oracle。
+  `raw=true` 明确 unsupported（不以未完成的“脱敏原始HTML”冒险交付凭据）；验证码 needs_action，
+  无成功证据是 unknown，不宣称签到成功。RSS只证明已发现/已观察，不交付带passkey URL。
+- DownloaderService：AllHashes/Inspect 可只读观察非本程序种子；暂停、文件/trackers和清理必须匹配
+  数据库所属下载器及原 endpoint/hash/path/category/UUID tag，foreign 不可写。
+  DeleteOwned 必须显式区分 deleteFiles：false 仅删除已导入且 HR 证据为 false 的本程序种子（绝不删文件）；true 进入原清理审批流水线。没有 HR waiver。
+  原 worker 仍验证已导入、云端副本、H&R、路径/共享文件/符号链接、lease 后调用 Adapter.DeleteOwned。
+- `downloads.uploadControl` 的 ID 是 Progress 返回的 **transfer ID**；不能把 download ID 塞给
+  acquisition.Control。只允许 pause/resume/retry，不能借此 bind 自造 session 或更改 endpoint。
+  独立 `downloads.retry/recheck` 未有安全门面，明确 unsupported；手动未知提交的 duplicate-risk override
+  也 unsupported，留管理员原有 UI 人工核对。不会触发真实115测试或放宽既有保护。
+- 分页结果≤200，页号≤1000，query≤200字符，集合输入≤200；搜索 filtering/pagination 在 SQL，
+  不调用 GetFiltered 的全候选内存扫描。AllHashes 受原适配器≤1000上游保护，返回页≤200。
+  tracker只返回 origin/status/count，绝不返回带认证 path/query/userinfo；下载器 endpoint/path、
+  hints、原始 metadata、原始错误和站点用户名/凭据不属于 DTO。RPC错误使用稳定 reason。
+- 订阅状态保留原生状态；coverage仅文件名语法推导，不是实际入库证据；“追剧完成”留 F4。
+
+### 测试与验收范围
+
+SDK 对每个 RPC 覆盖成功/缺 scope/撤权/unsupported，并对共享表做 golden；核心用真实隔离PG
+覆盖逐方法授权 SQL、短事务与撤权提交 fence、收据幂等/未知结果/保留命名空间/clone；业务门面使用
+真实数据库和假的 qB/站点/TMDB Transport，覆盖源快照、HR/所有权、分页、CAS、原生规则与脱敏。
+后端 race/vet/errcheck、迁移往返、Vue共享危险scope单测/E2E、Python保持原门禁；只用
+media_tool_test 与 Redis DB15 串行。SDK先提交/推送，主程序随后精确 bump pin、提交/推送并等CI；不部署。

@@ -16,9 +16,10 @@ import (
 )
 
 type Store struct {
-	DB    *pgxpool.Pool
-	Vault *secrets.Vault
-	Root  string
+	DB       *pgxpool.Pool
+	Vault    *secrets.Vault
+	Root     string
+	Business BusinessBridge
 }
 
 func rollback(ctx context.Context, tx pgx.Tx) { _ = tx.Rollback(ctx) } // Successful commit or primary error is handled by caller.
@@ -200,11 +201,11 @@ func (s Store) apply(ctx context.Context, actor string, in Request) (Instance, e
 			switch p.Scope {
 			case "api.register", "api.public", "api.public.write", "services.register", "commands.register", "commands.override", "actions.register", "plugin.config.read", "plugin.config.write", "plugin.data.read", "plugin.data.write", "plugin.state.read", "fs.data", "ui.json", "ui.trusted", "ui.sidebar", "system.read", "notifications.send":
 			default:
-				if !strings.HasPrefix(p.Scope, "events.chain.") && !strings.HasPrefix(p.Scope, "events.subscribe.") && !strings.HasPrefix(p.Scope, "module.") {
+				if !supportedBusinessScope(p.Scope) && !strings.HasPrefix(p.Scope, "events.chain.") && !strings.HasPrefix(p.Scope, "events.subscribe.") && !strings.HasPrefix(p.Scope, "module.") {
 					return out, ErrUnavailable
 				}
 			}
-			if len(p.Resources) > 0 {
+			if !validBusinessResources(p) {
 				return out, ErrInvalid
 			}
 		}
@@ -354,7 +355,7 @@ func readInstance(ctx context.Context, tx pgx.Tx, id string) (Instance, error) {
 }
 
 func (s Store) cloneKV(ctx context.Context, tx pgx.Tx, source, target string) error {
-	rows, e := tx.Query(ctx, `SELECT id::text,key,ciphertext,revision FROM plugin_v2_kv WHERE instance_id=$1 ORDER BY id LIMIT 1025`, source)
+	rows, e := tx.Query(ctx, `SELECT id::text,key,ciphertext,revision FROM plugin_v2_kv WHERE instance_id=$1 AND key NOT LIKE '.host/%' ORDER BY id LIMIT 1025`, source)
 	if e != nil {
 		return e
 	}

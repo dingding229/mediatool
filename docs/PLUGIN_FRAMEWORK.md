@@ -185,3 +185,18 @@ refresh、descriptor发布、Host配置换代、进入running/续租时清除负
 在失效之后回填；查询失败不记作“无hook”。同进程启停/授权变更立即生效，其他进程的变更
 最多2秒后重新查询；实际调用仍逐次执行实时授权和generation/fence检查。零插件整库识别
 不再逐条执行两次SQL；正结果也只执行一次注册表查询。200ms/handler、2秒总预算不变。
+
+
+## F3-A 获取链 Host API
+
+公开 typed 客户端：插件仓库 `sdk/host/downloads`、`host/search`、`host/sites`、`host/subscriptions`；
+共享 DTO、scope/级别与 unsupported 列表在 `host/business.Methods`，核心/UI从同一个pin校验。
+安装确认不会隐式获得未声明权限，危险权限醒目标记。完整方法表、业务入口和限制见
+`docs/plans/20261017-plugin-system-v2.md` 的 F3-A 实施记录。
+
+每次调用查当前 grant/generation；业务写在原事务提交前 fence。网络动作不持有授权锁，
+operationKey 收据加密保留七天，未知结果不自动重放。`.host/` KV为宿主保留、不交给worker或clone。
+站点只返回受控状态/marker，不回传认证header、Set-Cookie、HTML或带passkey RSS；
+foreign种子只读；deleteFiles=false 仅退休已导入且已清除HR义务的本程序种子，true 显式进入原HR/所有权/云端文件校验审批，不开放任意删除。
+下载 retry/recheck、原始站点HTML、未知手动提交的重复风险覆盖、追剧完成明确unsupported。
+F3-A不部署；F3-B/C/D尚未开始。

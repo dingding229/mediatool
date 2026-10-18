@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/buildinfo"
@@ -73,12 +74,15 @@ func hostScope(m string) string {
 		return "plugin.data.write"
 	case "plugin.data.path":
 		return "fs.data"
-	case "plugin.state.get":
+	case "plugin.state.get", "runtime.capabilities":
 		return "plugin.state.read"
 	case "system.summary":
 		return "system.read"
 	case "notifications.send":
 		return "notifications.send"
+	}
+	if spec, ok := b.Lookup(m); ok {
+		return spec.Scope
 	}
 	return ""
 }
@@ -96,7 +100,7 @@ func (s Store) Host(l Lease) func(context.Context, json.RawMessage) (any, *contr
 	}
 }
 func (s Store) hostCall(parent context.Context, l Lease, raw json.RawMessage) (any, error) {
-	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 20*time.Second)
 	defer cancel()
 	var call contracts.HostCall
 	if contracts.Decode(raw, &call) != nil || len(call.Args) > 128<<10 {
@@ -113,10 +117,19 @@ func (s Store) hostCall(parent context.Context, l Lease, raw json.RawMessage) (a
 	if e != nil || d.Fingerprint != l.Fingerprint {
 		return nil, contracts.NewError(contracts.PermissionDenied)
 	}
+	return s.hostDeclared(ctx, l, call, d.Manifest)
+}
+
+// hostDeclared receives only the compiled manifest resolved by hostCall, never
+// worker JSON. Kept separate so contract tests exercise real live-grant SQL.
+func (s Store) hostDeclared(ctx context.Context, l Lease, call contracts.HostCall, manifest contracts.Manifest) (any, error) {
+	scope := hostScope(call.Method)
 	declared := false
-	for _, p := range d.Manifest.Permissions {
+	var permit contracts.Permission
+	for _, p := range manifest.Permissions {
 		if p.Scope == scope {
 			declared = true
+			permit = p
 			break
 		}
 	}
@@ -149,6 +162,15 @@ func (s Store) hostCall(parent context.Context, l Lease, raw json.RawMessage) (a
 	if !granted {
 		return nil, contracts.NewError(contracts.PermissionDenied)
 	}
+	if _, ok := b.Lookup(call.Method); ok {
+		if !validBusinessResources(permit) {
+			return nil, contracts.NewError(contracts.Unsupported)
+		}
+		if e = tx.Commit(ctx); e != nil {
+			return nil, e
+		}
+		return s.business(ctx, l, call, permit)
+	}
 	return s.authorizedCall(ctx, tx, l, call, state)
 }
 
@@ -164,6 +186,12 @@ func (s Store) authorizedCall(ctx context.Context, tx pgx.Tx, l Lease, call cont
 	}
 	var result any
 	switch call.Method {
+	case "runtime.capabilities":
+		result = struct {
+			ContractVersion    int        `json:"contractVersion"`
+			Methods            []b.Method `json:"methods"`
+			UnsupportedOptions []string   `json:"unsupportedOptions"`
+		}{contracts.ContractVersion, b.Methods(), []string{"sites.request.raw", "subscriptions.completion", "downloads.recheck", "downloads.retry", "downloads.manualRetry.acceptDuplicateRisk"}}
 	case "plugin.state.get":
 		result = struct {
 			State string `json:"state"`
@@ -223,7 +251,7 @@ func (s Store) authorizedCall(ctx context.Context, tx pgx.Tx, l Lease, call cont
 		if contracts.Decode(call.Args, &a) != nil || len(a.After) > 128 || a.Limit < 1 || a.Limit > 200 {
 			return nil, contracts.NewError(contracts.InvalidParams)
 		}
-		rows, e := tx.Query(ctx, `SELECT key,revision FROM plugin_v2_kv WHERE instance_id=$1 AND key>$2 ORDER BY key LIMIT $3`, l.ID, a.After, a.Limit)
+		rows, e := tx.Query(ctx, `SELECT key,revision FROM plugin_v2_kv WHERE instance_id=$1 AND key>$2 AND key NOT LIKE '.host/%' ORDER BY key LIMIT $3`, l.ID, a.After, a.Limit)
 		if e != nil {
 			return nil, e
 		}
@@ -255,7 +283,7 @@ func (s Store) authorizedCall(ctx context.Context, tx pgx.Tx, l Lease, call cont
 			Key   string          `json:"key"`
 			Value json.RawMessage `json:"value,omitempty"`
 		}
-		if contracts.Decode(call.Args, &a) != nil || a.Key == "" || len(a.Key) > 128 || !utf8.ValidString(a.Key) || strings.ContainsAny(a.Key, "\x00\r\n") {
+		if contracts.Decode(call.Args, &a) != nil || a.Key == "" || strings.HasPrefix(a.Key, ".host/") || len(a.Key) > 128 || !utf8.ValidString(a.Key) || strings.ContainsAny(a.Key, "\x00\r\n") {
 			return nil, contracts.NewError(contracts.InvalidParams)
 		}
 		var id string
@@ -340,6 +368,9 @@ func (s Store) authorizedCall(ctx context.Context, tx pgx.Tx, l Lease, call cont
 }
 
 func hostWrites(method string) bool {
+	if spec, ok := b.Lookup(method); ok {
+		return spec.Level != "R"
+	}
 	return method == "plugin.data.put" || method == "plugin.data.delete" || method == "plugin.config.update" || method == "notifications.send"
 }
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/dingding229/mediatool-plugin/registry"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -24,6 +25,7 @@ type resource struct {
 	SHA256 string `json:"sha256"`
 }
 type inventory struct {
+	HostMethods     []b.Method           `json:"hostMethods"`
 	Pin             string               `json:"pin"`
 	ContractVersion int                  `json:"contractVersion"`
 	Manifests       []contracts.Manifest `json:"manifests"`
@@ -55,7 +57,7 @@ func export(check bool) error {
 		return e
 	}
 	sort.Slice(defs, func(i, j int) bool { return defs[i].Manifest.ID < defs[j].Manifest.ID })
-	out := inventory{Pin: module.Version, ContractVersion: contracts.ContractVersion, Manifests: []contracts.Manifest{}, Resources: []resource{}}
+	out := inventory{HostMethods: b.Methods(), Pin: module.Version, ContractVersion: contracts.ContractVersion, Manifests: []contracts.Manifest{}, Resources: []resource{}}
 	destination := "web/public/plugins"
 	buildSources := "web/plugin-ui"
 	if !check {

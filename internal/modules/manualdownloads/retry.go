@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 
 	"media-tool/internal/adapters/qbittorrent"
@@ -76,7 +77,7 @@ func (e Engine) Retry(ctx context.Context, id string, confirm, acceptDuplicateRi
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','download.manual.retry',jsonb_build_object('taskId',$1::text,'duplicateRiskAccepted',$2::boolean))`, id, acceptDuplicateRisk); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 
 // Reconcile observes the old immutable endpoint/hash/path only. A confirmed

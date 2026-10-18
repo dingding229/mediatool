@@ -261,7 +261,7 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 			if bindErr := assignDownloadSubscription(ctx, tx, existing, subscriptionID); bindErr != nil {
 				return "", bindErr
 			}
-			return existing, tx.Commit(ctx)
+			return existing, dbutil.Commit(ctx, tx)
 		}
 		return existing, nil
 	}
@@ -280,10 +280,14 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 	if _, err = tx.Exec(ctx, `INSERT INTO jobs(id,kind,payload,idempotency_key)VALUES($1,'download.add',$2,$3)`, jobs.UUID(), payload, "download.add:"+id); err != nil {
 		return "", err
 	}
-	return id, tx.Commit(ctx)
+	return id, dbutil.Commit(ctx, tx)
 }
-func (e Engine) List(ctx context.Context) ([]Task, error) {
-	rows, err := e.DB.Query(ctx, `SELECT d.id::text,d.resource_id::text,r.title,d.download_state,d.seeding_state,coalesce(d.info_hash,''),d.details,d.created_at,d.source_recovery_required,d.source_control_revision,coalesce(c.state,'disabled'),coalesce(c.message,'') FROM download_tasks d JOIN resources r ON r.id=d.resource_id LEFT JOIN download_cleanup_requests c ON c.task_id=d.id ORDER BY d.created_at DESC LIMIT 200`)
+func (e Engine) List(ctx context.Context) ([]Task, error) { return e.Page(ctx, 0, 200, "", "", nil) }
+func (e Engine) Page(ctx context.Context, start, limit int, query, id string, downloaderIDs []string) ([]Task, error) {
+	if start < 0 || start > 200000 || limit < 1 || limit > 200 || len(query) > 800 {
+		return nil, errors.New("invalid page")
+	}
+	rows, err := e.DB.Query(ctx, `SELECT d.id::text,d.resource_id::text,r.title,d.download_state,d.seeding_state,coalesce(d.info_hash,''),d.details,d.created_at,d.source_recovery_required,d.source_control_revision,coalesce(c.state,'disabled'),coalesce(c.message,'') FROM download_tasks d JOIN resources r ON r.id=d.resource_id LEFT JOIN download_cleanup_requests c ON c.task_id=d.id WHERE ($3='' OR r.title ILIKE '%'||$3||'%') AND ($4='' OR d.id::text=$4) AND(coalesce(cardinality($5::text[]),0)=0 OR d.integration_id::text=ANY($5)) ORDER BY d.created_at DESC,d.id LIMIT $1 OFFSET $2`, limit, start, query, id, downloaderIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +495,7 @@ func (e Engine) transition(ctx context.Context, id, state, event string, details
 			return err
 		}
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 func (e Engine) Reconcile(ctx context.Context) error {
 	rows, err := e.DB.Query(ctx, `SELECT id::text FROM download_tasks WHERE info_hash IS NOT NULL AND seeding_state<>'removed' AND download_state NOT IN ('pending','failed','cancelled') ORDER BY coalesce((details->>'syncAttemptAt')::timestamptz,created_at) LIMIT 100`)
@@ -590,7 +594,7 @@ func (e Engine) reconcileTask(ctx context.Context, id string) {
 	if wanted == 0 {
 		return
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return
 	}
 	if checkedErr := e.transition(ctx, id, "local_complete", "download.completed", details); checkedErr != nil {
