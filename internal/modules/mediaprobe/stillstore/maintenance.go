@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	dbutil "media-tool/internal/platform/database"
 	"os"
 	"strings"
 	"time"
@@ -204,6 +205,9 @@ func (c *Cache) openFile(path string) (*os.File, *os.File, error) {
 // Deletion failures are counted, not returned to publishers: the committed
 // reference is already gone, and its orphan must not block unrelated production.
 func (c *Cache) cleanup(ctx context.Context, path string, grace bool) (bool, int64) {
+	if err := dbutil.CheckEffect(ctx); err != nil {
+		return false, 0
+	}
 	size, err := c.remove(ctx, path, grace)
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		c.failures.Add(1)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"media-tool/internal/modules/mediaprobe/probeinfo"
+	dbutil "media-tool/internal/platform/database"
 	"strings"
 	"time"
 
@@ -98,7 +99,7 @@ func (r Repository) enqueue(parent context.Context, assetID string, force bool) 
 			return false, err
 		}
 	}
-	return due, tx.Commit(ctx)
+	return due, dbutil.Commit(ctx, tx)
 }
 func (r Repository) Retry(ctx context.Context, assetID string) (bool, error) {
 	return r.enqueue(ctx, assetID, true)

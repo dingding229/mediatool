@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
 	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/pluginactor"
 	"net/url"
 	"strings"
 	"time"
@@ -29,6 +30,7 @@ type businessRecord struct {
 // business database. Unknown outcomes do not replay, and records expire after 7d.
 func (s Store) business(ctx context.Context, l Lease, call contracts.HostCall, p contracts.Permission) (any, error) {
 	spec, _ := b.Lookup(call.Method)
+	ctx = pluginactor.With(ctx, l.ID, p.Scope, p.Resources["libraryIds"])
 	if !spec.Supported {
 		return nil, contracts.NewError(contracts.Unsupported)
 	}
@@ -219,6 +221,8 @@ func validBusinessResources(p contracts.Permission) bool {
 			allowed = p.Scope == "sites.read" || p.Scope == "sites.refresh" || p.Scope == "sites.request" || p.Scope == "sites.templates.read" || p.Scope == "sites.templates.select" || p.Scope == "search.run" || p.Scope == "downloads.add" || p.Scope == "subscriptions.write"
 		case "downloaderIds":
 			allowed = strings.HasPrefix(p.Scope, "downloads.")
+		case "libraryIds":
+			allowed = p.Scope == "mediaserver.read" || p.Scope == "mediaserver.refresh"
 		case "rootIds", "storageIds":
 			allowed = strings.HasPrefix(p.Scope, "fs.media:") || strings.HasPrefix(p.Scope, "storage.")
 		case "hosts":

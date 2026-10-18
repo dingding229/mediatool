@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -147,7 +148,7 @@ func (r *Repository) enqueue(parent context.Context, itemID int64, force, evicte
 			return false, err
 		}
 	}
-	return queued, tx.Commit(ctx)
+	return queued, dbutil.Commit(ctx, tx)
 }
 
 // Caller must reserve both execution lanes BEFORE Claim (T25-C). Lease starts

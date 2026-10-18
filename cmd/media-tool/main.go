@@ -20,6 +20,7 @@ import (
 	"media-tool/internal/modules/library"
 	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/modules/manualdownloads"
+	probeadmin "media-tool/internal/modules/mediaprobe/admin"
 	"media-tool/internal/modules/mediaprobe/probequeue"
 	"media-tool/internal/modules/mediaprobe/stillrunner"
 	"media-tool/internal/modules/messaging"
@@ -477,7 +478,12 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	managementDeps := httpapi.Dependencies{Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
 	if db != nil && manager != nil {
 		store := pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot}
-		store.Business = pluginbusiness.AcquisitionHost{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc}
+		businessHost := pluginbusiness.AcquisitionHost{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc}
+		if len(native) > 0 && native[0] != nil {
+			businessHost.Processing = &probeadmin.Repository{DB: db, Stills: native[0].Repo, MaxBytes: c.NativeStillsMaxBytes}
+			businessHost.Collector = native[0]
+		}
+		store.Business = businessHost
 		if err := pluginv2.SelfCheck(); err != nil {
 			return err
 		}

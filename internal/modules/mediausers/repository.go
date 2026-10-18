@@ -13,6 +13,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/auth"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 )
 
 type Repository struct{ DB *pgxpool.Pool }
@@ -123,7 +124,7 @@ func (r Repository) Save(ctx context.Context, id string, in Input) (User, error)
 	if err = audit(ctx, tx, "administrator", action, id); err != nil {
 		return User{}, ErrUnavailable
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return User{}, ErrUnavailable
 	}
 	u.Grants = append([]Grant{}, in.Grants...)
@@ -198,7 +199,7 @@ func (r Repository) Login(ctx context.Context, username, password, token string)
 	if err = audit(ctx, tx, "media-user:"+u.ID, "media_user.login", u.ID); err != nil {
 		return User{}, ErrUnavailable
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return User{}, ErrUnavailable
 	}
 	return current, nil
@@ -265,7 +266,7 @@ func (r Repository) Mutate(ctx context.Context, id string, revision int64, actio
 	if err = audit(ctx, tx, "administrator", "media_user."+action, id); err != nil {
 		return ErrUnavailable
 	}
-	return dbError(tx.Commit(ctx))
+	return dbError(dbutil.Commit(ctx, tx))
 }
 func (r Repository) ChangePassword(ctx context.Context, u User, current, next string) error {
 	if current == next {
@@ -307,7 +308,7 @@ func (r Repository) ChangePassword(ctx context.Context, u User, current, next st
 	if err = audit(ctx, tx, "media-user:"+u.ID, "media_user.password_changed", u.ID); err != nil {
 		return ErrUnavailable
 	}
-	return dbError(tx.Commit(ctx))
+	return dbError(dbutil.Commit(ctx, tx))
 }
 func (r Repository) Logout(ctx context.Context, token string) error {
 	if r.DB == nil {

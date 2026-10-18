@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/mediaprobe/probequeue"
 	"media-tool/internal/modules/mediaprobe/stillqueue"
+	dbutil "media-tool/internal/platform/database"
 	"strconv"
 	"time"
 )
@@ -109,7 +110,7 @@ func (r Repository) Audit(ctx context.Context, action string, value any) error {
 	if r.DB == nil {
 		return ErrInvalid
 	}
-	return audit(ctx, r.DB, action, value)
+	return audit(ctx, pluginExecutor{r}, action, value)
 }
 
 // Fixed SQL only; request values are always bind parameters. Title lookup is
@@ -218,4 +219,10 @@ func (r Repository) Retry(parent context.Context, in Retry) (out Retried, err er
 		}
 	}
 	return out, nil
+}
+
+type pluginExecutor struct{ r Repository }
+
+func (p pluginExecutor) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	return dbutil.Exec(ctx, p.r.DB, sql, args...)
 }

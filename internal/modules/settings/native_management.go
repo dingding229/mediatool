@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	dbutil "media-tool/internal/platform/database"
 	"strings"
 	"time"
 	"unicode"
@@ -60,7 +61,7 @@ func SaveNativeManagement(parent context.Context, db *pgxpool.Pool, in NativeMan
 	if e != nil || tag.RowsAffected() != 1 {
 		return out, ErrNativeUnavailable
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return out, ErrNativeUnavailable
 	}
 	return in, nil

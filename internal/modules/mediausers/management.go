@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -95,7 +96,13 @@ func (r Repository) Devices(parent context.Context, id string, start, limit int)
 // RevokeDevice retains the device/history, revokes every credential for that
 // device and releases its playback slots in one short transaction. No user-wide
 // credential_version bump: other devices remain logged in. Repeats are safe.
-func (r Repository) RevokeDevice(parent context.Context, userID, deviceID string) (err error) {
+func (r Repository) RevokeDevice(parent context.Context, userID, deviceID string) error {
+	return r.revokeDevice(parent, userID, deviceID, nil)
+}
+func (r Repository) RevokeDeviceExpected(parent context.Context, userID, deviceID string, revision int64) error {
+	return r.revokeDevice(parent, userID, deviceID, &revision)
+}
+func (r Repository) revokeDevice(parent context.Context, userID, deviceID string, expected *int64) (err error) {
 	if !validID(userID) || !validID(deviceID) {
 		return ErrInvalid
 	}
@@ -117,11 +124,15 @@ func (r Repository) RevokeDevice(parent context.Context, userID, deviceID string
 	}()
 	// Same lock order as Login: user then device, so revoke cannot miss a concurrent login.
 	var key string
-	if err = tx.QueryRow(ctx, `SELECT id::text FROM media_users WHERE id=$1 FOR UPDATE`, userID).Scan(&key); err != nil {
+	var revision int64
+	if err = tx.QueryRow(ctx, `SELECT credential_version FROM media_users WHERE id=$1 FOR UPDATE`, userID).Scan(&revision); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		return ErrUnavailable
+	}
+	if expected != nil && (*expected < 1 || revision != *expected) {
+		return ErrConflict
 	}
 	if err = tx.QueryRow(ctx, `SELECT id::text FROM media_user_devices WHERE id=$1 AND user_id=$2 FOR UPDATE`, deviceID, userID).Scan(&key); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -143,7 +154,7 @@ func (r Repository) RevokeDevice(parent context.Context, userID, deviceID string
 	if e != nil || tag.RowsAffected() != 1 {
 		return ErrUnavailable
 	}
-	return dbError(tx.Commit(ctx))
+	return dbError(dbutil.Commit(ctx, tx))
 }
 
 // History is the latest watched state per item (not a raw event log). Existing

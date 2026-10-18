@@ -9,6 +9,7 @@ import (
 	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
 	"media-tool/internal/modules/jobs"
 	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/pluginactor"
 	"strings"
 	"testing"
 	"time"
@@ -274,5 +275,43 @@ func TestMediaBusinessResourceSelectorsNeverBroaden(t *testing.T) {
 	}
 	if validBusinessResources(contracts.Permission{Scope: "library.read", Resources: map[string][]string{"libraryIds": {"g:movie"}}}) {
 		t.Fatal("unimplemented library selector broadened to global")
+	}
+}
+
+func TestServerPrincipalIssuedFromLiveGrantNotArguments(t *testing.T) {
+	s, l := activeFixture(t)
+	ctx := context.Background()
+	defs, _ := Catalog()
+	manifest := defs[0].Manifest
+	p := contracts.Permission{Scope: "mediaserver.read", Resources: map[string][]string{"libraryIds": {"g:owned"}}}
+	manifest.Permissions = append(append([]contracts.Permission{}, manifest.Permissions...), p)
+	if _, e := s.DB.Exec(ctx, `INSERT INTO plugin_v2_grants(instance_id,scope,fingerprint)VALUES($1,$2,$3)`, l.ID, p.Scope, l.Fingerprint); e != nil {
+		t.Fatal(e)
+	}
+	called := 0
+	s.Business = businessFunc(func(c context.Context, _ contracts.HostCall, _ contracts.Permission, _ func() error) (any, error) {
+		a, e := pluginactor.Require(c, p.Scope)
+		if e != nil || !a.Allows("g:owned") || a.Allows("g:forged") {
+			t.Fatal("untrusted actor", e)
+		}
+		called++
+		return b.Receipt{State: "observed"}, nil
+	})
+	call := contracts.HostCall{Method: "catalog.list", Args: json.RawMessage(`{"userId":"forged","visibleLibraries":["g:forged"]}`)}
+	if _, e := s.hostDeclared(ctx, l, call, manifest); e != nil || called != 1 {
+		t.Fatal(e, called)
+	}
+	if _, e := s.DB.Exec(ctx, `DELETE FROM plugin_v2_grants WHERE instance_id=$1 AND scope=$2`, l.ID, p.Scope); e != nil {
+		t.Fatal(e)
+	}
+	_, e := s.hostDeclared(ctx, l, call, manifest)
+	requireCode(t, e, contracts.PermissionDenied)
+	if called != 1 {
+		t.Fatal("revoked actor issued")
+	}
+	for _, name := range []string{"playback.resolve", "mediaserver.playback", "emby.gateway", "mediausers.login", "playeraccess.events"} {
+		if hostScope(name) != "" {
+			t.Fatal("forbidden host entry", name)
+		}
 	}
 }

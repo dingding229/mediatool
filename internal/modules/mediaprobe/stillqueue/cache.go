@@ -3,6 +3,7 @@ package stillqueue
 import (
 	"context"
 	"errors"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -145,7 +146,7 @@ func (r *Repository) Admit(parent context.Context, l Lease, size int64) (out Adm
 		return out, ErrLeaseLost
 	}
 
-	err = tx.Commit(ctx)
+	err = dbutil.Commit(ctx, tx)
 	return out, err
 }
 
@@ -193,7 +194,7 @@ func (r *Repository) TouchBatch(parent context.Context, accesses []Access) (int6
 	}
 	ctx, cancel := context.WithTimeout(parent, cacheBudget)
 	defer cancel()
-	tag, err := r.db.Exec(ctx, `UPDATE media_stills s SET last_access_at=clock_timestamp()
+	tag, err := dbutil.Exec(ctx, r.db, `UPDATE media_stills s SET last_access_at=clock_timestamp()
  FROM unnest($1::bigint[],$2::text[],$3::text[]) a(id,path,digest) WHERE s.item_id=a.id AND s.relative_path=a.path AND s.digest=a.digest
  AND s.published_at IS NOT NULL AND s.last_access_at<=clock_timestamp()-interval '1 hour'`, ids, paths, digests)
 	return tag.RowsAffected(), err
@@ -226,6 +227,6 @@ func (r *Repository) EvictSnapshot(parent context.Context, s Snapshot) (ok bool,
 	if err != nil {
 		return false, err
 	}
-	err = tx.Commit(ctx)
+	err = dbutil.Commit(ctx, tx)
 	return n == 1, err
 }

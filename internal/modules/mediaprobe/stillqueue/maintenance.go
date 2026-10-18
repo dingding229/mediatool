@@ -3,6 +3,7 @@ package stillqueue
 import (
 	"context"
 	"errors"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -99,7 +100,7 @@ func (r *Repository) Calibrate(parent context.Context, s Snapshot, size int64) (
 			ok = n == 1
 		}
 	}
-	err = tx.Commit(ctx)
+	err = dbutil.Commit(ctx, tx)
 	return ok, err
 }
 

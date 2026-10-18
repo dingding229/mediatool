@@ -605,9 +605,183 @@
       "scope": "classification.write",
       "level": "D",
       "supported": true
+    },
+    {
+      "name": "mediaserver.providers",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediaserver.libraries",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediaserver.items",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediaserver.settings.get",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediaserver.refresh",
+      "scope": "mediaserver.refresh",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "mediaserver.settings.update",
+      "scope": "mediaserver.settings.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "catalog.list",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "catalog.item",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "catalog.home",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": false
+    },
+    {
+      "name": "catalog.discover",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": false
+    },
+    {
+      "name": "catalog.nextUp",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": false
+    },
+    {
+      "name": "catalog.userData",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": false
+    },
+    {
+      "name": "mediausers.list",
+      "scope": "mediaserver.users.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediausers.get",
+      "scope": "mediaserver.users.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediausers.devices",
+      "scope": "mediaserver.users.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediausers.history",
+      "scope": "mediaserver.users.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediausers.update",
+      "scope": "mediaserver.users.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "mediausers.revokeDevice",
+      "scope": "mediaserver.users.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "playback.sessions",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "playback.summary",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "playeraccess.summary",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediaserver.sessions",
+      "scope": "mediaserver.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediaprobe.status",
+      "scope": "mediaprobe.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediaprobe.list",
+      "scope": "mediaprobe.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "mediaprobe.retry",
+      "scope": "mediaprobe.retry",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "mediaprobe.stills.retry",
+      "scope": "mediaprobe.retry",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "mediaprobe.stills.gc",
+      "scope": "mediaprobe.retry",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "metadata.nativeDetails",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "metadata.refreshDetails",
+      "scope": "metadata.refresh",
+      "level": "W",
+      "supported": true
     }
   ],
-  "pin": "v0.0.0-20261018050435-83446d71c2b0",
+  "pin": "v0.0.0-20261018062042-8714ac29b072",
   "contractVersion": 2,
   "manifests": [
     {
