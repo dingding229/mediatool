@@ -224,3 +224,12 @@ Host 由实时 grants/generation 创建 PluginPrincipal；原生/Emby 只提供�
 Image/Playback HTTP 客户端、Emby handler、凭据或用户认证流程。用户写入仅 patch 既有记录，
 撤销设备保留同事务用户→设备锁、原生 revision/归属校验与 live fence。播放/访问只给安全摘要，
 不提供 IP/UA/原始日志或策略写入口。探测仅入队，GC 复用既有有界服务，无新增 ffmpeg 路径。
+
+## F3-D：平台域
+
+Typed cache/integrations/jobs/maintenance/network/notifications/settings/system 已接入；详细方法、
+scope、危险级别和限制见设计文档 F3-D 表。settings 仅4个 allowlist 键；jobs 仅本实例有证据的
+未执行手动服务 wake；缓存仅明确 tmdb/search ID；通知复用 outbox 且只能查/重试本实例。
+HTTP 固定 host 代理 profile，精确 public origin，network 与 network.proxy.use 都实时要求，
+不返回正文/响应头/代理秘密、不跟随跳转。maintenance 无备份恢复/发布能力，system 无进程/环境。
+hello-go 1.3 的手动 F3 只读验收把 boolean 结果写入自身 KV；扩权须管理员重新确认。

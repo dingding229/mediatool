@@ -1636,3 +1636,59 @@ SDK 位于 pinned mediatool-plugin 的 `sdk/host/{library,files,storage,strm,met
   本组只交付代码、SDK pin 与 CI/Hub 候选，不连接生产、不部署，不开始 F3-D。
 - 本地 build/vet/errcheck 零告警、Vue118项与vue-tsc/build、Python30项通过；HTTP包race复跑
   19.907s通过，全套E2E109 passed/1 Linux-only skipped（3.7min）。原生AMD64仍须CI实际执行。
+
+### F3-D 实施与 F3 发布（2026-10-18）
+
+#### 平台 RPC/scope/门面
+
+| RPC | scope | 级别 | 业务入口与限制 |
+|---|---|---|---|
+| integrations.list/status | integrations.read | R | Repository.Summaries，只查询固定摘要列，不解密凭据/返回 settings |
+| integrations.test | integrations.read | W | Manager.Test；只 passed/state，open115 明确 unsupported，不提供授权入口 |
+| settings.get | settings.read | R | Repository.PluginGet，显式键且受 settingKeys 交集约束 |
+| settings.patch | settings.write | D | PluginPatch→Save，原生校验/revision/审计/fence |
+| cache.status/list | cache.read | R | Store.PluginPage，只有 ID/大小/TTL/状态，不读缓存正文或下载 hint |
+| cache.invalidate | cache.invalidate | W | Store.Invalidate，明确 tmdb/search 命名空间与≤200 ID；无 Clear/FLUSH |
+| jobs.list/get | jobs.read | R | PluginPage，本实例 manual service wake 所有权证据，无 payload/error/worker owner |
+| jobs.cancel | jobs.cancel | D | PluginCancel，仅 plugin.v2.service 且尚未执行；同事务锁 pending run→canceled 与 wake→cancelled |
+| maintenance.health/alerts | maintenance.read | R | system.Inspect 安全投影／Engine.AlertPage，丢弃原始消息 |
+| system.info/health/modules | system.read | R | buildinfo、Inspect 健康摘要、Modules 固定能力目录；无 process/env dump |
+| networkproxy.status | integrations.read | R | Repository.Summary，不解密 URL，只 configured/开关/revision |
+| network.http | network.proxy.use + network | D | HostClient.Request：仅 host profile、批准的精确 public origin、GET/HEAD、10秒/64KiB、并发2/每实例30次每分 |
+| notifications.publish | notifications.send | W | Dispatcher.PluginPublish→既有 plugin.notice outbox，收据 UUID 作为一次事实身份 |
+| notifications.deliveries/retry | notifications.read / notifications.retry | R/D | Dispatcher.PluginDeliveries/PluginRetry，仅本实例事件，unknown 必须 acknowledge duplicate risk |
+
+- SDK contractVersion=2；原有 PostMessage/notifications.send 保留，新增 typed publish 使用 F3 收据幂等。
+  不新建通知队列。Telegram 入站命令仍留 F4。
+- settings allowlist 仅 movieTemplate、seriesTemplate、searchCacheSeconds、tmdbCacheSeconds。
+  无 access/域名安全字段、trustedProxyCidrs、主密钥、DSN、115、凭据或全量 dump。不得读写未知键。
+- 所有平台写入沿用加密 operation receipt、generation/grant fence、native revision 与未知结果不重放。
+  settings 和通知重试在原生事务提交前 fence；缓存 Redis 效果前再次检查。外部 effects 不承诺 exactly-once。
+- jobs 的 owner 为宿主 PluginPrincipal 实例 ID，不相信请求中的 owner；仅能证明归属的手动服务任务。
+  正在执行、已完成、不可取消 kind 明确拒绝/unsupported，不杀 worker、不提供 Claim/Finish/Create。
+- HTTP 不允许自选代理或修改代理，不接受认证/header/body；返回 status、白名单 ContentType、读取大小，
+  不返回正文/Location/Set-Cookie/URL。既有宿主代理是受信出口；目标 public DNS 预检，无代理时在 dial
+  再校验防 rebinding，任何3xx均不跟随。暂不支持 private target 或页面提取，F6评估项保持不变。
+- 各层 page/input/batch≤200；缓存 tmdb 的原生 Redis key 扫描有既有迭代上限并返回 truncated。
+  没有原始 SQL/Redis/secret export/Backup/Restore/DB dump/RegisterRelease/115 auth 后门。
+- hello-go 1.3.0 手动 f3-read-check 横跨 A/B/C/D 做只读调用并在本实例 KV 保存 boolean 结果，
+  同时验证未授予的 settings.write 被拒绝；不自动触发、不记录业务值、不改媒体。扩大的只读权限
+  按既有启动刷新规则停用待管理员确认。
+
+#### 发布边界
+
+SDK 测试推送→主程序精确 pin→全部门禁与 Actions→Hub 不可变 digest 后才连接生产。
+备份在 private/f3-update-UTC，含 compose、custom-format DB dump、校验、pg_restore list 和 rollback。
+只改 app image，不改其他 compose 参数/凭据/卷。生产管理员登录/插件操作必须由用户浏览器完成，
+无会话时不索取密码、不伪造账号/会话；完成免登录部署验收后报告浏览器步骤与待复核事项。
+
+#### F3-D 本地门禁记录
+
+- SDK pin 7f2de27356c5，vet/static build/race count=3、共享方法/golden/真实 stdio child 通过。
+- 本地 Go build/vet/errcheck 零告警，Vue118项和vue-tsc/build、Python30项通过。
+- 全仓串行 race 首轮只有旧迁移用例仍假设 hello 无 system.read；新版手动验收明确申请该只读
+  权限，因此将其拒绝断言改为仍未授权的 notifications.send，并保留 live revoke 检查。
+  migrations 全包复跑455.635s通过，含 Up→Down→Up、CHECK与非插件数据保留。未放宽断言。
+- 本地 E2E109 passed/1 Linux-only skipped（2.7min）；原生AMD64真实worker/媒体/浏览器门禁保留CI必跑。
+- 逐RPC成功/缺scope/撤权/unsupported，HTTP双scope缺失及在途撤权、秘密哨兵、owner、unknown
+  重试、namespace与settings allowlist 负向测试均通过。无新增schema、依赖/数据库扩展。
