@@ -161,6 +161,20 @@ func TestF4CMetadataPersistTransactionAndTMDBSuccessOnly(t *testing.T) {
 	if f.integer(t, `SELECT count(*) FROM outbox_events WHERE event_type='metadata.scraped'`) != 1 {
 		t.Fatal("scrape fact idempotency")
 	}
+	item.Title = "Changed normalized title"
+	tx, e := f.pool.Begin(f.ctx)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = library.PersistScrapeReport(f.ctx, tx, asset.asset, item); e != nil {
+		t.Fatal(e)
+	}
+	if e = tx.Commit(f.ctx); e != nil {
+		t.Fatal(e)
+	}
+	if f.integer(t, `SELECT count(*) FROM outbox_events WHERE event_type='metadata.scraped'`) != 2 {
+		t.Fatal("changed metadata was swallowed by the previous fact key")
+	}
 	body := `{"id":900001,"title":"Film","poster_path":"/SECRET.jpg"}`
 	manager := discoveryManager(t, f, &body)
 	repo := nativetmdb.Repository{DB: f.pool}
@@ -173,7 +187,7 @@ func TestF4CMetadataPersistTransactionAndTMDBSuccessOnly(t *testing.T) {
 	if e := engine.Process(f.ctx, jobs.Job{Payload: payload}); e != nil {
 		t.Fatal(e)
 	}
-	if f.integer(t, `SELECT count(*) FROM outbox_events WHERE event_type='metadata.scraped'`) != 2 {
+	if f.integer(t, `SELECT count(*) FROM outbox_events WHERE event_type='metadata.scraped'`) != 3 {
 		t.Fatal("successful stored detail did not emit")
 	}
 	body = "unavailable"
@@ -181,7 +195,7 @@ func TestF4CMetadataPersistTransactionAndTMDBSuccessOnly(t *testing.T) {
 	if e := engine.Process(f.ctx, jobs.Job{Payload: payload}); e != nil {
 		t.Fatal(e)
 	}
-	if f.integer(t, `SELECT count(*) FROM outbox_events WHERE event_type='metadata.scraped'`) != 2 {
+	if f.integer(t, `SELECT count(*) FROM outbox_events WHERE event_type='metadata.scraped'`) != 3 {
 		t.Fatal("failed fetch emitted success")
 	}
 	raw := f.text(t, `SELECT string_agg(payload::text,'') FROM outbox_events WHERE event_type='metadata.scraped'`)

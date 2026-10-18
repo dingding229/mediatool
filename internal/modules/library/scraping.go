@@ -54,7 +54,13 @@ func saveScrapeReport(ctx context.Context, tx pgx.Tx, assetID string, item metad
 	}
 	// Stable fact version includes persisted report/policy and asset revision; a
 	// later scrape can produce a new fact, retries of the same snapshot cannot.
-	digest := sha256.Sum256(append(policy, notice...))
+	// Include the normalized metadata snapshot as well: changed titles/episode
+	// metadata must not be swallowed when settings and scrape notices are identical.
+	snapshot, _ := json.Marshal(struct {
+		Item   metadata.Item
+		Season *metadata.SeasonInfo
+	}{item, item.Scrape.Season})
+	digest := sha256.Sum256(append(append(policy, notice...), snapshot...))
 	version := fmt.Sprintf("%d:%d:%x", revision, item.Scrape.SettingsRevision, digest)
 	return outbox.EmitVersionTx(ctx, tx, "metadata.scraped", assetID, version, contracts.MetadataScraped{ObjectID: assetID, Kind: "asset", MediaIdentity: contracts.MediaIdentity{TMDBID: item.ID, MediaType: item.MediaType}, Revision: version})
 }
