@@ -1445,3 +1445,123 @@ SDK 对每个 RPC 覆盖成功/缺 scope/撤权/unsupported，并对共享表做
 真实数据库和假的 qB/站点/TMDB Transport，覆盖源快照、HR/所有权、分页、CAS、原生规则与脱敏。
 后端 race/vet/errcheck、迁移往返、Vue共享危险scope单测/E2E、Python保持原门禁；只用
 media_tool_test 与 Redis DB15 串行。SDK先提交/推送，主程序随后精确 bump pin、提交/推送并等CI；不部署。
+
+
+### F6 待评估（F3-A 审核记录）
+
+`sites.request` 当前不返回正文。F6 前评估有界、去除凭据/令牌的结构化提取（如按选择器取文本），供 MP 风格签到/数据插件使用；F3-B 不实现、不扩大原始 HTML 访问范围。
+
+
+### F3-B 实施记录（媒体库与文件链，2026-10-18）
+
+#### 单点契约与安全门面
+
+SDK 位于 pinned mediatool-plugin 的 `sdk/host/{library,files,storage,strm,metadata,classification}`；
+`business.Methods` 是 RPC/scope/R-W-D/支持状态的唯一来源，contractVersion=2 不变。
+共享方法表同时生成管理权限页危险标记和运行时 capabilities。下表是本阶段完整新增清单：
+
+| RPC | scope | 级别 | 业务入口/语义 |
+|---|---|---|---|
+| `library.assets` | `library.read` | R | library.Engine.ManagedAssetsKind |
+| `library.candidates` | `library.read` | R | library.Engine.CandidatePage |
+| `library.history` | `library.read` | R | library.Engine.History |
+| `library.scans` | `library.read` | R | library.Engine.Scans（最近100条） |
+| `library.recognize` | `library.recognize` | R | library.Engine.Recognize |
+| `library.suggest` | `library.recognize` | R | library.Engine.Suggest |
+| `library.organize.preview` | `library.organize` | D | library.Engine.Recognize |
+| `library.correct.preview` | `library.organize` | D | library.Engine.PreviewIdentityMigration |
+| `library.archive.list` | `library.archive.read` | R | library.Engine.Archives |
+| `library.archive.preview` | `library.archive.read` | R | library.Engine.PreviewArchiveCleanup |
+| `library.scan.start` | `library.scan` | W | library.Engine.Start（primary cloud root） |
+| `library.scan.control` | `library.scan` | W | library.Engine.ScanByID/ControlScan |
+| `library.organize.confirm` | `library.organize` | D | library.Engine.Confirm |
+| `library.correct.apply` | `library.organize` | D | library.Engine.Correct |
+| `library.refresh` | `library.refresh` | W | library.Engine.QueueRefresh |
+| `library.history.hide` | `library.history.write` | W | library.Engine.HideHistory |
+| `library.archive.confirmCleanup` | `library.archive.delete` | D | library.Engine.ConfirmArchiveCleanup |
+| `fs.media.roots` | `fs.media:read` | R | filemanager.Engine.Roots |
+| `fs.media.list` | `fs.media:read` | R | filemanager.Engine.List |
+| `fs.media.stat` | `fs.media:read` | R | filemanager.Engine.Stat |
+| `fs.media.get` | `fs.media:read` | R | filemanager.Engine.Get |
+| `fs.media.preview` | `fs.media:write` | D | filemanager.Engine.Preview |
+| `fs.media.apply` | `fs.media:write` | D | filemanager.Engine.Execute |
+| `fs.media.previewBatch` | `fs.media:write` | W | filemanager.Engine.PreviewBatch |
+| `fs.media.approveBatch` | `fs.media:write` | D | filemanager.Engine.ApproveBatch |
+| `fs.media.readText` | `fs.media:read` | R | unsupported：未提供安全文本读取门面 |
+| `storage.roots` | `storage.read` | R | filemanager.Engine.Roots |
+| `storage.list` | `storage.read` | R | filemanager.Engine.List |
+| `storage.stat` | `storage.read` | R | filemanager.Engine.Stat |
+| `storage.get` | `storage.read` | R | filemanager.Engine.Get |
+| `storage.preview` | `storage.write` | D | filemanager.Engine.Preview |
+| `storage.apply` | `storage.write` | D | filemanager.Engine.Execute |
+| `storage.previewBatch` | `storage.write` | W | filemanager.Engine.PreviewBatch |
+| `storage.approveBatch` | `storage.write` | D | filemanager.Engine.ApproveBatch |
+| `storage.mkdir` | `storage.write` | D | filemanager.Engine.Preview(mkdir)，只生成预览 |
+| `storage.relocate` | `storage.write` | D | filemanager.Engine.Preview(move)，只生成预览 |
+| `strm.entries` | `strm.read` | R | library.Engine.ManagedAssetsKind(strmOnly) |
+| `strm.diagnostics` | `strm.read` | R | library.Engine.STRMRepairBatch |
+| `strm.repair.preview` | `strm.repair` | D | library.Engine.PreviewSTRMRepair |
+| `strm.repair.approve` | `strm.repair` | D | library.Engine.ApproveSTRMRepair |
+| `strm.repair.retry` | `strm.repair` | D | library.Engine.RetrySTRMRepair |
+| `metadata.parse` | `metadata.read` | R | releasename.Parse |
+| `metadata.attributes.parse` | `metadata.read` | R | releaseattrs.Parse |
+| `metadata.attributes.validate` | `metadata.read` | R | releaseattrs.Valid |
+| `metadata.name.render` | `metadata.read` | R | releasename.Render/RenderPath |
+| `metadata.episodes` | `metadata.read` | R | metadata.Episodes |
+| `metadata.normalize` | `metadata.read` | R | metadata.NormalizeEpisodes |
+| `metadata.search` | `metadata.read` | R | Manager.TMDB.Search（不导出client） |
+| `metadata.details` | `metadata.read` | R | Manager.TMDB.Details（安全Media投影） |
+| `metadata.storedDetails` | `metadata.read` | R | nativetmdb.Repository.Stored |
+| `metadata.refresh` | `metadata.refresh` | W | nativetmdb.Engine.Language/Repository.EnqueueAsset |
+| `classification.get` | `classification.read` | R | classification.Repository.Get |
+| `classification.match` | `classification.read` | R | classification.Policy.Match |
+| `classification.render` | `classification.read` | R | classification.Render |
+| `classification.update` | `classification.write` | D | catalog.Repository.SavePolicy |
+
+#### 证据、收据和 fence
+
+- 继续使用 F3-A 的实例加密收据、operationKey、七日有界回收、unknown 不自动重放；
+  请求哈希仍绑定原始参数与定义 fingerprint。宿主把已持久化的收据 UUID 作为内部业务 operationKey，
+  避免不同实例使用相同字符串时碰撞同一个 archive cleanup request。SDK 不看到这次内部替换。
+- 所有新的持久预览/排队/确认事务在提交前运行同一个 live generation/grant fence；不缓存授权。
+  Confirm/Correct 的后置状态更新也在原生门面内带提交 fence。原生业务调用没有 guard 时保留原行为。
+- 文件/归档/journal 外部效果前再检查授权，保留原身份、摘要、保留期、私有隔离目录、不可覆盖和
+  结果核对；不承诺外部效果与撤权原子化，已发生但结果未知仍交原有 reconcile，不盲目重做。
+- `storage.mkdir/relocate` **仅建立预览**；插件必须检查 root-relative targets、digest 和 revision，
+  再明确调用 `storage.apply`。无绕过预览的裸 mkdir/move/remove。原生只支持移动/回收，复制返回 unsupported。
+- 根目录使用配置的 integration ID；rootIds/storageIds 同时声明时取交集。
+  只给相对路径；`filemanager.Relative` 拒绝绝对路径、`..`、非规范路径和反斜线；
+  本地复用 os.Root/no-symlink 路径检查，云目录复用 CloudDrive2 根拼接和服务端条目验证，不返回云根路径。
+  root/stat/list/get 都不返回 download URL、pickCode、账号 settings 或认证数据。
+- STRM 只给资产状态、修复 batch ID、版本、摘要及安全状态；不开放 Builder/ReadOwned/WriteAtomic；
+  repair 不接收正文，仍从宿主密文中按同摘要恢复原文并验证原有播放授权。
+- Metadata 只返回稳定 Media/Hint/StoredMetadata，不下发 TMDB client/token、raw provider payload。
+  每层输入字符串/数组/对象限制200，页≤200，query≤200；保留更小原生上限（file batch20、
+  history hide50、STRM100、archive list100、archive cleanup20）。大输出和步骤数在 RPC 返回前受大小限制。
+
+#### 明确的不可用能力/限制
+
+- `fs.media.readText` 明确 unsupported：未有可证明排除 STRM/私密文件的安全文本门面。
+- storage Resolve、任意上传、复制和 STRM 原文读写不存在于允许方法表，不能以 DTO 绕过。
+- 文件列表暂不支持 query 过滤（非空返回 unsupported），不能假装页后过滤等价全目录查询；
+  candidates/archives/scans 暂不支持文本 query。scans 维持原生最近100条有界窗口。
+- scan.start 只接受当前 primary cloud integration；其他 root 返回 unsupported，不能静默换根。
+- libraryIds、rootIds 等对库资产/历史的组合 selector 尚无相应原生过滤门面，安装和每次调用均 fail closed
+  返回 unsupported，不降级为全局授权；无 selector 的 library.read 明确是管理员批准的全目录安全投影。
+- Provider/原生门面缺失时明确 unsupported；HTTP/存储故障不伪装完成。
+- F6 结构化站点页面提取仅列待办，本组不实现。无迁移、无依赖/数据库扩展，无生产访问/部署。
+
+
+#### 本地门禁与交付说明
+
+- SDK vet、CGO_ENABLED=0 build、race count=3、typed mock/真实 stdio child golden 通过；
+  最终 pin `83446d71c2b079f3eeda0f62534324c128a6476f`，不用 replace。
+- 主程序 build/vet/errcheck、Vue 118 项与 vue-tsc/build、Python 30 项通过。
+- 全仓串行 race 首轮除 migrations 的整包默认10m闹钟外均通过；当时迁移包正在一个仅运行9秒的
+  正常上报用例，无断言失败/数据竞争。显式设置 `scripts/test-go.sh -timeout=20m` 后，
+  migrations 全包 race 617.840s 通过，包括 Up→Down→Up、D2 CHECK 与非插件数据保留。
+  只调整整个测试包的总预算；保留所有单用例 deadline、worker 资源限制、真实 ffmpeg、AMD64
+  内核测试与断言。测试隔离脚本的正/反例同步断言20m、-p1、race、测试库和 DB15 不变。
+- F3-B 仅推送与 CI/Hub 候选发布；无生产访问、无部署，F3-C/D 未开始，等待本组审核。
+
+- 本地全套 E2E 109 passed / 1 Linux-only skipped（3.1min）；原生 AMD64 用例保留 CI 必跑，不能用本地跳过替代。

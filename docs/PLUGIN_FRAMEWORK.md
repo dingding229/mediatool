@@ -200,3 +200,13 @@ operationKey 收据加密保留七天，未知结果不自动重放。`.host/` K
 foreign种子只读；deleteFiles=false 仅退休已导入且已清除HR义务的本程序种子，true 显式进入原HR/所有权/云端文件校验审批，不开放任意删除。
 下载 retry/recheck、原始站点HTML、未知手动提交的重复风险覆盖、追剧完成明确unsupported。
 F3-A不部署；F3-B/C/D尚未开始。
+
+
+## F3-B：媒体库和文件链
+
+typed Host 客户端新增 library/files/storage/strm/metadata/classification；完整 RPC/scope/级别/原生
+入口见设计文档 F3-B 实施表，权限页和 capabilities 继续从同一 pin 的共享方法表生成。
+文件写入必须预览→检查相对目标/digest/revision→显式确认；storage mkdir/relocate 只生成预览。
+不支持裸复制/上传/Resolve/STRM正文改写，安全文本读取尚为 unsupported。
+rootIds/storageIds 是文件/存储 scope 的交集选择器；库历史/资产的未实现 selector fail closed，
+不会放大为全库。保持原生更小批次上限与外部结果 unknown/reconcile 语义。
