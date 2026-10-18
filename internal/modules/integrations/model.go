@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -52,7 +53,7 @@ var publicKeys = map[string][]string{
 	"qbittorrent": {"endpoint", "downloadPath", "localPath", "category"},
 	"emby":        {"endpoint", "strmPathPrefix", "gatewayEnabled", "directPlayOnly"},
 	"tmdb":        {"language"},
-	"telegram":    {"chatId"},
+	"telegram":    {"chatId", "inboundEnabled", "allowedChatIds", "allowedUserIds"},
 	"ptsite":      {"definitionId", "endpoint", "userId", "userAgent", "rssState", "rssSource"},
 }
 var secretKeys = map[string][]string{
@@ -68,7 +69,7 @@ func Validate(in Input) error {
 		if !contains(keys, k) {
 			return errors.New("unsupported public setting: " + k)
 		}
-		if k == "directPlayOnly" {
+		if k == "directPlayOnly" || k == "inboundEnabled" {
 			if _, ok := v.(bool); !ok {
 				return ErrInvalid
 			}
@@ -79,11 +80,30 @@ func Validate(in Input) error {
 				return ErrInvalid
 			}
 		case bool:
-			if k != "gatewayEnabled" && k != "directPlayOnly" {
+			if k != "gatewayEnabled" && k != "directPlayOnly" && k != "inboundEnabled" {
 				return ErrInvalid
 			}
 		default:
 			return ErrInvalid
+		}
+	}
+	if in.Kind == "telegram" {
+		for _, key := range []string{"allowedChatIds", "allowedUserIds"} {
+			s, _ := in.Settings[key].(string)
+			if strings.TrimSpace(s) == "" {
+				continue
+			}
+			ids := strings.Split(s, ",")
+			if len(ids) > 200 {
+				return ErrInvalid
+			}
+			for _, part := range ids {
+				part = strings.TrimSpace(part)
+				id, e := strconv.ParseInt(part, 10, 64)
+				if e != nil || id == 0 || strconv.FormatInt(id, 10) != part || key == "allowedUserIds" && id < 0 {
+					return ErrInvalid
+				}
+			}
 		}
 	}
 	for k, v := range in.Secrets {

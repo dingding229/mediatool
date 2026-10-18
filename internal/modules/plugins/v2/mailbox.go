@@ -285,6 +285,9 @@ func validHookResult(raw json.RawMessage) bool {
 }
 
 func validExtensionResult(kind, id string, args, result json.RawMessage) bool {
+	if kind == "module" && (id == "notifications.channel" || id == "mediaserver.refresh") {
+		return validEffectResult(id, args, result)
+	}
 	if kind == "chain" && (id == "media.recognize.convert" || id == "subscribe.episodes.refresh" || id == "subscribe.completion.check" || id == "discover.source" || id == "recommend.source") || kind == "module" && id == "metadata.identify" {
 		return validDiscoveryResult(kind, id, args, result)
 	}

@@ -46,6 +46,7 @@ import (
 	"media-tool/internal/platform/httpapi"
 	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/ownerrecovery"
+	"media-tool/internal/platform/safeerrors"
 	"media-tool/internal/platform/scheduling"
 	"media-tool/internal/platform/schema"
 	"media-tool/internal/platform/secrets"
@@ -271,6 +272,17 @@ func supervise(ctx context.Context, components ...func(context.Context) error) e
 }
 
 func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *integrations.Manager, logger *slog.Logger, queue string, rc *redis.Client) error {
+	if queue == "default" {
+		pollCtx, cancelPoll := context.WithCancel(trace.With(ctx, logger))
+		defer cancelPoll()
+		pollDone := make(chan struct{})
+		go func() {
+			defer close(pollDone)
+			_ = (messaging.CommandIngress{DB: db, Connections: manager, Plugins: pluginv2.Store{DB: db, Vault: manager.Repository.Vault}, Owner: jobs.UUID()}).Run(pollCtx)
+		}()
+		defer func() { cancelPoll(); <-pollDone }()
+	}
+
 	logger = logger.With("component", "worker", "queue", queue)
 	w := jobs.Worker{Repository: jobs.Repository{DB: db}, Queue: queue, Owner: "worker-" + jobs.UUID(), PollInterval: c.WorkerPollInterval, Lease: c.WorkerLease, Logger: logger, Handlers: map[string]jobs.Handler{
 		"system.check": func(ctx context.Context, j jobs.Job) error {
@@ -437,6 +449,9 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 					}
 					if err := downloader.PrepareTransfers(check); err != nil {
 						logger.Warn("transfer preparation unavailable", "error", err)
+					}
+					if err := (safeerrors.Bus{DB: db}).Flush(check); err != nil {
+						logger.Warn("safe error aggregation deferred", "module", "system")
 					}
 					dispatcher := messaging.Dispatcher{DB: db, Connections: manager}
 					if err := dispatcher.Prepare(check); err != nil {

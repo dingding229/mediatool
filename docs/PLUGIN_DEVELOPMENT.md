@@ -100,3 +100,18 @@ EpisodeExpectation/CompletionCheck 和 SourceRequest/SourceResult。hello-go 1.6
 发现/推荐处理函数在后台收到 page=1,size=200；返回 HasMore 表明快照截断，不支持任意 URL。
 客户端要翻页应读取宿主缓存接口，不能在浏览请求中驱动 worker。季覆盖观测不是剧集完结状态，
 也不是下载集合收集结束；Host Subscriptions.Completion 只读且 unknown 不代表完成。
+
+### F4-D 系统事件与入站命令
+
+SDK `contracts/platform_events.go` 提供 NotificationQueued、OperationFailed、SettingsChanged、
+PluginConfigChanged、InboundMessage、CommandInput，以及 EffectRequest/EffectReceipt。
+hello-go 1.7.1 演示六项事件安全收据、已注册 `/hello` 命令与不改变结果的模块 offer 拒绝。
+
+通知/刷新模块必须先处理 phase=offer（纯协商：not_started 或 ready）；仅在 host 随后发出
+phase=execute 时才允许外部副作用。execute 后只能返回 sent/requested/unknown，不能用
+not_started 或报错诱导 host 重发。共享 Telegram bot token 永不进入 SDK/插件；若提供
+其他渠道，使用插件自身经管理员批准的配置，不向 Host 索取共享凭据。
+
+命令参数必须当作不可信用户输入，禁止拼成 Shell；只有管理员允许的 Telegram chat/user
+才进入注册表。InboundMessage 只含目标实例、命令、opaque actor、kind；不含原始 chat/user、
+token 或回调签名。系统错误是聚合摘要，不是原始异常/日志订阅。

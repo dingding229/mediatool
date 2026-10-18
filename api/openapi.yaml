@@ -338,6 +338,34 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/OK'
+  /api/v1/messaging/command-actions:
+    post:
+      operationId: issueTelegramCommandAction
+      description: 管理员会话及CSRF专属；须先启用Telegram入站并配置双allowlist。生成绑定目标命令/配置/发送者的5分钟一次性回调数据，不发送消息；不对媒体端口或插件Host开放。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [chatId, userId, command]
+              properties:
+                chatId: {type: integer}
+                userId: {type: integer, minimum: 1}
+                command: {type: string, minLength: 1, maxLength: 64}
+                arguments: {type: string, maxLength: 200}
+      responses:
+        '200':
+          description: data.callbackData有效5分钟且最多64bytes；不是bot token
+        '400':
+          description: 入站、allowlist或命令目标不匹配
+        '401':
+          description: 需要管理员会话
+        '403':
+          description: CSRF拒绝
+        '503':
+          description: 存储或配置不可用
   /api/v1/media/library/sources:
     get:
       operationId: pluginCachedCatalogSources

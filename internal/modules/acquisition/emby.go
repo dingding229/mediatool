@@ -13,8 +13,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/library"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
 )
 
 func (e Engine) RefreshEmby(ctx context.Context, job jobs.Job) error {
@@ -49,9 +51,16 @@ func (e Engine) RefreshEmby(ctx context.Context, job jobs.Job) error {
 	if err != nil {
 		return err
 	}
-	if err = library.RequestTargetedRefresh(ctx, c, outputs); err != nil {
-		return err
+	receipt, moduleErr := (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).ExternalEffect(ctx, "mediaserver.refresh", contracts.EffectRequest{RequestID: job.ID, ObjectID: payload.TaskID, Kind: "download"})
+	if moduleErr != nil || receipt.State == "unknown" {
+		return jobs.ErrOperatorRequired
 	}
+	if receipt.State == "not_started" {
+		if err = (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).BuiltinEffect(ctx, "mediaserver.refresh", contracts.EffectRequest{RequestID: job.ID, ObjectID: payload.TaskID, Kind: "download"}, func(cctx context.Context) error { return library.RequestTargetedRefresh(cctx, c, outputs) }); err != nil {
+			return jobs.ErrOperatorRequired
+		}
+	}
+
 	_, _, _, _, details, err := e.load(ctx, payload.TaskID)
 	if err != nil {
 		return err

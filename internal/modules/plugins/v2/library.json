@@ -907,14 +907,14 @@
       "supported": true
     }
   ],
-  "pin": "v0.0.0-20261018141717-d331775905a5",
+  "pin": "v0.0.0-20261018162144-7654bdd24122",
   "contractVersion": 2,
   "manifests": [
     {
       "contractVersion": 2,
       "id": "hello-go",
       "name": "Hello Go",
-      "version": "1.6.0",
+      "version": "1.7.1",
       "author": "Example Author",
       "description": "实例隔离与持久计数示例",
       "level": 1,
@@ -928,7 +928,9 @@
         "1.3.0": "Manual F3 read-only host acceptance and denied-scope check",
         "1.4.0": "Typed acquisition facts and no-op resource policy chains (F4-A)",
         "1.5.0": "Typed organizing facts and no-op safe transfer/storage policies (F4-B)",
-        "1.6.0": "Typed metadata/coverage and cached source no-op policies (F4-C)"
+        "1.6.0": "Typed metadata/coverage and cached source no-op policies (F4-C)",
+        "1.7.0": "F4-D typed system/notification/settings/Telegram facts; pre-effect module declines and /hello ingress example",
+        "1.7.1": "Two-phase pure offer/execute module protocol; only pre-execute declines can fall back"
       },
       "permissions": [
         {
@@ -1089,6 +1091,30 @@
         },
         {
           "scope": "events.chain.recommend.source"
+        },
+        {
+          "scope": "events.subscribe.notification.queued"
+        },
+        {
+          "scope": "events.subscribe.system.operation.failed"
+        },
+        {
+          "scope": "events.subscribe.settings.changed"
+        },
+        {
+          "scope": "events.subscribe.plugin.config.changed"
+        },
+        {
+          "scope": "events.subscribe.messaging.inbound"
+        },
+        {
+          "scope": "events.subscribe.messaging.action.received"
+        },
+        {
+          "scope": "module.notifications.channel"
+        },
+        {
+          "scope": "module.mediaserver.refresh"
         }
       ],
       "extensions": {
@@ -1174,7 +1200,13 @@
           "download.files.deleted",
           "download.task.deleted",
           "metadata.scraped",
-          "subscription.coverage.completed"
+          "subscription.coverage.completed",
+          "notification.queued",
+          "system.operation.failed",
+          "settings.changed",
+          "plugin.config.changed",
+          "messaging.inbound",
+          "messaging.action.received"
         ],
         "chains": [
           "name.recognize",
@@ -1192,7 +1224,9 @@
           "recommend.source"
         ],
         "modules": [
-          "metadata.name_recognize"
+          "metadata.name_recognize",
+          "notifications.channel",
+          "mediaserver.refresh"
         ],
         "actions": [
           "hello",

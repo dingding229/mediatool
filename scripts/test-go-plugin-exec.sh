@@ -3,7 +3,7 @@
 # Go strips a /v2 major suffix when naming the binary: plugins.test, not v2.test.
 set -euo pipefail
 case "${1##*/}" in
- plugins.test|v2.test|httpapi.test|acquisition.test) ;;
+ plugins.test|v2.test|httpapi.test|acquisition.test|messaging.test) ;;
  *) exec "$@";;
 esac
 [[ "$(uname -s)" == Linux && "${GITHUB_ACTIONS:-}" == true && "${MEDIA_TOOL_TEST_PLUGIN_UID:-}" == 65532 ]] || { echo 'Dedicated native CI identity required' >&2;exit 1; }

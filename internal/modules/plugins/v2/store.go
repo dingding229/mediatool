@@ -311,10 +311,14 @@ func (s Store) apply(ctx context.Context, actor string, in Request) (Instance, e
 			if e != nil {
 				return out, e
 			}
-			if _, e = tx.Exec(ctx, `UPDATE plugin_v2_configs SET ciphertext=$2,revision=revision+1 WHERE id=$1`, id, cipher); e != nil {
+			var configRevision int64
+			if e = tx.QueryRow(ctx, `UPDATE plugin_v2_configs SET ciphertext=$2,revision=revision+1 WHERE id=$1 RETURNING revision`, id, cipher).Scan(&configRevision); e != nil {
 				return out, e
 			}
 			if _, e = tx.Exec(ctx, `UPDATE plugin_v2_instances SET revision=revision+1,grant_revision=grant_revision+1,runtime_state=CASE WHEN generation IS NULL THEN 'stopped' ELSE 'stopping' END,updated_at=now() WHERE id=$1`, id); e != nil {
+				return out, e
+			}
+			if e = emitPluginConfig(ctx, tx, id, configRevision); e != nil {
 				return out, e
 			}
 		default:

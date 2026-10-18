@@ -47,6 +47,10 @@ func SaveNativeManagement(parent context.Context, db *pgxpool.Pool, in NativeMan
 			err = ErrNativeUnavailable
 		}
 	}()
+	var before []byte
+	if err = tx.QueryRow(ctx, `SELECT jsonb_build_object('serverName',server_name,'enabled',enabled) FROM native_server_settings WHERE singleton FOR UPDATE`).Scan(&before); err != nil {
+		return out, ErrNativeUnavailable
+	}
 	if err = tx.QueryRow(ctx, `UPDATE native_server_settings SET server_name=$1,enabled=$2,revision=revision+1,updated_at=now() WHERE singleton AND revision=$3 RETURNING revision`, in.ServerName, in.Enabled, in.Revision).Scan(&in.Revision); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return out, ErrNativeConflict
@@ -59,6 +63,9 @@ func SaveNativeManagement(parent context.Context, db *pgxpool.Pool, in NativeMan
 	}
 	tag, e := tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','native.server.settings',$1)`, raw)
 	if e != nil || tag.RowsAffected() != 1 {
+		return out, ErrNativeUnavailable
+	}
+	if err = emitSettings(ctx, tx, "native", in.Revision, nativeChanges(before, in)); err != nil {
 		return out, ErrNativeUnavailable
 	}
 	if err = dbutil.Commit(ctx, tx); err != nil {

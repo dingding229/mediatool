@@ -11,6 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/safeerrors"
+	"strings"
 	"time"
 )
 
@@ -167,6 +169,11 @@ func (r Repository) Finish(ctx context.Context, j Job, workErr error) error {
 	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload) VALUES($1,$2,$3,$4)`, UUID(), "job."+persistedState, j.ID, body); err != nil {
 		return err
 	}
+	if persistedState == "failed" && !strings.HasPrefix(j.Kind, "plugin.") {
+		if err = safeerrors.EmitTx(ctx, tx, safeerrors.Summary{Source: "jobs", Code: "terminal_failure"}); err != nil {
+			return err
+		}
+	}
 	if err = terminalOrganizingFact(ctx, tx, j.ID); err != nil {
 		return err
 	}
@@ -179,7 +186,7 @@ func (r Repository) expireExhausted(ctx context.Context) error {
 		return err
 	}
 	defer deferutil.Rollback(ctx, tx)
-	rows, err := tx.Query(ctx, `UPDATE jobs SET state='failed',last_error='lease expired after final attempt',lease_until=NULL,lease_token=NULL,locked_by=NULL,updated_at=now() WHERE state='running' AND lease_until<now() AND attempts>=max_attempts RETURNING id::text,kind`)
+	rows, err := tx.Query(ctx, `UPDATE jobs SET state='failed',last_error='lease expired after final attempt',lease_until=NULL,lease_token=NULL,locked_by=NULL,updated_at=now() WHERE id IN(SELECT id FROM jobs WHERE state='running' AND lease_until<now() AND attempts>=max_attempts ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 200) RETURNING id::text,kind`)
 	if err != nil {
 		return err
 	}
@@ -201,6 +208,11 @@ func (r Repository) expireExhausted(ctx context.Context) error {
 		body, _ := json.Marshal(map[string]string{"kind": e.kind, "state": "failed"})
 		if _, err = tx.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)VALUES($1,'job.failed',$2,$3)`, UUID(), e.id, body); err != nil {
 			return err
+		}
+		if !strings.HasPrefix(e.kind, "plugin.") {
+			if err = safeerrors.EmitTx(ctx, tx, safeerrors.Summary{Source: "jobs", Code: "terminal_failure"}); err != nil {
+				return err
+			}
 		}
 		if err = terminalOrganizingFact(ctx, tx, e.id); err != nil {
 			return err

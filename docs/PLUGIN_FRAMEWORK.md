@@ -292,3 +292,66 @@ false 删除绝不发文件删除事件。typed DTO 位于 SDK `contracts/organi
   缓存绑定 exact snapshot；读取前后均检查实时 descriptor/grants/lease，撤权/换代立即隐藏。
 - 精确映射与测试索引：`testdata/contracts/plugin-v2-f4c-event-map.json`。
   不新增迁移/依赖、不部署；Telegram/其他 F4-D 能力不属于本组。
+
+## F4-D：系统事实、通知与 Telegram 入站
+
+- `notification.queued` 在 Dispatcher.Prepare 的业务事务中记录，仅表示消息进入现有通知队列，
+  不表示送达。payload 仅 notificationId/origin；插件来源的 queued 事实保留在 journal，
+  不再次投递给插件通知订阅，避免 post_message 自激或跨插件通知循环。原出站 Telegram
+  token/chat/重试/未知结果人工确认流程不变。本组不声称提供 delivered 广播。
+- `system.operation.failed` 来自终态 failed（非 retry/paused）的 jobs 完成/租约耗尽，以及
+  safeerrors.Bus 的显式安全报告。总线只接 source/code 枚举，不采集日志、异常或堆栈；
+  plugin.* 任务、plugins 来源及带插件 actor 的报告被排除。按分钟聚合，窗口关闭后最多
+  每批 200 条写 versioned outbox；封闭桶防迟到写丢失，保留一天后分批清理。
+- `settings.changed` 只给 area/revision/changed-key diff，无任何值。应用 allowlist 为
+  cleanupAfterImport/searchCacheSeconds/tmdbCacheSeconds/subscriptionCron/scraping；
+  native 只给 serverName/enabled 的变化键。access、可信代理、域名安全字段、账号、模板路径
+  不导出。插件配置使用独立 `plugin.config.changed`，只含 instanceId/revision，不含配置。
+- 精确 scope：events.subscribe.notification.queued / system.operation.failed / settings.changed /
+  plugin.config.changed / messaging.inbound / messaging.action.received（均带 events.subscribe. 前缀）。
+  入站事件只投递给实际命令目标实例，Deliver 与 Replay 都实时检查 scope/代际。
+
+### Telegram CommandIngress
+
+选择 **long-poll**：不引入公网匿名回调、反向代理或 webhook secret 部署变更；不自动删除
+已有 Telegram webhook。使用现有 Telegram 集成；管理 API 保存 settings 时携带原 revision，
+保留原 settings 并合并 `inboundEnabled: true`、`allowedChatIds: "10,-100123"`、
+`allowedUserIds: "20,21"`。默认 false；两个 allowlist 任一为空或没有启用的集成时，
+不发 getUpdates/任何 Telegram 请求。仅管理员可通过原有集成设置接口配置，不能通过插件配置。
+
+- HTTPS 主机固定 api.telegram.org、不跟随重定向；15s long-poll、20s HTTP 上限，单批 10 个
+  update，响应最多 1MiB；失败有退避，日志只固定原因，不输出 token URL/provider body。
+- chat 与 user 必须同时匹配；忽略 bot、过旧消息、未注册命令及超过 200 字符的消息。
+  当前只接受明确的 `/hello` 形式，不猜测 `/cmd@other_bot` 或执行任意消息/Shell。
+  参数去 URL/凭据样式及已知 bot token；插件只收到 telegram/opaque actor/受限参数。
+- 入站按连接全局 60/min、actor 5/min、actor 状态最多 200。bot 凭据指纹隔离偏移；
+  同一短事务消费 update_id、一次性 nonce、速率计数，排入当前 descriptor 的命令 mailbox，
+  写 targeted messaging.inbound/action.received，再提交偏移。重启不会重放已提交命令；
+  回滚不前移偏移、不消费 nonce、不发事件。事件含收到/排队语义，不冒充命令已执行。
+- poll offset/lease 由 PG 持久化，40s lease，RPC/long-poll 不跨写事务。超过六天无更新允许
+  从 offset=0 重新取仅服务器仍保留的更新，处理 Telegram 长空闲后的 update_id 重置。
+- `POST /api/v1/messaging/command-actions` 仅管理监听器，管理员会话+CSRF；输入
+  chatId/userId/command/arguments，返回 5 分钟有效、不超过 64 bytes 的 callbackData。
+  可供宿主 inline keyboard 使用，不是插件 Host API，也不会自动发送消息。
+  签名绑定连接与 nonce/期限，记录再绑定 opaque actor、配置 revision、实例及 snapshot。
+  nonce 一次消费，过期/篡改/换配置/换代/跨发送者均拒绝；全局最多 200 个有效 nonce。
+  callback ACK 失败不回滚或重新执行已提交命令。
+- 不新增迁移：只使用 app_settings 的 plugins.ingress.* 插件框架专属键；不修改其他设置。
+  状态不保存 bot token、raw chat/user、原始消息。旧 nonce 分批最多 200 清理。
+
+### 通知与媒体服务器副作用模块
+
+`module.notifications.channel`（后台总预算 10s）和 `module.mediaserver.refresh`（30s）接入
+Dispatcher.Deliver、library.Refresh、acquisition.RefreshEmby；只给 requestId/objectId/kind，
+不传宿主 token、chat、云盘路径、图片/播放 URL。按优先级选择当前已授权 provider。
+
+使用 **纯 offer → execute** 两阶段协议：只有 offer 阶段的明确 not_started 才可使用内置
+发送方；offer 返回 ready 后持久化 started，再发 execute。execute 只接受 sent/requested/
+unknown，not_started 在 execute 阶段非法；任何派发错误/超时/非法回执均 unknown，绝不
+再调用第二个发送方。offer 是受信插件的纯协商契约，不能执行网络/文件副作用；与其他
+受信代码约束一样由 SDK/维护者审核保障，不把同 UID Go 进程伪称恶意代码沙箱。
+
+plugins.effects.* 持久收据绑定 request hash；相同 requestId 重试不重发，换参数拒绝。
+内置媒体刷新回落也先记 builtin_started，再请求远端：若远端成功而本地后续写入失败，
+重试只继续确认，不再次扫库；未知进入现有 operator-required/通知 outcome_unknown 流程，
+需读回核对，不能自动重试或把 requested 当 visible/已送达。无 provider 时内置路径保持。

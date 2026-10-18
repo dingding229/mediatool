@@ -719,15 +719,15 @@ type ActionProvider interface { GetActions(context.Context) ([]Action, error) }
 | `DownloadDeleted` (`download.deleted`) | download.task.deleted | `acquisition/control.go:Engine.Control`、`cleanup.go:Engine.Cleanup`成功确认 | F4-B；已请求/结果未知不是已删除 |
 | `UserMessage` (`user.message`) | messaging.inbound | 拟新增 `messaging/commands.go:CommandIngress.Receive` | F2仅注册/已有入站接线；若新增bot轮询则F4，鉴权后默认只选定渠道/发送者 |
 | `WebhookMessage` (`webhook.message`) | plugin.webhook.received | 拟新增 `httpapi/plugin_v2_routes.go:pluginRoute`，已注册webhook route通过鉴权后 | F2；不是任意共享无认证入口 |
-| `NoticeMessage` (`notice.message`) | notification.queued | `messaging/dispatcher.go:Dispatcher.Prepare`；拟新增NotificationService.Send的提交点 | F4-D；queued不等于已送达，可另有delivered事件 |
+| `NoticeMessage` (`notice.message`) | notification.queued | `messaging/dispatcher.go:Dispatcher.Prepare`；拟新增NotificationService.Send的提交点 | F4-D 已接线；queued不等于已送达，可另有delivered事件 |
 | `SubscribeAdded` (`subscribe.added`) | subscription.created | `subscriptions/repository.go:Engine.Save`，新建成功提交 | F4-A 已接线 |
 | `SubscribeModified` (`subscribe.modified`) | subscription.updated | `subscriptions/repository.go:Engine.Save`，已有revision变化提交 | F4-A 已接线 |
 | `SubscribeDeleted` (`subscribe.deleted`) | subscription.deleted | `subscriptions/repository.go:Engine.Delete`提交 | F4-A 已接线 |
 | `SubscribeComplete` (`subscribe.complete`) | subscription.coverage.completed | `subscriptions/completion.go:CoverageObserver.Observe`；读TMDB清单+可暴露资产 | F4-C 已接线；不是completeCollection，unknown不发完成，观测存插件专属表 |
-| `SystemError` (`system.error`) | system.operation.failed | `jobs/worker.go:Worker.Run`终态错误与拟新增安全错误总线 | F4-D；聚合/节流，排除plugin日志递归，原始异常不扩散 |
+| `SystemError` (`system.error`) | system.operation.failed | `jobs/worker.go:Worker.Run`终态错误与拟新增安全错误总线 | F4-D 已接线；聚合/节流，排除plugin日志递归，原始异常不扩散 |
 | `MetadataScrape` (`metadata.scrape`) | metadata.scraped | `library/scraping.go:Engine.EnrichScraping` + `PersistScrapeReport`提交；`nativetmdb/engine.go:Engine.Process`成功 | F4-C 已接线；不在浏览热路径现场刮削 |
 | `ModuleReload` (`module.reload`) | module.registry.changed | 拟新增 `plugins/extensions.ModuleRegistry.Publish` | F2；generation原子更新 |
-| `ConfigChanged` (`config.updated`) | settings.changed | `settings/settings.go:Repository.Save`、`settings/native_management.go:SaveNativeManagement`；插件config单独事件 | F4-D；只非秘密diff+revision |
+| `ConfigChanged` (`config.updated`) | settings.changed | `settings/settings.go:Repository.Save`、`settings/native_management.go:SaveNativeManagement`；插件config单独事件 | F4-D 已接线；只非秘密diff+revision |
 | `MessageAction` (`message.action`) | messaging.action.received | 拟新增 `messaging/commands.go:CommandIngress.HandleAction` | F2仅已有入站；新增bot轮询F4，回调签名/过期/一次性nonce |
 | `WorkflowExecute` (`workflow.execute`) | workflow.started | 拟新增 `plugins/workflows.go:WorkflowRunner.Start` | F4-0；当前无工作流执行宿主 |
 | `AgentTokensUsage` (`agent.tokens.usage`) | N/A | 当前无LLM调用/计费宿主 | N/A；人工工具调用不能产生虚构token统计 |
@@ -1819,3 +1819,20 @@ SourceRegistry 为后台缓存 adapter，Home 无 worker 扇出；来源带实�
 
 hello-go 升至 1.6.0，默认 no-op，typed DTO/golden 与真实同 binary worker 测试覆盖。
 本组只测试、提交与 CI 发布候选镜像，不部署，不开始 F4-D。
+
+### F4-D 实施记录（2026-10-19）
+
+补齐 notification.queued、system.operation.failed、settings.changed，新增分离的
+plugin.config.changed，以及 messaging.inbound / messaging.action.received 的 CommandIngress。
+§9 两个 F4-D 模块点 notifications.channel / mediaserver.refresh 同组接入。
+
+不新增迁移或依赖。PG app_settings 的 plugins.errors.* / plugins.ingress.* /
+plugins.effects.* 为框架专属状态，原其他键不变；不保存共享凭据、原始消息或 raw chat/user。
+详见 PLUGIN_FRAMEWORK.md F4-D（long-poll 默认关闭、双 allowlist、nonce、偏移与副作用收据）。
+纯 offer→execute 保证内置回落发生在 execute 派发前；未知结果不换发送方。媒体刷新沿用
+目标路径通知和现有可见性确认，不做全库扫描，不虚构 delivered/visible。
+
+**正式发布验收记录项（F4-C 审核附注）**：按同一时间窗口统计生产链式调用的尝试、
+超时回落与其他错误回落，结合既有调用历史核对分母，并分别列出冷启动首调用与稳态。
+若首调用经常回落，到 F5 再评估预热；不得直接放宽 200ms/2s 或资源限制。
+本组只测试/提交/CI 发布候选镜像，不部署；完成后停止，不开始 F4-0。

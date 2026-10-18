@@ -68,7 +68,7 @@ jobs:
       - name: Native AMD64 real static worker with race-instrumented host
         run: |
           echo "Runner real-UID thread count: $(ps -u "$(id -u)" -L --no-headers | wc -l)"
-          bash scripts/test-go.sh ./internal/modules/plugins/v2 ./internal/platform/httpapi ./internal/modules/acquisition
+          bash scripts/test-go.sh ./internal/modules/plugins/v2 ./internal/platform/httpapi ./internal/modules/acquisition ./internal/modules/messaging
         env:
           TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
       - run: bash scripts/test-go.sh

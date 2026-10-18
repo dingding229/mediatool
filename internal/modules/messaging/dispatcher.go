@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/outbox"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -26,6 +29,7 @@ func (d Dispatcher) Prepare(ctx context.Context) error {
 	if _, err := d.DB.Exec(ctx, `UPDATE notification_deliveries SET state='outcome_unknown',last_error='Worker stopped before a confirmed send receipt; manual verification required'WHERE state='sending'AND started_at<now()-interval '2 minutes'`); err != nil {
 		return err
 	}
+	hasModule := (pluginv2.Store{DB: d.DB}).HasNotificationModule(ctx)
 	tx, err := d.DB.Begin(ctx)
 	if err != nil {
 		return err
@@ -80,8 +84,21 @@ func (d Dispatcher) Prepare(ctx context.Context) error {
 					body = message
 				}
 			}
-			if _, err = tx.Exec(ctx, `INSERT INTO notification_messages(id,event_id,title,body)VALUES($1,$2,$3,$4)ON CONFLICT(event_id)DO NOTHING`, jobs.UUID(), e.id, title, body); err != nil {
+			var notificationID string
+			if err = tx.QueryRow(ctx, `INSERT INTO notification_messages(id,event_id,title,body)VALUES($1,$2,$3,$4)ON CONFLICT(event_id)DO UPDATE SET title=notification_messages.title RETURNING id::text`, jobs.UUID(), e.id, title, body).Scan(&notificationID); err != nil {
 				return err
+			}
+			origin := "builtin"
+			if e.kind == "plugin.notice" {
+				origin = "plugin"
+			}
+			if err = outbox.EmitVersionTx(ctx, tx, "notification.queued", notificationID, "queued-v1", contracts.NotificationQueued{NotificationID: notificationID, Origin: origin}); err != nil {
+				return err
+			}
+			if telegramID == "" && hasModule {
+				if _, err = tx.Exec(ctx, `INSERT INTO notification_deliveries(id,event_id)VALUES($1,$2)`, jobs.UUID(), e.id); err != nil {
+					return err
+				}
 			}
 			if telegramID != "" {
 				if _, err = tx.Exec(ctx, `INSERT INTO notification_deliveries(id,event_id,integration_id,integration_revision)VALUES($1,$2,$3,$4)ON CONFLICT(event_id,integration_id)WHERE integration_id IS NOT NULL DO NOTHING`, jobs.UUID(), e.id, telegramID, telegramRevision); err != nil {
@@ -101,10 +118,10 @@ func (d Dispatcher) Deliver(ctx context.Context) error {
 		return err
 	}
 	defer deferutil.Rollback(ctx, tx)
-	var id, connectionID, body string
+	var id, connectionID, body, notificationID string
 	var attempts int
 	var savedRevision *int64
-	err = tx.QueryRow(ctx, `SELECT n.id::text,n.integration_id::text,m.body,n.attempts,n.integration_revision FROM notification_deliveries n JOIN notification_messages m ON m.event_id=n.event_id WHERE n.state IN ('pending','retry')AND next_attempt_at<=now() ORDER BY next_attempt_at FOR UPDATE OF n SKIP LOCKED LIMIT 1`).Scan(&id, &connectionID, &body, &attempts, &savedRevision)
+	err = tx.QueryRow(ctx, `SELECT n.id::text,coalesce(n.integration_id::text,''),m.body,n.attempts,n.integration_revision,m.id::text FROM notification_deliveries n JOIN notification_messages m ON m.event_id=n.event_id WHERE n.state IN ('pending','retry')AND next_attempt_at<=now() ORDER BY next_attempt_at FOR UPDATE OF n SKIP LOCKED LIMIT 1`).Scan(&id, &connectionID, &body, &attempts, &savedRevision, &notificationID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
@@ -121,6 +138,25 @@ func (d Dispatcher) Deliver(ctx context.Context) error {
 	}
 	if err = dbutil.Commit(ctx, tx); err != nil {
 		return err
+	}
+	// Revalidate the configured target before any provider sees the notification.
+	if connectionID != "" {
+		current, e := d.Connections.Repository.Default(ctx, "telegram")
+		if e != nil || current.Record.ID != connectionID || savedRevision != nil && current.Record.Revision != *savedRevision {
+			return d.finishAttempt(ctx, id, attemptToken, "failed", "", "Telegram target changed; manual retry required", 0)
+		}
+	}
+	if d.Connections != nil {
+		receipt, e := (pluginv2.Store{DB: d.DB, Vault: d.Connections.Repository.Vault}).ExternalEffect(ctx, "notifications.channel", contracts.EffectRequest{RequestID: attemptToken, ObjectID: notificationID, Kind: "notification"})
+		if e != nil || receipt.State == "unknown" {
+			return d.finishAttempt(ctx, id, attemptToken, "outcome_unknown", "", "Plugin outcome unknown; operator verification required", 0)
+		}
+		if receipt.State == "sent" {
+			return d.finishAttempt(ctx, id, attemptToken, "sent", "plugin-confirmed", "", 0)
+		}
+	}
+	if connectionID == "" {
+		return d.finishAttempt(ctx, id, attemptToken, "failed", "", "No configured outbound provider", 0)
 	}
 	client, err := d.Connections.Telegram(ctx)
 	if err != nil {

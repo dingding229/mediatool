@@ -261,6 +261,9 @@ func (s Store) authorizedCall(ctx context.Context, tx pgx.Tx, l Lease, call cont
 		if _, e = tx.Exec(ctx, `UPDATE plugin_v2_instances SET revision=revision+1,updated_at=now() WHERE id=$1`, l.ID); e != nil {
 			return nil, e
 		}
+		if e = emitPluginConfig(ctx, tx, l.ID, rev.Revision); e != nil {
+			return nil, e
+		}
 		result = rev
 	case "plugin.data.list":
 		var a struct {

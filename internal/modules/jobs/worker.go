@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	deferutil "media-tool/internal/platform/cleanup"
+	"media-tool/internal/platform/safeerrors"
 	"media-tool/internal/platform/trace"
 	"time"
 )
@@ -64,6 +65,9 @@ func (w Worker) Run(ctx context.Context) error {
 			j, err := w.Repository.ClaimQueue(ctx, w.Owner, w.Lease, w.Queue)
 			if err != nil {
 				w.Logger.Error("job claim failed")
+				reportCtx, stopReport := context.WithTimeout(ctx, 300*time.Millisecond)
+				_ = (safeerrors.Bus{DB: w.Repository.DB}).Report(reportCtx, safeerrors.Summary{Source: "jobs", Code: "worker_claim_failed"})
+				stopReport() // Best effort while the database itself may be unavailable; no logging feedback path.
 				timer.Reset(w.PollInterval)
 				continue
 			}

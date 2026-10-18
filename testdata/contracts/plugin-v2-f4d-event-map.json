@@ -1,0 +1,104 @@
+[
+  {
+    "type": "notification.queued",
+    "kind": "event",
+    "scope": "events.subscribe.notification.queued",
+    "producer": [
+      "internal/modules/messaging/dispatcher.go:Dispatcher.Prepare"
+    ],
+    "tests": [
+      "TestF4DNotificationQueuedOnlyAfterCommitNotDeliveryOrRecursiveBus",
+      "TestPlatformFactsCommitRollbackScopesTargetsAndRecursion"
+    ]
+  },
+  {
+    "type": "system.operation.failed",
+    "kind": "event",
+    "scope": "events.subscribe.system.operation.failed",
+    "producer": [
+      "internal/modules/jobs/jobs.go:Repository.Finish/expireExhausted",
+      "internal/modules/jobs/worker.go:Worker.Run",
+      "internal/platform/safeerrors/bus.go:Bus.Flush"
+    ],
+    "tests": [
+      "TestF4DErrorBusAggregatesThrottlesExcludesPluginsAndCommitsWithTerminalJob",
+      "TestPlatformFactsCommitRollbackScopesTargetsAndRecursion"
+    ]
+  },
+  {
+    "type": "settings.changed",
+    "kind": "event",
+    "scope": "events.subscribe.settings.changed",
+    "producer": [
+      "internal/modules/settings/settings.go:Repository.Save",
+      "internal/modules/settings/native_management.go:SaveNativeManagement"
+    ],
+    "tests": [
+      "TestF4DSettingsDiffIsTransactionalAndNeverContainsSecurityValues",
+      "TestPlatformFactsCommitRollbackScopesTargetsAndRecursion"
+    ]
+  },
+  {
+    "type": "plugin.config.changed",
+    "kind": "event",
+    "scope": "events.subscribe.plugin.config.changed",
+    "producer": [
+      "internal/modules/plugins/v2/store.go:Store.Apply/Configure",
+      "internal/modules/plugins/v2/host.go:plugin.config.update"
+    ],
+    "tests": [
+      "TestPlatformFactsCommitRollbackScopesTargetsAndRecursion",
+      "TestRealSameBinaryPlatformFactsAndPreEffectDeclines"
+    ]
+  },
+  {
+    "type": "messaging.inbound",
+    "kind": "event",
+    "scope": "events.subscribe.messaging.inbound",
+    "producer": [
+      "internal/modules/messaging/commands.go:CommandIngress.Receive"
+    ],
+    "tests": [
+      "TestIngressAllowlistLimitsDurableOffsetAndLiveCommandScopes",
+      "TestRealSameBinaryTelegramCommandAndSafeEvents"
+    ]
+  },
+  {
+    "type": "messaging.action.received",
+    "kind": "event",
+    "scope": "events.subscribe.messaging.action.received",
+    "producer": [
+      "internal/modules/messaging/commands.go:CommandIngress.HandleAction"
+    ],
+    "tests": [
+      "TestIngressCallbackSignatureExpiryOneUseAndTargetBinding",
+      "TestRealSameBinaryTelegramCommandAndSafeEvents"
+    ]
+  },
+  {
+    "type": "notifications.channel",
+    "kind": "module",
+    "scope": "module.notifications.channel",
+    "producer": [
+      "internal/modules/messaging/dispatcher.go:Dispatcher.Deliver",
+      "internal/modules/plugins/v2/platform_extensions.go:Store.ExternalEffect"
+    ],
+    "tests": [
+      "TestEffectReceiptNoDuplicateNoUnknownFallbackAndLiveScopes",
+      "TestRealSameBinaryPlatformFactsAndPreEffectDeclines"
+    ]
+  },
+  {
+    "type": "mediaserver.refresh",
+    "kind": "module",
+    "scope": "module.mediaserver.refresh",
+    "producer": [
+      "internal/modules/library/emby_check.go:Engine.Refresh",
+      "internal/modules/acquisition/emby.go:Engine.RefreshEmby"
+    ],
+    "tests": [
+      "TestBuiltinRefreshReceiptFencesUnknownAndRepeatedJob",
+      "TestRealSameBinaryPlatformFactsAndPreEffectDeclines"
+    ]
+  }
+]

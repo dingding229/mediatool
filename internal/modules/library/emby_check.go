@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"io"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/modules/settings"
 	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
@@ -57,9 +59,16 @@ func (e Engine) Refresh(ctx context.Context, job jobs.Job) error {
 	if len(updates) == 0 {
 		return errors.New("no managed output to refresh")
 	}
-	if err = requestEmbyUpdates(ctx, c, updates); err != nil {
-		return err
+	receipt, moduleErr := (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).ExternalEffect(ctx, "mediaserver.refresh", contracts.EffectRequest{RequestID: job.ID, ObjectID: body.AssetID, Kind: "asset"})
+	if moduleErr != nil || receipt.State == "unknown" {
+		return jobs.ErrOperatorRequired
 	}
+	if receipt.State == "not_started" {
+		if err = (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).BuiltinEffect(ctx, "mediaserver.refresh", contracts.EffectRequest{RequestID: job.ID, ObjectID: body.AssetID, Kind: "asset"}, func(cctx context.Context) error { return requestEmbyUpdates(cctx, c, updates) }); err != nil {
+			return jobs.ErrOperatorRequired
+		}
+	}
+
 	payload, _ := json.Marshal(map[string]string{"assetId": body.AssetID})
 	_, err = e.DB.Exec(ctx, `INSERT INTO jobs(id,kind,payload,idempotency_key,max_attempts)VALUES($1,'library.emby.confirm',$2,$3,20) ON CONFLICT(idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING`, jobs.UUID(), payload, "library.emby.confirm:"+job.ID)
 	return err

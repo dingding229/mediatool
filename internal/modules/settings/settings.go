@@ -121,6 +121,9 @@ func (r Repository) Save(ctx context.Context, v Value, revision int64) (Record, 
 		}
 
 	}
+	if err = emitSettings(ctx, tx, "application", revision+1, changedSettings(prior, v)); err != nil {
+		return Record{}, err
+	}
 	if err = dbutil.Commit(ctx, tx); err != nil {
 		return Record{}, err
 	}

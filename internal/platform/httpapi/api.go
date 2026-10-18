@@ -170,6 +170,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/integrations/{id}/115/auth/cancel", a.protected(a.cancel115Authorization))
 	mux.HandleFunc("GET /api/v1/metadata/search", a.protected(a.metadataSearch))
 	mux.HandleFunc("GET /api/v1/metadata/episodes", a.protected(a.metadataEpisodes))
+	mux.HandleFunc("POST /api/v1/messaging/command-actions", a.protected(a.issueCommandAction))
 	mux.HandleFunc("GET /api/v1/media/library/sources", a.protected(a.catalogSources))
 	mux.HandleFunc("GET /api/v1/media/library", a.protected(a.listCatalog))
 	mux.HandleFunc("GET /api/v1/media/library/emby/{id}/image", a.protected(a.catalogImage))
