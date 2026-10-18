@@ -34,7 +34,7 @@ func (s Store) business(ctx context.Context, l Lease, call contracts.HostCall, p
 	if !spec.Supported {
 		return nil, contracts.NewError(contracts.Unsupported)
 	}
-	if s.Business == nil {
+	if s.Business == nil && !strings.HasPrefix(call.Method, "workflows.") {
 		return nil, contracts.NewError(contracts.Unavailable)
 	}
 	guard := func(c context.Context, tx pgx.Tx) error {
@@ -60,7 +60,7 @@ func (s Store) business(ctx context.Context, l Lease, call contracts.HostCall, p
 		return tx.Commit(ctx)
 	}
 	if spec.Level == "R" {
-		out, e := s.Business.Call(ctx, call, p, admit)
+		out, e := s.bridgeCall(ctx, call, p, admit)
 		if e != nil {
 			return nil, e
 		}
@@ -159,7 +159,7 @@ func (s Store) business(ctx context.Context, l Lease, call contracts.HostCall, p
 	}
 	effectCall := call
 	effectCall.OperationKey = id // globally unique reserved receipt ID; request digest remains original
-	result, callErr := s.Business.Call(dbutil.WithEffectGuard(dbutil.WithCommitGuard(ctx, guard), admit), effectCall, p, admit)
+	result, callErr := s.bridgeCall(dbutil.WithEffectGuard(dbutil.WithCommitGuard(ctx, guard), admit), effectCall, p, admit)
 	record := businessRecord{Request: hash, Ready: true}
 	if callErr != nil {
 		record.Code = contracts.Unavailable
@@ -227,6 +227,8 @@ func validBusinessResources(p contracts.Permission) bool {
 	for key, values := range p.Resources {
 		allowed := false
 		switch key {
+		case "workflowIds":
+			allowed = p.Scope == "workflows.run"
 		case "siteIds":
 			allowed = p.Scope == "sites.read" || p.Scope == "sites.refresh" || p.Scope == "sites.request" || p.Scope == "sites.templates.read" || p.Scope == "sites.templates.select" || p.Scope == "search.run" || p.Scope == "downloads.add" || p.Scope == "subscriptions.write"
 		case "downloaderIds":

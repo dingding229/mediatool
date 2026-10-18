@@ -319,6 +319,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		engine := search.Engine{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc}
 		w.Handlers["search.run"] = engine.Process
 		// Retired jobs are acknowledged, never retried/executed against archived WASM tables.
+		w.Handlers["plugin.v2.workflow"] = (pluginv2.WorkflowRunner{Store: pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot}}).Process
 		w.Handlers["plugin.v2.service"] = (pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot}).ProcessService
 		w.Handlers["plugin.service"] = func(context.Context, jobs.Job) error { return nil }
 		w.Handlers["plugin.dispatch"] = func(context.Context, jobs.Job) error { return nil }

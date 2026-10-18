@@ -355,3 +355,14 @@ plugins.effects.* 持久收据绑定 request hash；相同 requestId 重试不�
 内置媒体刷新回落也先记 builtin_started，再请求远端：若远端成功而本地后续写入失败，
 重试只继续确认，不再次扫库；未知进入现有 operator-required/通知 outcome_unknown 流程，
 需读回核对，不能自动重试或把 requested 当 visible/已送达。无 provider 时内置路径保持。
+
+### F4-0 最小宿主
+
+管理监听器的`POST /api/v1/plugins/workflows`提供save/approve/run/status/cancel（均admin+CSRF+
+confirm），沿用持久jobs与实例动作收据。批准绑定DAG/动作权限快照，步骤≤32，深度≤16，串行，
+取消与unknown不自动重放。`workflow.started`与受理事务同提交，BeforeStep在事务外等待后fence。
+不新增迁移；框架状态只在plugins.* namespace。现有插件页运行历史可查看动作步骤。
+
+身份broker仅框架，真实provider UI/会话签发明确unsupported。本地密码登录原样保留。
+预绑定管理员账号、精确origin、一次性5min state/nonce、issuer/audience/过期和实时授权都由宿主检查；
+插件isAdmin没有效力。禁用/撤权/换代后的BrokerIdentity立即无效，不能用于绕过内置认证。

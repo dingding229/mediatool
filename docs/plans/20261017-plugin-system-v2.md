@@ -729,7 +729,7 @@ type ActionProvider interface { GetActions(context.Context) ([]Action, error) }
 | `ModuleReload` (`module.reload`) | module.registry.changed | 拟新增 `plugins/extensions.ModuleRegistry.Publish` | F2；generation原子更新 |
 | `ConfigChanged` (`config.updated`) | settings.changed | `settings/settings.go:Repository.Save`、`settings/native_management.go:SaveNativeManagement`；插件config单独事件 | F4-D 已接线；只非秘密diff+revision |
 | `MessageAction` (`message.action`) | messaging.action.received | 拟新增 `messaging/commands.go:CommandIngress.HandleAction` | F2仅已有入站；新增bot轮询F4，回调签名/过期/一次性nonce |
-| `WorkflowExecute` (`workflow.execute`) | workflow.started | 拟新增 `plugins/workflows.go:WorkflowRunner.Start` | F4-0；当前无工作流执行宿主 |
+| `WorkflowExecute` (`workflow.execute`) | workflow.started | `plugins/v2/workflows.go:WorkflowRunner.Start` | F4-0已接线；受理事务提交事实 |
 | `AgentTokensUsage` (`agent.tokens.usage`) | N/A | 当前无LLM调用/计费宿主 | N/A；人工工具调用不能产生虚构token统计 |
 
 ### 9.3 ChainEventType：19/19
@@ -738,8 +738,8 @@ type ActionProvider interface { GetActions(context.Context) ([]Action, error) }
 |---|---|---|---|
 | `PluginDataReset` (`plugin.data.reset`) | 允许/拒绝本实例清理，拒绝说明有界 | 拟新增 `plugins/repository.DataService.Reset`清理前 | F2；管理员强制清理仍需明确确认，不影响其他实例 |
 | `NameRecognize` (`name.recognize`) | 补充/替换解析Hint | `httpapi/workbench.go:parseReleaseName`、`library/recognition.go:Engine.Recognize`事务前 | F2；内置Parse回落、ID/路径不可改 |
-| `AuthVerification` (`auth.verification`) | 外部provider身份验证结果；不是跳过内置密码校验 | 拟新增 `plugins/authbroker.go:Broker.Verify` | F4-0；当前无provider broker；只能已授权provider/绑定subject |
-| `AuthIntercept` (`auth.intercept`) | 内置身份通过后的可选拒绝/附加约束 | 拟新增 `plugins/authbroker.go:Broker.PostVerifyPolicy` | F4-0；不能将401变成成功，媒体令牌与CSRF不受此hook控制 |
+| `AuthVerification` (`auth.verification`) | 外部provider身份验证结果；不是跳过内置密码校验 | `plugins/v2/authbroker.go:Broker.Verify` | F4-0 broker已接线；已授权provider/绑定subject；公网登录unsupported |
+| `AuthIntercept` (`auth.intercept`) | 内置身份通过后的可选拒绝/附加约束 | `plugins/v2/authbroker.go:Broker.PostVerifyPolicy` | F4-0已接线；不能401变成功；密码登录、媒体令牌、CSRF不挂此hook |
 | `CommandRegister` (`command.register`) | 建议附加命令/冲突策略 | 拟新增 `plugins/extensions.CommandRegistry.Build` | F2；reserved命令不可覆盖 |
 | `TransferRename` (`transfer.rename`) | 改输出相对路径模板结果 | `library/confirm.go:Engine.Confirm`、`acquisition/transfers.go:Engine.ImportFile`的prepare阶段 | F4-B；逐段root/冲突/owner验证，不能在事务中等RPC |
 | `TransferRenameBuild` (`transfer.rename.build`) | 对typed模板输入给出建议 | `library/template_outputs.go:ApplyOutputTemplates`上层的拟新增prepare service | F4-B；现helper接tx，不在其内部调用worker |
@@ -750,7 +750,7 @@ type ActionProvider interface { GetActions(context.Context) ([]Action, error) }
 | `DiscoverSource` (`discover.source`) | 附加Provider的typed发现候选 | `catalog/home.go:Engine.Home`上层拟新增SourceRegistry、`metadata`搜索门面 | F4-C 已接线；后台缓存/分页，不在客户端首页同步等待所有worker |
 | `MediaRecognizeConvert` (`media.recognize.convert`) | 合法媒体候选转换建议 | `library/recognition.go:Engine.Recognize`、`confirm.go:Engine.Suggest` | F4-C 已接线；TMDB类型/id组合校验 |
 | `RecommendSource` (`recommend.source`) | 附加推荐Provider | `catalog/home.go:Engine.Home`上层SourceRegistry | F4-C 已接线；当前只有媒体库首页，需新adapter，不假装已有推荐引擎 |
-| `WorkflowExecution` (`workflow.execution`) | 对动作上下文建议/拒绝 | 拟新增 `plugins/workflows.go:WorkflowRunner.BeforeStep` | F4-0；在run事务外等待，之后fence核对 |
+| `WorkflowExecution` (`workflow.execution`) | 对动作上下文建议/拒绝 | `plugins/v2/workflows.go:WorkflowRunner.BeforeStep` | F4-0已接线；事务外等待，之后fence核对 |
 | `StorageOperSelection` (`storage.operation`) | 从已授权连接/根中选一个handle | `filemanager/engine.go:Engine.Preview`、`library/scan.go:Engine.Start`上层prepare | F4-B；不能返回凭据或任意根路径 |
 | `AgentLLMProvider` (`agent.llm.provider`) | N/A | 本程序无Agent/LLM provider宿主 | N/A；F5只tool registry，不顺带承诺LLM运行时 |
 | `SubscribeEpisodesRefresh` (`subscribe.episodes.refresh`) | 补充期待季集清单 | `subscriptions/completion.go:CoverageObserver.ExpectedEpisodes`，复用TMDB Episodes | F4-C 已接线；不能标记不存在文件为已拥有 |
@@ -1836,3 +1836,49 @@ plugins.effects.* 为框架专属状态，原其他键不变；不保存共享�
 超时回落与其他错误回落，结合既有调用历史核对分母，并分别列出冷启动首调用与稳态。
 若首调用经常回落，到 F5 再评估预热；不得直接放宽 200ms/2s 或资源限制。
 本组只测试/提交/CI 发布候选镜像，不部署；完成后停止，不开始 F4-0。
+
+### F4-0 最小工作流与 opt-in auth broker（2026-10-19）
+
+- 工作流实现位于 `internal/modules/plugins/v2/workflows.go:WorkflowRunner`；根包不新增依赖环。
+  SDK `contracts.WorkflowOrder` 校验 ≤32 步、深度 ≤16、无环、无未知/重复依赖和 ≤16KiB DAG。
+  首期串行（满足并发≤2），总期限30min，单动作≤30s。步骤输入为显式有界 ActionContext；
+  不自动解析输出引用或授予资源 handle，不支持自动重试、复杂编排/可视化编辑（F5）。
+- `plugins.workflow.*` 保存有界定义/批准快照，`plugins.workflow.run.*` 保存步骤状态，
+  复用 app_settings 的非秘密框架 namespace、既有 jobs（max_attempts=1）和 plugin_v2_runs。
+  **本组无需00064迁移或新依赖**，生产 schema 仍63。旧§11的00064仅是草案，不执行。
+- Save 清除批准；Approve 绑定 DAG 指纹/revision 和每个动作的实例、定义指纹、grant_revision、
+  descriptor 摘要及全部 requiredScopes。Start/每步提交均实时 fence；更改 DAG 必须重新批准。
+  `workflow.started` 表示批准的 run 已持久受理，不表示动作已完成；与 job/收据同事务，
+  aggregate 为 run 身份、事实版本v1。bridge 只投影 runId/workflowId/revision。
+- BeforeStep 为精确 `events.chain.workflow.execution`，复用优先级/最多8个handler/
+  单个200ms/总2s。仅允许追加拒绝，畸形/失败/超时回落原批准计划；RPC不持写事务，
+  前置策略与动作代际在提交时再次 fence。动作失败/unknown/取消不会自动重放。
+- Host `workflows.run/status/cancel` 全为D，scope=`workflows.run`，只允许管理员批准的
+  精确 `resources.workflowIds`；沿用加密幂等收据、请求摘要、实时授权及 fence。
+  管理端最小入口 `POST /api/v1/plugins/workflows`，operation=save/approve/run/status/cancel，
+  均须admin会话、CSRF、confirm；save带revision、approve带fingerprint，run带operationKey。
+  步骤通过既有动作运行记录展示；完整工作流面板留F5。
+- `v2/authbroker.go:Broker`：GetAuthProviders 可选Go绑定生成稳定的auth.verification handler，
+  元数据由同一 pin 编译，需 `auth.provider`（UI高危）与 `events.chain.auth.verification`。
+  首期每实例一个provider；ProviderID、issuer、audience、精确HTTPS origin由批准descriptor固定。
+  Begin/Verify 为一次性随机state+nonce、5min、有界ledger（≤200），绑定origin/实例/代际/授权修订；
+  state/nonce只存摘要，外部subject只存摘要。先消费nonce并提交，再调用provider（200ms，fail closed）。
+- 仅管理员可预绑定subject→已有administrator_accounts账号；不读密码Hash，不接受插件授予角色。
+  `isAdmin=true`被忽略；账号资格/credential_version永远来自内置账号库。
+  `PostVerifyPolicy`仅在内置身份已通过时提供精确 `events.chain.auth.intercept` 的追加拒绝，
+  内置401在任何插件调用之前直接拒绝。Argon2、密码登录、媒体令牌、CSRF、下载权限完全不挂此hook。
+- **会话策略**：本组不签发真实外部登录会话、不提供公开callback；真实provider UI/会话适配器
+  明确501 unsupported（管理端 `POST /api/v1/plugins/auth/begin`），本地密码登录不变。
+  内部BrokerIdentity在每次使用时Validate，provider停用/撤权/换代、绑定变化或账号版本变化立即失效；
+  将来真实会话适配器须强制同样检查，不能将此对象当作管理员cookie。
+  管理端预绑定 `POST /api/v1/plugins/auth/bindings` 须会话+CSRF+confirm+当前fingerprint。
+- hello-go 1.8.0 提供 no-op workflow/auth.intercept、workflow.started计数、仅测试的fake provider，
+  不连外部身份服务。`F4 框架验收`动作仅写本实例KV：passed/noOpAction/authSessionIssued=false，
+  不虚报已在生产完成真实身份登录或DAG执行。
+- 真实worker全套共用 `internal/platform/testworker.Ready`：运行中/当前代际/活lease，
+  确认编译manifest的provider和handler已发布，执行无副作用表单往返后才开始预算断言。
+  故障注入的启动期RSS/tasks超限测试按设计在就绪前终止，不等正常就绪。
+  不修改生产200ms/2s、rlimit、RSS/tasks或kernel隔离预算。
+- 发布统计以部署时间后的 `plugin_v2_runs(kind=chain)` 收据为分母，reason=deadline为超时回落；
+  第一条（按generation/handler）与后续调用分开。无启用插件或无样本时报告N/A，不把0/0写成0%。
+  F5再根据真实日志/收据评估预热，不直接放宽200ms。

@@ -285,6 +285,17 @@ func validHookResult(raw json.RawMessage) bool {
 }
 
 func validExtensionResult(kind, id string, args, result json.RawMessage) bool {
+	if kind == "chain" && (id == "workflow.execution" || id == "auth.intercept") {
+		var q struct {
+			Allow *bool `json:"allow"`
+		}
+		return contracts.Decode(result, &q) == nil && q.Allow != nil
+	}
+	if kind == "chain" && id == "auth.verification" {
+		var v contracts.AuthAssertion
+		return contracts.Decode(result, &v) == nil && v.Subject != "" && len(v.Subject) <= 200 && len(v.Issuer) <= 200 && len(v.Audience) <= 200 && v.ExpiresAt > 0
+	}
+
 	if kind == "module" && (id == "notifications.channel" || id == "mediaserver.refresh") {
 		return validEffectResult(id, args, result)
 	}

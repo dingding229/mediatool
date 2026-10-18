@@ -1,6 +1,24 @@
 {
   "hostMethods": [
     {
+      "name": "workflows.run",
+      "scope": "workflows.run",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "workflows.status",
+      "scope": "workflows.run",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "workflows.cancel",
+      "scope": "workflows.run",
+      "level": "D",
+      "supported": true
+    },
+    {
       "name": "downloads.list",
       "scope": "downloads.read",
       "level": "R",
@@ -907,14 +925,14 @@
       "supported": true
     }
   ],
-  "pin": "v0.0.0-20261018162144-7654bdd24122",
+  "pin": "v0.0.0-20261018183503-a6d8f7c6b0e5",
   "contractVersion": 2,
   "manifests": [
     {
       "contractVersion": 2,
       "id": "hello-go",
       "name": "Hello Go",
-      "version": "1.7.1",
+      "version": "1.8.0",
       "author": "Example Author",
       "description": "实例隔离与持久计数示例",
       "level": 1,
@@ -930,7 +948,8 @@
         "1.5.0": "Typed organizing facts and no-op safe transfer/storage policies (F4-B)",
         "1.6.0": "Typed metadata/coverage and cached source no-op policies (F4-C)",
         "1.7.0": "F4-D typed system/notification/settings/Telegram facts; pre-effect module declines and /hello ingress example",
-        "1.7.1": "Two-phase pure offer/execute module protocol; only pre-execute declines can fall back"
+        "1.7.1": "Two-phase pure offer/execute module protocol; only pre-execute declines can fall back",
+        "1.8.0": "F4 bounded workflow and opt-in fake auth broker contracts; no real login provider"
       },
       "permissions": [
         {
@@ -1115,6 +1134,21 @@
         },
         {
           "scope": "module.mediaserver.refresh"
+        },
+        {
+          "scope": "events.subscribe.workflow.started"
+        },
+        {
+          "scope": "events.chain.workflow.execution"
+        },
+        {
+          "scope": "events.chain.auth.intercept"
+        },
+        {
+          "scope": "auth.provider"
+        },
+        {
+          "scope": "events.chain.auth.verification"
         }
       ],
       "extensions": {
@@ -1206,7 +1240,8 @@
           "settings.changed",
           "plugin.config.changed",
           "messaging.inbound",
-          "messaging.action.received"
+          "messaging.action.received",
+          "workflow.started"
         ],
         "chains": [
           "name.recognize",
@@ -1221,7 +1256,10 @@
           "subscribe.episodes.refresh",
           "subscribe.completion.check",
           "discover.source",
-          "recommend.source"
+          "recommend.source",
+          "workflow.execution",
+          "auth.intercept",
+          "auth.verification"
         ],
         "modules": [
           "metadata.name_recognize",
@@ -1230,7 +1268,11 @@
         ],
         "actions": [
           "hello",
-          "f3-read-check"
+          "f3-read-check",
+          "f4-check"
+        ],
+        "authProviders": [
+          "fake"
         ]
       },
       "ui": {

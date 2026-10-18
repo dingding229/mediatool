@@ -28,7 +28,7 @@ func TestExtensionManagementAndGatewayAreAbsentFromMediaPort(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	for _, path := range []string{"/api/v1/plugins/ui-surfaces", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/ui/form", "/api/v1/plugin/11111111-0000-4000-8000-000000000062/public", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/extensions", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/api-keys"} {
+	for _, path := range []string{"/api/v1/plugins/workflows", "/api/v1/plugins/auth/bindings", "/api/v1/plugins/auth/begin", "/api/v1/plugins/ui-surfaces", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/ui/form", "/api/v1/plugin/11111111-0000-4000-8000-000000000062/public", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/extensions", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/api-keys"} {
 		for _, method := range []string{"GET", "POST"} {
 			w := httptest.NewRecorder()
 			h.ServeHTTP(w, httptest.NewRequest(method, path, nil))

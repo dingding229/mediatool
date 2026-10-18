@@ -50,6 +50,9 @@ func TestEveryBusinessMethodLiveScopeAndRevocation(t *testing.T) {
 		return b.Receipt{ID: "fixture", State: "observed"}, nil
 	})
 	for i, m := range b.Methods() {
+		if strings.HasPrefix(m.Name, "workflows.") {
+			continue
+		} // Dedicated real WorkflowRunner authorization/receipt tests; not an external business mock.
 		t.Run(m.Name, func(t *testing.T) {
 			if hostScope(m.Name) != m.Scope {
 				t.Fatal("scope drift")

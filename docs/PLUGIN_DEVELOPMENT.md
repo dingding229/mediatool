@@ -115,3 +115,15 @@ not_started 或报错诱导 host 重发。共享 Telegram bot token 永不进入
 命令参数必须当作不可信用户输入，禁止拼成 Shell；只有管理员允许的 Telegram chat/user
 才进入注册表。InboundMessage 只含目标实例、命令、opaque actor、kind；不含原始 chat/user、
 token 或回调签名。系统错误是聚合摘要，不是原始异常/日志订阅。
+
+## F4 工作流与外部身份（最小宿主）
+
+SDK现有Action函数绑定可作为已批准DAG的步骤。DAG≤32步/深度16、首期串行、总30min，
+修改后必须重新确认。仅`workflows.run`加精确`workflowIds`可调用run/status/cancel（全部高危），
+不能递归自行授权其他实例。unknown/失败不自动重试；步骤记录在实例运行历史。
+`workflow.execution`只能收窄批准的执行，不能凭hook提升动作scope。
+
+可选`GetAuthProviders`只提供subject assertion，不发cookie，不决定管理员角色。
+须显式确认`auth.provider`与`events.chain.auth.verification`，subject需管理员预绑定。
+首期真实外部登录入口返回unsupported；hello的fake只作golden/真实worker验收。
+内置本地密码登录不经插件；broker身份每次验证代际/授权/绑定/账号版本，撤权立即失效。
