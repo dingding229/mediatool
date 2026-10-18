@@ -9,6 +9,7 @@ import (
 	"media-tool/internal/modules/playeraccess"
 	"media-tool/internal/modules/releasename"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"media-tool/internal/platform/scheduling"
 	"regexp"
 	"strings"
@@ -120,7 +121,7 @@ func (r Repository) Save(ctx context.Context, v Value, revision int64) (Record, 
 		}
 
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return Record{}, err
 	}
 	return r.Get(ctx)

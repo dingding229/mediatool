@@ -32,3 +32,5 @@ func (a Actor) Allows(id string) bool {
 	return len(a.libraries) == 0 || slices.Contains(a.libraries, id)
 }
 func (a Actor) Restricted() bool { return len(a.libraries) > 0 }
+
+func (a Actor) InstanceID() string { return a.instance }

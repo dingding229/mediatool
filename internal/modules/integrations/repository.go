@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"sort"
 	"time"
 
@@ -260,6 +261,6 @@ func (r Repository) Delete(ctx context.Context, id string) error {
 	return tx.Commit(ctx)
 }
 func (r Repository) RecordCheck(ctx context.Context, id string, revision int64, state, message string) error {
-	_, err := r.DB.Exec(ctx, `UPDATE integrations SET last_check_state=$3,last_check_message=$4,last_checked_at=$5 WHERE id=$1 AND revision=$2`, id, revision, state, message, time.Now())
+	_, err := dbutil.Exec(ctx, r.DB, `UPDATE integrations SET last_check_state=$3,last_check_message=$4,last_checked_at=$5 WHERE id=$1 AND revision=$2`, id, revision, state, message, time.Now())
 	return err
 }

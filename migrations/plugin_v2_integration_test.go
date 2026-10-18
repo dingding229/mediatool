@@ -194,7 +194,7 @@ func TestPluginV2InstancesHostCASFencesCloneAndLease(t *testing.T) {
 	if f.integer(t, `SELECT count(*) FROM plugin_v2_kv WHERE instance_id=$1`, copy.ID) != 1 {
 		t.Fatal("KV not cloned")
 	}
-	if _, rpc := call("system.summary", struct{}{}, nil); rpc == nil || rpc.Code != contracts.PermissionDenied {
+	if _, rpc := call("notifications.send", contracts.Message{Title: "ungranted", Text: "must not queue"}, nil); rpc == nil || rpc.Code != contracts.PermissionDenied {
 		t.Fatal("scope not enforced", rpc)
 	}
 	disable := enable

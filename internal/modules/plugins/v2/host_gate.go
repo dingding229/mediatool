@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
 	"sync"
 )
 
@@ -34,6 +35,11 @@ func (s Store) scopedHost(l Lease, g *hostGate) func(context.Context, json.RawMe
 		}
 		g.mu.RLock()
 		allowed := !g.restricted || g.scopes[hostScope(c.Method)]
+		if g.restricted {
+			for _, extra := range b.RequiredScopes(c.Method) {
+				allowed = allowed && g.scopes[extra]
+			}
+		}
 		g.mu.RUnlock()
 		if !allowed {
 			return nil, contracts.NewError(contracts.PermissionDenied)

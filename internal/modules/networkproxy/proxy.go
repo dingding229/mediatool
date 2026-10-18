@@ -101,7 +101,7 @@ func Client(r Record, scope string) (*http.Client, error) {
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
-	if (scope == "tmdb" && r.TMDB) || (scope == "ptsite" && r.Sites) {
+	if (scope == "tmdb" && r.TMDB) || (scope == "ptsite" && r.Sites) || (scope == "plugin" && r.URL != "") {
 		u, _ := url.Parse(r.URL)
 		transport.Proxy = http.ProxyURL(u)
 	}

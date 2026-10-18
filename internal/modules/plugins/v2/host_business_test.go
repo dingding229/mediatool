@@ -35,6 +35,12 @@ func TestEveryBusinessMethodLiveScopeAndRevocation(t *testing.T) {
 	ctx := context.Background()
 	defs, _ := Catalog()
 	base := defs[0].Manifest
+	base.Permissions = nil // isolate each method from hello's approved read acceptance scopes
+	for _, m := range b.Methods() {
+		if _, e := s.DB.Exec(ctx, `DELETE FROM plugin_v2_grants WHERE instance_id=$1 AND scope=$2`, l.ID, m.Scope); e != nil {
+			t.Fatal(e)
+		}
+	}
 	var calls int
 	s.Business = businessFunc(func(c context.Context, _ contracts.HostCall, _ contracts.Permission, admit func() error) (any, error) {
 		calls++
@@ -58,6 +64,12 @@ func TestEveryBusinessMethodLiveScopeAndRevocation(t *testing.T) {
 			requireCode(t, e, contracts.PermissionDenied)
 			if _, e = s.DB.Exec(ctx, `INSERT INTO plugin_v2_grants(instance_id,scope,fingerprint)VALUES($1,$2,$3)ON CONFLICT DO NOTHING`, l.ID, m.Scope, l.Fingerprint); e != nil {
 				t.Fatal(e)
+			}
+			for _, extra := range b.RequiredScopes(m.Name) {
+				manifest.Permissions = append(manifest.Permissions, contracts.Permission{Scope: extra})
+				if _, e = s.DB.Exec(ctx, `INSERT INTO plugin_v2_grants(instance_id,scope,fingerprint)VALUES($1,$2,$3)ON CONFLICT DO NOTHING`, l.ID, extra, l.Fingerprint); e != nil {
+					t.Fatal(e)
+				}
 			}
 			_, e = s.hostDeclared(ctx, l, call, manifest)
 			if m.Supported {
@@ -284,8 +296,9 @@ func TestServerPrincipalIssuedFromLiveGrantNotArguments(t *testing.T) {
 	defs, _ := Catalog()
 	manifest := defs[0].Manifest
 	p := contracts.Permission{Scope: "mediaserver.read", Resources: map[string][]string{"libraryIds": {"g:owned"}}}
-	manifest.Permissions = append(append([]contracts.Permission{}, manifest.Permissions...), p)
-	if _, e := s.DB.Exec(ctx, `INSERT INTO plugin_v2_grants(instance_id,scope,fingerprint)VALUES($1,$2,$3)`, l.ID, p.Scope, l.Fingerprint); e != nil {
+	manifest.Permissions = []contracts.Permission{p} // exactly this host-issued selector
+
+	if _, e := s.DB.Exec(ctx, `INSERT INTO plugin_v2_grants(instance_id,scope,fingerprint)VALUES($1,$2,$3)ON CONFLICT DO NOTHING`, l.ID, p.Scope, l.Fingerprint); e != nil {
 		t.Fatal(e)
 	}
 	called := 0
@@ -313,5 +326,62 @@ func TestServerPrincipalIssuedFromLiveGrantNotArguments(t *testing.T) {
 		if hostScope(name) != "" {
 			t.Fatal("forbidden host entry", name)
 		}
+	}
+}
+
+func TestNetworkIntersectionIsDeclaredLiveAndFenced(t *testing.T) {
+	s, l := activeFixture(t)
+	ctx := context.Background()
+	defs, _ := Catalog()
+	manifest := defs[0].Manifest
+	manifest.Permissions = []contracts.Permission{{Scope: "network.proxy.use", Resources: map[string][]string{"hosts": {"https://public.fixture"}}}}
+	for _, scope := range []string{"network.proxy.use", "network"} {
+		if _, e := s.DB.Exec(ctx, `INSERT INTO plugin_v2_grants(instance_id,scope,fingerprint)VALUES($1,$2,$3)ON CONFLICT DO NOTHING`, l.ID, scope, l.Fingerprint); e != nil {
+			t.Fatal(e)
+		}
+	}
+	calls := 0
+	s.Business = businessFunc(func(context.Context, contracts.HostCall, contracts.Permission, func() error) (any, error) {
+		calls++
+		return b.HTTPResult{Status: 200}, nil
+	})
+	call := businessCall("network.http", "network-intersection")
+	_, e := s.hostDeclared(ctx, l, call, manifest)
+	requireCode(t, e, contracts.PermissionDenied)
+	manifest.Permissions = append(manifest.Permissions, contracts.Permission{Scope: "network"})
+	if _, e = s.DB.Exec(ctx, `DELETE FROM plugin_v2_grants WHERE instance_id=$1 AND scope='network'`, l.ID); e != nil {
+		t.Fatal(e)
+	}
+	_, e = s.hostDeclared(ctx, l, call, manifest)
+	requireCode(t, e, contracts.PermissionDenied)
+	if calls != 0 {
+		t.Fatal("network forwarded before both grants")
+	}
+	if _, e = s.DB.Exec(ctx, `INSERT INTO plugin_v2_grants(instance_id,scope,fingerprint)VALUES($1,'network',$2)`, l.ID, l.Fingerprint); e != nil {
+		t.Fatal(e)
+	}
+	s.Business = businessFunc(func(c context.Context, _ contracts.HostCall, _ contracts.Permission, _ func() error) (any, error) {
+		tx, e := s.DB.Begin(c)
+		if e != nil {
+			return nil, e
+		}
+		defer rollback(c, tx)
+		if _, e = tx.Exec(c, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)VALUES($1,'plugin.fence',$2,'{}')`, jobs.UUID(), l.ID); e != nil {
+			return nil, e
+		}
+		if _, e = s.DB.Exec(c, `DELETE FROM plugin_v2_grants WHERE instance_id=$1 AND scope='network'`, l.ID); e != nil {
+			return nil, e
+		}
+		e = dbutil.Commit(c, tx)
+		if e == nil {
+			t.Fatal("revoked secondary grant committed")
+		}
+		return nil, e
+	})
+	_, e = s.hostDeclared(ctx, l, call, manifest)
+	requireCode(t, e, contracts.PermissionDenied)
+	var n int
+	if e = s.DB.QueryRow(ctx, `SELECT count(*)FROM outbox_events WHERE event_type='plugin.fence'`).Scan(&n); e != nil || n != 0 {
+		t.Fatal(n, e)
 	}
 }

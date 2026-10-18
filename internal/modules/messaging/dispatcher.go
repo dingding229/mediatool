@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -92,7 +93,7 @@ func (d Dispatcher) Prepare(ctx context.Context) error {
 			return err
 		}
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 func (d Dispatcher) Deliver(ctx context.Context) error {
 	tx, err := d.DB.Begin(ctx)
@@ -118,7 +119,7 @@ func (d Dispatcher) Deliver(ctx context.Context) error {
 	if tag.RowsAffected() != 1 {
 		return errors.New("notification delivery attempt is no longer pending")
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return err
 	}
 	client, err := d.Connections.Telegram(ctx)
@@ -217,6 +218,9 @@ func (d Dispatcher) Retry(ctx context.Context, id string, acceptDuplicateRisk bo
 	if err != nil {
 		return err
 	}
+	if err = pluginOwnership(ctx, tx, id); err != nil {
+		return err
+	}
 	if state != "failed" && state != "outcome_unknown" {
 		return errors.New("delivery is not in a manually retryable state")
 	}
@@ -233,5 +237,5 @@ func (d Dispatcher) Retry(ctx context.Context, id string, acceptDuplicateRisk bo
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','notification.retry',jsonb_build_object('deliveryId',$1::text,'duplicateRiskAccepted',$2::boolean))`, id, acceptDuplicateRisk); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }

@@ -14,6 +14,7 @@ import (
 	"media-tool/internal/modules/manualdownloads"
 	"media-tool/internal/modules/mediaprobe/admin"
 	"media-tool/internal/modules/metadata"
+	"media-tool/internal/modules/networkproxy"
 	"media-tool/internal/modules/search"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/subscriptionpolicy"
@@ -30,6 +31,7 @@ import (
 // AcquisitionHost is the sole business bridge. No SQL/engine/credential object is
 // exported to workers. Network calls run outside the plugin authorization tx.
 type AcquisitionHost struct {
+	Network     *networkproxy.HostClient
 	Processing  *admin.Repository
 	Collector   stillCollector
 	Observe     func(context.Context, string, string) (storage.File, error) // optional native observer; nil uses configured provider
@@ -119,6 +121,9 @@ func (h AcquisitionHost) Call(ctx context.Context, call contracts.HostCall, perm
 	}
 	if !spec.Supported {
 		return nil, unsupportedBusiness()
+	}
+	if platformMethod(call.Method) {
+		return h.callPlatform(ctx, call, permit, admit)
 	}
 	if strings.HasPrefix(call.Method, "mediaserver.") || strings.HasPrefix(call.Method, "catalog.") || strings.HasPrefix(call.Method, "mediausers.") || strings.HasPrefix(call.Method, "playback.") || strings.HasPrefix(call.Method, "playeraccess.") || strings.HasPrefix(call.Method, "mediaprobe.") || call.Method == "metadata.nativeDetails" || call.Method == "metadata.refreshDetails" {
 		return h.callServer(ctx, call, permit, admit)

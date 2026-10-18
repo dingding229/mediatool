@@ -162,6 +162,25 @@ func (s Store) hostDeclared(ctx context.Context, l Lease, call contracts.HostCal
 	if !granted {
 		return nil, contracts.NewError(contracts.PermissionDenied)
 	}
+	for _, extra := range b.RequiredScopes(call.Method) {
+		found := false
+		for _, p := range manifest.Permissions {
+			if p.Scope == extra {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, contracts.NewError(contracts.PermissionDenied)
+		}
+		var granted bool
+		if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM plugin_v2_grants WHERE instance_id=$1 AND scope=$2 AND fingerprint=$3)`, l.ID, extra, l.Fingerprint).Scan(&granted); e != nil {
+			return nil, e
+		}
+		if !granted {
+			return nil, contracts.NewError(contracts.PermissionDenied)
+		}
+	}
 	if _, ok := b.Lookup(call.Method); ok {
 		if !validBusinessResources(permit) {
 			return nil, contracts.NewError(contracts.Unsupported)

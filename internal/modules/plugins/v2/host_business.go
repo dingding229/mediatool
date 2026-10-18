@@ -37,7 +37,17 @@ func (s Store) business(ctx context.Context, l Lease, call contracts.HostCall, p
 	if s.Business == nil {
 		return nil, contracts.NewError(contracts.Unavailable)
 	}
-	guard := func(c context.Context, tx pgx.Tx) error { return fenceHost(c, tx, l, p.Scope) }
+	guard := func(c context.Context, tx pgx.Tx) error {
+		if e := fenceHost(c, tx, l, p.Scope); e != nil {
+			return e
+		}
+		for _, extra := range b.RequiredScopes(call.Method) {
+			if e := fenceHost(c, tx, l, extra); e != nil {
+				return e
+			}
+		}
+		return nil
+	}
 	admit := func() error {
 		tx, e := s.DB.Begin(ctx)
 		if e != nil {
@@ -223,10 +233,12 @@ func validBusinessResources(p contracts.Permission) bool {
 			allowed = strings.HasPrefix(p.Scope, "downloads.")
 		case "libraryIds":
 			allowed = p.Scope == "mediaserver.read" || p.Scope == "mediaserver.refresh"
+		case "settingKeys":
+			allowed = p.Scope == "settings.read" || p.Scope == "settings.write"
 		case "rootIds", "storageIds":
 			allowed = strings.HasPrefix(p.Scope, "fs.media:") || strings.HasPrefix(p.Scope, "storage.")
 		case "hosts":
-			allowed = p.Scope == "sites.request"
+			allowed = p.Scope == "sites.request" || p.Scope == "network.proxy.use"
 		}
 		if !allowed || len(values) == 0 || len(values) > 64 {
 			return false

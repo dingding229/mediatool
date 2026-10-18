@@ -779,16 +779,142 @@
       "scope": "metadata.refresh",
       "level": "W",
       "supported": true
+    },
+    {
+      "name": "integrations.list",
+      "scope": "integrations.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "integrations.status",
+      "scope": "integrations.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "integrations.test",
+      "scope": "integrations.read",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "settings.get",
+      "scope": "settings.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "settings.patch",
+      "scope": "settings.write",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "cache.status",
+      "scope": "cache.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "cache.list",
+      "scope": "cache.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "cache.invalidate",
+      "scope": "cache.invalidate",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "jobs.list",
+      "scope": "jobs.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "jobs.get",
+      "scope": "jobs.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "jobs.cancel",
+      "scope": "jobs.cancel",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "system.info",
+      "scope": "system.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "system.health",
+      "scope": "system.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "system.modules",
+      "scope": "system.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "maintenance.health",
+      "scope": "maintenance.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "maintenance.alerts",
+      "scope": "maintenance.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "notifications.publish",
+      "scope": "notifications.send",
+      "level": "W",
+      "supported": true
+    },
+    {
+      "name": "notifications.deliveries",
+      "scope": "notifications.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "notifications.retry",
+      "scope": "notifications.retry",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "networkproxy.status",
+      "scope": "integrations.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "network.http",
+      "scope": "network.proxy.use",
+      "level": "D",
+      "supported": true
     }
   ],
-  "pin": "v0.0.0-20261018062042-8714ac29b072",
+  "pin": "v0.0.0-20261018075408-7f2de27356c5",
   "contractVersion": 2,
   "manifests": [
     {
       "contractVersion": 2,
       "id": "hello-go",
       "name": "Hello Go",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "author": "Example Author",
       "description": "实例隔离与持久计数示例",
       "level": 1,
@@ -798,7 +924,8 @@
         "1.1.0": "Typed bindings, authenticated APIs, durable service and transfer event example",
         "1.1.1": "Demonstrate POST admin API for CSRF contract",
         "1.1.2": "Declare minimal per-route Host execution scopes",
-        "1.2.0": "Chain/module hooks, DownloadAdded, JSON forms, multi dashboards and bundled ESM"
+        "1.2.0": "Chain/module hooks, DownloadAdded, JSON forms, multi dashboards and bundled ESM",
+        "1.3.0": "Manual F3 read-only host acceptance and denied-scope check"
       },
       "permissions": [
         {
@@ -851,6 +978,36 @@
         },
         {
           "scope": "ui.sidebar"
+        },
+        {
+          "scope": "downloads.read"
+        },
+        {
+          "scope": "library.read"
+        },
+        {
+          "scope": "mediaserver.read"
+        },
+        {
+          "scope": "cache.read"
+        },
+        {
+          "scope": "integrations.read"
+        },
+        {
+          "scope": "jobs.read"
+        },
+        {
+          "scope": "maintenance.read"
+        },
+        {
+          "scope": "notifications.read"
+        },
+        {
+          "scope": "settings.read"
+        },
+        {
+          "scope": "system.read"
         }
       ],
       "extensions": {
@@ -931,7 +1088,8 @@
           "metadata.name_recognize"
         ],
         "actions": [
-          "hello"
+          "hello",
+          "f3-read-check"
         ]
       },
       "ui": {
