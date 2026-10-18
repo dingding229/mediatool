@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/outbox"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -236,7 +239,12 @@ func (r Repository) Save(ctx context.Context, id string, in Input) (Record, erro
 	if err != nil {
 		return Record{}, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if in.Kind == "ptsite" {
+		if err = outbox.EmitVersionTx(ctx, tx, "site.account.updated", id, strconv.FormatInt(saved.Record.Revision, 10), contracts.SiteAccountChanged{AccountID: id, Revision: saved.Record.Revision, Enabled: saved.Record.Enabled}); err != nil {
+			return Record{}, err
+		}
+	}
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return Record{}, ErrUnavailable
 	}
 	return saved.Record, nil
@@ -247,6 +255,13 @@ func (r Repository) Delete(ctx context.Context, id string) error {
 		return ErrUnavailable
 	}
 	defer deferutil.Rollback(ctx, tx)
+	var kind string
+	var revision int64
+	if err = tx.QueryRow(ctx, `SELECT kind,revision FROM integrations WHERE id=$1 FOR UPDATE`, id).Scan(&kind, &revision); errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return ErrUnavailable
+	}
 	tag, err := tx.Exec(ctx, `DELETE FROM integrations WHERE id=$1`, id)
 	if err != nil {
 		return ErrUnavailable
@@ -258,7 +273,12 @@ func (r Repository) Delete(ctx context.Context, id string) error {
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','integration.delete',$1)`, audit); err != nil {
 		return ErrUnavailable
 	}
-	return tx.Commit(ctx)
+	if kind == "ptsite" {
+		if err = outbox.EmitVersionTx(ctx, tx, "site.account.deleted", id, strconv.FormatInt(revision+1, 10), contracts.SiteAccountChanged{AccountID: id, Revision: revision + 1}); err != nil {
+			return err
+		}
+	}
+	return dbutil.Commit(ctx, tx)
 }
 func (r Repository) RecordCheck(ctx context.Context, id string, revision int64, state, message string) error {
 	_, err := dbutil.Exec(ctx, r.DB, `UPDATE integrations SET last_check_state=$3,last_check_message=$4,last_checked_at=$5 WHERE id=$1 AND revision=$2`, id, revision, state, message, time.Now())

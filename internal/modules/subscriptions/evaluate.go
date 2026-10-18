@@ -243,105 +243,113 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		return candidates[i].Seeders > candidates[j].Seeders
 	})
 	acquirer := acquisition.Engine{DB: e.DB, Connections: e.Connections, Search: searcher}
-	for _, resource := range candidates {
-		if ctx.Err() != nil {
-			return ctx.Err()
+	// Each frozen window is bounded to 200; hooks may reorder/filter within it.
+	for start := 0; start < len(candidates); start += 200 {
+		prepared, selected, prepareErr := searcher.PrepareSelection(ctx, searchRunID, candidates[start:min(start+200, len(candidates))])
+		if prepareErr != nil {
+			return prepareErr
 		}
-		if err = e.validateEvaluation(ctx, record, run); err != nil {
-			return err
-		}
-		if err = searcher.ValidateRunResource(ctx, searchRunID, resource.ID); err != nil {
-			if snapshotRequiresRefresh(err) {
-				return e.needsRefresh(ctx, run.ID)
+		ctx = prepared // Retain selection fences even when this window is entirely filtered out.
+		for _, resource := range selected {
+			if ctx.Err() != nil {
+				return ctx.Err()
 			}
-			return err
-		}
-		var oldAction string
-		if e.DB.QueryRow(ctx, `SELECT action FROM subscription_decisions WHERE run_id=$1 AND resource_id=$2`, run.ID, resource.ID).Scan(&oldAction) == nil {
-			continue
-		}
-		action := "skipped"
-		matched, reasons, checks := subscriptionpolicy.Evaluate(resource, record.Media, record.Rules)
-		episodes := []int{}
-		hash := ""
-		taskID := ""
-		if matched && record.Media.MediaType == "movie" && movieCovered {
-			matched = false
-			reasons = append(reasons, "媒体已入库或有未完成下载，不创建重复任务")
-		}
-		if matched {
-			torrent, err := searcher.TorrentFromRun(ctx, searchRunID, resource.ID)
-			if err != nil {
+			if err = e.validateEvaluation(ctx, record, run); err != nil {
+				return err
+			}
+			if err = searcher.ValidateRunResource(ctx, searchRunID, resource.ID); err != nil {
 				if snapshotRequiresRefresh(err) {
 					return e.needsRefresh(ctx, run.ID)
 				}
-				matched = false
-				reasons = append(reasons, "种子预检失败，未提交下载器")
-			} else {
-				meta, err := downloads.ParseTorrent(torrent)
-				if err != nil {
-					matched = false
-					reasons = append(reasons, "种子格式或文件列表不支持，需人工确认")
-				} else {
-					hash = meta.InfoHash
-					if record.Media.MediaType == "series" {
-						names := []string{}
-						for _, file := range meta.Files {
-							names = append(names, file.Name)
-						}
-						episodes, err = ManifestCoverage(names, record.Rules.Season)
-						if err != nil {
-							matched = false
-							action = "needs_confirmation"
-							reasons = append(reasons, err.Error())
-						} else {
-							missing := 0
-							for _, ep := range episodes {
-								if target[ep] && !covered[ep] {
-									missing++
-								}
-							}
-							if missing == 0 {
-								matched = false
-								reasons = append(reasons, "未覆盖当前缺集，或季集已在库/下载中")
-							}
-						}
-					}
-				}
+				return err
 			}
-		}
-		if matched {
-			if run.Preview {
-				action = "would_download"
-				reasons = append(reasons, "规则和种子预检通过；仅预演，不创建下载任务")
-			} else {
-				var season *int
-				if record.Media.MediaType == "series" {
-					season = &record.Rules.Season
-				}
-				taskID, err = acquirer.StartExpectedFromRun(ctx, searchRunID, resource.ID, record.Media.MediaType, record.Media.ID, hash, season, episodes, run.ID, record.Revision)
+			var oldAction string
+			if e.DB.QueryRow(ctx, `SELECT action FROM subscription_decisions WHERE run_id=$1 AND resource_id=$2`, run.ID, resource.ID).Scan(&oldAction) == nil {
+				continue
+			}
+			action := "skipped"
+			matched, reasons, checks := subscriptionpolicy.Evaluate(resource, record.Media, record.Rules)
+			episodes := []int{}
+			hash := ""
+			taskID := ""
+			if matched && record.Media.MediaType == "movie" && movieCovered {
+				matched = false
+				reasons = append(reasons, "媒体已入库或有未完成下载，不创建重复任务")
+			}
+			if matched {
+				torrent, err := searcher.TorrentFromRun(ctx, searchRunID, resource.ID)
 				if err != nil {
 					if snapshotRequiresRefresh(err) {
 						return e.needsRefresh(ctx, run.ID)
 					}
-					action = "download_failed"
-					reasons = append(reasons, "下载任务创建失败，请检查下载器、目录和媒体配置")
+					matched = false
+					reasons = append(reasons, "种子预检失败，未提交下载器")
 				} else {
-					action = "download_queued"
-					reasons = append(reasons, "匹配缺集/媒体，已提交持久化下载任务")
+					meta, err := downloads.ParseTorrent(torrent)
+					if err != nil {
+						matched = false
+						reasons = append(reasons, "种子格式或文件列表不支持，需人工确认")
+					} else {
+						hash = meta.InfoHash
+						if record.Media.MediaType == "series" {
+							names := []string{}
+							for _, file := range meta.Files {
+								names = append(names, file.Name)
+							}
+							episodes, err = ManifestCoverage(names, record.Rules.Season)
+							if err != nil {
+								matched = false
+								action = "needs_confirmation"
+								reasons = append(reasons, err.Error())
+							} else {
+								missing := 0
+								for _, ep := range episodes {
+									if target[ep] && !covered[ep] {
+										missing++
+									}
+								}
+								if missing == 0 {
+									matched = false
+									reasons = append(reasons, "未覆盖当前缺集，或季集已在库/下载中")
+								}
+							}
+						}
+					}
 				}
 			}
-			if (run.Preview || action == "download_queued") && record.Media.MediaType == "movie" {
-				movieCovered = true
-			} else if run.Preview || action == "download_queued" {
-				for _, ep := range episodes {
-					covered[ep] = true
+			if matched {
+				if run.Preview {
+					action = "would_download"
+					reasons = append(reasons, "规则和种子预检通过；仅预演，不创建下载任务")
+				} else {
+					var season *int
+					if record.Media.MediaType == "series" {
+						season = &record.Rules.Season
+					}
+					taskID, err = acquirer.StartExpectedFromRun(ctx, searchRunID, resource.ID, record.Media.MediaType, record.Media.ID, hash, season, episodes, run.ID, record.Revision)
+					if err != nil {
+						if snapshotRequiresRefresh(err) {
+							return e.needsRefresh(ctx, run.ID)
+						}
+						action = "download_failed"
+						reasons = append(reasons, "下载任务创建失败，请检查下载器、目录和媒体配置")
+					} else {
+						action = "download_queued"
+						reasons = append(reasons, "匹配缺集/媒体，已提交持久化下载任务")
+					}
+				}
+				if (run.Preview || action == "download_queued") && record.Media.MediaType == "movie" {
+					movieCovered = true
+				} else if run.Preview || action == "download_queued" {
+					for _, ep := range episodes {
+						covered[ep] = true
+					}
 				}
 			}
-		}
-		trace.Info(ctx, "subscriptions", "订阅资源决策", "subscriptionId", record.ID, "subscriptionRunId", run.ID, "resourceId", resource.ID, "title", resource.Title, "action", action, "reasons", reasons, "checks", checks, "preview", run.Preview)
-		if err = e.decision(ctx, run.ID, resource, action, reasons, episodes, taskID, checks); err != nil {
-			return err
+			trace.Info(ctx, "subscriptions", "订阅资源决策", "subscriptionId", record.ID, "subscriptionRunId", run.ID, "resourceId", resource.ID, "title", resource.Title, "action", action, "reasons", reasons, "checks", checks, "preview", run.Preview)
+			if err = e.decision(ctx, run.ID, resource, action, reasons, episodes, taskID, checks); err != nil {
+				return err
+			}
 		}
 	}
 	tx, err := e.DB.Begin(ctx)
@@ -396,7 +404,7 @@ func (e Engine) decision(ctx context.Context, runID string, resource search.Reso
 		task = taskID
 	}
 	checkRaw, _ := json.Marshal(checks)
-	_, err := e.DB.Exec(ctx, `INSERT INTO subscription_decisions(id,run_id,resource_id,title,action,reasons,covered_episodes,download_task_id,rule_checks)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)ON CONFLICT(run_id,resource_id)DO NOTHING`, jobs.UUID(), runID, resource.ID, resource.Title, action, raw, coverage, task, checkRaw)
+	_, err := dbutil.Exec(ctx, e.DB, `INSERT INTO subscription_decisions(id,run_id,resource_id,title,action,reasons,covered_episodes,download_task_id,rule_checks)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)ON CONFLICT(run_id,resource_id)DO NOTHING`, jobs.UUID(), runID, resource.ID, resource.Title, action, raw, coverage, task, checkRaw)
 	return err
 }
 func (e Engine) coverage(ctx context.Context, record Record) (map[int]bool, bool, error) {

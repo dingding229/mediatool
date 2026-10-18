@@ -43,3 +43,20 @@ func TestOptionalEffectGuardPreservesCancellationAndContextIsolation(t *testing.
 		t.Fatal("cancellation bypassed")
 	}
 }
+
+func TestCommitGuardsComposeRatherThanReplacingHostAuthority(t *testing.T) {
+	ctx := context.Background()
+	order := []int{}
+	for _, i := range []int{1, 2, 3} {
+		ctx = WithCommitGuard(ctx, func(context.Context, pgx.Tx) error { order = append(order, i); return nil })
+	}
+	if e := CheckCommit(ctx, nil); e != nil || len(order) != 3 || order[0] != 1 || order[2] != 3 {
+		t.Fatal(order, e)
+	}
+	denied := errors.New("parent host revoked")
+	ctx = WithCommitGuard(context.Background(), func(context.Context, pgx.Tx) error { return denied })
+	ctx = WithCommitGuard(ctx, func(context.Context, pgx.Tx) error { t.Fatal("later guard bypassed parent"); return nil })
+	if !errors.Is(CheckCommit(ctx, nil), denied) {
+		t.Fatal("parent fence lost")
+	}
+}

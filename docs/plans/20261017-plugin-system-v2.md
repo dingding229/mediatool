@@ -704,9 +704,9 @@ type ActionProvider interface { GetActions(context.Context) ([]Action, error) }
 | `PluginAction` (`plugin.action`) | plugin.action.invoked | 拟新增 `plugins/extensions.ActionDispatcher.Invoke` | F2单动作/F4-0工作流；目标实例限定 |
 | `PluginTriggered` (`plugin.triggered`) | plugin.custom.triggered | 拟新增 `plugins/events.PublishCustom` | F2；只插件自定义命名空间 |
 | `CommandExcute` (`command.excute`) | command.executed | 拟新增 `messaging/commands.go:CommandIngress.Dispatch` | F2；保留上游拼写对照，host事件采用规范命名 |
-| `SiteDeleted` (`site.deleted`) | site.account.deleted | `integrations/repository.go:Repository.Delete`，kind=ptsite提交后 | F4-A；模板定义删除不冒充账号删除 |
-| `SiteUpdated` (`site.updated`) | site.account.updated | `integrations/repository.go:Repository.Save`，ptsite安全字段diff | F4-A；无Cookie/passkey |
-| `SiteRefreshed` (`site.refreshed`) | site.metrics.refreshed | `sitemetrics/collector.go:Engine.Collect` + `storage.go:Engine.Save` | F4-A；指标成功持久后 |
+| `SiteDeleted` (`site.deleted`) | site.account.deleted | `integrations/repository.go:Repository.Delete`，kind=ptsite提交后 | F4-A 已接线；模板定义删除不冒充账号删除 |
+| `SiteUpdated` (`site.updated`) | site.account.updated | `integrations/repository.go:Repository.Save`，ptsite安全字段diff | F4-A 已接线；无Cookie/passkey |
+| `SiteRefreshed` (`site.refreshed`) | site.metrics.refreshed | `sitemetrics/collector.go:Engine.Collect` + `storage.go:Engine.Save` | F4-A 已接线；指标成功持久后 |
 | `TransferComplete` (`transfer.complete`) | library.organized | `acquisition/transfers.go:Engine.ImportFile`，`library/journal.go:Engine.FinalizeRecovered` | F2；现有media.imported桥；只STRM/托管输出发布，不宣称复制整个影片 |
 | `TransferFailed` (`transfer.failed`) | library.organize.failed | `acquisition/transfers.go:Engine.Transfer`、`library/journal.go:Journal.Apply`终态 | F4-B；不把可恢复中间态误当永久失败 |
 | `SubtitleTransferComplete` (`transfer.subtitle.complete`) | library.subtitles.copied | `library/artifacts.go:CopySubtitlesOutputsVerified`成功结果由上层commit发出 | F4-B；仅实际发生字幕复制时，不宣称cloud_files已索引外挂字幕 |
@@ -720,9 +720,9 @@ type ActionProvider interface { GetActions(context.Context) ([]Action, error) }
 | `UserMessage` (`user.message`) | messaging.inbound | 拟新增 `messaging/commands.go:CommandIngress.Receive` | F2仅注册/已有入站接线；若新增bot轮询则F4，鉴权后默认只选定渠道/发送者 |
 | `WebhookMessage` (`webhook.message`) | plugin.webhook.received | 拟新增 `httpapi/plugin_v2_routes.go:pluginRoute`，已注册webhook route通过鉴权后 | F2；不是任意共享无认证入口 |
 | `NoticeMessage` (`notice.message`) | notification.queued | `messaging/dispatcher.go:Dispatcher.Prepare`；拟新增NotificationService.Send的提交点 | F4-D；queued不等于已送达，可另有delivered事件 |
-| `SubscribeAdded` (`subscribe.added`) | subscription.created | `subscriptions/repository.go:Engine.Save`，新建成功提交 | F4-A |
-| `SubscribeModified` (`subscribe.modified`) | subscription.updated | `subscriptions/repository.go:Engine.Save`，已有revision变化提交 | F4-A |
-| `SubscribeDeleted` (`subscribe.deleted`) | subscription.deleted | `subscriptions/repository.go:Engine.Delete`提交 | F4-A |
+| `SubscribeAdded` (`subscribe.added`) | subscription.created | `subscriptions/repository.go:Engine.Save`，新建成功提交 | F4-A 已接线 |
+| `SubscribeModified` (`subscribe.modified`) | subscription.updated | `subscriptions/repository.go:Engine.Save`，已有revision变化提交 | F4-A 已接线 |
+| `SubscribeDeleted` (`subscribe.deleted`) | subscription.deleted | `subscriptions/repository.go:Engine.Delete`提交 | F4-A 已接线 |
 | `SubscribeComplete` (`subscribe.complete`) | subscription.coverage.completed | 拟新增 `subscriptions/completion.go:CoverageObserver.Observe`；读TMDB清单+可暴露资产 | F4-C；不是completeCollection，unknown不发完成，观测存插件专属表 |
 | `SystemError` (`system.error`) | system.operation.failed | `jobs/worker.go:Worker.Run`终态错误与拟新增安全错误总线 | F4-D；聚合/节流，排除plugin日志递归，原始异常不扩散 |
 | `MetadataScrape` (`metadata.scrape`) | metadata.scraped | `library/scraping.go:Engine.EnrichScraping` + `PersistScrapeReport`提交；`nativetmdb/engine.go:Engine.Process`成功 | F4-C；不在浏览热路径现场刮削 |
@@ -745,8 +745,8 @@ type ActionProvider interface { GetActions(context.Context) ([]Action, error) }
 | `TransferRenameBuild` (`transfer.rename.build`) | 对typed模板输入给出建议 | `library/template_outputs.go:ApplyOutputTemplates`上层的拟新增prepare service | F4-B；现helper接tx，不在其内部调用worker |
 | `TransferIntercept` (`transfer.intercept`) | 可拒绝该整理计划/说明原因 | `library/confirm.go:Engine.Confirm`、`filemanager/batch.go:Engine.ApproveBatch`进入写事务前 | F4-B；不能放行核心不允许的操作 |
 | `TransferOverwriteCheck` (`transfer.overwrite.check`) | 可建议跳过/拒绝，不可放行越权覆盖 | `library/output_layout_guard.go:CheckOutputLayout`上层prepare | F4-B；宿主最后保护检查永远保留 |
-| `ResourceSelection` (`resource.selection`) | 对候选ID排序/有界筛选 | `subscriptions/evaluate.go:Engine.Run`、`search/filters.go:Engine.GetFiltered`上层 | F4-A；只可选原始合法候选，不能构造未知下载源 |
-| `ResourceDownload` (`resource.download`) | 调整允许的下载选项/拒绝 | `acquisition/downloads.go:Engine.StartExpectedFromRun`、`manualdownloads/tasks.go:Engine.Create`准备阶段 | F4-A；HR/来源快照/所有权仍由内置服务强制 |
+| `ResourceSelection` (`resource.selection`) | 对候选ID排序/有界筛选 | `subscriptions/evaluate.go:Engine.Run`、`search/filters.go:Engine.GetFiltered`上层 | F4-A 已接线；只可选原始合法候选，不能构造未知下载源 |
+| `ResourceDownload` (`resource.download`) | 调整允许的下载选项/拒绝 | `acquisition/downloads.go:Engine.StartExpectedFromRun`、`manualdownloads/tasks.go:Engine.Create`准备阶段 | F4-A 已接线；HR/来源快照/所有权仍由内置服务强制 |
 | `DiscoverSource` (`discover.source`) | 附加Provider的typed发现候选 | `catalog/home.go:Engine.Home`上层拟新增SourceRegistry、`metadata`搜索门面 | F4-C；后台缓存/分页，不在客户端首页同步等待所有worker |
 | `MediaRecognizeConvert` (`media.recognize.convert`) | 合法媒体候选转换建议 | `library/recognition.go:Engine.Recognize`、`confirm.go:Engine.Suggest` | F4-C；TMDB类型/id组合校验 |
 | `RecommendSource` (`recommend.source`) | 附加推荐Provider | `catalog/home.go:Engine.Home`上层SourceRegistry | F4-C；当前只有媒体库首页，需新adapter，不假装已有推荐引擎 |
@@ -771,8 +771,8 @@ F1把本表导出为纯contract枚举与coverage fixture；F2/F4用一份 `testd
 | `metadata.name_recognize` / `module.metadata.name_recognize` | 输入文件名+安全解析上下文→Hint；`workbench.parseReleaseName`/`library.Engine.Recognize` | 纯读，默认200ms，总2s；非法结果/超时回内置Parse | F2 |
 | `metadata.identify` / `module.metadata.identify` | 规范媒体候选→metadata.Item；`library.Engine.Recognize/Suggest` | 纯读，2s；TMDB身份/类型/范围重校验 | F4-C |
 | `notifications.channel` / `module.notifications.channel` | 已授权通知→DeliveryReceipt；`messaging.Dispatcher.Deliver`的Provider adapter | 后台10s；可证明未发送才回内置，发送结果未知不重复发送 | F4-D |
-| `downloads.provider` / `module.downloads.provider` | Probe/List/Inspect/Add/Pause/Delete的typed downloader合同；Manager.QB调用点上层 | 读15s/写30s后台job；不能用插件假结果绕过delete-owned/HR；未知写入不自动换provider重试 | F4-A |
-| `sites.search` / `module.sites.search` | 已选account+query→SearchPage；`search.Engine.Process`/`sites.Client.SearchAll`上层 | 后台30s，并行提供者上限4；失败只该provider失败，可用内置同账户搜索安全回落 | F4-A |
+| `downloads.provider` / `module.downloads.provider` | Probe/List/Inspect/Add/Pause/Delete的typed downloader合同；Manager.QB调用点上层 | 读15s/写30s后台job；不能用插件假结果绕过delete-owned/HR；未知写入不自动换provider重试 | F4-A 已接线 |
+| `sites.search` / `module.sites.search` | 已选account+query→SearchPage；`search.Engine.Process`/`sites.Client.SearchAll`上层 | 后台30s，并行提供者上限4；失败只该provider失败，可用内置同账户搜索安全回落 | F4-A 已接线 |
 | `mediaserver.refresh` / `module.mediaserver.refresh` | provider/library/asset→RefreshReceipt；`library.Engine.Refresh`/`acquisition.Engine.RefreshEmby` | 后台30s；requestId幂等，未知结果需核对，不能多次扫库 | F4-D |
 | `library.output_plan` / `module.library.output_plan` | typed metadata→相对输出计划；`ApplyOutputTemplates`上层prepare | 纯读2s，roots/重复/owner/文件指纹验证，核心WriteAtomic/Journal不能覆盖 | F4-B |
 | `storage.selector` / `module.storage.selector` | 已批准candidate handles→selected handle；`filemanager.Engine.Preview`上层 | 纯读200ms；不返回connection对象 | F4-B |
@@ -1692,3 +1692,49 @@ SDK 测试推送→主程序精确 pin→全部门禁与 Actions→Hub 不可变
 - 本地 E2E109 passed/1 Linux-only skipped（2.7min）；原生AMD64真实worker/媒体/浏览器门禁保留CI必跑。
 - 逐RPC成功/缺scope/撤权/unsupported，HTTP双scope缺失及在途撤权、秘密哨兵、owner、unknown
   重试、namespace与settings allowlist 负向测试均通过。无新增schema、依赖/数据库扩展。
+
+
+## F4-A 获取链事件接线（2026-10-18，本组不部署）
+
+- 插件 pin：`674e933576165144244d53b59cdb4cd1674b7fea`，hello-go 1.4.0。
+  SDK 的 contractVersion 仍为 2；扩展权限增加，已安装实例由现有刷新机制停用等待重新确认。
+- 六个广播：site.account.updated/deleted、site.metrics.refreshed、subscription.created/updated/deleted。
+  `integrations.Repository.Save/Delete`、`sitemetrics.Engine.Save`、`subscriptions.Engine.Save/Delete`
+  与业务修改在同一事务写入 outbox，只有提交后 bridge 可见。版本化 fact ID 由事件类型、业务 ID、
+  revision/采集起点摘要决定，重复事实不重复投递，同一账号的后续修改/采集不会永久去重吞掉。
+  站点指标仅最新成功持久化发事件，失败、过期、重复轮次均不冒充成功；成功的 partial 明确标 partial。
+- DTO 只含 opaque ID、revision、enabled/state、采集时刻、媒体类型/TMDB ID；不含标题、Cookie、passkey、
+  request headers、认证 URL、下载 hint、代理地址。bridge 再白名单投影，不转发整条 outbox payload。
+- 两条同步策略链：优先级稳定排序，最多 8 handler，每 handler 200ms、整链 2s；worker 不在、缺权限、
+  超时、错误、非法结果均记录固定原因并回落内置结果。只携带 chain scope 的 Host 执行上限，不能调用下载/文件写能力。
+- `resource.selection`：`search.Engine.GetFiltered` 的已过滤当前页，以及 `subscriptions.Engine.Process`
+  内置排序后的冻结候选窗口（≤200）调用 `PrepareSelection`。只可重排/删除原窗口 ID，不跨窗口重排，
+  不修改资源对象、源快照或下载提示；Total 仍表示内置过滤总数（不是插件可选择总数）。
+  订阅完整评估及每个实际下载/决策提交保留 prepare 的授权 fence；HTTP 查询返回前也检查 fence。
+- `resource.download`：`acquisition.Engine.startExpected`（所有 Start* 共用）和 `manualdownloads.Engine.Create`
+  在开启业务写事务之前调用；只允许拒绝或把 cleanupAfterImport 从 true 降到 false，不能启用清理。
+  手动任务无 post-import 清理选项；不开放保存路径、种子来源、HR、身份、哈希、所有权或认证覆盖。
+  重取事务后核对下载器 revision/enable，既有来源快照、订阅 revision、HR 和所有权保护继续强制执行。
+- prepare 返回宿主 context 的叠加 commit guard，与原 Host 写授权 guard 共存；无 RPC 跨业务事务。
+  fence 校验 scope、generation、grant_revision、lease、descriptor snapshot 和定义指纹，撤权/换代后
+  已准备的写事务必须回滚，不能把旧策略结果应用于新授权。被阻塞的 Host 调用不回调同一实例的单 lane。
+- hello-go 新订阅以事件 UUID 写本实例 KV 并幂等去重；两条链默认 no-op，不对业务来源发网络请求。
+  `resourceReverse`/`resourceReject`/`resourceNoCleanup` 是可选的收窄演示，`resourceDelay` 用于测试超时降级。
+- 覆盖清单：`testdata/contracts/plugin-v2-f4a-event-map.json`；真实 linux/amd64 同 binary worker
+  用例 `TestRealSameBinaryAcquisitionEventsAndResourceChains` 验证六事件→KV、两条链实际成功、停用收割。
+  本机 macOS 的该 Linux 用例按平台跳过，不以本机替代 Actions 原生 AMD64 证据。
+- 无新增 migration/DB extension/依赖；Schema 仍 63。本组没有 F4-A 的 unsupported 项；F4-B/C/D/0
+  事件仍按原映射留待后续任务，不以可注册枚举冒充业务已接通。未访问/部署生产。
+
+### F4-A 本地门禁记录
+
+- 插件仓库 build/vet/test 与 `go test -race -p 1 -count=3 ./...` 均通过；Actions
+  `39118861057` 全绿（包含真实 Go stdio golden）。
+- 主程序全仓 `MEDIA_TOOL_REQUIRE_FFMPEG=1 bash scripts/test-go.sh` 已串行执行完，77 包通过、
+  960 个顶层用例通过，迁移包 348s（含 Up→Down→Up）。仅 HTTP SPA 重载用例失败：首轮在前端
+  构建前编译到了没有 index.html 的 embed，返回约定的 503。完成 Vue 构建后，整个 httpapi 包
+  race 重跑通过；没有改断言/安全限制/生产逻辑。最终 plugins/v2 + subscriptions 亦重新串行 race 通过。
+- Vue 单测 35 文件/118 用例；vue-tsc+Vite build 通过；E2E 109 PASS、1 个 Linux 专属用例按平台
+  SKIP（原生 CI 必须执行）。Python 30 项；全包 vet、errcheck、pin 初始化/资源清单门禁通过。
+- DB 变更型测试全部经共享 test-lock 串行，仅 media_tool_test 与 Redis DB15；没有连接生产。
+  主程序 Actions 的全仓/原生 AMD64 新用例结果以本组提交对应 run 为准，最终汇报提供链接。

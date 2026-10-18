@@ -233,3 +233,14 @@ scope、危险级别和限制见设计文档 F3-D 表。settings 仅4个 allowli
 HTTP 固定 host 代理 profile，精确 public origin，network 与 network.proxy.use 都实时要求，
 不返回正文/响应头/代理秘密、不跟随跳转。maintenance 无备份恢复/发布能力，system 无进程/环境。
 hello-go 1.3 的手动 F3 只读验收把 boolean 结果写入自身 KV；扩权须管理员重新确认。
+
+
+### F4-A：获取链策略与提交事实
+
+六种账号/指标/订阅事实只在事务提交后进入独立游标的事件 journal；投递前与执行时均实时检查
+`events.subscribe.<type>` 授权。SDK typed payload 位于 `sdk/contracts/acquisition.go`。
+`events.chain.resource.selection` 只重排/筛选已过滤的 ≤200 个 ID 窗口；
+`events.chain.resource.download` 只能拒绝或关闭 post-import 清理，不能提供 URL、路径或绕过 HR/源快照。
+两者均 prepare→200ms handler / 2s 整链→schema 校验→提交 fence，不在写事务中等 RPC。
+降级仅用于纯策略结果，绝不执行插件外部下载后再重放内置写操作。hello-go 1.4.0 默认 no-op。
+本组新增 scope 需重新确认；没有变更 STRM/302、媒体认证、下载来源/所有权保护或生产资源限制。

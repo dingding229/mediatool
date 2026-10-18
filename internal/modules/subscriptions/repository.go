@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/outbox"
 	"media-tool/internal/platform/scheduling"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -86,6 +89,7 @@ func (e Engine) Page(ctx context.Context, start, limit int, query, id string) ([
 	return out, rows.Err()
 }
 func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
+	created := id == ""
 	if in.Source == "" {
 		in.Source = "search"
 	}
@@ -160,6 +164,13 @@ func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
 	}
 	next, _ := scheduling.Next(cronExpression, time.Now(), 5*time.Minute)
 	if _, err = tx.Exec(ctx, `UPDATE subscriptions SET next_run_at=$2 WHERE id=$1`, id, next); err != nil {
+		return Record{}, err
+	}
+	kind, revision := "subscription.updated", in.Revision+1
+	if created {
+		kind, revision = "subscription.created", 1
+	}
+	if err = outbox.EmitVersionTx(ctx, tx, kind, id, strconv.FormatInt(revision, 10), contracts.SubscriptionChanged{SubscriptionID: id, Revision: revision, Enabled: in.Enabled, MediaType: item.MediaType, TMDBID: item.ID}); err != nil {
 		return Record{}, err
 	}
 	if err = dbutil.Commit(ctx, tx); err != nil {
@@ -257,13 +268,14 @@ func (e Engine) Delete(ctx context.Context, id string) error {
 	if active > 0 {
 		return errors.New("subscription evaluation is active; disable and wait before deleting")
 	}
-	tag, err := tx.Exec(ctx, `UPDATE subscriptions SET archived_at=now(),enabled=false,revision=revision+1,updated_at=now() WHERE id=$1 AND archived_at IS NULL`, id)
+	var fact contracts.SubscriptionChanged
+	fact.SubscriptionID = id
+	err = tx.QueryRow(ctx, `UPDATE subscriptions SET archived_at=now(),enabled=false,revision=revision+1,updated_at=now() WHERE id=$1 AND archived_at IS NULL RETURNING revision,media_type,(identity->>'id')::int`, id).Scan(&fact.Revision, &fact.MediaType, &fact.TMDBID)
 	if err != nil {
 		return err
 	}
-	if tag.RowsAffected() != 1 {
-		return errors.New("订阅不存在或已归档")
+	if err = outbox.EmitVersionTx(ctx, tx, "subscription.deleted", id, strconv.FormatInt(fact.Revision, 10), fact); err != nil {
+		return err
 	}
-
 	return dbutil.Commit(ctx, tx)
 }

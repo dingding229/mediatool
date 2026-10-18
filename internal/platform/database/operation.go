@@ -15,6 +15,16 @@ type CommitGuard func(context.Context, pgx.Tx) error
 // It never holds an authorization lock over network I/O. Built-in callers retain
 // their original behavior; a plugin cannot construct this context on the wire.
 func WithCommitGuard(ctx context.Context, guard CommitGuard) context.Context {
+	previous, _ := ctx.Value(commitGuardKey{}).(CommitGuard)
+	if previous != nil {
+		next := guard
+		guard = func(c context.Context, tx pgx.Tx) error {
+			if err := previous(c, tx); err != nil {
+				return err
+			}
+			return next(c, tx)
+		}
+	}
 	return context.WithValue(ctx, commitGuardKey{}, guard)
 }
 func CheckCommit(ctx context.Context, tx pgx.Tx) error {
@@ -60,4 +70,18 @@ func Exec(ctx context.Context, db *pgxpool.Pool, sql string, args ...any) (pgcon
 		return tag, err
 	}
 	return tag, Commit(ctx, tx)
+}
+
+// CheckPrepared validates read-only policy results before returning them. Built-in
+// paths without any prepare fence do not acquire a connection or issue SQL.
+func CheckPrepared(ctx context.Context, db *pgxpool.Pool) error {
+	if _, ok := ctx.Value(commitGuardKey{}).(CommitGuard); !ok {
+		return ctx.Err()
+	}
+	tx, e := db.Begin(ctx)
+	if e != nil {
+		return e
+	}
+	defer deferutil.Rollback(ctx, tx)
+	return Commit(ctx, tx)
 }

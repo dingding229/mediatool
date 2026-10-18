@@ -1,0 +1,133 @@
+[
+  {
+    "type": "site.account.updated",
+    "kind": "event",
+    "phase": "F4-A",
+    "state": "implemented",
+    "scope": "events.subscribe.site.account.updated",
+    "producer": [
+      "internal/modules/integrations/repository.go:Repository.Save"
+    ],
+    "schema": "sdk/contracts/acquisition.go:SiteAccountChanged",
+    "tests": [
+      "TestAcquisitionFactsCommitRollbackRedactionAndOccurrences",
+      "TestAcquisitionBridgeCommitRollbackDedupAndLiveScopes",
+      "TestRealSameBinaryAcquisitionEventsAndResourceChains"
+    ]
+  },
+  {
+    "type": "site.account.deleted",
+    "kind": "event",
+    "phase": "F4-A",
+    "state": "implemented",
+    "scope": "events.subscribe.site.account.deleted",
+    "producer": [
+      "internal/modules/integrations/repository.go:Repository.Delete"
+    ],
+    "schema": "sdk/contracts/acquisition.go:SiteAccountChanged",
+    "tests": [
+      "TestAcquisitionFactsCommitRollbackRedactionAndOccurrences",
+      "TestAcquisitionBridgeCommitRollbackDedupAndLiveScopes",
+      "TestRealSameBinaryAcquisitionEventsAndResourceChains"
+    ]
+  },
+  {
+    "type": "site.metrics.refreshed",
+    "kind": "event",
+    "phase": "F4-A",
+    "state": "implemented",
+    "scope": "events.subscribe.site.metrics.refreshed",
+    "producer": [
+      "internal/modules/sitemetrics/storage.go:Engine.Save"
+    ],
+    "schema": "sdk/contracts/acquisition.go:SiteMetricsRefreshed",
+    "tests": [
+      "TestAcquisitionFactsCommitRollbackRedactionAndOccurrences",
+      "TestAcquisitionBridgeCommitRollbackDedupAndLiveScopes",
+      "TestRealSameBinaryAcquisitionEventsAndResourceChains"
+    ]
+  },
+  {
+    "type": "subscription.created",
+    "kind": "event",
+    "phase": "F4-A",
+    "state": "implemented",
+    "scope": "events.subscribe.subscription.created",
+    "producer": [
+      "internal/modules/subscriptions/repository.go:Engine.Save"
+    ],
+    "schema": "sdk/contracts/acquisition.go:SubscriptionChanged",
+    "tests": [
+      "TestAcquisitionFactsCommitRollbackRedactionAndOccurrences",
+      "TestAcquisitionBridgeCommitRollbackDedupAndLiveScopes",
+      "TestRealSameBinaryAcquisitionEventsAndResourceChains"
+    ]
+  },
+  {
+    "type": "subscription.updated",
+    "kind": "event",
+    "phase": "F4-A",
+    "state": "implemented",
+    "scope": "events.subscribe.subscription.updated",
+    "producer": [
+      "internal/modules/subscriptions/repository.go:Engine.Save"
+    ],
+    "schema": "sdk/contracts/acquisition.go:SubscriptionChanged",
+    "tests": [
+      "TestAcquisitionFactsCommitRollbackRedactionAndOccurrences",
+      "TestAcquisitionBridgeCommitRollbackDedupAndLiveScopes",
+      "TestRealSameBinaryAcquisitionEventsAndResourceChains"
+    ]
+  },
+  {
+    "type": "subscription.deleted",
+    "kind": "event",
+    "phase": "F4-A",
+    "state": "implemented",
+    "scope": "events.subscribe.subscription.deleted",
+    "producer": [
+      "internal/modules/subscriptions/repository.go:Engine.Delete"
+    ],
+    "schema": "sdk/contracts/acquisition.go:SubscriptionChanged",
+    "tests": [
+      "TestAcquisitionFactsCommitRollbackRedactionAndOccurrences",
+      "TestAcquisitionBridgeCommitRollbackDedupAndLiveScopes",
+      "TestRealSameBinaryAcquisitionEventsAndResourceChains"
+    ]
+  },
+  {
+    "type": "resource.selection",
+    "kind": "chain",
+    "phase": "F4-A",
+    "state": "implemented",
+    "scope": "events.chain.resource.selection",
+    "producer": [
+      "internal/modules/search/filters.go:Engine.GetFiltered",
+      "internal/modules/subscriptions/evaluate.go:Engine.Process",
+      "internal/modules/search/plugin_selection.go:Engine.PrepareSelection"
+    ],
+    "schema": "sdk/contracts/acquisition.go:ResourceSelectionRequest/ResourceSelectionResult",
+    "tests": [
+      "TestResourcePoliciesNarrowFallbackTimeoutAndCommitFence",
+      "TestResourceNoPluginAndMailboxSchemaValidation",
+      "TestRealSameBinaryAcquisitionEventsAndResourceChains"
+    ]
+  },
+  {
+    "type": "resource.download",
+    "kind": "chain",
+    "phase": "F4-A",
+    "state": "implemented",
+    "scope": "events.chain.resource.download",
+    "producer": [
+      "internal/modules/acquisition/downloads.go:Engine.startExpected",
+      "internal/modules/manualdownloads/tasks.go:Engine.Create"
+    ],
+    "schema": "sdk/contracts/acquisition.go:ResourceDownloadRequest/ResourceDownloadResult",
+    "tests": [
+      "TestResourcePoliciesNarrowFallbackTimeoutAndCommitFence",
+      "TestResourceNoPluginAndMailboxSchemaValidation",
+      "TestRealSameBinaryAcquisitionEventsAndResourceChains"
+    ]
+  }
+]

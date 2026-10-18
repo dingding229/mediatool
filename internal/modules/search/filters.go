@@ -6,6 +6,7 @@ import (
 	"errors"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/releaseattrs"
+	dbutil "media-tool/internal/platform/database"
 	"strings"
 	"unicode/utf8"
 )
@@ -178,5 +179,17 @@ func (e Engine) GetFiltered(ctx context.Context, id string, page, limit int, f F
 		}
 		run.Total++
 	}
-	return run, rows.Err()
+	if err = rows.Err(); err != nil {
+		return run, err
+	}
+	rows.Close() // Never keep a result cursor/connection while invoking worker RPC.
+	prepared, resources, err := e.PrepareSelection(ctx, id, run.Resources)
+	if err != nil {
+		return run, err
+	}
+	if err = dbutil.CheckPrepared(prepared, e.DB); err != nil {
+		return run, err
+	}
+	run.Resources = resources
+	return run, nil
 }

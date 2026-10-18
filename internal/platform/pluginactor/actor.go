@@ -34,3 +34,6 @@ func (a Actor) Allows(id string) bool {
 func (a Actor) Restricted() bool { return len(a.libraries) > 0 }
 
 func (a Actor) InstanceID() string { return a.instance }
+
+// InstanceID exposes only the host-issued identity for recursion avoidance.
+func InstanceID(ctx context.Context) string { a, _ := ctx.Value(key{}).(Actor); return a.instance }

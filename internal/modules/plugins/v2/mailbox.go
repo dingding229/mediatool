@@ -92,6 +92,10 @@ func (s Store) Invoke(ctx context.Context, id, kind, key string, args json.RawMe
 	if e != nil {
 		return nil, e
 	}
+	return s.invokeSnapshot(ctx, snap, d, args, operationKey)
+}
+func (s Store) invokeSnapshot(ctx context.Context, snap Snapshot, d contracts.Descriptor, args json.RawMessage, operationKey string) (json.RawMessage, error) {
+	id := snap.InstanceID
 	if operationKey == "" {
 		operationKey = jobs.UUID()
 	}
@@ -196,8 +200,8 @@ func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *ho
 			}
 		}()
 		var scopeRaw []byte
-		var kind string
-		e = s.DB.QueryRow(bounded, `SELECT d->>'kind',d->'requiredScopes' FROM plugin_v2_runs r JOIN plugin_v2_snapshots s ON s.id=r.snapshot_id,jsonb_array_elements(s.descriptors->'descriptors') d WHERE r.id=$1 AND d->>'handler'=r.handler`, id).Scan(&kind, &scopeRaw)
+		var kind, extensionID string
+		e = s.DB.QueryRow(bounded, `SELECT d->>'kind',d->>'id',d->'requiredScopes' FROM plugin_v2_runs r JOIN plugin_v2_snapshots s ON s.id=r.snapshot_id,jsonb_array_elements(s.descriptors->'descriptors') d WHERE r.id=$1 AND d->>'handler'=r.handler`, id).Scan(&kind, &extensionID, &scopeRaw)
 		if e != nil {
 			cancel()
 			<-watchDone
@@ -230,7 +234,7 @@ func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *ho
 			}
 		} else if len(result) > 128<<10 || contracts.ValidateJSON(result) != nil {
 			state, reason = RunUnknown, RunInvalidResult
-		} else if (kind == "chain" || kind == "module") && !validHookResult(result) {
+		} else if (kind == "chain" || kind == "module") && !validExtensionResult(kind, extensionID, args, result) {
 			state, reason = RunFailed, RunInvalidResult
 		} else {
 			cipher, e = s.seal("call-result", id, result)
@@ -268,4 +272,11 @@ func (s Store) finishCall(ctx context.Context, id, token string, state RunState,
 func validHookResult(raw json.RawMessage) bool {
 	var value contracts.NameRecognition
 	return contracts.Decode(raw, &value) == nil && contracts.ValidateName(value) == nil
+}
+
+func validExtensionResult(kind, id string, args, result json.RawMessage) bool {
+	if kind == "chain" && (id == "resource.selection" || id == "resource.download") {
+		return validAcquisitionResult(id, args, result)
+	}
+	return (kind == "chain" && id == "name.recognize" || kind == "module" && id == "metadata.name_recognize") && validHookResult(result)
 }

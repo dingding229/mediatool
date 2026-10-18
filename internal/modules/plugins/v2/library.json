@@ -907,14 +907,14 @@
       "supported": true
     }
   ],
-  "pin": "v0.0.0-20261018075408-7f2de27356c5",
+  "pin": "v0.0.0-20261018102024-674e93357616",
   "contractVersion": 2,
   "manifests": [
     {
       "contractVersion": 2,
       "id": "hello-go",
       "name": "Hello Go",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "author": "Example Author",
       "description": "实例隔离与持久计数示例",
       "level": 1,
@@ -925,7 +925,8 @@
         "1.1.1": "Demonstrate POST admin API for CSRF contract",
         "1.1.2": "Declare minimal per-route Host execution scopes",
         "1.2.0": "Chain/module hooks, DownloadAdded, JSON forms, multi dashboards and bundled ESM",
-        "1.3.0": "Manual F3 read-only host acceptance and denied-scope check"
+        "1.3.0": "Manual F3 read-only host acceptance and denied-scope check",
+        "1.4.0": "Typed acquisition facts and no-op resource policy chains (F4-A)"
       },
       "permissions": [
         {
@@ -1008,6 +1009,30 @@
         },
         {
           "scope": "system.read"
+        },
+        {
+          "scope": "events.subscribe.site.account.updated"
+        },
+        {
+          "scope": "events.subscribe.site.account.deleted"
+        },
+        {
+          "scope": "events.subscribe.site.metrics.refreshed"
+        },
+        {
+          "scope": "events.subscribe.subscription.created"
+        },
+        {
+          "scope": "events.subscribe.subscription.updated"
+        },
+        {
+          "scope": "events.subscribe.subscription.deleted"
+        },
+        {
+          "scope": "events.chain.resource.selection"
+        },
+        {
+          "scope": "events.chain.resource.download"
         }
       ],
       "extensions": {
@@ -1079,10 +1104,18 @@
         ],
         "events": [
           "library.organized",
-          "download.added"
+          "download.added",
+          "site.account.updated",
+          "site.account.deleted",
+          "site.metrics.refreshed",
+          "subscription.created",
+          "subscription.updated",
+          "subscription.deleted"
         ],
         "chains": [
-          "name.recognize"
+          "name.recognize",
+          "resource.selection",
+          "resource.download"
         ],
         "modules": [
           "metadata.name_recognize"

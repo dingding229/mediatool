@@ -5,10 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"media-tool/internal/adapters/qbittorrent"
 	"media-tool/internal/modules/downloads"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
 	"path"
@@ -60,6 +62,10 @@ func (e Engine) Create(ctx context.Context, s Source) (string, error) {
 		category = "media-tool"
 	}
 	id := jobs.UUID()
+	ctx, _, err = (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).PrepareDownload(ctx, contracts.ResourceDownloadRequest{Kind: "manual", ResourceID: id, DownloaderID: c.Record.ID})
+	if err != nil {
+		return "", err
+	}
 	encrypted, err := e.Connections.Repository.Vault.Seal("manual-download:"+id, map[string]string{"torrent": base64.StdEncoding.EncodeToString(s.Torrent), "url": s.URL})
 	if err != nil {
 		return "", err
@@ -69,6 +75,10 @@ func (e Engine) Create(ctx context.Context, s Source) (string, error) {
 		return "", err
 	}
 	defer deferutil.Rollback(ctx, tx)
+	var current bool
+	if err = tx.QueryRow(ctx, `SELECT enabled AND revision=$2 FROM integrations WHERE id=$1 FOR SHARE`, c.Record.ID, c.Record.Revision).Scan(&current); err != nil || !current {
+		return "", errors.New("下载器配置已变化，请重新确认")
+	}
 	var existing string
 	err = tx.QueryRow(ctx, `INSERT INTO manual_download_tasks(id,integration_id,info_hash,title,source_kind,source_label,payload_ciphertext,endpoint,save_path,category) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(integration_id,info_hash) DO UPDATE SET info_hash=excluded.info_hash RETURNING id::text`, id, c.Record.ID, s.Meta.InfoHash, s.Meta.Name, s.Kind, s.Label, encrypted, c.String("endpoint"), save, category).Scan(&existing)
 	if err != nil {

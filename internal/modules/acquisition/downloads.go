@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
 	"os"
@@ -169,12 +171,24 @@ func (e Engine) startExpected(ctx context.Context, runID, resourceID, mediaType 
 	if details.Category == "" {
 		details.Category = "media-tool"
 	}
+	// Pure policy prepare runs before any write transaction; the final commit is
+	// fenced against revocation/generation change and the original source proof.
+	var cleanup bool
+	ctx, cleanup, err = (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).PrepareDownload(ctx, contracts.ResourceDownloadRequest{Kind: "managed", ResourceID: resourceID, DownloaderID: connection.Record.ID, CleanupAfterImport: details.CleanupAfterImport})
+	if err != nil {
+		return "", err
+	}
+	details.CleanupAfterImport = cleanup
 	raw, _ := json.Marshal(details)
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
 		return "", err
 	}
 	defer deferutil.Rollback(ctx, tx)
+	var downloaderCurrent bool
+	if err = tx.QueryRow(ctx, `SELECT enabled AND revision=$2 FROM integrations WHERE id=$1 FOR SHARE`, connection.Record.ID, connection.Record.Revision).Scan(&downloaderCurrent); err != nil || !downloaderCurrent {
+		return "", search.ErrSnapshotChanged
+	}
 	var subscriptionID string
 	if subscriptionRunID != "" {
 		var currentRevision, runRevision int64
