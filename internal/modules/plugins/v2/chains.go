@@ -23,7 +23,13 @@ func (s Store) hooks(ctx context.Context, kind, id string) ([]hook, error) {
 	if s.DB == nil {
 		return nil, ErrUnavailable
 	}
-	rows, e := s.DB.Query(ctx, `SELECT i.id::text,d FROM plugin_v2_extensions x JOIN plugin_v2_snapshots p ON p.id=x.snapshot_id JOIN plugin_v2_instances i ON i.id=x.instance_id JOIN plugin_v2_definitions f ON f.id=i.plugin_id, jsonb_array_elements(p.descriptors->'descriptors') d WHERE i.desired_state='enabled' AND i.runtime_state='running' AND i.generation=p.generation AND i.grant_revision=p.grant_revision AND i.lease_until>clock_timestamp() AND i.approved_fingerprint=f.fingerprint AND f.availability='available' AND d->>'kind'=$1 AND d->>'id'=$2 ORDER BY coalesce((d->>'priority')::int,0) DESC,i.id,d->>'handler' LIMIT 9`, kind, id)
+	observed := time.Now()
+	key := kind + "/" + id
+	epoch, absent := absentPolicy(s.DB, key)
+	if absent {
+		return []hook{}, nil
+	}
+	rows, e := s.DB.Query(ctx, `/* plugins:policy-hooks */ SELECT i.id::text,d FROM plugin_v2_extensions x JOIN plugin_v2_snapshots p ON p.id=x.snapshot_id JOIN plugin_v2_instances i ON i.id=x.instance_id JOIN plugin_v2_definitions f ON f.id=i.plugin_id, jsonb_array_elements(p.descriptors->'descriptors') d WHERE i.desired_state='enabled' AND i.runtime_state='running' AND i.generation=p.generation AND i.grant_revision=p.grant_revision AND i.lease_until>clock_timestamp() AND i.approved_fingerprint=f.fingerprint AND f.availability='available' AND d->>'kind'=$1 AND d->>'id'=$2 ORDER BY coalesce((d->>'priority')::int,0) DESC,i.id,d->>'handler' LIMIT 9`, kind, id)
 	if e != nil {
 		return nil, e
 	}
@@ -43,7 +49,13 @@ func (s Store) hooks(ctx context.Context, kind, id string) ([]hook, error) {
 	if len(list) > 8 {
 		return nil, ErrUnavailable
 	}
-	return list, rows.Err()
+	if e = rows.Err(); e != nil {
+		return nil, e
+	}
+	if len(list) == 0 {
+		rememberAbsentPolicy(s.DB, key, epoch, observed.Add(hookAbsenceTTL))
+	}
+	return list, nil
 }
 
 // RecognizeName is a pure-hint extension point shared by workbench and library.

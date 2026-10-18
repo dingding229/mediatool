@@ -37,12 +37,16 @@ func TestSafeProjectionNeverReturnsCredentialsOrInternalHints(t *testing.T) {
 	if admit != 0 {
 		t.Fatal("pure functions attempted side effects")
 	}
-	for _, m := range []string{"downloads.recheck", "subscriptions.completion"} {
+	for _, m := range []string{"downloads.recheck"} {
 		_, e := h.Call(ctx, contracts.HostCall{Method: m}, contracts.Permission{}, nil)
 		if e == nil {
-			t.Fatal("fake completion/recheck")
+			t.Fatal("fake recheck")
 		}
 	}
+	// Completion is now a real read facade, but no grant is never an implicit
+	// fallback to raw subscription/database state.
+	_, denied := h.Call(ctx, contracts.HostCall{Method: "subscriptions.completion"}, contracts.Permission{}, nil)
+	mediaCode(t, denied, contracts.PermissionDenied)
 	for _, r := range []b.Rules{{Include: make([]string, 201)}, {Keyword: strings.Repeat("中", 201)}} {
 		if validateRules(r) == nil {
 			t.Fatal("unbounded rules")

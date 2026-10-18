@@ -338,10 +338,61 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/OK'
+  /api/v1/media/library/sources:
+    get:
+      operationId: pluginCachedCatalogSources
+      description: 管理员只读附加来源快照；不调用 worker、不刮削、无内置推荐引擎。条目含 source=plugin:<instanceId>、instanceId、kind、tmdbId、mediaType、title、year，不含图片或播放 URL。每 provider 最多缓存 200 条，快照截断另用 truncated 标记；撤权/换代立即隐藏。
+      parameters:
+      - in: query
+        name: kind
+        required: true
+        schema: {type: string, enum: [discover.source, recommend.source]}
+      - in: query
+        name: page
+        schema: {type: integer, minimum: 1, maximum: 1000, default: 1}
+      - in: query
+        name: limit
+        schema: {type: integer, minimum: 1, maximum: 200, default: 20}
+      responses:
+        '200':
+          description: 有界来源页
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [items, page, size, hasMore, truncated]
+                    properties:
+                      items:
+                        type: array
+                        maxItems: 200
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required: [source, instanceId, kind, tmdbId, mediaType, title, year]
+                          properties:
+                            source: {type: string}
+                            instanceId: {type: string, format: uuid}
+                            kind: {type: string, enum: [discover.source, recommend.source]}
+                            tmdbId: {type: integer, minimum: 1}
+                            mediaType: {type: string, enum: [movie, series]}
+                            title: {type: string, maxLength: 200}
+                            year: {type: integer, minimum: 0, maximum: 9999}
+                      page: {type: integer}
+                      size: {type: integer}
+                      hasMore: {type: boolean}
+                      truncated: {type: boolean}
+        '400':
+          description: 无效参数或附加来源暂不可用
+        '401':
+          description: 管理员认证必需
   /api/v1/media/library/emby/home:
     get:
       operationId: embyHome
-      description: 选定用户范围的分类、播放、继续/近期观看和最新媒体；后端使用API Key
+      description: 选定用户范围的分类、播放、继续/近期观看和最新媒体；后端使用API Key。非空时附加 pluginSources 有界缓存页，带实例来源标记，不同步等待插件或刮削。
       responses:
         '200':
           $ref: '#/components/responses/OK'

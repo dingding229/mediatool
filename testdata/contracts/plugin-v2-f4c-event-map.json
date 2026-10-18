@@ -1,0 +1,104 @@
+[
+  {
+    "type": "metadata.scraped",
+    "kind": "event",
+    "scope": "events.subscribe.metadata.scraped",
+    "producer": [
+      "internal/modules/library/scraping.go:saveScrapeReport",
+      "internal/modules/nativetmdb/engine.go:Engine.Process"
+    ],
+    "tests": [
+      "TestF4CMetadataPersistTransactionAndTMDBSuccessOnly",
+      "TestDiscoveryFactsCommitRollbackTypedProjectionAndLiveRevoke"
+    ]
+  },
+  {
+    "type": "subscription.coverage.completed",
+    "kind": "event",
+    "scope": "events.subscribe.subscription.coverage.completed",
+    "producer": [
+      "internal/modules/subscriptions/completion.go:CoverageObserver.Observe"
+    ],
+    "tests": [
+      "TestF4CCoverageOnlyExposableAuthoritativeSeasonNoInventedState",
+      "TestDiscoveryFactsCommitRollbackTypedProjectionAndLiveRevoke"
+    ]
+  },
+  {
+    "type": "subscribe.episodes.refresh",
+    "kind": "chain",
+    "scope": "events.chain.subscribe.episodes.refresh",
+    "producer": [
+      "internal/modules/subscriptions/completion.go:CoverageObserver.prepare",
+      "internal/modules/plugins/v2/discovery_hooks.go:Store.SupplementEpisodes"
+    ],
+    "tests": [
+      "TestDiscoveryPoliciesNarrowTimeoutInvalidAndCommitFence",
+      "TestRealSameBinaryDiscoveryCoverageAndMetadata"
+    ]
+  },
+  {
+    "type": "subscribe.completion.check",
+    "kind": "chain",
+    "scope": "events.chain.subscribe.completion.check",
+    "producer": [
+      "internal/modules/subscriptions/completion.go:CoverageObserver.prepare",
+      "internal/modules/plugins/v2/discovery_hooks.go:Store.CheckCoverage"
+    ],
+    "tests": [
+      "TestDiscoveryPoliciesNarrowTimeoutInvalidAndCommitFence",
+      "TestRealSameBinaryDiscoveryCoverageAndMetadata"
+    ]
+  },
+  {
+    "type": "media.recognize.convert",
+    "kind": "chain",
+    "scope": "events.chain.media.recognize.convert",
+    "producer": [
+      "internal/modules/library/recognition.go:Engine.Recognize",
+      "internal/modules/library/confirm.go:Engine.Suggest"
+    ],
+    "tests": [
+      "TestDiscoveryPoliciesNarrowTimeoutInvalidAndCommitFence",
+      "TestRealSameBinaryDiscoveryCoverageAndMetadata"
+    ]
+  },
+  {
+    "type": "discover.source",
+    "kind": "chain",
+    "scope": "events.chain.discover.source",
+    "producer": [
+      "internal/modules/catalog/sources.go:SourceRegistry.Refresh",
+      "internal/modules/catalog/home.go:Engine.Home"
+    ],
+    "tests": [
+      "TestF4CCachedSourcePaginationNeverInvokesWorkerAndRevokeHidesCache",
+      "TestRealSameBinaryDiscoveryCoverageAndMetadata"
+    ]
+  },
+  {
+    "type": "recommend.source",
+    "kind": "chain",
+    "scope": "events.chain.recommend.source",
+    "producer": [
+      "internal/modules/catalog/sources.go:SourceRegistry.Refresh",
+      "internal/modules/catalog/home.go:Engine.Home"
+    ],
+    "tests": [
+      "TestF4CCachedSourcePaginationNeverInvokesWorkerAndRevokeHidesCache",
+      "TestRealSameBinaryDiscoveryCoverageAndMetadata"
+    ]
+  },
+  {
+    "type": "metadata.identify",
+    "kind": "module",
+    "scope": "module.metadata.identify",
+    "producer": [
+      "internal/modules/plugins/v2/discovery_hooks.go:Store.ConvertMedia"
+    ],
+    "tests": [
+      "TestDiscoveryModuleUsesSameIdentitySchema",
+      "TestDiscoveryWireRejectsURLsOwnedAndInvalidIdentity"
+    ]
+  }
+]

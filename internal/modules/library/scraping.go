@@ -2,12 +2,16 @@ package library
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/settings"
+	"media-tool/internal/platform/outbox"
 	"path"
 	"strconv"
 	"strings"
@@ -43,8 +47,16 @@ func saveScrapeReport(ctx context.Context, tx pgx.Tx, assetID string, item metad
 	}
 	policy, _ := json.Marshal(item.Scrape.Policy)
 	notice, _ := json.Marshal(item.Scrape.Notices)
-	_, err := tx.Exec(ctx, `UPDATE media_assets SET scrape_policy=$2,scrape_report=$3,scrape_settings_revision=$4 WHERE id=$1`, assetID, policy, notice, item.Scrape.SettingsRevision)
-	return err
+	var revision int64
+	err := tx.QueryRow(ctx, `UPDATE media_assets SET scrape_policy=$2,scrape_report=$3,scrape_settings_revision=$4 WHERE id=$1 RETURNING revision`, assetID, policy, notice, item.Scrape.SettingsRevision).Scan(&revision)
+	if err != nil {
+		return err
+	}
+	// Stable fact version includes persisted report/policy and asset revision; a
+	// later scrape can produce a new fact, retries of the same snapshot cannot.
+	digest := sha256.Sum256(append(policy, notice...))
+	version := fmt.Sprintf("%d:%d:%x", revision, item.Scrape.SettingsRevision, digest)
+	return outbox.EmitVersionTx(ctx, tx, "metadata.scraped", assetID, version, contracts.MetadataScraped{ObjectID: assetID, Kind: "asset", MediaIdentity: contracts.MediaIdentity{TMDBID: item.ID, MediaType: item.MediaType}, Revision: version})
 }
 func scrapePolicy(item metadata.Item) metadata.ScrapePolicy {
 	if item.Scrape != nil {

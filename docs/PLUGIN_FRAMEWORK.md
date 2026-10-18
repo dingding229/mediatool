@@ -256,3 +256,39 @@ false 删除绝不发文件删除事件。typed DTO 位于 SDK `contracts/organi
 重命名只改变相对输出路径，不能改正文/源身份/播放授权；root、归属、布局、碰撞、季集和摘要由宿主最终检查。
 既有输出必须走明确迁移，不能通过 hook 追加新布局。intercept/overwrite 只能拒绝/跳过；storage 只选已批准 handle，
 当前入口不扩大原 connection/root 的授权集合。hello-go 1.5.0 默认全部 no-op，新 scope 必须重新确认。
+
+## F4-C：元数据、覆盖观测与附加来源
+
+- `metadata.scraped`：`library.saveScrapeReport`（含公开的
+  `PersistScrapeReport`）和 `nativetmdb.Engine.Process` ready 更新在同一短事务写
+  versioned outbox。Enrich/TMDB HTTP 阶段不发成功事件；ready 更新仍带 started-at fence。
+  事件只含对象 ID、类别、TMDB identity 和事实版本，不含刮削报告、图片/播放 URL/token。
+- `CoverageObserver.ExpectedEpisodes/Check/Observe`：按订阅配置的 season 观测**整个季**，
+  不以 rules.episodes 子集或 completeCollection 缩小期待范围；复用 TMDB NativeDetails
+  的完整 Episodes（保留未播/无日期条目，不能用下载用的已播集过滤结果）。可暴露证据
+  复用 ExposableAssetsSQL：ready binding、present 云文件以及已有 .strm 输出缺一不可。
+  无权威清单、非剧集、空/超 200 集、TMDB 不可用均为 unknown；部分覆盖不发完成事件。
+  这是当前清单的覆盖事实，不声称整部剧已完结，不修改 enabled/last_state/coverage 等业务列。
+- `subscriptions.completion`（`subscriptions.read`）现在返回 typed CoverageObservation，
+  读调用重新推导并做授权 fence，不写 outbox、不伪造 MP 状态。后台每轮最多 10 个订阅，
+  Redis 专属 `plugins:v2:coverage:*` 观测 TTL 10 分钟、游标 1 小时、lease 50 秒；
+  事务内复核 subscription revision 和资产证据后才写完成事实，回滚不发。
+- `subscribe.episodes.refresh` 只能在完整期待清单上补充，不得删集/添加 owned；
+  `subscribe.completion.check` 只能否决，不能越过宿主实物证据。两者使用独立精确 scope。
+- `media.recognize.convert` / `module.metadata.identify` 接 Recognize/Suggest：
+  只可选原始 TMDB 搜索结果中存在的 (mediaType, id)，不传文件证据或图片，不自动确认。
+  chain + module 共用 2 秒预算，各最多 8 handlers、单 handler 200ms；读返回前复核 fence。
+- `SourceRegistry.Refresh` 在后台获取 `discover.source` / `recommend.source` typed 候选，
+  共用 2 秒刷新预算；每种最多 8 providers，每 provider 本轮最多 200 条，TTL 2 分钟。
+  宿主目前没有内置推荐引擎，绝不把插件结果说成内置推荐。仅返回 identity/title/year，
+  来源显式标记为 `plugin:<instanceId>`，不返回图片/媒体/播放 URL。
+- Home 仅附加已缓存的 `pluginSources`（非空才输出）；另有管理员只读
+  `GET /api/v1/media/library/sources?kind=discover.source|recommend.source&page=1&limit=20`。
+  size≤200，page≤1000，逐页读取缓存，绝不同步 invoke、fetch 或懒刷新。`truncated=true`
+  表示 provider 超出本轮 200 条快照，`hasMore` 只描述当前缓存可翻页的剩余条目。
+  Home 两种来源合计只给 100ms 缓存读取预算（超时丢弃附加来源、不影响内置首页），
+  单独分页读取预算 200ms。零插件转换链使用 2 秒 TTL 的负向存在提示，
+  启停/发布/授权/换代使 epoch 失效；从不缓存正向授权。
+  缓存绑定 exact snapshot；读取前后均检查实时 descriptor/grants/lease，撤权/换代立即隐藏。
+- 精确映射与测试索引：`testdata/contracts/plugin-v2-f4c-event-map.json`。
+  不新增迁移/依赖、不部署；Telegram/其他 F4-D 能力不属于本组。

@@ -188,6 +188,19 @@ func (h AcquisitionHost) Call(ctx context.Context, call contracts.HostCall, perm
 		}
 		return b.Evaluated{Accepted: yes, Reasons: reasons}, nil
 	}
+	if call.Method == "subscriptions.completion" {
+		if permit.Scope != "subscriptions.read" {
+			return nil, contracts.NewError(contracts.PermissionDenied)
+		}
+		var in b.ID
+		if decodeBusiness(call.Args, &in) != nil || !contracts.OpaqueID(in.ID) {
+			return nil, invalidBusiness()
+		}
+		if h.DB == nil || h.Connections == nil {
+			return nil, contracts.NewError(contracts.Unavailable)
+		}
+		return (subscriptions.CoverageObserver{Engine: subscriptions.Engine{DB: h.DB, Connections: h.Connections}, Cache: h.Redis}).Check(ctx, in.ID)
+	}
 	if call.Method == "subscriptions.coverage" {
 		var in b.CoverageInput
 		if decodeBusiness(call.Args, &in) != nil || len(in.Names) > 200 {

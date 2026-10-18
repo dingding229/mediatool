@@ -327,7 +327,7 @@ func (e Engine) Suggest(ctx context.Context, id string) ([]metadata.Item, error)
 	}
 	series, err := client.Search(ctx, "series", strings.TrimSpace(query))
 	if err != nil {
-		return movies, nil
+		return e.convertSuggestions(ctx, movies), nil
 	}
-	return append(movies, series...), nil
+	return e.convertSuggestions(ctx, append(movies, series...)), nil
 }

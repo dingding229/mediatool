@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type User struct {
@@ -25,13 +26,14 @@ type Card struct {
 	Subtitle string  `json:"subtitle,omitempty"`
 }
 type Home struct {
-	Users     []User `json:"users"`
-	UserID    string `json:"userId"`
-	Libraries []Card `json:"libraries"`
-	Playing   []Card `json:"playing"`
-	Resume    []Card `json:"resume"`
-	Recent    []Card `json:"recent"`
-	Latest    []Card `json:"latest"`
+	PluginSources []SourcePage `json:"pluginSources,omitempty"`
+	Users         []User       `json:"users"`
+	UserID        string       `json:"userId"`
+	Libraries     []Card       `json:"libraries"`
+	Playing       []Card       `json:"playing"`
+	Resume        []Card       `json:"resume"`
+	Recent        []Card       `json:"recent"`
+	Latest        []Card       `json:"latest"`
 }
 type embyCard struct {
 	ID           string            `json:"Id"`
@@ -175,6 +177,15 @@ func (e Engine) Home(ctx context.Context, requestedUser string) (Home, error) {
 			}
 			seen[card.ID] = true
 			out.Playing = append(out.Playing, card)
+		}
+	}
+	if e.Sources != nil {
+		cacheCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+		defer cancel()
+		for _, kind := range []string{"discover.source", "recommend.source"} {
+			if page, err := e.Sources.Page(cacheCtx, kind, 1, 20); err == nil && len(page.Items) > 0 {
+				out.PluginSources = append(out.PluginSources, page)
+			}
 		}
 	}
 	return out, nil

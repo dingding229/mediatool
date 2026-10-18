@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"media-tool/internal/adapters/clouddrive2"
 	"media-tool/internal/modules/acquisition"
+	sourcecatalog "media-tool/internal/modules/catalog"
 	"media-tool/internal/modules/filemanager"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
@@ -418,6 +419,12 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 					}
 					if err := subscriptionEngine.Schedule(check); err != nil {
 						logger.Warn("subscription schedule unavailable", "error", err)
+					}
+					if err := (subscriptions.CoverageObserver{Engine: subscriptionEngine, Cache: rc}).Reconcile(check); err != nil {
+						logger.Warn("subscription coverage observation deferred", "module", "plugins")
+					}
+					if err := (sourcecatalog.SourceRegistry{Store: pluginv2.Store{DB: db, Vault: manager.Repository.Vault}, Cache: rc}).Refresh(check); err != nil {
+						logger.Warn("plugin source cache refresh deferred", "module", "plugins")
 					}
 					if err := libraryEngine.ScheduleEmby(check); err != nil {
 						logger.Warn("automatic Emby refresh unavailable", "error", err)

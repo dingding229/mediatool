@@ -6,9 +6,11 @@ import (
 	"media-tool/internal/modules/catalog"
 	"media-tool/internal/modules/mediaserver"
 	"media-tool/internal/modules/playback"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
 	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -64,7 +66,8 @@ func (a *API) catalogImage(w http.ResponseWriter, r *http.Request) {
 func (a *API) catalogHome(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
-	items, err := (catalog.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations}).Home(ctx, r.URL.Query().Get("userId"))
+	sources := catalog.SourceRegistry{Store: pluginv2.Store{DB: a.Deps.DB}, Cache: a.Deps.Redis}
+	items, err := (catalog.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations, Sources: &sources}).Home(ctx, r.URL.Query().Get("userId"))
 	if err != nil {
 		fail(w, 503, "emby_home_unavailable", "Emby媒体库首页不可用，请检查已配置API Key、用户及媒体库")
 		return
@@ -118,4 +121,37 @@ func (a *API) catalogItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, item)
+}
+
+func (a *API) catalogSources(w http.ResponseWriter, r *http.Request) {
+	page, size := 1, 20
+	for _, field := range []struct {
+		key   string
+		value *int
+	}{{"page", &page}, {"limit", &size}} {
+		if values, ok := r.URL.Query()[field.key]; ok {
+			if len(values) != 1 {
+				fail(w, 400, "invalid_pagination", "分页参数无效")
+				return
+			}
+			v, e := strconv.Atoi(values[0])
+			if e != nil {
+				fail(w, 400, "invalid_pagination", "分页参数无效")
+				return
+			}
+			*field.value = v
+		}
+	}
+	if page < 1 || page > 1000 || size < 1 || size > 200 || len(r.URL.Query()["kind"]) != 1 {
+		fail(w, 400, "invalid_pagination", "分页参数无效")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	v, e := (catalog.SourceRegistry{Store: pluginv2.Store{DB: a.Deps.DB}, Cache: a.Deps.Redis}).Page(ctx, r.URL.Query().Get("kind"), page, size)
+	if e != nil {
+		fail(w, 400, "sources_unavailable", "附加来源暂不可用")
+		return
+	}
+	write(w, 200, v)
 }

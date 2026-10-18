@@ -723,9 +723,9 @@ type ActionProvider interface { GetActions(context.Context) ([]Action, error) }
 | `SubscribeAdded` (`subscribe.added`) | subscription.created | `subscriptions/repository.go:Engine.Save`，新建成功提交 | F4-A 已接线 |
 | `SubscribeModified` (`subscribe.modified`) | subscription.updated | `subscriptions/repository.go:Engine.Save`，已有revision变化提交 | F4-A 已接线 |
 | `SubscribeDeleted` (`subscribe.deleted`) | subscription.deleted | `subscriptions/repository.go:Engine.Delete`提交 | F4-A 已接线 |
-| `SubscribeComplete` (`subscribe.complete`) | subscription.coverage.completed | 拟新增 `subscriptions/completion.go:CoverageObserver.Observe`；读TMDB清单+可暴露资产 | F4-C；不是completeCollection，unknown不发完成，观测存插件专属表 |
+| `SubscribeComplete` (`subscribe.complete`) | subscription.coverage.completed | `subscriptions/completion.go:CoverageObserver.Observe`；读TMDB清单+可暴露资产 | F4-C 已接线；不是completeCollection，unknown不发完成，观测存插件专属表 |
 | `SystemError` (`system.error`) | system.operation.failed | `jobs/worker.go:Worker.Run`终态错误与拟新增安全错误总线 | F4-D；聚合/节流，排除plugin日志递归，原始异常不扩散 |
-| `MetadataScrape` (`metadata.scrape`) | metadata.scraped | `library/scraping.go:Engine.EnrichScraping` + `PersistScrapeReport`提交；`nativetmdb/engine.go:Engine.Process`成功 | F4-C；不在浏览热路径现场刮削 |
+| `MetadataScrape` (`metadata.scrape`) | metadata.scraped | `library/scraping.go:Engine.EnrichScraping` + `PersistScrapeReport`提交；`nativetmdb/engine.go:Engine.Process`成功 | F4-C 已接线；不在浏览热路径现场刮削 |
 | `ModuleReload` (`module.reload`) | module.registry.changed | 拟新增 `plugins/extensions.ModuleRegistry.Publish` | F2；generation原子更新 |
 | `ConfigChanged` (`config.updated`) | settings.changed | `settings/settings.go:Repository.Save`、`settings/native_management.go:SaveNativeManagement`；插件config单独事件 | F4-D；只非秘密diff+revision |
 | `MessageAction` (`message.action`) | messaging.action.received | 拟新增 `messaging/commands.go:CommandIngress.HandleAction` | F2仅已有入站；新增bot轮询F4，回调签名/过期/一次性nonce |
@@ -747,14 +747,14 @@ type ActionProvider interface { GetActions(context.Context) ([]Action, error) }
 | `TransferOverwriteCheck` (`transfer.overwrite.check`) | 可建议跳过/拒绝，不可放行越权覆盖 | `library/output_layout_guard.go:CheckOutputLayout`上层prepare | F4-B；宿主最后保护检查永远保留 |
 | `ResourceSelection` (`resource.selection`) | 对候选ID排序/有界筛选 | `subscriptions/evaluate.go:Engine.Run`、`search/filters.go:Engine.GetFiltered`上层 | F4-A 已接线；只可选原始合法候选，不能构造未知下载源 |
 | `ResourceDownload` (`resource.download`) | 调整允许的下载选项/拒绝 | `acquisition/downloads.go:Engine.StartExpectedFromRun`、`manualdownloads/tasks.go:Engine.Create`准备阶段 | F4-A 已接线；HR/来源快照/所有权仍由内置服务强制 |
-| `DiscoverSource` (`discover.source`) | 附加Provider的typed发现候选 | `catalog/home.go:Engine.Home`上层拟新增SourceRegistry、`metadata`搜索门面 | F4-C；后台缓存/分页，不在客户端首页同步等待所有worker |
-| `MediaRecognizeConvert` (`media.recognize.convert`) | 合法媒体候选转换建议 | `library/recognition.go:Engine.Recognize`、`confirm.go:Engine.Suggest` | F4-C；TMDB类型/id组合校验 |
-| `RecommendSource` (`recommend.source`) | 附加推荐Provider | `catalog/home.go:Engine.Home`上层SourceRegistry | F4-C；当前只有媒体库首页，需新adapter，不假装已有推荐引擎 |
+| `DiscoverSource` (`discover.source`) | 附加Provider的typed发现候选 | `catalog/home.go:Engine.Home`上层拟新增SourceRegistry、`metadata`搜索门面 | F4-C 已接线；后台缓存/分页，不在客户端首页同步等待所有worker |
+| `MediaRecognizeConvert` (`media.recognize.convert`) | 合法媒体候选转换建议 | `library/recognition.go:Engine.Recognize`、`confirm.go:Engine.Suggest` | F4-C 已接线；TMDB类型/id组合校验 |
+| `RecommendSource` (`recommend.source`) | 附加推荐Provider | `catalog/home.go:Engine.Home`上层SourceRegistry | F4-C 已接线；当前只有媒体库首页，需新adapter，不假装已有推荐引擎 |
 | `WorkflowExecution` (`workflow.execution`) | 对动作上下文建议/拒绝 | 拟新增 `plugins/workflows.go:WorkflowRunner.BeforeStep` | F4-0；在run事务外等待，之后fence核对 |
 | `StorageOperSelection` (`storage.operation`) | 从已授权连接/根中选一个handle | `filemanager/engine.go:Engine.Preview`、`library/scan.go:Engine.Start`上层prepare | F4-B；不能返回凭据或任意根路径 |
 | `AgentLLMProvider` (`agent.llm.provider`) | N/A | 本程序无Agent/LLM provider宿主 | N/A；F5只tool registry，不顺带承诺LLM运行时 |
-| `SubscribeEpisodesRefresh` (`subscribe.episodes.refresh`) | 补充期待季集清单 | 拟新增 `subscriptions/completion.go:CoverageObserver.ExpectedEpisodes`，复用TMDB Episodes | F4-C；不能标记不存在文件为已拥有 |
-| `SubscribeCompletionCheck` (`subscribe.completion.check`) | 建议完成/拒绝完成 | 拟新增 `subscriptions/completion.go:CoverageObserver.Check` | F4-C；必须再有宿主文件证据，不能凭插件布尔值禁用订阅 |
+| `SubscribeEpisodesRefresh` (`subscribe.episodes.refresh`) | 补充期待季集清单 | `subscriptions/completion.go:CoverageObserver.ExpectedEpisodes`，复用TMDB Episodes | F4-C 已接线；不能标记不存在文件为已拥有 |
+| `SubscribeCompletionCheck` (`subscribe.completion.check`) | 建议完成/拒绝完成 | `subscriptions/completion.go:CoverageObserver.Check` | F4-C 已接线；必须再有宿主文件证据，不能凭插件布尔值禁用订阅 |
 
 N/A汇总：两个音频整理广播、AgentTokensUsage、AgentLLMProvider（4项）无当前宿主；不为“覆盖率”捏造。其余46项都有明确阶段/拟插入点；其中auth/workflow/订阅完成/入站消息等是**需要新最小宿主**，不是简单转发现有事件。F4验收要逐项验证46项的调用者与反例，不能只测试枚举字符串。
 
@@ -1802,3 +1802,20 @@ SDK 测试推送→主程序精确 pin→全部门禁与 Actions→Hub 不可变
 - 首轮原生 CI `39128154275` 的 F4-B 六事实/五链真实 worker 已 PASS。旧 HTTP 整理端到端用例仍用
   operation ID 查 outbox aggregate，未适配本组版本化事实键，因此失败；仅更新测试按 payload.operationId
   查事实，并新增断言 journal 中业务 operationId 原样保留。实际整理/投递/重放/权限断言均保留，不放宽门禁。
+
+### F4-C 实施记录（2026-10-18）
+
+本组覆盖 §9 的两项广播、五项 chain（含 SubscribeCompletionCheck），以及
+module.metadata.identify。逐项触发点、精确 scope、测试见
+`testdata/contracts/plugin-v2-f4c-event-map.json`，实现语义见 PLUGIN_FRAMEWORK.md F4-C。
+
+不新增表/迁移：使用既有 Redis 存插件专属覆盖观测（10 分钟）、扫描游标（1 小时）与
+附加来源快照（2 分钟）；业务事实仍是 PG 同事务 versioned outbox。
+CoverageObserver 按订阅配置 season 的完整 TMDB 清单观测，不以选集规则收缩期待范围；
+不声称系列已完结，不改订阅业务状态。超过 200 集/非 series/清单缺失均 unknown。
+完整 Episodes 复用 NativeDetails，而非会排除未来/无日期集的下载 SeasonEpisodes。
+SourceRegistry 为后台缓存 adapter，Home 无 worker 扇出；来源带实例身份，分页只读缓存。
+元数据候选/模块结果限制为原始合法 type/id，不扩大 core 识别/确认权限。
+
+hello-go 升至 1.6.0，默认 no-op，typed DTO/golden 与真实同 binary worker 测试覆盖。
+本组只测试、提交与 CI 发布候选镜像，不部署，不开始 F4-D。

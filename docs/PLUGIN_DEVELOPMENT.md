@@ -90,3 +90,13 @@ Go库升级→主程序bump pin→构建期检查/打包→标准Actions/Hub；�
 hello-go 1.2.0 已包含API/service/command/action、TransferComplete与DownloadAdded、
 NameRecognize/模块、JSON表单与两个仪表盘、共享Vue的交互页面；普通识别默认不改写，
 示例用recognizeTitle/moduleTitle/intercept配置显式启用。API模板路径留后续。
+
+### F4-C typed 事件与策略
+
+SDK `contracts/discovery.go` 提供 MetadataScraped、CoverageObservation、MediaConversion、
+EpisodeExpectation/CompletionCheck 和 SourceRequest/SourceResult。hello-go 1.6.0 默认
+只接收安全事实并原样返回候选/期待清单，来源默认为空，不改业务结果。新增权限需由管理员
+重新确认。媒体转换不能造新的 TMDB identity；期待刷新只能补充；完成判断只能否决。
+发现/推荐处理函数在后台收到 page=1,size=200；返回 HasMore 表明快照截断，不支持任意 URL。
+客户端要翻页应读取宿主缓存接口，不能在浏览请求中驱动 worker。季覆盖观测不是剧集完结状态，
+也不是下载集合收集结束；Host Subscriptions.Completion 只读且 unknown 不代表完成。

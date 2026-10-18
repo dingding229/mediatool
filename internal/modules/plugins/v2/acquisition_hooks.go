@@ -14,6 +14,7 @@ import (
 )
 
 type policyDeadline struct{}
+type policyBudget struct{}
 
 var ErrResourceRejected = errors.New("插件资源策略拒绝本次下载")
 
@@ -21,14 +22,21 @@ var ErrResourceRejected = errors.New("插件资源策略拒绝本次下载")
 // waiting. Each accepted result adds a live commit fence, never cached authority.
 // Policy handlers have only their declared chain scope, not downloader capability.
 func (s Store) acquisitionChain(ctx context.Context, typ contracts.ChainEventType, input any, apply func(context.Context, json.RawMessage) bool) (context.Context, error) {
+	return s.policyHooks(ctx, "chain", string(typ), input, apply)
+}
+func (s Store) policyHooks(ctx context.Context, kind, typ string, input any, apply func(context.Context, json.RawMessage) bool) (context.Context, error) {
 	if ctx.Value(hookContext{}) != nil {
 		return ctx, nil
 	}
-	bounded, cancel := context.WithTimeout(context.WithValue(ctx, hookContext{}, true), 2*time.Second)
+	until := time.Now().Add(2 * time.Second)
+	if budget, ok := ctx.Value(policyBudget{}).(time.Time); ok && budget.Before(until) {
+		until = budget
+	}
+	bounded, cancel := context.WithDeadline(context.WithValue(ctx, hookContext{}, true), until)
 	defer cancel()
 	deadline, _ := bounded.Deadline()
 	bounded = context.WithValue(bounded, policyDeadline{}, deadline)
-	list, e := s.hooks(bounded, "chain", string(typ))
+	list, e := s.hooks(bounded, kind, typ)
 	if e != nil {
 		trace.Warn(ctx, "plugins", "资源策略回落内置逻辑", "chain", string(typ), "reason", "registry_unavailable")
 		return ctx, nil
@@ -40,7 +48,7 @@ func (s Store) acquisitionChain(ctx context.Context, typ contracts.ChainEventTyp
 		if h.instance == pluginactor.InstanceID(ctx) {
 			continue
 		} // Never RPC back into the blocked caller's single lane.
-		snap, d, err := s.Descriptor(bounded, h.instance, "chain", string(typ))
+		snap, d, err := s.Descriptor(bounded, h.instance, kind, typ)
 		if err != nil {
 			trace.Warn(ctx, "plugins", "资源策略回落内置逻辑", "chain", string(typ), "reason", "unavailable_or_revoked")
 			continue
@@ -49,7 +57,10 @@ func (s Store) acquisitionChain(ctx context.Context, typ contracts.ChainEventTyp
 		if err != nil {
 			return ctx, ErrInvalid
 		}
-		args, err := json.Marshal(events.ChainEnvelope{Type: typ, SchemaVersion: 1, Payload: raw})
+		args := raw
+		if kind == "chain" {
+			args, err = json.Marshal(events.ChainEnvelope{Type: contracts.ChainEventType(typ), SchemaVersion: 1, Payload: raw})
+		}
 		if err != nil {
 			return ctx, ErrInvalid
 		}

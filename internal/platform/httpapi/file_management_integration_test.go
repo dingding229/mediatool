@@ -47,7 +47,7 @@ func TestPostgresFileAndCatalogRoutesAndSecretRevealRequireSession(t *testing.T)
 	defer manager.Close()
 	logs := &bytes.Buffer{}
 	h := New(cfg(), Dependencies{DB: db, Integrations: manager, AuthSessions: testSessionReader{}, Logger: slog.New(slog.NewJSONHandler(logs, nil))})
-	for _, target := range []string{"/api/v1/files", "/api/v1/files/roots", "/api/v1/files/operations", "/api/v1/media/library", "/api/v1/media/library/emby/11/image", "/api/v1/cloud/accounts/info", "/api/v1/library/activity", "/api/v1/library/outputs", "/api/v1/files/batches/12345678-1234-1234-1234-123456789012"} {
+	for _, target := range []string{"/api/v1/media/library/sources?kind=discover.source", "/api/v1/files", "/api/v1/files/roots", "/api/v1/files/operations", "/api/v1/media/library", "/api/v1/media/library/emby/11/image", "/api/v1/cloud/accounts/info", "/api/v1/library/activity", "/api/v1/library/outputs", "/api/v1/files/batches/12345678-1234-1234-1234-123456789012"} {
 		if w := invoke(h, "GET", target, "", ""); w.Code != 401 {
 			t.Fatal("management route accessible without session", target, w.Code)
 		}

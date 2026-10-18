@@ -122,5 +122,6 @@ func (e Engine) Recognize(ctx context.Context, id string) (Recognition, error) {
 	if out.Hint.MediaType == "series" && len(out.Hint.Episodes) == 0 {
 		out.Evidence = append(out.Evidence, "季集覆盖未知，禁止自动入库")
 	}
+	out.Selected = e.convertMedia(ctx, out.Matches, out.Selected)
 	return out, nil
 }

@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/outbox"
 	"strings"
 	"time"
 
@@ -87,7 +91,12 @@ func (e Engine) Process(ctx context.Context, j jobs.Job) error {
 	if fetchErr != nil {
 		state, message, delay = nativelibrary.TMDBDetailFailed, "TMDB详情暂不可用，将自动重试", tmdb.ExponentialBackoff(attempt, fetchErr)
 	}
-	result, err := e.DB.Exec(save, `UPDATE native_tmdb_details SET state=$3,fetching_started_at=NULL,payload=CASE WHEN $3='ready' THEN $4::jsonb ELSE payload END,
+	tx, err := e.DB.Begin(save)
+	if err != nil {
+		return err
+	}
+	defer deferutil.Rollback(save, tx)
+	result, err := tx.Exec(save, `UPDATE native_tmdb_details SET state=$3,fetching_started_at=NULL,payload=CASE WHEN $3='ready' THEN $4::jsonb ELSE payload END,
  fetched_at=CASE WHEN $3='ready' THEN now() ELSE fetched_at END,next_attempt_at=now()+($5::bigint*interval '1 millisecond'),error=$6,updated_at=now()
  WHERE id=$1 AND state='fetching' AND fetching_started_at=$2`, in.ID, started, state, stringOrObject(payload), delay.Milliseconds(), message)
 	if err != nil {
@@ -96,7 +105,17 @@ func (e Engine) Process(ctx context.Context, j jobs.Job) error {
 	if result.RowsAffected() != 1 {
 		return jobs.ErrLeaseLost
 	}
-	return nil
+	if state == nativelibrary.TMDBDetailReady {
+		kind := "series"
+		if string(target.Type) == "movie" {
+			kind = "movie"
+		}
+		version := started.UTC().Format(time.RFC3339Nano)
+		if err = outbox.EmitVersionTx(save, tx, "metadata.scraped", in.ID, version, contracts.MetadataScraped{ObjectID: in.ID, Kind: "tmdb_" + string(target.Type), MediaIdentity: contracts.MediaIdentity{TMDBID: int(target.TMDBID), MediaType: kind}, Revision: version}); err != nil {
+			return err
+		}
+	}
+	return dbutil.Commit(save, tx)
 }
 func stringOrObject(raw []byte) string {
 	if len(raw) == 0 {

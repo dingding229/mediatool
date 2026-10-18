@@ -42,6 +42,7 @@ type Page struct {
 	ParentID string `json:"parentId,omitempty"`
 }
 type Engine struct {
+	Sources     *SourceRegistry
 	DB          *pgxpool.Pool
 	Connections *integrations.Manager
 }

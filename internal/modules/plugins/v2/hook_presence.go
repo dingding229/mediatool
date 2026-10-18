@@ -55,6 +55,7 @@ func rememberAbsentHooks(db *pgxpool.Pool, epoch uint64, until time.Time) {
 // Called after lifecycle/publication/config changes (including uncertain commits).
 // Epoch fencing prevents an older SELECT from refilling after invalidation.
 func invalidateNameHooks(db *pgxpool.Pool) {
+	invalidatePolicyAbsence(db)
 	hookAbsence.Lock()
 	defer hookAbsence.Unlock()
 	for i := range hookAbsence.slots {
