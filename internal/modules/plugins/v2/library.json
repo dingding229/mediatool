@@ -907,14 +907,14 @@
       "supported": true
     }
   ],
-  "pin": "v0.0.0-20261018102024-674e93357616",
+  "pin": "v0.0.0-20261018115523-6c71e7c48ec7",
   "contractVersion": 2,
   "manifests": [
     {
       "contractVersion": 2,
       "id": "hello-go",
       "name": "Hello Go",
-      "version": "1.4.0",
+      "version": "1.5.0",
       "author": "Example Author",
       "description": "实例隔离与持久计数示例",
       "level": 1,
@@ -926,7 +926,8 @@
         "1.1.2": "Declare minimal per-route Host execution scopes",
         "1.2.0": "Chain/module hooks, DownloadAdded, JSON forms, multi dashboards and bundled ESM",
         "1.3.0": "Manual F3 read-only host acceptance and denied-scope check",
-        "1.4.0": "Typed acquisition facts and no-op resource policy chains (F4-A)"
+        "1.4.0": "Typed acquisition facts and no-op resource policy chains (F4-A)",
+        "1.5.0": "Typed organizing facts and no-op safe transfer/storage policies (F4-B)"
       },
       "permissions": [
         {
@@ -1033,6 +1034,39 @@
         },
         {
           "scope": "events.chain.resource.download"
+        },
+        {
+          "scope": "events.subscribe.library.organize.failed"
+        },
+        {
+          "scope": "events.subscribe.library.subtitles.copied"
+        },
+        {
+          "scope": "events.subscribe.library.subtitles.failed"
+        },
+        {
+          "scope": "events.subscribe.library.history.hidden"
+        },
+        {
+          "scope": "events.subscribe.download.files.deleted"
+        },
+        {
+          "scope": "events.subscribe.download.task.deleted"
+        },
+        {
+          "scope": "events.chain.transfer.rename"
+        },
+        {
+          "scope": "events.chain.transfer.rename.build"
+        },
+        {
+          "scope": "events.chain.transfer.intercept"
+        },
+        {
+          "scope": "events.chain.transfer.overwrite.check"
+        },
+        {
+          "scope": "events.chain.storage.operation"
         }
       ],
       "extensions": {
@@ -1110,12 +1144,23 @@
           "site.metrics.refreshed",
           "subscription.created",
           "subscription.updated",
-          "subscription.deleted"
+          "subscription.deleted",
+          "library.organize.failed",
+          "library.subtitles.copied",
+          "library.subtitles.failed",
+          "library.history.hidden",
+          "download.files.deleted",
+          "download.task.deleted"
         ],
         "chains": [
           "name.recognize",
           "resource.selection",
-          "resource.download"
+          "resource.download",
+          "transfer.rename",
+          "transfer.rename.build",
+          "transfer.intercept",
+          "transfer.overwrite.check",
+          "storage.operation"
         ],
         "modules": [
           "metadata.name_recognize"

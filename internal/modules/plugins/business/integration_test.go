@@ -78,6 +78,7 @@ func TestAcquisitionHostRealFacadesBoundedSQLRedactionAndMutations(t *testing.T)
 	h, ctx := hostFixture(t)
 	var stopped atomic.Int32
 	var deleteFiles []string
+	var ownedDeleted atomic.Bool
 	ownedHash := strings.Repeat("a", 40)
 	foreignHash := strings.Repeat("b", 40)
 	ownedTask := jobs.UUID()
@@ -93,8 +94,13 @@ func TestAcquisitionHostRealFacadesBoundedSQLRedactionAndMutations(t *testing.T)
 		case "/api/v2/torrents/delete":
 			_ = r.ParseForm()
 			deleteFiles = append(deleteFiles, r.Form.Get("deleteFiles"))
+			ownedDeleted.Store(true)
 			_, _ = io.WriteString(w, "")
 		case "/api/v2/torrents/info":
+			if ownedDeleted.Load() && r.URL.Query().Get("hashes") == ownedHash {
+				_, _ = io.WriteString(w, "[]")
+				return
+			}
 			hash := r.URL.Query().Get("hashes")
 			if hash == "" {
 				hash = ownedHash

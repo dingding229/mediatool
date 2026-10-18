@@ -1747,3 +1747,54 @@ SDK 测试推送→主程序精确 pin→全部门禁与 Actions→Hub 不可变
   F4-A worker 全流程亦 PASS。门禁仅因新 coverage 测试把独立二进制的 cwd 错当包目录，读取
   fixture 时 permission denied 而失败。修正为有界向上定位仓库，包目录/根目录两种运行方式都
   校验相同 fixture/producer，未扩大文件权限、改脚本特权、跳过测试或放宽 worker 隔离。
+
+
+## F4-B 整理入库事件与策略（2026-10-18，本组不部署）
+
+- 插件 pin `6c71e7c48ec7cffcace08cc32f602097266bbf38`，hello-go 1.5.0，contractVersion 仍为 2；
+  SDK 自带 typed DTO、路径/handle 校验和 golden。新增 scope 沿用既有指纹确认与扩权停用规则。
+- §9 六广播/五链覆盖清单：`testdata/contracts/plugin-v2-f4b-event-map.json`。
+  广播精确 `events.subscribe.<type>`，链精确 `events.chain.<type>`；UI 沿用 chain 危险权限标注。
+- `library.organize.failed`：files.failed 的真实终态继续桥接；上传/入库由 `jobs.Repository.Finish`
+  和 `expireExhausted` 的 lease-fenced 终态提交发出。只有 failed 且 transfer 处于可证明的 pending/
+  verified/artifacts_pending 才发；retry/paused/starting/uploading/uncertain/待核对均不能冒充失败。
+  §9 原提议在 Transfer/Journal 返回 error 处发事件不可取：这些 error 常可恢复，所以改接任务终态。
+- `library.subtitles.copied`：Journal.Apply 在真实字幕文件写入/摘要读回、manifest applied 的同一事务发出；
+  无字幕没有 intent/事件。相同 asset+相对路径+摘要去重，崩溃恢复及重复应用不重复广播。
+  `library.subtitles.failed` 只在复制冲突/明确复制尝试失败的证据存在且上层 transfer job 已终态失败时发。
+  私有 `subtitle.attempt.failed` 只作证据，不进入插件 journal；纯收集/渲染 helper 不发 RPC。
+- `library.history.hidden` 与隐藏记录同事务，语义仅隐藏，保留文件/原有恢复证据；按观测版本幂等。
+- `download.task.deleted` 的实际入口是 DownloaderService.DeleteOwned（不是上传控制 Control）；
+  false 仅在 qB 删除后再 Inspect 确认不存在才提交事实，HTTP 200/未知结果不算成功。
+  Cleanup/Reconcile 在种子和登记文件均读回不存在后，把清理状态、任务状态、审计和两个删除事实
+  一次提交；deleteFiles=false 永不发 download.files.deleted，云端媒体/STRM/播放授权保留。
+- 所有事件白名单投影；只含 opaque ID、kind、固定原因码、计数/状态/删除标志，不含路径、凭据、URL、hint。
+  事实键使用业务身份+内容/观测/状态版本，未来不同轮次不会被一个永久 aggregate 去重吞掉。
+- Confirm/ImportFile 的投影/模板/五策略 prepare 在写事务前完成；template settings/classification
+  revision 提前捕获，提交时 FOR SHARE 核对；插件 scope/generation/lease/descriptor fence 叠加原 Host 授权。
+  rename.build 和 rename 仅提供已渲染的 typed 相对路径建议，不开放任意模板 DSL 或 STRM 正文。
+  批次 ApproveBatch 接 intercept/overwrite，宿主始终保留原 digest、期限、保护、证据与确认检查。
+- rename 按段拒绝绝对路径、..、反斜线、保留目录、符号链接逃逸；prepare 批量检查 owner/冲突和季集覆盖，
+  非法建议回落原路径；StageOutputProjections/Journal 在提交和实际写入时仍做 root、layout、owner、digest 检查。
+  已有输出不能被 hook 自动迁移。播放 grant 和 stable resolver 构造仍由核心完成，插件只能改相对输出位置。
+- storage.operation 只拿宿主已批准的 opaque handle。本组 Preview/Start 仅提供调用者已经选定的一个
+  connection/root，不增加候选授权、不返回绝对根/凭据；为更广候选选择预留 typed 结构，但不扩大权限。
+- 复用 F4-A 的优先级/≤8 handler/每 handler 200ms/整链 2s；新增带 budget 的校验 context，取消清理也
+  不越过总策略 deadline。到期 mailbox 继续由已有收敛机制处理，纯策略失败不会触发第二次外部写动作。
+- `TestRealSameBinaryOrganizingEventsAndTransferPolicies` 原生门禁实际执行五策略、六事实→KV、停用收割；
+  producer 测试覆盖提交/回滚、失败/未知、缺 scope/撤权、路径逃逸/归属与原始 STRM 字节不变。
+- 无新迁移/数据库扩展/依赖，Schema 63；未访问生产，不部署。§9 本组没有用 N/A/unsupported 代替接线。
+  §10 的额外 module 覆盖方法不借本组扩大；核心写文件/URL/取流仍不可由插件替换。
+
+### F4-B 本地门禁与接线审计
+
+- 插件仓库 `6c71e7c` 已推送；Actions `39125177183` 全绿（build/vet/test/golden/三轮 race）。
+- 本地 Vue 118 项、vue-tsc/Vite build、Python 30 项、全包 build/vet/errcheck 均通过；浏览器
+  E2E 109 PASS，唯一 Linux 实际 worker 点击用例留给原生 CI，未用本机 Skip 冒充通过。
+- 全仓串行 race/真实 ffmpeg/迁移往返已跑完；当时新删除夹具尚缺 info_hash/完整租约字段，故该
+  包失败。补齐夹具字段并保留原 CHECK/认证/删除断言后，acquisition、library、jobs、plugins/v2
+  已串行 race 重跑通过；filemanager/v2 的版本化事实回归也重新运行。没有修改生产约束来适配测试。
+- filemanager 的版本化 outbox aggregate 是事实 ID，不是业务 operation ID；bridge 明确从白名单
+  payload 的 operationId 取业务身份（旧事实回退原 aggregate），避免换键后事件指向错误操作。
+- 数据库变更型测试始终共用 test-lock，串行只用 media_tool_test / Redis DB15。最终发布门禁以
+  本组提交对应 Actions 为准；F4 尚未完成，不部署服务器，也不提前开始 F4-C。

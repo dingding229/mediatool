@@ -1,0 +1,186 @@
+[
+  {
+    "type": "library.organize.failed",
+    "kind": "event",
+    "phase": "F4-B",
+    "state": "implemented",
+    "scope": "events.subscribe.library.organize.failed",
+    "producer": [
+      "internal/modules/jobs/jobs.go:Repository.Finish/expireExhausted",
+      "internal/modules/filemanager/engine.go:Engine.finish"
+    ],
+    "schema": "sdk/contracts/organizing.go:OrganizeFailure",
+    "tests": [
+      "TestOrganizingBridgeCommitRollbackDedupAndLiveScopes",
+      "TestOrganizingPoliciesNarrowTimeoutRevocationAndNoWorker",
+      "TestRealSameBinaryOrganizingEventsAndTransferPolicies"
+    ]
+  },
+  {
+    "type": "library.subtitles.copied",
+    "kind": "event",
+    "phase": "F4-B",
+    "state": "implemented",
+    "scope": "events.subscribe.library.subtitles.copied",
+    "producer": [
+      "internal/modules/library/journal.go:Journal.Apply"
+    ],
+    "schema": "sdk/contracts/organizing.go:SubtitleOutcome",
+    "tests": [
+      "TestOrganizingBridgeCommitRollbackDedupAndLiveScopes",
+      "TestOrganizingPoliciesNarrowTimeoutRevocationAndNoWorker",
+      "TestRealSameBinaryOrganizingEventsAndTransferPolicies"
+    ]
+  },
+  {
+    "type": "library.subtitles.failed",
+    "kind": "event",
+    "phase": "F4-B",
+    "state": "implemented",
+    "scope": "events.subscribe.library.subtitles.failed",
+    "producer": [
+      "internal/modules/jobs/organizing_events.go:terminalOrganizingFact"
+    ],
+    "schema": "sdk/contracts/organizing.go:SubtitleOutcome",
+    "tests": [
+      "TestOrganizingBridgeCommitRollbackDedupAndLiveScopes",
+      "TestOrganizingPoliciesNarrowTimeoutRevocationAndNoWorker",
+      "TestRealSameBinaryOrganizingEventsAndTransferPolicies"
+    ]
+  },
+  {
+    "type": "library.history.hidden",
+    "kind": "event",
+    "phase": "F4-B",
+    "state": "implemented",
+    "scope": "events.subscribe.library.history.hidden",
+    "producer": [
+      "internal/modules/library/history_manage.go:Engine.HideHistory"
+    ],
+    "schema": "sdk/contracts/organizing.go:HistoryHidden",
+    "tests": [
+      "TestOrganizingBridgeCommitRollbackDedupAndLiveScopes",
+      "TestOrganizingPoliciesNarrowTimeoutRevocationAndNoWorker",
+      "TestRealSameBinaryOrganizingEventsAndTransferPolicies"
+    ]
+  },
+  {
+    "type": "download.files.deleted",
+    "kind": "event",
+    "phase": "F4-B",
+    "state": "implemented",
+    "scope": "events.subscribe.download.files.deleted",
+    "producer": [
+      "internal/modules/acquisition/cleanup.go:Engine.Cleanup/ReconcileCleanup",
+      "internal/modules/acquisition/deletion_events.go:Engine.finishCleanupConfirmed"
+    ],
+    "schema": "sdk/contracts/organizing.go:DownloadDeleted",
+    "tests": [
+      "TestOrganizingBridgeCommitRollbackDedupAndLiveScopes",
+      "TestOrganizingPoliciesNarrowTimeoutRevocationAndNoWorker",
+      "TestRealSameBinaryOrganizingEventsAndTransferPolicies"
+    ]
+  },
+  {
+    "type": "download.task.deleted",
+    "kind": "event",
+    "phase": "F4-B",
+    "state": "implemented",
+    "scope": "events.subscribe.download.task.deleted",
+    "producer": [
+      "internal/modules/acquisition/plugin.go:DownloaderService.DeleteOwned",
+      "internal/modules/acquisition/deletion_events.go:Engine.finishCleanupConfirmed"
+    ],
+    "schema": "sdk/contracts/organizing.go:DownloadDeleted",
+    "tests": [
+      "TestOrganizingBridgeCommitRollbackDedupAndLiveScopes",
+      "TestOrganizingPoliciesNarrowTimeoutRevocationAndNoWorker",
+      "TestRealSameBinaryOrganizingEventsAndTransferPolicies"
+    ]
+  },
+  {
+    "type": "transfer.rename",
+    "kind": "chain",
+    "phase": "F4-B",
+    "state": "implemented",
+    "scope": "events.chain.transfer.rename",
+    "producer": [
+      "internal/modules/library/plugin_policy.go:Engine.PrepareOutputs",
+      "internal/modules/library/confirm.go:Engine.Confirm",
+      "internal/modules/acquisition/transfers.go:Engine.ImportFile"
+    ],
+    "schema": "sdk/contracts/organizing.go:TransferPlan/TransferPaths",
+    "tests": [
+      "TestOrganizingBridgeCommitRollbackDedupAndLiveScopes",
+      "TestOrganizingPoliciesNarrowTimeoutRevocationAndNoWorker",
+      "TestRealSameBinaryOrganizingEventsAndTransferPolicies"
+    ]
+  },
+  {
+    "type": "transfer.rename.build",
+    "kind": "chain",
+    "phase": "F4-B",
+    "state": "implemented",
+    "scope": "events.chain.transfer.rename.build",
+    "producer": [
+      "internal/modules/library/plugin_policy.go:Engine.PrepareOutputs"
+    ],
+    "schema": "sdk/contracts/organizing.go:TransferPlan/TransferPaths",
+    "tests": [
+      "TestOrganizingBridgeCommitRollbackDedupAndLiveScopes",
+      "TestOrganizingPoliciesNarrowTimeoutRevocationAndNoWorker",
+      "TestRealSameBinaryOrganizingEventsAndTransferPolicies"
+    ]
+  },
+  {
+    "type": "transfer.intercept",
+    "kind": "chain",
+    "phase": "F4-B",
+    "state": "implemented",
+    "scope": "events.chain.transfer.intercept",
+    "producer": [
+      "internal/modules/library/plugin_policy.go:Engine.PrepareOutputs",
+      "internal/modules/filemanager/batch.go:Engine.ApproveBatch"
+    ],
+    "schema": "sdk/contracts/organizing.go:TransferPlan/TransferDecision",
+    "tests": [
+      "TestOrganizingBridgeCommitRollbackDedupAndLiveScopes",
+      "TestOrganizingPoliciesNarrowTimeoutRevocationAndNoWorker",
+      "TestRealSameBinaryOrganizingEventsAndTransferPolicies"
+    ]
+  },
+  {
+    "type": "transfer.overwrite.check",
+    "kind": "chain",
+    "phase": "F4-B",
+    "state": "implemented",
+    "scope": "events.chain.transfer.overwrite.check",
+    "producer": [
+      "internal/modules/library/plugin_policy.go:Engine.PrepareOutputs",
+      "internal/modules/filemanager/batch.go:Engine.ApproveBatch"
+    ],
+    "schema": "sdk/contracts/organizing.go:TransferPlan/TransferDecision",
+    "tests": [
+      "TestOrganizingBridgeCommitRollbackDedupAndLiveScopes",
+      "TestOrganizingPoliciesNarrowTimeoutRevocationAndNoWorker",
+      "TestRealSameBinaryOrganizingEventsAndTransferPolicies"
+    ]
+  },
+  {
+    "type": "storage.operation",
+    "kind": "chain",
+    "phase": "F4-B",
+    "state": "implemented",
+    "scope": "events.chain.storage.operation",
+    "producer": [
+      "internal/modules/filemanager/engine.go:Engine.Preview",
+      "internal/modules/library/scan.go:Engine.Start"
+    ],
+    "schema": "sdk/contracts/organizing.go:StorageSelection/StorageChoice",
+    "tests": [
+      "TestOrganizingBridgeCommitRollbackDedupAndLiveScopes",
+      "TestOrganizingPoliciesNarrowTimeoutRevocationAndNoWorker",
+      "TestRealSameBinaryOrganizingEventsAndTransferPolicies"
+    ]
+  }
+]

@@ -320,14 +320,7 @@ func (e Engine) Cleanup(ctx context.Context, job jobs.Job) (result error) {
 			return errors.Join(jobs.ErrOperatorRequired, errors.New("qB种子已移除，但本地文件删除尚未核实；不自动重放删除"))
 		}
 	}
-	_, err = e.DB.Exec(ctx, `UPDATE download_cleanup_requests SET state='succeeded' ,message='qB种子已删除，对应下载文件由qB清理；云端媒体、STRM及播放Key保留',updated_at=now() WHERE task_id=$1`, id)
-	if err == nil {
-		_, err = e.DB.Exec(ctx, `UPDATE download_tasks SET seeding_state='removed' WHERE id=$1`, id)
-	}
-	if err == nil {
-		_, err = e.DB.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','download.cleanup_complete',jsonb_build_object('taskId',$1::text,'cloudMediaPreserved',true,'strmKeyPreserved',true))`, id)
-	}
-	return err
+	return e.finishCleanupConfirmed(ctx, id)
 }
 
 func (e Engine) ReconcileCleanup(ctx context.Context, id string) error {
@@ -373,9 +366,5 @@ func (e Engine) ReconcileCleanup(ctx context.Context, id string) error {
 			return errors.New("本地仍有文件或不可核验，不宣称删除完成")
 		}
 	}
-	_, err = e.DB.Exec(ctx, `UPDATE download_cleanup_requests SET state='succeeded',message='只读核对：种子及已记录下载文件均不存在',updated_at=now()WHERE task_id=$1`, id)
-	if err == nil {
-		_, err = e.DB.Exec(ctx, `UPDATE download_tasks SET seeding_state='removed'WHERE id=$1`, id)
-	}
-	return err
+	return e.finishCleanupConfirmed(ctx, id)
 }

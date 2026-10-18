@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
 	"media-tool/internal/platform/outbox"
@@ -203,6 +205,10 @@ func (e Engine) Preview(ctx context.Context, in Input) (Plan, error) {
 	root, err := e.root(ctx, in.ConnectionID)
 	if err != nil {
 		return Plan{}, err
+	}
+	ctx, selected, err := (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).SelectStorage(ctx, contracts.StorageSelection{Handles: []string{root.ID}, Selected: root.ID})
+	if err != nil || selected != root.ID {
+		return Plan{}, ErrChanged
 	}
 	b, err := e.backend(ctx, root)
 	if err != nil {
@@ -444,10 +450,19 @@ func (e Engine) finish(ctx context.Context, id, state, message string, completed
 		return err
 	}
 	defer deferutil.Rollback(ctx, tx)
-	if _, err = tx.Exec(ctx, `UPDATE file_operations SET state=$2,message=$3,completed_steps=$4,updated_at=now() WHERE id=$1`, id, state, message, completed); err != nil {
+	var oldState string
+	var oldCompleted int
+	if err = tx.QueryRow(ctx, `SELECT state,completed_steps FROM file_operations WHERE id=$1 FOR UPDATE`, id).Scan(&oldState, &oldCompleted); err != nil {
 		return err
 	}
-	if err = outbox.EmitTx(ctx, tx, "files."+state, id, map[string]string{"operationId": id, "state": state, "message": message}); err != nil {
+	if oldState == state && oldCompleted == completed && (state == "failed" || state == "succeeded" || state == "cancelled") {
+		return dbutil.Commit(ctx, tx)
+	}
+	var version time.Time
+	if err = tx.QueryRow(ctx, `UPDATE file_operations SET state=$2,message=$3,completed_steps=$4,updated_at=now() WHERE id=$1 RETURNING updated_at`, id, state, message, completed).Scan(&version); err != nil {
+		return err
+	}
+	if err = outbox.EmitVersionTx(ctx, tx, "files."+state, id, version.UTC().Format(time.RFC3339Nano), map[string]string{"operationId": id, "state": state, "message": message}); err != nil {
 		return err
 	}
 	trace.Info(ctx, "filemanager", "file operation result", "operationId", id, "state", state, "completedSteps", completed, "message", message)

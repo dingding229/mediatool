@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"time"
 )
 
@@ -166,7 +167,10 @@ func (r Repository) Finish(ctx context.Context, j Job, workErr error) error {
 	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload) VALUES($1,$2,$3,$4)`, UUID(), "job."+persistedState, j.ID, body); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	if err = terminalOrganizingFact(ctx, tx, j.ID); err != nil {
+		return err
+	}
+	return dbutil.Commit(ctx, tx)
 }
 
 func (r Repository) expireExhausted(ctx context.Context) error {
@@ -196,6 +200,9 @@ func (r Repository) expireExhausted(ctx context.Context) error {
 	for _, e := range out {
 		body, _ := json.Marshal(map[string]string{"kind": e.kind, "state": "failed"})
 		if _, err = tx.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)VALUES($1,'job.failed',$2,$3)`, UUID(), e.id, body); err != nil {
+			return err
+		}
+		if err = terminalOrganizingFact(ctx, tx, e.id); err != nil {
 			return err
 		}
 	}

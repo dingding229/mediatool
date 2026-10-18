@@ -124,6 +124,32 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 		return "", err
 	}
 
+	var seasonValue *int
+	if item.MediaType == "series" {
+		seasonValue = &in.Season
+	}
+	var projections []OutputProjection
+	// Already-confirmed/recoverable manifests retain the original idempotent or
+	// explicit-reconciliation path. Hooks never implicitly migrate old outputs.
+	if snapshot.State != "confirmed" && snapshot.State != "artifacts_pending" && snapshot.State != "needs_output_reconciliation" {
+		ctx, err = e.PrepareOutputSettings(ctx)
+		if err != nil {
+			return "", err
+		}
+		projections, err = AssetOutputProjections(indexed.Path, snapshot.FileID, item, seasonValue, in.Episodes)
+		if err != nil {
+			return "", err
+		}
+		projections, err = ApplyOutputTemplates(ctx, e.DB, indexed.Path, snapshot.FileID, item, projections)
+		if err != nil {
+			return "", err
+		}
+		ctx, projections, err = e.PrepareOutputs(ctx, id, snapshot.FileID, projections)
+		if err != nil {
+			return "", err
+		}
+
+	}
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
 		return "", err
@@ -230,18 +256,6 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 		return "", err
 	}
 	journal := Journal{DB: e.DB, Vault: e.Connections.Repository.Vault}
-	var seasonValue *int
-	if item.MediaType == "series" {
-		seasonValue = &in.Season
-	}
-	projections, err := AssetOutputProjections(cloudPath, assetID, item, seasonValue, in.Episodes)
-	if err != nil {
-		return "", err
-	}
-	projections, err = ApplyOutputTemplates(ctx, e.DB, cloudPath, assetID, item, projections)
-	if err != nil {
-		return "", err
-	}
 	intents, err := StageOutputProjections(ctx, journal, tx, rootDir, assetID, item, seasonValue, projections, []byte(link+"\n"), playbackgrants.SecretFreeKeyRef(grantID))
 	if err != nil {
 		return "", err

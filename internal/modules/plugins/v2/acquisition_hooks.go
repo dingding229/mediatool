@@ -13,17 +13,21 @@ import (
 	"time"
 )
 
+type policyDeadline struct{}
+
 var ErrResourceRejected = errors.New("插件资源策略拒绝本次下载")
 
 // acquisitionChain is prepare-only: no caller business transaction is held while
 // waiting. Each accepted result adds a live commit fence, never cached authority.
 // Policy handlers have only their declared chain scope, not downloader capability.
-func (s Store) acquisitionChain(ctx context.Context, typ contracts.ChainEventType, input any, apply func(json.RawMessage) bool) (context.Context, error) {
+func (s Store) acquisitionChain(ctx context.Context, typ contracts.ChainEventType, input any, apply func(context.Context, json.RawMessage) bool) (context.Context, error) {
 	if ctx.Value(hookContext{}) != nil {
 		return ctx, nil
 	}
 	bounded, cancel := context.WithTimeout(context.WithValue(ctx, hookContext{}, true), 2*time.Second)
 	defer cancel()
+	deadline, _ := bounded.Deadline()
+	bounded = context.WithValue(bounded, policyDeadline{}, deadline)
 	list, e := s.hooks(bounded, "chain", string(typ))
 	if e != nil {
 		trace.Warn(ctx, "plugins", "资源策略回落内置逻辑", "chain", string(typ), "reason", "registry_unavailable")
@@ -56,7 +60,7 @@ func (s Store) acquisitionChain(ctx context.Context, typ contracts.ChainEventTyp
 			trace.Warn(ctx, "plugins", "资源策略回落内置逻辑", "chain", string(typ), "reason", "timeout_or_failed")
 			continue
 		}
-		if !apply(result) {
+		if !apply(bounded, result) {
 			trace.Warn(ctx, "plugins", "拒绝越权资源策略结果并回落", "chain", string(typ), "reason", "invalid_result")
 			continue
 		}
@@ -82,7 +86,7 @@ func (s Store) SelectResources(ctx context.Context, v contracts.ResourceSelectio
 	for _, c := range v.Candidates {
 		ids = append(ids, c.ID)
 	}
-	ctx, e := s.acquisitionChain(ctx, contracts.ChainResourceSelection, &v, func(raw json.RawMessage) bool {
+	ctx, e := s.acquisitionChain(ctx, contracts.ChainResourceSelection, &v, func(_ context.Context, raw json.RawMessage) bool {
 		var next contracts.ResourceSelectionResult
 		if contracts.Decode(raw, &next) != nil || contracts.ValidateSelection(v, next) != nil {
 			return false
@@ -105,7 +109,7 @@ func (s Store) PrepareDownload(ctx context.Context, v contracts.ResourceDownload
 		return ctx, false, ErrInvalid
 	}
 	allowed := true
-	ctx, e := s.acquisitionChain(ctx, contracts.ChainResourceDownload, &v, func(raw json.RawMessage) bool {
+	ctx, e := s.acquisitionChain(ctx, contracts.ChainResourceDownload, &v, func(_ context.Context, raw json.RawMessage) bool {
 		var next contracts.ResourceDownloadResult
 		if decodeDownloadPolicy(raw, &next) != nil || contracts.ValidateDownload(v, next) != nil {
 			return false

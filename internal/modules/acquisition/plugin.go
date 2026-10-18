@@ -4,13 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/adapters/qbittorrent"
 	"media-tool/internal/modules/downloads"
+	"media-tool/internal/modules/jobs"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/outbox"
 	"slices"
 	"strings"
+	"time"
 )
 
 // DownloaderService exposes observation of foreign torrents, but mutation only of
@@ -122,12 +126,19 @@ func (s DownloaderService) DeleteOwned(ctx context.Context, idOrHash string, del
 	if err = a.DeleteOwned(ctx, task.ID, false); err != nil {
 		return err
 	}
+	if _, err = a.Inspect(ctx, task.ID); !errors.Is(err, qbittorrent.ErrNotFound) {
+		return errors.Join(jobs.ErrOperatorRequired, errors.New("删除尚未读回确认，不重放"))
+	}
 	tx, err := s.Engine.DB.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer deferutil.Rollback(ctx, tx)
-	if _, err = tx.Exec(ctx, `UPDATE download_tasks SET seeding_state='removed',updated_at=now()WHERE id=$1 AND info_hash=$2`, id, task.ID); err != nil {
+	var deletedAt time.Time
+	if err = tx.QueryRow(ctx, `UPDATE download_tasks SET seeding_state='removed',updated_at=now()WHERE id=$1 AND info_hash=$2 RETURNING updated_at`, id, task.ID).Scan(&deletedAt); err != nil {
+		return err
+	}
+	if err = outbox.EmitVersionTx(ctx, tx, "download.task.deleted", id, "torrent-only:"+deletedAt.UTC().Format(time.RFC3339Nano), contracts.DownloadDeleted{TaskID: id}); err != nil {
 		return err
 	}
 	return dbutil.Commit(ctx, tx)

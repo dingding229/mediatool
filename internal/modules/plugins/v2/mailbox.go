@@ -130,7 +130,17 @@ func (s Store) invokeSnapshot(ctx context.Context, snap Snapshot, d contracts.De
 		}
 		select {
 		case <-ctx.Done():
-			cleanup, stop := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
+			cleanupBudget := time.Second
+			if deadline, ok := ctx.Value(policyDeadline{}).(time.Time); ok {
+				remaining := time.Until(deadline)
+				// Pure policy results are discarded. Existing deadline convergence owns
+				// any expired mailbox row; never block beyond the total policy budget.
+				if remaining <= 0 {
+					return nil, contracts.NewError(contracts.ResultUnknown)
+				}
+				cleanupBudget = min(cleanupBudget, remaining)
+			}
+			cleanup, stop := context.WithTimeout(context.WithoutCancel(ctx), cleanupBudget)
 			_, err := s.DB.Exec(cleanup, `UPDATE plugin_v2_runs SET state=CASE WHEN state='running' THEN 'unknown' ELSE 'canceled' END,reason='deadline',finished_at=now() WHERE id=$1 AND state IN('pending','running')`, run)
 			stop()
 			return nil, errors.Join(contracts.NewError(contracts.ResultUnknown), err)
@@ -277,6 +287,9 @@ func validHookResult(raw json.RawMessage) bool {
 func validExtensionResult(kind, id string, args, result json.RawMessage) bool {
 	if kind == "chain" && (id == "resource.selection" || id == "resource.download") {
 		return validAcquisitionResult(id, args, result)
+	}
+	if kind == "chain" && (id == "transfer.rename" || id == "transfer.rename.build" || id == "transfer.intercept" || id == "transfer.overwrite.check" || id == "storage.operation") {
+		return validOrganizingResult(id, args, result)
 	}
 	return (kind == "chain" && id == "name.recognize" || kind == "module" && id == "metadata.name_recognize") && validHookResult(result)
 }

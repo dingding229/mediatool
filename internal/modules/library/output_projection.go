@@ -117,6 +117,13 @@ func StageOutputProjections(ctx context.Context, j Journal, tx pgx.Tx, root, ass
 	if len(projections) < 1 || len(projections) > 100 {
 		return nil, errors.New("invalid projection count")
 	}
+	paths := []string{}
+	for _, p := range projections {
+		paths = append(paths, p.Path)
+	}
+	if !PathsUnderRoot(root, paths) {
+		return nil, ErrArtifactConflict
+	}
 	if err := CheckOutputLayout(ctx, tx, assetID, projections); err != nil {
 		return nil, err
 	}

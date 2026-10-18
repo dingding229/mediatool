@@ -244,3 +244,15 @@ hello-go 1.3 的手动 F3 只读验收把 boolean 结果写入自身 KV；扩权
 两者均 prepare→200ms handler / 2s 整链→schema 校验→提交 fence，不在写事务中等 RPC。
 降级仅用于纯策略结果，绝不执行插件外部下载后再重放内置写操作。hello-go 1.4.0 默认 no-op。
 本组新增 scope 需重新确认；没有变更 STRM/302、媒体认证、下载来源/所有权保护或生产资源限制。
+
+
+### F4-B：整理、字幕和删除的事实
+
+整理失败只取终态；重试/未知/待核对不广播失败。字幕以 owned journal 的实际复制和摘要证据为准，
+没有字幕不发事件。隐藏历史不等于删文件；下载删除只有 provider/文件读回确认后才与业务状态原子入 outbox，
+false 删除绝不发文件删除事件。typed DTO 位于 SDK `contracts/organizing.go`，数据均经白名单投影。
+
+五条 `events.chain.*` 策略只运行在 prepare：transfer.rename/build、intercept、overwrite.check、storage.operation。
+重命名只改变相对输出路径，不能改正文/源身份/播放授权；root、归属、布局、碰撞、季集和摘要由宿主最终检查。
+既有输出必须走明确迁移，不能通过 hook 追加新布局。intercept/overwrite 只能拒绝/跳过；storage 只选已批准 handle，
+当前入口不扩大原 connection/root 的授权集合。hello-go 1.5.0 默认全部 no-op，新 scope 必须重新确认。

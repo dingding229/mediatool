@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"media-tool/internal/platform/artifacts"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/outbox"
 	"media-tool/internal/platform/secrets"
 	"os"
 	"path"
@@ -174,6 +176,14 @@ func (j Journal) Apply(ctx context.Context, id string) error {
 			return err
 		}
 	} else if err = artifacts.Write(root, relative, content); err != nil {
+		if kind == "subtitle" {
+			if factErr := outbox.EmitVersionTx(ctx, tx, "subtitle.attempt.failed", id, fmt.Sprintf("%x", digest), map[string]string{"operationId": id, "assetId": asset}); factErr != nil {
+				return errors.Join(err, factErr)
+			}
+			if commitErr := dbutil.Commit(ctx, tx); commitErr != nil {
+				return errors.Join(err, commitErr)
+			}
+		}
 		return err
 	}
 	if _, err = tx.Exec(ctx, `INSERT INTO managed_media_artifacts(relative_path,asset_id,artifact_kind,content_digest,owner_scope)VALUES($1,$2,$3,$4,$5)ON CONFLICT(relative_path)DO UPDATE SET content_digest=excluded.content_digest,owner_scope=excluded.owner_scope,updated_at=now()`, relative, asset, kind, digest, scope); err != nil {
@@ -181,6 +191,11 @@ func (j Journal) Apply(ctx context.Context, id string) error {
 	}
 	if _, err = tx.Exec(ctx, `UPDATE media_artifact_journal SET state='applied',content_ciphertext=CASE WHEN artifact_kind='strm' THEN content_ciphertext ELSE NULL END,updated_at=now()WHERE id=$1`, id); err != nil {
 		return err
+	}
+	if kind == "subtitle" {
+		if err = outbox.EmitVersionTx(ctx, tx, "library.subtitles.copied", asset, relative+":"+fmt.Sprintf("%x", digest), contracts.SubtitleOutcome{OperationID: id, AssetID: asset, Count: 1, State: "copied"}); err != nil {
+			return err
+		}
 	}
 	return dbutil.Commit(ctx, tx)
 }

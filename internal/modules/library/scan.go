@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
 	"path"
@@ -77,6 +79,10 @@ func (e Engine) Start(ctx context.Context, root string) (string, error) {
 	}
 	if !strings.HasPrefix(root, "/") || path.Clean(root) != root || strings.Contains(root, "\\") || !inside(allowed, root) {
 		return "", errors.New("scan root must be canonical and within the configured cloud directory")
+	}
+	ctx, selected, err := (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).SelectStorage(ctx, contracts.StorageSelection{Handles: []string{connection.Record.ID}, Selected: connection.Record.ID})
+	if err != nil || selected != connection.Record.ID {
+		return "", errors.New("存储选择策略无效")
 	}
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {

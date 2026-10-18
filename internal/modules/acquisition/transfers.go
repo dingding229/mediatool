@@ -13,6 +13,7 @@ import (
 	"media-tool/internal/modules/playbackgrants"
 	"media-tool/internal/modules/settings"
 	deferutil "media-tool/internal/platform/cleanup"
+	dbutil "media-tool/internal/platform/database"
 	"os"
 	"path"
 	"path/filepath"
@@ -454,6 +455,18 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 		return err
 	}
 
+	ctx, err = (library.Engine{DB: e.DB, Connections: e.Connections}).PrepareOutputSettings(ctx)
+	if err != nil {
+		return err
+	}
+	projections, err := e.TransferProjections(ctx, transferID, cloudPath, fileID, details.Media, season, episodes)
+	if err != nil {
+		return err
+	}
+	ctx, projections, err = (library.Engine{DB: e.DB, Connections: e.Connections}).PrepareOutputs(ctx, transferID, fileID, projections)
+	if err != nil {
+		return err
+	}
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
 		return err
@@ -502,10 +515,6 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 		return err
 	}
 	journal := library.Journal{DB: e.DB, Vault: e.Connections.Repository.Vault}
-	projections, err := e.TransferProjections(ctx, transferID, cloudPath, assetID, details.Media, season, episodes)
-	if err != nil {
-		return err
-	}
 	intents, err := library.StageOutputProjections(ctx, journal, tx, e.Connections.Config.STRMOutputDir, assetID, details.Media, season, projections, []byte(link+"\n"), playbackgrants.SecretFreeKeyRef(grantID))
 	if err != nil {
 		if errors.Is(err, library.ErrOutputLayoutRequired) {
@@ -526,7 +535,7 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)VALUES($1,'media.artifacts_staged',$2,$3)`, jobs.UUID(), assetID, event); err != nil {
 		return err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, tx); err != nil {
 		return err
 	}
 	for _, intent := range intents {
@@ -565,7 +574,7 @@ func (e Engine) ImportFile(ctx context.Context, transferID string) error {
 			return err
 		}
 	}
-	if err = final.Commit(ctx); err != nil {
+	if err = dbutil.Commit(ctx, final); err != nil {
 		return err
 	}
 	return e.finishTask(ctx, taskID)
@@ -611,7 +620,7 @@ func (e Engine) finishTask(ctx context.Context, id string) error {
 	if _, err = tx.Exec(ctx, `INSERT INTO jobs(id,kind,payload,idempotency_key)VALUES($1,'emby.refresh',$2,$3)ON CONFLICT(idempotency_key)WHERE idempotency_key IS NOT NULL DO NOTHING`, jobs.UUID(), payload, "emby.refresh:"+id); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return dbutil.Commit(ctx, tx)
 }
 func intFromString(v string) int { n, _ := strconv.Atoi(v); return n }
 

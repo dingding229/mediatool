@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/outbox"
 	"time"
 )
 
@@ -70,6 +72,9 @@ func (e Engine) HideHistory(ctx context.Context, items []HistorySelection, confi
 			}
 		}
 		if _, err = tx.Exec(ctx, `INSERT INTO library_hidden_history(kind,record_id,observed_at)VALUES($1,$2,$3)ON CONFLICT(kind,record_id)DO UPDATE SET observed_at=excluded.observed_at,hidden_at=now()`, item.Kind, item.ID, updated); err != nil {
+			return err
+		}
+		if err = outbox.EmitVersionTx(ctx, tx, "library.history.hidden", item.ID, item.Kind+":"+updated.UTC().Format(time.RFC3339Nano), contracts.HistoryHidden{RecordID: item.ID, Kind: item.Kind}); err != nil {
 			return err
 		}
 	}

@@ -127,6 +127,10 @@ func TestVerifiedUploadCleanupDeletesOnlyItsOwnedFixture(t *testing.T) {
 	}
 	var cloudCount int
 	f.engine.DB.QueryRow(ctx, `SELECT count(*)FROM cloud_files WHERE id=$1`, file).Scan(&cloudCount)
+	var facts int
+	if err = f.engine.DB.QueryRow(ctx, `SELECT count(*) FROM outbox_events WHERE event_type IN('download.files.deleted','download.task.deleted') AND payload->>'taskId'=$1`, f.taskID).Scan(&facts); err != nil || facts != 2 {
+		t.Fatal("verified deletion facts missing/duplicate", facts, err)
+	}
 	if cloudCount != 1 || !strings.EqualFold(cloud.files[cloudPath].FileHashes[2], sha) {
 		t.Fatal("cloud source changed")
 	}

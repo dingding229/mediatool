@@ -3,7 +3,9 @@ package filemanager
 import (
 	"context"
 	"encoding/json"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"media-tool/internal/modules/jobs"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
 	"time"
@@ -118,6 +120,14 @@ func (e Engine) Batch(ctx context.Context, id string) (Batch, error) {
 func (e Engine) ApproveBatch(ctx context.Context, id, digest string, confirm bool) (Batch, error) {
 	if !confirm || digest == "" {
 		return Batch{}, ErrInvalid
+	}
+	store := pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}
+	var policyErr error
+	for _, typ := range []contracts.ChainEventType{contracts.ChainTransferIntercept, contracts.ChainTransferOverwriteCheck} {
+		ctx, policyErr = store.TransferDecision(ctx, typ, contracts.TransferPlan{OperationID: id, Paths: []string{}})
+		if policyErr != nil {
+			return Batch{}, policyErr
+		}
 	}
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
