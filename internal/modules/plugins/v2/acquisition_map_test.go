@@ -4,12 +4,28 @@ import (
 	"encoding/json"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestF4AEventMapHasEveryProducerSchemaScopeAndTests(t *testing.T) {
-	raw, e := os.ReadFile("../../../../testdata/contracts/plugin-v2-f4a-event-map.json")
+	// go test uses the package directory; the non-root static kernel gate runs
+	// this same test executable from the repository root. Locate the checkout
+	// without making any fixture/world-permission or production sandbox changes.
+	root := "."
+	found := false
+	for range 5 {
+		if _, err := os.Stat(filepath.Join(root, "go.mod")); err == nil {
+			found = true
+			break
+		}
+		root = filepath.Join(root, "..")
+	}
+	if !found {
+		t.Fatal("repository fixture root unavailable")
+	}
+	raw, e := os.ReadFile(filepath.Join(root, "testdata/contracts/plugin-v2-f4a-event-map.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -37,7 +53,7 @@ func TestF4AEventMapHasEveryProducerSchemaScopeAndTests(t *testing.T) {
 			if !ok {
 				t.Fatal(producer)
 			}
-			if _, e = os.Stat("../../../../" + path); e != nil {
+			if _, e = os.Stat(filepath.Join(root, path)); e != nil {
 				t.Fatal(e)
 			}
 		}

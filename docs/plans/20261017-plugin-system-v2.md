@@ -1742,3 +1742,8 @@ SDK 测试推送→主程序精确 pin→全部门禁与 Actions→Hub 不可变
 - 原生 run `39120548412` 首轮在新 F4-A worker 用例的收尾 Disable 请求处失败：测试漏传
   已锁定的 definition fingerprint，`Store.apply` 正确返回 conflict。仅补齐该测试字段，未改生产
   fingerprint/资源/超时约束；该轮六事件收据和两条实际 chain 调用均已先执行完成。以修正后 run 为最终门禁。
+
+- 后续 run `39121088443` 已通过原生专项、全仓 race 和真实媒体三轮并发；隔离内核门禁中的真实
+  F4-A worker 全流程亦 PASS。门禁仅因新 coverage 测试把独立二进制的 cwd 错当包目录，读取
+  fixture 时 permission denied 而失败。修正为有界向上定位仓库，包目录/根目录两种运行方式都
+  校验相同 fixture/producer，未扩大文件权限、改脚本特权、跳过测试或放宽 worker 隔离。
