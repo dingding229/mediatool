@@ -24,3 +24,18 @@ class PluginV2CI(unittest.TestCase):
         self.assertIn('COPY internal/modules/plugins/v2/library.json /src/internal/modules/plugins/v2/library.json',docker)
         self.assertIn('COPY --from=plugin-resources /src/web/public/',docker)
         self.assertIn('internal/modules/plugins/v2/library.json',(ROOT/'web/src/api/plugins.ts').read_text())
+
+    def test_all_real_worker_functional_suites_share_readiness_barrier(self):
+        # Resource fault injection intentionally kills before initialization.
+        paths = list((ROOT/'internal').rglob('*test.go'))
+        checked = 0
+        for path in paths:
+            source = path.read_text()
+            if 'Supervisor{' not in source or path.name == 'task_limit_linux_test.go':
+                continue
+            self.assertIn('testworker.Ready(', source, str(path))
+            checked += 1
+        self.assertGreaterEqual(checked, 8)
+        helper = (ROOT/'internal/platform/testworker/ready.go').read_text()
+        for contract in ('runtime_state', 'generation', 'grant_revision', 'lease_until', 'Extensions.AuthProviders', 'probe(bounded)'):
+            self.assertIn(contract, helper)

@@ -9,6 +9,7 @@ import (
 	"media-tool/internal/modules/plugins/v2/sandbox"
 	dbutil "media-tool/internal/platform/database"
 	"media-tool/internal/platform/outbox"
+	"media-tool/internal/platform/testworker"
 	"os"
 	"runtime"
 	"testing"
@@ -67,7 +68,7 @@ func TestRealSameBinaryOrganizingEventsAndTransferPolicies(t *testing.T) {
 		}
 		t.Fatal(name)
 	}
-	wait("ready", func() bool { _, e := s.Snapshot(ctx, in.ID); return e == nil })
+	testworker.Ready(t, s.DB, in.ID, func(c context.Context) error { _, err := s.UI(c, in.ID, "form", ""); return err })
 	proofUntil := time.Now().Add(15 * time.Second)
 	a, b := jobs.UUID(), jobs.UUID()
 	paths := []string{"Movies/demo.strm"}

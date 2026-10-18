@@ -13,6 +13,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/plugins/v2/sandbox"
 	"media-tool/internal/platform/secrets"
+	"media-tool/internal/platform/testworker"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -161,6 +162,7 @@ func TestRealSameBinaryWorkerWritesKVAndStops(t *testing.T) {
 			t.Error("supervisor cleanup hung")
 		}
 	})
+	testworker.Ready(t, s.DB, first.ID, func(c context.Context) error { _, err := s.UI(c, first.ID, "form", ""); return err })
 	var id string
 	var cipher []byte
 	deadline := time.Now().Add(25 * time.Second)

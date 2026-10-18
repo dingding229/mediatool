@@ -8,6 +8,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/modules/plugins/v2/sandbox"
+	"media-tool/internal/platform/testworker"
 	"os"
 	"runtime"
 	"testing"
@@ -55,7 +56,7 @@ func TestRealSameBinaryTelegramCommandAndSafeEvents(t *testing.T) {
 		}
 		t.Fatal(name)
 	}
-	wait("running", func() bool { _, e := f.s.Snapshot(f.ctx, f.instance.ID); return e == nil })
+	testworker.Ready(t, f.s.DB, f.instance.ID, func(c context.Context) error { _, err := f.s.UI(c, f.instance.ID, "form", ""); return err })
 	updates = []telegram.Update{message(1, 10, 20, "/hello", f.i.now())}
 	if _, e := f.i.PollOnce(f.ctx); e != nil {
 		t.Fatal(e)

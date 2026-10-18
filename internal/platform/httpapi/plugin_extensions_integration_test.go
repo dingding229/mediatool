@@ -14,6 +14,7 @@ import (
 	"media-tool/internal/modules/plugins/v2/sandbox"
 	"media-tool/internal/platform/auth"
 	"media-tool/internal/platform/secrets"
+	"media-tool/internal/platform/testworker"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -151,7 +152,7 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 		}
 		t.Fatal("timed out:", label)
 	}
-	wait("descriptor snapshot", func() bool { _, e := s.Snapshot(ctx, in.ID); return e == nil })
+	testworker.Ready(t, s.DB, in.ID, func(c context.Context) error { _, err := s.UI(c, in.ID, "form", ""); return err })
 	c := cfg()
 	c.SecretKey = strings.Repeat("a", 64)
 	c.PluginDataRoot = s.Root

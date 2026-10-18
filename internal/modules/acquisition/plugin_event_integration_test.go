@@ -7,6 +7,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/modules/plugins/v2/sandbox"
+	"media-tool/internal/platform/testworker"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -83,7 +84,7 @@ func TestPluginRealBinaryDownloadAdded(t *testing.T) {
 		rows, err := s.List(context.Background(), 0, 200)
 		t.Fatal(label, rows, err)
 	}
-	wait("descriptor ready", func() bool { _, err := s.Snapshot(f.ctx, instance.ID); return err == nil })
+	testworker.Ready(t, s.DB, instance.ID, func(c context.Context) error { _, err := s.UI(c, instance.ID, "form", ""); return err })
 	args, _ := json.Marshal(map[string]string{"taskId": f.taskID})
 	if err = f.engine.Add(f.ctx, jobs.Job{Payload: args}); err != nil {
 		t.Fatal(err)

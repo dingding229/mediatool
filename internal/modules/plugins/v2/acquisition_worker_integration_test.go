@@ -9,6 +9,7 @@ import (
 	"media-tool/internal/modules/plugins/v2/sandbox"
 	dbutil "media-tool/internal/platform/database"
 	"media-tool/internal/platform/outbox"
+	"media-tool/internal/platform/testworker"
 	"os"
 	"runtime"
 	"testing"
@@ -67,7 +68,7 @@ func TestRealSameBinaryAcquisitionEventsAndResourceChains(t *testing.T) {
 		}
 		t.Fatal(name)
 	}
-	wait("ready", func() bool { _, e := s.Snapshot(ctx, in.ID); return e == nil })
+	testworker.Ready(t, s.DB, in.ID, func(c context.Context) error { _, err := s.UI(c, in.ID, "form", ""); return err })
 	a, b := jobs.UUID(), jobs.UUID()
 	prepared, ids, e := s.SelectResources(ctx, contracts.ResourceSelectionRequest{RunID: a, Candidates: []contracts.ResourceCandidate{{ID: b, AccountID: a}}})
 	if e != nil || len(ids) != 1 || ids[0] != b {
