@@ -1738,3 +1738,7 @@ SDK 测试推送→主程序精确 pin→全部门禁与 Actions→Hub 不可变
   SKIP（原生 CI 必须执行）。Python 30 项；全包 vet、errcheck、pin 初始化/资源清单门禁通过。
 - DB 变更型测试全部经共享 test-lock 串行，仅 media_tool_test 与 Redis DB15；没有连接生产。
   主程序 Actions 的全仓/原生 AMD64 新用例结果以本组提交对应 run 为准，最终汇报提供链接。
+
+- 原生 run `39120548412` 首轮在新 F4-A worker 用例的收尾 Disable 请求处失败：测试漏传
+  已锁定的 definition fingerprint，`Store.apply` 正确返回 conflict。仅补齐该测试字段，未改生产
+  fingerprint/资源/超时约束；该轮六事件收据和两条实际 chain 调用均已先执行完成。以修正后 run 为最终门禁。

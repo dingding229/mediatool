@@ -146,7 +146,7 @@ func TestRealSameBinaryAcquisitionEventsAndResourceChains(t *testing.T) {
 	if e != nil || len(current) != 1 {
 		t.Fatal(e)
 	}
-	if _, e = s.Apply(ctx, "test-admin", Request{Kind: Disable, InstanceID: in.ID, ExpectedRevision: current[0].Revision, OperationKey: jobs.UUID(), Confirm: true}); e != nil {
+	if _, e = s.Apply(ctx, "test-admin", Request{Kind: Disable, InstanceID: in.ID, Fingerprint: d.Fingerprint, ExpectedRevision: current[0].Revision, OperationKey: jobs.UUID(), Confirm: true}); e != nil {
 		t.Fatal(e)
 	}
 	wait("disabled and reaped", func() bool {
