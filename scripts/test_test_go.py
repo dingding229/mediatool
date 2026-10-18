@@ -45,7 +45,7 @@ print(json.dumps({'args':sys.argv[1:],'db':urllib.parse.urlsplit(os.environ['DAT
         self.assertEqual(result.returncode, 0, result.stderr)
         migration, test = [json.loads(line) for line in result.stdout.splitlines()]
         self.assertEqual(migration["args"], ["run", "./cmd/migrate", "-test-only", "-action", "up", "-cleanup-test-plugins"])
-        self.assertEqual(test["args"], ["test", "-p", "1", "-race", "-count=1", "./..."])
+        self.assertEqual(test["args"], ["test", "-p", "1", "-race", "-count=1", "-timeout=20m", "./..."])
         for command in (migration, test):
             self.assertEqual(command["db"], "/media_tool_test")
             self.assertEqual(command["redis"], "/15")
@@ -78,7 +78,7 @@ print(json.dumps({'args':sys.argv[1:],'db':urllib.parse.urlsplit(os.environ['DAT
         migration, required, test = result.stdout.splitlines()
         self.assertIn("Real media tests REQUIRED", required)
         commands = [json.loads(migration), json.loads(test)]
-        self.assertEqual(commands[1]["args"], ["test", "-p", "1", "-race", "-count=1", "-v", "./..."])
+        self.assertEqual(commands[1]["args"], ["test", "-p", "1", "-race", "-count=1", "-v", "-timeout=20m", "./..."])
         for command in commands:
             self.assertEqual(command["db"], "/media_tool_test")
             self.assertEqual(command["redis"], "/15")
@@ -91,7 +91,7 @@ print(json.dumps({'args':sys.argv[1:],'db':urllib.parse.urlsplit(os.environ['DAT
         self.assertEqual(len(commands), 3)
         self.assertEqual(commands[1]["args"][:2], ["build", "-trimpath"])
         self.assertEqual(commands[1]["args"][-1], "./cmd/media-tool")
-        self.assertEqual(commands[2]["args"], ["test", "-p", "1", "-race", "-count=1", "./..."])
+        self.assertEqual(commands[2]["args"], ["test", "-p", "1", "-race", "-count=1", "-timeout=20m", "./..."])
         self.assertIn("Real static app plugin-worker REQUIRED", result.stdout)
         worker = commands[1]["args"][commands[1]["args"].index("-o") + 1]
         self.assertFalse(Path(worker).parent.exists(), "scoped worker artifacts leaked")

@@ -44,10 +44,13 @@ if [[ "$(uname -s)" == Linux ]]; then
  fi
  echo 'Real static app plugin-worker REQUIRED on Linux (host tests still use -race).'
 fi
+# The growing migration/compatibility package can exceed Go's implicit 10m
+# package alarm on local PostgreSQL. Keep it bounded; no individual deadline,
+# worker resource limit, race flag or assertion is relaxed.
 if [[ "${MEDIA_TOOL_REQUIRE_FFMPEG:-}" == 1 ]]; then
  command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
  echo 'Real media tests REQUIRED (missing binary/encoder is a failure); verbose output enabled.'
- "${test_exec[@]}" -p 1 -race -count=1 -v "$@"
+ "${test_exec[@]}" -p 1 -race -count=1 -v -timeout=20m "$@"
  exit "$?"
 fi
-"${test_exec[@]}" -p 1 -race -count=1 "$@"
+"${test_exec[@]}" -p 1 -race -count=1 -timeout=20m "$@"
