@@ -105,8 +105,14 @@ func TestRealSameBinaryDiscoveryCoverageAndMetadata(t *testing.T) {
 	for _, typ := range []contracts.ChainEventType{contracts.ChainDiscoverSource, contracts.ChainRecommendSource} {
 		proveRealPolicy(t, s, in.ID, typ, proofUntil, func() bool {
 			providers, e := s.SourceProviders(ctx, typ)
-			if e != nil || len(providers) != 1 {
-				t.Fatal(providers, e)
+			if e != nil {
+				t.Fatal(e)
+			}
+			if len(providers) == 0 {
+				return false
+			} // A not-current worker legally exposes no sources.
+			if len(providers) != 1 {
+				t.Fatal("ambiguous provider registry", providers)
 			}
 			result, e := s.SourcePage(ctx, providers[0], typ, contracts.SourceRequest{Page: 1, Size: 200})
 			if policyTimedOut(e) {

@@ -30,6 +30,9 @@ func proveRealPolicy(t *testing.T, s Store, id string, typ contracts.ChainEventT
 	}
 	var states json.RawMessage
 	e := s.DB.QueryRow(ctx, `SELECT coalesce(jsonb_agg(jsonb_build_object('state',state,'reason',reason,'count',n)),'[]'::jsonb) FROM (SELECT state,reason,count(*) n FROM plugin_v2_runs WHERE instance_id=$1 AND handler=$2 GROUP BY state,reason) x`, id, handler).Scan(&states)
+	var lifecycle json.RawMessage
+	lifeErr := s.DB.QueryRow(ctx, `SELECT jsonb_build_object('desired',desired_state,'runtime',runtime_state,'reason',reason,'hasGeneration',generation IS NOT NULL,'liveLease',lease_until>clock_timestamp()) FROM plugin_v2_instances WHERE id=$1`, id).Scan(&lifecycle)
+	t.Logf("policy readiness lifecycle=%s err=%v", lifecycle, lifeErr)
 	t.Fatalf("policy %s has no accepted success receipt within readiness budget; states=%s error=%v", typ, states, e)
 }
 func policyTimedOut(err error) bool {
