@@ -1565,3 +1565,74 @@ SDK 位于 pinned mediatool-plugin 的 `sdk/host/{library,files,storage,strm,met
 - F3-B 仅推送与 CI/Hub 候选发布；无生产访问、无部署，F3-C/D 未开始，等待本组审核。
 
 - 本地全套 E2E 109 passed / 1 Linux-only skipped（3.1min）；原生 AMD64 用例保留 CI 必跑，不能用本地跳过替代。
+
+### F3-C 实施记录（媒体服务器与播放链，2026-10-18）
+
+#### 主体与严格 302 边界
+
+- `internal/platform/pluginactor` 保存不可由 RPC 解码的宿主上下文；只在 Host 已验证编译
+  manifest、当前 grants、generation/lease 后构造 PluginPrincipal，并复制 libraryIds selector。
+  此 actor 是管理员明确授权的插件管理主体，**不是 media_users 身份**，不能创建或颁发媒体凭据。
+- catalog/nativelibrary 只开放安全**管理目录**：exposable 资产 + 非 hidden 原生库 + selector 在
+  SQL 中过滤后再分页。不存在伪造 media_users、相信 visibleLibraries 或从参数借用 userId 的逻辑。
+  管理列表使用资产 UUID，非成员域的虚拟季/集 ID；不附 UserData、播放参数、图片地址或路径。
+- 当前插件 API/后台任务没有可信媒体用户绑定。因此 catalog.home/discover/nextUp/userData
+  明确 unsupported；不以空 userId、任选用户或管理员上游 key 代替媒体用户授权。
+- Emby 查询只经 mediaserver.PluginCatalog → EmbyAdapter 的安全管理方法；不导出 handler、
+  Gateway/Proxy/ManagedLink/MetadataHeaders 或 HTTP client。未有库归属证据的 scoped item
+  lookup、scoped root listing 和 Emby library listing fail closed 返回 unsupported。
+- 所有新响应 DTO 都无 URL/Playback/StreamURLs/Path/认证头/媒体凭据字段；显示文本采用已有
+  ManagementLabel 处理路径、URL、密钥与编码变体。**不调用** Provider.Playback、核心 Resolve、
+  Image 客户端、Session 激活，也不改变稳定 STRM →播放器 UA 取链→302 CDN 核心链路。
+- 媒体用户查询/修改是独立管理员级 scope；目标用户 ID 不是调用者身份。更新只 patch 已有用户，
+  省略保留，Clear* 显式清除；不提供创建、Login/Session、改密、PasswordHash/token。
+  RevokeDeviceExpected 在同事务用户→设备锁下核对 revision/归属，再撤销凭据和释放槽位。
+- sessions / playeraccess 只返回安全活动摘要、playing/paused 计数或最近至多10000条事件的允许/
+  拒绝聚合；不返回原始日志、IP、UA、规则或白名单写入口。带库 selector 而现有摘要无法证明
+  归属时明确 unsupported，不退回全局摘要。
+- 探测仅 Summary/List 与最多200个明确目标的原生 Retry；不使用500条管理批量快捷入口。
+  GC 注入已有 singleton service/cache，复用有界扫描游标，不另建 runner；在 DB commit 和文件
+  cleanup 前保持 live fence。SDK 和桥接不导入 ffx/linksource，不新增 ffmpeg/取链执行路径。
+- 原生 TMDB 剩余部分提供有界 episode 元数据安全投影和既有 Engine.Refresh 入队；不返回
+  provider 原始 JSON、TMDB client/token、poster/still URL 或图片数据。
+
+#### 新 RPC、scope 与业务入口
+
+| RPC | scope | 级别 | 入口 |
+|---|---|---|---|
+| mediaserver.providers | mediaserver.read | R | Registry.Descriptions 安全摘要 |
+| mediaserver.libraries | mediaserver.read | R | PluginCatalog → catalog.Repository.PluginLibraries |
+| mediaserver.items、catalog.list/item | mediaserver.read | R | PluginCatalog → PluginItems / EmbyAdapter |
+| catalog.home/discover/nextUp/userData | mediaserver.read | R | unsupported：没有可信成员主体 |
+| mediaserver.refresh | mediaserver.refresh | W | scoped exposable asset → 原生 TMDB EnqueueAsset / library.QueueRefresh |
+| mediaserver.settings.get/update | mediaserver.read / mediaserver.settings.write | R/D | NativeServerRepository.Get / SaveNativeManagement，仅 name/enabled/revision |
+| mediausers.list/get/devices/history | mediaserver.users.read | R | Repository.Page/Get/Devices/History 的无凭据 DTO |
+| mediausers.update/revokeDevice | mediaserver.users.write | D | Repository.Save / RevokeDeviceExpected；原生校验、审计和 fence |
+| playback.sessions、mediaserver.sessions | mediaserver.read | R | SessionRepository.List 安全活动会话 |
+| playback.summary | mediaserver.read | R | SessionRepository.Summary，既有 playing/paused |
+| playeraccess.summary | mediaserver.read | R | Repository.Summary，只有固定有界计数 |
+| mediaprobe.status/list | mediaprobe.read | R | admin.Repository.Summary/List |
+| mediaprobe.retry、mediaprobe.stills.retry | mediaprobe.retry | W | 原生 admin Retry，逐明确目标、独立原生审计/提交 fence |
+| mediaprobe.stills.gc | mediaprobe.retry | D | 已有 Service.Collect，限条目/时间、可续扫 |
+| metadata.nativeDetails | metadata.read | R | nativetmdb.Repository.Stored；episode 页≤200，无图片地址 |
+| metadata.refreshDetails | metadata.refresh | W | nativetmdb.Engine.Refresh，保留 exposable 证据检查 |
+
+继续复用 F3-A/B 的实例加密 operation receipt、unknown 不自动重放、scope 危险标记单点表和
+输入/页/批次≤200。无新增迁移、依赖或数据库扩展；不访问生产、不部署，不开始 F3-D。
+
+#### F3-C 验证记录
+
+- SDK 最终 pin `8714ac29b072fa3b34062f7e2432a98dc971fdae`，无 replace；vet、静态
+  build、race count=3、typed wire/mock 四路径与安全 DTO golden 通过。
+- 新 RPC 逐一纳入共享 scope 成功/缺失/撤权/unsupported 矩阵；真实门面覆盖可信 actor、
+  参数伪造、库间越权、设备归属/revision、用户 patch、无凭据摘要、仅入队重试、GC 和原生详情。
+- 专门负向检查禁止注册的取流/激活/认证/Emby handler 方法、SDK DTO 禁止字段、桥接 import/
+  调用边界；假 Emby 上游注入 Path/MediaSources/DirectStreamUrl/Set-Cookie/凭据哨兵均不外泄。
+  哨兵测试发现 client 名可夹带 clientIP 标记后，插件投影追加专用过滤，不改原始值/管理员日志。
+- 全仓串行 race 的 migrations 包580.690s通过，含原生/插件迁移 Up→Down→Up 与 D2。
+  本地首次 HTTP SPA 重载失败源于前端构建与 Go embed 编译启动重叠，随后严格先完成前端构建
+  再重跑 HTTP 包；未改业务代码或断言。CI 继续既有顺序先构建前端。
+- 无新迁移/依赖/数据库扩展；测试库固定 media_tool_test 与 Redis DB15，串行执行。
+  本组只交付代码、SDK pin 与 CI/Hub 候选，不连接生产、不部署，不开始 F3-D。
+- 本地 build/vet/errcheck 零告警、Vue118项与vue-tsc/build、Python30项通过；HTTP包race复跑
+  19.907s通过，全套E2E109 passed/1 Linux-only skipped（3.7min）。原生AMD64仍须CI实际执行。

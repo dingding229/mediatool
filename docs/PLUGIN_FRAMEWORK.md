@@ -210,3 +210,17 @@ typed Host 客户端新增 library/files/storage/strm/metadata/classification；
 不支持裸复制/上传/Resolve/STRM正文改写，安全文本读取尚为 unsupported。
 rootIds/storageIds 是文件/存储 scope 的交集选择器；库历史/资产的未实现 selector fail closed，
 不会放大为全库。保持原生更小批次上限与外部结果 unknown/reconcile 语义。
+
+## F3-C：媒体服务器与播放链
+
+新增 typed mediaserver/catalog/mediausers/playback/mediaprobe 客户端及原生详情扩展，仍为
+contractVersion=2。完整方法/scope/级别见设计文档 F3-C 表。危险标记从同 pin 的方法表生成。
+
+Host 由实时 grants/generation 创建 PluginPrincipal；原生/Emby 只提供安全管理目录，不接受
+客户端 userId/visibleLibraries 作为权限。无真实成员主体的 Home/Discover/NextUp/UserData
+明确 unsupported。Emby 无法证明归属的 scoped lookup 也不放大到管理员全局读取。
+
+插件不能获取或替换 Resolve、Playback/StreamURLs、播放/115 URL、Session 激活、原始
+Image/Playback HTTP 客户端、Emby handler、凭据或用户认证流程。用户写入仅 patch 既有记录，
+撤销设备保留同事务用户→设备锁、原生 revision/归属校验与 live fence。播放/访问只给安全摘要，
+不提供 IP/UA/原始日志或策略写入口。探测仅入队，GC 复用既有有界服务，无新增 ffmpeg 路径。
