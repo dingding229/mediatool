@@ -68,33 +68,43 @@ func TestRealSameBinaryOrganizingEventsAndTransferPolicies(t *testing.T) {
 		t.Fatal(name)
 	}
 	wait("ready", func() bool { _, e := s.Snapshot(ctx, in.ID); return e == nil })
+	proofUntil := time.Now().Add(15 * time.Second)
 	a, b := jobs.UUID(), jobs.UUID()
 	paths := []string{"Movies/demo.strm"}
 	for _, typ := range []contracts.ChainEventType{contracts.ChainTransferRenameBuild, contracts.ChainTransferRename} {
-		prepared, got, e := s.TransferPaths(ctx, typ, contracts.TransferPlan{OperationID: a, Paths: paths}, func(context.Context, []string) bool { return true })
-		if e != nil || len(got) != 1 || got[0] != paths[0] {
-			t.Fatal(typ, got, e)
-		}
-		if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
-			t.Fatal(e)
-		}
+		proveRealPolicy(t, s, in.ID, typ, proofUntil, func() bool {
+			prepared, got, e := s.TransferPaths(ctx, typ, contracts.TransferPlan{OperationID: a, Paths: paths}, func(context.Context, []string) bool { return true })
+			if e != nil || len(got) != 1 || got[0] != paths[0] {
+				t.Fatal(typ, got, e)
+			}
+			if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
+				t.Fatal(e)
+			}
+			return true
+		})
 	}
 	for _, typ := range []contracts.ChainEventType{contracts.ChainTransferIntercept, contracts.ChainTransferOverwriteCheck} {
-		prepared, e := s.TransferDecision(ctx, typ, contracts.TransferPlan{OperationID: a, Paths: paths})
-		if e != nil {
-			t.Fatal(e)
+		proveRealPolicy(t, s, in.ID, typ, proofUntil, func() bool {
+			prepared, e := s.TransferDecision(ctx, typ, contracts.TransferPlan{OperationID: a, Paths: paths})
+			if e != nil {
+				t.Fatal(e)
+			}
+			if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
+				t.Fatal(e)
+			}
+			return true
+		})
+	}
+	proveRealPolicy(t, s, in.ID, contracts.ChainStorageOperSelection, proofUntil, func() bool {
+		prepared, handle, e := s.SelectStorage(ctx, contracts.StorageSelection{Handles: []string{a}, Selected: a})
+		if e != nil || handle != a {
+			t.Fatal(handle, e)
 		}
 		if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
 			t.Fatal(e)
 		}
-	}
-	prepared, handle, e := s.SelectStorage(ctx, contracts.StorageSelection{Handles: []string{a}, Selected: a})
-	if e != nil || handle != a {
-		t.Fatal(handle, e)
-	}
-	if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
-		t.Fatal(e)
-	}
+		return true
+	})
 	var successfulChains int
 	if e = s.DB.QueryRow(ctx, `SELECT count(DISTINCT handler) FROM plugin_v2_runs WHERE instance_id=$1 AND kind='chain' AND state='succeeded'`, in.ID).Scan(&successfulChains); e != nil || successfulChains != 5 {
 		t.Fatal("all five policies must actually execute", successfulChains, e)

@@ -68,39 +68,55 @@ func TestRealSameBinaryDiscoveryCoverageAndMetadata(t *testing.T) {
 		t.Fatal(name)
 	}
 	wait("ready", func() bool { _, e = s.Snapshot(ctx, in.ID); return e == nil })
+	proofUntil := time.Now().Add(15 * time.Second)
 	identity := contracts.MediaIdentity{TMDBID: 1, MediaType: "series"}
-	prepared, selected, e := s.ConvertMedia(ctx, contracts.MediaConversion{Candidates: []contracts.MediaIdentity{identity}, Selected: &identity})
-	if e != nil || selected == nil || *selected != identity {
-		t.Fatal(selected, e)
-	}
-	if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
-		t.Fatal(e)
-	}
+	proveRealPolicy(t, s, in.ID, contracts.ChainMediaRecognizeConvert, proofUntil, func() bool {
+		prepared, selected, e := s.ConvertMedia(ctx, contracts.MediaConversion{Candidates: []contracts.MediaIdentity{identity}, Selected: &identity})
+		if e != nil || selected == nil || *selected != identity {
+			t.Fatal(selected, e)
+		}
+		if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
+			t.Fatal(e)
+		}
+		return true
+	})
 	expectation := contracts.EpisodeExpectation{SubscriptionID: jobs.UUID(), Revision: 1, TMDBID: 1, Season: 1, Expected: []int{1, 2}}
-	prepared, numbers, e := s.SupplementEpisodes(ctx, expectation)
-	if e != nil || len(numbers) != 2 {
-		t.Fatal(numbers, e)
-	}
-	if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
-		t.Fatal(e)
-	}
+	proveRealPolicy(t, s, in.ID, contracts.ChainSubscribeEpisodesRefresh, proofUntil, func() bool {
+		prepared, numbers, e := s.SupplementEpisodes(ctx, expectation)
+		if e != nil || len(numbers) != 2 {
+			t.Fatal(numbers, e)
+		}
+		if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
+			t.Fatal(e)
+		}
+		return true
+	})
 	check := contracts.CompletionCheck{EpisodeExpectation: expectation, Owned: []int{1, 2}, Complete: true}
-	prepared, allow, e := s.CheckCoverage(ctx, check)
-	if e != nil || !allow {
-		t.Fatal(allow, e)
-	}
-	if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
-		t.Fatal(e)
-	}
+	proveRealPolicy(t, s, in.ID, contracts.ChainSubscribeCompletionCheck, proofUntil, func() bool {
+		prepared, allow, e := s.CheckCoverage(ctx, check)
+		if e != nil || !allow {
+			t.Fatal(allow, e)
+		}
+		if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
+			t.Fatal(e)
+		}
+		return true
+	})
 	for _, typ := range []contracts.ChainEventType{contracts.ChainDiscoverSource, contracts.ChainRecommendSource} {
-		providers, e := s.SourceProviders(ctx, typ)
-		if e != nil || len(providers) != 1 {
-			t.Fatal(providers, e)
-		}
-		result, e := s.SourcePage(ctx, providers[0], typ, contracts.SourceRequest{Page: 1, Size: 200})
-		if e != nil || len(result.Items) != 0 {
-			t.Fatal("no-op provider", result, e)
-		}
+		proveRealPolicy(t, s, in.ID, typ, proofUntil, func() bool {
+			providers, e := s.SourceProviders(ctx, typ)
+			if e != nil || len(providers) != 1 {
+				t.Fatal(providers, e)
+			}
+			result, e := s.SourcePage(ctx, providers[0], typ, contracts.SourceRequest{Page: 1, Size: 200})
+			if policyTimedOut(e) {
+				return false
+			}
+			if e != nil || len(result.Items) != 0 {
+				t.Fatal("no-op provider", result, e)
+			}
+			return true
+		})
 	}
 	var n int
 	if e = s.DB.QueryRow(ctx, `SELECT count(DISTINCT handler) FROM plugin_v2_runs WHERE instance_id=$1 AND kind='chain' AND state='succeeded'`, in.ID).Scan(&n); e != nil || n != 5 {
