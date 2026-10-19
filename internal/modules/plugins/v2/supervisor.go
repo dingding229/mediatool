@@ -37,6 +37,9 @@ func (s Supervisor) Run(ctx context.Context) error {
 	if s.Logger == nil {
 		s.Logger = slog.Default()
 	}
+	if s.Store.Logger == nil {
+		s.Store.Logger = s.Logger
+	}
 	if s.MaxTasks == 0 {
 		s.MaxTasks = 256
 	}
@@ -311,6 +314,7 @@ loop:
 			if e = s.Store.Renew(ctx, l, true); e != nil {
 				break loop
 			}
+			s.Store.logInfo(ctx, l.ID, "Plugin worker ready", "pluginId", l.PluginID, "generation", l.Token, "pid", cmd.Process.Pid)
 			pumpStarted = true
 			go func() { pumpDone <- s.Store.pump(ctx, l, peer, gate) }()
 		case <-renew.C:
@@ -439,15 +443,20 @@ loop:
 		s.Logger.Warn("Plugin adopted child reap deferred", "module", "plugins", "instance", l.ID)
 	}
 
+	reaped := false
 	if e := sandbox.ReapGroup(cmd.Process.Pid); e != nil {
 		s.Logger.Warn("Plugin descendant reap deferred", "module", "plugins", "instance", l.ID)
 	} else if cleanupOK {
+		reaped = true
 		bounded, stop := context.WithTimeout(context.Background(), 3*time.Second)
 		_, e = s.Store.DB.Exec(bounded, `UPDATE plugin_v2_instances SET worker_pid=0,worker_start='' WHERE id=$1 AND generation=$2 AND owner_id=$3 AND worker_pid=$4 AND worker_start=$5`, l.ID, l.Token, l.Owner, cmd.Process.Pid, stamp)
 		stop()
 		if e != nil {
 			s.Logger.Warn("Plugin process reference release deferred", "module", "plugins", "instance", l.ID)
 		}
+	}
+	if reaped {
+		s.Store.logInfo(context.Background(), l.ID, "Plugin worker reaped", "pluginId", l.PluginID, "generation", l.Token, "pid", cmd.Process.Pid, "result", "reaped")
 	}
 	if tail.warned() {
 		s.Logger.Warn("Plugin reported best-effort isolation or stderr output", "module", "plugins", "instance", l.ID, "reason", tail.category())

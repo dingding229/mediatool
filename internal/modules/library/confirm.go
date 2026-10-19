@@ -285,7 +285,7 @@ func (e Engine) Confirm(ctx context.Context, id string, in Confirmation) (string
 	if _, err = dbutil.Exec(ctx, e.DB, `UPDATE media_assets SET artifacts_state='ready' WHERE id=$1 AND NOT EXISTS(SELECT 1 FROM media_artifact_journal WHERE asset_id=$1 AND state<>'applied')`, assetID); err != nil {
 		return assetID, err
 	}
-	if _, err = dbutil.Exec(ctx, e.DB, `UPDATE library_candidates SET state='confirmed',updated_at=now()WHERE id=$1`, id); err != nil {
+	if err = e.commitImport(ctx, id, assetID); err != nil {
 		return assetID, err
 	}
 	if err = e.QueueRefresh(ctx, assetID); err != nil {

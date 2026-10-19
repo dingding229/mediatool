@@ -925,7 +925,7 @@
       "supported": true
     }
   ],
-  "pin": "v0.0.0-20261019045628-0e1bfe6750b5",
+  "pin": "v0.0.0-20261019072512-4404d48c34c4",
   "contractVersion": 2,
   "manifests": [
     {
@@ -1306,6 +1306,130 @@
       },
       "configSchemaVersion": 1,
       "dataSchemaVersion": 1
+    },
+    {
+      "contractVersion": 2,
+      "id": "library-refresh-notify",
+      "name": "媒体库刷新与入库通知",
+      "version": "1.0.0",
+      "author": "Media Tool Contributors",
+      "description": "提交后入库事件通知与合并刷新；不涉及播放 URL 或媒体内容。",
+      "level": 2,
+      "icon": "icon.svg",
+      "history": {
+        "1.0.0": "F6-α：有界、默认不执行业务、Host 实时授权与幂等收据"
+      },
+      "permissions": [
+        {
+          "scope": "plugin.config.read"
+        },
+        {
+          "scope": "plugin.data.read"
+        },
+        {
+          "scope": "plugin.data.write"
+        },
+        {
+          "scope": "ui.json"
+        },
+        {
+          "scope": "services.register"
+        },
+        {
+          "scope": "events.subscribe.library.organized"
+        },
+        {
+          "scope": "mediaserver.refresh"
+        },
+        {
+          "scope": "notifications.send"
+        }
+      ],
+      "extensions": {
+        "forms": true,
+        "pages": [
+          "status"
+        ],
+        "services": [
+          "flush"
+        ],
+        "events": [
+          "library.organized"
+        ]
+      },
+      "ui": {
+        "mode": "json"
+      },
+      "resources": {
+        "addressSpaceMiB": 8192,
+        "rssMiB": 256,
+        "cpuQuotaPercent": 100,
+        "processes": 64,
+        "openFiles": 256,
+        "dataMiB": 256,
+        "tmpMiB": 64
+      },
+      "configSchemaVersion": 1,
+      "dataSchemaVersion": 1
+    },
+    {
+      "contractVersion": 2,
+      "id": "site-checkin",
+      "name": "站点自动签到",
+      "version": "1.0.0",
+      "author": "Media Tool Contributors",
+      "description": "宿主附认证的有界签到；失败或验证码需人工处理，不绕过验证。",
+      "level": 2,
+      "icon": "icon.svg",
+      "history": {
+        "1.0.0": "F6-α：有界、默认不执行业务、Host 实时授权与幂等收据"
+      },
+      "permissions": [
+        {
+          "scope": "plugin.config.read"
+        },
+        {
+          "scope": "plugin.data.read"
+        },
+        {
+          "scope": "plugin.data.write"
+        },
+        {
+          "scope": "ui.json"
+        },
+        {
+          "scope": "services.register"
+        },
+        {
+          "scope": "sites.request"
+        },
+        {
+          "scope": "notifications.send"
+        }
+      ],
+      "extensions": {
+        "forms": true,
+        "pages": [
+          "status"
+        ],
+        "services": [
+          "checkin"
+        ]
+      },
+      "ui": {
+        "mode": "json"
+      },
+      "resources": {
+        "addressSpaceMiB": 8192,
+        "rssMiB": 256,
+        "cpuQuotaPercent": 100,
+        "processes": 64,
+        "openFiles": 256,
+        "dataMiB": 256,
+        "tmpMiB": 64
+      },
+      "configSchemaVersion": 1,
+      "dataSchemaVersion": 1
     }
   ],
   "resources": [
@@ -1318,6 +1442,16 @@
       "id": "hello-go",
       "path": "ui/dist/index.js",
       "sha256": "be94cf0c944bf4b8916671f04640c0ba7658e3e71f1ec25eba50e286b04d37f1"
+    },
+    {
+      "id": "library-refresh-notify",
+      "path": "icon.svg",
+      "sha256": "1296289cdfffb4abe14e8a15b40f1e448676f732ed24f3b18eac5dd66cf9465d"
+    },
+    {
+      "id": "site-checkin",
+      "path": "icon.svg",
+      "sha256": "1296289cdfffb4abe14e8a15b40f1e448676f732ed24f3b18eac5dd66cf9465d"
     }
   ]
 }

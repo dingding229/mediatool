@@ -9,7 +9,7 @@ import (
 )
 
 // ToolCall uses the existing durable invocation lane, not an autonomous executor.
-func (s Store) ToolCall(ctx context.Context, actor, id, name, key string, input json.RawMessage, confirm bool) (json.RawMessage, error) {
+func (s Store) ToolCall(ctx context.Context, actor, id, name, key string, input json.RawMessage, confirm bool) (output json.RawMessage, err error) {
 	if len(actor) == 0 || len(actor) > 128 || len(key) < 8 || len(key) > 100 {
 		return nil, ErrInvalid
 	}
@@ -42,6 +42,18 @@ func (s Store) ToolCall(ctx context.Context, actor, id, name, key string, input 
 	if e = tx.Commit(ctx); e != nil {
 		return nil, e
 	}
+	started := time.Now()
+	s.logInfo(ctx, id, "Plugin tool call started", "runId", run, "tool", d.Name, "effectKind", d.EffectKind)
+	completed := false
+	defer func() {
+		result := "unknown"
+		if completed {
+			result = "succeeded"
+		} else if err != nil {
+			result = callLogResult(err)
+		}
+		s.logInfo(context.WithoutCancel(ctx), id, "Plugin tool call finished", "runId", run, "tool", d.Name, "effectKind", d.EffectKind, "result", result, "durationMs", time.Since(started).Milliseconds())
+	}()
 	out, e := s.invokeSnapshot(ctx, snap, d, input, dedupe)
 	if e != nil {
 		return nil, e
@@ -54,5 +66,6 @@ func (s Store) ToolCall(ctx context.Context, actor, id, name, key string, input 
 	if e != nil || latest.ID != snap.ID {
 		return nil, ErrConflict
 	}
+	completed = true
 	return out, nil
 }

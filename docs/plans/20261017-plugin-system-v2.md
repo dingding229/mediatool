@@ -1926,3 +1926,13 @@ WorkflowRunner另将job lease/token条件UPDATE加入共享commit guard，覆盖
 - 工作流/auth状态、JSON表单及错误面板补齐；未加可视化编辑器。工作流查询复用现有路径的查询参数，避免Go ServeMux与实例动态路径歧义；原D级批准/run/cancel机制不变。新auth绑定附instanceId供准确投影，旧未归属记录不猜测。
 - F4实测首调用23–86ms、回落0%；不预热、不改200ms/2s生产预算。插件开发双仓顺序写入两仓文档；不部署，不访问生产。
 - 本地验证：主程序build/vet/errcheck、pin初始化/清单检查通过；V2/HTTP串行race及迁移65 Up→Down→Up/非插件对照通过。Vue40文件130项、Python31项、390px人工工具→危险确认→工作流状态→auth错误面板E2E通过。真实同binary与HTTP工具用例复用统一Ready helper并加入原生AMD64门禁，不放宽生产时限。首次回归发现新增agent.tools尚未加入宿主安装白名单及ServeMux歧义，均修复产品接线而非放宽门禁。
+
+### F6-α 实现记录（不部署）
+
+- 修复 F5 观察的正常 INFO 主日志缺口：启停提交、worker ready/reaped、人工工具调用开始/结束，统一精确 instance 字段；输入/输出/凭据/原始错误不进入日志，正常心跳/链不加高频 INFO。
+- 插件库新增 site-checkin / library-refresh-notify 1.0.0，均默认不执行业务，配套 manifest/history/JSON表单/状态页、mock/golden/单测。
+- 签到无需扩大正文 API：现有宿主1MiB有界脱敏后比较≤200字节字面量，仅回传 status/state/matched；动态CSRF或验证码无法判断就需要人工处理。
+- 服务/广播返回 NeedsAction 的最小宿主收敛：先完成运行收据，再按 generation/grant revision CAS 停用自身并保持 needs_action，需显式恢复；没有新迁移、新依赖或任意状态写接口，策略链回落不变。
+- 真正入库确认及恢复事务补 library.organized 的 operationId/assetId/state 身份事实；一般 files.* 不伪造资产身份。插件不修改 STRM/播放 URL。
+- 刷新使用现有业务队列，合并同资产、60–3600秒最多一个请求；通知与刷新都有稳定 Host 收据，checkpoint 丢失不重放。去重身份最多200条且不自动淘汰，超限 needs_action，明确承认宿主收据7日保留边界。
+- 测试范围限 media_tool_test/Redis DB15 串行、合成HTTP站点和合成资产；新增原生同app worker 用例复用统一 provider/handler Ready 屏障。生产/保留快照均不接触。

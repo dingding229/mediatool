@@ -264,6 +264,17 @@ func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *ho
 			return err
 		}
 
+		var needs *contracts.Error
+		if (kind == "service" || kind == "event") && errors.As(e, &needs) && needs.Code == contracts.NeedsAction {
+			bounded, stop := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+			pauseErr := s.pauseForAction(bounded, l)
+			stop()
+			if pauseErr != nil {
+				return pauseErr
+			}
+			return contracts.NewError(contracts.NeedsAction)
+		}
+
 		if state == RunUnknown {
 			return contracts.NewError(contracts.ResultUnknown)
 		} // non-cooperating call: supervisor kills the group

@@ -6,13 +6,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"io"
-	"log/slog"
 	"media-tool/internal/modules/filemanager"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/modules/plugins/v2/sandbox"
 	"media-tool/internal/platform/auth"
+	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/secrets"
 	"media-tool/internal/platform/testworker"
 	"net/http"
@@ -102,6 +102,21 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 		t.Fatal(e)
 	}
 	ctx, s := pluginHTTPFixture(t)
+	logs, e := logging.Open(t.TempDir(), "info")
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() {
+		if e := logs.Close(); e != nil {
+			t.Error(e)
+		}
+	})
+	logger, e := logging.NewRawControlled(io.MultiWriter(os.Stderr, logs), "info", &logs.Level)
+	if e != nil {
+		t.Fatal(e)
+	}
+	s.Logger = logger
+
 	defs, e := pluginv2.Catalog()
 	if e != nil {
 		t.Fatal(e)
@@ -121,7 +136,6 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 	}
 	live, stop := context.WithCancel(ctx)
 	done := make(chan error, 2)
-	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	go func() {
 		done <- (pluginv2.Supervisor{Store: s, Executable: binary, Logger: logger, MaxWorkers: 1}).Run(live)
 	}()
@@ -368,6 +382,47 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 	}
 	if status, _ := request("GET", path+"/public", false, nil, ""); status < 400 {
 		t.Fatal("disabled plugin still callable", status)
+	}
+
+	wait("worker fully reaped", func() bool {
+		var clean bool
+		return s.DB.QueryRow(ctx, `SELECT worker_pid=0 AND generation IS NULL AND owner_id IS NULL AND lease_until IS NULL FROM plugin_v2_instances WHERE id=$1`, in.ID).Scan(&clean) == nil && clean
+	})
+	other := jobs.UUID()
+	logger.Info("other-instance-fixture", "module", "plugins", "instance", other)
+	logPage, err := logs.Query(ctx, logging.Query{Page: 1, PageSize: 200, Module: "plugins", Instance: in.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	observed := map[string]bool{}
+	for _, row := range logPage.Items {
+		if row["instance"] != in.ID || row["module"] != "plugins" {
+			t.Fatal("cross-instance log leak", row)
+		}
+		message, _ := row["msg"].(string)
+		observed[message] = true
+		if strings.HasPrefix(message, "Plugin tool call") {
+			if _, ok := row["runId"].(string); !ok {
+				t.Fatal("missing tool run identity")
+			}
+			if message == "Plugin tool call finished" && (row["result"] != "succeeded" || row["durationMs"] == nil) {
+				t.Fatal("missing bounded tool result/timing metadata", row)
+			}
+		}
+
+		raw, _ := json.Marshal(row)
+		if strings.Contains(string(raw), "http-worker") || strings.Contains(string(raw), "http-tool-echo") {
+			t.Fatal("tool input or operation key leaked", string(raw))
+		}
+	}
+	for _, message := range []string{"Plugin operation committed", "Plugin worker ready", "Plugin worker reaped", "Plugin tool call started", "Plugin tool call finished"} {
+		if !observed[message] {
+			t.Fatal("missing INFO lifecycle/tool log", message)
+		}
+	}
+	isolated, err := logs.Query(ctx, logging.Query{Page: 1, PageSize: 50, Module: "plugins", Instance: other})
+	if err != nil || isolated.Total != 1 {
+		t.Fatal("exact instance filter", isolated, err)
 	}
 	t.Log("native real worker NameRecognize -> module/intercept; form/page/multi-dashboard; real HTTP -> same-binary worker API; durable service -> KV; real organize -> TransferComplete; immediate disable executed")
 }

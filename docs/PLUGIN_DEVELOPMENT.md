@@ -146,3 +146,17 @@ minimum/maximum、min/maxLength、min/maxItems及文案。未知关键词/$ref/r
 开发发布严格双仓顺序：mediatool-plugin本地vet/test/race/golden→提交推送→该仓Actions成功→
 mediatool go.mod精确pin该提交（无replace）→生成同pin静态清单→主仓测试/Actions→Hub不可变digest→
 按审核授权备份部署。插件库不能在运行期选择源码、提交、版本或加载远程UI。
+
+## F6-α 插件开发参考
+
+`plugins/site-checkin` 示例使用 cron、sites.request/checkin 和 notifications.publish，认证始终由宿主附加。
+`plugins/library-refresh-notify` 示例使用 typed TransferCompleted、精确广播订阅、持久合并 service 和稳定操作 key。
+两者有 manifest/history、JSON表单/状态页、mock Host 单测和 descriptor/manifest golden，无额外二进制或远程 UI。
+
+开发顺序不变：插件仓库开发测试推送 → CI 绿 → 本仓精确 pin → 原生 AMD64 同 app worker E2E → 标准发布。
+`plugintest.Host.Client()` 提供直接 typed mock；`plugintest.Start` 测 stdio/RPC。非只读 mock 操作也检查 key、
+请求参数与实时 scope，保留成功/unknown 收据，不因测试后端更换而重写旧收据；新逻辑操作必须使用新 key。
+
+后台服务或广播 handler 遇到需要人工处理的外部依赖，可在保存安全状态及通知请求后返回 `contracts.NeedsAction`。
+宿主完成收据再 CAS 停用自身实例，needs_action 不自动重启；这不是绕过权限或跨实例状态修改能力。
+错误和通知只用固定 reason code，不把 HTML、认证 URL 或原始异常当作状态。普通链错误仍回落内置逻辑。

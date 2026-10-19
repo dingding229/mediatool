@@ -7,6 +7,7 @@ import (
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"log/slog"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/secrets"
 	"regexp"
@@ -20,6 +21,7 @@ type Store struct {
 	Vault    *secrets.Vault
 	Root     string
 	Business BusinessBridge
+	Logger   *slog.Logger
 }
 
 func rollback(ctx context.Context, tx pgx.Tx) { _ = tx.Rollback(ctx) } // Successful commit or primary error is handled by caller.
@@ -373,6 +375,9 @@ func (s Store) apply(ctx context.Context, actor string, in Request) (Instance, e
 	}
 	if e = tx.Commit(ctx); e != nil {
 		return out, e
+	}
+	if in.Kind == Enable || in.Kind == Disable {
+		s.logInfo(ctx, id, "Plugin operation committed", "operation", string(in.Kind), "revision", out.Revision)
 	}
 	return out, nil
 }

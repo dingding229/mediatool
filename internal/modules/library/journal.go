@@ -321,6 +321,9 @@ func (e Engine) FinalizeRecovered(ctx context.Context) error {
 		if _, err = tx.Exec(ctx, `UPDATE library_candidates SET state='confirmed',updated_at=now()WHERE id=$1`, c.id); err != nil {
 			return err
 		}
+		if err = recordImportTx(ctx, tx, c.id, c.asset); err != nil {
+			return err
+		}
 		payload, _ := json.Marshal(map[string]string{"assetId": c.asset})
 		if _, err = tx.Exec(ctx, `INSERT INTO jobs(id,kind,payload,idempotency_key)VALUES($1,'library.refresh',$2,$3)ON CONFLICT(idempotency_key)WHERE idempotency_key IS NOT NULL DO NOTHING`, jobs.UUID(), payload, "library.recovered:"+c.asset); err != nil {
 			return err

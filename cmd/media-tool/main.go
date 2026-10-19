@@ -501,7 +501,7 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	}
 	managementDeps := httpapi.Dependencies{Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
 	if db != nil && manager != nil {
-		store := pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot}
+		store := pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot, Logger: logger}
 		businessHost := pluginbusiness.AcquisitionHost{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc, Network: networkproxy.NewHostClient(networkproxy.Repository{DB: db, Vault: manager.Repository.Vault})}
 		if len(native) > 0 && native[0] != nil {
 			businessHost.Processing = &probeadmin.Repository{DB: db, Stills: native[0].Repo, MaxBytes: c.NativeStillsMaxBytes}

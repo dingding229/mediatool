@@ -408,3 +408,25 @@ API仅管理监听器admin/CSRF，复用加密持久信箱、授权fence、幂�
 
 冷启动结论：依据F4生产验收，首调23–86ms、超时回落率0%，目前没有加预热的实测依据；
 保持每handler 200ms、链总2s、最多8 handler，不放宽预算，也不在首页同步等待worker。
+
+### F6-α 验收插件与正常主日志
+
+当前内置库除 hello-go 外增加 `site-checkin` 与 `library-refresh-notify`，默认配置均不执行业务。
+源码、SDK、mock/golden 在 mediatool-plugin；先库 CI 全绿再更新本程序精确 pin，不上传源码或二进制。
+
+- 正常启停在事务提交后记录 INFO；worker 完成 provider 注册且续租成功才记录 ready，整组/子孙收割后记录 reaped。
+- 人工工具调用开始/结束记录 module=plugins、instance、runId、工具名、effectKind、结果类别和耗时。
+  不记录输入、输出、配置、操作 key、密钥或原始错误；心跳/续租/链调用不新增 INFO。
+  `/logs/query?module=plugins&instance=...` 保持精确字段过滤，审计与运行记录仍独立持久保存。
+- 服务/广播处理器明确返回 SDK NeedsAction 时，完成运行收据后以 generation/grant revision CAS 停用自身，
+  保持 needs_action，撤销旧调用代际并收割进程。没有任意状态写 RPC、新权限或新表；管理员显式启用才能恢复。
+  策略链返回错误仍按原预算回落，不会因此停用实例。
+- 站点签到只使用宿主持有认证的 sites.request/checkin；1MiB 内先脱敏，再比较声明的≤200字节字面量成功标记，
+  仅返回状态与布尔证据。无需新 body/正则/选择器接口或 scope。验证码/缺少证据不是成功，也不自动重放。
+- 入库 TransferComplete 另补确认/恢复事务内的 library.organized 身份事实；只有已确认资产才带 assetId。
+  旧 files.* 的一般文件完成事实没有 assetId，刷新插件忽略而不猜测。STRM 正文/302/Resolve 不参与扩展。
+- 刷新插件持久合并同资产；每60–3600秒最多向已有业务队列提交一个资产，通知使用现有 outbox。
+  稳定 Host 操作 key + 密文 checkpoint 防止重复及丢 checkpoint 重放；requested 不等于完成。
+  最多200个事件身份且不自动淘汰：超限停用待人工处理，避免7日 Host 收据过期后旧事件重新产生副作用。
+
+验收只使用合成站点、合成资产/通知和测试库。F6-α 不部署，不处理生产保留快照。

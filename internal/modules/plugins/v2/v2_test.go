@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 }
 func TestCatalogIsPureAndPathsRejectSymlinks(t *testing.T) {
 	all, e := Catalog()
-	if e != nil || len(all) != 1 {
+	if e != nil || len(all) != 3 {
 		t.Fatal(e)
 	}
 	all[0].Manifest.Permissions[0].Scope = "system.exec"

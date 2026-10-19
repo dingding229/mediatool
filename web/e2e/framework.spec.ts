@@ -872,7 +872,7 @@ test('log query failures are visible and do not present stale content as current
 test('built-in plugins consent, config, enable, instance logs, uninstall (isolated)',async({page})=>{
  await fixtureLogin(page);await page.goto('/plugins')
  await expect(page.getByLabel('选择ZIP插件包')).toHaveCount(0)
- await page.getByRole('button',{name:'安装插件',exact:true}).click()
+ await page.getByRole('region',{name:'内置插件目录'}).locator('article').filter({hasText:'Hello Go'}).getByRole('button',{name:'安装插件',exact:true}).click()
  const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await expect(consent).toContainText('plugin.data.write')
  const install=consent.getByRole('button',{name:'确认安装或授权',exact:true});await expect(install).toBeDisabled();console.info('plugin-e2e: consent dialog ready')
  await consent.getByText('我已阅读并同意以上权限',{exact:true}).click();await expect(consent.getByRole('checkbox',{name:'我已阅读并同意以上权限',exact:true})).toBeChecked();console.info('plugin-e2e: explicit consent checked');await install.click();await expect(consent).toBeHidden()
@@ -1667,7 +1667,7 @@ test('R-F3 HTTP plugin install, enable and execute recover from failures with bo
  }
  await fixtureLogin(page);await page.goto('/plugins')
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
- await page.getByRole('button',{name:'安装插件',exact:true}).click()
+ await page.getByRole('region',{name:'内置插件目录'}).locator('article').filter({hasText:'Hello Go'}).getByRole('button',{name:'安装插件',exact:true}).click()
  const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await consent.getByRole('checkbox').check()
  await consent.getByRole('button',{name:'确认安装或授权',exact:true}).click();await expect(page.getByRole('alert')).toContainText('安装暂不可用')
  await expect(consent.getByRole('button',{name:'确认安装或授权',exact:true})).toBeEnabled()
@@ -1710,7 +1710,7 @@ test('R-F3 HTTP clicks install, enable, execute and disable the real same-binary
  let id='',completed=false
  try{
   const installation=page.waitForResponse(r=>r.url().endsWith('/api/v1/plugins/operations')&&r.request().postDataJSON().kind==='install')
-  await page.getByRole('button',{name:'安装插件',exact:true}).click()
+  await page.getByRole('region',{name:'内置插件目录'}).locator('article').filter({hasText:'Hello Go'}).getByRole('button',{name:'安装插件',exact:true}).click()
   const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await consent.getByRole('checkbox').check();await consent.getByRole('button',{name:'确认安装或授权',exact:true}).click()
   const installed=await installation;expect(installed.status()).toBe(200);id=(await installed.json()).data.id
   const card=page.locator('.instance-card').filter({hasText:id})
