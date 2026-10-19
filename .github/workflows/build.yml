@@ -58,6 +58,7 @@ jobs:
           go run ./cmd/plugin-check
           go run ./cmd/plugin-assets --check
           go run ./cmd/plugin-assets
+          python3 scripts/plugin-support-matrix.py --check
       - run: npm ci --prefix web --no-fund --no-audit
       - run: npm test --prefix web
       - run: npm run build --prefix web

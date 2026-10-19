@@ -1983,3 +1983,11 @@ WorkflowRunner另将job lease/token条件UPDATE加入共享commit guard，覆盖
 - 权限矩阵逐方法清空初始 grants，避免 ensure 的附加读取授权污染后续 case；不改变生产授权语义。
 - 无新增依赖/DB扩展/迁移，schema65，contractVersion2；严格302/STRM/主密钥/115不变。仅 media_tool_test/DB15 串行合成测试。
 - 六插件 Chrome 配置、危险确认、SSH 只读核对及“安全空操作不算业务成功”的边界见 docs/F6_ACCEPTANCE.md。
+
+### R-α 实现记录（不部署）
+
+安装反馈/同步失败/结果未知先由新增回归复现，再拆分阶段；未知安装按同一operationKey显式核对，已安装按钮明确新增实例，epoch阻止迟到列表覆盖；失败只记录固定结果码/requestId。
+停用表单不调用worker，可保存JSON；离线静态schema只给设计建议。源码候选0.27.0/schema65，状态接口与OpenAPI版本收口；没有新迁移或范围扩张。
+完整Host/事件/链/N/A清单由精确pin生成并加CI校验；原50项MP映射加宿主配置事实1项，不把51个typed标识称作51项MP能力。
+插件仓仅文档冻结，先过CI后pin；六插件版本/history/权限不变。实际行数、复现、性能口径与本地门禁见docs/R_ALPHA_VALIDATION.md；原生AMD64样本和Actions结果见最终审核汇报。
+R-β备份部署和用户浏览器验收须另行授权，R-α不连接生产。

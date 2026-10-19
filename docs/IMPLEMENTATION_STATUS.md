@@ -1,3 +1,5 @@
+> R-α 当前候选：2026-10-19，源码 0.27.0 / schema65。F1–F6 已分阶段验收，完整能力/unsupported 以 PLUGIN_SUPPORT_MATRIX.md 为准；R-α 不部署，R-β 待授权。以下旧阶段记录不代表当前版本/schema。
+
 > 当前管理员改用首次注册的账号密码登录，旧启动Key不再生效。操作与恢复见ADMIN_ACCOUNTS.md。
 
 # 当前实现与验证状态

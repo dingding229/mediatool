@@ -76,3 +76,32 @@ func TestHostConcurrentReadsRenewRevocationAndWriteFence(t *testing.T) {
 		t.Fatal("side effect escaped rollback", n, e)
 	}
 }
+
+func TestRBatchHostReadPerformance(t *testing.T) {
+	s, l := activeFixture(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	tx, e := s.DB.Begin(ctx)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer rollback(context.Background(), tx)
+	if _, e = tx.Exec(ctx, `SELECT id FROM plugin_v2_instances WHERE id=$1 FOR KEY SHARE`, l.ID); e != nil {
+		t.Fatal(e)
+	}
+	const n = 32
+	errors := make(chan error, n)
+	start := time.Now()
+	for range n {
+		go func() {
+			_, e := s.hostCall(ctx, l, json.RawMessage(`{"method":"plugin.state.get","args":{}}`))
+			errors <- e
+		}()
+	}
+	for range n {
+		if e = <-errors; e != nil {
+			t.Fatal("batch reads blocked or rejected", e)
+		}
+	}
+	t.Logf("R_PERF batchHostRead samples=%d concurrent=32 elapsed=%s heldLock=KEY_SHARE authorization=live", n, time.Since(start))
+}

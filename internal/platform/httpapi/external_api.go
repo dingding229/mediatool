@@ -5,6 +5,7 @@ import (
 	"errors"
 	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/modules/maintenance"
+	"media-tool/internal/platform/buildinfo"
 	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"strings"
@@ -156,7 +157,7 @@ func (a *API) registerExternal(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/external-api/keys/{id}/revoke", a.protected(a.revokeAPIKey))
 	mux.HandleFunc("GET /api/v1/external-api/calls", a.protected(a.listAPICalls))
 	mux.HandleFunc("GET /api/external/v1/status", a.external("status.read", func(w http.ResponseWriter, r *http.Request) {
-		write(w, 200, map[string]any{"name": "Media Tool", "version": "0.27.0-dev", "databaseConfigured": a.Deps.DB != nil})
+		write(w, 200, map[string]any{"name": "Media Tool", "version": buildinfo.Version, "databaseConfigured": a.Deps.DB != nil})
 	}))
 	mux.HandleFunc("GET /api/external/v1/classification", a.external("layout.preview", a.getClassification))
 	mux.HandleFunc("POST /api/external/v1/layout/preview", a.external("layout.preview", a.previewClassification))

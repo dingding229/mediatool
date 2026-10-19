@@ -5,7 +5,7 @@
 SDK、Host DTO、事件枚举、transport、mock host和golden工具均在独立Go module
 `github.com/dingding229/mediatool-plugin/sdk`，插件在 `plugins/<id>/`，registry显式登记
 元数据与工厂。不导入主程序internal，避免循环依赖。主程序已删除plugin-sdk/go和
-examples/plugins。hello-go是F1真实worker示例，不是WASM或脚本插件。
+examples/plugins。hello-go 是持续演进的真实 worker/框架验收插件，不是 WASM 或脚本插件。
 
 1. 在插件仓库修改manifest和Go接口实现；依赖编译期锁定（可vendor），禁止包初始化I/O、
    init函数及非纯顶级求值，不能在import时创建实例。
@@ -17,8 +17,7 @@ examples/plugins。hello-go是F1真实worker示例，不是WASM或脚本插件�
 
 所有Go构建使用CGO_ENABLED=0的linux/amd64；同一app以plugin-worker子命令执行。
 主程序和前端消费同一个 `library.json`，插件ESM位于其仓库`plugins/<id>/ui/dist/`，
-构建期复制到`/plugins/<id>/ui/dist/`，不从网络加载。F1只提供资源清单，执行/共享Vue
-加载器是F2范围；没有相关插件时资源数组为空。
+构建期复制到`/plugins/<id>/ui/dist/`，不从网络加载。JSON 与构建期 ESM/共享 Vue 加载器均已接通；资源仍只能来自同一 pin，绝不加载远程 UI。
 
 ## 接口与能力
 
@@ -160,3 +159,18 @@ mediatool go.mod精确pin该提交（无replace）→生成同pin静态清单→
 后台服务或广播 handler 遇到需要人工处理的外部依赖，可在保存安全状态及通知请求后返回 `contracts.NeedsAction`。
 宿主完成收据再 CAS 停用自身实例，needs_action 不自动重启；这不是绕过权限或跨实例状态修改能力。
 错误和通知只用固定 reason code，不把 HTML、认证 URL 或原始异常当作状态。普通链错误仍回落内置逻辑。
+
+## R 冻结与协作顺序
+
+公共 DTO / scope / effectKind / typed events / golden 以插件仓库 SDK 为唯一来源；
+主仓 `PLUGIN_SUPPORT_MATRIX.md` 从精确 pin 生成并在 CI 校验，registered 不代表越过环境/actor/adapter 前提。
+新增/改变插件行为先更新该插件 manifest.version/history，在插件仓库执行 build/vet/test/race/golden、提交推送、等 CI，
+然后主仓 bump 精确伪版本并生成资源清单，最后主仓门禁/Actions/Hub；部署仍需明确授权。
+仅修文档不改插件行为时，不虚增六插件 manifest 版本；当前版本及历史以冻结清单和各 manifest 为准。
+目录监控当前是默认3层、上限5层的有界递归，最内层文件计算 size/mtime 静默；旧 F6-β 单层描述已由 F6-γ 替代。
+
+所有演示默认 active=false。`torrent-assistant` write=false/recheck=false 并不意味着 active=true 时不会通知；
+`wishlist-subscribe` create=false 并不意味着 active=true 时零外连，resolve 也不能当只读测试。
+停用 UI 只读元数据/加密配置，不调用工厂。需要动态表单应由管理员明确启用，或留待单独设计静态 schema。
+真实同 app worker 测试统一使用 testworker.Ready 等待完整 handler 注册后开始计时；测试不得放宽200ms/2s预算。
+F4 生产已观测首调23–86ms、回落0%；R 只报告测试环境真实 receipt/log 样本，无样本写“无样本”，不推算生产回落率。

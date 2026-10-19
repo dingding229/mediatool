@@ -6,6 +6,7 @@ const root=resolve(import.meta.dirname,'../..')
 const schemaMatch=readFileSync(resolve(root,'internal/platform/buildinfo/buildinfo.go'),'utf8').match(/^const Schema int64 = (\d+)$/m)
 if(!schemaMatch)throw new Error('Build schema declaration is missing')
 const expectedSchema=Number(schemaMatch[1])
+const expectedVersion=readFileSync(resolve(root,'internal/platform/buildinfo/buildinfo.go'),'utf8').match(/^const Version = "([^"]+)"$/m)![1]
 if(process.env.E2E_ISOLATED!=='1'||process.env.E2E_BASE_URL!=='http://localhost:18084')throw new Error('Use bash scripts/test-e2e.sh; account tests must not register an administrator in the business database.')
 const username=process.env.E2E_ADMIN_USERNAME!,password=process.env.E2E_ADMIN_PASSWORD!
 if(!username||!password)throw new Error('Isolated account credentials required')
@@ -50,7 +51,7 @@ async function login(page:import('@playwright/test').Page){
  await page.getByRole('button',{name:'进入工作台',exact:true}).click()
  await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
  await expect(page.getByText('服务器负载',{exact:true})).toBeVisible()
- await expect(page.locator('.sidebar-note')).toContainText('0.27.0-dev')
+ await expect(page.locator('.sidebar-note')).toContainText(expectedVersion)
 }
 // Later UI-only fixtures share one valid account session in memory. Login/
 // logout/password/rate-limit behavior above remains separately exercised; do
@@ -1295,7 +1296,7 @@ test('directory classification has ordered rules and responsive editing (fixture
 test('external API has independent scopes, real status verification and revocation (isolated)',async({page})=>{
  await fixtureLogin(page);await page.goto('/external-api');await expect(page.getByRole('heading',{name:'外部API',exact:true})).toBeVisible()
  const response=await page.request.post('/api/v1/external-api/keys',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned isolated API',scopes:['status.read'],confirm:true}});expect(response.status()).toBe(201);const key=(await response.json()).data;expect(key.expiresAt).toBeNull();await expect(page.getByText('有效天数',{exact:true})).toHaveCount(0)
- const status=await page.request.get('/api/external/v1/status',{headers:{Authorization:'Bearer '+key.token}});expect(status.status()).toBe(200);expect((await status.json()).data.version).toBe('0.27.0-dev')
+ const status=await page.request.get('/api/external/v1/status',{headers:{Authorization:'Bearer '+key.token}});expect(status.status()).toBe(200);expect((await status.json()).data.version).toBe(expectedVersion)
  expect((await page.request.get('/api/external/v1/downloads',{headers:{Authorization:'Bearer '+key.token}})).status()).toBe(403);expect((await page.request.get('/api/external/v1/status')).status()).toBe(401)
  await page.getByRole('button',{name:'刷新记录',exact:true}).click();await expect(page.getByLabel('完整API凭据')).toHaveValue(key.token)
  for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`external-api-${width}.png`),fullPage:true,animations:'disabled',mask:[page.getByLabel('完整API凭据')]})}
@@ -1669,7 +1670,7 @@ test('R-F3 HTTP plugin install, enable and execute recover from failures with bo
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
  await page.getByRole('region',{name:'内置插件目录'}).locator('article').filter({hasText:'Hello Go'}).getByRole('button',{name:'安装插件',exact:true}).click()
  const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await consent.getByRole('checkbox').check()
- await consent.getByRole('button',{name:'确认安装或授权',exact:true}).click();await expect(page.getByRole('alert')).toContainText('安装暂不可用')
+ await consent.getByRole('button',{name:'确认安装或授权',exact:true}).click();await expect(page.getByRole('alert')).toContainText('结果未确认')
  await expect(consent.getByRole('button',{name:'确认安装或授权',exact:true})).toBeEnabled()
  await consent.getByRole('button',{name:'确认安装或授权',exact:true}).click();await expect(consent).toBeHidden()
  expect(operations[0].operationKey).toBe(operations[1].operationKey)
@@ -1795,4 +1796,24 @@ test('F5-gamma manual tools workflow schema and auth status stay bounded at 390p
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await dialog.screenshot({path:resolve(screenshots,'plugin-tools-f5g-390.png'),animations:'disabled'});await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
  await page.getByRole('button',{name:'工作流管理',exact:true}).click();dialog=page.getByRole('dialog',{name:'工作流管理',exact:true});await dialog.getByRole('button',{name:'详情',exact:true}).click();await expect(dialog).toContainText('worker_lost');await expect(dialog.getByRole('button',{name:'手动运行工作流',exact:true})).toBeDisabled();await expect(dialog).toContainText('批准指纹');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
  await card.getByRole('button',{name:'认证状态',exact:true}).click();dialog=page.getByRole('dialog',{name:'认证状态',exact:true});await expect(dialog).toContainText('unsupported');await expect(dialog).toContainText('provider_inactive_or_scope_denied');await expect(dialog.getByRole('button',{name:'绑定账号',exact:true})).toBeDisabled();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+})
+
+test('R committed install response loss retries the original key against the real host',async({page})=>{
+ await page.addInitScript(()=>Object.defineProperty(window.crypto,'randomUUID',{value:undefined,configurable:true}))
+ await fixtureLogin(page);await page.goto('/plugins')
+ let id='',lost=false;const keys:string[]=[]
+ await page.route('**/api/v1/plugins/operations',async r=>{
+  const input=r.request().postDataJSON();if(input.kind!=='install'){await r.continue();return}
+  keys.push(input.operationKey)
+  if(!lost){lost=true;const response=await r.fetch();expect(response.status()).toBe(200);id=(await response.json()).data.id;await r.abort('connectionreset');return}
+  await r.continue()
+ })
+ try{
+  const directory=page.getByRole('region',{name:'内置插件目录'}).locator('article').filter({hasText:'Hello Go'})
+  await directory.getByRole('button',{name:/安装插件|新增实例/}).click();const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await consent.getByRole('checkbox').check();await consent.getByRole('button',{name:'确认安装或授权',exact:true}).click();await expect(page.getByRole('alert')).toContainText('结果未确认')
+  await page.reload();await directory.getByRole('button',{name:'核对上次安装',exact:true}).click();await consent.getByRole('checkbox').check();await consent.getByRole('button',{name:'确认安装或授权',exact:true}).click();await expect(consent).toBeHidden()
+  expect(keys).toHaveLength(2);expect(keys[0]).toBe(keys[1]);await expect(page.getByRole('status')).toContainText(id)
+  const detail=(await(await page.request.get(`/api/v1/plugins/${id}`)).json()).data;expect(detail.instance.desiredState).toBe('disabled');expect(detail.instance.revision).toBe(1)
+  expect(((await(await page.request.get('/api/v1/plugins')).json()).data as any[]).filter(i=>i.id===id)).toHaveLength(1)
+ }finally{if(id){const detail=(await(await page.request.get(`/api/v1/plugins/${id}`)).json()).data;const r=await page.request.post('/api/v1/plugins/operations',{headers:{'X-Requested-With':'media-tool'},data:{kind:'remove',instanceId:id,fingerprint:detail.fingerprint,expectedRevision:detail.instance.revision,operationKey:`r-alpha-cleanup-${id}`,confirm:true}});expect(r.status()).toBe(200)}}
 })

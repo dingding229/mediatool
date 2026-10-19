@@ -37,6 +37,30 @@ func (a *API) pluginInstances() (PluginInstances, error) {
 	}
 	return pluginv2.Store{DB: a.Deps.DB, Vault: vault, Root: root}, nil
 }
+
+// No request bodies, keys, configuration or raw errors enter failure records.
+func pluginOperationCode(e error) string {
+	var rpc *contracts.Error
+	switch {
+	case errors.As(e, &rpc) && rpc.Code == contracts.PermissionDenied:
+		return "plugin_permission_denied"
+	case errors.As(e, &rpc) && rpc.Code == contracts.Busy:
+		return "plugin_busy"
+	case errors.Is(e, pluginv2.ErrInvalid):
+		return "invalid_plugin_request"
+	case errors.Is(e, pluginv2.ErrConflict):
+		return "plugin_conflict"
+	case errors.Is(e, pluginv2.ErrNotFound):
+		return "plugin_not_found"
+	default:
+		return "plugins_unavailable"
+	}
+}
+func (a *API) pluginOperationRejected(w http.ResponseWriter, r *http.Request, code string) {
+	if a.Deps.Logger != nil {
+		a.Deps.Logger.InfoContext(r.Context(), "Plugin operation rejected", "module", "plugins", "resultCode", code, "requestId", w.Header().Get("X-Request-ID"))
+	}
+}
 func pluginV2Error(w http.ResponseWriter, e error) {
 	var rpc *contracts.Error
 	if errors.As(e, &rpc) && rpc.Code == contracts.PermissionDenied {
@@ -119,15 +143,18 @@ func (a *API) pluginV2List(w http.ResponseWriter, r *http.Request) {
 func (a *API) pluginV2Operation(w http.ResponseWriter, r *http.Request) {
 	var in pluginv2.Request
 	if !decode(w, r, &in) {
+		a.pluginOperationRejected(w, r, "invalid_plugin_request")
 		return
 	}
 	s, e := a.pluginInstances()
 	if e != nil {
+		a.pluginOperationRejected(w, r, pluginOperationCode(e))
 		pluginV2Error(w, e)
 		return
 	}
 	account, e := a.sessionAccount(r)
 	if e != nil {
+		a.pluginOperationRejected(w, r, "unauthorized")
 		fail(w, 401, "unauthorized", "请登录管理员")
 		return
 	}
@@ -135,6 +162,7 @@ func (a *API) pluginV2Operation(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	out, e := s.Apply(ctx, account.ID, in)
 	if e != nil {
+		a.pluginOperationRejected(w, r, pluginOperationCode(e))
 		pluginV2Error(w, e)
 		return
 	}
