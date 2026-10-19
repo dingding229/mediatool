@@ -925,7 +925,7 @@
       "supported": true
     }
   ],
-  "pin": "v0.0.0-20261019082108-d30bc53f9bcd",
+  "pin": "v0.0.0-20261019105311-65c7ff83e5ec",
   "contractVersion": 2,
   "manifests": [
     {
@@ -1311,13 +1311,14 @@
       "contractVersion": 2,
       "id": "library-refresh-notify",
       "name": "媒体库刷新与入库通知",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Media Tool Contributors",
       "description": "提交后入库事件通知与合并刷新；不涉及播放 URL 或媒体内容。",
       "level": 2,
       "icon": "icon.svg",
       "history": {
-        "1.0.0": "F6-α：有界、默认不执行业务、Host 实时授权与幂等收据"
+        "1.0.0": "F6-α：有界、默认不执行业务、Host 实时授权与幂等收据",
+        "1.1.0": "F6-β：宿主强制七日重投窗口；仅淘汰完成八日且已过重投窗口的记录"
       },
       "permissions": [
         {
@@ -1355,6 +1356,68 @@
         ],
         "events": [
           "library.organized"
+        ]
+      },
+      "ui": {
+        "mode": "json"
+      },
+      "resources": {
+        "addressSpaceMiB": 8192,
+        "rssMiB": 256,
+        "cpuQuotaPercent": 100,
+        "processes": 64,
+        "openFiles": 256,
+        "dataMiB": 256,
+        "tmpMiB": 64
+      },
+      "configSchemaVersion": 1,
+      "dataSchemaVersion": 1
+    },
+    {
+      "contractVersion": 2,
+      "id": "seeding-cleanup",
+      "name": "自动做种清理",
+      "version": "1.0.0",
+      "author": "Media Tool Contributors",
+      "description": "默认只预览；仅已入库、所有权及 HR 证据完整的种子可请求清理。",
+      "level": 2,
+      "icon": "icon.svg",
+      "history": {
+        "1.0.0": "F6-β：默认停用；有界队列、持久收据、宿主实时授权与危险操作确认"
+      },
+      "permissions": [
+        {
+          "scope": "plugin.config.read"
+        },
+        {
+          "scope": "plugin.data.read"
+        },
+        {
+          "scope": "plugin.data.write"
+        },
+        {
+          "scope": "ui.json"
+        },
+        {
+          "scope": "services.register"
+        },
+        {
+          "scope": "notifications.send"
+        },
+        {
+          "scope": "downloads.read"
+        },
+        {
+          "scope": "downloads.delete"
+        }
+      ],
+      "extensions": {
+        "forms": true,
+        "pages": [
+          "status"
+        ],
+        "services": [
+          "cleanup"
         ]
       },
       "ui": {
@@ -1430,6 +1493,68 @@
       },
       "configSchemaVersion": 1,
       "dataSchemaVersion": 1
+    },
+    {
+      "contractVersion": 2,
+      "id": "watch-organize",
+      "name": "目录监控实时整理",
+      "version": "1.0.0",
+      "author": "Media Tool Contributors",
+      "description": "定时补扫有界目录，静默后由宿主预览及确认文件计划；不自行移动文件或改变 STRM。",
+      "level": 2,
+      "icon": "icon.svg",
+      "history": {
+        "1.0.0": "F6-β：默认停用；有界队列、持久收据、宿主实时授权与危险操作确认"
+      },
+      "permissions": [
+        {
+          "scope": "plugin.config.read"
+        },
+        {
+          "scope": "plugin.data.read"
+        },
+        {
+          "scope": "plugin.data.write"
+        },
+        {
+          "scope": "ui.json"
+        },
+        {
+          "scope": "services.register"
+        },
+        {
+          "scope": "notifications.send"
+        },
+        {
+          "scope": "fs.media:read"
+        },
+        {
+          "scope": "fs.media:write"
+        }
+      ],
+      "extensions": {
+        "forms": true,
+        "pages": [
+          "status"
+        ],
+        "services": [
+          "scan"
+        ]
+      },
+      "ui": {
+        "mode": "json"
+      },
+      "resources": {
+        "addressSpaceMiB": 8192,
+        "rssMiB": 256,
+        "cpuQuotaPercent": 100,
+        "processes": 64,
+        "openFiles": 256,
+        "dataMiB": 256,
+        "tmpMiB": 64
+      },
+      "configSchemaVersion": 1,
+      "dataSchemaVersion": 1
     }
   ],
   "resources": [
@@ -1449,7 +1574,17 @@
       "sha256": "1296289cdfffb4abe14e8a15b40f1e448676f732ed24f3b18eac5dd66cf9465d"
     },
     {
+      "id": "seeding-cleanup",
+      "path": "icon.svg",
+      "sha256": "1296289cdfffb4abe14e8a15b40f1e448676f732ed24f3b18eac5dd66cf9465d"
+    },
+    {
       "id": "site-checkin",
+      "path": "icon.svg",
+      "sha256": "1296289cdfffb4abe14e8a15b40f1e448676f732ed24f3b18eac5dd66cf9465d"
+    },
+    {
+      "id": "watch-organize",
       "path": "icon.svg",
       "sha256": "1296289cdfffb4abe14e8a15b40f1e448676f732ed24f3b18eac5dd66cf9465d"
     }

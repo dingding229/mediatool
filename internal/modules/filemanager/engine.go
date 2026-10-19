@@ -215,12 +215,12 @@ func (e Engine) Preview(ctx context.Context, in Input) (Plan, error) {
 		return Plan{}, err
 	}
 	defer deferutil.Close(b, "Read/descriptor teardown only; primary operations handle their own I/O result")
-	if in.ExpectedFileID != "" || in.ExpectedSize != nil {
+	if in.ExpectedFileID != "" || in.ExpectedSize != nil || in.ExpectedModified != nil {
 		source, err := b.Find(ctx, in.Source)
 		if err != nil {
 			return Plan{}, err
 		}
-		if in.ExpectedFileID != "" && source.ID != in.ExpectedFileID || in.ExpectedSize != nil && source.Size != *in.ExpectedSize {
+		if in.ExpectedFileID != "" && source.ID != in.ExpectedFileID || in.ExpectedSize != nil && source.Size != *in.ExpectedSize || in.ExpectedModified != nil && source.Modified != *in.ExpectedModified {
 			return Plan{}, ErrChanged
 		}
 	}

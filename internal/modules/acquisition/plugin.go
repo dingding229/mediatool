@@ -109,14 +109,38 @@ func (s DownloaderService) DeleteOwned(ctx context.Context, idOrHash string, del
 	if err != nil {
 		return err
 	}
+	// Share the native cleanup task lock across instances/rules; no SQL write
+	// transaction is held while waiting for the downloader.
+	conn, err := s.Engine.DB.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	var locked bool
+	if err = conn.QueryRow(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1,0))`, "download-task:"+id).Scan(&locked); err != nil {
+		return err
+	}
+	if !locked {
+		return ErrCleanupPrerequisites
+	}
+	defer dbutil.Unlock(context.Background(), conn, `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "download-task:"+id)
+	// Re-read the owned tuple after taking the lock; do not execute the
+	// pre-lock downloader observation after a concurrent operation.
+	id, a, task, err = s.owned(ctx, id)
+	if err != nil {
+		return err
+	}
 	state, _, eligible, err := s.PreviewCleanup(ctx, id)
 	if err != nil {
 		return err
 	}
-	if state != "imported" || !eligible {
+	if state != "imported" || !eligible || !task.Complete {
 		return ErrCleanupPrerequisites
 	}
 	if deleteFiles {
+		if err = admit(); err != nil {
+			return err
+		}
 		return s.Engine.ApproveCleanup(ctx, id, true, false)
 	}
 	// Torrent-only retirement never unlinks any payload, let alone media/STRM.
@@ -168,6 +192,10 @@ func (s DownloaderService) PreviewCleanup(ctx context.Context, id string) (strin
 	}
 	if _, _, _, err := s.owned(ctx, id); err != nil {
 		return "", hash, false, err
+	}
+	protected, err := s.cleanupProtected(ctx, id, hash)
+	if err != nil || protected {
+		return state, hash, false, err
 	}
 	var details taskDetails
 	if err := decodeDetails(raw, &details); err != nil {

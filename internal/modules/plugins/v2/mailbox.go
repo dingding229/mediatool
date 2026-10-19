@@ -160,11 +160,11 @@ func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *ho
 			return nil
 		case <-tick.C:
 		}
-		var id, handler string
+		var id, handler, runKind string
 		var raw []byte
 		var deadline time.Time
 		token := jobs.UUID()
-		e := s.DB.QueryRow(ctx, `WITH next AS(SELECT r.id FROM plugin_v2_runs r JOIN plugin_v2_instances i ON i.id=r.instance_id WHERE r.instance_id=$1 AND r.generation=$2 AND r.grant_revision=$3 AND r.state='pending' AND r.deadline_at>clock_timestamp() AND (r.kind<>'service' OR EXISTS(SELECT 1 FROM jobs j WHERE r.dedupe_key='service-job:'||j.id::text AND j.state='succeeded')) AND i.desired_state='enabled' AND i.generation=$2 AND i.grant_revision=$3 AND i.lease_until>clock_timestamp() ORDER BY r.created_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1) UPDATE plugin_v2_runs r SET state='running',lease_token=$4,lease_until=now()+interval '35 seconds' FROM next WHERE r.id=next.id RETURNING r.id::text,r.handler,r.args_ciphertext,r.deadline_at`, l.ID, l.Token, l.GrantRevision, token).Scan(&id, &handler, &raw, &deadline)
+		e := s.DB.QueryRow(ctx, `WITH next AS(SELECT r.id FROM plugin_v2_runs r JOIN plugin_v2_instances i ON i.id=r.instance_id WHERE r.instance_id=$1 AND r.generation=$2 AND r.grant_revision=$3 AND r.state='pending' AND r.deadline_at>clock_timestamp() AND (r.kind<>'service' OR EXISTS(SELECT 1 FROM jobs j WHERE r.dedupe_key='service-job:'||j.id::text AND j.state='succeeded')) AND i.desired_state='enabled' AND i.generation=$2 AND i.grant_revision=$3 AND i.lease_until>clock_timestamp() ORDER BY r.created_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1) UPDATE plugin_v2_runs r SET state='running',lease_token=$4,lease_until=now()+interval '35 seconds' FROM next WHERE r.id=next.id RETURNING r.id::text,r.handler,r.args_ciphertext,r.deadline_at,r.kind`, l.ID, l.Token, l.GrantRevision, token).Scan(&id, &handler, &raw, &deadline, &runKind)
 		if errors.Is(e, pgx.ErrNoRows) {
 			continue
 		}
@@ -181,6 +181,18 @@ func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *ho
 				return e
 			}
 			continue
+		}
+		if runKind == "event" {
+			fresh, err := s.queuedEventFresh(ctx, id)
+			if err != nil {
+				return err
+			}
+			if !fresh {
+				if err = s.finishCall(ctx, id, token, RunCanceled, RunDeadline, nil); err != nil {
+					return err
+				}
+				continue
+			}
 		}
 		args, e := s.open("call-args", id, raw)
 		if e != nil {

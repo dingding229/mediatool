@@ -49,22 +49,23 @@ type Backend interface {
 	Close() error
 }
 type Input struct {
-	ExpectedFileID  string `json:"expectedFileId"`
-	ExpectedSize    *int64 `json:"expectedSize"`
-	ConnectionID    string `json:"connectionId"`
-	Operation       string `json:"operation"`
-	Source          string `json:"source"`
-	Destination     string `json:"destination"`
-	Name            string `json:"name"`
-	Template        string `json:"template"`
-	Title           string `json:"title"`
-	Year            string `json:"year"`
-	MediaType       string `json:"mediaType"`
-	Category        string `json:"category"`
-	Season          int    `json:"season"`
-	Episode         int    `json:"episode"`
-	Resolution      string `json:"resolution"`
-	IncludeSidecars bool   `json:"includeSidecars"`
+	ExpectedModified *int64 `json:"expectedModified,omitempty"`
+	ExpectedFileID   string `json:"expectedFileId"`
+	ExpectedSize     *int64 `json:"expectedSize"`
+	ConnectionID     string `json:"connectionId"`
+	Operation        string `json:"operation"`
+	Source           string `json:"source"`
+	Destination      string `json:"destination"`
+	Name             string `json:"name"`
+	Template         string `json:"template"`
+	Title            string `json:"title"`
+	Year             string `json:"year"`
+	MediaType        string `json:"mediaType"`
+	Category         string `json:"category"`
+	Season           int    `json:"season"`
+	Episode          int    `json:"episode"`
+	Resolution       string `json:"resolution"`
+	IncludeSidecars  bool   `json:"includeSidecars"`
 }
 type Item struct {
 	Source File   `json:"source"`

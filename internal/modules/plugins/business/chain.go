@@ -75,7 +75,7 @@ func pageSlice[T any](v []T, p b.PageRequest) b.Page[T] {
 	return b.Page[T]{Items: v[start:end], HasMore: end < len(v)}
 }
 func safeTask(v acquisition.Task) b.Task {
-	return b.Task{ID: v.ID, Title: safeText(v.Title), State: safeState(v.State), Hash: v.InfoHash, Owned: true, Progress: v.Progress, DownloadSpeed: v.DownloadSpeed, UploadSpeed: v.UploadSpeed, Revision: v.SourceControlRevision, CleanupState: v.CleanupState}
+	return b.Task{SeedingState: v.SeedingState, ID: v.ID, Title: safeText(v.Title), State: safeState(v.State), Hash: v.InfoHash, Owned: true, Progress: v.Progress, DownloadSpeed: v.DownloadSpeed, UploadSpeed: v.UploadSpeed, Revision: v.SourceControlRevision, CleanupState: v.CleanupState}
 }
 func safeResource(v search.Resource) b.Resource {
 	var hr *bool
@@ -407,15 +407,16 @@ func (h AcquisitionHost) Call(ctx context.Context, call contracts.HostCall, perm
 		if decodeBusiness(call.Args, &in) != nil || !validHash(in.ID) {
 			return nil, invalidBusiness()
 		}
-		v, e := ds.Inspect(ctx, in.ID)
+		v, e := ds.ObserveCleanup(ctx, in.ID)
 		if e != nil {
 			return nil, e
 		}
-		owned, e := ds.Owned(ctx, in.ID)
-		if e != nil {
-			owned = false
+		tags := []string{}
+		for _, tag := range v.Tags {
+			tags = append(tags, safeText(tag))
 		}
-		return b.Task{Title: safeText(v.Name), State: safeState(v.State), Hash: v.ID, Owned: owned, Progress: &v.Progress, Size: v.Size, DownloadSpeed: v.DownloadSpeed, UploadSpeed: v.UploadSpeed}, nil
+		return b.Task{ID: v.ID, SiteID: v.SiteID, Category: safeText(v.Task.Category), Tags: tags, Ratio: v.Task.Ratio, SeedingSeconds: v.Task.SeedingTime, Complete: v.Task.Complete, Seeding: v.Task.Seeding, CleanupEligible: v.Eligible, Title: safeText(v.Task.Name), State: safeState(v.Task.State), Hash: v.Task.ID, Owned: v.Owned, Progress: &v.Task.Progress, Size: v.Task.Size, DownloadSpeed: v.Task.DownloadSpeed, UploadSpeed: v.Task.UploadSpeed}, nil
+
 	case "downloads.files":
 		var in b.Selection
 		if decodeBusiness(call.Args, &in) != nil || !validUUID(in.ID) || pageOK(in.PageRequest) != nil {

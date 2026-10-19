@@ -51,7 +51,7 @@ func pluginStore(t *testing.T) (nativeFixture, v2.Store) {
 func installRequest(t *testing.T) v2.Request {
 	t.Helper()
 	catalog, e := v2.Catalog()
-	if e != nil || len(catalog) != 3 {
+	if e != nil || len(catalog) != 5 {
 		t.Fatal(e)
 	}
 	d := catalog[0]
@@ -96,7 +96,7 @@ func TestPluginV2MigrationArchiveDownUpPreservesOtherData(t *testing.T) {
 func TestPluginV2InstancesHostCASFencesCloneAndLease(t *testing.T) {
 	f, s := pluginStore(t)
 	catalog, e := v2.Catalog()
-	if e != nil || len(catalog) != 3 {
+	if e != nil || len(catalog) != 5 {
 		t.Fatal(e)
 	}
 	if n := f.integer(t, `SELECT count(*) FROM plugin_v2_instances`); n != 0 {

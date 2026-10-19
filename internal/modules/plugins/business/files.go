@@ -13,7 +13,7 @@ func rootAllowed(p contracts.Permission, id string) bool {
 	return selected(p, "rootIds", id) && selected(p, "storageIds", id)
 }
 func safeFile(f filemanager.File) b.MediaFile {
-	return b.MediaFile{ID: f.ID, Name: safeText(f.Name), Path: safeText(f.Path), Size: f.Size, Directory: f.Directory, Unsupported: f.Unsupported}
+	return b.MediaFile{Modified: f.Modified, ID: f.ID, Name: safeText(f.Name), Path: safeText(f.Path), Size: f.Size, Directory: f.Directory, Unsupported: f.Unsupported}
 }
 func filePlan(r filemanager.Result) (b.FilePlan, error) {
 	out := b.FilePlan{ID: r.ID, RootID: r.Plan.ConnectionID, Revision: r.Plan.Revision, Operation: r.Plan.Operation, State: r.State, Digest: r.Plan.Digest, ExpiresAt: r.Plan.ExpiresAt, CompletedSteps: r.CompletedSteps, Items: []b.MediaFile{}, Targets: []string{}}
@@ -56,11 +56,11 @@ func fileInput(in b.FileInput) (filemanager.Input, error) {
 		}
 	}
 	switch in.Operation {
-	case "move", "rename", "mkdir", "trash":
+	case "organize", "move", "rename", "mkdir", "trash":
 	default:
 		return filemanager.Input{}, unsupportedBusiness()
 	}
-	return filemanager.Input{ConnectionID: in.RootID, Operation: in.Operation, Source: in.Source, Destination: in.Destination, Name: in.Name, ExpectedFileID: in.ExpectedFileID, ExpectedSize: in.ExpectedSize}, nil
+	return filemanager.Input{ExpectedModified: in.ExpectedModified, ConnectionID: in.RootID, Operation: in.Operation, Source: in.Source, Destination: in.Destination, Name: in.Name, ExpectedFileID: in.ExpectedFileID, ExpectedSize: in.ExpectedSize}, nil
 }
 func (h AcquisitionHost) callFiles(ctx context.Context, call contracts.HostCall, p contracts.Permission, admit func() error) (any, error) {
 	if h.Connections == nil {

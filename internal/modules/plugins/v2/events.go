@@ -128,7 +128,20 @@ func (s Store) Deliver(ctx context.Context) error {
 	return nil
 }
 func (s Store) eventRun(ctx context.Context, snap Snapshot, d contracts.Descriptor, cursor int64, id string, payload json.RawMessage) (string, error) {
-	raw, e := json.Marshal(events.Envelope{ID: id, Type: contracts.EventType(d.ID), SchemaVersion: 1, Payload: payload})
+	// Original outbox/journal time is authoritative, never a replay request's time.
+	var occurred time.Time
+	if e := s.DB.QueryRow(ctx, `SELECT created_at FROM plugin_v2_event_journal WHERE cursor=$1 AND event_id=$2`, cursor, id).Scan(&occurred); e != nil {
+		return "", e
+	}
+	if !eventFresh(d, occurred, time.Now()) {
+		return "", nil
+	}
+	// Preserve old argument digests for unbounded subscriptions and their
+	// durable dedupe keys; only opted-in descriptors add the new envelope field.
+	if d.ReplayWindowSeconds == 0 {
+		occurred = time.Time{}
+	}
+	raw, e := json.Marshal(events.Envelope{OccurredAt: occurred, ID: id, Type: contracts.EventType(d.ID), SchemaVersion: 1, Payload: payload})
 	if e != nil {
 		return "", e
 	}
@@ -189,6 +202,9 @@ func (s Store) Replay(ctx context.Context, actor, id string, after int64, limit 
 			if e != nil {
 				return n, e
 			}
+			if run == "" {
+				continue
+			}
 			if confirmUnknown {
 				if _, e = s.DB.Exec(ctx, `UPDATE plugin_v2_runs SET state='pending',reason='',lease_token=NULL,lease_until=NULL,deadline_at=now()+interval '10 minutes',finished_at=NULL,snapshot_id=$2,generation=$3,grant_revision=$4 WHERE id=$1 AND state IN('unknown','failed','canceled')`, run, snap.ID, snap.Generation, snap.GrantRevision); e != nil {
 					return n, e
@@ -200,4 +216,29 @@ func (s Store) Replay(ctx context.Context, actor, id string, after int64, limit 
 	details, _ := json.Marshal(map[string]any{"instanceId": id, "after": after, "limit": limit, "confirmUnknown": confirmUnknown, "count": n})
 	_, e = s.DB.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES($1,'plugins.v2.events.replay',$2)`, actor, details)
 	return n, e
+}
+
+// Zero is the legacy unlimited replay contract. Bounded subscriptions cannot
+// resurrect effects after their declared horizon, including explicit replay.
+func eventFresh(d contracts.Descriptor, occurred, now time.Time) bool {
+	return d.ReplayWindowSeconds == 0 || !occurred.IsZero() && occurred.Add(time.Duration(d.ReplayWindowSeconds)*time.Second).After(now)
+}
+func (s Store) queuedEventFresh(ctx context.Context, run string) (bool, error) {
+	var raw []byte
+	var occurred *time.Time
+	err := s.DB.QueryRow(ctx, `SELECT d,j.created_at FROM plugin_v2_runs r JOIN plugin_v2_snapshots s ON s.id=r.snapshot_id CROSS JOIN jsonb_array_elements(s.descriptors->'descriptors') d LEFT JOIN plugin_v2_event_journal j ON j.cursor=r.event_cursor WHERE r.id=$1 AND d->>'handler'=r.handler`, run).Scan(&raw, &occurred)
+	if err != nil {
+		return false, err
+	}
+	var d contracts.Descriptor
+	if json.Unmarshal(raw, &d) != nil {
+		return false, ErrInvalid
+	}
+	if d.Kind != "event" || d.ReplayWindowSeconds == 0 {
+		return true, nil
+	}
+	if occurred == nil {
+		return false, nil
+	}
+	return eventFresh(d, *occurred, time.Now()), nil
 }

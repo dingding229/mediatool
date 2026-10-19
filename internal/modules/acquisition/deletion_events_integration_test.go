@@ -14,7 +14,7 @@ import (
 )
 
 func TestTorrentOnlyDeletionReadbackCommitRollbackNeverDeletesFiles(t *testing.T) {
-	for _, mode := range []string{"unknown", "rollback", "confirmed"} {
+	for _, mode := range []string{"unknown", "rollback", "confirmed", "protected", "busy", "claimed"} {
 		t.Run(mode, func(t *testing.T) {
 			f := newSourceFixture(t)
 			ctx := f.ctx
@@ -33,7 +33,11 @@ func TestTorrentOnlyDeletionReadbackCommitRollbackNeverDeletesFiles(t *testing.T
 						w.Write([]byte("[]"))
 						return
 					}
-					json.NewEncoder(w).Encode([]map[string]any{{"hash": f.hash, "name": "fixture", "state": "stalledUP", "progress": 1, "save_path": "/downloads", "category": "media-tool", "tags": f.taskID}})
+					tags := f.taskID
+					if mode == "protected" {
+						tags += ", plugin:another-instance"
+					}
+					json.NewEncoder(w).Encode([]map[string]any{{"hash": f.hash, "name": "fixture", "state": "stalledUP", "progress": 1, "completion_on": 1, "amount_left": 0, "save_path": "/downloads", "category": "media-tool", "tags": tags}})
 				case "/api/v2/torrents/delete":
 					r.ParseForm()
 					if r.Form.Get("deleteFiles") != "false" {
@@ -85,8 +89,30 @@ func TestTorrentOnlyDeletionReadbackCommitRollbackNeverDeletesFiles(t *testing.T
 					return sentinel
 				})
 			}
+			if mode == "claimed" {
+				if _, err := db.Exec(ctx, `INSERT INTO download_cleanup_requests(task_id)VALUES($1)`, f.taskID); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if mode == "busy" {
+				conn, err := db.Acquire(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer conn.Release()
+				if _, err = conn.Exec(ctx, `SELECT pg_advisory_lock(hashtextextended($1,0))`, "download-task:"+f.taskID); err != nil {
+					t.Fatal(err)
+				}
+				defer conn.Exec(ctx, `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "download-task:"+f.taskID)
+			}
 			svc := DownloaderService{Engine: f.engine}
 			e = svc.DeleteOwned(callCtx, f.taskID, false, func() error { return nil })
+			if mode == "protected" || mode == "busy" || mode == "claimed" {
+				if e == nil || count() != 0 || deletes.Load() != 0 {
+					t.Fatal("guard bypassed", mode, e, count(), deletes.Load())
+				}
+				return
+			}
 			if mode == "confirmed" {
 				if e != nil || count() != 1 {
 					t.Fatal("confirmed fact missing", e, count())

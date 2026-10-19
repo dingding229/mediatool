@@ -105,7 +105,7 @@ func TestAcquisitionHostRealFacadesBoundedSQLRedactionAndMutations(t *testing.T)
 			if hash == "" {
 				hash = ownedHash
 			}
-			_ = json.NewEncoder(w).Encode([]map[string]any{{"hash": hash, "name": "Owned https://tracker.invalid?passkey=LEAK", "state": "stoppedDL", "progress": .5, "save_path": "/downloads", "content_path": "/downloads/Owned", "category": "media-tool", "tags": ownedTask, "size": 4}})
+			_ = json.NewEncoder(w).Encode([]map[string]any{{"hash": hash, "name": "Owned https://tracker.invalid?passkey=LEAK", "state": "stoppedDL", "progress": 1, "completion_on": 1, "amount_left": 0, "save_path": "/downloads", "content_path": "/downloads/Owned", "category": "media-tool", "tags": ownedTask, "size": 4}})
 		case "/api/v2/torrents/files":
 			_, _ = io.WriteString(w, `[{"index":0,"name":"Owned.mkv","size":4,"progress":0.5}]`)
 		case "/api/v2/torrents/trackers":
@@ -184,6 +184,12 @@ func TestAcquisitionHostRealFacadesBoundedSQLRedactionAndMutations(t *testing.T)
 	var evidence string
 	if e = h.DB.QueryRow(ctx, `SELECT evidence->>'hrSatisfied'FROM download_cleanup_requests WHERE task_id=$1`, ownedTask).Scan(&evidence); e != nil || evidence != "false" {
 		t.Fatal("HR waiver", e, evidence)
+	}
+	if _, e = call("downloads.downloader.deleteOwned", b.DeleteRequest{ID: ownedHash, DeleteFiles: false}); e == nil {
+		t.Fatal("another pending cleanup was overridden")
+	}
+	if _, e = h.DB.Exec(ctx, `DELETE FROM download_cleanup_requests WHERE task_id=$1`, ownedTask); e != nil {
+		t.Fatal(e)
 	}
 	if _, e = call("downloads.downloader.deleteOwned", b.DeleteRequest{ID: ownedHash, DeleteFiles: false}); e != nil {
 		t.Fatal(e)

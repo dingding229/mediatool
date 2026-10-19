@@ -1936,3 +1936,29 @@ WorkflowRunner另将job lease/token条件UPDATE加入共享commit guard，覆盖
 - 真正入库确认及恢复事务补 library.organized 的 operationId/assetId/state 身份事实；一般 files.* 不伪造资产身份。插件不修改 STRM/播放 URL。
 - 刷新使用现有业务队列，合并同资产、60–3600秒最多一个请求；通知与刷新都有稳定 Host 收据，checkpoint 丢失不重放。去重身份最多200条且不自动淘汰，超限 needs_action，明确承认宿主收据7日保留边界。
 - 测试范围限 media_tool_test/Redis DB15 串行、合成HTTP站点和合成资产；新增原生同app worker 用例复用统一 provider/handler Ready 屏障。生产/保留快照均不接触。
+
+### F6-β 实现记录（不部署）
+
+- 内置库新增 `seeding-cleanup` / `watch-organize` 1.0.0；全部默认停用，
+  manifest/history/权限、JSON 表单/状态页、mock/golden/单测随库发布。无新增依赖/迁移，schema 65。
+- 修正刷新账本：原 Host 收据 GC 为 7 日，但旧 journal 允许无限 replay，不能单方面过期去重。
+  新增 SDK `OnWindow`（该插件声明 7 日）和宿主原事实 `OccurredAt`，正常投递、显式 replay、
+  pending 真正执行均强制检查；不扩大其他订阅限制。无窗口 envelope 保持旧参数摘要。
+  插件仅淘汰通知已入队且刷新已确认受理、无 pending、完成超过 8 日且原事实超过窗口的条目；
+  24h 余量覆盖有界执行和时钟/调度误差。旧版无时间证据不猜测淘汰；窗内 200 条仍满则待处理。
+- 做种清理：十分钟 cron，每次最多读取 200 项、分页游标，每批上限 20；比例、做种时长、
+  分类/标签/站点账户筛选。execute 和 deleteFiles 独立明确开关，默认只预览、不删数据。
+  `downloads.downloader.inspect` 仅扩展安全 DTO（含实时清理资格），`deleteOwned` 保持 D 级
+  `downloads.delete`，真实执行重新核验 endpoint/hash/category/path/owner tag、HR=false、
+  imported、无活跃 transfer、无共享 hash/其他清理请求/保护 tag；复用 native per-task lock，
+  获取失败直接拒绝，外部 RPC 不占写事务。文件删除仍走原证据链，pending 不冒充已删除。
+  执行意图持久化后调用；未知或崩溃中执行不会自动重放，正常重复由宿主收据和 removed 状态双重保护。
+- 目录监控：30 秒 service 单层补扫（不是无界递归/fsnotify）；size/mtime 静默 30–3600 秒，
+  本实例加密 KV 中持久保存最多 200 项，溢出待处理，单轮最多 10 个文件。重启补扫并合并身份。
+  复用 `fs.media.list/preview/apply/get`，没有新增 RPC；DTO 补 Modified 和 ExpectedModified，
+  D 级 preview 开放现有 core `organize` 操作，命名/模板、冲突、root/符号链接/源证据、owner、
+  fence 仍全由 filemanager 负责。未知结果只读 durable plan 核对，不重放 move。
+  不自动认领 TMDB 身份、不自动批准 library 候选、不支持递归监控；CloudDrive2 未提供 mtime 的文件明确 unsupported，不退化为 size-only 静默判断。
+- 新增真实同 app worker 验收：合成 qBittorrent 的预览/retire/去重/撤权，以及小文件静默后
+  core organize、符号链接拒绝、重复不提交、STRM 正文不变和停用收割。统一 Ready 后再断言；
+  本机 Darwin 不伪称原生门禁，原生 AMD64 Actions 必须实际执行。生产/真实账户/媒体均不接触。
