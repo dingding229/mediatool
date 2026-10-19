@@ -31,6 +31,9 @@ func policyFixture(t *testing.T) (Store, Lease) {
 	}
 	return s, l
 }
+
+// Match the real pump: expired pending calls are never eligible for a reply.
+// Otherwise an intentionally timed-out row can consume the next case's answer.
 func policyReply(s Store, raw json.RawMessage, fail bool) <-chan error {
 	done := make(chan error, 1)
 	go func() {
@@ -38,7 +41,7 @@ func policyReply(s Store, raw json.RawMessage, fail bool) <-chan error {
 		defer cancel()
 		for ctx.Err() == nil {
 			var id string
-			e := s.DB.QueryRow(ctx, `SELECT id::text FROM plugin_v2_runs WHERE kind='chain' AND state='pending' ORDER BY created_at LIMIT 1`).Scan(&id)
+			e := s.DB.QueryRow(ctx, `SELECT id::text FROM plugin_v2_runs WHERE kind='chain' AND state='pending' AND deadline_at>clock_timestamp() ORDER BY created_at,id LIMIT 1`).Scan(&id)
 			if errors.Is(e, pgx.ErrNoRows) {
 				time.Sleep(time.Millisecond)
 				continue
@@ -205,5 +208,31 @@ func TestDownloadPolicyRequiresExplicitTypedBooleans(t *testing.T) {
 	var v contracts.ResourceDownloadResult
 	if e := decodeDownloadPolicy(json.RawMessage(`{"allow":false,"cleanupAfterImport":false}`), &v); e != nil || v.Allow {
 		t.Fatal(v, e)
+	}
+}
+
+func TestPolicyReplyDoesNotConsumeExpiredPendingCall(t *testing.T) {
+	s, l := policyFixture(t)
+	ctx := context.Background()
+	snap, d, e := s.Descriptor(ctx, l.ID, "chain", "resource.selection")
+	if e != nil {
+		t.Fatal(e)
+	}
+	expired, e := s.Submit(ctx, snap, d, json.RawMessage(`{}`), "expired-pending-fixture", "", nil, time.Now().Add(-time.Second))
+	if e != nil {
+		t.Fatal(e)
+	}
+	a, b := jobs.UUID(), jobs.UUID()
+	done := policyReply(s, json.RawMessage(fmt.Sprintf(`{"ids":[%q]}`, a)), false)
+	_, selected, e := s.SelectResources(ctx, contracts.ResourceSelectionRequest{RunID: jobs.UUID(), Candidates: []contracts.ResourceCandidate{{ID: a, AccountID: b}, {ID: b, AccountID: b}}})
+	if e != nil || len(selected) != 1 || selected[0] != a {
+		t.Fatal("new call lost its reply", selected, e)
+	}
+	if e = <-done; e != nil {
+		t.Fatal(e)
+	}
+	var state string
+	if e = s.DB.QueryRow(ctx, `SELECT state FROM plugin_v2_runs WHERE id=$1`, expired).Scan(&state); e != nil || state != "pending" {
+		t.Fatal("expired call consumed fresh reply", state, e)
 	}
 }

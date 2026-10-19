@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"github.com/jackc/pgx/v5"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
@@ -11,7 +12,7 @@ import (
 // recordImportTx emits identity-only TransferComplete after all artifact evidence
 // has been applied. A stable candidate fact key prevents duplicate recovery facts.
 func recordImportTx(ctx context.Context, tx pgx.Tx, candidate, asset string) error {
-	return outbox.EmitVersionTx(ctx, tx, "library.organized", asset, candidate+":confirmed:v1", map[string]string{"operationId": candidate, "assetId": asset, "state": "succeeded"})
+	return outbox.EmitVersionTx(ctx, tx, "library.organized", asset, candidate+":confirmed:v1", contracts.TransferCompleted{OperationID: candidate, AssetID: asset, State: "succeeded"})
 }
 func (e Engine) commitImport(ctx context.Context, candidate, asset string) error {
 	tx, err := e.DB.Begin(ctx)

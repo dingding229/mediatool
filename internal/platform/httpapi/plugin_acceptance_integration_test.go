@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"github.com/jackc/pgx/v5"
 	"log/slog"
@@ -128,6 +129,16 @@ func runAcceptanceService(t *testing.T, ctx context.Context, s v2.Store, id, ser
 	if _, e := s.DB.Exec(ctx, `UPDATE jobs SET state=$2,updated_at=now() WHERE id=$1`, job, state); e != nil {
 		t.Fatal(e)
 	}
+	if err == nil {
+		state := ""
+		acceptanceWait(t, "durable service run finished", func() bool {
+			e := s.DB.QueryRow(ctx, `SELECT state FROM plugin_v2_runs WHERE dedupe_key=$1`, "service-job:"+job).Scan(&state)
+			return e == nil && state != "pending" && state != "running"
+		})
+		if state != "succeeded" {
+			return fmt.Errorf("service terminal state: %s", state)
+		}
+	}
 	return err
 }
 func stopAcceptance(t *testing.T, ctx context.Context, s v2.Store, d v2.Definition, id string) {
@@ -222,7 +233,7 @@ func TestAcceptanceRealWorkerImportNotifyMergeAndRefresh(t *testing.T) {
 		{`INSERT INTO storage_connections(id,name,provider)VALUES($1,'synthetic','clouddrive2')`, []any{storage}},
 		{`INSERT INTO cloud_files(id,storage_id,full_path,size_bytes)VALUES($1,$2,'/synthetic/Owned.mkv',4)`, []any{file, storage}},
 		{`INSERT INTO media_assets(id,cloud_file_id)VALUES($1,$2)`, []any{asset, file}},
-		{`INSERT INTO media_items(id,media_type,tmdb_id,title,release_year)VALUES($1,'movie',42,'Synthetic','2026')`, []any{media}},
+		{`INSERT INTO media_items(id,media_type,tmdb_id,title,release_year,metadata)VALUES($1,'movie',42,'Synthetic','2026','{}')`, []any{media}},
 		{`INSERT INTO media_asset_bindings(asset_id,media_id)VALUES($1,$2)`, []any{asset, media}},
 		{`INSERT INTO strm_entries(id,asset_id,output_path,key_reference)VALUES($1,$2,'synthetic.strm','synthetic-reference')`, []any{jobs.UUID(), asset}},
 		{`INSERT INTO native_libraries(id,item_id,group_id,name,collection_type,directory,sort_order,policy_revision)VALUES('g:movie',100001,'movie','Synthetic','movies','Movies',0,1)`, nil},
