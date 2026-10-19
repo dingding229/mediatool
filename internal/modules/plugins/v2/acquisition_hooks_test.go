@@ -35,13 +35,46 @@ func policyFixture(t *testing.T) (Store, Lease) {
 // Match the real pump: expired pending calls are never eligible for a reply.
 // Otherwise an intentionally timed-out row can consume the next case's answer.
 func policyReply(s Store, raw json.RawMessage, fail bool) <-chan error {
+	return readyPolicyReply(s, raw, fail, nil)
+}
+
+// Reserve/warm the fake peer lane before a caller starts the unchanged 200ms
+// policy budget. This is test readiness, not a retry or a larger runtime budget.
+func readyPolicyReply(s Store, raw json.RawMessage, fail bool, start func(context.Context) error) <-chan error {
+	ready := make(chan struct{})
 	done := make(chan error, 1)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
+		announced := false
+		announce := func() {
+			if !announced {
+				close(ready)
+				announced = true
+			}
+		}
+		defer announce()
+		if start != nil {
+			if e := start(ctx); e != nil {
+				done <- e
+				return
+			}
+		}
+		conn, e := s.DB.Acquire(ctx)
+		if e != nil {
+			done <- e
+			return
+		}
+		defer conn.Release()
+		// Cold AEAD/DB initialization belongs to fake peer setup, not handler latency.
+		if _, e = s.seal("call-result", jobs.UUID(), raw); e != nil {
+			done <- e
+			return
+		}
 		for ctx.Err() == nil {
 			var id string
-			e := s.DB.QueryRow(ctx, `SELECT id::text FROM plugin_v2_runs WHERE kind='chain' AND state='pending' AND deadline_at>clock_timestamp() ORDER BY created_at,id LIMIT 1`).Scan(&id)
+			e := conn.QueryRow(ctx, `SELECT id::text FROM plugin_v2_runs WHERE kind='chain' AND state='pending' AND deadline_at>clock_timestamp() ORDER BY created_at,id LIMIT 1`).Scan(&id)
+			announce()
 			if errors.Is(e, pgx.ErrNoRows) {
 				time.Sleep(time.Millisecond)
 				continue
@@ -61,12 +94,13 @@ func policyReply(s Store, raw json.RawMessage, fail bool) <-chan error {
 					return
 				}
 			}
-			_, e = s.DB.Exec(ctx, `UPDATE plugin_v2_runs SET state=$2,result_ciphertext=$3,finished_at=now() WHERE id=$1`, id, state, cipher)
+			_, e = conn.Exec(ctx, `UPDATE plugin_v2_runs SET state=$2,result_ciphertext=$3,finished_at=now() WHERE id=$1`, id, state, cipher)
 			done <- e
 			return
 		}
 		done <- ctx.Err()
 	}()
+	<-ready
 	return done
 }
 func TestResourcePoliciesNarrowFallbackTimeoutAndCommitFence(t *testing.T) {
@@ -234,5 +268,44 @@ func TestPolicyReplyDoesNotConsumeExpiredPendingCall(t *testing.T) {
 	var state string
 	if e = s.DB.QueryRow(ctx, `SELECT state FROM plugin_v2_runs WHERE id=$1`, expired).Scan(&state); e != nil || state != "pending" {
 		t.Fatal("expired call consumed fresh reply", state, e)
+	}
+}
+
+func TestFakePolicyPeerReadinessPrecedesTimedCall(t *testing.T) {
+	s, _ := policyFixture(t)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	returned := make(chan (<-chan error), 1)
+	go func() {
+		returned <- readyPolicyReply(s, json.RawMessage(`{"ids":[]}`), false, func(ctx context.Context) error {
+			close(started)
+			select {
+			case <-release:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+	}()
+	<-started
+	select {
+	case <-returned:
+		t.Fatal("timed caller released before fake peer ready")
+	case <-time.After(30 * time.Millisecond):
+	}
+	close(release)
+	var done <-chan error
+	select {
+	case done = <-returned:
+	case <-time.After(3 * time.Second):
+		t.Fatal("fake peer never ready")
+	}
+	a := jobs.UUID()
+	_, ids, e := s.SelectResources(context.Background(), contracts.ResourceSelectionRequest{RunID: a, Candidates: []contracts.ResourceCandidate{{ID: a, AccountID: a}}})
+	if e != nil || len(ids) != 0 {
+		t.Fatal("ready peer did not execute narrowing policy", ids, e)
+	}
+	if e = <-done; e != nil {
+		t.Fatal(e)
 	}
 }
