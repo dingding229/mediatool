@@ -127,3 +127,22 @@ SDK现有Action函数绑定可作为已批准DAG的步骤。DAG≤32步/深度16
 须显式确认`auth.provider`与`events.chain.auth.verification`，subject需管理员预绑定。
 首期真实外部登录入口返回unsupported；hello的fake只作golden/真实worker验收。
 内置本地密码登录不经插件；broker身份每次验证代际/授权/绑定/账号版本，撤权立即失效。
+
+## F5-G 工具与管理面板
+
+工具在插件仓库实现 `sdk.ToolProvider.GetAgentTools(ctx) []sdk.Tool`，字段为Name、Description、
+InputSchema、RequiredScopes、EffectKind、Handler；manifest扩展AgentTools与agent.tools均要声明。
+可参考hello-go的hello.echo（纯回显）和hello.remember（只写本实例KV），不是远程下载安装示例。
+效果分类read/write/dangerous由共享Host方法表校验，只能高报，不能低报。所需scope必须是已声明且
+实时授权的子集；Host每次调用继续检查，运行期只获得本工具scope上限。受信代码的直接OS行为
+仍依赖维护者审核，不把effect声明当成恶意代码沙箱。write/dangerous需要管理员二次确认。
+
+schema使用有界JSON Schema子集：type、properties/required/additionalProperties、items、enum、
+minimum/maximum、min/maxLength、min/maxItems及文案。未知关键词/$ref/regex不忽略而是拒绝；
+不自动注入默认值，不作类型转换或网络解析。整数及数字enum精确比较，数字词法和指数有界。
+输入16KiB、输出32KiB、schema8KiB/8层128节点；人工调用5秒。失败/unknown通过运行历史核对，
+不能改变operationKey盲重放。没有LLM聊天、自动Agent、token计费，AgentLLMProvider仍N/A。
+
+开发发布严格双仓顺序：mediatool-plugin本地vet/test/race/golden→提交推送→该仓Actions成功→
+mediatool go.mod精确pin该提交（无replace）→生成同pin静态清单→主仓测试/Actions→Hub不可变digest→
+按审核授权备份部署。插件库不能在运行期选择源码、提交、版本或加载远程UI。

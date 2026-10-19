@@ -213,7 +213,7 @@ func (s Store) apply(ctx context.Context, actor string, in Request) (Instance, e
 		// Only the approved built-in capability subset is executable in F1.
 		for _, p := range d.Manifest.Permissions {
 			switch p.Scope {
-			case "auth.provider", "api.register", "api.public", "api.public.write", "services.register", "commands.register", "commands.override", "actions.register", "plugin.config.read", "plugin.config.write", "plugin.data.read", "plugin.data.write", "plugin.state.read", "fs.data", "ui.json", "ui.trusted", "ui.sidebar", "system.read", "notifications.send":
+			case "agent.tools", "auth.provider", "api.register", "api.public", "api.public.write", "services.register", "commands.register", "commands.override", "actions.register", "plugin.config.read", "plugin.config.write", "plugin.data.read", "plugin.data.write", "plugin.state.read", "fs.data", "ui.json", "ui.trusted", "ui.sidebar", "system.read", "notifications.send":
 			default:
 				if !supportedBusinessScope(p.Scope) && !strings.HasPrefix(p.Scope, "events.chain.") && !strings.HasPrefix(p.Scope, "events.subscribe.") && !strings.HasPrefix(p.Scope, "module.") {
 					return out, ErrUnavailable

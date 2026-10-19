@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
 	"sort"
@@ -14,6 +15,7 @@ import (
 type RunKind string
 
 const (
+	RunTool        RunKind = "tool"
 	RunChain       RunKind = "chain"
 	RunModule      RunKind = "module"
 	RunUI          RunKind = "ui"
@@ -82,6 +84,11 @@ func (s Store) Publish(ctx context.Context, l Lease, metadata contracts.Snapshot
 	raw, e := json.Marshal(metadata)
 	if e != nil || len(raw) > 128<<10 {
 		return ErrInvalid
+	}
+	for _, d := range metadata.Descriptors {
+		if d.Kind == "tool" && !b.ValidToolEffect(d.EffectKind, d.RequiredScopes) {
+			return contracts.NewError(contracts.PermissionDenied)
+		}
 	}
 	hash := digest(raw)
 	tx, e := s.DB.Begin(ctx)

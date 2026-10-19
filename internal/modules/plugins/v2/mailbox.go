@@ -217,14 +217,14 @@ func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *ho
 			<-watchDone
 			return e
 		}
-		if kind == "api" || kind == "chain" || kind == "module" || kind == "action" {
+		if kind == "api" || kind == "chain" || kind == "module" || kind == "action" || kind == "tool" {
 			var scopes []string
 			if json.Unmarshal(scopeRaw, &scopes) != nil {
 				cancel()
 				<-watchDone
 				return ErrInvalid
 			}
-			gate.enterFor(scopes, kind == "action")
+			gate.enterFor(scopes, kind == "action" || kind == "tool")
 		}
 		var result json.RawMessage
 		e = peer.Call(bounded, "plugin.invoke", contracts.Invocation{Handler: handler, Args: args}, &result)
@@ -242,6 +242,8 @@ func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *ho
 			} else {
 				state, reason = RunUnknown, RunWorkerLost
 			}
+		} else if kind == "tool" && len(result) > contracts.ToolOutputLimit {
+			state, reason = RunUnknown, RunInvalidResult
 		} else if len(result) > 128<<10 || contracts.ValidateJSON(result) != nil {
 			state, reason = RunUnknown, RunInvalidResult
 		} else if (kind == "chain" || kind == "module") && !validExtensionResult(kind, extensionID, args, result) {

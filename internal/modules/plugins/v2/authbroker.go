@@ -27,7 +27,10 @@ type authNonce struct {
 	Expires                                       time.Time
 	Used                                          bool
 }
-type authBinding struct{ Account, Provider, Fingerprint string }
+type authBinding struct {
+	Account, Provider, Fingerprint string
+	InstanceID                     string `json:"instanceId,omitempty"`
+}
 type BrokerIdentity struct {
 	AccountID  string               `json:"accountId"`
 	Version    int64                `json:"-"`
@@ -82,7 +85,7 @@ func (b Broker) Bind(ctx context.Context, actor, instance, provider, subject, ac
 	if e = pluginstate.Lock(ctx, tx, key, &v); e != nil {
 		return e
 	}
-	v = authBinding{account, provider, fp}
+	v = authBinding{Account: account, Provider: provider, Fingerprint: fp, InstanceID: instance}
 	if e = pluginstate.Put(ctx, tx, key, v); e != nil {
 		return e
 	}

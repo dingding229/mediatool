@@ -1917,3 +1917,12 @@ WorkflowRunner另将job lease/token条件UPDATE加入共享commit guard，覆盖
 - 验证：catalog/V2/HTTP包串行race通过；迁移64 Up→Down→Up及非插件对照、快照密文真正rekey后恢复通过；崩溃日志+原子交换后重启恢复通过。链接/执行内容/schema/跨实例/CAS/额度/fence负测通过。Vue125项、真实HTTP的创建→配置变更→恢复→删除（保持disabled）通过。E2E脚本最初误断言configure=200，按源码修为202；一次手工回归未先清除E2E临时密钥行导致rekey夹具失败，恢复统一测试锁及test-only清理后整包通过，未放宽产品保护。
 - Host私有`.host/`业务幂等收据不属于可恢复的插件KV：创建时排除，恢复时保留现有ID/密文/revision（包括快照之后产生的unknown收据），防止数据回退放行业务重复动作；合并保留收据后的1024条/10MiB配额不满足时拒绝恢复，不淘汰收据。
 - CI全量迁移门禁发现Dockerfile的OCI schema标签未同步64（仅此断言失败，发布跳过）；同步镜像标签为64并重跑原门禁，不改生产资源/安全参数或测试断言。
+
+## F5-γ 开发记录（2026-10-19）
+
+- SDK增加独立tool描述符/Go绑定、schema有界子集、效果级别共享分类、hello只读及自身KV示例、golden和精确数字验证；先推插件仓库并取得绿色Actions，才更新主程序pin。
+- 迁移00065仅扩展原运行表CHECK以记录tool kind，避免伪装成action而绕过校验；无新表。同步build schema和Docker schema标签65。
+- 工具人工调用复用信箱，5秒/16KiB输入/32KiB输出；host与SDK均验证输入，声明/实时授权交集和效果检查，mutating确认，审计不记输入/输出。无LLM/自动Agent，相关API返回501 unsupported。
+- 工作流/auth状态、JSON表单及错误面板补齐；未加可视化编辑器。工作流查询复用现有路径的查询参数，避免Go ServeMux与实例动态路径歧义；原D级批准/run/cancel机制不变。新auth绑定附instanceId供准确投影，旧未归属记录不猜测。
+- F4实测首调用23–86ms、回落0%；不预热、不改200ms/2s生产预算。插件开发双仓顺序写入两仓文档；不部署，不访问生产。
+- 本地验证：主程序build/vet/errcheck、pin初始化/清单检查通过；V2/HTTP串行race及迁移65 Up→Down→Up/非插件对照通过。Vue40文件130项、Python31项、390px人工工具→危险确认→工作流状态→auth错误面板E2E通过。真实同binary与HTTP工具用例复用统一Ready helper并加入原生AMD64门禁，不放宽生产时限。首次回归发现新增agent.tools尚未加入宿主安装白名单及ServeMux歧义，均修复产品接线而非放宽门禁。

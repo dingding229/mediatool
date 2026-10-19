@@ -14,7 +14,15 @@ func TestPluginExtensionRunChecksMatchGo(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, v := range []struct{ col, typ string }{{"kind", "RunKind"}, {"state", "RunState"}, {"reason", "RunReason"}} {
-		m := regexp.MustCompile(v.col + ` IN\(([^)]*)\)`).FindStringSubmatch(string(raw))
+		checkRaw := raw
+		if v.col == "kind" {
+			var e error
+			checkRaw, e = migrations.FS.ReadFile("00065_plugin_tools.sql")
+			if e != nil {
+				t.Fatal(e)
+			}
+		}
+		m := regexp.MustCompile(v.col + ` IN\(([^)]*)\)`).FindStringSubmatch(string(checkRaw))
 		if len(m) != 2 {
 			t.Fatal(v)
 		}

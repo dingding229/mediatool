@@ -1777,3 +1777,22 @@ test('F5-beta real instance snapshot create restore and delete stay disabled',as
  await dialog.screenshot({path:resolve(screenshots,'plugin-snapshots-f5b.png'),animations:'disabled'})
  info=await inspect();await op('remove',{instanceId:instance.id,expectedRevision:info.instance.revision,scopes:[]})
 })
+
+test('F5-gamma manual tools workflow schema and auth status stay bounded at 390px (UI contract)',async({page})=>{
+ await page.addInitScript(()=>Object.defineProperty(window.crypto,'randomUUID',{value:undefined,configurable:true}))
+ const fixture=JSON.parse(readFileSync(resolve(root,'internal/platform/httpapi/testdata/contracts/plugin-v2-instances.json'),'utf8'));const instance={...fixture.response,desiredState:'enabled',state:'running'}
+ const manifest={id:'hello-go',name:'Hello Go',version:'1.9.0',description:'panels fixture',permissions:[]}
+ await page.route('**/api/v1/plugins/catalog?*',r=>r.fulfill({json:{data:{items:[{manifest,fingerprint:'current'}],total:1}}}))
+ await page.route('**/api/v1/plugins?*',r=>r.fulfill({json:{data:[instance]}}))
+ await page.route(`**/api/v1/plugins/${instance.id}/tools`,r=>r.fulfill({json:{data:[{kind:'tool',id:'hello.remember',name:'hello.remember',description:'Only own KV',inputSchema:{type:'object'},effectKind:'write',requiredScopes:['agent.tools','plugin.data.write']}]}}))
+ const calls:any[]=[];await page.route(`**/api/v1/plugins/${instance.id}/tools/call`,async r=>{calls.push(r.request().postDataJSON());await r.fulfill({json:{data:{saved:true}}})})
+ await page.route('**/api/v1/plugins/workflows?*',r=>r.fulfill({json:{data:[{id:'owned',revision:1,fingerprint:'new',approved:'old',steps:1}]}}))
+ await page.route('**/api/v1/plugins/workflows?workflowId=owned&view=definition',r=>r.fulfill({json:{data:{dag:{id:'owned',steps:[]},revision:1,fingerprint:'new',approved:'old'}}}))
+ await page.route('**/api/v1/plugins/workflows?workflowId=owned&view=runs&*',r=>r.fulfill({json:{data:[{id:'run-fixture',workflowId:'owned',state:'unknown',steps:{one:'unknown'},reasons:{one:'worker_lost'}}]}}))
+ await page.route(`**/api/v1/plugins/${instance.id}/auth/status`,r=>r.fulfill({json:{data:[{id:'fake',instanceId:instance.id,bound:0,stale:1,state:'unavailable',error:'provider_inactive_or_scope_denied'}]}}))
+ await fixtureLogin(page);await page.goto('/plugins');await page.setViewportSize({width:390,height:1000})
+ const card=page.locator('.instance-card');await card.getByRole('button',{name:'工具测试',exact:true}).click();let dialog=page.getByRole('dialog',{name:'人工工具测试',exact:true});await expect(dialog).toContainText('自动 Agent');await dialog.getByLabel('输入 JSON',{exact:true}).fill('{"message":"manual"}');await dialog.getByRole('button',{name:'人工调用工具',exact:true}).click();const consent=page.getByRole('dialog',{name:'确认工具调用',exact:true});await expect(consent).toBeVisible();expect(calls).toHaveLength(0);await consent.getByRole('button',{name:'确认调用',exact:true}).click();await expect(dialog).toContainText('"saved": true');expect(calls[0].confirm).toBe(true);expect(calls[0].operationKey).toMatch(/^[a-f0-9-]{36}$/)
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await dialog.screenshot({path:resolve(screenshots,'plugin-tools-f5g-390.png'),animations:'disabled'});await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
+ await page.getByRole('button',{name:'工作流管理',exact:true}).click();dialog=page.getByRole('dialog',{name:'工作流管理',exact:true});await dialog.getByRole('button',{name:'详情',exact:true}).click();await expect(dialog).toContainText('worker_lost');await expect(dialog.getByRole('button',{name:'手动运行工作流',exact:true})).toBeDisabled();await expect(dialog).toContainText('批准指纹');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
+ await card.getByRole('button',{name:'认证状态',exact:true}).click();dialog=page.getByRole('dialog',{name:'认证状态',exact:true});await expect(dialog).toContainText('unsupported');await expect(dialog).toContainText('provider_inactive_or_scope_denied');await expect(dialog.getByRole('button',{name:'绑定账号',exact:true})).toBeDisabled();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+})

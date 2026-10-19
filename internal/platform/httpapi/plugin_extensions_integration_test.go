@@ -186,6 +186,18 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 		return response.StatusCode, raw
 	}
 
+	// Real HTTP tool calls use the same release binary and live scope ceiling.
+	toolURL := "/api/v1/plugins/" + in.ID + "/tools/call"
+	toolHeaders := map[string]string{"Origin": c.PublicURL, "X-Requested-With": "media-tool"}
+	if status, b := request("POST", toolURL, true, toolHeaders, `{"name":"hello.echo","input":{"message":"http-worker"},"operationKey":"http-tool-echo"}`); status != 200 || !strings.Contains(string(b), "http-worker") {
+		t.Fatal("real HTTP tool", status, string(b))
+	}
+	if status, _ := request("POST", toolURL, true, toolHeaders, `{"name":"hello.remember","input":{"message":"no"},"operationKey":"http-tool-write","confirm":false}`); status != 403 {
+		t.Fatal("tool effect confirmation", status)
+	}
+	if status, _ := request("POST", toolURL, true, toolHeaders, `{"name":"hello.echo","input":{"message":7},"operationKey":"http-tool-invalid"}`); status != 400 {
+		t.Fatal("tool schema bypass", status)
+	}
 	// Real admin HTTP recognition runs the typed chain first, then a module override.
 	if status, b := request("POST", "/api/v1/media/recognize-name", true, map[string]string{"Origin": c.PublicURL, "X-Requested-With": "media-tool"}, `{"name":"Owned.2026.mkv"}`); status != 200 || !strings.Contains(string(b), "Module Rewrite") {
 		t.Fatal("NameRecognize/module", status, string(b))

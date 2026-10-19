@@ -56,6 +56,16 @@ func TestRealSameBinaryWorkflowAndBoundFakeProvider(t *testing.T) {
 		}
 	})
 	testworker.Ready(t, s.DB, in.ID, func(c context.Context) error { _, err := s.UI(c, in.ID, "form", ""); return err })
+	echo, e := s.ToolCall(ctx, "admin", in.ID, "hello.echo", "real-tool-echo", json.RawMessage(`{"message":"real-worker"}`), false)
+	if e != nil || string(echo) != `{"message":"real-worker"}` {
+		t.Fatal("real tool echo", string(echo), e)
+	}
+	if _, e = s.ToolCall(ctx, "admin", in.ID, "hello.remember", "real-tool-denied", json.RawMessage(`{"message":"own-kv"}`), false); e == nil {
+		t.Fatal("mutating tool lacked confirmation")
+	}
+	if _, e = s.ToolCall(ctx, "admin", in.ID, "hello.remember", "real-tool-write", json.RawMessage(`{"message":"own-kv"}`), true); e != nil {
+		t.Fatal("real tool own KV", e)
+	}
 	r := WorkflowRunner{s}
 	w := contracts.Workflow{ID: "real-workflow", Steps: []contracts.WorkflowStep{{ID: "one", InstanceID: in.ID, Action: "hello", Input: contracts.ActionContext{Data: map[string]json.RawMessage{}}}, {ID: "two", DependsOn: []string{"one"}, InstanceID: in.ID, Action: "f4-check", Input: contracts.ActionContext{Data: map[string]json.RawMessage{"scopeProbe": json.RawMessage(`true`)}}}}}
 	def, e := r.Save(ctx, "admin", w, 0)
