@@ -272,7 +272,7 @@ func TestAcceptanceRealWorkerImportNotifyMergeAndRefresh(t *testing.T) {
 	}
 	acceptanceWait(t, "two unique import notices", func() bool {
 		var n int
-		return s.DB.QueryRow(ctx, `SELECT count(*) FROM outbox_events WHERE event_type='plugin.notice' AND payload->>'instanceId'=$1`, in.ID).Scan(&n) == nil && n == 2
+		return s.DB.QueryRow(ctx, `SELECT count(*) FROM outbox_events WHERE event_type='plugin.notice' AND payload->>'instanceId'=$1 AND payload->>'title'='媒体入库已确认'`, in.ID).Scan(&n) == nil && n == 2
 	})
 	if e = runAcceptanceService(t, ctx, s, in.ID, "flush"); e != nil {
 		t.Fatal(e)

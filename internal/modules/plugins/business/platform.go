@@ -293,7 +293,7 @@ func (h AcquisitionHost) callPlatform(ctx context.Context, call contracts.HostCa
 				return nil, e
 			}
 			id, e := d.PluginPublish(ctx, actor.InstanceID(), call.OperationKey, in.Title, in.Text)
-			return b.Receipt{ID: id, State: "pending"}, e
+			return b.Receipt{ID: id, State: b.NotificationPending}, e
 		}
 		if call.Method == "notifications.retry" {
 			var in b.DeliveryRetry
