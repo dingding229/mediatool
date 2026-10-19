@@ -430,3 +430,7 @@ API仅管理监听器admin/CSRF，复用加密持久信箱、授权fence、幂�
   最多200个事件身份且不自动淘汰：超限停用待人工处理，避免7日 Host 收据过期后旧事件重新产生副作用。
 
 验收只使用合成站点、合成资产/通知和测试库。F6-α 不部署，不处理生产保留快照。
+
+通知入队证据统一引用SDK的`business.NotificationPending`（pending），不把入队当成已送达；unknown拒绝。
+签到checkpoint绑定请求身份摘要，切换账号不会继承旧结果；cron沿用宿主Asia/Shanghai，每日幂等按UTC日。
+刷新间隔表单沿用白名单renderer的字符串选项，插件有界解析为60–3600秒，原始JSON整数也兼容。
