@@ -238,8 +238,12 @@ func TestStateRecoveryAfterPersistedExchangeAndRestart(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	original, e := identity(r, "data")
+	if e != nil {
+		t.Fatal(e)
+	}
 	info, _ := s.Inspect(ctx, in.ID, "")
-	_, e = s.DB.Exec(ctx, `INSERT INTO plugin_v2_state_tasks(id,instance_id,snapshot_id,operation_key,request_hash,kind,state,lease_until,revision,fingerprint,stage_identity,reserved_bytes)VALUES($1,$2,$3,$4,$5,'restore','prepared',now()-interval '1 second',$6,$7,$8,83886080)`, task, in.ID, snap.ID, "restart-"+task, strings.Repeat("a", 64), info.Instance.Revision, d.Fingerprint, ino)
+	_, e = s.DB.Exec(ctx, `INSERT INTO plugin_v2_state_tasks(id,instance_id,snapshot_id,operation_key,request_hash,kind,state,lease_until,revision,fingerprint,stage_identity,reserved_bytes)VALUES($1,$2,$3,$4,$5,'restore','prepared',now()-interval '1 second',$6,$7,$8,83886080)`, task, in.ID, snap.ID, "restart-"+task, strings.Repeat("a", 64), info.Instance.Revision, d.Fingerprint, original+"|"+ino)
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -75,10 +75,15 @@ func (s Store) recoverStateTask(ctx context.Context, task string) error {
 			return e
 		}
 		stage := "snapshots/" + task + "/stage"
-		if current == ino {
-			if _, e = identity(r, stage); e != nil {
-				return e
-			}
+		expected := strings.Split(ino, "|")
+		if len(expected) != 2 {
+			return ErrInvalid
+		}
+		staged, e := identity(r, stage)
+		if e != nil {
+			return e
+		}
+		if current == expected[1] && staged == expected[0] {
 			if e = exchangeState(r, "data", stage); e != nil {
 				return e
 			}
@@ -91,7 +96,10 @@ func (s Store) recoverStateTask(ctx context.Context, task string) error {
 			if e != nil {
 				return e
 			}
+		} else if current != expected[0] || staged != expected[1] {
+			return ErrConflict
 		}
+
 	}
 	if kind == "create" {
 		if _, e = tx.Exec(ctx, `UPDATE plugin_v2_state_tasks SET reserved_bytes=$2 WHERE id=$1`, task, stateReserve); e != nil {

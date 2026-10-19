@@ -43,7 +43,7 @@ func (s Store) stateRoot(id string) (*os.Root, error) {
 	if !validUUID(id) {
 		return nil, ErrInvalid
 	}
-	if e := s.EnsurePaths(id); e != nil {
+	if _, e := s.DataPath(id); e != nil {
 		return nil, e
 	}
 	root, e := os.OpenRoot(s.Root)
@@ -74,7 +74,7 @@ func identity(r *os.Root, name string) (string, error) {
 }
 func executable(name string, b []byte) bool {
 	switch strings.ToLower(filepath.Ext(name)) {
-	case ".go", ".py", ".sh", ".js", ".mjs", ".wasm", ".so", ".dll", ".exe", ".dylib", ".zip", ".tar", ".gz", ".tgz", ".jar", ".class", ".a", ".o", ".ps1", ".bat", ".cmd", ".rb", ".pl", ".lua":
+	case ".go", ".py", ".sh", ".js", ".mjs", ".wasm", ".so", ".dll", ".exe", ".dylib", ".zip", ".tar", ".gz", ".tgz", ".jar", ".class", ".a", ".o", ".ps1", ".bat", ".cmd", ".rb", ".pl", ".lua", ".html", ".htm", ".svg", ".php", ".ts", ".tsx", ".jsx", ".vue", ".c", ".h", ".cpp", ".rs", ".java", ".swift", ".sql", ".7z", ".rar", ".bz2", ".xz", ".zst":
 		return true
 	}
 	if bytes.HasPrefix(b, []byte("#!")) || bytes.HasPrefix(b, []byte("\x7fELF")) || bytes.HasPrefix(b, []byte("MZ")) {

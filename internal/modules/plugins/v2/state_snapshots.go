@@ -267,7 +267,11 @@ func (s Store) finishState(ctx context.Context, actor, id, task, kind string, ou
 			if e != nil {
 				return e
 			}
-			tag, e := s.DB.Exec(ctx, `UPDATE plugin_v2_state_tasks SET state='prepared',stage_identity=$2 WHERE id=$1 AND state='writing' AND lease_until>clock_timestamp()`, task, ino)
+			original, e := identity(r, "data")
+			if e != nil {
+				return e
+			}
+			tag, e := s.DB.Exec(ctx, `UPDATE plugin_v2_state_tasks SET state='prepared',stage_identity=$2 WHERE id=$1 AND state='writing' AND lease_until>clock_timestamp()`, task, original+"|"+ino)
 			if e != nil {
 				return e
 			}
