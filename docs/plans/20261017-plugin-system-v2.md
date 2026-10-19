@@ -1915,3 +1915,4 @@ WorkflowRunner另将job lease/token条件UPDATE加入共享commit guard，覆盖
 - 卸载仍保留实例私有数据与快照并计入额度；显式删除快照先撤销DB引用再GC。恢复不回退授权、实例revision或业务副作用，KV/config revision单调递增。
 - 来源缓存增加stale-if-error：保留最后成功卡片至成功时间后最多420秒（原120秒+300秒），重复失败不能续期；新snapshot/撤权仍立即不可见。空结果成功仍清空卡片。
 - 验证：catalog/V2/HTTP包串行race通过；迁移64 Up→Down→Up及非插件对照、快照密文真正rekey后恢复通过；崩溃日志+原子交换后重启恢复通过。链接/执行内容/schema/跨实例/CAS/额度/fence负测通过。Vue125项、真实HTTP的创建→配置变更→恢复→删除（保持disabled）通过。E2E脚本最初误断言configure=200，按源码修为202；一次手工回归未先清除E2E临时密钥行导致rekey夹具失败，恢复统一测试锁及test-only清理后整包通过，未放宽产品保护。
+- Host私有`.host/`业务幂等收据不属于可恢复的插件KV：创建时排除，恢复时保留现有ID/密文/revision（包括快照之后产生的unknown收据），防止数据回退放行业务重复动作；合并保留收据后的1024条/10MiB配额不满足时拒绝恢复，不淘汰收据。

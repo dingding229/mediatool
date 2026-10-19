@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
+	"strings"
 )
 
 func (s Store) captureStateValues(ctx context.Context, tx pgx.Tx, id, snapshot string) error {
-	rows, e := tx.Query(ctx, `SELECT 'config','',id::text,ciphertext,revision FROM plugin_v2_configs WHERE id=$1 UNION ALL SELECT 'kv',key,id::text,ciphertext,revision FROM plugin_v2_kv WHERE instance_id=$1`, id)
+	rows, e := tx.Query(ctx, `SELECT 'config','',id::text,ciphertext,revision FROM plugin_v2_configs WHERE id=$1 UNION ALL SELECT 'kv',key,id::text,ciphertext,revision FROM plugin_v2_kv WHERE instance_id=$1 AND key NOT LIKE '.host/%'`, id)
 	if e != nil {
 		return e
 	}
@@ -128,17 +129,30 @@ func (s Store) restoreStateValues(ctx context.Context, tx pgx.Tx, id, snapshot s
 	if other != nil {
 		return other
 	}
-	if _, e = tx.Exec(ctx, `DELETE FROM plugin_v2_kv WHERE instance_id=$1`, id); e != nil {
+	if _, e = tx.Exec(ctx, `DELETE FROM plugin_v2_kv WHERE instance_id=$1 AND key NOT LIKE '.host/%'`, id); e != nil {
+		return e
+	}
+	var retainedCount int
+	var retainedBytes int64
+	if e = tx.QueryRow(ctx, `SELECT count(*),COALESCE(sum(octet_length(ciphertext)),0) FROM plugin_v2_kv WHERE instance_id=$1 AND key LIKE '.host/%'`, id).Scan(&retainedCount, &retainedBytes); e != nil {
 		return e
 	}
 	for _, v := range values {
 		if v.kind != "kv" {
 			continue
 		}
+		if strings.HasPrefix(v.key, ".host/") {
+			return ErrInvalid
+		}
 		key := jobs.UUID()
 		cipher, e := s.seal("kv", key, v.raw)
 		if e != nil {
 			return e
+		}
+		retainedCount++
+		retainedBytes += int64(len(cipher))
+		if retainedCount > 1024 || retainedBytes > 10<<20 {
+			return ErrInvalid
 		}
 		if _, e = tx.Exec(ctx, `INSERT INTO plugin_v2_kv(id,instance_id,key,ciphertext,revision)VALUES($1,$2,$3,$4,$5)`, key, id, v.key, cipher, max(v.rev, revisions[v.key])+1); e != nil {
 			return e

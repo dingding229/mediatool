@@ -266,3 +266,44 @@ func TestStateRecoveryAfterPersistedExchangeAndRestart(t *testing.T) {
 		t.Fatal("orphan stage retained", e)
 	}
 }
+
+func TestStateRestoreNeverRewindsHostBusinessReceipts(t *testing.T) {
+	s, in, d := stateFixture(t)
+	ctx := context.Background()
+	ids := []string{}
+	ciphers := [][]byte{}
+	add := func(tag string) {
+		t.Helper()
+		id := jobs.UUID()
+		cipher, e := s.seal("kv", id, json.RawMessage(`{"state":"unknown","effect":"must-not-replay"}`))
+		if e != nil {
+			t.Fatal(e)
+		}
+		_, e = s.DB.Exec(ctx, `INSERT INTO plugin_v2_kv(id,instance_id,key,ciphertext,revision)VALUES($1,$2,$3,$4,1)`, id, in.ID, ".host/1700000000/"+strings.Repeat(tag, 64), cipher)
+		if e != nil {
+			t.Fatal(e)
+		}
+		ids = append(ids, id)
+		ciphers = append(ciphers, cipher)
+	}
+	add("a")
+	snap, e := s.StateOperation(ctx, "admin", in.ID, stateRequest(t, s, in.ID, d, "create", "receipts-create", ""))
+	if e != nil {
+		t.Fatal(e)
+	}
+	var count int
+	if e = s.DB.QueryRow(ctx, `SELECT count(*) FROM plugin_v2_state_values WHERE snapshot_id=$1 AND kind='kv'`, snap.ID).Scan(&count); e != nil || count != 1 {
+		t.Fatal("host-private keys entered snapshot", count, e)
+	}
+	add("b")
+	if _, e = s.StateOperation(ctx, "admin", in.ID, stateRequest(t, s, in.ID, d, "restore", "receipts-restore", snap.ID)); e != nil {
+		t.Fatal(e)
+	}
+	for n, id := range ids {
+		var cipher []byte
+		var revision int64
+		if e = s.DB.QueryRow(ctx, `SELECT ciphertext,revision FROM plugin_v2_kv WHERE id=$1`, id).Scan(&cipher, &revision); e != nil || string(cipher) != string(ciphers[n]) || revision != 1 {
+			t.Fatal("business receipt changed or disappeared", e)
+		}
+	}
+}
