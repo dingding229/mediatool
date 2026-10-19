@@ -54,6 +54,11 @@ func TestEveryBusinessMethodLiveScopeAndRevocation(t *testing.T) {
 			continue
 		} // Dedicated real WorkflowRunner authorization/receipt tests; not an external business mock.
 		t.Run(m.Name, func(t *testing.T) {
+			// Extra-scope intersections from a prior method must not authorize this
+			// case. Each row starts with an empty live grant set, not just its primary.
+			if _, e := s.DB.Exec(ctx, `DELETE FROM plugin_v2_grants WHERE instance_id=$1`, l.ID); e != nil {
+				t.Fatal(e)
+			}
 			if hostScope(m.Name) != m.Scope {
 				t.Fatal("scope drift")
 			}

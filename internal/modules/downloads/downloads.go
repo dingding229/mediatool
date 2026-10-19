@@ -8,15 +8,19 @@ type Request struct {
 	Tags               []string
 }
 type Task struct {
-	ID, State, Name, Category  string
-	DownloadSpeed, UploadSpeed int64
-	Seeds, Peers               int
-	Progress                   float64
-	SavePath, ContentPath      string
-	Size, SeedingTime          int64
-	Ratio                      float64
-	Complete                   bool
-	Seeding                    bool
+	DownloadLimit, UploadLimit                               *int64
+	RatioLimit, EffectiveRatioLimit                          *float64
+	SeedingMinutes, InactiveMinutes, EffectiveSeedingMinutes *int64
+	AutoManaged                                              *bool
+	ID, State, Name, Category                                string
+	DownloadSpeed, UploadSpeed                               int64
+	Seeds, Peers                                             int
+	Progress                                                 float64
+	SavePath, ContentPath                                    string
+	Size, SeedingTime                                        int64
+	Ratio                                                    float64
+	Complete                                                 bool
+	Seeding                                                  bool
 }
 type Downloader interface {
 	Add(context.Context, Request) (string, error)

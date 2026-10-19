@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
@@ -89,6 +90,15 @@ func (e Engine) Page(ctx context.Context, start, limit int, query, id string) ([
 	return out, rows.Err()
 }
 func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
+	return e.save(ctx, id, in, false)
+}
+func (e Engine) Ensure(ctx context.Context, in Input) (Record, error) {
+	return e.save(ctx, "", in, true)
+}
+
+var ErrAlreadyOwned = errors.New("media already exposed")
+
+func (e Engine) save(ctx context.Context, id string, in Input, ensure bool) (Record, error) {
 	created := id == ""
 	if in.Source == "" {
 		in.Source = "search"
@@ -121,6 +131,9 @@ func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
 	if err != nil {
 		return Record{}, errors.New("media identity lookup failed")
 	}
+	if ensure && (item.ID != in.TMDBID || item.MediaType != in.MediaType) {
+		return Record{}, errors.New("media identity response mismatch")
+	}
 	if in.Rules.Keyword == "" {
 		in.Rules.Keyword = item.Title
 	}
@@ -131,6 +144,26 @@ func (e Engine) Save(ctx context.Context, id string, in Input) (Record, error) {
 		return Record{}, err
 	}
 	defer deferutil.Rollback(ctx, tx)
+	if ensure {
+		if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,66))`, fmt.Sprintf("subscription:%s:%d", item.MediaType, item.ID)); err != nil {
+			return Record{}, err
+		}
+		var existing string
+		err = tx.QueryRow(ctx, `SELECT id::text FROM subscriptions WHERE identity->>'id'=$1 AND media_type=$2 ORDER BY created_at LIMIT 1`, strconv.Itoa(item.ID), item.MediaType).Scan(&existing)
+		if err == nil {
+			return scanRecord(tx.QueryRow(ctx, `SELECT `+subscriptionColumns+` FROM subscriptions WHERE id=$1`, existing))
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return Record{}, err
+		}
+		var owned bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM media_assets a JOIN media_asset_bindings b ON b.asset_id=a.id JOIN media_items m ON m.id=b.media_id WHERE m.tmdb_id=$1 AND m.media_type=$2 AND a.artifacts_state='ready')`, item.ID, item.MediaType).Scan(&owned); err != nil {
+			return Record{}, err
+		}
+		if owned {
+			return Record{}, ErrAlreadyOwned
+		}
+	}
 	var cronExpression string
 	// Serialize cron assignment with system-setting updates, including new rows.
 	if err = tx.QueryRow(ctx, `SELECT value->>'subscriptionCron' FROM application_settings WHERE singleton FOR SHARE`).Scan(&cronExpression); err != nil {

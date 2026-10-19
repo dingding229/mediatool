@@ -379,6 +379,21 @@ func (h AcquisitionHost) Call(ctx context.Context, call contracts.HostCall, perm
 			state = "pending"
 		}
 		return b.Receipt{ID: id, State: state}, e
+	case "downloads.downloader.configure":
+		var in b.DownloaderConfig
+		if decodeBusiness(call.Args, &in) != nil || !validUUID(in.ID) {
+			return nil, invalidBusiness()
+		}
+		v := acquisition.Assistance{ID: in.ID, Tag: in.Tag, Category: in.Category, DownloadLimit: in.DownloadLimit, UploadLimit: in.UploadLimit, RatioLimit: in.RatioLimit, SeedingMinutes: in.SeedingMinutes}
+		err := ds.Configure(ctx, v, admit)
+		return b.Receipt{ID: in.ID, State: "configured"}, err
+	case "downloads.recheck":
+		id, err := businessID(call.Args)
+		if err != nil {
+			return nil, err
+		}
+		err = ds.Recheck(ctx, id, admit)
+		return b.Receipt{ID: id, State: "requested"}, err
 	case "downloads.downloader.setPaused":
 		var in b.Paused
 		if decodeBusiness(call.Args, &in) != nil || !validHash(in.Hash) {
@@ -415,7 +430,7 @@ func (h AcquisitionHost) Call(ctx context.Context, call contracts.HostCall, perm
 		for _, tag := range v.Tags {
 			tags = append(tags, safeText(tag))
 		}
-		return b.Task{ID: v.ID, SiteID: v.SiteID, Category: safeText(v.Task.Category), Tags: tags, Ratio: v.Task.Ratio, SeedingSeconds: v.Task.SeedingTime, Complete: v.Task.Complete, Seeding: v.Task.Seeding, CleanupEligible: v.Eligible, Title: safeText(v.Task.Name), State: safeState(v.Task.State), Hash: v.Task.ID, Owned: v.Owned, Progress: &v.Task.Progress, Size: v.Task.Size, DownloadSpeed: v.Task.DownloadSpeed, UploadSpeed: v.Task.UploadSpeed}, nil
+		return b.Task{DownloadLimit: v.Task.DownloadLimit, UploadLimit: v.Task.UploadLimit, RatioLimit: v.Task.RatioLimit, SeedingMinutes: v.Task.SeedingMinutes, AutoManaged: v.Task.AutoManaged, ID: v.ID, SiteID: v.SiteID, Category: safeText(v.Task.Category), Tags: tags, Ratio: v.Task.Ratio, SeedingSeconds: v.Task.SeedingTime, Complete: v.Task.Complete, Seeding: v.Task.Seeding, CleanupEligible: v.Eligible, Title: safeText(v.Task.Name), State: safeState(v.Task.State), Hash: v.Task.ID, Owned: v.Owned, Progress: &v.Task.Progress, Size: v.Task.Size, DownloadSpeed: v.Task.DownloadSpeed, UploadSpeed: v.Task.UploadSpeed}, nil
 
 	case "downloads.files":
 		var in b.Selection

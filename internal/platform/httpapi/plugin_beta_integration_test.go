@@ -103,12 +103,15 @@ func TestAcceptanceRealWorkerWatchQuietCoreOrganizeAndDisable(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	source := filepath.Join(root, "incoming", "Synthetic.Movie.2026.1080p.mkv")
+	if e := os.MkdirAll(filepath.Join(root, "incoming", "Synthetic Show", "Season 01"), 0700); e != nil {
+		t.Fatal(e)
+	}
+	source := filepath.Join(root, "incoming", "Synthetic Show", "Season 01", "Synthetic.Movie.2026.1080p.mkv")
 	if e := os.WriteFile(source, []byte("tiny synthetic media"), 0600); e != nil {
 		t.Fatal(e)
 	}
 	// Symlink evidence is listed unsupported and never submitted as a file plan.
-	if e := os.Symlink(t.TempDir(), filepath.Join(root, "incoming", "escape.mkv")); e != nil {
+	if e := os.Symlink(t.TempDir(), filepath.Join(root, "incoming", "escape-directory")); e != nil {
 		t.Fatal(e)
 	}
 	strm := filepath.Join(root, "protected.strm")

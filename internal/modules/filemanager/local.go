@@ -68,10 +68,12 @@ func (l *Local) Find(_ context.Context, p string) (File, error) {
 		return File{}, ErrMissing
 	}
 	id := ""
+	linked := false
 	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
+		linked = fi.Mode().IsRegular() && st.Nlink > 1
 		id = fmt.Sprintf("%d:%d", st.Dev, st.Ino)
 	}
-	return File{ID: id, Name: fi.Name(), Path: p, Size: fi.Size(), Directory: fi.IsDir(), Modified: fi.ModTime().UnixNano(), Unsupported: !fi.IsDir() && !fi.Mode().IsRegular()}, nil
+	return File{ID: id, Name: fi.Name(), Path: p, Size: fi.Size(), Directory: fi.IsDir(), Modified: fi.ModTime().UnixNano(), Unsupported: linked || !fi.IsDir() && !fi.Mode().IsRegular()}, nil
 }
 func (l *Local) List(ctx context.Context, p string) ([]File, error) {
 	if err := l.safe(p); err != nil {
@@ -137,6 +139,9 @@ func (l *Local) Relocate(ctx context.Context, source, target string) error {
 	}
 	if err := l.safe(source); err != nil {
 		return err
+	}
+	if f, err := l.Find(ctx, source); err != nil || f.Unsupported {
+		return ErrProtected
 	}
 	if err := l.safe(path.Dir(target)); err != nil {
 		return err

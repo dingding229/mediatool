@@ -164,6 +164,14 @@ func (a *Adapter) Inspect(ctx context.Context, id string) (downloads.Task, error
 		return downloads.Task{}, err
 	}
 	var items []struct {
+		DownloadLimit               *int64   `json:"dl_limit"`
+		UploadLimit                 *int64   `json:"up_limit"`
+		RatioLimit                  *float64 `json:"ratio_limit"`
+		EffectiveRatioLimit         *float64 `json:"max_ratio"`
+		EffectiveSeedingMinutes     *int64   `json:"max_seeding_time"`
+		SeedingMinutes              *int64   `json:"seeding_time_limit"`
+		InactiveMinutes             *int64   `json:"inactive_seeding_time_limit"`
+		AutoManaged                 *bool    `json:"auto_tmm"`
 		Hash, Name, State, Category string
 		Progress                    *float64
 		DownloadSpeed               int64  `json:"dlspeed"`
@@ -200,7 +208,7 @@ func (a *Adapter) Inspect(ctx context.Context, id string) (downloads.Task, error
 	if it.Progress == nil || math.IsNaN(*it.Progress) || *it.Progress < 0 || *it.Progress > 1 || it.State == "" {
 		return downloads.Task{}, ErrUnavailable
 	}
-	return downloads.Task{ID: it.Hash, State: it.State, Name: it.Name, Category: it.Category, Progress: *it.Progress, DownloadSpeed: it.DownloadSpeed, UploadSpeed: it.UploadSpeed, Seeds: it.Seeds, Peers: it.Peers, SavePath: it.SavePath, ContentPath: it.ContentPath, Size: it.Size, Ratio: it.Ratio, SeedingTime: it.SeedingTime, Complete: *it.Progress >= 1 && it.AmountLeft == 0 && it.CompletionOn > 0, Seeding: it.State == "stalledUP" || it.State == "forcedUP" || it.State == "uploading"}, nil
+	return downloads.Task{DownloadLimit: it.DownloadLimit, UploadLimit: it.UploadLimit, RatioLimit: it.RatioLimit, EffectiveRatioLimit: it.EffectiveRatioLimit, EffectiveSeedingMinutes: it.EffectiveSeedingMinutes, SeedingMinutes: it.SeedingMinutes, InactiveMinutes: it.InactiveMinutes, AutoManaged: it.AutoManaged, ID: it.Hash, State: it.State, Name: it.Name, Category: it.Category, Progress: *it.Progress, DownloadSpeed: it.DownloadSpeed, UploadSpeed: it.UploadSpeed, Seeds: it.Seeds, Peers: it.Peers, SavePath: it.SavePath, ContentPath: it.ContentPath, Size: it.Size, Ratio: it.Ratio, SeedingTime: it.SeedingTime, Complete: *it.Progress >= 1 && it.AmountLeft == 0 && it.CompletionOn > 0, Seeding: it.State == "stalledUP" || it.State == "forcedUP" || it.State == "uploading"}, nil
 }
 func (a *Adapter) Files(ctx context.Context, id string) ([]downloads.File, error) {
 	raw, err := a.request(ctx, "GET", "torrents/files?"+url.Values{"hash": {id}}.Encode(), "", nil)

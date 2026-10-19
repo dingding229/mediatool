@@ -3,6 +3,7 @@ package business
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
 	"media-tool/internal/modules/search"
@@ -222,9 +223,9 @@ func (h AcquisitionHost) callOther(ctx context.Context, call contracts.HostCall,
 			out.Items = append(out.Items, b.History{ID: r.ID, State: safeState(r.State), Preview: r.Preview})
 		}
 		return out, nil
-	case "subscriptions.create", "subscriptions.update":
+	case "subscriptions.create", "subscriptions.update", "subscriptions.ensure":
 		var in b.SubscriptionInput
-		if decodeBusiness(call.Args, &in) != nil || validateRules(in.Rules) != nil || call.Method == "subscriptions.create" && in.ID != "" || call.Method == "subscriptions.update" && (!validUUID(in.ID) || call.ExpectedRevision == nil) {
+		if decodeBusiness(call.Args, &in) != nil || validateRules(in.Rules) != nil || (call.Method == "subscriptions.create" || call.Method == "subscriptions.ensure") && in.ID != "" || call.Method == "subscriptions.update" && (!validUUID(in.ID) || call.ExpectedRevision == nil) {
 			return nil, invalidBusiness()
 		}
 		if in.ID != "" {
@@ -251,6 +252,16 @@ func (h AcquisitionHost) callOther(ctx context.Context, call contracts.HostCall,
 		input := subscriptions.Input{MediaType: in.MediaType, TMDBID: in.TMDBID, Enabled: in.Enabled, Source: in.Source, Rules: rules}
 		if call.ExpectedRevision != nil {
 			input.Revision = *call.ExpectedRevision
+		}
+		if call.Method == "subscriptions.ensure" {
+			if e := admit(); e != nil {
+				return nil, e
+			}
+			v, e := su.Ensure(ctx, input)
+			if errors.Is(e, subscriptions.ErrAlreadyOwned) {
+				return b.Receipt{State: "owned"}, nil
+			}
+			return b.Receipt{ID: v.ID, State: "ensured"}, e
 		}
 		v, e := su.Save(ctx, in.ID, input)
 		return safeSubscription(v), e

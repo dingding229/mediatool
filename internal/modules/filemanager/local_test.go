@@ -116,3 +116,39 @@ func TestDirectRenamePreviewKeepsSubtitleNamesTogether(t *testing.T) {
 		t.Fatal("rename detached subtitles", p, err)
 	}
 }
+
+func TestLocalRejectsHardlinkEscapeAndSymlinkSubdirectories(t *testing.T) {
+	root, outside := t.TempDir(), t.TempDir()
+	if e := os.WriteFile(filepath.Join(outside, "secret.mkv"), []byte("outside sentinel"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.MkdirAll(filepath.Join(root, "Show", "Season 01"), 0700); e != nil {
+		t.Fatal(e)
+	}
+	link := "Show/Season 01/secret.mkv"
+	if e := os.Link(filepath.Join(outside, "secret.mkv"), filepath.Join(root, filepath.FromSlash(link))); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.Symlink(outside, filepath.Join(root, "Show", "escape")); e != nil {
+		t.Fatal(e)
+	}
+	local, e := OpenLocal(root)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer local.Close()
+	f, e := local.Find(context.Background(), link)
+	if e != nil || !f.Unsupported {
+		t.Fatal("hard link offered", f, e)
+	}
+	if e = local.Relocate(context.Background(), link, "moved.mkv"); e == nil {
+		t.Fatal("hard link moved")
+	}
+	if _, e = local.List(context.Background(), "Show/escape"); e == nil {
+		t.Fatal("symlink directory traversed")
+	}
+	raw, e := os.ReadFile(filepath.Join(outside, "secret.mkv"))
+	if e != nil || string(raw) != "outside sentinel" {
+		t.Fatal(e, string(raw))
+	}
+}

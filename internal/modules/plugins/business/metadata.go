@@ -29,12 +29,16 @@ func safeHint(h releasename.Hint) b.NameHint {
 }
 func (h AcquisitionHost) callMetadata(ctx context.Context, call contracts.HostCall, admit func() error) (any, error) {
 	switch call.Method {
+	case "metadata.wishlist":
+		return h.callWishlist(ctx, call)
 	case "metadata.parse", "metadata.attributes.parse", "metadata.episodes":
 		var in b.Text
 		if decodeBusiness(call.Args, &in) != nil {
 			return nil, invalidBusiness()
 		}
 		switch call.Method {
+		case "metadata.wishlist":
+			return h.callWishlist(ctx, call)
 		case "metadata.parse":
 			return safeHint(releasename.Parse(in.Text)), nil
 		case "metadata.attributes.parse":

@@ -133,6 +133,24 @@
       "supported": true
     },
     {
+      "name": "downloads.downloader.configure",
+      "scope": "downloads.control",
+      "level": "D",
+      "supported": true
+    },
+    {
+      "name": "metadata.wishlist",
+      "scope": "metadata.read",
+      "level": "R",
+      "supported": true
+    },
+    {
+      "name": "subscriptions.ensure",
+      "scope": "subscriptions.write",
+      "level": "D",
+      "supported": true
+    },
+    {
       "name": "metadata.torrent.parse",
       "scope": "metadata.read",
       "level": "R",
@@ -285,8 +303,8 @@
     {
       "name": "downloads.recheck",
       "scope": "downloads.control",
-      "level": "W",
-      "supported": false
+      "level": "D",
+      "supported": true
     },
     {
       "name": "subscriptions.completion",
@@ -925,7 +943,7 @@
       "supported": true
     }
   ],
-  "pin": "v0.0.0-20261019105311-65c7ff83e5ec",
+  "pin": "v0.0.0-20261019125349-61355021ec58",
   "contractVersion": 2,
   "manifests": [
     {
@@ -1496,15 +1514,109 @@
     },
     {
       "contractVersion": 2,
-      "id": "watch-organize",
-      "name": "目录监控实时整理",
+      "id": "torrent-assistant",
+      "name": "下载器助手",
       "version": "1.0.0",
       "author": "Media Tool Contributors",
-      "description": "定时补扫有界目录，静默后由宿主预览及确认文件计划；不自行移动文件或改变 STRM。",
+      "description": "默认只提示；所有标签/分类/限制/校验经宿主所有权、HR、fence 和收据保护。",
       "level": 2,
       "icon": "icon.svg",
       "history": {
-        "1.0.0": "F6-β：默认停用；有界队列、持久收据、宿主实时授权与危险操作确认"
+        "1.0.0": "F6-γ：默认停用，合成来源验收，有界输入/队列，危险写操作需管理员确认"
+      },
+      "permissions": [
+        {
+          "scope": "plugin.config.read"
+        },
+        {
+          "scope": "plugin.data.read"
+        },
+        {
+          "scope": "plugin.data.write"
+        },
+        {
+          "scope": "ui.json"
+        },
+        {
+          "scope": "services.register"
+        },
+        {
+          "scope": "notifications.send"
+        },
+        {
+          "scope": "downloads.read"
+        },
+        {
+          "scope": "downloads.control"
+        },
+        {
+          "scope": "actions.register"
+        },
+        {
+          "scope": "commands.register"
+        },
+        {
+          "scope": "api.register"
+        }
+      ],
+      "extensions": {
+        "forms": true,
+        "pages": [
+          "status"
+        ],
+        "dashboards": [
+          "overview"
+        ],
+        "api": [
+          {
+            "id": "status",
+            "path": "/status",
+            "methods": [
+              "GET"
+            ],
+            "auth": "admin",
+            "executionScopes": [
+              "plugin.data.read"
+            ]
+          }
+        ],
+        "services": [
+          "assist"
+        ],
+        "commands": [
+          "downloader-status"
+        ],
+        "actions": [
+          "assist"
+        ]
+      },
+      "ui": {
+        "mode": "json"
+      },
+      "resources": {
+        "addressSpaceMiB": 8192,
+        "rssMiB": 256,
+        "cpuQuotaPercent": 100,
+        "processes": 64,
+        "openFiles": 256,
+        "dataMiB": 256,
+        "tmpMiB": 64
+      },
+      "configSchemaVersion": 1,
+      "dataSchemaVersion": 1
+    },
+    {
+      "contractVersion": 2,
+      "id": "watch-organize",
+      "name": "目录监控实时整理",
+      "version": "1.1.0",
+      "author": "Media Tool Contributors",
+      "description": "已授权根内有界递归；叶文件静默后由宿主预览/确认整理，不改写 STRM。",
+      "level": 2,
+      "icon": "icon.svg",
+      "history": {
+        "1.0.0": "F6-β：默认停用；有界队列、持久收据、宿主实时授权与危险操作确认",
+        "1.1.0": "F6-γ：默认 3 / 最大 5 层、有界递归、叶文件静默和宿主链接证据保护"
       },
       "permissions": [
         {
@@ -1555,6 +1667,80 @@
       },
       "configSchemaVersion": 1,
       "dataSchemaVersion": 1
+    },
+    {
+      "contractVersion": 2,
+      "id": "wishlist-subscribe",
+      "name": "TMDB/豆瓣想看订阅",
+      "version": "1.0.0",
+      "author": "Media Tool Contributors",
+      "description": "公开想看来源；唯一身份才创建停用订阅，模糊候选人工确认，不借用登录态。",
+      "level": 2,
+      "icon": "icon.svg",
+      "history": {
+        "1.0.0": "F6-γ：默认停用，合成来源验收，有界输入/队列，危险写操作需管理员确认"
+      },
+      "permissions": [
+        {
+          "scope": "plugin.config.read"
+        },
+        {
+          "scope": "plugin.data.read"
+        },
+        {
+          "scope": "plugin.data.write"
+        },
+        {
+          "scope": "ui.json"
+        },
+        {
+          "scope": "services.register"
+        },
+        {
+          "scope": "notifications.send"
+        },
+        {
+          "scope": "metadata.read"
+        },
+        {
+          "scope": "subscriptions.read"
+        },
+        {
+          "scope": "subscriptions.write"
+        },
+        {
+          "scope": "library.read"
+        },
+        {
+          "scope": "actions.register"
+        }
+      ],
+      "extensions": {
+        "forms": true,
+        "pages": [
+          "status"
+        ],
+        "services": [
+          "sync"
+        ],
+        "actions": [
+          "resolve"
+        ]
+      },
+      "ui": {
+        "mode": "json"
+      },
+      "resources": {
+        "addressSpaceMiB": 8192,
+        "rssMiB": 256,
+        "cpuQuotaPercent": 100,
+        "processes": 64,
+        "openFiles": 256,
+        "dataMiB": 256,
+        "tmpMiB": 64
+      },
+      "configSchemaVersion": 1,
+      "dataSchemaVersion": 1
     }
   ],
   "resources": [
@@ -1584,7 +1770,17 @@
       "sha256": "1296289cdfffb4abe14e8a15b40f1e448676f732ed24f3b18eac5dd66cf9465d"
     },
     {
+      "id": "torrent-assistant",
+      "path": "icon.svg",
+      "sha256": "1296289cdfffb4abe14e8a15b40f1e448676f732ed24f3b18eac5dd66cf9465d"
+    },
+    {
       "id": "watch-organize",
+      "path": "icon.svg",
+      "sha256": "1296289cdfffb4abe14e8a15b40f1e448676f732ed24f3b18eac5dd66cf9465d"
+    },
+    {
+      "id": "wishlist-subscribe",
       "path": "icon.svg",
       "sha256": "1296289cdfffb4abe14e8a15b40f1e448676f732ed24f3b18eac5dd66cf9465d"
     }

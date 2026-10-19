@@ -1962,3 +1962,24 @@ WorkflowRunner另将job lease/token条件UPDATE加入共享commit guard，覆盖
 - 新增真实同 app worker 验收：合成 qBittorrent 的预览/retire/去重/撤权，以及小文件静默后
   core organize、符号链接拒绝、重复不提交、STRM 正文不变和停用收割。统一 Ready 后再断言；
   本机 Darwin 不伪称原生门禁，原生 AMD64 Actions 必须实际执行。生产/真实账户/媒体均不接触。
+
+### F6-γ 实现记录（开发候选，不部署）
+
+- 内置库新增 wishlist-subscribe / torrent-assistant 1.0.0；共六个验收插件加 hello，catalog 为七项，未选择不创建实例/数据/工厂。
+- watch-organize 1.1.0：BFS 有界递归，默认深度3/最大5（所选目录算第一层）；目录/文件总计200，单轮提交10；
+  静默以叶文件 identity/size/mtime 为单位。子目录符号链接不进入，硬链接/重复身份拒绝；宿主在预览和移动前复核。
+- 最小 typed RPC：metadata.wishlist(R metadata.read)，固定公开 TMDB 列表 / 豆瓣想看用户或条目 ID，
+  不接受 URL/凭据、不返回正文；TMDB token 留 host，豆瓣不带 Cookie/登录态、不跟随跳转；公开 HTML 1MiB，条目≤20。
+  私有收藏/OAuth unsupported。唯一精确标题/年份才自动转身份，歧义保留候选，管理员 resolve 只可选缓存候选组合。
+  每轮1–20、间隔≥30分钟，失败退避5分钟至6小时、pending≤200；不猜测，不现场浏览刮削。
+- subscriptions.ensure(D subscriptions.write ∩ subscriptions.read ∩ library.read)：复用 native Save，外部身份查询不跨写事务；
+  identity advisory lock 在事务内抑制并发重复，已有订阅（含历史）/ready 库内资产不重复。只创建停用 search 订阅，不启动搜索/下载。
+- downloads.downloader.configure(D downloads.control)，downloads.recheck 从 unsupported 接到 D 级安全门面。
+  所有变更 owned + original endpoint/hash/savePath/owner tag；source recovery、共享 hash、在途 transfer、清理和其他实例标记拒绝。
+  标签只追加，自动 host 标记实例；分类必须已有、安全 savePath 且 auto_tmm 明确 false，读回成功才更新冻结 category/revision。
+  限额只收窄，保留未指定维度/inactive 策略，做种限制需原 HR=false；缺证据拒绝。每个远端写前重新 fence；
+  部分成功/读回不明保留 intent，不回滚或重放未知外部副作用。recheck requested 不冒充修复成功，不重启下载器进程。
+- 下载器助手默认只预览/提示；write/recheck 分离危险开关，每5分钟批量1–10；API/命令/仪表盘只读状态，动作服从已批准配置。
+- 权限矩阵逐方法清空初始 grants，避免 ensure 的附加读取授权污染后续 case；不改变生产授权语义。
+- 无新增依赖/DB扩展/迁移，schema65，contractVersion2；严格302/STRM/主密钥/115不变。仅 media_tool_test/DB15 串行合成测试。
+- 六插件 Chrome 配置、危险确认、SSH 只读核对及“安全空操作不算业务成功”的边界见 docs/F6_ACCEPTANCE.md。

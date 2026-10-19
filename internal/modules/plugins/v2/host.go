@@ -210,7 +210,7 @@ func (s Store) authorizedCall(ctx context.Context, tx pgx.Tx, l Lease, call cont
 			ContractVersion    int        `json:"contractVersion"`
 			Methods            []b.Method `json:"methods"`
 			UnsupportedOptions []string   `json:"unsupportedOptions"`
-		}{contracts.ContractVersion, b.Methods(), []string{"sites.request.raw", "subscriptions.completion", "downloads.recheck", "downloads.retry", "downloads.manualRetry.acceptDuplicateRisk"}}
+		}{contracts.ContractVersion, b.Methods(), []string{"sites.request.raw", "subscriptions.completion", "downloads.retry", "downloads.manualRetry.acceptDuplicateRisk"}}
 	case "plugin.state.get":
 		result = struct {
 			State string `json:"state"`
