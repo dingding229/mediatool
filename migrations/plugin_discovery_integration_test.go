@@ -255,7 +255,7 @@ func TestF4CCachedSourcePaginationNeverInvokesWorkerAndRevokeHidesCache(t *testi
 	}
 	key := "plugins:v2:sources:" + in.ID + ":" + typ
 	defer rc.Del(context.Background(), key)
-	data := map[string]any{"snapshot": snapshot.ID, "result": contracts.SourceResult{Items: []contracts.SourceCandidate{{MediaIdentity: contracts.MediaIdentity{TMDBID: 1, MediaType: "movie"}, Title: "One"}, {MediaIdentity: contracts.MediaIdentity{TMDBID: 2, MediaType: "series"}, Title: "Two"}}}}
+	data := map[string]any{"version": 2, "writtenAt": time.Now(), "freshUntil": time.Now().Add(2 * time.Minute), "nextAt": time.Now().Add(2 * time.Minute), "snapshot": snapshot.ID, "result": contracts.SourceResult{Items: []contracts.SourceCandidate{{MediaIdentity: contracts.MediaIdentity{TMDBID: 1, MediaType: "movie"}, Title: "One"}, {MediaIdentity: contracts.MediaIdentity{TMDBID: 2, MediaType: "series"}, Title: "Two"}}}}
 	raw, _ := json.Marshal(data)
 	if e = rc.Set(f.ctx, key, raw, time.Minute).Err(); e != nil {
 		t.Fatal(e)

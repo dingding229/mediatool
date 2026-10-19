@@ -2,12 +2,15 @@ import { post, request } from './client'
 import inventory from '../../../internal/modules/plugins/v2/library.json'
 export const pluginPin = inventory.pin
 export interface Permission { scope:string; resources?:Record<string,string[]> }
-export interface PluginDefinition { manifest:{id:string;name:string;version:string;description:string;permissions:Permission[]}; fingerprint:string }
-export interface PluginInstance { id:string;pluginId:string;desiredState:'enabled'|'disabled'|'absent';state:string;revision:number;reason:string }
+export interface PluginMetadata { id:string;name:string;version:string;description:string;author?:string;icon?:string;level?:number;history?:Record<string,string>;permissions:Permission[] }
+export interface PluginDefinition { manifest:PluginMetadata; fingerprint:string;installedCount?:number }
+export interface PluginInstance { id:string;pluginId:string;desiredState:'enabled'|'disabled'|'absent';state:string;revision:number;reason:string;metadata?:PluginMetadata;availability?:string }
 export interface PluginOperation { operationKey:string;kind:'install'|'enable'|'disable'|'clone'|'configure'|'review'|'remove';instanceId?:string;pluginId?:string;fingerprint:string;expectedRevision:number;confirm:boolean;scopes:string[];config?:unknown }
 export interface Inspection { instance:PluginInstance;config:{value:unknown;revision:number};entries:Array<{key:string;value:unknown;revision:number}>;next:string;fingerprint:string }
 export const dangerousScope=(scope:string)=>inventory.hostMethods.some(m=>m.scope===scope&&m.level==='D')||/^(auth\.provider$|system\.exec|downloads\.add$|sites\.request$|sites\.templates\.select$|sites\.content\.raw$|network|fs\.media|ui\.trusted|api\.public|settings\.write|events\.chain\.|module\.)/.test(scope)||/\.(write|delete|execute)$/.test(scope)
-export const catalog=()=>request<{items:PluginDefinition[];total:number}>('/plugins/catalog?pageSize=200')
+export const catalog=(page=1)=>request<{items:PluginDefinition[];total:number}>(`/plugins/catalog?page=${page}&pageSize=200`)
+export interface ReviewPlan { instance:PluginInstance;current:PluginMetadata;availability:string;fingerprint:string;approvedVersion:string;baselineKnown:boolean;approvedScopes:string[];added:string[];removed:string[];changed:string[];needsReview:boolean }
+export const reviewPlan=(id:string)=>request<ReviewPlan>(`/plugins/${encodeURIComponent(id)}/review`)
 export const instances=(page=1)=>request<PluginInstance[]>(`/plugins?page=${page}&pageSize=50`)
 export const inspect=(id:string,after='')=>request<Inspection>(`/plugins/${encodeURIComponent(id)}?after=${encodeURIComponent(after)}`)
 export const operate=(input:PluginOperation)=>post<PluginInstance>('/plugins/operations',input)

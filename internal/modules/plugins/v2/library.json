@@ -1303,6 +1303,11 @@
   "resources": [
     {
       "id": "hello-go",
+      "path": "icon.svg",
+      "sha256": "ec3d8499369e5382e865c7551bff4c0f6fd98f23aadee83453b1e0635d5ccb04"
+    },
+    {
+      "id": "hello-go",
       "path": "ui/dist/index.js",
       "sha256": "be94cf0c944bf4b8916671f04640c0ba7658e3e71f1ec25eba50e286b04d37f1"
     }

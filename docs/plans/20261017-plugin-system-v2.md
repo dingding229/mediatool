@@ -1894,3 +1894,14 @@ worker pump 在 action.invoke 期间也将 Host RPC 上限设为该动作 descri
 WorkflowRunner另将job lease/token条件UPDATE加入共享commit guard，覆盖每步初始及结果提交；max_attempts=1不替代lease fence。租约过期的在途结果不能写成功，交由status投影unknown，不重放。
 
 首期动作内拒绝再次workflows.run（即使实例持有该scope），防止跨job递归绕过已批准DAG的深度/成环限制；API/service等受批准入口仍可按精确workflowIds受理。
+
+## F5-α：内置目录、确认预览与来源缓存（2026-10-19）
+
+- 目录展示镜像内定义的 name/version/author/icon/level/history/permissions 与独立的安装数量；目录和实例分别分页。实例投影保留定义名称、版本和 availability，missing 不会隐去配置/KV入口；不能启用或创建分身。无源码、pin、URL、分发入口或版本选择控件，不实现单插件代码回退。
+- 新增管理员只读 `GET /api/v1/plugins/{id}/review`（no-store，仅管理监听器），以 repeatable-read 读取当前定义、实际 grants 和批准摘要，输出新增/移除 scope 及资源选择器变化。确认仍走原 operationKey/revision/fingerprint/审计路径，确认成功后仍为 disabled，需显式启用。未变化的定义只读展示，无需重复批准。
+- 不新增迁移或依赖；已核对当前最新迁移为63。批准版本与选择器 SHA256 摘要保存于既有 `app_settings` 的 `plugins.review.approved.<instance>` 命名空间，与 install/clone/review 同事务；不保存配置、KV、代码或选择器秘密。首次刷新在旧定义被覆盖前补齐已批准基线；旧 pending 实例无法恢复基线时明确显示未知，只按真实 grants 比较 scope，绝不推测历史版本或旧资源范围。定义变更后的数据保留机制不变。
+- 图标只在构建期从同一 pin 导出到插件ID命名空间，与 ESM 共用资源摘要清单。拒绝路径/符号链接逃逸及主动/远程 SVG 内容；前端只使用清单中的本地图像，不内联执行 SVG，也不接受任意远程图标。
+- `SourceRegistry.Refresh` 保留原15秒调度、200ms handler/2s总预算及全局合并 lease，但只刷新已到期的当前授权 snapshot：非空结果120秒；空结果按120/240/480/900秒退避并封顶；错误或非法结果按30/60/120/240/300秒退避并封顶。成功非空重置计数。
+- Redis保留有界重试元数据1小时；展示独立检查 FreshUntil，不延长过期卡片。配置/实例状态/授权/pin 变化使旧 snapshot 立即逻辑失效，新 generation 不受旧负缓存抑制；旧物理键至多1小时回收。首页仅查实时元数据和缓存，不等待 worker，不增加网络刮削。
+- F5-β 的数据快照/schema恢复、F5-γ 的工具/workflow/auth面板和最终部署均未在本组实施；不连接生产。
+- 本地验证：Go build/vet/errcheck、pin初始化/资源清单检查通过；全仓串行race通过（迁移包337.593秒），最终catalog/V2/HTTP/图标包再做串行race回归。Vue build与36文件122项单测、Python31项通过；E2E最终110通过、1项Linux真实worker按平台跳过，保留原生AMD64 CI门禁。新E2E覆盖元数据、危险scope差异、重新读取取消勾选、确认后仍停用、missing保留KV和390px无横向溢出。首轮测试夹具短指纹及折叠区域badge定位断言已修正，未放宽CHECK、认证、生产时限或测试门禁。

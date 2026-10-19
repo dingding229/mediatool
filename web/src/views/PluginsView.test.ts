@@ -3,10 +3,10 @@ import type { PluginInstance } from '../api/plugins'
 import PluginsView from './PluginsView.vue'
 import { requestUUID } from '../utils/request-uuid'
 import {setupComponent,flush} from '../test/setup-component'
-import {catalog,instances,inspect,operate,dangerousScope,extensions,runHistory,runExtension} from '../api/plugins'
+import {catalog,instances,inspect,operate,dangerousScope,reviewPlan,extensions,runHistory,runExtension} from '../api/plugins'
 import extensionContract from '../../../internal/platform/httpapi/testdata/contracts/plugin-v2-extensions.json'
 import fixture from '../../../internal/platform/httpapi/testdata/contracts/plugin-v2-instances.json'
-vi.mock('../api/plugins',()=>({catalog:vi.fn(),instances:vi.fn(),inspect:vi.fn(),operate:vi.fn(),extensions:vi.fn(),runHistory:vi.fn(),runExtension:vi.fn(),dangerousScope:(s:string)=>s==='system.exec',pluginPin:'pinned'}))
+vi.mock('../api/plugins',()=>({catalog:vi.fn(),instances:vi.fn(),inspect:vi.fn(),operate:vi.fn(),reviewPlan:vi.fn(),extensions:vi.fn(),runHistory:vi.fn(),runExtension:vi.fn(),dangerousScope:(s:string)=>s==='system.exec',pluginPin:'pinned'}))
 vi.mock('../utils/request-uuid',()=>({requestUUID:vi.fn()}))
 vi.mock('element-plus',()=>({ElMessageBox:{confirm:vi.fn().mockResolvedValue('confirm')}}))
 let view:ReturnType<typeof setupComponent>
@@ -45,4 +45,20 @@ it('releases extension busy after UUID and HTTP failures, preserves retry identi
  await view.state.triggerExtension(command);expect(view.state.extensionBusy).toBe(false);expect(view.state.error).toBe('timeout');expect(view.state.queued).toBe('')
  await view.state.triggerExtension(command);expect(view.state.extensionBusy).toBe(false);expect(runExtension).toHaveBeenCalledTimes(2)
  expect(vi.mocked(runExtension).mock.calls[0]![1]).toEqual(vi.mocked(runExtension).mock.calls[1]![1]);expect(view.state.queued).toContain('不是执行成功')
+})
+
+it('loads the host review snapshot, displays scope diff and still requires explicit enable',async()=>{
+ const plan={instance:{...fixture.response,revision:7} as PluginInstance,current:d.manifest,availability:'available',fingerprint:d.fingerprint,approvedVersion:'0.9.0',baselineKnown:true,approvedScopes:[],added:['system.exec'],removed:[],changed:[],needsReview:true}
+ vi.mocked(reviewPlan).mockResolvedValue(plan)
+ await view.state.review(fixture.response);expect(view.state.reviewDetails).toEqual(plan);expect(view.state.selected.revision).toBe(7);expect(view.state.confirmed).toBe(false)
+ view.state.confirmed=true;await view.state.accept();expect(operate).toHaveBeenCalledWith(expect.objectContaining({kind:'review',expectedRevision:7}));expect(view.state.notice).toContain('仍为停用');expect(vi.mocked(operate).mock.calls).toHaveLength(1)
+})
+it('missing definitions cannot be confirmed and failed preview always releases busy',async()=>{
+ vi.mocked(reviewPlan).mockRejectedValueOnce(new Error('stale'));await view.state.review(fixture.response);expect(view.state.busy).toBe(false);expect(view.state.error).toBe('stale')
+ vi.mocked(reviewPlan).mockResolvedValue({instance:fixture.response as PluginInstance,current:d.manifest,availability:'missing',fingerprint:d.fingerprint,approvedVersion:'',baselineKnown:false,approvedScopes:[],added:[],removed:[],changed:[],needsReview:true})
+ await view.state.review(fixture.response);view.state.confirmed=true;await view.state.accept();expect(operate).not.toHaveBeenCalled();expect(view.state.available({...fixture.response,availability:'missing'})).toBe(false)
+})
+it('reloading a review resets consent and uses the latest host revision',async()=>{
+ vi.mocked(reviewPlan).mockResolvedValue({instance:fixture.response as PluginInstance,current:d.manifest,availability:'available',fingerprint:d.fingerprint,approvedVersion:'',baselineKnown:false,approvedScopes:[],added:[],removed:[],changed:[],needsReview:true})
+ await view.state.review(fixture.response);view.state.confirmed=true;await view.state.review(fixture.response);expect(view.state.confirmed).toBe(false)
 })

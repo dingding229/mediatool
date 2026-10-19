@@ -66,7 +66,7 @@ func (s Store) List(ctx context.Context, start, limit int) ([]Instance, error) {
 	if start < 0 || limit < 1 || limit > 200 {
 		return nil, ErrInvalid
 	}
-	rows, e := s.DB.Query(ctx, `SELECT id::text,plugin_id,desired_state,runtime_state,revision,reason FROM plugin_v2_instances WHERE desired_state<>'absent' ORDER BY created_at,id LIMIT $1 OFFSET $2`, limit, start)
+	rows, e := s.DB.Query(ctx, `SELECT i.id::text,plugin_id,desired_state,runtime_state,i.revision,reason,d.manifest,d.availability FROM plugin_v2_instances i JOIN plugin_v2_definitions d ON d.id=i.plugin_id WHERE desired_state<>'absent' ORDER BY i.created_at,i.id LIMIT $1 OFFSET $2`, limit, start)
 	if e != nil {
 		return nil, e
 	}
@@ -74,9 +74,16 @@ func (s Store) List(ctx context.Context, start, limit int) ([]Instance, error) {
 	out := []Instance{}
 	for rows.Next() {
 		var v Instance
-		if e = rows.Scan(&v.ID, &v.PluginID, &v.Desired, &v.State, &v.Revision, &v.Reason); e != nil {
+		var raw []byte
+		if e = rows.Scan(&v.ID, &v.PluginID, &v.Desired, &v.State, &v.Revision, &v.Reason, &raw, &v.Availability); e != nil {
 			return nil, e
 		}
+		var m contracts.Manifest
+		if json.Unmarshal(raw, &m) != nil {
+			return nil, ErrUnavailable
+		}
+		meta := metadata(m)
+		v.Metadata = &meta
 		out = append(out, v)
 	}
 	return out, rows.Err()
@@ -240,6 +247,9 @@ func (s Store) apply(ctx context.Context, actor string, in Request) (Instance, e
 				return out, e
 			}
 		}
+		if e = saveApprovalMetadata(ctx, tx, id, d.Manifest, true); e != nil {
+			return out, e
+		}
 		if in.Kind == Clone {
 			if e = s.cloneKV(ctx, tx, in.InstanceID, id); e != nil {
 				return out, e
@@ -279,6 +289,9 @@ func (s Store) apply(ctx context.Context, actor string, in Request) (Instance, e
 				return out, ErrInvalid
 			}
 			if e = reviewGrants(ctx, tx, id, d); e != nil {
+				return out, e
+			}
+			if e = saveApprovalMetadata(ctx, tx, id, d.Manifest, true); e != nil {
 				return out, e
 			}
 			if _, e = tx.Exec(ctx, `UPDATE plugin_v2_instances SET approved_fingerprint=$2,desired_state='disabled',runtime_state=CASE WHEN generation IS NULL THEN 'stopped' ELSE 'stopping' END,reason='',revision=revision+1,grant_revision=grant_revision+1,updated_at=now() WHERE id=$1`, id, d.Fingerprint); e != nil {

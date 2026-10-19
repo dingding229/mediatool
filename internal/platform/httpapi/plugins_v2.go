@@ -76,7 +76,27 @@ func (a *API) pluginV2Catalog(w http.ResponseWriter, r *http.Request) {
 		start = total
 	}
 	end := min(start+limit, total)
-	write(w, 200, map[string]any{"items": out[start:end], "total": total})
+	page := out[start:end]
+	if store, e := a.pluginInstances(); e == nil {
+		if counter, ok := store.(interface {
+			InstalledCounts(context.Context, []string) (map[string]int, error)
+		}); ok {
+			ids := []string{}
+			for _, d := range page {
+				ids = append(ids, d.Manifest.ID)
+			}
+			counts, e := counter.InstalledCounts(r.Context(), ids)
+			if e != nil {
+				pluginV2Error(w, e)
+				return
+			}
+			for i := range page {
+				n := counts[page[i].Manifest.ID]
+				page[i].InstalledCount = &n
+			}
+		}
+	}
+	write(w, 200, map[string]any{"items": page, "total": total})
 }
 func (a *API) pluginV2List(w http.ResponseWriter, r *http.Request) {
 	start, limit, e := pluginPage(r)

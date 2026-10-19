@@ -1735,3 +1735,29 @@ test('R-F3 HTTP clicks install, enable, execute and disable the real same-binary
   }catch(error){if(completed)throw error;console.info('Failed test cleanup deferred to isolated test-database reset; original error preserved')}}
  }
 })
+
+test('F5-alpha built-in metadata, scope upgrade review and missing definition preserve instance data',async({page})=>{
+ const plan=JSON.parse(readFileSync(resolve(root,'internal/platform/httpapi/testdata/contracts/plugin-library-review.json'),'utf8'))
+ let instance:any={...plan.instance},missing=false,approved=false;const operations:any[]=[]
+ const definition={manifest:plan.current,fingerprint:plan.fingerprint,installedCount:1}
+ await page.route('**/api/v1/plugins/catalog?*',r=>r.fulfill({json:{data:{items:missing?[]:[definition],total:missing?0:1}}}))
+ await page.route('**/api/v1/plugins?*',r=>r.fulfill({json:{data:[instance]}}))
+ await page.route(`**/api/v1/plugins/${instance.id}/review`,r=>r.fulfill({json:{data:{...plan,instance,availability:missing?'missing':'available',baselineKnown:!missing,approvedVersion:missing?'':plan.approvedVersion,needsReview:!approved,added:approved?[]:plan.added,removed:approved?[]:plan.removed,changed:approved?[]:plan.changed}}}))
+ await page.route(`**/api/v1/plugins/${instance.id}?*`,r=>r.fulfill({json:{data:{instance,config:{value:{retained:'configuration'},revision:1},entries:[{key:'retained',value:'private-instance-data',revision:1}],next:'',fingerprint:plan.fingerprint}}}))
+ await page.route('**/api/v1/plugins/operations',async r=>{const input=r.request().postDataJSON();operations.push(input);expect(input.kind).toBe('review');approved=true;instance={...instance,desiredState:'disabled',state:'stopped',reason:'',revision:8};await r.fulfill({json:{data:instance}})})
+ await fixtureLogin(page);await page.goto('/plugins')
+ const directory=page.getByRole('region',{name:'内置插件目录'})
+ await expect(directory).toContainText('Fixture Maintainer');await expect(directory).toContainText('等级 2');await expect(directory).toContainText('已安装 1 个实例');await expect(directory.locator('img')).toHaveAttribute('src','/plugins/hello-go/icon.svg')
+ await directory.locator('summary').click();await expect(directory).toContainText('新增设置权限');await expect(directory).toContainText('settings.write');await page.screenshot({path:resolve(screenshots,'plugin-directory-f5a.png'),fullPage:true})
+ await expect(page.locator('main')).not.toContainText(/内置库版本|上传|下载|commit|仓库地址/)
+ const card=page.locator('.instance-card');await expect(card.getByRole('button',{name:'启用',exact:true})).toBeDisabled()
+ await card.getByRole('button',{name:'重新确认权限',exact:true}).click();const dialog=page.getByRole('dialog',{name:'插件权限确认',exact:true})
+ await expect(dialog).toContainText('1.0.0 → 当前定义版本：2.0.0');await expect(dialog).toContainText('legacy.removed');await expect(dialog).toContainText('资源范围变化');await expect(dialog.locator('[aria-label="升级权限差异"] .el-tag--danger').filter({hasText:'危险'}).first()).toBeVisible()
+ await page.setViewportSize({width:390,height:1000});await expect(dialog).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await dialog.screenshot({path:resolve(screenshots,'plugin-review-f5a-390.png')});await page.setViewportSize({width:1440,height:1000});await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'重新读取确认预览',exact:true}).click();await expect(dialog.getByRole('checkbox')).not.toBeChecked()
+ await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'确认安装或授权',exact:true}).click();await expect(dialog).toBeHidden();await expect(card).toContainText('期望停用');await expect(page.getByRole('status')).toContainText('显式启用');expect(operations).toHaveLength(1)
+ missing=true;instance={...instance,availability:'missing',reason:'definition_missing'};await page.getByRole('button',{name:'刷新',exact:true}).click()
+ await expect(card).toContainText('Hello Go');await expect(card).toContainText('数据保留');await expect(card.getByRole('button',{name:'启用',exact:true})).toBeDisabled();await expect(card.getByRole('button',{name:'创建分身',exact:true})).toBeDisabled()
+ await card.getByRole('button',{name:'版本与权限',exact:true}).click();await expect(dialog).toContainText('历史基线未知');await dialog.getByRole('checkbox').check();await expect(dialog.getByRole('button',{name:'确认安装或授权',exact:true})).toBeDisabled()
+ await dialog.getByRole('button',{name:'取消',exact:true}).click();await card.getByRole('button',{name:'查看 KV',exact:true}).click();await expect(page.getByRole('dialog',{name:'实例 KV 数据',exact:true})).toContainText('private-instance-data')
+ await page.screenshot({path:resolve(screenshots,'plugin-library-f5a.png'),fullPage:true})
+})

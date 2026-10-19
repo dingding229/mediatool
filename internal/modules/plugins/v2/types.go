@@ -71,16 +71,19 @@ var (
 )
 
 type Definition struct {
-	Manifest    contracts.Manifest `json:"manifest"`
-	Fingerprint string             `json:"fingerprint"`
+	Manifest       contracts.Manifest `json:"manifest"`
+	InstalledCount *int               `json:"installedCount,omitempty"`
+	Fingerprint    string             `json:"fingerprint"`
 }
 type Instance struct {
-	ID       string  `json:"id"`
-	PluginID string  `json:"pluginId"`
-	Desired  Desired `json:"desiredState"`
-	State    State   `json:"state"`
-	Revision int64   `json:"revision"`
-	Reason   Reason  `json:"reason"`
+	ID           string       `json:"id"`
+	PluginID     string       `json:"pluginId"`
+	Desired      Desired      `json:"desiredState"`
+	State        State        `json:"state"`
+	Revision     int64        `json:"revision"`
+	Reason       Reason       `json:"reason"`
+	Metadata     *Metadata    `json:"metadata,omitempty"`
+	Availability Availability `json:"availability,omitempty"`
 }
 type Request struct {
 	OperationKey     string          `json:"operationKey"`
@@ -122,7 +125,7 @@ func Catalog() ([]Definition, error) {
 		if e != nil {
 			return nil, ErrUnavailable
 		}
-		out = append(out, Definition{d.Manifest, digest(append(raw, []byte(BuildID())...))})
+		out = append(out, Definition{Manifest: d.Manifest, Fingerprint: digest(append(raw, []byte(BuildID())...))})
 	}
 	return out, nil
 }

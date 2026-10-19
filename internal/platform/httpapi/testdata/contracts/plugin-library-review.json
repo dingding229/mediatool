@@ -1,0 +1,88 @@
+{
+  "instance": {
+    "id": "11111111-0000-4000-8000-000000000062",
+    "pluginId": "hello-go",
+    "desiredState": "disabled",
+    "state": "stopped",
+    "revision": 7,
+    "reason": "permission_review_required",
+    "metadata": {
+      "id": "hello-go",
+      "name": "Hello Go",
+      "version": "2.0.0",
+      "author": "Fixture Maintainer",
+      "icon": "icon.svg",
+      "level": 2,
+      "description": "内置定义界面契约",
+      "history": {
+        "2.0.0": "新增设置权限并收紧资源范围",
+        "1.0.0": "初始版本"
+      },
+      "permissions": [
+        {
+          "scope": "plugin.data.read"
+        },
+        {
+          "scope": "settings.write"
+        },
+        {
+          "scope": "fs.data",
+          "resources": {
+            "roots": [
+              "instance-data"
+            ]
+          }
+        }
+      ]
+    },
+    "availability": "available"
+  },
+  "current": {
+    "id": "hello-go",
+    "name": "Hello Go",
+    "version": "2.0.0",
+    "author": "Fixture Maintainer",
+    "icon": "icon.svg",
+    "level": 2,
+    "description": "内置定义界面契约",
+    "history": {
+      "2.0.0": "新增设置权限并收紧资源范围",
+      "1.0.0": "初始版本"
+    },
+    "permissions": [
+      {
+        "scope": "plugin.data.read"
+      },
+      {
+        "scope": "settings.write"
+      },
+      {
+        "scope": "fs.data",
+        "resources": {
+          "roots": [
+            "instance-data"
+          ]
+        }
+      }
+    ]
+  },
+  "availability": "available",
+  "fingerprint": "1111111111111111111111111111111111111111111111111111111111111111",
+  "approvedVersion": "1.0.0",
+  "baselineKnown": true,
+  "approvedScopes": [
+    "plugin.data.read",
+    "legacy.removed",
+    "fs.data"
+  ],
+  "added": [
+    "settings.write"
+  ],
+  "removed": [
+    "legacy.removed"
+  ],
+  "changed": [
+    "fs.data"
+  ],
+  "needsReview": true
+}

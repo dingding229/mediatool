@@ -4659,7 +4659,7 @@ paths:
   /api/v1/plugins/catalog:
     get:
       operationId: listBuiltInPluginCatalog
-      description: 只读固定pin目录，无工厂调用或实例创建；分页最多200
+      description: 只读内置目录，包含name/version/author/icon/level/history/permissions与installedCount；无工厂调用或实例创建，分页最多200
       responses:
         '200': {$ref: '#/components/responses/OK'}
   /api/v1/plugins/resources:
@@ -4678,6 +4678,18 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/OK'}
         '404': {description: 实例不存在或已卸载}
+  /api/v1/plugins/{id}/review:
+    get:
+      operationId: previewPluginV2PermissionReview
+      description: 仅管理监听器和管理员会话；no-store。返回当前metadata、availability、fingerprint、instance修订、已批准版本和scope增删/范围变化；历史基线无法恢复时baselineKnown=false。确认仍使用operations的revision/fingerprint/CSRF，确认不会自动启用。
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+        '401': {description: 需要管理员会话}
+        '404': {description: 实例不存在或已卸载}
+        '409': {description: 当前内置定义与数据库指纹不一致，需要刷新}
+        '503': {description: 插件数据暂不可用}
   /api/v1/plugins/operations:
     post:
       operationId: operatePluginV2Instance

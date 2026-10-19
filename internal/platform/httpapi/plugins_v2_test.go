@@ -27,7 +27,7 @@ func TestPluginV2AdminCSRFMediaPortAndRetiredBoundary(t *testing.T) {
 	f := &fakePluginInstances{}
 	cfg := cfg()
 	h := New(cfg, Dependencies{PluginInstances: f, AuthSessions: testSessionReader{}})
-	for _, path := range []string{"/api/v1/plugins/resources", "/api/v1/plugins/11111111-0000-4000-8000-000000000062", "/api/v1/plugins/catalog", "/api/v1/plugins", "/api/v1/plugins/operations"} {
+	for _, path := range []string{"/api/v1/plugins/11111111-0000-4000-8000-000000000062/review", "/api/v1/plugins/resources", "/api/v1/plugins/11111111-0000-4000-8000-000000000062", "/api/v1/plugins/catalog", "/api/v1/plugins", "/api/v1/plugins/operations"} {
 		method := "GET"
 		if strings.HasSuffix(path, "operations") {
 			method = "POST"
@@ -54,9 +54,12 @@ func TestPluginV2AdminCSRFMediaPortAndRetiredBoundary(t *testing.T) {
 		t.Fatal(e)
 	}
 	w := httptest.NewRecorder()
-	media.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/plugins/catalog", nil))
-	if w.Code != 404 {
-		t.Fatal("media port exposed plugin API", w.Code)
+	for _, path := range []string{"/api/v1/plugins/catalog", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/review"} {
+		w = httptest.NewRecorder()
+		media.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Code != 404 {
+			t.Fatal("media port exposed plugin API", path, w.Code)
+		}
 	}
 	a := &API{Config: cfg, Deps: Dependencies{PluginInstances: f}}
 	w = httptest.NewRecorder()

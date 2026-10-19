@@ -117,6 +117,13 @@ func (s Store) refresh(ctx context.Context, defs []Definition) error {
 			}
 			review = requiresReview(before, d.Manifest)
 		}
+		var previous contracts.Manifest
+		if json.Unmarshal(old.raw, &previous) != nil {
+			return ErrUnavailable
+		}
+		if e = captureApprovalMetadata(ctx, tx, old.id, old.fp, previous, old.fp != fp || old.availability != availability); e != nil {
+			return e
+		}
 		if old.fp == fp && old.availability == availability {
 			continue
 		}

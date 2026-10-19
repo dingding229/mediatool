@@ -77,6 +77,11 @@ func export(check bool) error {
 	var totalBytes int64
 	for _, d := range defs {
 		out.Manifests = append(out.Manifests, d.Manifest)
+		icon, e := exportIcon(module.Dir, d.Manifest.ID, d.Manifest.Icon, destination, check)
+		if e != nil {
+			return e
+		}
+		out.Resources = append(out.Resources, icon)
 		source := filepath.Join(module.Dir, "plugins", d.Manifest.ID, "ui", "dist")
 		if _, e = os.Stat(source); errors.Is(e, os.ErrNotExist) {
 			continue

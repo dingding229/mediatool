@@ -2,8 +2,8 @@
 
 ## 来源、发布与管理员选择
 
-唯一代码来源是 `github.com/dingding229/mediatool-plugin`，当前 pin 为
-`v0.0.0-20261017081253-7db725679179`。主程序和前端资源清单使用同一个 pin；
+唯一代码来源是 `github.com/dingding229/mediatool-plugin`，具体 pin 以 `go.mod` 和下述清单为准。
+主程序和前端资源清单使用同一个 pin；
 `internal/modules/plugins/v2/library.json` 是构建期生成、CI 校验的只读清单。
 插件与 Go SDK 编译进 app，镜像不增加 Python 或 Go 工具链。
 
@@ -366,3 +366,14 @@ confirm），沿用持久jobs与实例动作收据。批准绑定DAG/动作权�
 身份broker仅框架，真实provider UI/会话签发明确unsupported。本地密码登录原样保留。
 预绑定管理员账号、精确origin、一次性5min state/nonce、issuer/audience/过期和实时授权都由宿主检查；
 插件isAdmin没有效力。禁用/撤权/换代后的BrokerIdentity立即无效，不能用于绕过内置认证。
+
+### F5-α 内置目录与权限确认
+
+目录只展示当前镜像定义的元数据、版本记录、声明权限、安装数量；图标从同pin的资源摘要清单加载，
+无分发或版本选择入口。实例显示可用状态，缺失定义仍保留名称、配置、KV与数据。
+管理员通过`GET /api/v1/plugins/{id}/review`读取一致的确认预览：已批准版本、scope新增/移除及
+资源范围变化。危险权限以文字和危险标签提示；历史基线未知时明确说明，不推测旧版本。
+确认使用原operations的CSRF/CAS/operationKey/审计；成功后保持停用，必须显式启用。
+本组无迁移；非秘密批准摘要使用既有plugins.*框架KV命名空间，真正的数据快照恢复留F5-β。
+来源后台刷新尊重120秒新鲜度：空结果退避封顶900秒，失败封顶300秒；配置、状态或授权变化立即
+令旧snapshot不可见，新generation忽略旧负缓存。首页不等待worker，200ms/2s生产预算不变。
