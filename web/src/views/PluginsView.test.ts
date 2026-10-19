@@ -72,7 +72,7 @@ it('R regression: reports installed receipt even when list synchronization fails
  expect(view.state.notice).toContain(fixture.response.id)
  expect(view.state.operationPhase).toBe('sync_failed')
  expect(view.state.consent).toBeNull()
- expect(view.state.error).toContain('列表同步失败')
+ expect(view.state.listRead.error).toContain('transport_unknown');expect(view.state.listRead.loaded).toBe(true)
  expect(view.state.busy).toBe(false)
 })
 it('R regression: labels ambiguous results without leaking raw exception contents',async()=>{

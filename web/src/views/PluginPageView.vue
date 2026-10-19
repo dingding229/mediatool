@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import {ref,watch,onUnmounted}from'vue'
+import {ref,watch}from'vue'
+import {useReadState} from '../plugins/read-state'
+import ReadFeedback from '../plugins/ReadFeedback.vue'
 import {useRoute}from'vue-router'
 import {uiSurfaces}from'../api/plugins'
 import PluginSurface from '../plugins/PluginSurface.vue'
-const route=useRoute(),plugin=ref(''),error=ref('');let revision=0
-watch(()=>route.params.id,async()=>{const token=++revision;plugin.value='';try{const rows=await uiSurfaces();const found=rows.find(i=>i.instanceId===route.params.id);if(token===revision){plugin.value=found?.pluginId??'';error.value=found?'':'插件未启用或不可用'}}catch(e){if(token===revision)error.value=e instanceof Error?e.message:'插件不可用'}},{immediate:true})
-onUnmounted(()=>revision++)
+const route=useRoute(),plugin=ref('')
+const listRead=useReadState()
+async function load(){plugin.value='';listRead.reset();await listRead.run(()=>uiSurfaces(),rows=>{plugin.value=rows.find(i=>i.instanceId===route.params.id)?.pluginId??''})}
+watch(()=>route.params.id,load,{immediate:true})
 </script>
-<template><header class="page-header"><h1>插件应用</h1><RouterLink to="/plugins">返回插件库</RouterLink></header><el-alert v-if="error" :title="error" type="warning" :closable="false"/><section v-if="plugin" class="panel"><PluginSurface :key="String(route.params.id)" :instance-id="String(route.params.id)" :plugin-id="plugin" :page-key="String(route.params.key)"/></section></template>
+<template><header class="page-header"><h1>插件应用</h1><RouterLink to="/plugins">返回插件库</RouterLink></header><ReadFeedback :state="listRead" caption="插件页面状态" @retry="load"/><el-alert v-if="listRead.loaded&&!plugin" title="插件未启用或不可用" type="warning" :closable="false"/><section v-if="plugin" class="panel"><PluginSurface :key="String(route.params.id)" :instance-id="String(route.params.id)" :plugin-id="plugin" :page-key="String(route.params.key)"/></section></template>

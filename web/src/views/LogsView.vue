@@ -14,7 +14,7 @@ function inspectLog(row:LogRecord){linkRow.value=row;linkOpen.value=true}
 async function copyLink(value:unknown){const text=String(value??'');try{if(!navigator.clipboard?.writeText)throw new Error();await navigator.clipboard.writeText(text);ElMessage.success('完整链接已复制')}catch{copyContent.value=text;copyOpen.value=true}}
 const route=useRoute();const instance=ref(typeof route.query.instance==='string'?route.query.instance:'')
 const summary=ref<Summary|null>(null),rows=ref<LogRecord[]>([]),level=ref(''),module=ref(typeof route.query.module==='string'?route.query.module:''),keyword=ref(''),range=ref<Date[]|null>(null)
-const busy=ref(false),summaryBusy=ref(false),error=ref(''),clean=ref(false),settingsOpen=ref(false),copyOpen=ref(false),copyContent=ref('')
+const loaded=ref(false),busy=ref(true),summaryBusy=ref(false),error=ref(''),clean=ref(false),settingsOpen=ref(false),copyOpen=ref(false),copyContent=ref('')
 const page=ref(1),pageSize=ref(200),total=ref(0),modules=ref<string[]>([]),before=ref(''),truncated=ref(false),expanded=ref(new Set<number>())
 let controller:AbortController|undefined,epoch=0,timer:ReturnType<typeof setTimeout>|undefined
 const bytes=(n:number)=>n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KiB':(n/1048576).toFixed(2)+' MiB'
@@ -25,11 +25,12 @@ async function load(){
  if(instance.value)params.set('instance',instance.value)
  if(before.value)params.set('before',before.value)
  if(range.value?.length===2){params.set('from',range.value[0].toISOString());params.set('to',range.value[1].toISOString())}
- try{const out=await request<LogPage>('/logs/query?'+params,{signal:controller.signal});if(current!==epoch)return;rows.value=out.items;total.value=out.total;modules.value=out.modules;before.value=out.before;truncated.value=out.truncated}
+ try{const out=await request<LogPage>('/logs/query?'+params,{signal:controller.signal});if(current!==epoch)return;rows.value=out.items;loaded.value=true;total.value=out.total;modules.value=out.modules;before.value=out.before;truncated.value=out.truncated}
  catch(e){if(current!==epoch||e instanceof DOMException&&e.name==='AbortError')return;rows.value=[];total.value=0;error.value=e instanceof Error?e.message:'日志读取失败'}
  finally{if(current===epoch)busy.value=false}
 }
 function refresh(){if(timer)clearTimeout(timer);before.value='';page.value=1;void load()}
+watch(()=>[route.query.module,route.query.instance],([m,i])=>{module.value=typeof m==='string'?m:'';instance.value=typeof i==='string'?i:'';rows.value=[];total.value=0;loaded.value=false;refresh()})
 watch(keyword,()=>{if(timer)clearTimeout(timer);timer=setTimeout(refresh,350)})
 async function clear(){
  try{await ElMessageBox.confirm('清理全部程序文件日志？数据库审计、Docker启动控制台日志不会删除。','清理日志',{type:'warning',confirmButtonText:'确认清理',cancelButtonText:'取消'})}catch{return}
@@ -72,12 +73,12 @@ onUnmounted(()=>{++epoch;controller?.abort();if(timer)clearTimeout(timer)})
   <div class="log-console" :class="{'is-clean':clean}" tabindex="0" aria-label="日志内容" :aria-busy="busy">
    <div v-if="busy" class="console-state" role="status">正在读取日志…</div>
    <div v-else-if="error" class="console-state">读取失败，请使用上方刷新按钮重试。</div>
-   <div v-else-if="!rows.length" class="console-state">没有符合筛选条件的日志</div>
+   <div v-else-if="loaded&&!rows.length" class="console-state">没有符合筛选条件的日志</div>
    <template v-else><article v-for="(row,index) in rows" :key="index" class="log-entry log-row">
     <div class="log-line"><time :datetime="row.time">{{formatLogTime(row.time)}}</time><span class="severity" :class="logLevel(row.level)">{{friendly?levelLabel(row.level):logLevel(row.level)}}</span><div class="log-message"><span>{{friendly?friendlyMessage(row):row.msg}}</span><span v-if="!clean" class="log-inline-fields"> {{friendly?friendlyFields(row):inlineLogFields(row)}}</span></div><button class="log-detail-toggle" :aria-label="`查看第${index+1}条日志详情`" @click="inspectLog(row)">详情</button></div>
    </article></template>
   </div>
-  <footer class="log-pagination"><div class="log-window-scope"><strong>当前检索窗口共 {{total}} 条</strong><span v-if="truncated">仅检索每文件末尾 2 MiB、最多 20000 条；不代表全部保留日志。</span><span v-else>分页复用查询截止时间；大量写入、轮转或清理后可刷新重读。</span></div><div class="log-pager-controls"><div class="page-size-control"><label for="log-page-size">每页行数</label><el-select id="log-page-size" v-model="pageSize" aria-label="日志每页行数" @change="refresh"><el-option v-for="n in [50,100,200]" :key="n" :label="String(n)" :value="n"/></el-select></div><el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" :pager-count="5" layout="prev,pager,next" :disabled="busy" @current-change="load"/></div></footer>
+  <footer class="log-pagination"><div class="log-window-scope"><strong v-if="loaded&&!busy&&!error">当前检索窗口共 {{total}} 条</strong><strong v-else-if="error">读取失败，数量未知</strong><strong v-else role="status">日志数量加载中…</strong><span v-if="truncated">仅检索每文件末尾 2 MiB、最多 20000 条；不代表全部保留日志。</span><span v-else>分页复用查询截止时间；大量写入、轮转或清理后可刷新重读。</span></div><div class="log-pager-controls"><div class="page-size-control"><label for="log-page-size">每页行数</label><el-select id="log-page-size" v-model="pageSize" aria-label="日志每页行数" @change="refresh"><el-option v-for="n in [50,100,200]" :key="n" :label="String(n)" :value="n"/></el-select></div><el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" :pager-count="5" layout="prev,pager,next" :disabled="busy" @current-change="load"/></div></footer>
  </section>
  <el-drawer v-model="settingsOpen" title="日志设置" size="min(480px,95vw)" class="log-settings"><div v-loading="summaryBusy"><section class="log-size-info"><h2>日志大小</h2><strong>{{summary?bytes(summary.totalBytes):'—'}}</strong><p>上限 {{summary?bytes(summary.limitBytes):'—'}} · 自动轮转</p></section><label for="runtime-log-level" class="runtime-level-label">本次运行日志级别</label><el-select id="runtime-log-level" :model-value="summary?.level" @change="change"><el-option v-for="x in ['debug','info','warn','error']" :key="x" :label="x.toUpperCase()" :value="x"/></el-select><p class="field-hint">永久默认值在 Compose 配置。更改不回填过去的日志。恢复临时密码不进入此页面。</p><h2>保留文件</h2><div v-for="file in summary?.files" :key="file.name" class="log-retained-file"><strong>{{file.name}}</strong><span>{{bytes(file.size)}}</span><time>{{formatLogTime(file.modified)}}</time></div></div></el-drawer>
  <el-dialog v-model="copyOpen" title="复制原始日志" width="min(740px,94vw)"><p class="field-hint">当前浏览器不支持直接写入剪贴板，请选中下方文本并复制。</p><el-input v-model="copyContent" type="textarea" readonly :rows="12" aria-label="待复制日志"/><template #footer><el-button @click="copyOpen=false">关闭</el-button></template></el-dialog>
