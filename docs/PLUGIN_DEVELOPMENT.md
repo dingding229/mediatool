@@ -27,9 +27,9 @@ GetForm/GetPage/GetAPI/GetService/GetCommand/GetDashboard(+Meta)/GetModule/GetAc
 每次Host请求携带本实例身份/generation，Host强制声明scope与最新授权；不暴露SQL、
 数据库连接、Redis连接或115令牌。配置/KV返回revision，写操作传expectedRevision。
 
-F1 hello-go只使用当前已实现的config.read、data.read/write、state.read、ui.json。
-业务Host覆盖在F3；F2-A将API/Service/Command/Action的Go函数直接绑定为稳定handler id，
-并补充线上descriptor元数据。不要把G1现有字符串descriptor当作最终的作者绑定API。
+当前SDK已将API/Service/Command/Action/Module的Go函数绑定为稳定handler id，并生成线上descriptor元数据。
+hello-go 1.9.0包括人工工具和分阶段验收；业务Host已按F3接线，支持边界见精确pin冻结表。
+F1最初的字符串descriptor只是历史阶段，插件作者不应手写handler字符串替代Go绑定。
 
 数据在PG加密，AAD绑定实例/行；私有文件目录默认`/data/plugins/<UUID>/{data,tmp}`。
 开发/隔离测试可用`PLUGIN_DATA_ROOT`设置干净绝对plugins目录，不影响生产默认。

@@ -1,5 +1,7 @@
 # 内置插件框架 V2 · R / contractVersion 2
 
+> 当前能力以 `PLUGIN_SUPPORT_MATRIX.md` 的精确 pin 冻结表为准。下文 F1–F6 按阶段保留接线记录，其中当时的待办/发布状态不代表 R 现状；已取代的限制在对应段落明确说明。
+
 ## 来源、发布与管理员选择
 
 唯一代码来源是 `github.com/dingding229/mediatool-plugin`，具体 pin 以 `go.mod` 和下述清单为准。
@@ -62,10 +64,10 @@ AllThreadsSyscall时仅为降级测试；CI另用CGO_ENABLED=0、原生Linux AMD
 | GET /logs/query?module=plugins&instance=UUID | 有界日志窗口，instance精确过滤 |
 
 F2 已实现函数绑定、plugin.invoke、API/服务/命令/事件、JSON树和本地ESM执行，详见下文 β 记录。
-F3业务Host、F4事件全覆盖、F5库管理完善及F6验收插件未实现，不能宣称MP功能已对等。
+F3业务Host、F4事件、F5管理与F6六插件现已完成分阶段验收；仍有明确unsupported/N/A，不能宣称完整MP能力对等。
 详见 `plans/20261017-plugin-system-v2.md`。
 
-## F2-α：已接线的扩展基础设施（主程序待 F2-β 统一提交）
+## F2-α：扩展基础设施实施记录（已随后续阶段提交）
 
 SDK 以 Go 函数绑定 API/Service/Command/Action/Module。运行时在 init 后冻结，
 `plugin.describe` 返回 descriptorVersion=2 快照；handler ID 来自 kind+逻辑 ID，
@@ -198,7 +200,7 @@ refresh、descriptor发布、Host配置换代、进入running/续租时清除负
 operationKey 收据加密保留七天，未知结果不自动重放。`.host/` KV为宿主保留、不交给worker或clone。
 站点只返回受控状态/marker，不回传认证header、Set-Cookie、HTML或带passkey RSS；
 foreign种子只读；deleteFiles=false 仅退休已导入且已清除HR义务的本程序种子，true 显式进入原HR/所有权/云端文件校验审批，不开放任意删除。
-下载 retry/recheck、原始站点HTML、未知手动提交的重复风险覆盖、追剧完成明确unsupported。
+F3-A当时将retry/recheck、原始HTML和追剧完成等列为unsupported；当前retry/原始正文仍不开放，recheck已在F6-γ接窄门面，completion已在F4-C接只读CoverageObserver。
 F3-A不部署；F3-B/C/D尚未开始。
 
 
@@ -411,7 +413,7 @@ API仅管理监听器admin/CSRF，复用加密持久信箱、授权fence、幂�
 
 ### F6-α 验收插件与正常主日志
 
-当前内置库除 hello-go 外增加 `site-checkin` 与 `library-refresh-notify`，默认配置均不执行业务。
+F6-α 初次加入 `site-checkin` 与 `library-refresh-notify`；当前六个验收插件的版本/history/安全开关见冻结清单，默认配置均不执行业务。
 源码、SDK、mock/golden 在 mediatool-plugin；先库 CI 全绿再更新本程序精确 pin，不上传源码或二进制。
 
 - 正常启停在事务提交后记录 INFO；worker 完成 provider 注册且续租成功才记录 ready，整组/子孙收割后记录 reaped。
@@ -427,13 +429,21 @@ API仅管理监听器admin/CSRF，复用加密持久信箱、授权fence、幂�
   旧 files.* 的一般文件完成事实没有 assetId，刷新插件忽略而不猜测。STRM 正文/302/Resolve 不参与扩展。
 - 刷新插件持久合并同资产；每60–3600秒最多向已有业务队列提交一个资产，通知使用现有 outbox。
   稳定 Host 操作 key + 密文 checkpoint 防止重复及丢 checkpoint 重放；requested 不等于完成。
-  最多200个事件身份且不自动淘汰：超限停用待人工处理，避免7日 Host 收据过期后旧事件重新产生副作用。
+  当前最多200个事件身份，按原事实7日重投窗和Host收据保留期约束；仅淘汰已完成超过8日且无pending的条目。窗口内仍满才needs_action，不丢未知/在途意图。F6-α最初的不淘汰方案已被F6-β取代。
 
 验收只使用合成站点、合成资产/通知和测试库。F6-α 不部署，不处理生产保留快照。
 
 通知入队证据统一引用SDK的`business.NotificationPending`（pending），不把入队当成已送达；unknown拒绝。
 签到checkpoint绑定请求身份摘要，切换账号不会继承旧结果；cron沿用宿主Asia/Shanghai，每日幂等按UTC日。
 刷新间隔表单沿用白名单renderer的字符串选项，插件有界解析为60–3600秒，原始JSON整数也兼容。
+
+## F6-β/γ 当前验收插件边界
+
+- seeding-cleanup 默认只预览；execute/deleteFiles 独立关闭，Host保留owned/HR/入库/在途/共享/保护标记与读回检查。
+- watch-organize 1.1.0 是有界递归（默认3层、上限5层），只以叶文件size/mtime计算静默；总条目≤200、轮提交≤10，链接/越界/硬链接逃逸拒绝；无可靠mtime时unsupported。
+- wishlist-subscribe 只接公开TMDB列表/豆瓣ID；create=false时不创建订阅，唯一匹配实际创建的也为停用订阅；resolve不能当只读测试，私有收藏/OAuth不支持。
+- torrent-assistant 写操作经窄RPC；write/recheck均需显式开启，requested不冒充完成。active=true即使关闭写入仍可能通知，不作为无通知纯只读验收。
+- 上述六插件生产安全模式只验证安装/配置/停用；真实业务分支证据来自合成输入的同app worker测试。
 
 ## R 安装回执与停用态
 
