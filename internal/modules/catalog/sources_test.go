@@ -173,8 +173,8 @@ func TestSourceEmptyFailureBackoffBoundedAndRecovery(t *testing.T) {
 	f.result.Items[0].TMDBID = 0
 	s.Refresh(ctx)
 	p, _ := s.Page(ctx, "discover.source", 1, 200)
-	if len(p.Items) != 0 {
-		t.Fatal("invalid result cached")
+	if len(p.Items) != 1 || p.Items[0].TMDBID != 2 {
+		t.Fatal("invalid result replaced last valid cards", p)
 	}
 	// A new generation skips a failed generation's negative cache immediately.
 	f.snapshot = "generation-new"
@@ -221,5 +221,39 @@ func TestSourceConcurrentRefreshLeaseAndOldCache(t *testing.T) {
 	s.Cache.Set(ctx, sourceKey("f5a-source-fixture", "discover.source"), raw, time.Minute)
 	if _, ok := s.cached(ctx, "f5a-source-fixture", "discover.source", f.snapshot); ok {
 		t.Fatal("unbounded retry accepted")
+	}
+}
+
+func TestSourceFailureKeepsLastSuccessOnlyWithinSevenMinutes(t *testing.T) {
+	s, f, now := sourceFixture(t)
+	ctx := context.Background()
+	if e := s.Refresh(ctx); e != nil {
+		t.Fatal(e)
+	}
+	success := *now
+	*now = now.Add(120 * time.Second)
+	f.err = errors.New("offline")
+	if e := s.Refresh(ctx); e != nil {
+		t.Fatal(e)
+	}
+	p, e := s.Page(ctx, "discover.source", 1, 200)
+	if e != nil || len(p.Items) != 1 {
+		t.Fatal("valid old cards disappeared", p, e)
+	}
+	*now = success.Add(419 * time.Second)
+	s.Refresh(ctx)
+	p, e = s.Page(ctx, "discover.source", 1, 200)
+	if e != nil || len(p.Items) != 1 {
+		t.Fatal(p, e)
+	}
+	*now = success.Add(420 * time.Second)
+	p, e = s.Page(ctx, "discover.source", 1, 200)
+	if e != nil || len(p.Items) != 0 {
+		t.Fatal("stale cards exceeded cap", p, e)
+	}
+	f.snapshot = "new-config"
+	p, e = s.Page(ctx, "discover.source", 1, 200)
+	if e != nil || len(p.Items) != 0 {
+		t.Fatal("stale data crossed generation", p, e)
 	}
 }

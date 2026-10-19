@@ -27,7 +27,7 @@ func TestPluginV2AdminCSRFMediaPortAndRetiredBoundary(t *testing.T) {
 	f := &fakePluginInstances{}
 	cfg := cfg()
 	h := New(cfg, Dependencies{PluginInstances: f, AuthSessions: testSessionReader{}})
-	for _, path := range []string{"/api/v1/plugins/11111111-0000-4000-8000-000000000062/review", "/api/v1/plugins/resources", "/api/v1/plugins/11111111-0000-4000-8000-000000000062", "/api/v1/plugins/catalog", "/api/v1/plugins", "/api/v1/plugins/operations"} {
+	for _, path := range []string{"/api/v1/plugins/11111111-0000-4000-8000-000000000062/review", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/state-snapshots", "/api/v1/plugins/resources", "/api/v1/plugins/11111111-0000-4000-8000-000000000062", "/api/v1/plugins/catalog", "/api/v1/plugins", "/api/v1/plugins/operations"} {
 		method := "GET"
 		if strings.HasSuffix(path, "operations") {
 			method = "POST"
@@ -42,19 +42,22 @@ func TestPluginV2AdminCSRFMediaPortAndRetiredBoundary(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	missing := httptest.NewRequest("POST", "/api/v1/plugins/operations", strings.NewReader(`{}`))
-	missing.AddCookie(&http.Cookie{Name: auth.CookieName, Value: token})
-	wCSRF := httptest.NewRecorder()
-	h.ServeHTTP(wCSRF, missing)
-	if wCSRF.Code != 403 || f.calls != 0 {
-		t.Fatal("CSRF did not reject operation", wCSRF.Code)
+	for _, path := range []string{"/api/v1/plugins/operations", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/state-snapshots"} {
+		missing := httptest.NewRequest("POST", path, strings.NewReader(`{}`))
+		missing.AddCookie(&http.Cookie{Name: auth.CookieName, Value: token})
+		wCSRF := httptest.NewRecorder()
+		h.ServeHTTP(wCSRF, missing)
+		if wCSRF.Code != 403 || f.calls != 0 {
+			t.Fatal("CSRF did not reject operation", path, wCSRF.Code)
+		}
 	}
+
 	media, e := NativeMediaHandler(cfg, Dependencies{})
 	if e != nil {
 		t.Fatal(e)
 	}
 	w := httptest.NewRecorder()
-	for _, path := range []string{"/api/v1/plugins/catalog", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/review"} {
+	for _, path := range []string{"/api/v1/plugins/catalog", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/review", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/state-snapshots"} {
 		w = httptest.NewRecorder()
 		media.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 		if w.Code != 404 {

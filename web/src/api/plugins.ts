@@ -25,3 +25,6 @@ export interface DashboardMeta {key:string;title:string;refresh:number;border:bo
 export const pluginUI=<T=PluginPage>(id:string,kind:'form'|'page'|'dashboard'|'meta',key='')=>request<T>(`/plugins/${encodeURIComponent(id)}/ui/${kind}?key=${encodeURIComponent(key)}`)
 
 export const uiSurfaces=()=>request<Array<{instanceId:string;pluginId:string}>>('/plugins/ui-surfaces')
+export interface StateSnapshot {id:string;instanceId:string;pluginId:string;configSchema:number;dataSchema:number;revision:number;bytes:number;files:number;state:string;createdAt:string;dataPath:string}
+export const stateSnapshots=(id:string)=>request<StateSnapshot[]>(`/plugins/${encodeURIComponent(id)}/state-snapshots`)
+export const stateOperation=(id:string,input:{kind:'create'|'restore'|'delete';snapshotId:string;operationKey:string;expectedRevision:number;fingerprint:string;confirm:boolean})=>post<StateSnapshot>(`/plugins/${encodeURIComponent(id)}/state-snapshots`,input)

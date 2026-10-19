@@ -55,6 +55,7 @@ type sourceCache struct {
 	FreshUntil  time.Time              `json:"freshUntil"`
 	NextAt      time.Time              `json:"nextAt"`
 	EmptyStreak int                    `json:"emptyStreak"`
+	SuccessAt   time.Time              `json:"successAt"`
 	Failures    int                    `json:"failures"`
 }
 
@@ -68,7 +69,10 @@ func (s SourceRegistry) cached(ctx context.Context, id, kind, snapshot string) (
 	if e != nil || len(raw) > 256<<10 || contracts.Decode(raw, &v) != nil || v.Version != sourceCacheVersion || v.Snapshot != snapshot || v.WrittenAt.IsZero() || v.NextAt.Before(v.WrittenAt) || v.NextAt.Sub(v.WrittenAt) > 15*time.Minute || v.EmptyStreak < 0 || v.EmptyStreak > 6 || v.Failures < 0 || v.Failures > 6 || contracts.ValidateSource(contracts.SourceRequest{Page: 1, Size: 200}, v.Result) != nil {
 		return sourceCache{}, false
 	}
-	if !v.FreshUntil.IsZero() && (v.FreshUntil.Before(v.WrittenAt) || v.FreshUntil.After(v.NextAt)) {
+	if !v.SuccessAt.IsZero() && (v.SuccessAt.After(v.WrittenAt) || (len(v.Result.Items) > 0 && v.FreshUntil.After(v.SuccessAt.Add(7*time.Minute)))) {
+		return sourceCache{}, false
+	}
+	if !v.FreshUntil.IsZero() && (v.FreshUntil.Before(v.WrittenAt) || v.FreshUntil.After(v.WrittenAt.Add(15*time.Minute))) {
 		return sourceCache{}, false
 	}
 	return v, true
@@ -103,11 +107,16 @@ func (s SourceRegistry) Refresh(ctx context.Context) error {
 			q := contracts.SourceRequest{Page: 1, Size: 200}
 			result, e := s.Store.SourcePage(bounded, p, kind, q)
 			now := s.now()
-			entry := sourceCache{Version: sourceCacheVersion, Snapshot: p.ID, Result: result, WrittenAt: now, NextAt: now.Add(sourceFresh), FreshUntil: now.Add(sourceFresh)}
+			entry := sourceCache{Version: sourceCacheVersion, Snapshot: p.ID, Result: result, WrittenAt: now, NextAt: now.Add(sourceFresh), FreshUntil: now.Add(sourceFresh), SuccessAt: now}
 			if e != nil || contracts.ValidateSource(q, result) != nil {
 				entry.Result = contracts.SourceResult{Items: []contracts.SourceCandidate{}}
 				entry.Failures = min(previous.Failures+1, 6)
+				entry.SuccessAt = previous.SuccessAt
 				entry.FreshUntil = time.Time{}
+				if len(previous.Result.Items) > 0 && !previous.SuccessAt.IsZero() && now.Before(previous.SuccessAt.Add(7*time.Minute)) {
+					entry.Result = previous.Result
+					entry.FreshUntil = previous.SuccessAt.Add(7 * time.Minute)
+				}
 				entry.NextAt = now.Add(backoff(30*time.Second, 5*time.Minute, entry.Failures))
 			} else if len(result.Items) == 0 {
 				entry.EmptyStreak = min(previous.EmptyStreak+1, 6)

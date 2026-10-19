@@ -56,7 +56,7 @@ func discoveryManager(t *testing.T, f movieFixture, body *string) *integrations.
 }
 func latestDiscoveryFixture(t *testing.T) movieFixture {
 	f := newMovieFixture(t)
-	if _, e := f.provider.UpTo(f.ctx, 63); e != nil {
+	if _, e := f.provider.UpTo(f.ctx, 64); e != nil {
 		t.Fatal(e)
 	}
 	return f

@@ -34,7 +34,7 @@ func (s Store) claim(ctx context.Context, owner string, excluded []string) (Leas
 		return l, e
 	}
 	defer rollback(ctx, tx)
-	e = tx.QueryRow(ctx, `SELECT i.id::text,i.plugin_id,i.approved_fingerprint,i.grant_revision FROM plugin_v2_instances i JOIN plugin_v2_definitions d ON d.id=i.plugin_id WHERE d.availability='available' AND d.fingerprint=i.approved_fingerprint AND i.desired_state='enabled' AND i.generation IS NULL AND i.worker_pid=0 AND NOT(i.id=ANY($1::uuid[])) AND i.next_restart_at<=now() AND i.runtime_state IN('stopped','backoff') ORDER BY i.next_restart_at,i.id FOR UPDATE OF i SKIP LOCKED LIMIT 1`, excluded).Scan(&l.ID, &l.PluginID, &l.Fingerprint, &l.GrantRevision)
+	e = tx.QueryRow(ctx, `SELECT i.id::text,i.plugin_id,i.approved_fingerprint,i.grant_revision FROM plugin_v2_instances i JOIN plugin_v2_definitions d ON d.id=i.plugin_id WHERE d.availability='available' AND d.fingerprint=i.approved_fingerprint AND i.desired_state='enabled' AND i.data_operation IS NULL AND i.generation IS NULL AND i.worker_pid=0 AND NOT(i.id=ANY($1::uuid[])) AND i.next_restart_at<=now() AND i.runtime_state IN('stopped','backoff') ORDER BY i.next_restart_at,i.id FOR UPDATE OF i SKIP LOCKED LIMIT 1`, excluded).Scan(&l.ID, &l.PluginID, &l.Fingerprint, &l.GrantRevision)
 	if e != nil {
 		return l, e
 	}

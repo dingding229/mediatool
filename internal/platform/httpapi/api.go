@@ -115,6 +115,8 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/plugins/auth/begin", a.protected(a.pluginAuthUnsupported))
 	mux.HandleFunc("GET /api/v1/plugins/ui-surfaces", a.protected(a.pluginUISurfaces))
 	mux.HandleFunc("GET /api/v1/plugins/{id}/ui/{kind}", a.protected(a.pluginUI))
+	mux.HandleFunc("GET /api/v1/plugins/{id}/state-snapshots", a.protected(a.pluginStateList))
+	mux.HandleFunc("POST /api/v1/plugins/{id}/state-snapshots", a.protected(a.pluginStateOperation))
 	mux.HandleFunc("GET /api/v1/plugins/{id}/review", a.protected(a.pluginReviewPlan))
 	mux.HandleFunc("GET /api/v1/plugins/{id}/extensions", a.protected(a.pluginExtensions))
 	mux.HandleFunc("GET /api/v1/plugins/{id}/runs", a.protected(a.pluginRuns))

@@ -4690,6 +4690,42 @@ paths:
         '404': {description: 实例不存在或已卸载}
         '409': {description: 当前内置定义与数据库指纹不一致，需要刷新}
         '503': {description: 插件数据暂不可用}
+  /api/v1/plugins/{id}/state-snapshots:
+    parameters:
+    - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: listPluginStateSnapshots
+      description: 管理员只读，最多200条，仅元数据，无配置或KV明文。保留上限为实例5份/256MiB、全局64份/1GiB。
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+        '401': {description: 需要管理员会话}
+    post:
+      operationId: operatePluginStateSnapshot
+      description: 管理员+CSRF+confirm，operationKey幂等，revision/fingerprint CAS；仅完全停用且无worker实例。恢复须定义可用且config/data schema完全相同，仅本实例数据，恢复后保持停用。无代码回退、上传或下载。结果未知需先核对，不盲目重放。
+      parameters:
+      - $ref: '#/components/parameters/CSRFHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, operationKey, expectedRevision, fingerprint, confirm]
+              properties:
+                kind: {type: string, enum: [create, restore, delete]}
+                snapshotId: {type: string, format: uuid}
+                operationKey: {type: string, minLength: 8, maxLength: 100}
+                expectedRevision: {type: integer, minimum: 1}
+                fingerprint: {type: string, pattern: '^[a-f0-9]{64}$'}
+                confirm: {type: boolean, enum: [true]}
+      responses:
+        '200': {$ref: '#/components/responses/OK'}
+        '400': {description: 不兼容schema、配额或不安全文件}
+        '401': {description: 需要管理员会话}
+        '403': {description: CSRF拒绝}
+        '404': {description: 非本实例快照或不存在}
+        '409': {description: 修订、指纹、运行状态或操作lease冲突}
+        '503': {description: 定义不可用或存储故障；核对操作结果}
   /api/v1/plugins/operations:
     post:
       operationId: operatePluginV2Instance

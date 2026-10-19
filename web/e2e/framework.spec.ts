@@ -1761,3 +1761,19 @@ test('F5-alpha built-in metadata, scope upgrade review and missing definition pr
  await dialog.getByRole('button',{name:'取消',exact:true}).click();await card.getByRole('button',{name:'查看 KV',exact:true}).click();await expect(page.getByRole('dialog',{name:'实例 KV 数据',exact:true})).toContainText('private-instance-data')
  await page.screenshot({path:resolve(screenshots,'plugin-library-f5a.png'),fullPage:true})
 })
+
+test('F5-beta real instance snapshot create restore and delete stay disabled',async({page})=>{
+ await fixtureLogin(page)
+ const d=(await(await page.request.get('/api/v1/plugins/catalog')).json()).data.items[0]
+ const op=async(kind:string,extra:any={})=>{const r=await page.request.post('/api/v1/plugins/operations',{headers:{'X-Requested-With':'media-tool'},data:{kind,operationKey:crypto.randomUUID(),pluginId:d.manifest.id,fingerprint:d.fingerprint,expectedRevision:0,confirm:true,scopes:d.manifest.permissions.map((p:any)=>p.scope),config:{snapshotMarker:'original'},...extra}});expect(r.status()).toBe(kind==='configure'?202:200);return(await r.json()).data}
+ const instance=await op('install');const inspect=async()=>(await(await page.request.get(`/api/v1/plugins/${instance.id}`)).json()).data
+ await page.goto('/plugins');const card=page.locator('.instance-card').filter({hasText:instance.id});await card.getByRole('button',{name:'数据快照',exact:true}).click()
+ const dialog=page.getByRole('dialog',{name:'实例数据快照',exact:true})
+ const confirm=async()=>{await page.getByRole('dialog',{name:'确认实例快照操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click()}
+ await dialog.getByRole('button',{name:'创建实例快照',exact:true}).click();await confirm();await expect(dialog).toContainText('ready')
+ let info=await inspect();await op('configure',{instanceId:instance.id,expectedRevision:info.instance.revision,config:{snapshotMarker:'changed'}})
+ await dialog.getByRole('button',{name:'恢复',exact:true}).click();await confirm();await expect.poll(async()=>(await inspect()).config.value.snapshotMarker).toBe('original');info=await inspect();expect(info.instance.desiredState).toBe('disabled')
+ await dialog.getByRole('button',{name:'删除',exact:true}).click();await confirm();await expect(dialog).toContainText('尚无实例快照')
+ await dialog.screenshot({path:resolve(screenshots,'plugin-snapshots-f5b.png'),animations:'disabled'})
+ info=await inspect();await op('remove',{instanceId:instance.id,expectedRevision:info.instance.revision,scopes:[]})
+})

@@ -172,6 +172,13 @@ func (s Store) apply(ctx context.Context, actor string, in Request) (Instance, e
 			if e != nil {
 				return out, e
 			}
+			var dataBusy bool
+			if e = tx.QueryRow(ctx, `SELECT data_operation IS NOT NULL FROM plugin_v2_instances WHERE id=$1`, in.InstanceID).Scan(&dataBusy); e != nil {
+				return out, e
+			}
+			if dataBusy {
+				return out, ErrConflict
+			}
 			if source.Revision != in.ExpectedRevision {
 				return out, ErrConflict
 			}
@@ -266,6 +273,13 @@ func (s Store) apply(ctx context.Context, actor string, in Request) (Instance, e
 		current, e := readInstance(ctx, tx, id)
 		if e != nil {
 			return out, e
+		}
+		var dataBusy bool
+		if e = tx.QueryRow(ctx, `SELECT data_operation IS NOT NULL FROM plugin_v2_instances WHERE id=$1`, id).Scan(&dataBusy); e != nil {
+			return out, e
+		}
+		if dataBusy {
+			return out, ErrConflict
 		}
 		if current.Revision != in.ExpectedRevision {
 			return out, ErrConflict

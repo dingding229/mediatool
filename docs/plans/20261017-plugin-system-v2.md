@@ -1905,3 +1905,13 @@ WorkflowRunner另将job lease/token条件UPDATE加入共享commit guard，覆盖
 - Redis保留有界重试元数据1小时；展示独立检查 FreshUntil，不延长过期卡片。配置/实例状态/授权/pin 变化使旧 snapshot 立即逻辑失效，新 generation 不受旧负缓存抑制；旧物理键至多1小时回收。首页仅查实时元数据和缓存，不等待 worker，不增加网络刮削。
 - F5-β 的数据快照/schema恢复、F5-γ 的工具/workflow/auth面板和最终部署均未在本组实施；不连接生产。
 - 本地验证：Go build/vet/errcheck、pin初始化/资源清单检查通过；全仓串行race通过（迁移包337.593秒），最终catalog/V2/HTTP/图标包再做串行race回归。Vue build与36文件122项单测、Python31项通过；E2E最终110通过、1项Linux真实worker按平台跳过，保留原生AMD64 CI门禁。新E2E覆盖元数据、危险scope差异、重新读取取消勾选、确认后仍停用、missing保留KV和390px无横向溢出。首轮测试夹具短指纹及折叠区域badge定位断言已修正，未放宽CHECK、认证、生产时限或测试门禁。
+
+## F5-β 实例数据快照（2026-10-19）
+
+- 新迁移00064：F1/63的snapshots是descriptor快照，并没有可复用的不可变配置/KV历史或文件恢复日志。新增state_snapshots/state_values/state_tasks及实例data_operation fence；schema64。插件表外只更新build schema与rekey列清单，不改业务表。Down有保留快照时拒绝有损降级。
+- 管理API `GET/POST /plugins/{instance}/state-snapshots`，仅admin，写需CSRF/confirm/operationKey/revision/fingerprint。创建也须完全停用（避免活跃文件不一致）；恢复须本实例、当前定义available、config/data schema完全相等，恢复后保持disabled。升级转换器不支持，不下载或执行旧代码。
+- 私有配置/KV独立加密副本存PG，以state_values UUID作为新AAD身份并纳入主密钥rekey；不把明文KV落盘。文件仅相对路径，在受控Root内复制，拒绝符号/硬链接、可执行位、常见代码/二进制/包文件。单文件16MiB、data64MiB、深度16、4096项；单实例5份/256MiB，全局64份/1GiB，临时恢复预留也计入配额。
+- 操作总预算2分钟、lease3分钟，partial unique约束+data_operation阻止启用/配置/clone并发；无worker才操作。先fsync临时树，再持久记录inode身份，用同文件系统原子exchange（Linux renameat2 / Darwin RENAME_SWAP）；DB同事务切换配置/KV和完成日志。提交未知不盲重放；lease到期由维护器按DB状态/inode判定是否交换回旧目录。失败/完成残留重试GC，无法确认时保持fence，不宣称恢复成功。fsync目录保证持久性；不支持atomic exchange的文件系统明确失败，无两次rename降级。
+- 卸载仍保留实例私有数据与快照并计入额度；显式删除快照先撤销DB引用再GC。恢复不回退授权、实例revision或业务副作用，KV/config revision单调递增。
+- 来源缓存增加stale-if-error：保留最后成功卡片至成功时间后最多420秒（原120秒+300秒），重复失败不能续期；新snapshot/撤权仍立即不可见。空结果成功仍清空卡片。
+- 验证：catalog/V2/HTTP包串行race通过；迁移64 Up→Down→Up及非插件对照、快照密文真正rekey后恢复通过；崩溃日志+原子交换后重启恢复通过。链接/执行内容/schema/跨实例/CAS/额度/fence负测通过。Vue125项、真实HTTP的创建→配置变更→恢复→删除（保持disabled）通过。E2E脚本最初误断言configure=200，按源码修为202；一次手工回归未先清除E2E临时密钥行导致rekey夹具失败，恢复统一测试锁及test-only清理后整包通过，未放宽产品保护。

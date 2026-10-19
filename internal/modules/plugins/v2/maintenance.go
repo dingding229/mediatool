@@ -5,6 +5,9 @@ import (
 )
 
 func (s Store) MaintainExtensions(ctx context.Context) error {
+	if e := s.RecoverState(ctx); e != nil {
+		return e
+	}
 	_, e := s.DB.Exec(ctx, `WITH resumed AS(SELECT r.id,s.id AS snapshot_id,s.generation FROM plugin_v2_runs r JOIN plugin_v2_extensions x ON x.instance_id=r.instance_id JOIN plugin_v2_snapshots s ON s.id=x.snapshot_id JOIN plugin_v2_instances i ON i.id=r.instance_id WHERE r.state='pending' AND r.generation<>s.generation AND r.grant_revision=s.grant_revision AND i.desired_state='enabled' AND i.runtime_state='running' AND i.generation=s.generation AND EXISTS(SELECT 1 FROM jsonb_array_elements(s.descriptors->'descriptors') d WHERE d->>'handler'=r.handler) LIMIT 200) UPDATE plugin_v2_runs r SET snapshot_id=p.snapshot_id,generation=p.generation FROM resumed p WHERE r.id=p.id`)
 	if e != nil {
 		return e

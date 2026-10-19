@@ -25,7 +25,7 @@ import (
 func pluginStore(t *testing.T) (nativeFixture, v2.Store) {
 	t.Helper()
 	f := newNativeFixture(t)
-	if _, e := f.provider.UpTo(f.ctx, 62); e != nil {
+	if _, e := f.provider.UpTo(f.ctx, 64); e != nil {
 		t.Fatal(e)
 	}
 	var search string
