@@ -4,6 +4,7 @@ import { ElMessageBox } from 'element-plus'
 import { inspect,stateSnapshots,stateOperation } from '../api/plugins'
 import type {StateSnapshot} from '../api/plugins'
 import {requestUUID} from '../utils/request-uuid'
+const emit=defineEmits<{changed:[]}>()
 const props=defineProps<{instanceId:string}>()
 const entries=ref<StateSnapshot[]>([]),busy=ref(false),error=ref(''),notice=ref('')
 const pending=new Map<string,Parameters<typeof stateOperation>[1]>()
@@ -15,7 +16,7 @@ async function operate(kind:'create'|'restore'|'delete',snapshotId=''){
  busy.value=true;error.value='';notice.value=''
  try{const identity=kind+':'+snapshotId;let input=pending.get(identity)
  if(!input){const info=await inspect(props.instanceId);if(info.instance.desiredState!=='disabled'||!['stopped','needs_action'].includes(info.instance.state))throw new Error('请先停用实例并等待进程退出');input={kind,snapshotId,expectedRevision:info.instance.revision,fingerprint:info.fingerprint,confirm:true,operationKey:requestUUID()};pending.set(identity,input)}
- await stateOperation(props.instanceId,input);pending.delete(identity);notice.value='操作已完成；实例保持停用。';await load()
+ await stateOperation(props.instanceId,input);pending.delete(identity);emit('changed');notice.value='操作已完成；实例保持停用。';await load()
  }catch(e){error.value=e instanceof Error?e.message:'操作结果未知；请刷新核对，不要更换标识盲目重试'}finally{busy.value=false}}
 </script>
 <template>
