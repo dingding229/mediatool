@@ -95,7 +95,7 @@ it('keeps a committed receipt and retries only list synchronization, not install
 it('shows a rejected safe result code and requestId, never exception contents',async()=>{
  view.state.install(d);view.state.confirmed=true
  vi.mocked(operate).mockRejectedValueOnce(new APIError(409,'plugin_conflict','config-secret-sentinel','abcdef0123456789abcdef01'))
- await view.state.accept();expect(view.state.operationPhase).toBe('rejected');expect(view.state.error).toContain('plugin_conflict');expect(view.state.error).toContain('abcdef0123456789abcdef01');expect(view.state.error).not.toContain('config-secret-sentinel');expect(view.state.notice).toBe('')
+ await view.state.accept();expect(view.state.operationPhase).toBe('rejected');expect(view.state.error).toContain('plugin_conflict');expect(view.state.error).toContain('abcdef0123456789abcdef01');expect(view.state.error).not.toContain('config-secret-sentinel');expect(view.state.notice).toBe('');expect(view.state.installLabel(d)).toBe('安装插件');expect(view.state.retryInput).toBeNull()
 })
 it('blocks a duplicate submit while the first operation is in flight',async()=>{
  let finish!:(i:PluginInstance)=>void;vi.mocked(operate).mockImplementationOnce(()=>new Promise(r=>{finish=r}))
@@ -109,4 +109,10 @@ it('does not let an older list response replace a newer authoritative snapshot',
  vi.mocked(catalog).mockResolvedValueOnce({items:[{...d,installedCount:1}],total:1});vi.mocked(instances).mockResolvedValueOnce([fixture.response as PluginInstance])
  await view.state.load();release({items:[],total:0});await old
  expect(view.state.definitions).toHaveLength(1);expect(view.state.installed[0].id).toBe(fixture.response.id)
+})
+
+it('does not release an ambiguous intent on HTTP 200 without a valid operation receipt',async()=>{
+ view.state.install(d);view.state.confirmed=true;vi.mocked(operate).mockResolvedValueOnce(undefined as any)
+ await view.state.accept();expect(view.state.operationPhase).toBe('uncertain');expect(view.state.error).toContain('invalid_response');expect(view.state.consent).not.toBeNull()
+ await view.state.accept();expect(vi.mocked(operate).mock.calls[0]![0].operationKey).toBe(vi.mocked(operate).mock.calls[1]![0].operationKey);expect(view.state.notice).toContain('已安装')
 })

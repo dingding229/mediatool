@@ -5,6 +5,6 @@ export function operationError(error:unknown){
  const known=error instanceof APIError
  const code=known&&codes.has(error.code)?error.code:known?'request_rejected':'transport_unknown'
  const requestId=known&&/^[a-f0-9]{24}$/.test(error.requestId)?error.requestId:''
- const uncertain=!known||error.status>=500||error.status===408||error.code==='invalid_response'
+ const uncertain=!known||error.status<400||error.status>=500||error.status===408||error.code==='invalid_response'
  return {uncertain,label:`${code} · requestId=${requestId||'不可用'}`}
 }

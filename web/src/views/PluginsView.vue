@@ -7,6 +7,7 @@ import PluginMetadata from '../plugins/PluginMetadata.vue'
 import PluginForm from '../plugins/PluginForm.vue'
 import {installIntent,hasInstallIntent,completeInstallIntent} from '../plugins/install-intent'
 import {operationError} from '../plugins/operation-error'
+import {APIError} from '../api/client'
 import { requestUUID } from '../utils/request-uuid'
 import inventory from '../../../internal/modules/plugins/v2/library.json'
 import { computed, onMounted, ref } from 'vue'
@@ -62,6 +63,7 @@ async function apply(input:Omit<PluginOperation,'operationKey'|'confirm'>){
  retryInput.value=JSON.parse(fingerprint)
  submitted=true
  const out=await operate({...input,confirm:true,operationKey:key})
+ if(!out||typeof out.id!=='string'||!out.id||out.id.length>64||!Number.isSafeInteger(out.revision)||out.revision<1||(input.kind==='install'&&out.pluginId!==input.pluginId)||(input.instanceId&&input.kind!=='clone'&&out.id!==input.instanceId))throw new APIError(200,'invalid_response','invalid_operation_receipt')
  pending.delete(fingerprint);retryInput.value=null
  if(input.kind==='install'){
  completeInstallIntent(input.pluginId!,input.fingerprint)
@@ -74,6 +76,7 @@ async function apply(input:Omit<PluginOperation,'operationKey'|'confirm'>){
  if(!await load()&&error.value)operationPhase.value='sync_failed'
  }catch(e){
  const problem=operationError(e);operationPhase.value=submitted&&problem.uncertain?'uncertain':'rejected'
+ if(submitted&&!problem.uncertain){pending.delete(JSON.stringify(input));retryInput.value=null;if(input.kind==='install')completeInstallIntent(input.pluginId!,input.fingerprint)}
  error.value=(operationPhase.value==='uncertain'?'结果未确认；请核对原请求，不要新增实例。':'操作未完成；')+problem.label
  }finally{busy.value=false}
 }
