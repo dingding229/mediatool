@@ -1,41 +1,17 @@
 package tooling
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
+	"media-tool/internal/platform/envfile"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-// ReadValues is data-only: it never evaluates shell substitutions or commands.
-func ReadValues(path string) (map[string]string, error) {
-	f, e := os.Open(path)
-	if e != nil {
-		return nil, e
-	}
-	defer func() { _ = f.Close() }()
-	out := map[string]string{}
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		line := strings.TrimSpace(s.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		k, v, ok := strings.Cut(strings.TrimPrefix(line, "export "), "=")
-		if !ok {
-			return nil, errors.New("invalid configuration line")
-		}
-		v = strings.TrimSpace(v)
-		if len(v) > 1 && ((v[0] == '\'' && v[len(v)-1] == '\'') || (v[0] == '"' && v[len(v)-1] == '"')) {
-			v = v[1 : len(v)-1]
-		}
-		out[strings.TrimSpace(k)] = v
-	}
-	return out, s.Err()
-}
+var ReadValues = envfile.Read
+
 func TestURLs(database, redis string) (string, string, error) {
 	d, e := url.Parse(database)
 	if e != nil || d.Host == "" || (d.Scheme != "postgres" && d.Scheme != "postgresql") || d.Path != "/media_tool_test" || d.Fragment != "" {

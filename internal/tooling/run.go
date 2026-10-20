@@ -75,6 +75,11 @@ func Run(args []string) error {
 		return initEnvironment(root, false)
 	case "ci-config":
 		return initEnvironment(root, true)
+	case "matrix":
+		if len(args) > 2 || (len(args) == 2 && args[1] != "--check") {
+			return errors.New("matrix [--check]")
+		}
+		return matrix(root, len(args) == 2)
 	default:
 		return runExtra(root, args)
 	}

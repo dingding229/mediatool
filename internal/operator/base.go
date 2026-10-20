@@ -142,6 +142,7 @@ func Run(args []string) error {
 	}
 	f := flag.NewFlagSet("media-toolctl", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
+	archive := f.String("archive", "", "private backup archive")
 	root := f.String("root", "", "existing private deployment root")
 	if e := f.Parse(args); e != nil {
 		return e
@@ -174,6 +175,18 @@ func Run(args []string) error {
 			return errors.New("unexpected argument")
 		}
 		return initCompose(r)
+	}
+	if rest[0] == "backup-verify" {
+		if len(rest) != 1 {
+			return errors.New("unexpected argument")
+		}
+		return backupVerify(r, *archive)
+	}
+	if rest[0] == "playback-check" {
+		return playbackCheck(r, rest[1:])
+	}
+	if rest[0] == "load-check" {
+		return loadCheck(r, rest[1:])
 	}
 	if len(rest) != 2 {
 		return errors.New("exactly one image or approved request required")

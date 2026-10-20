@@ -50,7 +50,7 @@ jobs:
           go run ./cmd/plugin-check
           go run ./cmd/plugin-assets --check
           go run ./cmd/plugin-assets
-          python3 scripts/plugin-support-matrix.py --check
+          go run ./cmd/media-tool-dev matrix --check
       - run: npm ci --prefix web --no-fund --no-audit
       - run: npm test --prefix web
       - run: npm run build --prefix web
@@ -76,7 +76,7 @@ jobs:
       - run: go vet ./...
       - name: Production error-handling boundary (exclude private local diagnostics and test fixtures)
         run: go run github.com/kisielk/errcheck@v1.9.0 -ignoretests ./cmd/... ./internal/... ./migrations/... ./tests/...
-      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - run: go test -race ./internal/tooling ./internal/operator
       - name: Browser end-to-end tests (unified process)
         env:
           TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}

@@ -3,7 +3,7 @@
 - 源码候选：0.27.0；schema 65；contractVersion 2。
 - SDK pin：`v0.0.0-20261019145526-4ad0d7c57697`。
 - 契约摘要：`5fb1a7fcf7fbf87a232793570f5fda45616f1f36e2b6062f188cbd2012f3c90c`。
-- 生成/校验：`python3 scripts/plugin-support-matrix.py [--check]`；仅读取编译期元数据，不执行工厂。
+- 生成/校验：`go run ./cmd/media-tool-dev matrix [--check]`；仅读取编译期元数据，不执行工厂。
 - `registered` 只表示存在窄门面，不保证任意环境可用；actor、adapter、owner、selector、revision 和实时 scope 不满足时 fail-closed。
 - 表中的 supported=false 为固定 unsupported；其他条件性 unsupported 见下文。
 
@@ -261,7 +261,7 @@
 - 没有推荐引擎；discover/recommend 只接插件 typed 候选的后台缓存。收集结束不是追剧完成；unknown/缺 TMDB/缺资产不发完成事件。
 - workflows 仅管理员批准的有界 DAG，工具仅人工调用；未知外部副作用不自动重放，不恢复旧代码。
 
-## 六插件与停用态安全验收
+## 内置插件与停用态安全验收
 
 | ID | 版本 | 当前版本 history（来自 manifest） | 安全配置/当前范围 |
 |---|---|---|---|

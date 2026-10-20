@@ -9,6 +9,6 @@ import (
 func main() {
 	if e := operator.Run(os.Args[1:]); e != nil {
 		fmt.Fprintln(os.Stderr, e)
-		os.Exit(1)
+		os.Exit(operator.ExitStatus(e))
 	}
 }
