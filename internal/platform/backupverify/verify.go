@@ -13,6 +13,7 @@ import (
 	"media-tool/internal/platform/secrets"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 type Table struct {
@@ -35,12 +36,12 @@ type Report struct {
 	NoWorkersStarted                        bool           `json:"noWorkersStarted"`
 }
 
-type querier interface {
+type Querier interface {
 	Query(context.Context, string, ...any) (pgx.Rows, error)
 	QueryRow(context.Context, string, ...any) pgx.Row
 }
 
-func inventory(ctx context.Context, db querier, baseline map[string]Table) (map[string]Table, error) {
+func Inventory(ctx context.Context, db Querier, baseline map[string]Table) (map[string]Table, error) {
 	rows, e := db.Query(ctx, `SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' ORDER BY table_name,ordinal_position`)
 	if e != nil {
 		return nil, e
@@ -53,6 +54,10 @@ func inventory(ctx context.Context, db querier, baseline map[string]Table) (map[
 			return nil, errors.New("inventory")
 		}
 		columns[t] = append(columns[t], c)
+	}
+	if e = rows.Err(); e != nil {
+		rows.Close()
+		return nil, e
 	}
 	rows.Close()
 	out := map[string]Table{}
@@ -83,16 +88,7 @@ func inventory(ctx context.Context, db querier, baseline map[string]Table) (map[
 	}
 	return out, nil
 }
-func join(parts []string) string {
-	out := ""
-	for i, p := range parts {
-		if i > 0 {
-			out += ","
-		}
-		out += p
-	}
-	return out
-}
+func join(parts []string) string { return strings.Join(parts, ",") }
 func equal(a, b map[string]Table, skipGoose bool) bool {
 	for name, x := range a {
 		if skipGoose && name == "goose_db_version" {
@@ -115,7 +111,7 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 	if e := db.QueryRow(ctx, `SELECT max(version_id)FROM goose_db_version WHERE is_applied`).Scan(&r.BaselineVersion); e != nil {
 		return r, e
 	}
-	before, e := inventory(ctx, db, nil)
+	before, e := Inventory(ctx, db, nil)
 	r.InitialTables = before
 	if e != nil {
 		return r, e
@@ -128,7 +124,7 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 		if e != nil {
 			return r, e
 		}
-		projection, e = inventory(ctx, db, projection)
+		projection, e = Inventory(ctx, db, projection)
 		if e != nil {
 			return r, e
 		}
@@ -150,7 +146,7 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 	if e = schema.Up(ctx, dsn); e != nil {
 		return r, e
 	}
-	after, e := inventory(ctx, db, projection)
+	after, e := Inventory(ctx, db, projection)
 	if e != nil {
 		return r, e
 	}
@@ -200,7 +196,7 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 	if !r.LegacyBusinessColumnsPreserved {
 		return r, errors.New("legacy data changed during migration")
 	}
-	all, e := inventory(ctx, db, nil)
+	all, e := Inventory(ctx, db, nil)
 	if e != nil {
 		return r, e
 	}
@@ -217,7 +213,7 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 	if e != nil {
 		return r, errors.New("restored ciphertext readability failed")
 	}
-	checked, e := inventory(ctx, db, nil)
+	checked, e := Inventory(ctx, db, nil)
 	if e != nil {
 		return r, e
 	}
@@ -225,7 +221,7 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 	if e = schema.Up(ctx, dsn); e != nil {
 		return r, e
 	}
-	twice, e := inventory(ctx, db, nil)
+	twice, e := Inventory(ctx, db, nil)
 	if e != nil {
 		return r, e
 	}
@@ -252,7 +248,7 @@ func ExportSnapshot(ctx context.Context, db *pgxpool.Pool) (Export, pgx.Tx, erro
 		return Export{}, nil, e
 	}
 	out := Export{}
-	out.Tables, e = inventory(ctx, tx, nil)
+	out.Tables, e = Inventory(ctx, tx, nil)
 	if e != nil {
 		deferutil.Rollback(ctx, tx)
 		return out, nil, e

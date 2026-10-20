@@ -71,19 +71,7 @@ func (e Engine) restoreClone(ctx context.Context, name, dir string, m Manifest) 
 	if err != nil {
 		return "", noop, err
 	}
-	db, err := database.Open(ctx, dsn)
-	if err != nil {
-		return "", noop, err
-	}
-	defer db.Close()
-	actual, err := Inventory(ctx, db)
-	if err != nil {
-		return "", noop, err
-	}
-	if !sameTables(m.Tables, actual) {
-		return "", noop, errors.New("恢复克隆与原备份摘要不一致")
-	}
-	if _, err = backupverify.Verify(ctx, db, dsn, name, e.Key, false); err != nil {
+	if _, err = e.verifyRestored(ctx, dsn, name, m, false); err != nil {
 		return "", noop, err
 	}
 	ok = true
@@ -246,4 +234,22 @@ func restoreGID(fallback int) int {
 		return value
 	}
 	return fallback
+}
+
+// verifyRestored is shared by clone/drill and the lock-scoped same-database
+// restore fixture. Test mode is accepted only by backupverify's exact DB guard.
+func (e Engine) verifyRestored(ctx context.Context, dsn, name string, m Manifest, testOnly bool) (backupverify.Report, error) {
+	db, err := database.Open(ctx, dsn)
+	if err != nil {
+		return backupverify.Report{}, err
+	}
+	defer db.Close()
+	actual, err := Inventory(ctx, db)
+	if err != nil {
+		return backupverify.Report{}, err
+	}
+	if !sameTables(m.Tables, actual) {
+		return backupverify.Report{}, errors.New("restored database differs from backup table digest")
+	}
+	return backupverify.Verify(ctx, db, dsn, name, e.Key, testOnly)
 }

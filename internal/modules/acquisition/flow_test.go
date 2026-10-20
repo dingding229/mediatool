@@ -32,3 +32,21 @@ func TestPipelineFlowNeverSuggestsBlindReplay(t *testing.T) {
 		}
 	}
 }
+
+func TestDownloadStageCatalogBuildsOnlyTrustedSQLAndMatchingRetryKeys(t *testing.T) {
+	expected := map[string]string{"pending": "download.add:", "strm_ready": "emby.refresh:", "refresh_requested": "emby.confirm:"}
+	if len(downloadRetryStages) != len(expected) {
+		t.Fatal(downloadRetryStages)
+	}
+	for _, v := range downloadRetryStages {
+		if expected[v.state] != v.prefix {
+			t.Fatal(v)
+		}
+		if DownloadRetryKey(v.state, "owned") != v.prefix+"owned" || DownloadFlow(v.state, false, "failed").Phase != v.phase {
+			t.Fatal(v)
+		}
+	}
+	if DownloadRetryKey("pending'; DROP TABLE jobs;--", "owned") != "" {
+		t.Fatal("request reached SQL catalog")
+	}
+}

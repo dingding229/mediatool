@@ -105,23 +105,27 @@ func (a *API) retryPipeline(w http.ResponseWriter, r *http.Request) {
 	defer deferutil.Rollback(r.Context(), tx)
 	id = strings.ToLower(id)
 	var pattern, state string
-	var status flow.Status
+	var sourceRequired bool
+	currentFlow := func(job string) flow.Status {
+		if kind == "downloads" {
+			return acquisition.DownloadFlow(state, sourceRequired, job)
+		}
+		return acquisition.TransferFlow(state, job)
+	}
 	if kind == "downloads" {
-		var sourceRequired bool
 		err = tx.QueryRow(r.Context(), `SELECT download_state,source_recovery_required FROM download_tasks WHERE id=$1 FOR UPDATE`, id).Scan(&state, &sourceRequired)
 		if pipelineReadError(w, err) {
 			return
 		}
 		pattern = acquisition.DownloadRetryKey(state, id)
-		status = acquisition.DownloadFlow(state, sourceRequired, "failed")
 	} else {
 		err = tx.QueryRow(r.Context(), `SELECT state FROM transfer_tasks WHERE id=$1 FOR UPDATE`, id).Scan(&state)
 		if pipelineReadError(w, err) {
 			return
 		}
 		pattern = "transfer:" + id
-		status = acquisition.TransferFlow(state, "failed")
 	}
+	status := currentFlow("failed")
 	if !status.Retryable {
 		pipelineFailure(w, 409, status.Reason, "请按当前阶段的下一步操作核对；普通重试不会重放未知结果或绕过确认", status)
 		return
@@ -132,14 +136,8 @@ func (a *API) retryPipeline(w http.ResponseWriter, r *http.Request) {
 		pipelineReadError(w, err)
 		return
 	}
-	if job != "failed" {
-		status.Retryable = false
-		status.NextAction = "wait"
-		status.Reason = "job_active"
-		if job == "" {
-			status.NextAction = "inspect_task"
-			status.Reason = "job_missing"
-		}
+	status = currentFlow(job)
+	if !status.Retryable {
 		pipelineFailure(w, 409, "task_not_retryable", "没有已失败的后台任务可重试；请刷新或核对任务", status)
 		return
 	}

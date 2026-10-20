@@ -3,6 +3,7 @@ package migrations_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -47,6 +48,8 @@ func TestNativeCacheTenThousandColdProcessAndWriteFences(t *testing.T) {
 	f := newBrowseFixture(t)
 	seedBrowseMovies(t, f, 10000)
 	client := nativeCacheRedis(t)
+	diag := &browseRedisTrace{}
+	client.AddHook(diag)
 	r := catalog.NewCachedBrowse(f.repo, client)
 	q := nativelibrary.ItemQuery{Limit: 200, Recursive: boolPtr(true), IncludeItemTypes: []string{"Movie"}, SortBy: []string{"SortName"}}
 	start := time.Now()
@@ -54,6 +57,10 @@ func TestNativeCacheTenThousandColdProcessAndWriteFences(t *testing.T) {
 	miss := time.Since(start)
 	if err != nil || total != 10000 || len(items) != 200 {
 		t.Fatal("cache miss", total, len(items), err)
+	}
+	var visibility string
+	if e := f.pool.QueryRow(f.ctx, `SELECT pg_current_snapshot()::text`).Scan(&visibility); e != nil {
+		t.Fatal(e)
 	}
 	f.trace.queries.Store(0)
 	probes := f.trace.probes.Load()
@@ -66,6 +73,7 @@ func TestNativeCacheTenThousandColdProcessAndWriteFences(t *testing.T) {
 	sql := f.trace.queries.Load()
 	t.Logf("T53 10000 movies: first-ever Redis miss=%s cold-repository Redis hit=%s SQL=%d", miss, cold, sql)
 	if err != nil || n != 10000 || len(cached) != 200 || cached[0].Id != items[0].Id || sql > 3 || f.trace.probes.Load() != probes || cold >= 200*time.Millisecond || cold >= miss {
+		t.Log("MVCC after fill", visibility, "Redis command metadata", diag.snapshot())
 		t.Fatal("cold-process cache/performance", err, cold, miss, sql)
 	}
 	id := items[0].Id
@@ -254,4 +262,38 @@ func TestNativeDiscoveryCandidateCapAfterSearch(t *testing.T) {
 	if !errors.Is(err, nativelibrary.ErrDiscoveryTooBroad) {
 		t.Fatal("broad search did not explicitly reject", err)
 	}
+}
+
+// Command names/key digests/errors only: never cache payloads or credentials.
+type browseRedisTrace struct {
+	mu     sync.Mutex
+	events []string
+}
+
+func (d *browseRedisTrace) DialHook(next redis.DialHook) redis.DialHook { return next }
+func (d *browseRedisTrace) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return next
+}
+func (d *browseRedisTrace) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, c redis.Cmder) error {
+		e := next(ctx, c)
+		if c.Name() == "set" || c.Name() == "eval" {
+			key := ""
+			if len(c.Args()) > 1 {
+				key = fmt.Sprint(c.Args()[1])
+				if c.Name() == "eval" && len(c.Args()) > 3 {
+					key = fmt.Sprint(c.Args()[3])
+				}
+			}
+			d.mu.Lock()
+			d.events = append(d.events, c.Name()+":"+key+":"+fmt.Sprint(e))
+			d.mu.Unlock()
+		}
+		return e
+	}
+}
+func (d *browseRedisTrace) snapshot() []string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]string(nil), d.events...)
 }

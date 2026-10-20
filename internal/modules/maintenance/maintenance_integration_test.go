@@ -2,7 +2,6 @@ package maintenance
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"os"
 	"os/exec"
@@ -11,8 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"media-tool/internal/platform/buildinfo"
 	"media-tool/internal/platform/database"
+	"media-tool/internal/platform/secrets"
 )
 
 func fixture(t *testing.T) Engine {
@@ -215,10 +216,40 @@ func TestRealPostgresBackupDrillAndPermanentKeyProof(t *testing.T) {
 	e := fixture(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
+	if os.Getenv("MEDIA_TOOL_TEST_LOCKED") != "1" {
+		t.Fatal("self restore requires shared test-lock")
+	}
+	cfg, err := pgx.ParseConfig(e.DSN)
+	if err != nil || cfg.Database != "media_tool_test" {
+		t.Fatal("only media_tool_test")
+	}
 	e.Run = postgresRunner(t)
-	// This suite owns only temporary DB/files. Clear unrelated fixture media because
-	// they do not represent files in this test's private output root.
-	if _, err := e.DB.Exec(ctx, `TRUNCATE integrations,storage_connections,cloud_files,media_assets,media_items,jobs,outbox_events,external_api_keys CASCADE`); err != nil {
+	if _, err = e.DB.Exec(ctx, `TRUNCATE integrations,storage_connections,cloud_files,media_assets,media_items,jobs,outbox_events,external_api_keys CASCADE`); err != nil {
+		t.Fatal(err)
+	}
+	vault, err := secrets.New(e.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := newID()
+	defer func() {
+		_, e := e.DB.Exec(context.Background(), `DELETE FROM external_api_keys WHERE id=$1;`, key)
+		if e != nil {
+			t.Error(e)
+		}
+	}()
+	cipher, err := vault.Seal("api-key:"+key, map[string]string{"token": "synthetic-permanent-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.DB.Exec(ctx, `INSERT INTO external_api_keys(id,name,token_digest,token_ciphertext,prefix,scopes)VALUES($1,'Self restore proof',decode(repeat('ab',32),'hex'),$2,'synthetic','["status.read"]')`, key, cipher); err != nil {
+		t.Fatal(err)
+	}
+	strm := []byte("http://127.0.0.1/api/v1/cloudStorage/strm302?apiKey=fixture-only&path=%2FSynthetic%2Fmovie.mkv\n")
+	if _, err = e.DB.Exec(ctx, `INSERT INTO storage_connections(id,name,provider)VALUES(md5('self-store')::uuid,'Synthetic','clouddrive2');INSERT INTO cloud_files(id,storage_id,full_path,size_bytes)VALUES(md5('self-file')::uuid,md5('self-store')::uuid,'/Synthetic/movie.mkv',1);INSERT INTO media_assets(id,cloud_file_id)VALUES(md5('self-asset')::uuid,md5('self-file')::uuid);INSERT INTO strm_entries(id,asset_id,output_path,key_reference)VALUES(md5('self-strm')::uuid,md5('self-asset')::uuid,'Synthetic.strm','fixture-only')`); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(e.OutputRoot, "Synthetic.strm"), strm, 0600); err != nil {
 		t.Fatal(err)
 	}
 	id, err := e.QueueBackup(ctx, "fixture")
@@ -232,79 +263,97 @@ func TestRealPostgresBackupDrillAndPermanentKeyProof(t *testing.T) {
 	if err != nil || m.Schema != buildinfo.Schema || m.ID != id {
 		t.Fatal(m, err)
 	}
-	info, _ := os.Stat(filepath.Join(dir, "database.dump"))
-	if info.Mode().Perm() != 0600 {
-		t.Fatal("backup not private")
+	info, err := os.Stat(filepath.Join(dir, "database.dump"))
+	if err != nil || info.Mode().Perm() != 0600 {
+		t.Fatal("backup not private", err)
 	}
-	drill, err := e.QueueDrill(ctx, id)
+	// No CREATE DATABASE, renamed DB, or exception: restore the synthetic dump
+	// back into the same isolated database while the global runner holds its lock.
+	if _, err = e.DB.Exec(ctx, `DO $$ BEGIN IF current_database()<>'media_tool_test' THEN RAISE EXCEPTION 'test DB only'; END IF; END $$;DROP SCHEMA public CASCADE;CREATE SCHEMA public`); err != nil {
+		t.Fatal(err)
+	}
+	e.DB.Reset()
+	dump, err := os.Open(filepath.Join(dir, "database.dump"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = e.Drill(ctx, drill); err != nil {
+	restoreErr := e.pg(ctx, "pg_restore", e.DSN, []string{"--clean", "--if-exists", "--exit-on-error", "--no-owner", "--no-acl", "--dbname=media_tool_test"}, dump, io.Discard)
+	closeErr := dump.Close()
+	if restoreErr != nil || closeErr != nil {
+		t.Fatal(restoreErr, closeErr)
+	}
+	e.DB.Reset()
+	report, err := e.verifyRestored(ctx, e.DSN, "media_tool_test", m, true)
+	if err != nil || !report.DryRunCiphertextsUnchanged || !report.SecondMigrationIdempotent || !report.NoWorkersStarted {
+		t.Fatal(report, err)
+	}
+	var after []byte
+	var permanent bool
+	if err = e.DB.QueryRow(ctx, `SELECT token_ciphertext,expires_at IS NULL FROM external_api_keys WHERE id=$1`, key).Scan(&after, &permanent); err != nil || string(after) != string(cipher) || !permanent {
+		t.Fatal("permanent key changed", err)
+	}
+	decoded, err := vault.Open("api-key:"+key, after)
+	if err != nil || decoded["token"] != "synthetic-permanent-token" {
+		t.Fatal("AAD changed", err)
+	}
+	if err = os.Remove(filepath.Join(e.OutputRoot, "Synthetic.strm")); err != nil {
 		t.Fatal(err)
 	}
-	list, _ := e.Drills(ctx)
-	if list[0].State != "verified" {
-		t.Fatal(list)
+	if err = e.restoreOutputs(ctx, filepath.Join(dir, "outputs.tar"), m.Files); err != nil {
+		t.Fatal(err)
 	}
-	var leftovers int
-	e.DB.QueryRow(ctx, `SELECT count(*)FROM pg_database WHERE datname=$1`, "media_tool_restore_"+stripID(drill)[:12]).Scan(&leftovers)
-	if leftovers != 0 {
-		t.Fatal("drill database not cleaned")
+	restored, err := os.ReadFile(filepath.Join(e.OutputRoot, "Synthetic.strm"))
+	if err != nil || string(restored) != string(strm) {
+		t.Fatal("STRM body changed", err)
 	}
-	req, err := e.Preview(ctx, "restore", id)
+	manifestRaw, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = e.Approve(ctx, req.ID, req.Digest, ConfirmText(req)); err != nil {
+	if _, err = e.DB.Exec(ctx, `UPDATE ops_backups SET state='ready',digest=$2,manifest=$3 WHERE id=$1`, id, hash(manifestRaw), manifestRaw); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = e.Claim(ctx, req.ID); err != nil {
+	if _, _, err = e.VerifyBundle(ctx, id); err != nil {
+		t.Fatal("restored fixture metadata invalid before corruption", err)
+	}
+	if err = os.WriteFile(filepath.Join(dir, "outputs.tar"), []byte("tampered"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	candidate, err := e.PrepareCandidate(ctx, req.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer e.DB.Exec(context.Background(), `DROP DATABASE `+quote(candidate)+` WITH(FORCE)`)
-	if !strings.HasPrefix(candidate, "media_tool_restore_") {
-		t.Fatal(candidate)
-	}
-	e.Finish(ctx, req.ID, "isolated offline clone only", false)
-	var revision int64
-	e.DB.QueryRow(ctx, `SELECT revision FROM ops_mode WHERE singleton`).Scan(&revision)
-	e.Resume(ctx, revision)
-	// Any archive mutation blocks verify/restore; never trust a DB state label alone.
-	os.WriteFile(filepath.Join(dir, "outputs.tar"), []byte("tampered"), 0600)
 	if _, _, err = e.VerifyBundle(ctx, id); err == nil {
 		t.Fatal("corrupt archive accepted")
 	}
-	_ = json.Valid
 }
+
 func quote(s string) string { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
 
-func TestOfflineDatabaseRenameIsAtomicAndRetainsOldDatabase(t *testing.T) {
+// Schema names exercise transactional swap/retention without a forbidden
+// additional database. The owner's DATABASE SQL plan has separate contract tests.
+func TestOfflineSchemaSwapIsAtomicAndRetainsOriginalFixture(t *testing.T) {
 	e := fixture(t)
 	ctx := context.Background()
-	a := "media_tool_restore_" + stripID(newID())[:12]
-	b := "media_tool_restore_" + stripID(newID())[:12]
-	old := "media_tool_before_" + stripID(newID())[:12]
+	a := "q5a_" + stripID(newID())
+	b := "q5b_" + stripID(newID())
+	old := "q5old_" + stripID(newID())
 	for _, name := range []string{a, b} {
-		if _, err := e.DB.Exec(ctx, `CREATE DATABASE `+quote(name)+` TEMPLATE template0`); err != nil {
+		if _, err := e.DB.Exec(ctx, "CREATE SCHEMA "+quote(name)); err != nil {
 			t.Fatal(err)
 		}
 	}
 	defer func() {
 		for _, name := range []string{a, b, old} {
-			e.DB.Exec(context.Background(), `DROP DATABASE IF EXISTS `+quote(name)+` WITH(FORCE)`)
+			if _, err := e.DB.Exec(ctx, "DROP SCHEMA IF EXISTS "+quote(name)+" CASCADE"); err != nil {
+				t.Error(err)
+			}
 		}
 	}()
-	if _, err := e.DB.Exec(ctx, `BEGIN;ALTER DATABASE `+quote(a)+` RENAME TO `+quote(old)+`;ALTER DATABASE `+quote(b)+` RENAME TO `+quote(a)+`;COMMIT;`); err != nil {
+	if _, err := e.DB.Exec(ctx, "CREATE TABLE "+quote(a)+".proof(value int);INSERT INTO "+quote(a)+".proof VALUES(71)"); err != nil {
 		t.Fatal(err)
 	}
-	var count int
-	e.DB.QueryRow(ctx, `SELECT count(*)FROM pg_database WHERE datname IN($1,$2)`, a, old).Scan(&count)
-	if count != 2 {
-		t.Fatal("original database was not retained")
+	if _, err := e.DB.Exec(ctx, "BEGIN;ALTER SCHEMA "+quote(a)+" RENAME TO "+quote(old)+";ALTER SCHEMA "+quote(b)+" RENAME TO "+quote(a)+";COMMIT;"); err != nil {
+		t.Fatal(err)
+	}
+	var proof int
+	if err := e.DB.QueryRow(ctx, "SELECT value FROM "+quote(old)+".proof").Scan(&proof); err != nil || proof != 71 {
+		t.Fatal("original fixture was not retained", err)
 	}
 }

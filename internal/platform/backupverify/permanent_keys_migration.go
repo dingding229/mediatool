@@ -7,7 +7,7 @@ import (
 
 // Only expiry removal is authorized by v49. ID, token/cipher/digest, permissions,
 // revocation and audit usage must retain their exact bytes.
-func permanentKeysProjection(ctx context.Context, db querier, baseline map[string]Table) (map[string]Table, error) {
+func permanentKeysProjection(ctx context.Context, db Querier, baseline map[string]Table) (map[string]Table, error) {
 	old, ok := baseline["external_api_keys"]
 	if !ok {
 		return nil, nil

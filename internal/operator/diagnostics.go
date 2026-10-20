@@ -61,14 +61,14 @@ type diagnostic struct {
 	Agent     string
 }
 
-func (d diagnostic) request(ctx context.Context, raw, method string, body any, h http.Header) (int, http.Header, []byte, error) {
+func (d diagnostic) response(ctx context.Context, raw, method string, body any, h http.Header) (*http.Response, error) {
 	var reader io.Reader
 	if body != nil {
 		reader = bytes.NewReader(jsonBytes(body))
 	}
 	r, e := http.NewRequestWithContext(ctx, method, raw, reader)
 	if e != nil {
-		return 0, nil, nil, errors.New("invalid owned request")
+		return nil, errors.New("invalid owned request")
 	}
 	r.Header = h.Clone()
 	if r.Header == nil {
@@ -78,7 +78,10 @@ func (d diagnostic) request(ctx context.Context, raw, method string, body any, h
 	if body != nil {
 		r.Header.Set("Content-Type", "application/json")
 	}
-	res, e := d.HTTP.Do(r)
+	return d.HTTP.Do(r)
+}
+func (d diagnostic) request(ctx context.Context, raw, method string, body any, h http.Header) (int, http.Header, []byte, error) {
+	res, e := d.response(ctx, raw, method, body, h)
 	if e != nil {
 		return 0, nil, nil, errors.New("owned diagnostic request failed")
 	}
@@ -101,16 +104,7 @@ func (d diagnostic) api(ctx context.Context, base, path, method string, body any
 // Resolver must emit 302, never relay. CDN gets only UA/Range, never cookies or
 // user/admin tokens; public DNS is checked again at the pinned transport dial.
 func (d diagnostic) resolver(ctx context.Context, raw, method string, h http.Header) (int, http.Header, error) {
-	r, e := http.NewRequestWithContext(ctx, method, raw, nil)
-	if e != nil {
-		return 0, nil, e
-	}
-	r.Header = h.Clone()
-	if r.Header == nil {
-		r.Header = http.Header{}
-	}
-	r.Header.Set("User-Agent", d.Agent)
-	res, e := d.HTTP.Do(r)
+	res, e := d.response(ctx, raw, method, nil, h)
 	if e != nil {
 		return 0, nil, errors.New("resolver unavailable")
 	}

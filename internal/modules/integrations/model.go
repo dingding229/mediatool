@@ -15,6 +15,7 @@ import (
 var ErrNotFound = errors.New("integration not found")
 var ErrConflict = errors.New("another enabled integration exists for this kind")
 var ErrRevision = errors.New("integration changed; reload before saving")
+var ErrProbeRecord = errors.New("configuration saved but validation receipt unavailable; refresh before retry")
 var ErrUnavailable = errors.New("integration storage unavailable")
 var ErrInvalid = errors.New("invalid integration settings")
 

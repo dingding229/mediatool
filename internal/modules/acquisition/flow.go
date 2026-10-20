@@ -1,18 +1,39 @@
 package acquisition
 
-import "media-tool/internal/platform/flow"
+import (
+	"fmt"
+	"media-tool/internal/platform/flow"
+	"strings"
+)
 
+type downloadStage struct{ state, phase, prefix string }
+
+var downloadRetryStages = []downloadStage{{"pending", "download", "download.add:"}, {"strm_ready", "emby_refresh", "emby.refresh:"}, {"refresh_requested", "emby_verify", "emby.confirm:"}}
+
+func retryStage(state string) (downloadStage, bool) {
+	for _, v := range downloadRetryStages {
+		if v.state == state {
+			return v, true
+		}
+	}
+	return downloadStage{}, false
+}
 func DownloadRetryKey(state, id string) string {
-	switch state {
-	case "pending":
-		return "download.add:" + id
-	case "strm_ready":
-		return "emby.refresh:" + id
-	case "refresh_requested":
-		return "emby.confirm:" + id
+	if v, ok := retryStage(state); ok {
+		return v.prefix + id
 	}
 	return ""
 }
+
+// Built only from the private stage catalog, never from request strings.
+var downloadRetryCase = func() string {
+	parts := []string{"CASE d.download_state"}
+	for _, v := range downloadRetryStages {
+		parts = append(parts, fmt.Sprintf(" WHEN '%s' THEN '%s'||d.id::text", v.state, v.prefix))
+	}
+	return strings.Join(parts, "") + " END"
+}()
+
 func retryFlow(phase, job string) flow.Status {
 	out := flow.Status{Phase: phase, NextAction: "wait", Reason: "job_active"}
 	switch job {
@@ -39,13 +60,10 @@ func DownloadFlow(state string, sourceRequired bool, job string) flow.Status {
 	if sourceRequired {
 		return flow.Status{Phase: "download", NextAction: "preview_source", Reason: "source_reconfirm_required"}
 	}
+	if v, ok := retryStage(state); ok {
+		return retryFlow(v.phase, job)
+	}
 	switch state {
-	case "pending":
-		return retryFlow("download", job)
-	case "strm_ready":
-		return retryFlow("emby_refresh", job)
-	case "refresh_requested":
-		return retryFlow("emby_verify", job)
 	case "imported":
 		return flow.Status{Phase: "complete", NextAction: "none", Reason: "emby_visible"}
 	case "local_complete":

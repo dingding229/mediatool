@@ -144,10 +144,29 @@ func (m *Manager) Test(ctx context.Context, id string) (CheckResult, error) {
 	if err != nil {
 		return result, err
 	}
-	if err = m.Repository.RecordCheck(ctx, id, c.Record.Revision, result.State, result.Message); err != nil {
+	if err = m.RecordProbe(ctx, c.Record, result); err != nil {
 		return CheckResult{}, ErrUnavailable
 	}
 	return result, nil
+}
+
+// RecordProbe is revision-fenced; success never enables a connection.
+func (m *Manager) RecordProbe(ctx context.Context, r Record, result CheckResult) error {
+	return m.Repository.RecordCheck(ctx, r.ID, r.Revision, result.State, result.Message)
+}
+func (m *Manager) SaveProbed(ctx context.Context, id string, in Input, result *CheckResult) (Record, error) {
+	record, e := m.Repository.Save(ctx, id, in)
+	if e != nil || result == nil {
+		return record, e
+	}
+	if e = m.RecordProbe(ctx, record, *result); e != nil {
+		return record, ErrProbeRecord
+	}
+	saved, e := m.Repository.Get(ctx, record.ID)
+	if e != nil {
+		return record, ErrProbeRecord
+	}
+	return saved.Record, nil
 }
 
 // ProbeCredentials validates prospective credentials before saving them.

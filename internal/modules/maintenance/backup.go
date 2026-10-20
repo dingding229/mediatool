@@ -14,13 +14,11 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/platform/backupverify"
-	"media-tool/internal/platform/database"
 )
 
 type Command func(context.Context, string, []string, []string, io.Reader, io.Writer) error
@@ -440,64 +438,12 @@ func (e Engine) Drill(ctx context.Context, id string) (err error) {
 	if err != nil {
 		return err
 	}
-	clone, err := database.Open(ctx, dsn)
-	if err != nil {
-		return err
-	}
-	defer clone.Close()
-	actual, err := Inventory(ctx, clone)
-	if err != nil {
-		return err
-	}
-	if !sameTables(m.Tables, actual) {
-		return errors.New("克隆库与备份表摘要不一致")
-	}
-	verification, verifyErr := backupverify.Verify(ctx, clone, dsn, name, e.Key, false)
+	verification, verifyErr := e.verifyRestored(ctx, dsn, name, m, false)
 	evidence["verification"] = verification
-	err = verifyErr
-	return err
+	return verifyErr
 }
-func Inventory(ctx context.Context, db interface {
-	Query(context.Context, string, ...any) (pgx.Rows, error)
-	QueryRow(context.Context, string, ...any) pgx.Row
-}) (map[string]backupverify.Table, error) {
-	rows, err := db.Query(ctx, `SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' ORDER BY table_name,ordinal_position`)
-	if err != nil {
-		return nil, err
-	}
-	cols := map[string][]string{}
-	for rows.Next() {
-		var t, c string
-		if err = rows.Scan(&t, &c); err != nil {
-			break
-		}
-		cols[t] = append(cols[t], c)
-	}
-	rows.Close()
-	if err != nil {
-		return nil, err
-	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
-	out := map[string]backupverify.Table{}
-	names := []string{}
-	for name := range cols {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		parts := []string{}
-		for _, c := range cols[name] {
-			parts = append(parts, pgx.Identifier{c}.Sanitize())
-		}
-		v := backupverify.Table{Columns: cols[name]}
-		if err = db.QueryRow(ctx, `SELECT count(*),coalesce(md5(string_agg(to_jsonb(t)::text,E'\n' ORDER BY to_jsonb(t)::text)),md5('')) FROM (SELECT `+strings.Join(parts, ",")+` FROM `+pgx.Identifier{name}.Sanitize()+`)t`).Scan(&v.Rows, &v.Digest); err != nil {
-			return nil, err
-		}
-		out[name] = v
-	}
-	return out, nil
+func Inventory(ctx context.Context, db backupverify.Querier) (map[string]backupverify.Table, error) {
+	return backupverify.Inventory(ctx, db, nil)
 }
 func sameTables(a, b map[string]backupverify.Table) bool {
 	if len(a) != len(b) {

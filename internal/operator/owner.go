@@ -369,12 +369,15 @@ func (o *owner) execute(id string) (receipt map[string]any) {
 		}
 		before := "media_tool_before_" + strings.ReplaceAll(id, "-", "")[:12]
 		o.write(filepath.Join(dir, "candidate.json"), map[string]string{"candidateDatabase": v.CandidateDatabase, "oldDatabaseRetained": before, "liveDatabase": name})
-		quote := func(s string) string { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
 		literal := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
 		o.sql("SELECT pg_terminate_backend(pid)FROM pg_stat_activity WHERE backend_type='client backend'AND datname IN("+literal(name)+","+literal(v.CandidateDatabase)+")AND pid<>pg_backend_pid()", "postgres")
 		if o.err == nil {
 			switched = true
-			o.sql("BEGIN;ALTER DATABASE "+quote(name)+" RENAME TO "+quote(before)+";ALTER DATABASE "+quote(v.CandidateDatabase)+" RENAME TO "+quote(name)+";COMMIT;", "postgres")
+			plan, err := databaseSwapSQL(name, v.CandidateDatabase, before)
+			o.fail(err)
+			if err == nil {
+				o.sql(plan, "postgres")
+			}
 		}
 	}
 	next, e := ReplaceImage(string(old), "dingding229/mediatool@"+release.Digest)
@@ -452,4 +455,12 @@ func (o *owner) hostEnvironment(dir string) []string {
 		out = append(out, k+"="+v)
 	}
 	return out
+}
+
+func databaseSwapSQL(current, next, previous string) (string, error) {
+	if current == "" || len(current) > 63 || strings.ContainsAny(current, "\x00\r\n") || current == "postgres" || strings.HasPrefix(current, "template") || current == next || current == previous || !candidate.MatchString(next) || !strings.HasPrefix(previous, "media_tool_before_") || !candidate.MatchString(strings.Replace(previous, "media_tool_before_", "media_tool_restore_", 1)) {
+		return "", errors.New("unsafe database swap plan")
+	}
+	quote := func(v string) string { return `"` + strings.ReplaceAll(v, `"`, `""`) + `"` }
+	return "BEGIN;ALTER DATABASE " + quote(current) + " RENAME TO " + quote(previous) + ";ALTER DATABASE " + quote(next) + " RENAME TO " + quote(current) + ";COMMIT;", nil
 }

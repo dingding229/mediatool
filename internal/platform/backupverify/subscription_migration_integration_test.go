@@ -29,7 +29,7 @@ func TestPostgresAuthorizedSubscriptionProjectionStillDetectsIdentityAndSafetyRu
 		t.Fatal(err)
 	}
 	defer db.Exec(ctx, `DELETE FROM subscriptions WHERE id=$1`, id)
-	baseline, err := inventory(ctx, db, nil)
+	baseline, err := Inventory(ctx, db, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

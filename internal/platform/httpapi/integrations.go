@@ -126,20 +126,14 @@ func (a *API) saveIntegration(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	record, err := a.Deps.Integrations.Repository.Save(ctx, id, in)
+	var probe *integrations.CheckResult
+	if !draft {
+		probe = &result
+	}
+	record, err := a.Deps.Integrations.SaveProbed(ctx, id, in, probe)
 	if err != nil {
 		integrationError(w, err)
 		return
-	}
-	if !draft {
-		if err = a.Deps.Integrations.Repository.RecordCheck(ctx, record.ID, record.Revision, result.State, result.Message); err != nil {
-			fail(w, 503, "validation_record_failed", "配置已保存但验证结果记录失败，请刷新核对")
-			return
-		}
-		current, err := a.Deps.Integrations.Repository.Get(ctx, record.ID)
-		if err == nil {
-			record = current.Record
-		}
 	}
 	status := 200
 	if id == "" {
@@ -172,6 +166,8 @@ func (a *API) testIntegration(w http.ResponseWriter, r *http.Request) {
 }
 func integrationError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, integrations.ErrProbeRecord):
+		fail(w, 503, "validation_record_failed", "配置已保存但验证结果记录失败，请刷新核对")
 	case errors.Is(err, integrations.ErrNotFound):
 		fail(w, 404, "integration_not_found", "连接不存在")
 	case errors.Is(err, integrations.ErrConflict):
