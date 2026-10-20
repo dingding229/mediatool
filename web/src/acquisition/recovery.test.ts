@@ -1,6 +1,6 @@
 import {afterEach,expect,it,vi} from 'vitest'
 import SourceRecovery from './SourceRecoveryDialog.vue'
-import OutputRecovery from './OutputRecoveryDialog.vue'
+import OutputRecovery from '../workflows/OutputRecoveryDialog.vue'
 import {request} from '../api/client'
 import {setupComponent,deferred} from '../test/setup-component'
 vi.mock('../api/client',async original=>({...await original<typeof import('../api/client')>(),request:vi.fn(),post:vi.fn()}))

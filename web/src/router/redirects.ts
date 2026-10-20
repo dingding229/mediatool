@@ -6,7 +6,7 @@ export const legacyDestinations: Record<string, { path: string; tab: string; que
   '/media-server': { path: '/playback', tab: 'settings' },
   '/media-users': { path: '/playback', tab: 'users' },
   '/player-access': { path: '/playback', tab: 'players' },
-  '/cloudStorage': { path: '/organize', tab: 'library' },
+  '/cloudStorage': { path: '/organize', tab: 'candidates' },
   '/organize-history': { path: '/organize', tab: 'history' },
   '/classification': { path: '/settings', tab: 'classification' },
   '/cloud-connections': { path: '/connections', tab: 'storage' },
@@ -25,10 +25,11 @@ export const legacyDestinations: Record<string, { path: string; tab: string; que
 }
 export function legacyLocation(path: string, to: Pick<RouteLocationNormalized, 'query' | 'hash'>): RouteLocationRaw {
   const target = legacyDestinations[path]!
-  return { path: target.path, query: { ...target.query, ...to.query, tab: target.tab }, hash: to.hash }
+  return { path: target.path, query: { ...target.query, ...to.query, tab: path === '/cloudStorage' && to.query.assetId ? 'assets' : target.tab }, hash: to.hash }
 }
 export function normalizePageLocation(to: Pick<RouteLocationNormalized, 'path' | 'query' | 'hash'>): RouteLocationRaw | undefined {
   if ((to.path === '/settings' && (['tmdb','proxy'].includes(String(to.query.section)) || ['tmdb','proxy'].includes(String(to.query.tab)))) || (['/library','/settings'].includes(to.path) && to.query.connectionKind === 'emby')) return { path: '/connections', query: { ...to.query, tab: to.query.connectionKind === 'emby' ? 'emby' : 'aux' }, hash: to.hash }
+  if (to.path === '/organize' && (to.query.tab === 'library' || !to.query.tab && to.query.assetId)) return {path:'/organize',query:{...to.query,tab:to.query.assetId?'assets':'candidates'},hash:to.hash,replace:true}
   const page = primaryPages.find(page => to.path === `/${page.id}`)
   if (!page?.tabs[0]?.id) return
   const query = { ...to.query }, tab = typeof query.tab === 'string' ? query.tab : ''

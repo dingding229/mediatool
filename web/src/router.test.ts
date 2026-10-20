@@ -6,7 +6,7 @@ import { primaryPages, settingsSections } from './navigation/pages'
 function getRouter() { const router = createRouter({ history: createMemoryHistory(), routes }); installPageRedirects(router); return router }
 const legacy = [
   ['/emby','/connections','emby'], ['/mediaLibrary','/library','browse'], ['/media-server','/playback','settings'],
-  ['/media-users','/playback','users'], ['/player-access','/playback','players'], ['/cloudStorage','/organize','library'],
+  ['/media-users','/playback','users'], ['/player-access','/playback','players'], ['/cloudStorage','/organize','assets'],
   ['/organize-history','/organize','history'], ['/classification','/settings','classification'], ['/cloud-connections','/connections','storage'],
   ['/strm','/files','strm'], ['/strm-tools','/files','tools'], ['/maintenance','/ops','maintenance'], ['/jobs','/ops','jobs'],
   ['/logs','/ops','logs'], ['/data','/ops','data'], ['/notifications','/connections','notifications'], ['/integrations','/connections','overview'],
@@ -28,3 +28,5 @@ describe('canonical workflow routing', () => {
 })
 
 it.each(["tmdb","proxy"])("moves old settings section %s to connections aux",async section=>{const r=getRouter();await r.push(`/settings?tab=general&section=${section}&keep=yes`);expect(r.currentRoute.value.path).toBe("/connections");expect(r.currentRoute.value.query).toMatchObject({tab:"aux",keep:"yes"});await r.push(`/settings?tab=${section}`);expect(r.currentRoute.value.path).toBe("/connections")})
+
+it.each(['/cloudStorage','/organize?tab=library','/organize'])('organize legacy entry %s preserves asset links and canonical tabs',async from=>{const r=getRouter();await r.push(from+(from.includes('?')?'&':'?')+'assetId=owned&keep=yes');expect(r.currentRoute.value.query).toMatchObject({tab:'assets',assetId:'owned',keep:'yes'});await r.push('/cloudStorage');expect(r.currentRoute.value.query.tab).toBe('candidates')})

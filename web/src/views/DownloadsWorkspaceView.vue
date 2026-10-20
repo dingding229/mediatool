@@ -9,7 +9,7 @@ import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import ConnectionManager from '../connections/ConnectionManager.vue';
-import OutputRecoveryDialog from '../acquisition/OutputRecoveryDialog.vue';
+import OutputRecoveryDialog from '../workflows/OutputRecoveryDialog.vue';
 import SourceRecoveryDialog from '../acquisition/SourceRecoveryDialog.vue';
 import ManualWorkspace from '../acquisition/ManualWorkspace.vue';
 import { useDownloads } from '../acquisition/useDownloads';
