@@ -6,13 +6,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
-	"github.com/robfig/cron/v3"
-	"golang.org/x/sync/errgroup"
 	"io"
 	"log/slog"
 	"media-tool/internal/adapters/clouddrive2"
+	"media-tool/internal/appcli"
 	"media-tool/internal/modules/acquisition"
 	sourcecatalog "media-tool/internal/modules/catalog"
 	"media-tool/internal/modules/filemanager"
@@ -55,11 +52,37 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
+	"github.com/robfig/cron/v3"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
+	if handled, e := appcli.Dispatch(os.Args[1:]); handled {
+		if e != nil {
+			fmt.Fprintln(os.Stderr, e)
+			os.Exit(2)
+		}
+		return
+	}
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "server", "worker", "healthcheck", "strm", "account-info":
+			os.Args = append([]string{os.Args[0], "-role", os.Args[1]}, os.Args[2:]...)
+		case "plugin-worker":
+		default:
+			if !strings.HasPrefix(os.Args[1], "-") {
+				fmt.Fprintln(os.Stderr, "unknown command; see docs/CLI_REFERENCE.md")
+				os.Exit(2)
+			}
+		}
+	}
+
 	if err := sandbox.Parent(); err != nil {
 		fmt.Fprintln(os.Stderr, "process protection unavailable")
 		os.Exit(1)

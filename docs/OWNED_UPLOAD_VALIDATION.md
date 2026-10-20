@@ -19,7 +19,7 @@
 
 ## 可重复的维护工具
 
-`cmd/cloud-upload-smoke`是本地操作者维护入口，镜像包含`/app/cloud-upload-smoke`，不是对公网开放的上传API。
+`media-tool diagnose cloud-upload`是本地操作者维护入口，镜像包含`/app/media-tool diagnose cloud-upload`，不是对公网开放的上传API。
 
 限制：
 
@@ -37,7 +37,7 @@
 # /private/path/upload-check/source/Owned-Test-5s.mp4 是只读输入。
 docker compose --env-file .env -f deploy/compose.yaml run --rm --no-deps -T \
   -v /private/path/upload-check:/diagnostic \
-  --entrypoint /app/cloud-upload-smoke server \
+  --entrypoint /app/media-tool app diagnose cloud-upload \
   -source /diagnostic/source/Owned-Test-5s.mp4 \
   -report /diagnostic/upload.json -write-confirmed
 ```

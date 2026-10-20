@@ -11,8 +11,8 @@ examples/plugins。hello-go 是持续演进的真实 worker/框架验收插件�
    init函数及非纯顶级求值，不能在import时创建实例。
 2. 使用SDK测试工具跑单元、mock Host、真实Go二进制stdio golden；插件仓库CI vet/test/race。
 3. 推送 `dingding229/mediatool-plugin`；主程序精确bump伪版本（不使用replace作为发布证据）。
-4. `go run ./cmd/plugin-check` 审计registry全部非标准库传递依赖的初始化。
-   `go run ./cmd/plugin-assets` 从固定pin导出本地只读资源清单；`--check`用于CI。
+4. `go run ./cmd/media-tool-dev plugins check` 审计registry全部非标准库传递依赖的初始化。
+   `go run ./cmd/media-tool-dev plugins assets` 从固定pin导出本地只读资源清单；`--check`用于CI。
 5. 主程序按标准Actions→Hub不可变镜像流程发布。运行时无编译器、包下载器、外部市场。
 
 所有Go构建使用CGO_ENABLED=0的linux/amd64；同一app以plugin-worker子命令执行。

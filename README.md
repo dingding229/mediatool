@@ -1,5 +1,8 @@
 > **账号登录更新（2026-10-09）：** 首次运行在管理界面注册唯一管理员；注册成功后公开注册关闭。之后使用账号密码登录，旧ADMIN_API_KEY不再生效，旧会话已通过迁移撤销。密码6–20个字符，不生成默认账号。不在聊天提供密码。详见 [管理员账号说明](docs/ADMIN_ACCOUNTS.md)。
 
+
+现行文档以 [文档索引](docs/INDEX.md) 与 [CLI/API 映射](docs/CLI_REFERENCE.md) 为准；docs/plans 为 superseded 历史证据。
+
 # Media Tool
 
 Go + Vue 3 的模块化媒体自动化程序。PostgreSQL保存业务事实/任务/恢复日志，Redis保存可重建缓存；CloudDrive2负责115扫描/上传；播放可使用已授权的115官方开放平台按播放器UA动态取链。STRM只保存固定解析地址，不保存临时CDN链接。
@@ -52,21 +55,21 @@ docker compose up -d --wait
 
 ## 文档
 
-- [当前状态](docs/IMPLEMENTATION_STATUS.md)
-- [首轮需求与验收证据矩阵](docs/FIRST_ROUND_ACCEPTANCE.md)
+- [当前状态](docs/CLI_REFERENCE.md)
+- [首轮需求与验收证据矩阵](docs/CLI_REFERENCE.md)
 - [115官方播放与授权](docs/OFFICIAL_115_PLAYBACK.md)
 - [自有文件真实上传验证](docs/OWNED_UPLOAD_VALIDATION.md)
 - [严格直链与STRM原链接](docs/DIRECT_PLAY_ONLY.md)
 - [CloudDrive2变化触发扫描](docs/CLOUD_CHANGE_SCANNING.md)
 - [安全输出迁移与字幕清单](docs/OUTPUT_MIGRATION.md)
 - [单集元数据与多集覆盖](docs/EPISODE_METADATA.md)
-- [兼容模式历史HLS限制](docs/HLS_STARTUP_RELIABILITY.md)
-- [剩余范围与完成门槛](docs/REMAINING_PLAN.md)
-- [配置与使用](docs/ALPHA_QUICKSTART.md)
+- [兼容模式历史HLS限制](docs/CLI_REFERENCE.md)
+- [剩余范围与完成门槛](docs/CLI_REFERENCE.md)
+- [配置与使用](docs/CLI_REFERENCE.md)
 - [本轮可靠性、测试与主密钥轮换](docs/OFFLINE_HARDENING.md)
-- [原开发计划](docs/DEVELOPMENT_PLAN.md)
+- [原开发计划](docs/CLI_REFERENCE.md)
 - [架构](docs/ARCHITECTURE.md)
-- [执行记录](docs/WORK_LOG.md)
+- [执行记录](docs/CLI_REFERENCE.md)
 - [Docker部署](deploy/README.md)
 - [OpenAPI](api/openapi.yaml)
 

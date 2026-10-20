@@ -46,7 +46,7 @@ func backupVerify(root, archive string) (err error) {
 			return e
 		}
 		archive = filepath.Join(dir, "media-tool-"+time.Now().UTC().Format("20060102T150405Z")+"-"+nonce+".dump")
-		args := append(append([]string{}, o.base...), "exec", "-T", "app", "/app/backup-verify", "-source-snapshot")
+		args := append(append([]string{}, o.base...), "exec", "-T", "app", "/app/media-tool", "backup", "verify", "-source-snapshot")
 		exporter := exec.CommandContext(ctx, args[0], args[1:]...)
 		exporter.Dir = root
 		stdin, e := exporter.StdinPipe()
@@ -134,7 +134,7 @@ func backupVerify(root, archive string) (err error) {
 	if e = restore.Run(); e != nil {
 		return errors.New("private clone restore failed")
 	}
-	raw := o.docker("exec", "-T", "-e", "BACKUP_VERIFY_DB="+clone, "app", "/app/backup-verify", "-database", clone)
+	raw := o.docker("exec", "-T", "-e", "BACKUP_VERIFY_DB="+clone, "app", "/app/media-tool", "backup", "verify", "-database", clone)
 	if o.err != nil {
 		return o.err
 	}
@@ -150,7 +150,11 @@ func backupVerify(root, archive string) (err error) {
 		return o.err
 	}
 	created = false
-	receipt := map[string]any{"archive": archive, "sha256": hex.EncodeToString(h.Sum(nil)), "permissions": "0600", "sourceSnapshotMatched": source != nil, "existingBaselineArchive": source == nil, "restoreDatabaseWasTemporary": true, "temporaryDatabaseDeleted": true, "credentialsMasterKeyIncluded": false, "restored": verified}
+	var matched any
+	if source != nil {
+		matched = true
+	}
+	receipt := map[string]any{"archive": archive, "sha256": hex.EncodeToString(h.Sum(nil)), "permissions": "0600", "sourceSnapshotMatched": matched, "existingBaselineArchive": source == nil, "restoreDatabaseWasTemporary": true, "temporaryDatabaseDeleted": true, "credentialsMasterKeyIncluded": false, "restored": verified}
 	dir := filepath.Join(root, "data/diagnostics")
 	if e = os.MkdirAll(dir, 0700); e != nil {
 		return e

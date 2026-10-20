@@ -20,7 +20,7 @@
 
 ## 只读诊断
 
-镜像提供`/app/cloud-events-check -duration 5s`。读取本项目加密保存的主CloudDrive2连接，仅短时间观察PushMessage；不写事件、不创建扫描、不修改媒体。输出仅窗口、是否收到响应帧、范围内提示数量和固定结果分类，没有原始路径/凭据/提供方日志。无真实受控文件变化时realFileChangeDeliveryVerified仍false。
+镜像提供`/app/media-tool diagnose cloud-events -duration 5s`。读取本项目加密保存的主CloudDrive2连接，仅短时间观察PushMessage；不写事件、不创建扫描、不修改媒体。输出仅窗口、是否收到响应帧、范围内提示数量和固定结果分类，没有原始路径/凭据/提供方日志。无真实受控文件变化时realFileChangeDeliveryVerified仍false。
 
 ## 验证
 

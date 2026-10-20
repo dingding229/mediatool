@@ -10,7 +10,7 @@
 
 卡片显示英文名称、独立模板版本号、真实内置ICO与官网链接；同源提供静态图标，不再浏览器直取外站。当前六站为v1.1.1；模板版本号和内部Snapshot格式版本2是不同概念。不显示仓库来源/提交；新建账号下拉仅包含已加载模板。
 
-CLI：`go run ./cmd/site-template-sync -ids hdsky,ssd` 加载明确ID；无`-ids`时仅刷新已加载项。
+CLI：`go run ./cmd/media-tool sites sync -ids hdsky,ssd` 加载明确ID；无`-ids`时仅刷新已加载项。
 
 ## PT账号
 

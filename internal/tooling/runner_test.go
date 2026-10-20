@@ -66,7 +66,7 @@ if [[ "$1" == build ]];then while [[ "$#" -gt 0 ]];do if [[ "$1" == -o ]];then s
 			for _, l := range lines {
 				has(t, l, "/media_tool_test|redis://localhost/15|")
 			}
-			has(t, string(raw), "run ./cmd/migrate -test-only -action up -cleanup-test-plugins")
+			has(t, string(raw), "run ./cmd/media-tool migrate -test-only -action up -cleanup-test-plugins")
 			expected := "test -p 1 -race -count=1 "
 			if tt.media {
 				expected += "-v "

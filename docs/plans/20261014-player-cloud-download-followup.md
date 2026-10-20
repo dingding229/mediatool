@@ -1,3 +1,5 @@
+> **superseded（历史阶段记录）**：不是当前操作指令。当前入口、部署与测试约束见 [CLI/API 映射](../CLI_REFERENCE.md) 和 [文档索引](../INDEX.md)；保留原审计时事实，不作现版本已完成/已部署的证据。
+
 # 播放访问、云盘批量整理与下载进度更新计划
 
 日期：2026-10-14。基线：93ecda9。沿用 Go / Vue、PostgreSQL / Redis、单 Compose 三服务架构。

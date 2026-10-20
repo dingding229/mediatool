@@ -138,7 +138,7 @@ func TestCloneVerificationOnlyDeletesItsFreshOwnedDatabase(t *testing.T) {
 			if restoreFails {
 				fail = "1"
 			}
-			script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + shellQuote(record) + "\ncase \"$*\" in\n*'config --services'*) printf 'app\\npostgres\\nredis\\n';;\n*'ps -q app'*) echo fixture-app;;\n*'ps -q postgres'*) echo fixture-postgres;;\n'inspect fixture-app') printf '%s' " + shellQuote(appJSON) + ";;\n'inspect fixture-postgres') printf '%s' " + shellQuote(pgJSON) + ";;\n*'pg_restore --exit-on-error'*) cat >/dev/null;exit " + fail + ";;\n*'backup-verify -database'*) printf '%s' '{\"initialTables\":{}}';;\nesac\n"
+			script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + shellQuote(record) + "\ncase \"$*\" in\n*'config --services'*) printf 'app\\npostgres\\nredis\\n';;\n*'ps -q app'*) echo fixture-app;;\n*'ps -q postgres'*) echo fixture-postgres;;\n'inspect fixture-app') printf '%s' " + shellQuote(appJSON) + ";;\n'inspect fixture-postgres') printf '%s' " + shellQuote(pgJSON) + ";;\n*'pg_restore --exit-on-error'*) cat >/dev/null;exit " + fail + ";;\n*'backup verify -database'*) printf '%s' '{\"initialTables\":{}}';;\nesac\n"
 			os.WriteFile(filepath.Join(bin, "docker"), []byte(script), 0700)
 			t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
 			e := backupVerify(r, archive)
@@ -155,5 +155,23 @@ func TestCloneVerificationOnlyDeletesItsFreshOwnedDatabase(t *testing.T) {
 				t.Fatal("backup deleted")
 			}
 		})
+	}
+}
+
+func TestInteractivePasswordPreservesSpacesAndUnicode(t *testing.T) {
+	for _, s := range []string{"with spaces", " 空格密碼 ", "single"} {
+		got, e := readPassword(strings.NewReader(s + "\r\n"))
+		if e != nil || got != s {
+			t.Fatal("password changed", e)
+		}
+	}
+}
+func TestSchemaLabelMustRemainDecimal(t *testing.T) {
+	for _, v := range []string{"+65", "-65", "65 ", "0x41"} {
+		i := fixtureImage()
+		i.Config.Labels["org.opencontainers.image.schema"] = v
+		if _, e := CheckImage("dingding229/mediatool:sha-"+strings.Repeat("a", 40), i); e == nil {
+			t.Fatal(v)
+		}
 	}
 }

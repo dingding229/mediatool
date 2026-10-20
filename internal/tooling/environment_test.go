@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"media-tool/internal/platform/auth"
 	"net/url"
 	"os"
 	"os/exec"
@@ -172,7 +173,7 @@ func has(t *testing.T, s string, terms ...string) {
 func TestNativeMediaAndPluginCIPolicies(t *testing.T) {
 	w := source(t, ".github/workflows/build.yml")
 	verify := strings.Split(strings.Split(w, "  verify:")[1], "  publish:")[0]
-	has(t, verify, "sudo apt-get install -y ffmpeg", "go test -race -count=3 -v ./internal/modules/mediaprobe/...", `MEDIA_TOOL_REQUIRE_FFMPEG: "1"`, "bash scripts/test-go.sh", "bash scripts/test-plugin-kernel.sh", "go run ./cmd/plugin-check", "go run ./cmd/plugin-assets --check", "-ignoretests ./cmd/... ./internal/... ./migrations/... ./tests/...")
+	has(t, verify, "sudo apt-get install -y ffmpeg", "go test -race -count=3 -v ./internal/modules/mediaprobe/...", `MEDIA_TOOL_REQUIRE_FFMPEG: "1"`, "bash scripts/test-go.sh", "bash scripts/test-plugin-kernel.sh", "go run ./cmd/media-tool-dev plugins check", "go run ./cmd/media-tool-dev plugins assets --check", "-ignoretests ./cmd/... ./internal/... ./migrations/... ./tests/...")
 	if strings.Index(verify, "sudo apt-get install") > strings.Index(verify, "bash scripts/test-go.sh") {
 		t.Fatal("tools installed too late")
 	}
@@ -259,5 +260,23 @@ func TestTestLockSerializesSeparateProcesses(t *testing.T) {
 		if e := <-errs; e != nil {
 			t.Fatal("lock overlapped", e)
 		}
+	}
+}
+
+func TestFixturePasswordIsNotAnApplicationKeyAndKeepsProductPolicy(t *testing.T) {
+	a, e := FixturePassword()
+	if e != nil {
+		t.Fatal(e)
+	}
+	b, e := FixturePassword()
+	if e != nil || a == b || len(a) != 16 {
+		t.Fatal("invalid fixture entropy/length")
+	}
+	if e = auth.ValidatePassword(a); e != nil {
+		t.Fatal("fixture violates existing password policy", e)
+	}
+	key, _ := Token()
+	if len(key) != 64 {
+		t.Fatal("application keys were shortened")
 	}
 }

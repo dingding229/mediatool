@@ -39,13 +39,13 @@
 3. 在已加载DATABASE_URL的环境运行：
 
 ```bash
-bash scripts/load-env.sh go run ./cmd/admin-reset \
+bash scripts/load-env.sh go run ./cmd/media-tool admin reset \
   --username '<已注册账号>' \
   --password-file '/private/path/new-password.txt' \
   --offline-confirmed
 ```
 
-容器中工具位于`/app/admin-reset`，可按已有Compose数据库网络运行；新密码文件只读挂载，使用能读取0600文件的正确UID/GID。成功后启动原部署组合。结果未知时先核对，不盲目重复操作。工具不打印密码，也不重置业务数据。
+容器中工具位于`/app/media-tool admin reset`，可按已有Compose数据库网络运行；新密码文件只读挂载，使用能读取0600文件的正确UID/GID。成功后启动原部署组合。结果未知时先核对，不盲目重复操作。工具不打印密码，也不重置业务数据。
 
 ## 自动验收与API调用
 

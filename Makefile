@@ -9,12 +9,12 @@ build-web:
 build: build-web
 	mkdir -p bin
 	CGO_ENABLED=0 go build -trimpath -o bin/media-tool ./cmd/media-tool
-	CGO_ENABLED=0 go build -trimpath -o bin/migrate ./cmd/migrate
-test:
+	CGO_ENABLED=0 go build -trimpath -o bin/media-toolctl ./cmd/media-toolctl
+	CGO_ENABLED=0 go build -trimpath -o bin/media-tool-dev ./cmd/media-tool-dev
+test: build-web
 	bash scripts/test-go.sh
-	npm ci --prefix web --no-fund
 	npm test --prefix web
-test-integration:
+test-integration: build-web
 	bash scripts/test-go.sh
 vet:
 	go vet ./...
@@ -23,6 +23,6 @@ run:
 worker:
 	bash scripts/load-env.sh go run ./cmd/media-tool -role worker
 migrate:
-	bash scripts/load-env.sh go run ./cmd/migrate
+	bash scripts/load-env.sh go run ./cmd/media-tool migrate
 compose-check:
 	docker compose -f docker-compose.yml config --quiet

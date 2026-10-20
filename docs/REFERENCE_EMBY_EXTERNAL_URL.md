@@ -27,7 +27,7 @@
 
 原生PlaybackInfo已按Emby标准RequiredHttpHeaders给SenPlayer返回公开的User-Agent，并在捕获到调用者凭据且验证为云来源时显式标记Remote/Http，保持可鉴权的Path（不返回Cookie/Authorization/其他提供方秘密），只在原生播放信息接口提供，不在媒体列表或网页请求加入无法设置的UA。若客户端不采用该字段，用户需在客户端媒体请求头/UA设置使用上述值；必须停止旧播放、重新获取PlaybackInfo后复测。不能以服务端模拟兼容UA的302测试冒充SenPlayer实际已经改用CDN。
 
-尝试CD2公开customUserAgent偏好以对齐Sen默认UA时，未验证得到匹配的直链，因此单字段恢复原值，不保留该变更。未修改账号、套餐或直链/TLS/线程/代理等其他配置。可逆维护命令 `cmd/align-cloud-download-ua` 仅显式apply可用，验证失败恢复该字段，重读当前配置保留其他并发设置；未知写入结果先读回，不假设未生效。
+尝试CD2公开customUserAgent偏好以对齐Sen默认UA时，未验证得到匹配的直链，因此单字段恢复原值，不保留该变更。未修改账号、套餐或直链/TLS/线程/代理等其他配置。可逆维护命令 `media-tool diagnose cloud-ua` 仅显式apply可用，验证失败恢复该字段，重读当前配置保留其他并发设置；未知写入结果先读回，不假设未生效。
 
 ## 网页：初始播放修复，但深位置冷恢复未验收
 

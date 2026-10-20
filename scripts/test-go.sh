@@ -8,7 +8,7 @@ for package in "$@"; do
  if [[ "$package" == -* ]]; then echo 'Pass package paths only, not test flags.' >&2; exit 1; fi
 done
 if [[ "$#" -eq 0 ]]; then set -- ./...; fi
-go run ./cmd/migrate -test-only -action up -cleanup-test-plugins
+go run ./cmd/media-tool migrate -test-only -action up -cleanup-test-plugins
 # Exercise the actual CGO-free release worker, not a race-instrumented test
 # executable under production RLIMIT_AS/RSS. The host test itself remains -race.
 # This also makes the HTTP/downloader same-binary tests mandatory on Linux.

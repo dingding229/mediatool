@@ -447,7 +447,7 @@ F6-α 初次加入 `site-checkin` 与 `library-refresh-notify`；当前六个验
 
 ## R 安装回执与停用态
 
-当前源码版本 0.27.0 / schema65；完整冻结清单见 `PLUGIN_SUPPORT_MATRIX.md`，实测与门禁记录见 `R_ALPHA_VALIDATION.md`。
+当前源码版本 0.27.0 / schema65；完整冻结清单见 `PLUGIN_SUPPORT_MATRIX.md`，实测与门禁记录见 `CLI_REFERENCE.md`。
 安装流程区分尚未确认、提交中、已提交、列表同步失败、结果未确认和明确拒绝。
 服务端成功回执含实例 ID；列表同步失败不能抹去“已安装”，刷新只重读目录/实例，不重发安装。
 网络断开、5xx 或无有效 JSON 的响应均视为结果未确认；必须复用原 operationKey 核对。

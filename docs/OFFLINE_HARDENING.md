@@ -34,7 +34,7 @@ go run ./cmd/media-toolctl --root "$PWD" backup-verify
 
 包含journal落盘中断/回滚/手工修改保护、共享NFO、主密钥dry-run及失败回滚、上传RPC锁/旧revision拒绝、字节去重、数据库配置优先/停用、分页上限、定时调度、固定公网origin、超大JSON拒绝、480次并发元数据重写与IPv6上游测试。
 
-实际运行结果在本文件末尾及 WORK_LOG.md更新。压力脚本只请求readyz，不是视频/CDN吞吐测试；模拟amd64运行不是物理x86设备验收。
+实际运行结果在本文件末尾及 CLI_REFERENCE.md更新。压力脚本只请求readyz，不是视频/CDN吞吐测试；模拟amd64运行不是物理x86设备验收。
 
 ## 操作入口
 
@@ -50,12 +50,12 @@ go run ./cmd/media-toolctl --root "$PWD" backup-verify
 
 ```bash
 # APP_SECRET_KEY_NEXT_FILE是本地新密钥文件路径；文件只含新32字节hex密钥
-APP_SECRET_KEY_NEXT_FILE=/private/path/next.key bash scripts/load-env.sh go run ./cmd/rekey --offline-confirmed
+APP_SECRET_KEY_NEXT_FILE=/private/path/next.key bash scripts/load-env.sh go run ./cmd/media-tool secrets rekey --offline-confirmed
 # 检查成功后才提交（不会自动改.env）
-APP_SECRET_KEY_NEXT_FILE=/private/path/next.key bash scripts/load-env.sh go run ./cmd/rekey --offline-confirmed --apply
+APP_SECRET_KEY_NEXT_FILE=/private/path/next.key bash scripts/load-env.sh go run ./cmd/media-tool secrets rekey --offline-confirmed --apply
 ```
 
-容器镜像内包含/app/rekey；通过现有Compose的数据库网络执行，并只读挂载新密钥文件。dry-run不提交。apply成功后安全更新本地.env的APP_SECRET_KEY，再启动全部服务。结果未知时保留两把密钥，核对数据库，不盲目重复轮换。旧密钥与新备份保留周期由操作者决定。
+容器镜像内包含/app/media-tool secrets rekey；通过现有Compose的数据库网络执行，并只读挂载新密钥文件。dry-run不提交。apply成功后安全更新本地.env的APP_SECRET_KEY，再启动全部服务。结果未知时保留两把密钥，核对数据库，不盲目重复轮换。旧密钥与新备份保留周期由操作者决定。
 
 ## 播放验收
 
@@ -86,7 +86,7 @@ docker compose --env-file .env -f docker-compose.yml run --rm --no-deps \
   --user "$(id -u):$(id -g)" \
   -v "$NEXT_KEY_FILE:/run/next.key:ro" \
   -e APP_SECRET_KEY_NEXT_FILE=/run/next.key \
-  --entrypoint /app/rekey app --offline-confirmed
+  --entrypoint /app/media-tool app secrets rekey --offline-confirmed
 # 默认dry-run；确认检查成功后在同一命令末尾增加--apply才提交。
 ```
 
@@ -108,7 +108,7 @@ docker compose --env-file .env -f docker-compose.yml run --rm --no-deps \
 
 源码迁移17。主密钥轮换覆盖8张加密表，新增open115_authorizations使用open115-auth:<sessionID>作为AAD；已经清空的payload（终态或兑换claim）保持为空。隔离PG dry-run/apply/坏密文全事务回滚通过；没有对业务库执行rekey。
 
-全量Go集成测试使用`bash scripts/test-go.sh`；指定包可追加包路径，不接受覆盖-p的参数。该入口先显式替换DATABASE_URL为TEST_DATABASE_URL，迁移还使用-test-only查询实际库名，缓存仅Redis DB15。不要仅source .env.test后用普通迁移命令，因为.env.test不覆盖业务DATABASE_URL。E2E与Go集成测试不能同时运行。旧实测结果按其日期保留，最新需求矩阵见FIRST_ROUND_ACCEPTANCE.md。
+全量Go集成测试使用`bash scripts/test-go.sh`；指定包可追加包路径，不接受覆盖-p的参数。该入口先显式替换DATABASE_URL为TEST_DATABASE_URL，迁移还使用-test-only查询实际库名，缓存仅Redis DB15。不要仅source .env.test后用普通迁移命令，因为.env.test不覆盖业务DATABASE_URL。E2E与Go集成测试不能同时运行。旧实测结果按其日期保留，最新需求矩阵见CLI_REFERENCE.md。
 
 
 ## 数据库22的轮换与回退

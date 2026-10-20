@@ -12,7 +12,7 @@ test_db_exec(){
   docker exec -i "${TEST_POSTGRES_CONTAINER:-media-tool-postgres-1}" sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d media_tool_test -c "$1"' sh "$1" >/dev/null
  fi
 }
-go run ./cmd/migrate -test-only -cleanup-test-plugins >/dev/null
+go run ./cmd/media-tool migrate -test-only -cleanup-test-plugins >/dev/null
 test_db_exec 'TRUNCATE ops_samples,ops_alerts,ops_requests,ops_drills,ops_backups,ops_releases CASCADE'
 test_db_exec "UPDATE ops_policy SET value='{}',revision=1,next_sample_at=now(),next_backup_at=now()+interval '1 day' WHERE singleton"
 test_db_exec "UPDATE ops_mode SET paused=false,reason='',revision=1 WHERE singleton"
@@ -48,8 +48,8 @@ go build -o "$private/media-tool-dev" ./cmd/media-tool-dev
 export E2E_EMBY_ENDPOINT=http://127.0.0.1:18086
 "$private/media-tool-dev" fixture-emby >"$private/provider.log" 2>&1 & pids+=("$!")
 export E2E_ISOLATED=1 E2E_BASE_URL=http://localhost:18084 E2E_ADMIN_USERNAME=e2e_admin
-export E2E_ADMIN_PASSWORD="E2E-$(devtool token)"
-go run ./cmd/migrate -test-only >/dev/null
+export E2E_ADMIN_PASSWORD="$(devtool fixture-password)"
+go run ./cmd/media-tool migrate -test-only >/dev/null
 go build -o "$private/media-tool" ./cmd/media-tool
 "$private/media-tool" -role all >"$private/server.log" 2>&1 & pids+=("$!")
 

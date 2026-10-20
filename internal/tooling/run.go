@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"media-tool/internal/buildcli"
 	"net"
 	"net/http"
 	"os"
@@ -39,6 +40,9 @@ func Run(args []string) error {
 	if len(args) == 0 {
 		return errors.New("usage: media-tool-dev <test-lock|test-env|token|ports|fixture-emby|clean-web|init-env|ci-config>")
 	}
+	if len(args) >= 2 && args[0] == "plugins" && args[1] == "matrix" {
+		args = args[1:]
+	}
 	root, e := Root()
 	if e != nil {
 		return e
@@ -55,6 +59,16 @@ func Run(args []string) error {
 			return e
 		}
 		return ShellEnvironment(os.Stdout, v)
+	case "fixture-password":
+		if len(args) != 1 {
+			return errors.New("fixture-password accepts no arguments")
+		}
+		v, e := FixturePassword()
+		if e != nil {
+			return e
+		}
+		_, e = fmt.Fprintln(os.Stdout, v)
+		return e
 	case "token":
 		if len(args) != 1 {
 			return errors.New("token accepts no arguments")
@@ -86,7 +100,12 @@ func Run(args []string) error {
 }
 
 // Extended build commands are kept separate from test infrastructure.
-var runExtra = func(_ string, _ []string) error { return errors.New("unknown development command") }
+func runExtra(_ string, args []string) error {
+	if buildcli.Dispatch(args) {
+		return nil
+	}
+	return errors.New("unknown development command; see docs/CLI_REFERENCE.md")
+}
 
 func Token() (string, error) {
 	b := make([]byte, 32)
@@ -182,4 +201,14 @@ func ShellEnvironment(w io.Writer, values map[string]string) error {
 		}
 	}
 	return nil
+}
+
+// FixturePassword retains the original 16-character synthetic E2E password;
+// application/session/STRM keys must still use the separate full-length Token.
+func FixturePassword() (string, error) {
+	v, e := Token()
+	if e != nil {
+		return "", e
+	}
+	return "E2E-" + v[:12], nil
 }

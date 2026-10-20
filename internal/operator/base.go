@@ -45,7 +45,7 @@ func CheckImage(ref string, i Image) (Release, error) {
 	}
 	r := Release{Revision: i.Config.Labels["org.opencontainers.image.revision"]}
 	s, e := strconv.ParseInt(i.Config.Labels["org.opencontainers.image.schema"], 10, 64)
-	if e != nil || s < 1 || !sha.MatchString(r.Revision) || (m[1] != "" && m[1] != r.Revision) {
+	if e != nil || !regexp.MustCompile(`^[0-9]+$`).MatchString(i.Config.Labels["org.opencontainers.image.schema"]) || s < 1 || !sha.MatchString(r.Revision) || (m[1] != "" && m[1] != r.Revision) {
 		return r, errors.New("image revision/schema mismatch")
 	}
 	r.Schema = s

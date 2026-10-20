@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"media-tool/internal/platform/buildinfo"
 	"os"
 	"os/exec"
@@ -14,6 +13,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 )
 
 //go:embed matrix_policy.txt
@@ -115,7 +116,7 @@ func RenderMatrix(root string) ([]byte, error) {
 	}
 	digest := sha256.Sum256(b)
 	var out strings.Builder
-	fmt.Fprintf(&out, "# 插件支持矩阵 · R 源码冻结\n\n- 源码候选：%s；schema %d；contractVersion %d。\n- SDK pin：`%s`。\n- 契约摘要：`%x`。\n- 生成/校验：`go run ./cmd/media-tool-dev matrix [--check]`；仅读取编译期元数据，不执行工厂。\n", buildinfo.Version, buildinfo.Schema, inv.ContractVersion, inv.Pin, digest)
+	fmt.Fprintf(&out, "# 插件支持矩阵 · R 源码冻结\n\n- 源码候选：%s；schema %d；contractVersion %d。\n- SDK pin：`%s`。\n- 契约摘要：`%x`。\n- 生成/校验：`go run ./cmd/media-tool-dev plugins matrix [--check]`；仅读取编译期元数据，不执行工厂。\n", buildinfo.Version, buildinfo.Schema, inv.ContractVersion, inv.Pin, digest)
 	out.WriteString("- `registered` 只表示存在窄门面，不保证任意环境可用；actor、adapter、owner、selector、revision 和实时 scope 不满足时 fail-closed。\n- 表中的 supported=false 为固定 unsupported；其他条件性 unsupported 见下文。\n\n")
 	fmt.Fprintf(&out, "## 业务 Host RPC（%d 项）\n\n| RPC | scope | 级别 | 注册能力 |\n|---|---|---|---|\n", len(inv.HostMethods))
 	for _, m := range inv.HostMethods {

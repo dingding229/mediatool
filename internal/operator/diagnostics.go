@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -99,12 +100,29 @@ func (d diagnostic) api(ctx context.Context, base, path, method string, body any
 
 // Resolver must emit 302, never relay. CDN gets only UA/Range, never cookies or
 // user/admin tokens; public DNS is checked again at the pinned transport dial.
+func (d diagnostic) resolver(ctx context.Context, raw, method string, h http.Header) (int, http.Header, error) {
+	r, e := http.NewRequestWithContext(ctx, method, raw, nil)
+	if e != nil {
+		return 0, nil, e
+	}
+	r.Header = h.Clone()
+	if r.Header == nil {
+		r.Header = http.Header{}
+	}
+	r.Header.Set("User-Agent", d.Agent)
+	res, e := d.HTTP.Do(r)
+	if e != nil {
+		return 0, nil, errors.New("resolver unavailable")
+	}
+	defer func() { _ = res.Body.Close() }()
+	return res.StatusCode, res.Header, nil
+}
 func (d diagnostic) redirect(ctx context.Context, raw string, h http.Header, emby bool) bool {
-	status, headers, _, e := d.request(ctx, raw, "HEAD", nil, h)
+	status, headers, e := d.resolver(ctx, raw, "HEAD", h)
 	if e != nil || status != 302 || (emby && headers.Get("X-Media-Gateway") != "emby-static") {
 		return false
 	}
-	status, headers, _, e = d.request(ctx, raw, "GET", nil, h)
+	status, headers, e = d.resolver(ctx, raw, "GET", h)
 	if e != nil || status != 302 {
 		return false
 	}
@@ -317,6 +335,16 @@ func (t checkedTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	}
 	return t.base.RoundTrip(r)
 }
+func readPassword(r io.Reader) (string, error) {
+	line, e := bufio.NewReader(io.LimitReader(r, 4097)).ReadString('\n')
+	if len(line) > 4096 {
+		return "", errors.New("password input too long")
+	}
+	if e != nil && e != io.EOF {
+		return "", e
+	}
+	return strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r"), nil
+}
 func promptPassword() (string, error) {
 	st, e := os.Stdin.Stat()
 	if e != nil || st.Mode()&os.ModeCharDevice == 0 {
@@ -329,8 +357,7 @@ func promptPassword() (string, error) {
 	}
 	defer func() { cmd := exec.Command("stty", "echo"); cmd.Stdin = os.Stdin; _ = cmd.Run() }()
 	_, _ = fmt.Fprint(os.Stderr, "管理员密码: ")
-	var line string
-	_, e = fmt.Fscanln(os.Stdin, &line)
+	line, e := readPassword(os.Stdin)
 	_, _ = fmt.Fprintln(os.Stderr)
 	return line, e
 }

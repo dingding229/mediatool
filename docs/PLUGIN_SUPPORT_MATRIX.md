@@ -3,7 +3,7 @@
 - 源码候选：0.27.0；schema 65；contractVersion 2。
 - SDK pin：`v0.0.0-20261019145526-4ad0d7c57697`。
 - 契约摘要：`5fb1a7fcf7fbf87a232793570f5fda45616f1f36e2b6062f188cbd2012f3c90c`。
-- 生成/校验：`go run ./cmd/media-tool-dev matrix [--check]`；仅读取编译期元数据，不执行工厂。
+- 生成/校验：`go run ./cmd/media-tool-dev plugins matrix [--check]`；仅读取编译期元数据，不执行工厂。
 - `registered` 只表示存在窄门面，不保证任意环境可用；actor、adapter、owner、selector、revision 和实时 scope 不满足时 fail-closed。
 - 表中的 supported=false 为固定 unsupported；其他条件性 unsupported 见下文。
 

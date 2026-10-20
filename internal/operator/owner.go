@@ -174,7 +174,7 @@ func newOwner(ctx context.Context, root string) *owner {
 	if !matched || (u.Port() != "" && u.Port() != "5432") {
 		o.fail(errors.New("database is not the same-project PostgreSQL container"))
 	}
-	o.control = append(append([]string{}, o.base...), "exec", "-T", "app", "/app/ops-control")
+	o.control = append(append([]string{}, o.base...), "exec", "-T", "app", "/app/media-tool", "ops")
 	return o
 }
 
@@ -250,11 +250,11 @@ func (o *owner) execute(id string) (receipt map[string]any) {
 	var env []string
 	if req.Kind == "restore" {
 		bin := filepath.Join(dir, "ops-control")
-		o.call("docker", "cp", o.app.Id+":/app/ops-control", bin)
+		o.call("docker", "cp", o.app.Id+":/app/media-tool", bin)
 		if o.err == nil {
 			o.fail(os.Chmod(bin, 0700))
 		}
-		offline = []string{bin}
+		offline = []string{bin, "ops"}
 		env = o.hostEnvironment(dir)
 	}
 	size, e := strconv.ParseInt(o.sql("SELECT pg_database_size(current_database())", ""), 10, 64)

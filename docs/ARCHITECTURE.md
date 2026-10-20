@@ -1,6 +1,6 @@
 # 架构说明
 
-更新：2026-10-10，0.7.0-dev，源码迁移17。本文描述当前实现；旧M0/M1进展保存在WORK_LOG.md，不再把已实现的下载/上传/通知标为占位接口。代码完成和真实业务验收分开，见FIRST_ROUND_ACCEPTANCE.md。
+更新：2026-10-10，0.7.0-dev，源码迁移17。本文描述当前实现；旧M0/M1进展保存在CLI_REFERENCE.md，不再把已实现的下载/上传/通知标为占位接口。代码完成和真实业务验收分开，见CLI_REFERENCE.md。
 
 ## 运行入口与依赖
 
@@ -8,9 +8,9 @@
 - `cmd/media-tool -role worker -queue default`：搜索、订阅评估、下载创建/对账、Emby刷新/确认、Outbox通知投递、扫描计划和输出恢复协调。
 - `-role worker -queue transfer`：独立长时上传/校验；`-queue library`：独立云盘流式扫描，避免占用普通任务处理。
 - `-role strm`：受约束的STRM写入；`-role healthcheck`：容器就绪探测。
-- `cmd/migrate`：版本化迁移；测试必须`-test-only`，实际库名不是media_tool_test便拒绝。down为破坏性运维，不用于日常回退。
-- `cmd/rekey`：应用和全部Worker停止后的九张加密表原子轮换（含search-run作用域快照），默认dry-run。
-- `cmd/admin-reset`：操作者本地恢复管理员访问；不生成默认账号或自动重置用户密码。
+- `media-tool migrate`：版本化迁移；测试必须`-test-only`，实际库名不是media_tool_test便拒绝。down为破坏性运维，不用于日常回退。
+- `media-tool secrets rekey`：应用和全部Worker停止后的九张加密表原子轮换（含search-run作用域快照），默认dry-run。
+- `media-tool admin reset`：操作者本地恢复管理员访问；不生成默认账号或自动重置用户密码。
 - `cmd/*-smoke`：只读/限量验证工具，不等同客户端解码验收。
 
 PostgreSQL保存账号、配置、资源、下载/传输、索引、文件凭据、订阅、任务/租约、Outbox、输出恢复journal和审计事实。Redis只保存可重建缓存/失效提示和Emby Token摘要→用户ID映射，不能取代持久队列或独立授权校验。生产业务必须有主库；缺依赖明确503，不用内存假数据冒充可用。
