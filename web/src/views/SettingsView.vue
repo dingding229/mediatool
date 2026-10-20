@@ -5,16 +5,12 @@ import { useAuthStore } from "../stores/auth";
 import { passwordPolicyError } from "../auth/password-policy";
 import SetupGuideControl from "../dashboard/SetupGuideControl.vue";
 import ApplicationSettings from "../components/ApplicationSettings.vue";
-import TMDBSettings from "../components/TMDBSettings.vue";
-import NetworkProxySettings from "../components/NetworkProxySettings.vue";
 import PWASettings from "../components/PWASettings.vue";
 import AccessSettings from "../components/AccessSettings.vue";
 import {
   Link,
   FolderChecked,
   Timer,
-  Connection,
-  Film,
   User,
   Cellphone,
 } from "@element-plus/icons-vue";
@@ -40,13 +36,6 @@ const tabs = [
     icon: Timer,
     hint: "搜索缓存和统一Cron调度",
   },
-  {
-    id: "proxy",
-    label: "网络代理",
-    icon: Connection,
-    hint: "TMDB与PT站点的请求路由",
-  },
-  { id: "tmdb", label: "TMDB", icon: Film, hint: "元数据服务凭据与配置" },
   {
     id: "account",
     label: "管理员账号",
@@ -132,8 +121,6 @@ async function change() {
         v-show="['access', 'library', 'automation'].includes(active)"
         :section="active"
       />
-      <div v-show="active === 'proxy'"><NetworkProxySettings /></div>
-      <TMDBSettings v-show="active === 'tmdb'" />
       <section v-show="active === 'account'" class="panel settings-panel">
         <div class="panel-title">
           <div>

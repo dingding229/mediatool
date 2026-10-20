@@ -149,13 +149,13 @@ test('saved connections are editable, redacted, and can be deleted',async({page}
  const response=await responsePromise
  expect(response.status()).toBe(201)
  expect(await response.text()).not.toContain('synthetic-browser-secret')
- const row=page.getByRole('row').filter({hasText:name})
+ const row=page.locator('.saved-connection').filter({hasText:name})
  await expect(row).toBeVisible()
  await row.getByRole('button',{name:'编辑',exact:true}).click()
  await expect(page.getByLabel('CloudDrive2 API Token',{exact:true})).toHaveValue('')
  await page.getByLabel('连接名称',{exact:true}).fill(name+' updated')
  await page.getByRole('button',{name:'加密保存',exact:true}).click()
- const updated=page.getByRole('row').filter({hasText:name+' updated'})
+ const updated=page.locator('.saved-connection').filter({hasText:name+' updated'})
  await updated.getByRole('button',{name:'删除',exact:true}).click()
  await page.getByRole('button',{name:'删除连接',exact:true}).click()
  await expect(updated).toHaveCount(0)
@@ -212,14 +212,14 @@ test('official 115 is saved disabled and QR authorization is explicit and cancel
  await login(page);await page.goto('/cloud-connections')
  await page.getByRole('button',{name:'添加连接'}).click()
  await page.getByRole('button',{name:'关闭此对话框',exact:true}).click()
- await page.getByRole('button',{name:'115 授权',exact:true}).click()
+ await page.locator('.el-select').filter({has:page.getByRole('combobox',{name:'新增服务类型',exact:true})}).click();await page.getByRole('option',{name:'115 授权',exact:true}).click()
  await page.getByRole('button',{name:'添加连接',exact:true}).click()
  const name='Official115 fixture '+Date.now()
  await page.getByLabel('连接名称',{exact:true}).fill(name)
  await page.getByLabel('自己的115开放平台 AppID',{exact:true}).fill('12345')
  await expect(page.getByLabel('CloudDrive2中的115挂载前缀',{exact:true})).toHaveValue('/115')
  await page.getByRole('button',{name:'加密保存',exact:true}).click()
- const row=page.getByRole('row').filter({hasText:name});await expect(row).toBeVisible()
+ const row=page.locator('.saved-connection').filter({hasText:name});await expect(row).toBeVisible()
  await expect(row).toContainText('未启用')
  await page.route('**/115/auth/start',route=>route.fulfill({json:{data:{sessionId:'00000000-0000-4000-8000-000000000001',state:'waiting',qrCodeImage:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZVkAAAAASUVORK5CYII=',expiresAt:new Date(Date.now()+300000).toISOString()}}}))
  let pollState='scanned',pollCount=0
@@ -281,7 +281,7 @@ test('strict direct-only policy is immutable and visible (isolated settings fixt
  await expect(page.getByRole('checkbox',{name:'仅直链播放：禁止转码和媒体中转'})).toBeChecked()
  await expect(page.getByText(/不支持原始TS\/MKV或音频格式/)).toBeVisible()
  await page.getByRole('button',{name:'加密保存',exact:true}).click()
- const row=page.getByRole('row').filter({hasText:name})
+ const row=page.locator('.saved-connection').filter({hasText:name})
  await row.getByRole('button',{name:'编辑',exact:true}).click()
  await expect(page.getByRole('checkbox',{name:'仅直链播放：禁止转码和媒体中转'})).toBeChecked()
  await page.getByRole('button',{name:'关闭此对话框',exact:true}).click()
@@ -293,11 +293,11 @@ test('strict direct-only policy is immutable and visible (isolated settings fixt
 test('management Emby page survives a direct reload without entering the playback listener',async({page})=>{
  await fixtureLogin(page)
  await page.goto('/emby')
- await expect(page.getByRole('heading',{name:'Emby 播放网关',exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'Emby 网关诊断',exact:true})).toBeVisible()
  await page.reload()
- await expect(page.getByRole('heading',{name:'Emby 播放网关',exact:true})).toBeVisible()
- await expect(page).toHaveURL(/\/library\?.*tab=browse/)
- await expect(page.getByRole('link',{name:'编辑Emby连接',exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'Emby 网关诊断',exact:true})).toBeVisible()
+ await expect(page).toHaveURL(/\/connections\?.*tab=emby/)
+ await expect(page.getByRole('heading',{name:'Emby媒体库连接',exact:true})).toBeVisible()
 })
 
 test('output identity migration needs read-only preview and explicit archive confirmation (fixture)',async({page})=>{
@@ -584,10 +584,10 @@ test('PT account form uses template identity, UA, echo and disallows duplicates 
  await page.screenshot({path:resolve(screenshots,'pt-account-template-form.png'),fullPage:true,animations:'disabled'})
 })
 
-test('separate 115 setup saves without tokens and secret echoes are explicit (isolated)',async({page})=>{
+test('separate 115 setup saves disabled without tokens and saved secrets never echo (isolated)',async({page})=>{
  await fixtureLogin(page)
- await page.goto('/cloud-connections');await page.getByRole('button',{name:'115 授权',exact:true}).click()
- await expect(page.getByRole('button',{name:'115 授权',exact:true})).toHaveAttribute('aria-pressed','true')
+ await page.goto('/cloud-connections');await page.locator('.el-select').filter({has:page.getByRole('combobox',{name:'新增服务类型',exact:true})}).click();await page.getByRole('option',{name:'115 授权',exact:true}).click()
+ await expect(page.getByRole('combobox',{name:'新增服务类型',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'添加连接',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'添加连接',exact:true})
  const name='115 tokenless fixture '+Date.now()
@@ -599,7 +599,7 @@ test('separate 115 setup saves without tokens and secret echoes are explicit (is
  await dialog.getByRole('button',{name:'加密保存',exact:true}).click()
  const response=await saved;expect(response.status()).toBe(201);const draft=(await response.json()).data
  expect(draft.enabled).toBe(false);expect(draft.secretFields).toEqual([])
- const draftRow=page.getByRole('row').filter({hasText:name});await expect(draftRow.getByRole('button',{name:'115扫码授权',exact:true})).toBeVisible()
+ const draftRow=page.locator('.saved-connection').filter({hasText:name});await expect(draftRow.getByRole('button',{name:'115扫码授权',exact:true})).toBeVisible()
  await page.goto('/mediaLibrary');await page.getByRole('button',{name:'Emby 配置',exact:true}).click()
  await page.getByRole('button',{name:'添加连接',exact:true}).click()
  const embyName='Emby echo fixture '+Date.now(),value='PRIVATE-EMBY-ECHO-FIXTURE'
@@ -607,13 +607,9 @@ test('separate 115 setup saves without tokens and secret echoes are explicit (is
  await dialog.getByLabel('Emby 服务地址',{exact:true}).fill(process.env.E2E_EMBY_ENDPOINT!)
  await dialog.getByLabel('媒体库刷新 API Key',{exact:true}).fill(value)
  await dialog.getByRole('button',{name:'加密保存',exact:true}).click()
- const row=page.getByRole('row').filter({hasText:embyName});await row.getByRole('button',{name:'编辑',exact:true}).click()
+ const row=page.locator('.saved-connection').filter({hasText:embyName});await row.getByRole('button',{name:'编辑',exact:true}).click()
  const edit=page.getByRole('dialog',{name:'编辑连接',exact:true}),field=edit.getByLabel('媒体库刷新 API Key',{exact:true})
- await expect(field).toHaveValue(value);await expect(field).toHaveAttribute('type','text')
- await edit.getByRole('button',{name:'隐藏媒体库刷新 API Key',exact:true}).click()
- await expect(field).toHaveAttribute('type','password')
- await edit.getByRole('button',{name:'显示媒体库刷新 API Key',exact:true}).click()
- await expect(field).toHaveAttribute('type','text')
+ await expect(field).toHaveValue('');await expect(field).toHaveAttribute('type','password');await expect(edit).toContainText('已设置，不回显')
  await edit.screenshot({path:resolve(screenshots,'service-secrets-explicit-desktop.png'),animations:'disabled',mask:[field]})
  await page.setViewportSize({width:375,height:812});await field.scrollIntoViewIfNeeded()
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
@@ -708,8 +704,8 @@ test('media catalog browses managed and Emby content without exposing playback c
 
 
 test('service overview is read-only and settings own naming and TMDB',async({page})=>{
- await login(page);await page.goto('/integrations');await expect(page.getByRole('heading',{name:'服务连接总览',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(0)
- await page.goto('/settings?tab=library');await expect(page.getByLabel('电影命名模板',{exact:true})).toHaveValue('{title} ({year})/{title} ({year}) - {videoFormat}');await expect(page.getByLabel('剧集命名模板',{exact:true})).toBeVisible();await page.getByRole('navigation',{name:'系统设置分类'}).getByRole('button',{name:'TMDB',exact:true}).click();await expect(page.getByRole('heading',{name:'TMDB配置',exact:true})).toBeVisible();await page.getByRole('navigation',{name:'系统设置分类'}).getByRole('button',{name:'搜索与订阅',exact:true}).click();await expect(page.getByRole('button',{name:'生成 / 更换恢复码',exact:true})).toHaveCount(0)
+ await login(page);await page.goto('/integrations');await expect(page.getByRole('heading',{name:'服务连接',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(0)
+ await page.goto('/settings?tab=library');await expect(page.getByLabel('电影命名模板',{exact:true})).toHaveValue('{title} ({year})/{title} ({year}) - {videoFormat}');await expect(page.getByLabel('剧集命名模板',{exact:true})).toBeVisible();await page.goto('/settings?section=tmdb');await expect(page.getByRole('heading',{name:'TMDB配置',exact:true})).toBeVisible();await page.goto('/settings?section=automation');await page.getByRole('navigation',{name:'系统设置分类'}).getByRole('button',{name:'搜索与订阅',exact:true}).click();await expect(page.getByRole('button',{name:'生成 / 更换恢复码',exact:true})).toHaveCount(0)
  await page.locator('#pt-cache-seconds').fill('600');await page.getByRole('button',{name:'保存系统设置',exact:true}).click();await expect(page.getByText('当前分组已保存，不会自动重命名现有文件或更改其他分组。',{exact:true})).toBeVisible()
  await page.screenshot({path:resolve(screenshots,'workbench-settings-desktop.png'),animations:'disabled',fullPage:true});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-settings-mobile.png'),animations:'disabled',fullPage:false})
 })
@@ -803,7 +799,7 @@ test('media-library refresh targets home and configuration deep links keep their
  await page.goto('/mediaLibrary');await expect.poll(()=>homeCalls).toBe(1)
  await page.getByRole('button',{name:'刷新媒体库',exact:true}).click();await expect.poll(()=>homeCalls).toBe(2)
  await page.goto('/mediaLibrary?connectionKind=emby');await expect(page.getByRole('heading',{name:'Emby媒体库连接',exact:true})).toBeVisible()
- await expect(page.getByRole('button',{name:'Emby 配置',exact:true})).toHaveAttribute('aria-pressed','true')
+ await expect(page).toHaveURL(/\/connections\?.*tab=emby/)
  await expect(page.getByRole('heading',{name:/^我的媒体库/})).toHaveCount(0)
 })
 
@@ -1009,7 +1005,7 @@ test('runtime update: compact media title searches all sites inline with promoti
 test('runtime update: overview metrics, categorized connections and separate downloader panels (fixture)',async({page})=>{
  await page.route('**/api/v1/system/runtime',r=>r.fulfill({json:{data:{server:{loadAverage:[.5,.4,.3],memoryUsed:2147483648,memoryTotal:8589934592,diskAvailable:107374182400,diskTotal:214748364800,uptimeSeconds:90000,sampledAt:new Date().toISOString()},daily:{sites:2,subscriptions:3,downloads:1,media:50,todaySearches:4,failedJobs:0}}}}));
  await fixtureLogin(page);await expect(page.getByText('100.0 GiB',{exact:true})).toBeVisible();for(const old of ['依赖服务','最近任务','资源到播放的路径'])await expect(page.getByRole('heading',{name:old,exact:true})).toHaveCount(0);await page.screenshot({path:resolve(screenshots,'runtime-dashboard.png'),fullPage:true,animations:'disabled'});
- await page.route('**/api/v1/integrations',r=>r.fulfill({json:{data:[{id:'cloud',kind:'open115',name:'115',enabled:true,lastCheckState:'ready'},{id:'media',kind:'emby',name:'Emby',enabled:true,lastCheckState:'ready'}]}}));await page.goto('/integrations');const filter=page.getByRole('combobox',{name:'连接分类',exact:true});await page.locator('.el-select').filter({has:filter}).click();await page.getByRole('option',{name:'云盘 (1)',exact:true}).click();await expect(page.locator('.el-table__body')).toContainText('115');await expect(page.locator('.el-table__body')).not.toContainText('Emby');
+ await page.goto('/integrations');await expect(page.getByRole('region',{name:'服务就绪状态'})).toBeVisible();await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(0);
  await page.goto('/downloads');await expect(page.getByRole('heading',{name:'下载任务',exact:true})).toBeVisible();await expect(page.locator('.transfer-section')).toBeVisible();const gap=await page.evaluate(()=>document.querySelector('.transfer-section')!.getBoundingClientRect().top-document.querySelector('.download-section')!.getBoundingClientRect().bottom);expect(gap).toBeGreaterThanOrEqual(24);await page.screenshot({path:resolve(screenshots,'runtime-downloads.png'),fullPage:true,animations:'disabled'});
 });
 
@@ -1029,7 +1025,7 @@ test('acquisition: cache pages omit size and settings, use matching buttons and 
 });
 
 test('acquisition: proxy settings are scoped, validated and persisted in isolated database',async({page})=>{
- await fixtureLogin(page);await page.goto('/settings?tab=proxy');await expect(page.getByRole('heading',{name:'网络代理',exact:true})).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('http://127.0.0.1:7890');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();await page.reload();await expect(page.getByLabel('代理地址',{exact:true})).toHaveValue('http://127.0.0.1:7890');await expect(page.getByRole('checkbox',{name:'TMDB查询与海报使用代理',exact:true})).not.toBeChecked();await page.getByLabel('代理地址',{exact:true}).fill('file:///unsafe');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText(/代理地址须使用/)).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();
+ await fixtureLogin(page);await page.goto('/settings?tab=proxy');await expect(page.getByRole('heading',{name:'网络代理',exact:true})).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('http://127.0.0.1:7890');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();await page.reload();await expect(page.getByLabel('代理地址',{exact:true})).toHaveValue('');await expect(page.getByRole('checkbox',{name:'TMDB查询与海报使用代理',exact:true})).not.toBeChecked();await page.getByLabel('代理地址',{exact:true}).fill('file:///unsafe');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText(/代理地址须使用/)).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('');await page.getByText('明确清除已保存的代理地址',{exact:true}).click();await expect(page.getByRole('checkbox',{name:'明确清除已保存的代理地址',exact:true})).toBeChecked();await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();
 });
 
 test('acquisition: subscriptions reject HR without unknown override and expose history (fixture)',async({page})=>{
@@ -1086,7 +1082,7 @@ test('isolated local batch preview writes nothing until explicit approval and su
 test('cloud page exposes honest quota and membership while library tabs keep metadata query usable at 390px (UI fixture)',async({page})=>{
  await fixtureLogin(page)
  await page.route('**/api/v1/cloud/accounts/info',r=>r.fulfill({json:{data:{connectionId:'owned',note:'挂载账户范围',info:{path:'/115/Owned',source:'115 官方开放平台 /open/user/info',checkedAt:'2026-10-14T00:00:00Z',space:{total:1099511627776,used:549755813888,free:549755813888},memberships:[{identity:'115VIP',level:'VIP',expiresAt:'2027-01-01T00:00:00Z'}]}}}}))
- await page.goto('/cloud-connections');await expect(page.getByRole('heading',{name:'云盘连接',exact:true})).toBeVisible();await expect(page.locator('.quota-grid')).toContainText('1.00 TiB');await expect(page.locator('.membership-row')).toContainText('2027');await page.screenshot({path:resolve(screenshots,'cloud-account-desktop.png'),animations:'disabled',fullPage:true})
+ await page.goto('/cloud-connections');await expect(page.getByRole('heading',{name:'空间与会员',exact:true})).toBeVisible();await expect(page.getByRole('region',{name:'云盘空间和会员'})).toContainText('1024.0 GiB');await expect(page.getByRole('region',{name:'云盘空间和会员'})).toContainText('2027');await page.screenshot({path:resolve(screenshots,'cloud-account-desktop.png'),animations:'disabled',fullPage:true})
  await page.route('**/api/v1/media/assets?page=*',r=>r.fulfill({json:{data:{items:[{id:'00000000-0000-4000-8000-000000000141',title:'自有电影',mediaType:'movie',path:'/115/Owned/owned.mkv',revision:1,artifactsState:'ready',state:'present',fileScoped:true}],total:1}}}))
  await page.route('**/api/v1/metadata/search?*',r=>r.fulfill({json:{data:[{id:11,title:'自有电影',year:'2026',mediaType:'movie'}]}}))
  await page.goto('/cloudStorage');await expect(page.getByRole('heading',{name:'云盘连接与115授权',exact:true})).toHaveCount(0);await page.getByRole('tab',{name:'已入库资产',exact:true}).click();await page.getByRole('button',{name:'修正身份 / 季集',exact:true}).click()
@@ -1422,9 +1418,9 @@ test('classification long country labels wrap inside their own choices on deskto
 
 test('settings functional pages are consistent and preserve drafts while switching tabs (isolated)',async({page})=>{
  await fixtureLogin(page);await page.goto('/settings');const nav=page.getByRole('navigation',{name:'系统设置分类'});await expect(nav).toBeVisible()
- for(const width of [1440,768,375]){await page.setViewportSize({width,height:950});for(const tab of ['访问与域名','命名与刮削','搜索与订阅','网络代理','TMDB','管理员账号','移动端应用']){await nav.getByRole('button',{name:tab,exact:true}).click();await expect(nav.getByRole('button',{name:tab,exact:true})).toHaveAttribute('aria-pressed','true');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`settings-${tab}-${width}.png`),animations:'disabled'})}}
- await nav.getByRole('button',{name:'命名与刮削',exact:true}).click();await page.getByLabel('电影命名模板',{exact:true}).fill('{title} ({year})/{title} - draft');await nav.getByRole('button',{name:'网络代理',exact:true}).click();await nav.getByRole('button',{name:'命名与刮削',exact:true}).click();await expect(page.getByLabel('电影命名模板',{exact:true})).toHaveValue('{title} ({year})/{title} - draft')
- await nav.getByRole('button',{name:'TMDB',exact:true}).click();await expect(page.getByRole('columnheader',{name:'连接验证',exact:true})).toHaveCount(0)
+ for(const width of [1440,768,375]){await page.setViewportSize({width,height:950});for(const tab of ['访问与域名','命名与刮削','搜索与订阅','管理员账号','移动端应用']){await nav.getByRole('button',{name:tab,exact:true}).click();await expect(nav.getByRole('button',{name:tab,exact:true})).toHaveAttribute('aria-pressed','true');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`settings-${tab}-${width}.png`),animations:'disabled'})}}
+ await nav.getByRole('button',{name:'命名与刮削',exact:true}).click();await page.getByLabel('电影命名模板',{exact:true}).fill('{title} ({year})/{title} - draft');await nav.getByRole('button',{name:'搜索与订阅',exact:true}).click();await nav.getByRole('button',{name:'命名与刮削',exact:true}).click();await expect(page.getByLabel('电影命名模板',{exact:true})).toHaveValue('{title} ({year})/{title} - draft')
+ await expect(nav.getByRole('button',{name:'TMDB',exact:true})).toHaveCount(0);await page.goto('/settings?section=tmdb');await expect(page).toHaveURL(/\/connections\?.*tab=aux/)
 })
 
 test('domain settings validate origins and update generated STRM without touching old output (isolated)',async({page})=>{
@@ -1450,12 +1446,12 @@ test('operations panels have real gaps and no repeated cross-module shortcuts (i
  await expect(page.locator('.ops-links')).toHaveCount(0);await expect(page.getByRole('link',{name:'备份与维护中心',exact:true})).toHaveCount(1);await page.getByRole('link',{name:'备份与维护中心',exact:true}).click();await expect(page.getByRole('link',{name:'任务与运行状态',exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:'刷新',exact:true})).toHaveCount(1)
 })
 
-test('TMDB settings exposes only one full Token and updates it in place (fixture)',async({page})=>{
- await fixtureLogin(page);const token='owned-full-token-for-TMDB-echo';const row={id:'owned-tmdb-single',kind:'tmdb',name:'TMDB',enabled:true,settings:{language:'zh-CN'},secretFields:['token'],revision:2};let saved:any
- await page.route('**/api/v1/integrations',route=>route.fulfill({json:{data:[row]}}));await page.route('**/api/v1/integrations/owned-tmdb-single/secrets/reveal',route=>route.fulfill({json:{data:{revision:2,values:{token}}}}));await page.route('**/api/v1/integrations/owned-tmdb-single',route=>{saved=route.request().postDataJSON();return route.fulfill({json:{data:{...row,revision:3}}})})
- await page.goto('/settings?tab=tmdb');await expect(page.getByLabel('TMDB API Token',{exact:true})).toHaveValue(token);await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(0);await expect(page.getByLabel('连接名称',{exact:true})).toHaveCount(0);await expect(page.getByLabel('展示语言',{exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'服务连接状态',exact:true})).toHaveCount(0)
- await page.getByLabel('TMDB API Token',{exact:true}).fill('owned-replaced-token');await page.getByRole('button',{name:'保存TMDB Token',exact:true}).click();await expect(page.getByText(/TMDB Token已保存/)).toBeVisible();expect(saved).toMatchObject({kind:'tmdb',revision:2,secrets:{token:'owned-replaced-token'}})
- for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.getByRole('navigation',{name:'系统设置分类'}).evaluate(el=>getComputedStyle(el).flexDirection)).toBe('row');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`settings-single-token-${width}.png`),fullPage:true,animations:'disabled'})}
+test('TMDB settings never reveals a stored Token and updates replacements in place (fixture)',async({page})=>{
+ await fixtureLogin(page);const token='owned-secret-not-for-echo',row={id:'owned-tmdb-single',kind:'tmdb',name:'TMDB',enabled:true,settings:{language:'zh-CN'},secretFields:['token'],revision:2};let saved:any,reveals=0
+ await page.route('**/api/v1/integrations',r=>r.fulfill({json:{data:[row]}}));await page.route('**/secrets/reveal',r=>{reveals++;return r.fulfill({json:{data:{revision:2,values:{token}}}})});await page.route('**/api/v1/integrations/owned-tmdb-single',r=>{saved=r.request().postDataJSON();return r.fulfill({json:{data:{...row,revision:3}}})})
+ await page.goto('/settings?tab=tmdb');await page.getByRole('button',{name:'编辑TMDB Token',exact:true}).click();const dialog=page.getByRole('dialog',{name:'编辑连接',exact:true});await expect(dialog.getByLabel('TMDB API Token',{exact:true})).toHaveValue('');expect(reveals).toBe(0);await expect(dialog).not.toContainText(token)
+ await dialog.getByLabel('TMDB API Token',{exact:true}).fill('owned-replaced-token');await dialog.getByRole('button',{name:'保存TMDB Token',exact:true}).click();await expect(dialog).toBeHidden();expect(saved).toMatchObject({kind:'tmdb',revision:2,secrets:{token:'owned-replaced-token'}})
+ for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`connection-token-status-${width}.png`),fullPage:true,animations:'disabled'})}
 })
 
 test('friendly log details keep raw values and copy controls without redundant URL buttons (fixture)',async({page})=>{

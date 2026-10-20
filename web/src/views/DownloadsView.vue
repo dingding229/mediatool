@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ManualDownloads from "../components/ManualDownloads.vue";
-import ConnectionPanel from "../components/ConnectionPanel.vue";
+import ConnectionManager from "../connections/ConnectionManager.vue";
 import { computed, ref, onMounted, onUnmounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { request, post, type FlowStatus } from "../api/client";
@@ -484,7 +484,7 @@ onUnmounted(() => {
     @completed="refresh"
   /><DownloadSourceDialog ref="sourceRecovery" @completed="refresh" />
   <section class="downloader-section">
-  <ConnectionPanel :allowed-kinds="['qbittorrent']" title="下载器配置" />
+  <ConnectionManager :allowed-kinds="['qbittorrent']" title="下载器配置" />
   </section>
 </template>
 

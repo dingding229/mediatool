@@ -1,0 +1,21 @@
+import { beforeEach,afterEach,it,expect,vi } from 'vitest'
+import { defineComponent } from 'vue'
+import { request,post,APIError } from '../api/client'
+import { setupComponent,flush } from '../test/setup-component'
+import { useConnections } from './useConnections'
+import { changedEndpointMissing,secretPayload,safeSettings } from './model'
+vi.mock('../api/client',async original=>({...await original<typeof import('../api/client')>(),request:vi.fn(),post:vi.fn()}))
+const record={id:'qb',kind:'qbittorrent',name:'下载器',enabled:true,settings:{endpoint:'http://old.invalid'},secretFields:['username','password'],revision:3,lastCheckState:'ready',lastCheckMessage:'',lastCheckedAt:'2026-10-20T00:00:00Z'}
+let view:ReturnType<typeof setupComponent>
+beforeEach(async()=>{vi.mocked(request).mockReset().mockResolvedValue([record]);vi.mocked(post).mockReset();view=setupComponent(defineComponent({setup:useConnections}));await flush();view.state.edit(record)})
+afterEach(()=>view.unmount())
+it('never fetches or pre-fills saved secrets when editing',()=>{expect(view.state.form.secrets).toEqual({});expect(post).not.toHaveBeenCalled();expect(request).toHaveBeenCalledTimes(1)})
+it('leaving secrets blank sends only replacements and explicit clears',async()=>{view.state.form.secrets.password='new-value';vi.mocked(request).mockResolvedValueOnce(record);await view.state.save();const call=vi.mocked(request).mock.calls.find(([,o])=>o?.method==='PUT')!;expect(JSON.parse(String(call[1]!.body)).secrets).toEqual({password:'new-value'});expect(secretPayload({a:'',b:'new'},['c'])).toEqual({b:'new',c:''})})
+it('endpoint changes cannot silently forward previously saved credentials',async()=>{view.state.form.settings.endpoint='http://new.invalid';await view.state.save();expect(view.state.error).toContain('重新填写或明确清除');expect(vi.mocked(request).mock.calls.some(([,o])=>o?.method==='PUT')).toBe(false);expect(changedEndpointMissing(view.state.form,record)).toEqual(['username','password'])})
+it('revision conflict reloads current settings, retaining all user input and old revision until confirmation',async()=>{view.state.form.name='用户输入';view.state.form.secrets.password='user-secret';vi.mocked(request).mockRejectedValueOnce(new APIError(409,'integration_changed','已修改')).mockResolvedValueOnce([{...record,name:'服务端新值',revision:4}]);await view.state.save();expect(view.state.error).toContain('配置已被修改，已重新读取');expect(view.state.form).toMatchObject({name:'用户输入',revision:3,secrets:{password:'user-secret'}});expect(view.state.conflict.revision).toBe(4);view.state.useRevision();expect(view.state.form.name).toBe('用户输入');expect(view.state.form.revision).toBe(4)})
+it('failed conflict read keeps inputs and blocks stale retries',async()=>{vi.mocked(request).mockRejectedValueOnce(new APIError(409,'integration_changed','变化')).mockRejectedValueOnce(Error('network'));await view.state.save();expect(view.state.blocked).toBe(true);const count=vi.mocked(request).mock.calls.length;await view.state.save();expect(request).toHaveBeenCalledTimes(count)})
+it('202 test response is queued and cannot be blindly submitted again',async()=>{vi.mocked(post).mockResolvedValue({id:'queued-job'});await view.state.test(record);expect(view.state.testState).toBe('queued');expect(view.state.notice).toContain('已排队');await view.state.test(record);expect(post).toHaveBeenCalledTimes(1)})
+it('unknown test response permits only GET reconciliation until a new check is observed',async()=>{vi.mocked(post).mockRejectedValue(Error('unknown'));await view.state.test(record);expect(view.state.testState).toBe('reconciling');await view.state.reconcile();expect(post).toHaveBeenCalledTimes(1);vi.mocked(request).mockResolvedValueOnce([{...record,lastCheckedAt:'2026-10-21T00:00:00Z'}]);await view.state.reconcile();expect(view.state.testState).toBeNull()})
+it('sanitizes embedded endpoint credentials for editable and comparison display',()=>{expect(safeSettings({endpoint:'https://private:secret@example.com/api'}).endpoint).toBe('https://example.com/api')})
+
+it.each([401,501])('read failure %i stays distinct from an empty connection list',async status=>{vi.mocked(request).mockRejectedValueOnce(new APIError(status,'unavailable','读取受限'));await view.state.load();expect(view.state.loadError.status).toBe(status);expect(view.state.error).toContain('读取失败')})

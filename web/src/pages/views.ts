@@ -5,7 +5,7 @@ export const legacyViews: Record<string, Component> = {
   search: view(() => import('../views/SearchView.vue')),
   subscriptions: view(() => import('../views/SubscriptionWorkspaceView.vue')),
   downloads: view(() => import('../views/DownloadsView.vue')),
-  library: view(() => import('./LibraryBridge.vue')),
+  library: view(() => import('../views/MediaLibraryView.vue')),
   organize: view(() => import('../views/LibraryView.vue')),
   organizeHistory: view(() => import('../views/OrganizeHistoryView.vue')),
   files: view(() => import('../views/FilesView.vue')),
@@ -14,9 +14,7 @@ export const legacyViews: Record<string, Component> = {
   playback: view(() => import('../views/MediaServerView.vue')),
   users: view(() => import('../views/MediaUsersView.vue')),
   players: view(() => import('../views/PlayerAccessView.vue')),
-  overview: view(() => import('../views/IntegrationsView.vue')),
-  storage: view(() => import('../views/CloudConnectionsView.vue')),
-  notifications: view(() => import('../views/NotificationsView.vue')),
+  connections: view(() => import('../views/ConnectionsWorkspaceView.vue')),
   sites: view(() => import('../views/SitesView.vue')),
   templates: view(() => import('../views/SiteTemplatesView.vue')),
   plugins: view(() => import('../views/PluginsView.vue')),
@@ -31,5 +29,5 @@ export const legacyViews: Record<string, Component> = {
 }
 export const tabViews: Record<string, string[]> = {
   dashboard: ['dashboard'], search: ['search','cache'], subscriptions: ['subscriptions'], downloads: ['downloads'], library: ['library'],
-  organize: ['organize','organizeHistory'], files: ['files','strm','strmTools'], playback: ['playback','users','players'], connections: ['overview','storage','notifications'], sites: ['sites','templates'], plugins: ['plugins'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['settings','classification','api'],
+  organize: ['organize','organizeHistory'], files: ['files','strm','strmTools'], playback: ['playback','users','players'], connections: ['connections'], sites: ['sites','templates'], plugins: ['plugins'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['settings','classification','api'],
 }

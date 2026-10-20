@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import EmbyHome from '../components/EmbyHome.vue'
-import ConnectionPanel from '../components/ConnectionPanel.vue'
 import { onMounted,reactive,ref,watch } from 'vue'
-import {useRoute} from 'vue-router'
+import {useRoute,useRouter} from 'vue-router'
 import { Film,Refresh,Search } from '@element-plus/icons-vue'
 import { request } from '../api/client'
 interface Media{id:string;source:string;title:string;year:string;mediaType:string;overview:string;poster:string;filePath?:string;state?:string;season?:number;episode?:number}
-const route=useRoute(),view=ref(route.query.connectionKind==='emby'?'connection':'home'),parentId=ref(''),embyHome=ref<InstanceType<typeof EmbyHome>>()
+const router=useRouter(),route=useRoute(),view=ref(route.query.connectionKind==='emby'?'connection':'home'),parentId=ref(''),embyHome=ref<InstanceType<typeof EmbyHome>>()
 watch(()=>route.query.connectionKind,kind=>{if(kind==='emby')view.value='connection'})
 const source=ref('managed'),query=ref(''),kind=ref(''),items=ref<Media[]>([]),total=ref(0),page=ref(1),loading=ref(false),error=ref(''),detail=ref<Media|null>(null),dialog=ref(false),broken=reactive(new Set<string>())
 let serial=0
@@ -20,10 +19,10 @@ onMounted(()=>{if(view.value==='catalog')load()})
 </script>
 <template>
  <section class="page-heading"><div><span class="page-kicker">LIBRARY / 媒体库</span><h1>媒体库</h1><p>查看本程序入库的媒体，以及 Emby 已有媒体库内容；不会修改播放地址或自动整理现有文件。</p></div><el-button v-if="view!=='connection'" :icon="Refresh" :loading="loading" @click="refreshView">刷新媒体库</el-button></section>
- <nav class="catalog-tabs" aria-label="媒体库功能"><el-button :type="view==='home'?'primary':'default'" :aria-pressed="view==='home'" @click="view='home'">Emby 首页</el-button><el-button :type="view==='catalog'?'primary':'default'" :aria-pressed="view==='catalog'" @click="view='catalog';parentId='';search()">全部媒体</el-button><el-button :type="view==='connection'?'primary':'default'" :aria-pressed="view==='connection'" @click="view='connection'">Emby 配置</el-button></nav>
+ <nav class="catalog-tabs" aria-label="媒体库功能"><el-button :type="view==='home'?'primary':'default'" :aria-pressed="view==='home'" @click="view='home'">Emby 首页</el-button><el-button :type="view==='catalog'?'primary':'default'" :aria-pressed="view==='catalog'" @click="view='catalog';parentId='';search()">全部媒体</el-button><el-button :type="view==='connection'?'primary':'default'" :aria-pressed="view==='connection'" @click="router.push('/connections?tab=emby')">Emby 配置</el-button></nav>
  <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon/>
  <EmbyHome ref="embyHome" v-if="view==='home'" @browse="browse" @selected="showHome"/>
- <ConnectionPanel v-if="view==='connection'" :allowed-kinds="['emby']" title="Emby媒体库连接"/>
+ <RouterLink v-if="view==='connection'" to="/connections?tab=emby">配置 Emby 连接</RouterLink>
  <template v-if="view==='catalog'">
  <section class="panel catalog-toolbar"><el-radio-group v-model="source" aria-label="媒体库来源" @change="search"><el-radio-button value="managed">本程序入库</el-radio-button><el-radio-button value="emby">Emby 媒体库</el-radio-button></el-radio-group><el-select v-model="kind" aria-label="媒体类型筛选" placeholder="全部类型" @change="search"><el-option label="全部类型" value=""/><el-option label="电影" value="movie"/><el-option label="电视剧" value="series"/></el-select><el-input v-model="query" aria-label="搜索媒体标题" placeholder="搜索媒体标题" clearable @keyup.enter="search"/><el-button :icon="Search" @click="search">搜索</el-button></section>
  <el-button v-if="parentId" @click="parentId='';search()">返回全部分类</el-button><p class="catalog-count">{{source==='emby'?'Emby 媒体库':'本程序媒体库'}} · {{total}} 项</p>

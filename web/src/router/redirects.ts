@@ -1,7 +1,7 @@
 import type { RouteLocationNormalized, RouteLocationRaw, Router } from 'vue-router'
 import { primaryPages, settingsSections } from '../navigation/pages'
 export const legacyDestinations: Record<string, { path: string; tab: string; query?: Record<string, string> }> = {
-  '/emby': { path: '/library', tab: 'browse', query: { connectionKind: 'emby' } },
+  '/emby': { path: '/connections', tab: 'emby' },
   '/mediaLibrary': { path: '/library', tab: 'browse' },
   '/media-server': { path: '/playback', tab: 'settings' },
   '/media-users': { path: '/playback', tab: 'users' },
@@ -28,12 +28,13 @@ export function legacyLocation(path: string, to: Pick<RouteLocationNormalized, '
   return { path: target.path, query: { ...target.query, ...to.query, tab: target.tab }, hash: to.hash }
 }
 export function normalizePageLocation(to: Pick<RouteLocationNormalized, 'path' | 'query' | 'hash'>): RouteLocationRaw | undefined {
+  if ((to.path === '/settings' && (['tmdb','proxy'].includes(String(to.query.section)) || ['tmdb','proxy'].includes(String(to.query.tab)))) || (['/library','/settings'].includes(to.path) && to.query.connectionKind === 'emby')) return { path: '/connections', query: { ...to.query, tab: to.query.connectionKind === 'emby' ? 'emby' : 'aux' }, hash: to.hash }
   const page = primaryPages.find(page => to.path === `/${page.id}`)
   if (!page?.tabs[0]?.id) return
   const query = { ...to.query }, tab = typeof query.tab === 'string' ? query.tab : ''
   if (page.id === 'settings' && settingsSections.some(s => s.id === tab)) { query.section = tab; query.tab = 'general' }
   else if (!page.tabs.some(t => t.id === tab)) query.tab = page.tabs[0].id
-  if (page.id === 'settings' && query.tab === 'general' && query.connectionKind === 'tmdb' && !query.section) query.section = 'tmdb'
+  if (page.id === 'settings' && query.connectionKind === 'tmdb') return { path: '/connections', query: { ...query, tab: 'aux' }, hash: to.hash }
   if (JSON.stringify(query) !== JSON.stringify(to.query)) return { path: to.path, query, hash: to.hash, replace: true }
 }
 // Same-path settings query migrations must also run on query-only navigation, not only beforeEnter.

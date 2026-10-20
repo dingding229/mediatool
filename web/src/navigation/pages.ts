@@ -9,7 +9,7 @@ export const primaryPages: PrimaryPage[] = [
   { id: 'organize', name: '入库整理', group: '媒体', description: '扫描识别、核对入库，再检查整理结果。', tabs: [{ id: 'library', label: '入库整理', keywords: '云盘索引 扫描 待确认 恢复 归档' }, { id: 'history', label: '整理历史', keywords: '批次 记录 证据' }] },
   { id: 'files', name: '文件', group: '媒体', description: '管理文件、固定播放入口与 STRM 修复。', tabs: [{ id: 'browser', label: '文件浏览', keywords: '本地 云盘 目录 重命名 移动' }, { id: 'strm', label: 'STRM 目录', keywords: '固定链接 输出' }, { id: 'tools', label: 'STRM 工具', keywords: '批量修复 302 诊断' }] },
   { id: 'playback', name: '播放服务', group: '媒体', description: '配置播放服务、媒体用户和播放器准入。', tabs: [{ id: 'settings', label: '服务设置', keywords: '自研媒体库 在线会话 预处理' }, { id: 'users', label: '媒体用户', keywords: '账号 权限 登录' }, { id: 'players', label: '播放器准入', keywords: 'UA User-Agent 白名单' }] },
-  { id: 'connections', name: '连接', group: '系统', description: '检查依赖状态，管理云盘与通知渠道。', tabs: [{ id: 'overview', label: '总览', keywords: '服务连接 就绪 readiness' }, { id: 'storage', label: '115/CD2', keywords: '云盘连接 115 授权 CloudDrive2 配额' }, { id: 'notifications', label: '通知渠道', keywords: '通知中心 Telegram Bark 投递' }] },
+  { id: 'connections', name: '连接', group: '系统', description: '检查依赖状态，管理云盘与通知渠道。', tabs: [{ id: 'overview', label: '总览', keywords: '服务连接 就绪 readiness' }, { id: 'storage', label: '115/CD2', keywords: '云盘连接 115 授权 CloudDrive2 配额' }, { id: 'emby', label: 'Emby', keywords: '播放 网关 诊断 API Key' }, { id: 'notifications', label: '通知渠道', keywords: '通知中心 Telegram Bark 投递' }, { id: 'aux', label: 'TMDB/代理', keywords: 'TMDB 元数据 网络代理' }] },
   { id: 'sites', name: '站点', group: '系统', description: '维护 PT 账号与选用的站点模板。', tabs: [{ id: 'accounts', label: '站点账号', keywords: 'PT HDSKY Cookie 分享率' }, { id: 'templates', label: '站点模板', keywords: '规则 内置 加载' }] },
   { id: 'plugins', name: '插件', group: '系统', description: '管理内置插件、实例配置与授权。', tabs: [{ id: '', label: '插件' }] },
   { id: 'ops', name: '运维', group: '系统', description: '查看后台任务、备份、日志和系统数据。', tabs: [{ id: 'jobs', label: '任务队列', keywords: 'Worker Cron 重试' }, { id: 'maintenance', label: '备份与告警', keywords: '维护 恢复 告警 趋势' }, { id: 'logs', label: '日志', keywords: '程序日志 debug info warn error' }, { id: 'data', label: '数据浏览', keywords: '数据库 PostgreSQL Redis 只读' }, { id: 'cache', label: '缓存', keywords: 'TMDB 缓存 TTL 清理' }] },
@@ -19,8 +19,6 @@ export const settingsSections = [
   { id: 'access', label: '访问与域名', keywords: '管理入口 公开地址 端口' },
   { id: 'library', label: '命名与刮削', keywords: '命名模板 电影 剧集' },
   { id: 'automation', label: '搜索与订阅', keywords: 'RSS Cron 调度 搜索缓存' },
-  { id: 'proxy', label: '网络代理', keywords: '代理 网络 路由' },
-  { id: 'tmdb', label: 'TMDB', keywords: '元数据 凭据' },
   { id: 'account', label: '管理员账号', keywords: '密码 安全' },
   { id: 'mobile', label: '移动端应用', keywords: 'PWA 安装' },
 ]
