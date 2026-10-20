@@ -54,7 +54,7 @@ bash scripts/load-env.sh go run ./cmd/admin-reset \
 播放验收脚本：
 
 ```bash
-python3 scripts/verify-m0.py --username '<管理员账号>' \
+go run ./cmd/media-toolctl --root "$PWD" playback-check --username '<管理员账号>' \
   --base-url http://localhost:18080 --gateway-url http://localhost:18091 \
   --asset-id '<已有资产UUID>'
 ```

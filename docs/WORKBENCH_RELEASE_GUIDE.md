@@ -13,7 +13,7 @@
 ## 单Compose部署
 
 ```sh
-python3 scripts/init-compose.py
+go run ./cmd/media-toolctl --root "$PWD" init-compose
 # 直接编辑docker-compose.yml的环境字段、镜像、端口、挂载和外部服务地址。
 # 初始化后的私密Compose不可提交，保持0600；保管原主密钥，不能替换已有密钥。
 docker compose config --quiet

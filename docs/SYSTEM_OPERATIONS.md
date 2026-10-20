@@ -27,7 +27,7 @@ Web不是宿主机root命令代理。流程为：
 3. 主机所有者在部署根运行维护单指定命令：
 
 ```sh
-python3 scripts/ops-owner.py --root /root/docker/mediatool execute <维护单UUID>
+media-toolctl --root /root/docker/mediatool execute <维护单UUID>
 ```
 
 4. 执行器加主机更新锁，重新验证已批准/未过期/当前版本、保护摘要、不可变Docker Hub镜像及AMD64/schema；先创建新备份，再暂停业务并等待在执行任务自然结束。无法排空则阻止，不抢租约、不强制重复业务。
@@ -42,7 +42,7 @@ python3 scripts/ops-owner.py --root /root/docker/mediatool execute <维护单UUI
 ## 版本登记
 
 ```sh
-python3 scripts/ops-owner.py --root /root/docker/mediatool register dingding229/mediatool:sha-<完整SHA>
+media-toolctl --root /root/docker/mediatool register dingding229/mediatool:sha-<完整SHA>
 ```
 
 只接受Hub固定SHA、linux/amd64、revision标签一致、有schema标签和Hub digest的镜像。登记由所有者CLI完成，不允许Web伪造镜像元数据。缺少schema的旧镜像显示不可自动使用，不猜测兼容性。当前发布镜像标注schema50并嵌入source revision。

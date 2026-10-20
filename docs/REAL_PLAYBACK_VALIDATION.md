@@ -52,7 +52,7 @@
 - `/root/docker/mediatool/reports/hls-metadata-check.json`
 - `/root/docker/mediatool/reports/hls-byte-check.json`
 
-维护工具：`cmd/gateway-session-smoke`、`scripts/remote-session-check.py`。导入关联必须由管理员独立核验，不向HTTP提供导入接口，不作为常规鉴权替代。普通诊断可查看不含秘密的X-Media-Gateway/Reason及X-Media-Delivery响应头；不要分享完整播放URL、HAR或Token。
+维护工具：`media-tool diagnose session`（stdin 接收已独立核验的既有会话；旧 server/SQLite 包装已撤销）。导入关联必须由管理员独立核验，不向HTTP提供导入接口，不作为常规鉴权替代。普通诊断可查看不含秘密的X-Media-Gateway/Reason及X-Media-Delivery响应头；不要分享完整播放URL、HAR或Token。
 
 上游接口参考：Emby官方User Authentication及GET/POST Items/{Id}/PlaybackInfo文档。
 

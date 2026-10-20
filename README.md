@@ -35,7 +35,7 @@ Go + Vue 3 的模块化媒体自动化程序。PostgreSQL保存业务事实/任�
 已有私密docker-compose.yml不要重新初始化或替换主密钥；部署参数直接写在该文件。开发测试.env仅供本地隔离测试，不是服务器部署配置。
 
 ```bash
-python3 scripts/init-compose.py  # 仅首次，用直接私密Compose；已有密钥不能替换
+go run ./cmd/media-toolctl --root "$PWD" init-compose  # 仅首次，用直接私密Compose；已有密钥不能替换
 docker compose pull
 docker compose up -d --wait
 ```
@@ -76,7 +76,7 @@ docker compose up -d --wait
 # 隔离media_tool_test，不可指向业务库；必须-p1避免各包TRUNCATE互相干扰
 bash scripts/test-go.sh  # 显式覆盖为media_tool_test、迁移test-only、Redis DB15、-p 1
 go vet ./...
-python3 -m unittest discover -s scripts -p 'test_*.py'
+go test -race ./internal/tooling ./internal/operator
 npm run test --prefix web
 npm run build --prefix web
 bash scripts/test-e2e.sh  # 仅隔离media_tool_test/18084，不在业务库注册测试管理员

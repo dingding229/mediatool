@@ -49,7 +49,7 @@ Goal remains active; alpha operation is not a claim that P0-P7 or real-provider 
 - `docker compose --env-file .env -f deploy/compose.yaml -f deploy/compose.dev.yaml -f deploy/compose.validation.yaml ps`
 - `bash scripts/load-env.sh bash -c 'set -a; source .env.test; set +a; go test -p 1 -race -count=1 ./...'`
 - `E2E_BASE_URL=http://localhost:18080 npm run test:e2e --prefix web`
-- `python3 scripts/backup-restore-check.py` (new private archive + temporary restore only)
+- `go run ./cmd/media-toolctl --root "$PWD" backup-verify` (new private archive + temporary restore only)
 - `go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...`
 
 ## Next progress path

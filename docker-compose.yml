@@ -1,5 +1,5 @@
 # 唯一部署文件：直接编辑此文件，不使用 ${...} 或部署 .env。
-# 首次运行先执行 python3 scripts/init-compose.py 生成私密密钥/数据库密码。
+# 首次运行先执行 go run ./cmd/media-toolctl --root "$PWD" init-compose 生成私密密钥/数据库密码。
 # 公开仓库中的此文件为模板；填写后的服务器文件必须保持0600且不可提交。
 name: media-tool
 x-logging: &logging

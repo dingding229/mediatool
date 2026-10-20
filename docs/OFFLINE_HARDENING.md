@@ -24,12 +24,12 @@
 # 必须指向隔离media_tool_test，按包顺序避免TRUNCATE互相干扰
 bash scripts/load-env.sh bash -c 'set -a; source .env.test; set +a; export TEST_REDIS_URL="$REDIS_URL"; go test -p 1 -race -count=1 ./...'
 go vet ./...
-python3 -m unittest discover -s scripts -p 'test_*.py'
+go test -race ./internal/tooling ./internal/operator
 npm run test --prefix web
 npm run build --prefix web
 E2E_BASE_URL=http://localhost:18080 npm run test:e2e --prefix web
-python3 scripts/load-check.py --requests 500 --concurrency 16
-python3 scripts/backup-restore-check.py
+go run ./cmd/media-toolctl --root "$PWD" load-check --requests 500 --concurrency 16
+go run ./cmd/media-toolctl --root "$PWD" backup-verify
 ```
 
 包含journal落盘中断/回滚/手工修改保护、共享NFO、主密钥dry-run及失败回滚、上传RPC锁/旧revision拒绝、字节去重、数据库配置优先/停用、分页上限、定时调度、固定公网origin、超大JSON拒绝、480次并发元数据重写与IPv6上游测试。
@@ -61,7 +61,7 @@ APP_SECRET_KEY_NEXT_FILE=/private/path/next.key bash scripts/load-env.sh go run 
 
 ```bash
 # 通过账号密码建立管理员会话；M0 Emby播放用户令牌/媒体ID用于测试，提供方连接来自数据库
-python3 scripts/verify-m0.py --username '<已注册管理员账号>' --base-url http://localhost:18080 --gateway-url http://localhost:18091 --asset-id '<已有资产UUID>'
+go run ./cmd/media-toolctl --root "$PWD" playback-check --username '<已注册管理员账号>' --base-url http://localhost:18080 --gateway-url http://localhost:18091 --asset-id '<已有资产UUID>'
 ```
 
 非本机访问要求HTTPS；公网APP_PUBLIC_URL与EMBY_PUBLIC_URL分别对应管理/解析服务与Emby网关。验证实例目前仅绑定回环地址；远程Emby或电视需要显式配置网络/HTTPS反代及共享目录。

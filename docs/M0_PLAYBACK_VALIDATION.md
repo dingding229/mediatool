@@ -143,7 +143,7 @@ M0_EMBY_USER_TOKEN=<有权播放该媒体的Emby用户访问令牌>
 使用正常用户令牌，而非绕过用户身份的管理服务 API Key。
 
 ```bash
-python3 scripts/verify-m0.py --base-url http://localhost:8080
+go run ./cmd/media-toolctl --root "$PWD" playback-check --base-url http://localhost:8080
 ```
 
 脚本只读：检查认证与映射，检查 HEAD，使用 Range 读取最多 1024 个采样字节，确认网关确实拦截。上游忽略 Range 时及时关闭连接，不下载整部影片。重定向到 CDN 时不转发管理/Emby 凭据，只允许公共 HTTPS 目标，并将解析后的地址固定到实际 TLS 拨号，防止检查后重新解析到私网。

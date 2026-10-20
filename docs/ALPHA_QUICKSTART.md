@@ -9,7 +9,7 @@
 已有.env不要重复初始化，也不要重置APP_SECRET_KEY。
 
 ```bash
-python3 scripts/init-env.py  # 仅首次、没有.env时
+go run ./cmd/media-tool-dev init-env  # 仅首次、没有.env时
 # 应用、控制/上传/库扫描Worker、PostgreSQL、Redis
 docker compose --env-file .env -f docker-compose.yml up -d --build
 ```
@@ -69,8 +69,8 @@ APP_PUBLIC_URL必须能被Emby和播放器访问。验证端口只绑定本机�
 ## 工具
 
 ```bash
-python3 scripts/verify-m0.py --username '<已注册管理员账号>' --base-url http://localhost:18080 --gateway-url http://localhost:18091 --asset-id '<已有资产UUID>'
-python3 scripts/backup-restore-check.py
+go run ./cmd/media-toolctl --root "$PWD" playback-check --username '<已注册管理员账号>' --base-url http://localhost:18080 --gateway-url http://localhost:18091 --asset-id '<已有资产UUID>'
+go run ./cmd/media-toolctl --root "$PWD" backup-verify
 ```
 
 播放脚本读取数据库连接，使用管理员账号密码建立临时Cookie会话；不要求.env存放CloudDrive2/Emby提供方凭据，仍需测试媒体ID和Emby用户Token。脚本只能验证服务链路与部分字节，不宣称真实播放器解码。更多测试、主密钥轮换及范围见OFFLINE_HARDENING.md。Go全量集成测试使用`bash scripts/test-go.sh`，不要在普通.env的DATABASE_URL下直接执行测试迁移。

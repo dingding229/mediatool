@@ -10,7 +10,7 @@ UA、Range、状态/字节/耗时、requestId，搜索/站点/订阅/任务/插�
 原始生产日志和数据库禁止提交GitHub或公开Actions/验收回执；对外回执只有结果/时间/摘要。
 旧日志无法恢复过去已被删除的值；新日志从本次更新开始记录。
 
-备份：python3 scripts/backup-restore-check.py --root /root/docker/mediatool。
+备份：go run ./cmd/media-toolctl --root "$PWD" backup-verify --root /root/docker/mediatool。
 工具只读取该根私有Compose（三个服务），持有只读一致快照pg_dump -Fc，在新建随机
 media_tool_restore_<12hex>库恢复，逐表摘要与源快照比对，调用镜像内backup-verify验证迁移/
 所有密文可读/换钥dry-run字节不变/第二次迁移幂等，最后只删除自己创建的临时库。

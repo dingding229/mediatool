@@ -8,4 +8,4 @@ Go 测试与代码同包，前端单元测试在 web/src。当前覆盖配置安
 
 M0 已新增真实 Go 协议代码的本地服务 fixture 串联：gRPC → 固定 STRM → HTTPS 媒体 → Emby 静态流权限映射。fixture 不是 115/Emby 实际安装或客户端，不能作为真实播放验收记录。
 
-真实环境只读检查：python3 scripts/verify-m0.py，缺少配置时退出 2，输出 needs_configuration；真实播放器矩阵须人工验证。
+真实环境只读检查：go run ./cmd/media-toolctl --root "$PWD" playback-check，缺少配置时退出 2，输出 needs_configuration；真实播放器矩阵须人工验证。
