@@ -15,10 +15,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/platform/secrets"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type uniqueID struct {
@@ -46,13 +47,6 @@ type nfoContent struct {
 	data            []byte
 }
 
-func nfoFiles(output, assetID string, item metadata.Item, season, episode *int) ([]nfoContent, error) {
-	coverage := []int{}
-	if episode != nil {
-		coverage = append(coverage, *episode)
-	}
-	return nfoFilesCoverage(output, assetID, item, season, coverage)
-}
 func nfoFilesCoverage(output, assetID string, item metadata.Item, season *int, episodes []int) ([]nfoContent, error) {
 	data := nfo{XMLName: xml.Name{Local: "movie"}, Title: item.Title, OriginalTitle: item.OriginalTitle, Year: item.Year, Plot: item.Overview, Unique: &uniqueID{Type: "tmdb", Default: "true", Value: strconv.Itoa(item.ID)}}
 	out := []nfoContent{}
@@ -162,9 +156,6 @@ func WriteNFO(ctx context.Context, db *pgxpool.Pool, vault *secrets.Vault, root,
 		}
 	}
 	return nil
-}
-func writeManaged(ctx context.Context, db *pgxpool.Pool, vault *secrets.Vault, root, relative, assetID, kind string, content []byte) error {
-	return (Journal{DB: db, Vault: vault}).Write(ctx, root, relative, assetID, "asset:"+assetID, kind, content)
 }
 
 // CopySubtitles stages an entire sidecar manifest before any output is written.

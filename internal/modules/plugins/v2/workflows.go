@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dingding229/mediatool-plugin/sdk/contracts"
-	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/jobs"
 	dbutil "media-tool/internal/platform/database"
 	"media-tool/internal/platform/outbox"
 	"media-tool/internal/platform/pluginstate"
+	"media-tool/internal/platform/requestbudget"
 	"time"
+
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	"github.com/jackc/pgx/v5"
 )
 
 type WorkflowRunner struct{ Store Store }
@@ -452,12 +454,7 @@ func (r WorkflowRunner) step(ctx context.Context, j jobs.Job, v *workflowExecuti
 	*v = current
 	return nil
 }
-func minTime(a, b time.Time) time.Time {
-	if a.Before(b) {
-		return a
-	}
-	return b
-}
+func minTime(a, b time.Time) time.Time { return requestbudget.Earlier(a, b) }
 func (r WorkflowRunner) failAfterRollback(ctx context.Context, tx pgx.Tx, v *workflowExecution) error {
 	rollback(ctx, tx)
 	return r.finishWorkflow(context.WithoutCancel(ctx), v, "failed")

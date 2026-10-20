@@ -1,9 +1,9 @@
 package embyapi
 
 import (
-	"encoding/json"
 	"errors"
 	"media-tool/internal/modules/nativeplayback"
+	"media-tool/internal/platform/httpjson"
 	"net/http"
 )
 
@@ -14,11 +14,9 @@ func WriteError(w http.ResponseWriter, status int) error {
 	if code == "" {
 		status, code = 500, "InternalServerError"
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(struct {
+	return httpjson.Write(w, status, struct {
 		ResponseStatus struct{ ErrorCode, Message string }
 	}{ResponseStatus: struct{ ErrorCode, Message string }{code, http.StatusText(status)}})
 }
@@ -41,11 +39,9 @@ func WriteDomainError(w http.ResponseWriter, err error) error {
 	if message == "" {
 		return WriteError(w, DomainErrorStatus(err))
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(http.StatusForbidden)
-	return json.NewEncoder(w).Encode(struct {
+	return httpjson.Write(w, http.StatusForbidden, struct {
 		ResponseStatus struct{ ErrorCode, Message string }
 	}{struct{ ErrorCode, Message string }{"Forbidden", message}})
 }

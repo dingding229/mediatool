@@ -567,8 +567,6 @@ func (g *Gateway) rejectTranscoding(w http.ResponseWriter, r *http.Request, item
 	gatewayError(w, 409, "direct_play_required", "仅直链播放：禁止HLS、转码、封装转换和服务器媒体中转；客户端必须支持原始文件格式")
 }
 
-func (g *Gateway) DirectPlayOnly() bool { return g.options.DirectPlayOnly }
-
 // Emby accepts /emby aliases too. Nested/case variants must not bypass a media
 // policy merely because the public gateway adds its own mount prefix.
 func gatewayRequestPath(raw string) string {

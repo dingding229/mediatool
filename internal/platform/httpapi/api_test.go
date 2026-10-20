@@ -176,7 +176,7 @@ func TestQueryValidation(t *testing.T) {
 }
 func TestSafeRedirect(t *testing.T) {
 	for _, raw := range []string{"http://example.com/v", "https://user:pass@example.com/v", "https://localhost/v", "https://192.168.1.2/v", "https://example.com/v\r\nX-Evil:1", "javascript:alert(1)"} {
-		if safeRedirect(raw) {
+		if _, e := (playback.Policy{}).Syntax(raw); e == nil {
 			t.Fatal(raw)
 		}
 	}

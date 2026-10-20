@@ -5,10 +5,10 @@ package playback
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"io"
 	deferutil "media-tool/internal/platform/cleanup"
+	"media-tool/internal/platform/httpjson"
 	"mime"
 	"net"
 	"net/http"
@@ -16,9 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/http/httpguts"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/platform/requestbudget"
+
+	"golang.org/x/net/http/httpguts"
 )
 
 type Options struct {
@@ -336,10 +337,8 @@ func WriteError(w http.ResponseWriter, err error) {
 	}
 }
 func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(status)
-	if checkedErr := json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": code, "message": message}}); checkedErr != nil {
+	if checkedErr := httpjson.Write(w, status, map[string]any{"error": map[string]string{"code": code, "message": message}}); checkedErr != nil {
 		deferutil.Report(checkedErr, "internal/modules/playback/engine.go:writeError")
 		return
 	}

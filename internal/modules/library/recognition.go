@@ -10,9 +10,9 @@ import (
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/modules/releasename"
 	"media-tool/internal/modules/storage"
+	"media-tool/internal/platform/textkey"
 	"path"
 	"strings"
-	"unicode"
 )
 
 type Recognition struct {
@@ -30,14 +30,7 @@ func evidenceDigest(file storage.File) string {
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:])
 }
-func titleKey(s string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			return unicode.ToLower(r)
-		}
-		return -1
-	}, s)
-}
+func titleKey(s string) string { return textkey.Title(s) }
 func (e Engine) observe(ctx context.Context, connection, p string) (storage.File, error) {
 	if e.Observe != nil {
 		return e.Observe(ctx, connection, p)

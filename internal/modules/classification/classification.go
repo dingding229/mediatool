@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/releasename"
 	"path"
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Rule struct {
@@ -230,21 +231,6 @@ func (r Repository) Get(ctx context.Context) (Record, error) {
 		return Record{}, err
 	}
 	return DecodeRecord(raw, revision)
-}
-func (r Repository) Save(ctx context.Context, p Policy, rev int64) (Record, error) {
-	normalize(&p)
-	if err := p.Validate(); err != nil {
-		return Record{}, err
-	}
-	raw, _ := json.Marshal(p)
-	tag, err := r.DB.Exec(ctx, `UPDATE directory_classification SET value=$1,revision=revision+1,updated_at=now() WHERE singleton AND revision=$2`, raw, rev)
-	if err != nil {
-		return Record{}, err
-	}
-	if tag.RowsAffected() != 1 {
-		return Record{}, ErrConflict
-	}
-	return r.Get(ctx)
 }
 
 // Render is the one source of truth for cloud and STRM paths. The original

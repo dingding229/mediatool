@@ -6,14 +6,15 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/auth"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
+	uuidcheck "media-tool/internal/platform/identity"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Repository struct{ DB *pgxpool.Pool }
@@ -28,21 +29,7 @@ func dbError(err error) error {
 	}
 	return ErrUnavailable
 }
-func validID(id string) bool {
-	if len(id) != 36 {
-		return false
-	}
-	for i, c := range id {
-		if i == 8 || i == 13 || i == 18 || i == 23 {
-			if c != '-' {
-				return false
-			}
-		} else if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
-			return false
-		}
-	}
-	return true
-}
+func validID(s string) bool { return uuidcheck.UUID(s) }
 
 const userColumns = `id::text,username,display_name,enabled,must_change_password,credential_version,created_at,updated_at,max_streams,max_parental_rating,expires_at`
 
@@ -154,70 +141,6 @@ func (r Repository) List(ctx context.Context) ([]User, error) {
 	}
 	return out, dbError(rows.Err())
 }
-func (r Repository) Login(ctx context.Context, username, password, token string) (User, error) {
-	if r.DB == nil {
-		return User{}, ErrUnavailable
-	}
-	name, formatErr := accounts.NormalizeUsername(username)
-	var hash string
-	u, err := scanUser(r.DB.QueryRow(ctx, `SELECT `+userColumns+` FROM media_users WHERE username=$1`, name))
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return User{}, ErrUnavailable
-	}
-	if err == nil {
-		if err = r.DB.QueryRow(ctx, `SELECT password_hash FROM media_users WHERE id=$1 AND credential_version=$2`, u.ID, u.Revision).Scan(&hash); err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return User{}, ErrUnavailable
-		}
-	}
-	if hash == "" {
-		hash = auth.DummyPasswordHash
-	}
-	matches := auth.VerifyPassword(hash, password)
-	if formatErr != nil || err != nil || !u.Enabled || !matches {
-		return User{}, ErrCredentials
-	}
-	tx, err := r.DB.Begin(ctx)
-	if err != nil {
-		return User{}, ErrUnavailable
-	}
-	defer deferutil.Rollback(ctx, tx)
-	var current User
-	current, err = scanUser(tx.QueryRow(ctx, `SELECT `+userColumns+` FROM media_users WHERE id=$1 AND enabled AND credential_version=$2 FOR SHARE`, u.ID, u.Revision))
-	if errors.Is(err, pgx.ErrNoRows) {
-		return User{}, ErrCredentials
-	}
-	if err != nil {
-		return User{}, ErrUnavailable
-	}
-	if _, err = tx.Exec(ctx, `DELETE FROM media_user_sessions WHERE expires_at<now()-interval '1 day' OR revoked_at<now()-interval '1 day'`); err != nil {
-		return User{}, ErrUnavailable
-	}
-	digest := sha256.Sum256([]byte(token))
-	if _, err = tx.Exec(ctx, `INSERT INTO media_user_sessions(token_digest,user_id,credential_version,expires_at)VALUES($1,$2,$3,now()+interval '8 hours')`, digest[:], u.ID, u.Revision); err != nil {
-		return User{}, ErrUnavailable
-	}
-	if err = audit(ctx, tx, "media-user:"+u.ID, "media_user.login", u.ID); err != nil {
-		return User{}, ErrUnavailable
-	}
-	if err = dbutil.Commit(ctx, tx); err != nil {
-		return User{}, ErrUnavailable
-	}
-	return current, nil
-}
-func (r Repository) Session(ctx context.Context, token string) (User, error) {
-	if token == "" {
-		return User{}, ErrCredentials
-	}
-	if r.DB == nil {
-		return User{}, ErrUnavailable
-	}
-	digest := sha256.Sum256([]byte(token))
-	u, err := scanUser(r.DB.QueryRow(ctx, `SELECT u.id::text,u.username,u.display_name,u.enabled,u.must_change_password,u.credential_version,u.created_at,u.updated_at FROM media_user_sessions s JOIN media_users u ON u.id=s.user_id WHERE s.token_digest=$1 AND s.revoked_at IS NULL AND s.expires_at>now() AND u.enabled AND s.credential_version=u.credential_version`, digest[:]))
-	if errors.Is(err, pgx.ErrNoRows) {
-		return User{}, ErrCredentials
-	}
-	return u, dbError(err)
-}
 
 // Mutations fence the credential/permission revision and revoke every session.
 func (r Repository) Mutate(ctx context.Context, id string, revision int64, action, password string, requireChange ...bool) error {
@@ -267,56 +190,6 @@ func (r Repository) Mutate(ctx context.Context, id string, revision int64, actio
 		return ErrUnavailable
 	}
 	return dbError(dbutil.Commit(ctx, tx))
-}
-func (r Repository) ChangePassword(ctx context.Context, u User, current, next string) error {
-	if current == next {
-		return errors.New("新密码不能与当前密码相同")
-	}
-	if r.DB == nil {
-		return ErrUnavailable
-	}
-	hash, err := auth.HashPassword(next)
-	if err != nil {
-		return err
-	}
-	var original string
-	err = r.DB.QueryRow(ctx, `SELECT password_hash FROM media_users WHERE id=$1 AND credential_version=$2 AND enabled`, u.ID, u.Revision).Scan(&original)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrCredentials
-	}
-	if err != nil {
-		return ErrUnavailable
-	}
-	if !auth.VerifyPassword(original, current) {
-		return ErrCredentials
-	}
-	tx, err := r.DB.Begin(ctx)
-	if err != nil {
-		return ErrUnavailable
-	}
-	defer deferutil.Rollback(ctx, tx)
-	tag, err := tx.Exec(ctx, `UPDATE media_users SET password_hash=$3,must_change_password=false,credential_version=credential_version+1,updated_at=now() WHERE id=$1 AND credential_version=$2 AND enabled`, u.ID, u.Revision, hash)
-	if err != nil {
-		return ErrUnavailable
-	}
-	if tag.RowsAffected() != 1 {
-		return ErrCredentials
-	}
-	if err = revoke(ctx, tx, u.ID); err != nil {
-		return ErrUnavailable
-	}
-	if err = audit(ctx, tx, "media-user:"+u.ID, "media_user.password_changed", u.ID); err != nil {
-		return ErrUnavailable
-	}
-	return dbError(dbutil.Commit(ctx, tx))
-}
-func (r Repository) Logout(ctx context.Context, token string) error {
-	if r.DB == nil {
-		return ErrUnavailable
-	}
-	digest := sha256.Sum256([]byte(token))
-	_, err := r.DB.Exec(ctx, `UPDATE media_user_sessions SET revoked_at=now() WHERE token_digest=$1 AND revoked_at IS NULL`, digest[:])
-	return dbError(err)
 }
 func (r Repository) TakeAttempt(ctx context.Context, secret, scope string, limit int) (bool, error) {
 	if r.DB == nil {

@@ -9,11 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/embyapi/dto"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/nativelibrary"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type HierarchyRepository struct{ DB *pgxpool.Pool }
@@ -107,21 +108,6 @@ func (r HierarchyRepository) ListSeries(ctx context.Context, q nativelibrary.Hie
 		out = append(out, item)
 	}
 	return out, total, nil
-}
-func (r HierarchyRepository) GetSeries(ctx context.Context, visible nativelibrary.VisibleLibraries, seriesID string) (dto.BaseItemDto, error) {
-	if !visible.Valid() {
-		return dto.BaseItemDto{}, ErrInvalid
-	}
-	items, _, err := r.ListSeries(ctx, nativelibrary.HierarchyQuery{Visible: visible, Limit: 200})
-	if err != nil {
-		return dto.BaseItemDto{}, err
-	}
-	for _, item := range items {
-		if item.Id == seriesID {
-			return item, nil
-		}
-	}
-	return dto.BaseItemDto{}, nativelibrary.ErrNotFound
 }
 func (r HierarchyRepository) ListSeasons(ctx context.Context, visible nativelibrary.VisibleLibraries, seriesID string) ([]dto.BaseItemDto, error) {
 	if r.DB == nil {
@@ -500,4 +486,21 @@ func seasonName(number int, d nativelibrary.TMDBDetails) string {
 		return "特别篇"
 	}
 	return "第 " + strconv.Itoa(number) + " 季"
+}
+
+// Retained to satisfy HierarchyService; RTA alone is not permission to drop a contract.
+func (r HierarchyRepository) GetSeries(ctx context.Context, visible nativelibrary.VisibleLibraries, seriesID string) (dto.BaseItemDto, error) {
+	if !visible.Valid() {
+		return dto.BaseItemDto{}, ErrInvalid
+	}
+	items, _, err := r.ListSeries(ctx, nativelibrary.HierarchyQuery{Visible: visible, Limit: 200})
+	if err != nil {
+		return dto.BaseItemDto{}, err
+	}
+	for _, item := range items {
+		if item.Id == seriesID {
+			return item, nil
+		}
+	}
+	return dto.BaseItemDto{}, nativelibrary.ErrNotFound
 }

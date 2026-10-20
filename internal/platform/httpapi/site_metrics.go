@@ -92,10 +92,3 @@ func (a *API) syncSiteMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, map[string]any{"failed": failed, "attempted": min(done, 16), "remainingMayExist": done > 16})
 }
-
-var errMetricsChanged = sitemetrics.ErrChanged
-
-// Wrapper retained for HTTP-layer regression tests; all collectors use the shared module.
-func (a *API) saveSiteMetrics(ctx context.Context, id string, revision int64, fingerprint string, started time.Time, m sites.Metrics, collectionErr error) error {
-	return (sitemetrics.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations}).Save(ctx, id, revision, fingerprint, started, m, collectionErr)
-}

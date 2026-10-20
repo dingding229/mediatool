@@ -17,7 +17,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -114,19 +113,6 @@ func (e Engine) PrepareTransfers(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-func safeName(value string) string {
-	value = strings.Map(func(r rune) rune {
-		if r < 32 || strings.ContainsRune(`/\:*?"<>|`, r) {
-			return '_'
-		}
-		return r
-	}, value)
-	value = strings.Trim(value, " .")
-	if value == "" {
-		return "media"
-	}
-	return value
 }
 func (e Engine) Transfer(ctx context.Context, job jobs.Job) (result error) {
 	var payload struct {
@@ -622,8 +608,6 @@ func (e Engine) finishTask(ctx context.Context, id string) error {
 	}
 	return dbutil.Commit(ctx, tx)
 }
-func intFromString(v string) int { n, _ := strconv.Atoi(v); return n }
-
 func jsonEpisodes(v []int) []byte { raw, _ := json.Marshal(v); return raw }
 
 func coverage(name, kind string) (int, []int, error) {

@@ -177,12 +177,7 @@ func (s *Source) Fetch(parent context.Context, assetID string) (ticket *Ticket, 
 	}
 	return &Ticket{state: &ticketState{url: link.URL, ua: ref.UserAgent, expires: expiry}}, nil
 }
-func minTime(a, b time.Time) time.Time {
-	if a.Before(b) {
-		return a
-	}
-	return b
-}
+func minTime(a, b time.Time) time.Time { return requestbudget.Earlier(a, b) }
 func classify(ctx context.Context, err error) error {
 	var failure *Failure
 	if errors.As(err, &failure) {

@@ -3,13 +3,13 @@ package httpapi
 import (
 	"context"
 	"errors"
-	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/platform/secrets"
 	"net/http"
 	"path/filepath"
-	"strconv"
 	"time"
+
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 )
 
 type PluginInstances interface {
@@ -196,23 +196,9 @@ func (a *API) pluginV2Inspect(w http.ResponseWriter, r *http.Request) {
 }
 
 func pluginPage(r *http.Request) (int, int, error) {
-	page, limit := 1, 50
-	for _, field := range []struct {
-		key   string
-		value *int
-	}{{"page", &page}, {"pageSize", &limit}} {
-		if values, ok := r.URL.Query()[field.key]; ok {
-			if len(values) != 1 {
-				return 0, 0, pluginv2.ErrInvalid
-			}
-			v, e := strconv.Atoi(values[0])
-			if e != nil {
-				return 0, 0, pluginv2.ErrInvalid
-			}
-			*field.value = v
-		}
-	}
-	if page < 1 || page > 10001 || limit < 1 || limit > 200 || (page-1)*limit > 10000 {
+	page, e := queryInt(r.URL.Query(), "page", 1, 1, 10001, true)
+	limit, le := queryInt(r.URL.Query(), "pageSize", 50, 1, 200, true)
+	if e != nil || le != nil || (page-1)*limit > 10000 {
 		return 0, 0, pluginv2.ErrInvalid
 	}
 	return (page - 1) * limit, limit, nil

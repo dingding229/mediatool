@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/antchfx/htmlquery"
-	"golang.org/x/net/html"
 )
 
 // Pagination links are never generic credential-bearing URLs: only a GET page
@@ -131,12 +130,4 @@ func relativeRowSelector(selector string) string {
 		return "." + selector
 	}
 	return selector
-}
-func nodeAttr(n *html.Node, key string) string {
-	for _, a := range n.Attr {
-		if a.Key == key {
-			return a.Val
-		}
-	}
-	return ""
 }

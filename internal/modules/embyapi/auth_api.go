@@ -7,6 +7,7 @@ import (
 	"media-tool/internal/modules/embyapi/dto"
 	"media-tool/internal/modules/mediausers/contracts"
 	"media-tool/internal/modules/nativelibrary"
+	"media-tool/internal/platform/httpjson"
 	"net/http"
 	"strings"
 	"time"
@@ -158,12 +159,10 @@ func (s *Server) authPublicUsers(w http.ResponseWriter, r *http.Request, value n
 }
 func utcNow() *dto.UTCDateTime { v := dto.NewUTCDateTime(time.Now().UTC()); return &v }
 func writeAuthError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(status)
 	// All messages are fixed protocol strings, never wrapped database errors.
-	if err := json.NewEncoder(w).Encode(struct {
+	if err := httpjson.Write(w, status, struct {
 		ResponseStatus struct{ ErrorCode, Message string }
 	}{struct{ ErrorCode, Message string }{strings.ReplaceAll(http.StatusText(status), " ", ""), message}}); err != nil {
 		return

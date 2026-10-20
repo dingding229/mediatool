@@ -4,6 +4,7 @@ package stillqueue
 
 import (
 	"errors"
+	"media-tool/internal/modules/mediaprobe/retry"
 	"regexp"
 	"time"
 
@@ -108,9 +109,5 @@ func (f Failure) valid() bool {
 	return false
 }
 func Backoff(attempt int, suggested time.Duration) time.Duration {
-	if suggested > 0 {
-		return min(suggested, 24*time.Hour)
-	}
-	delays := []time.Duration{time.Minute, 5 * time.Minute, 30 * time.Minute, 2 * time.Hour, 12 * time.Hour, 24 * time.Hour}
-	return delays[min(max(attempt, 1)-1, len(delays)-1)]
+	return retry.Backoff(attempt, suggested)
 }

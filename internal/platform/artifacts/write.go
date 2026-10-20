@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"io"
 	deferutil "media-tool/internal/platform/cleanup"
 	"os"
 	"path"
@@ -53,23 +52,6 @@ func Write(rootDir, relative string, content []byte) error {
 	}
 	defer deferutil.Close(directory, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	return directory.Sync()
-}
-func Equal(rootDir, relative string, content []byte) (bool, error) {
-	root, err := os.OpenRoot(rootDir)
-	if err != nil {
-		return false, err
-	}
-	defer deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
-	file, err := root.Open(relative)
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	defer deferutil.Close(file, "Read/descriptor teardown only; primary operations handle their own I/O result")
-	raw, err := io.ReadAll(io.LimitReader(file, int64(len(content))+1))
-	return string(raw) == string(content), err
 }
 
 // Create publishes a missing artifact atomically without replacing an existing

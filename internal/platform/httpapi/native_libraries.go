@@ -47,33 +47,3 @@ func (a *API) listNativeLibraries(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, page)
 }
-
-func (a *API) listNativeLibraryAssets(w http.ResponseWriter, r *http.Request) {
-	start, limit := 0, 200
-	if raw := r.URL.Query().Get("startIndex"); raw != "" {
-		n, err := strconv.Atoi(raw)
-		if err != nil {
-			fail(w, 400, "invalid_native_asset_query", "页码无效")
-			return
-		}
-		start = n
-	}
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		n, err := strconv.Atoi(raw)
-		if err != nil {
-			fail(w, 400, "invalid_native_asset_query", "条数无效")
-			return
-		}
-		limit = n
-	}
-	if start < 0 || start > 1000000 || limit < 1 || limit > 200 {
-		fail(w, 400, "invalid_native_asset_query", "页码或条数无效")
-		return
-	}
-	page, err := (catalog.AssignmentRepository{DB: a.Deps.DB}).ListAssets(r.Context(), r.PathValue("id"), start, limit)
-	if err != nil {
-		fail(w, 503, "native_assets_unavailable", "媒体库资产诊断暂不可用")
-		return
-	}
-	write(w, 200, page)
-}

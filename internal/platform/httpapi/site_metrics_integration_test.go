@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"media-tool/internal/modules/integrations"
+	"media-tool/internal/modules/sitemetrics"
 	"media-tool/internal/modules/sites"
 	"media-tool/internal/platform/database"
 	"media-tool/internal/platform/secrets"
@@ -53,7 +54,7 @@ func TestPostgresSiteMetricsKeepLastSuccessAndRejectChangedOrOlderCollectors(t *
 	uploaded := int64(100)
 	metric := sites.Metrics{Uploaded: &uploaded, Partial: true, Notes: []string{}}
 	started := time.Now().Add(-time.Minute)
-	if e = api.saveSiteMetrics(ctx, account.ID, account.Revision, fp, started, metric, nil); e != nil {
+	if e = (sitemetrics.Engine{DB: db, Connections: api.Deps.Integrations}).Save(ctx, account.ID, account.Revision, fp, started, metric, nil); e != nil {
 		t.Fatal(e)
 	}
 	var snapshot string
@@ -62,7 +63,7 @@ func TestPostgresSiteMetricsKeepLastSuccessAndRejectChangedOrOlderCollectors(t *
 		t.Fatal(snapshot)
 	}
 	uploaded = 999
-	if e = api.saveSiteMetrics(ctx, account.ID, account.Revision, fp, started.Add(-time.Minute), metric, nil); e != nil {
+	if e = (sitemetrics.Engine{DB: db, Connections: api.Deps.Integrations}).Save(ctx, account.ID, account.Revision, fp, started.Add(-time.Minute), metric, nil); e != nil {
 		t.Fatal(e)
 	}
 	var unchanged string
@@ -70,7 +71,7 @@ func TestPostgresSiteMetricsKeepLastSuccessAndRejectChangedOrOlderCollectors(t *
 	if unchanged != snapshot {
 		t.Fatal("older collection replaced new data")
 	}
-	if e = api.saveSiteMetrics(ctx, account.ID, account.Revision, fp, time.Now(), metric, errors.New("failed")); e != nil {
+	if e = (sitemetrics.Engine{DB: db, Connections: api.Deps.Integrations}).Save(ctx, account.ID, account.Revision, fp, time.Now(), metric, errors.New("failed")); e != nil {
 		t.Fatal(e)
 	}
 	db.QueryRow(ctx, "SELECT metrics::text FROM site_metrics WHERE account_id=$1", account.ID).Scan(&unchanged)
@@ -87,15 +88,15 @@ func TestPostgresSiteMetricsKeepLastSuccessAndRejectChangedOrOlderCollectors(t *
 	if json.Unmarshal(w.Body.Bytes(), &response) != nil || w.Code != 200 || len(response.Data) != 1 || !response.Data[0].Stale {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if e = api.saveSiteMetrics(ctx, account.ID, account.Revision+1, fp, time.Now(), metric, nil); !errors.Is(e, errMetricsChanged) {
+	if e = (sitemetrics.Engine{DB: db, Connections: api.Deps.Integrations}).Save(ctx, account.ID, account.Revision+1, fp, time.Now(), metric, nil); !errors.Is(e, sitemetrics.ErrChanged) {
 		t.Fatal("revision change", e)
 	}
 	db.Exec(ctx, "UPDATE site_definitions SET source_commit='new' WHERE id='owned_metric'")
-	if e = api.saveSiteMetrics(ctx, account.ID, account.Revision, fp, time.Now(), metric, nil); !errors.Is(e, errMetricsChanged) {
+	if e = (sitemetrics.Engine{DB: db, Connections: api.Deps.Integrations}).Save(ctx, account.ID, account.Revision, fp, time.Now(), metric, nil); !errors.Is(e, sitemetrics.ErrChanged) {
 		t.Fatal("definition change", e)
 	}
 	db.Exec(ctx, "UPDATE integrations SET enabled=false WHERE id=$1", account.ID)
-	if e = api.saveSiteMetrics(ctx, account.ID, account.Revision, "", time.Now(), metric, nil); !errors.Is(e, errMetricsChanged) {
+	if e = (sitemetrics.Engine{DB: db, Connections: api.Deps.Integrations}).Save(ctx, account.ID, account.Revision, "", time.Now(), metric, nil); !errors.Is(e, sitemetrics.ErrChanged) {
 		t.Fatal("disabled", e)
 	}
 }

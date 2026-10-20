@@ -3,7 +3,6 @@ package httpapi
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	v2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/platform/logging"
 	"net/http/httptest"
@@ -11,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 )
 
 func TestPluginResponseWhitelist(t *testing.T) {
@@ -67,7 +68,7 @@ func TestPluginExtensionSharedContract(t *testing.T) {
 	}
 }
 
-func TestPluginQueryCredentialNeverAppearsInPrivateRawLog(t *testing.T) {
+func TestPrivatePluginLogPreservesOwnerApprovedOriginalURL(t *testing.T) {
 	var output bytes.Buffer
 	logger, e := logging.NewRawControlled(&output, "info", nil)
 	if e != nil {
@@ -75,8 +76,13 @@ func TestPluginQueryCredentialNeverAppearsInPrivateRawLog(t *testing.T) {
 	}
 	handler := New(cfg(), Dependencies{Logger: logger})
 	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/plugin/11111111-0000-4000-8000-000000000062/public?token=private-sentinel-token&x=allowed", nil))
-	if strings.Contains(output.String(), "private-sentinel-token") || !strings.Contains(output.String(), "redacted") {
-		t.Fatal("plugin credential in private access log")
+	raw := "/api/v1/plugin/11111111-0000-4000-8000-000000000062/public?token=private-sentinel-token%2Boriginal&x=allowed&api_key=private-key&x=second"
+	handler.ServeHTTP(w, httptest.NewRequest("GET", raw, nil))
+	var entry map[string]any
+	if e = json.Unmarshal(bytes.TrimSpace(output.Bytes()), &entry); e != nil {
+		t.Fatal(e)
+	}
+	if entry["url"] != "http://example.com"+raw || strings.Contains(output.String(), "redacted") {
+		t.Fatal("private request URL was altered", entry["url"])
 	}
 }

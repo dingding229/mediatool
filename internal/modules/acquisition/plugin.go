@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/dingding229/mediatool-plugin/sdk/contracts"
-	"github.com/jackc/pgx/v5"
 	"media-tool/internal/adapters/qbittorrent"
 	"media-tool/internal/modules/downloads"
 	"media-tool/internal/modules/jobs"
@@ -15,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 )
 
 // DownloaderService exposes observation of foreign torrents, but mutation only of
@@ -68,13 +68,6 @@ func (s DownloaderService) owned(ctx context.Context, idOrHash string) (string, 
 		return "", nil, task, errors.New("ownership tag mismatch")
 	}
 	return id, a, task, nil
-}
-func (s DownloaderService) Owned(ctx context.Context, idOrHash string) (bool, error) {
-	_, _, _, err := s.owned(ctx, idOrHash)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
-	}
-	return err == nil, err
 }
 func (s DownloaderService) Files(ctx context.Context, id string) ([]downloads.File, error) {
 	_, a, t, err := s.owned(ctx, id)

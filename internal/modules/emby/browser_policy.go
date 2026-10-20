@@ -23,8 +23,6 @@ const browserOptions = `var hlsOptions={manifestLoadingTimeOut:2e4,debug:!1,test
 const coldBrowserOptions = `var hlsOptions=Object.assign({manifestLoadingTimeOut:2e4,debug:!1,testBandwidth:!1,emeEnabled:!1},Hls.DefaultConfig&&Hls.DefaultConfig.fragLoadPolicy?{fragLoadPolicy:{default:Object.assign({},Hls.DefaultConfig.fragLoadPolicy.default,{maxTimeToFirstByteMs:6e4})}}:{})`
 const maxBrowserScript = 2 << 20
 
-func isBrowserPlayer(path string) bool { return path == browserPlayerPath }
-
 const browserIndexPath = "/web/index.html"
 const browserLoaderPath = "/web/apploader.js"
 const knownBrowserIndexSHA256 = "fcbc75842ad94e990db8df8121548f7283a7392ec2bbc5d6f4491fc7bd0fcfa8"

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"media-tool/internal/modules/playeraccess/clientinfo"
+	uuidcheck "media-tool/internal/platform/identity"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -75,21 +76,7 @@ type Page struct {
 
 func ValidUA(ua string) bool         { return clientinfo.ValidUA(ua) }
 func ObservationID(ua string) string { d := sha256.Sum256([]byte(ua)); return hex.EncodeToString(d[:]) }
-func validID(id string) bool {
-	if len(id) != 36 {
-		return false
-	}
-	for i, c := range id {
-		if i == 8 || i == 13 || i == 18 || i == 23 {
-			if c != '-' {
-				return false
-			}
-		} else if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
-			return false
-		}
-	}
-	return true
-}
+func validID(s string) bool          { return uuidcheck.UUID(s) }
 func validObservationID(id string) bool {
 	if len(id) != 64 {
 		return false

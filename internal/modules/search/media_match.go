@@ -6,19 +6,12 @@ import (
 	"errors"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/releasename"
+	"media-tool/internal/platform/textkey"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
-func normalizedTitle(s string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			return unicode.ToLower(r)
-		}
-		return -1
-	}, s)
-}
+func normalizedTitle(s string) string { return textkey.Title(s) }
 
 // The torrent's own release title/year/type are identity evidence. A subtitle
 // mentioning a shared alias is never enough to bind an unrelated movie.

@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/dingding229/mediatool-plugin/sdk/contracts"
-	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 	"media-tool/internal/modules/acquisition"
 	"media-tool/internal/modules/downloads"
 	"media-tool/internal/modules/integrations"
@@ -19,6 +15,7 @@ import (
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/subscriptionpolicy"
 	"media-tool/internal/modules/subscriptions"
+	uuidcheck "media-tool/internal/platform/identity"
 	"media-tool/internal/platform/secrets"
 	"net/url"
 	"path/filepath"
@@ -26,6 +23,11 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 // AcquisitionHost is the sole business bridge. No SQL/engine/credential object is
@@ -496,10 +498,7 @@ func validateRules(r b.Rules) error {
 	return subscriptionpolicy.ValidateKeywords(v)
 }
 
-func validUUID(s string) bool {
-	ok, _ := regexp.MatchString(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`, s)
-	return ok
-}
+func validUUID(s string) bool { return uuidcheck.UUID(s) }
 
 var sensitiveText = regexp.MustCompile(`(?i)(?:https?|magnet)\S+|(?:password|api.?key|passkey|cookie|authorization|token|pickcode)\s*[:=]\s*\S+`)
 

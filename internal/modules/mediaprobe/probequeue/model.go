@@ -4,11 +4,13 @@ package probequeue
 
 import (
 	"errors"
-	"github.com/jackc/pgx/v5/pgtype"
 	"media-tool/internal/modules/mediaprobe/linksource"
 	"media-tool/internal/modules/mediaprobe/probeinfo"
+	"media-tool/internal/modules/mediaprobe/retry"
 	"media-tool/internal/platform/requestbudget"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var ErrInvalid = errors.New("invalid probe attempt")
@@ -56,11 +58,7 @@ func validLease(l Lease) bool {
 
 // Suggested upstream intervals take priority; both paths cap at 24 hours.
 func Backoff(attempt int, suggested time.Duration) time.Duration {
-	if suggested > 0 {
-		return min(suggested, 24*time.Hour)
-	}
-	delays := []time.Duration{time.Minute, 5 * time.Minute, 30 * time.Minute, 2 * time.Hour, 12 * time.Hour, 24 * time.Hour}
-	return delays[min(max(attempt, 1)-1, len(delays)-1)]
+	return retry.Backoff(attempt, suggested)
 }
 func LeaseDuration(resolve, probe time.Duration) (time.Duration, error) {
 	if resolve < 0 || resolve > requestbudget.MaxConfiguredResolve || probe < 0 || probe > 2*time.Minute {

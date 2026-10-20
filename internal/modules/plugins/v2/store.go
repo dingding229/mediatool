@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/dingding229/mediatool-plugin/sdk/contracts"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"media-tool/internal/modules/jobs"
+	uuidcheck "media-tool/internal/platform/identity"
 	"media-tool/internal/platform/secrets"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Store struct {
@@ -25,10 +26,7 @@ type Store struct {
 }
 
 func rollback(ctx context.Context, tx pgx.Tx) { _ = tx.Rollback(ctx) } // Successful commit or primary error is handled by caller.
-func validUUID(s string) bool {
-	ok, _ := regexp.MatchString(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`, s)
-	return ok
-}
+func validUUID(s string) bool                 { return uuidcheck.UUID(s) }
 func (s Store) seal(kind, id string, raw json.RawMessage) ([]byte, error) {
 	if s.Vault == nil || len(raw) > 128<<10 {
 		return nil, ErrInvalid

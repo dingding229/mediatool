@@ -62,30 +62,3 @@ func mustJSON(v any) []byte {
 	}
 	return raw
 }
-
-func TestNativeLibraryAssetsContractRejectsOversizedPages(t *testing.T) {
-	fixture, err := os.ReadFile("testdata/contracts/native-library-assets.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var expected struct {
-		Data catalog.AssetPage `json:"data"`
-	}
-	decoder := json.NewDecoder(bytes.NewReader(fixture))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&expected); err != nil {
-		t.Fatal(err)
-	}
-	api := &API{Deps: Dependencies{DB: nil}}
-	for _, query := range []string{"?startIndex=-1", "?limit=201", "?limit=no"} {
-		w := httptest.NewRecorder()
-		api.listNativeLibraryAssets(w, httptest.NewRequest("GET", "/api/v1/media-server/native/libraries/f:movie/assets"+query, nil))
-		if w.Code != 400 {
-			t.Fatal(query, w.Code)
-		}
-	}
-	// The fixture is decoded with the same strict contract used by the admin UI.
-	if expected.Data.Items[0].Source != "output_directory" || expected.Data.Items[0].Diagnostic == nil {
-		t.Fatal("invalid asset contract")
-	}
-}

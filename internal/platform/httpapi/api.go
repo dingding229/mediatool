@@ -6,9 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/felixge/httpsnoop"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 	"io"
 	"log/slog"
 	"media-tool/internal/modules/accounts"
@@ -26,6 +23,7 @@ import (
 	"media-tool/internal/platform/buildinfo"
 	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/config"
+	"media-tool/internal/platform/httpjson"
 	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/requestbudget"
 	"media-tool/internal/platform/trace"
@@ -35,6 +33,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/felixge/httpsnoop"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 type SessionReader interface {
@@ -429,20 +431,7 @@ func (a *API) middleware(next http.Handler) http.Handler {
 				requestURL.Scheme = "https"
 			}
 		}
-		if strings.HasPrefix(r.URL.Path, "/api/v1/plugin/") {
-			values, e := url.ParseQuery(requestURL.RawQuery)
-			if e != nil {
-				requestURL.RawQuery = "invalid-query"
-			} else {
-				for key := range values {
-					switch strings.ToLower(key) {
-					case "api_key", "apikey", "token", "access_token":
-						values[key] = []string{"[redacted]"}
-					}
-				}
-				requestURL.RawQuery = values.Encode()
-			}
-		}
+
 		fields := []any{"module", module, "url", requestURL.String(), "userAgent", r.UserAgent(), "range", r.Header.Get("Range"), "location", w.Header().Get("Location"), "method", r.Method, "path", r.URL.Path, "status", metrics.Code, "responseBytes", metrics.Written, "durationMs", metrics.Duration.Milliseconds(), "requestId", id}
 		// These headers are fixed server enums. No provider URLs, raw queries,
 		// client credentials or client-supplied UA enter access logs.
@@ -455,17 +444,13 @@ func (a *API) middleware(next http.Handler) http.Handler {
 	})
 }
 func write(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	if checkedErr := json.NewEncoder(w).Encode(Envelope{Data: data}); checkedErr != nil {
+	if checkedErr := httpjson.Write(w, status, Envelope{Data: data}); checkedErr != nil {
 		deferutil.Report(checkedErr, "internal/platform/httpapi/api.go:write")
 		return
 	}
 }
 func fail(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	if checkedErr := json.NewEncoder(w).Encode(Envelope{Error: &APIError{Code: code, Message: message}}); checkedErr != nil {
+	if checkedErr := httpjson.Write(w, status, Envelope{Error: &APIError{Code: code, Message: message}}); checkedErr != nil {
 		deferutil.Report(checkedErr, "internal/platform/httpapi/api.go:fail")
 		return
 	}
@@ -651,8 +636,6 @@ func (a *API) resolve(w http.ResponseWriter, r *http.Request) {
 		a.Engine.Serve(w, r, ref)
 	}
 }
-func safeRedirect(raw string) bool { _, err := (playback.Policy{}).Syntax(raw); return err == nil }
-
 func (a *API) listJobs(w http.ResponseWriter, r *http.Request) {
 	if a.Deps.DB == nil {
 		fail(w, 503, "database_not_configured", "配置 PostgreSQL 并执行迁移后可查询任务")

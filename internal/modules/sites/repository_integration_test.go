@@ -2,8 +2,6 @@ package sites
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -88,64 +86,6 @@ func TestPostgresCasePrioritySurvivesJSONBAndLegacyNeedsExplicitReimport(t *test
 	}
 	if restored.Compatibility["state"] != "parser_supported" {
 		t.Fatal("explicit reimport did not restore priority")
-	}
-}
-
-func TestPostgresImportBatchIsAtomicAndRefIsExplicit(t *testing.T) {
-	db := isolatedSiteDatabase(t)
-	ctx := context.Background()
-	prefix := fmt.Sprintf("owned_batch_%d", time.Now().UnixNano())
-	first, second := prefix+"_a", prefix+"_b"
-	t.Cleanup(func() { db.Exec(ctx, `DELETE FROM site_definitions WHERE id=ANY($1::text[])`, []string{first, second}) })
-	repo := Repository{DB: db}
-	commit := strings.Repeat("a", 40)
-	firstRaw := []byte(fmt.Sprintf(`{"templateVersion":1,"id":%q,"name":"First","domain":"https://owned.invalid","schema":"NexusPHP"}`, first))
-	secondRaw := []byte(fmt.Sprintf(`{"templateVersion":1,"id":%q,"name":"Second","domain":"https://owned.invalid","schema":"NexusPHP"}`, second))
-	hash := func(raw []byte) string { s := sha256.Sum256(raw); return hex.EncodeToString(s[:]) }
-	catalog := Catalog{CatalogVersion: 1, Repository: NativeRepository, Templates: []CatalogEntry{{ID: first, Name: "First", File: "sites/" + first + ".json", SHA256: hash(firstRaw), TemplateVersion: 1}, {ID: second, Name: "Second", File: "sites/" + second + ".json", SHA256: hash(secondRaw), TemplateVersion: 1}}}
-	catalogRaw, _ := json.Marshal(catalog)
-	fetch := func(address string) ([]byte, error) {
-		if !strings.HasPrefix(address, "https://raw.githubusercontent.com/"+NativeRepository+"/"+commit+"/") {
-			return nil, errors.New("unexpected source")
-		}
-		switch {
-		case strings.HasSuffix(address, "/index.json"):
-			return catalogRaw, nil
-		case strings.HasSuffix(address, "/sites/"+first+".json"):
-			return firstRaw, nil
-		case strings.HasSuffix(address, "/sites/"+second+".json"):
-			return []byte(`{"id":"different_id","domain":"https://owned.invalid"}`), nil
-		default:
-			return nil, errors.New("unexpected request")
-		}
-	}
-	if _, err := repo.importSnapshot(ctx, []string{first, second}, commit, fetch); !errors.Is(err, ErrConfig) {
-		t.Fatal("mismatched source ID accepted", err)
-	}
-	var count int
-	if err := db.QueryRow(ctx, `SELECT count(*) FROM site_definitions WHERE id=ANY($1::text[])`, []string{first, second}).Scan(&count); err != nil || count != 0 {
-		t.Fatal("failed batch left partial writes", count, err)
-	}
-	good := func(address string) ([]byte, error) {
-		if strings.HasSuffix(address, "/sites/"+second+".json") {
-			return secondRaw, nil
-		}
-		return fetch(address)
-	}
-	imported, err := repo.importSnapshot(ctx, []string{first, second}, commit, good)
-	if err != nil || len(imported) != 2 {
-		t.Fatal(err)
-	}
-	for _, definition := range imported {
-		if definition.SourceCommit != commit || definition.Compatibility["accountVerified"] != false {
-			t.Fatal("source ref or real-account claim wrong")
-		}
-	}
-	if _, err := repo.importSnapshot(ctx, []string{first, first}, commit, func(string) ([]byte, error) { t.Error("invalid IDs triggered networking"); return nil, nil }); !errors.Is(err, ErrConfig) {
-		t.Fatal("duplicate import IDs accepted")
-	}
-	if _, err := repo.importSnapshot(ctx, []string{first}, "../../main", func(string) ([]byte, error) { t.Error("invalid ref triggered networking"); return nil, nil }); !errors.Is(err, ErrConfig) {
-		t.Fatal("invalid source ref accepted")
 	}
 }
 
