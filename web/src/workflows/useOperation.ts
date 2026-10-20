@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { requestUUID } from '../utils/request-uuid';
-import { APIError } from '../api/client';
+import { APIError, responseStatus } from '../api/client';
 import { readPrivate, savePrivate } from '../organize/model';
 export function useOperation(scope: string) {
   const storage = 'media-tool:u5:' + scope, pending = ref<any>(readPrivate(storage)), phase = ref<'queued' | 'reconciling' | null>(pending.value ? 'reconciling' : null), busy = ref(false), error = ref<unknown>(null);
@@ -18,9 +18,16 @@ export function useOperation(scope: string) {
     pending.value = { key, token: requestUUID() };
     savePrivate(storage, pending.value);
     phase.value = 'reconciling';
+    const ticket = { ...pending.value };
     try {
       const out = await write();
-      phase.value = 'queued';
+      const stored = readPrivate(storage);
+      if (pending.value?.token === ticket.token && (!stored || stored.token === ticket.token)) {
+        const status = responseStatus(out);
+        pending.value = { ...ticket, status };
+        savePrivate(storage, pending.value);
+        phase.value = status === 202 ? 'queued' : 'reconciling';
+      }
       return out;
     }
     catch (e) {

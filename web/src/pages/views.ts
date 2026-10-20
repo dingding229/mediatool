@@ -10,8 +10,7 @@ export const legacyViews: Record<string, Component> = {
   files: view(() => import('../views/FilesWorkspaceView.vue')),
   playback: view(() => import('../views/PlaybackWorkspaceView.vue')),
   connections: view(() => import('../views/ConnectionsWorkspaceView.vue')),
-  sites: view(() => import('../views/SitesView.vue')),
-  templates: view(() => import('../views/SiteTemplatesView.vue')),
+  sites: view(() => import('../views/SitesWorkspaceView.vue')),
   plugins: view(() => import('../views/PluginsView.vue')),
   jobs: view(() => import('../views/JobsView.vue')),
   maintenance: view(() => import('../views/MaintenanceView.vue')),
@@ -24,5 +23,5 @@ export const legacyViews: Record<string, Component> = {
 }
 export const tabViews: Record<string, string[]> = {
   dashboard: ['dashboard'], search: ['search'], subscriptions: ['subscriptions'], downloads: ['downloads'], library: ['library'],
-  organize: ['organize'], files: ['files'], playback: ['playback'], connections: ['connections'], sites: ['sites','templates'], plugins: ['plugins'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['settings','classification','api'],
+  organize: ['organize'], files: ['files'], playback: ['playback'], connections: ['connections'], sites: ['sites'], plugins: ['plugins'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['settings','classification','api'],
 }

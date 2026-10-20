@@ -165,16 +165,16 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | POST | `/api/v1/files/preview` | management | 前端直接调用 | `web/src/files/FileActionDialog.vue:73` |
 | GET | `/api/v1/files/roots` | management | 前端直接调用 | `web/src/organize/ScanPanel.vue:36`、`web/src/files/useBrowser.ts:41` |
 | HEAD | `/api/v1/files/roots` | management | 未检出静态使用 |  |
-| GET | `/api/v1/integrations` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:31`、`web/src/connections/useConnections.ts:16`、`web/src/dashboard/useDashboard.ts:5`、`web/src/acquisition/useSearch.ts:19`、`web/src/acquisition/useResults.ts:111` |
+| GET | `/api/v1/integrations` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:31`、`web/src/connections/useConnections.ts:16`、`web/src/dashboard/useDashboard.ts:5`、`web/src/acquisition/useSearch.ts:19`、`web/src/acquisition/useResults.ts:111`、`web/src/sites/AccountsPanel.vue:15`、`web/src/sites/TemplatesPanel.vue:11` |
 | HEAD | `/api/v1/integrations` | management | 未检出静态使用 |  |
 | POST | `/api/v1/integrations` | management | 前端直接调用 | `web/src/connections/useConnections.ts:56` |
-| DELETE | `/api/v1/integrations/{id}` | management | 前端直接调用 | `web/src/connections/useConnections.ts:150` |
-| PUT | `/api/v1/integrations/{id}` | management | 前端直接调用 | `web/src/connections/useConnections.ts:56` |
+| DELETE | `/api/v1/integrations/{id}` | management | 前端直接调用 | `web/src/connections/useConnections.ts:150`、`web/src/sites/AccountsPanel.vue:61` |
+| PUT | `/api/v1/integrations/{id}` | management | 前端直接调用 | `web/src/connections/useConnections.ts:56`、`web/src/sites/AccountsPanel.vue:61` |
 | POST | `/api/v1/integrations/{id}/115/auth/cancel` | management | 前端直接调用 | `web/src/components/Official115AuthDialog.vue:33` |
 | POST | `/api/v1/integrations/{id}/115/auth/poll` | management | 前端直接调用 | `web/src/components/Official115AuthDialog.vue:14` |
 | POST | `/api/v1/integrations/{id}/115/auth/start` | management | 前端直接调用 | `web/src/components/Official115AuthDialog.vue:27` |
 | POST | `/api/v1/integrations/{id}/secrets/reveal` | management | 前端直接调用 | `web/src/connections/useSecretReveal.ts:21` |
-| POST | `/api/v1/integrations/{id}/test` | management | 前端直接调用 | `web/src/connections/useConnections.ts:108` |
+| POST | `/api/v1/integrations/{id}/test` | management | 前端直接调用 | `web/src/connections/useConnections.ts:108`、`web/src/sites/AccountsPanel.vue:69` |
 | GET | `/api/v1/jobs` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/jobs` | management | 未检出静态使用 |  |
 | POST | `/api/v1/jobs` | management | 前端直接调用 | `web/src/views/JobsView.vue:147` |
@@ -383,16 +383,16 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | GET | `/api/v1/plugins/workflows` | management | 前端经适配调用 | `web/src/api/plugins.ts:15`、`web/src/api/plugins.ts:37`、`web/src/api/plugins.ts:38`、`web/src/api/plugins.ts:39` |
 | HEAD | `/api/v1/plugins/workflows` | management | 未检出静态使用 |  |
 | POST | `/api/v1/plugins/workflows` | management | 前端经适配调用 | `web/src/api/plugins.ts:40` |
-| GET | `/api/v1/pt/accounts` | management | 前端直接调用 | `web/src/components/PTAccountDialog.vue:60` |
+| GET | `/api/v1/pt/accounts` | management | 前端直接调用 | `web/src/sites/AccountEditor.vue:41` |
 | HEAD | `/api/v1/pt/accounts` | management | 未检出静态使用 |  |
-| POST | `/api/v1/pt/accounts` | management | 未检出静态使用 |  |
-| PUT | `/api/v1/pt/accounts/{id}` | management | 未检出静态使用 |  |
-| GET | `/api/v1/pt/templates` | management | 前端直接调用 | `web/src/components/PTAccountDialog.vue:59`、`web/src/views/SiteTemplatesView.vue:46` |
+| POST | `/api/v1/pt/accounts` | management | 前端直接调用 | `web/src/sites/AccountEditor.vue:97` |
+| PUT | `/api/v1/pt/accounts/{id}` | management | 前端直接调用 | `web/src/sites/AccountEditor.vue:97` |
+| GET | `/api/v1/pt/templates` | management | 前端直接调用 | `web/src/sites/AccountEditor.vue:41`、`web/src/sites/TemplatesPanel.vue:11` |
 | HEAD | `/api/v1/pt/templates` | management | 未检出静态使用 |  |
-| GET | `/api/v1/pt/templates/{id}/icon` | management | 未检出静态使用 |  |
+| GET | `/api/v1/pt/templates/{id}/icon` | management | 前端资源/链接使用 | `web/src/sites/TemplatesPanel.vue:80`、`web/src/sites/AccountsPanel.vue:131` |
 | HEAD | `/api/v1/pt/templates/{id}/icon` | management | 未检出静态使用 |  |
-| POST | `/api/v1/pt/templates/load` | management | 前端直接调用 | `web/src/views/SiteTemplatesView.vue:60` |
-| GET | `/api/v1/pt/ua` | management | 前端直接调用 | `web/src/components/PTAccountDialog.vue:61`、`web/src/components/PTAccountDialog.vue:118` |
+| POST | `/api/v1/pt/templates/load` | management | 前端直接调用 | `web/src/sites/TemplatesPanel.vue:43` |
+| GET | `/api/v1/pt/ua` | management | 前端直接调用 | `web/src/sites/AccountEditor.vue:41`、`web/src/sites/AccountEditor.vue:84` |
 | HEAD | `/api/v1/pt/ua` | management | 未检出静态使用 |  |
 | GET | `/api/v1/readiness` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/views/ConnectionsWorkspaceView.vue:22` |
 | HEAD | `/api/v1/readiness` | management | 未检出静态使用 |  |
@@ -418,12 +418,12 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/sites` | management | 未检出静态使用 |  |
 | GET | `/api/v1/sites/definitions` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/sites/definitions` | management | 未检出静态使用 |  |
-| GET | `/api/v1/sites/metrics` | management | 前端直接调用 | `web/src/components/SiteMetrics.vue:79` |
+| GET | `/api/v1/sites/metrics` | management | 前端直接调用 | `web/src/sites/AccountsPanel.vue:15` |
 | HEAD | `/api/v1/sites/metrics` | management | 未检出静态使用 |  |
-| GET | `/api/v1/sites/metrics/schedule` | management | 前端直接调用 | `web/src/components/SiteMetricSchedule.vue:23` |
+| GET | `/api/v1/sites/metrics/schedule` | management | 前端直接调用 | `web/src/sites/SchedulePanel.vue:9` |
 | HEAD | `/api/v1/sites/metrics/schedule` | management | 未检出静态使用 |  |
-| PUT | `/api/v1/sites/metrics/schedule` | management | 前端直接调用 | `web/src/components/SiteMetricSchedule.vue:44` |
-| POST | `/api/v1/sites/metrics/sync` | management | 前端直接调用 | `web/src/components/SiteMetrics.vue:89` |
+| PUT | `/api/v1/sites/metrics/schedule` | management | 前端直接调用 | `web/src/sites/SchedulePanel.vue:29` |
+| POST | `/api/v1/sites/metrics/sync` | management | 前端直接调用 | `web/src/sites/AccountsPanel.vue:74` |
 | POST | `/api/v1/strm/batch-preview` | management | 前端直接调用 | `web/src/files/LinkDiagnostics.vue:65` |
 | POST | `/api/v1/strm/preview` | management | 前端直接调用 | `web/src/files/LinkDiagnostics.vue:40` |
 | GET | `/api/v1/strm/repairs/{id}` | management | 前端直接调用 | `web/src/files/STRMRepairPanel.vue:87` |
