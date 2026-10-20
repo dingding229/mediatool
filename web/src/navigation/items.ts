@@ -1,56 +1,18 @@
-import { Monitor, Film, Search, Connection, Collection, Download, FolderOpened, Cloudy, Link, Clock, Bell, Operation, Files, Coin, Setting, SetUp, VideoPlay, User, Star, MagicStick, Tickets, DataAnalysis, UploadFilled, Timer, Histogram, Document, FolderChecked, Tools, Key, Cpu, TakeawayBox, Grid } from '@element-plus/icons-vue'
 import type { Component } from 'vue'
-
-export interface NavigationItem { id: string; name: string; icon: Component; keywords: string }
+import { Monitor, Search, Star, Download, Film, FolderChecked, FolderOpened, VideoPlay, Connection, Tickets, MagicStick, Operation, Setting } from '@element-plus/icons-vue'
+import { primaryPages, settingsSections } from './pages'
+export interface NavigationItem { id: string; name: string; icon: Component; keywords: string; path: string; group: string }
 export interface NavigationGroup { id: string; name: string; items: NavigationItem[] }
-export const navigationGroups: NavigationGroup[] = [
-  { id: 'browse', name: '媒体浏览', items: [
-    { id: 'dashboard', name: '总览', icon: Monitor, keywords: '首页 状态 工作台' },
-    { id: 'media-server', name: '自研媒体库', icon: VideoPlay, keywords: '内置 Go TypeScript Provider 播放接口' },
-    { id: 'player-access', name: '播放器访问', icon: Key, keywords: 'UA User-Agent 白名单 限制 播放器 访问记录' },
-    { id: 'media-users', name: '媒体用户', icon: User, keywords: '账号 权限 登录 独立媒体用户' },
-    { id: 'mediaLibrary', name: '媒体库', icon: Film, keywords: 'Emby 电影 剧集 播放' },
-  ] },
-  { id: 'acquire', name: '资源获取', items: [
-    { id: 'search', name: '资源搜索', icon: Search, keywords: 'TMDB 站点直搜 搜索历史' },
-    { id: 'subscriptions', name: '资源订阅', icon: Star, keywords: 'RSS 订阅规则' },
-    { id: 'sites', name: 'PT 站点', icon: Connection, keywords: 'HDSKY 账号' },
-{ id: 'site-templates', name: '站点模板', icon: Tickets, keywords: 'HDSKY OURBITS CHDBITS SSD Go 模板' },
-    { id: 'tmdb-cache', name: 'TMDB缓存', icon: DataAnalysis, keywords: 'TMDB 缓存 TTL 查看 清理' },
-{ id: 'search-cache', name: '搜索缓存', icon: Histogram, keywords: '站点 搜索 缓存 TTL 查看 清理' },
-    { id: 'downloads', name: '下载与传输', icon: Download, keywords: '下载器 做种 上传' },
-  ] },
-  { id: 'organize', name: '文件与入库', items: [
-    {id:'classification',name:'目录分类',icon:FolderChecked,keywords:'动漫 电影 电视剧 规则 国家 题材 分类'},
-    { id: 'files', name: '文件管理', icon: FolderOpened, keywords: '本地 云盘 重命名 移动 回收' },
-    { id: 'cloud-connections', name: '云盘连接', icon: UploadFilled, keywords: '115 授权 CloudDrive2 空间 会员' },
-    { id: 'cloudStorage', name: '云盘索引', icon: Cloudy, keywords: '扫描 识别 入库' },
-    { id: 'strm-tools', name: 'STRM工具', icon: Tools, keywords: '固定链接 预览 批量修复' },
-    { id: 'strm', name: 'STRM目录', icon: Document, keywords: '固定链接 302 播放' },
-    { id: 'organize-history', name: '整理历史', icon: Timer, keywords: '命名 对账 记录' },
-  ] },
-  { id: 'operate', name: '系统运维', items: [
-    { id: 'jobs', name: '任务队列', icon: Operation, keywords: 'Worker 重试 后台任务 健康 Cron 调度 运维 备份 恢复 告警 趋势' },
-    { id: 'notifications', name: '通知中心', icon: Bell, keywords: 'Telegram 通知配置' },
-    { id: 'integrations', name: '服务连接', icon: Grid, keywords: '只读 连接状态' },
-    { id: 'plugins', name: '插件扩展', icon: MagicStick, keywords: 'Webhook 扩展' },
-    { id: 'logs', name: '程序日志', icon: Files, keywords: 'debug info warn error 清理' },
-    { id: 'data', name: '数据库浏览', icon: Coin, keywords: 'PostgreSQL Redis 只读' },
-    {id:'external-api',name:'外部API',icon:Link,keywords:'API 凭据 权限 外部调用 验证'},
-    { id: 'settings', name: '系统设置', icon: Setting, keywords: 'TMDB 缓存 命名模板 密码' },
-  ] },
-]
-export const navigationItems = navigationGroups.flatMap(group => group.items.map(item => ({ ...item, group: group.name })))
-export function searchNavigation(query: string) {
+const icons = [Monitor, Search, Star, Download, Film, FolderChecked, FolderOpened, VideoPlay, Connection, Tickets, MagicStick, Operation, Setting]
+export const navigationItems: NavigationItem[] = primaryPages.map((page, index) => ({ id: page.id, name: page.name, group: page.group, icon: icons[index]!, path: `/${page.id}`, keywords: page.description }))
+export const navigationGroups: NavigationGroup[] = [{ id: 'home', name: '', items: navigationItems.filter(p => !p.group) }, ...['获取', '媒体', '系统'].map((name, index) => ({ id: ['acquire','media','system'][index]!, name, items: navigationItems.filter(p => p.group === name) }))]
+export interface QuickSearchMatch extends NavigationItem { pageId: string; to: { path: string; query?: Record<string, string> } }
+const primaryDestinations: QuickSearchMatch[] = navigationItems.map(item => ({ ...item, pageId: item.id, keywords: item.name, to: { path: item.path } }))
+const tabDestinations: QuickSearchMatch[] = primaryPages.flatMap(page => page.tabs.filter(tab => tab.id).map(tab => ({ ...navigationItems.find(item => item.id === page.id)!, id: `${page.id}:${tab.id}`, pageId: page.id, name: `${page.name} · ${tab.label}`, keywords: tab.keywords ?? '', to: { path: `/${page.id}`, query: { tab: tab.id } } })))
+const settingDestinations: QuickSearchMatch[] = settingsSections.map(section => ({ ...navigationItems.find(item => item.id === 'settings')!, id: `settings:general:${section.id}`, pageId: 'settings', name: `设置 · ${section.label}`, keywords: section.keywords, to: { path: '/settings', query: { tab: 'general', section: section.id } } }))
+export function searchNavigation(query: string): QuickSearchMatch[] {
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
-  return navigationItems.filter(item => terms.every(term => `${item.name} ${item.keywords} ${item.group}`.toLocaleLowerCase().includes(term)))
+  if (!terms.length) return primaryDestinations
+  return [...primaryDestinations, ...tabDestinations, ...settingDestinations].filter(item => terms.every(term => `${item.name} ${item.group} ${item.keywords}`.toLocaleLowerCase().includes(term)))
 }
-export function navigationLocation(path: string) {
- if(path==='/maintenance' || path==='/ops')return navigationItems.find(item=>item.id==='jobs')
- if(path==='/library')return navigationItems.find(item=>item.id==='mediaLibrary')
- if(path==='/organize')return navigationItems.find(item=>item.id==='cloudStorage')
- if(path==='/playback')return navigationItems.find(item=>item.id==='media-server')
- if(path==='/connections')return navigationItems.find(item=>item.id==='cloud-connections')
-  return navigationItems.find(item => path === `/${item.id}` || path.startsWith(`/${item.id}/`))
-    ?? (path === '/emby' ? navigationItems.find(item => item.id === 'mediaLibrary') : undefined)
-}
+export function navigationLocation(path: string) { return navigationItems.find(item => path === item.path || path.startsWith(item.path + '/')) }

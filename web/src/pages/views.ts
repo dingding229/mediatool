@@ -1,0 +1,35 @@
+import { defineAsyncComponent, markRaw, type Component } from 'vue'
+const view = (loader: () => Promise<any>) => markRaw(defineAsyncComponent(loader))
+export const legacyViews: Record<string, Component> = {
+  dashboard: view(() => import('../views/DashboardView.vue')),
+  search: view(() => import('../views/SearchView.vue')),
+  subscriptions: view(() => import('../views/SubscriptionsView.vue')),
+  downloads: view(() => import('../views/DownloadsView.vue')),
+  library: view(() => import('./LibraryBridge.vue')),
+  organize: view(() => import('../views/LibraryView.vue')),
+  organizeHistory: view(() => import('../views/OrganizeHistoryView.vue')),
+  files: view(() => import('../views/FilesView.vue')),
+  strm: view(() => import('../views/StrmView.vue')),
+  strmTools: view(() => import('../views/StrmToolsView.vue')),
+  playback: view(() => import('../views/MediaServerView.vue')),
+  users: view(() => import('../views/MediaUsersView.vue')),
+  players: view(() => import('../views/PlayerAccessView.vue')),
+  overview: view(() => import('../views/IntegrationsView.vue')),
+  storage: view(() => import('../views/CloudConnectionsView.vue')),
+  notifications: view(() => import('../views/NotificationsView.vue')),
+  sites: view(() => import('../views/SitesView.vue')),
+  templates: view(() => import('../views/SiteTemplatesView.vue')),
+  plugins: view(() => import('../views/PluginsView.vue')),
+  jobs: view(() => import('../views/JobsView.vue')),
+  maintenance: view(() => import('../views/MaintenanceView.vue')),
+  logs: view(() => import('../views/LogsView.vue')),
+  data: view(() => import('../views/DataView.vue')),
+  cache: view(() => import('../views/CacheView.vue')),
+  settings: view(() => import('../views/SettingsView.vue')),
+  classification: view(() => import('../views/ClassificationView.vue')),
+  api: view(() => import('../views/ExternalAPIView.vue')),
+}
+export const tabViews: Record<string, string[]> = {
+  dashboard: ['dashboard'], search: ['search','cache'], subscriptions: ['subscriptions'], downloads: ['downloads'], library: ['library'],
+  organize: ['organize','organizeHistory'], files: ['files','strm','strmTools'], playback: ['playback','users','players'], connections: ['overview','storage','notifications'], sites: ['sites','templates'], plugins: ['plugins'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['settings','classification','api'],
+}

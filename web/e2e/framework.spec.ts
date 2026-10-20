@@ -36,12 +36,12 @@ test.afterEach(async({page},info)=>{
  await info.attach('isolated-transport-diagnostic',{body:JSON.stringify(diagnostic),contentType:'application/json'})
 })
 async function navigate(page:import('@playwright/test').Page,name:string){
- const item=navigationItems.find(item=>item.name===name);if(!item)throw new Error('Unknown navigation target: '+name)
- let menu=page.getByRole('navigation',{name:'功能导航'})
+ const aliases:Record<string,[string,string?]>={'系统设置':['settings','general'],'PT 站点':['sites','accounts'],'STRM工具':['files','tools'],'STRM目录':['files','strm'],'下载与传输':['downloads','tasks'],'云盘索引':['organize','library'],'任务队列':['ops','jobs'],'程序日志':['ops','logs'],'自研媒体库':['playback','settings'],'资源订阅':['subscriptions']}
+ const target=aliases[name]??[navigationItems.find(item=>item.name===name)?.id];const item=navigationItems.find(item=>item.id===target[0]);if(!item)throw new Error('Unknown navigation target: '+name)
+ const menu=page.getByRole('navigation',{name:'功能导航'})
  if(!await menu.isVisible())await page.getByRole('button',{name:'打开导航',exact:true}).click()
- const toggle=menu.getByRole('button',{name:item.group,exact:true})
- if(await toggle.getAttribute('aria-expanded')!=='true')await toggle.click()
- await menu.getByRole('link',{name,exact:true}).click()
+ await menu.getByRole('link',{name:item.name,exact:true}).click()
+ if(target[1]){const tab=page.locator('.workflow-page-navigation .page-tabs').getByRole('button').filter({hasText:({tools:'STRM 工具',strm:'STRM 目录',library:'入库整理',jobs:'任务队列',logs:'日志',settings:'服务设置',accounts:'站点账号',general:'系统配置'} as Record<string,string>)[target[1]]??''});if(await tab.count()===1)await tab.click()}
 }
 async function login(page:import('@playwright/test').Page){
  await page.goto('/login')
@@ -51,7 +51,7 @@ async function login(page:import('@playwright/test').Page){
  await page.getByRole('button',{name:'进入工作台',exact:true}).click()
  await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
  await expect(page.getByText('服务器负载',{exact:true})).toBeVisible()
- await expect(page.locator('.sidebar-note')).toContainText(expectedVersion)
+ await expect(page.locator('.workbench-version')).toContainText(expectedVersion)
 }
 // Later UI-only fixtures share one valid account session in memory. Login/
 // logout/password/rate-limit behavior above remains separately exercised; do
@@ -296,7 +296,7 @@ test('management Emby page survives a direct reload without entering the playbac
  await expect(page.getByRole('heading',{name:'Emby 播放网关',exact:true})).toBeVisible()
  await page.reload()
  await expect(page.getByRole('heading',{name:'Emby 播放网关',exact:true})).toBeVisible()
- await expect(page).toHaveURL('http://localhost:18084/emby')
+ await expect(page).toHaveURL(/\/library\?.*tab=browse/)
  await expect(page.getByRole('link',{name:'编辑Emby连接',exact:true})).toBeVisible()
 })
 
@@ -562,7 +562,7 @@ test('partial provider pagination remains visible and does not claim no more res
  await page.emulateMedia({reducedMotion:'reduce'})
  await page.setViewportSize({width:375,height:812})
  await expect(page.getByRole('button',{name:'打开导航',exact:true})).toBeVisible()
- await expect.poll(()=>page.locator('.sidebar').evaluate(el=>el.getBoundingClientRect().right)).toBeLessThanOrEqual(1)
+ await expect.poll(()=>page.locator('.workbench-sidebar').evaluate(el=>el.getBoundingClientRect().right)).toBeLessThanOrEqual(1)
  await expect(page.getByText('没有显示不等于站点没有资源。',{exact:false})).toBeVisible()
  await page.screenshot({path:resolve(screenshots,'search-provider-partial-mobile.png'),fullPage:true})
 })
@@ -748,9 +748,9 @@ test('temporary-password sessions are routed to compulsory reset without web rec
 test('grouped navigation, quick jump and keyboard-only return (UI)',async({page})=>{
  await fixtureLogin(page)
  const navigation=page.getByRole('navigation',{name:'功能导航'})
- for(const name of ['媒体浏览','资源获取','文件与入库','系统运维'])await expect(navigation.getByRole('heading',{name,exact:true})).toBeVisible()
+ for(const name of ['获取','媒体','系统'])await expect(navigation.getByRole('heading',{name,exact:true})).toBeVisible()
  await expect(page.getByRole('heading',{name:'模块建设进度',exact:true})).toHaveCount(0)
- await expect(page).toHaveTitle('总览 · Media Tool')
+ await expect(page).toHaveTitle('首页 · Media Tool')
  await page.getByRole('button',{name:'快速前往',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'快速前往',exact:true}),input=dialog.getByRole('combobox',{name:'搜索功能入口'})
  await expect(input).toBeFocused();await input.fill('Redis');await expect(dialog.getByRole('option')).toHaveCount(1)
@@ -758,20 +758,21 @@ test('grouped navigation, quick jump and keyboard-only return (UI)',async({page}
  await page.keyboard.press('Control+k');await expect(input).toBeFocused();await input.fill('not-a-real-feature');await expect(dialog.getByText('没有匹配的功能，请尝试其他关键词。')).toBeVisible()
  await input.press('Enter');await expect(dialog).toBeVisible();await page.keyboard.press('Escape');await expect(dialog).toBeHidden()
  await page.getByRole('button',{name:'快速前往',exact:true}).focus();await page.keyboard.press('Enter');await expect(input).toBeFocused()
- await input.fill('命名模板');await input.press('ArrowDown');await input.press('ArrowUp');await input.press('Enter');await expect(page).toHaveURL(/\/settings$/)
+ await input.fill('命名模板');await input.press('ArrowDown');await input.press('ArrowUp');await input.press('Enter');await expect(page).toHaveURL(/\/settings\?tab=general&section=library/)
  await page.getByRole('navigation',{name:'系统设置分类'}).getByRole('button',{name:'命名与刮削',exact:true}).click()
  await expect(page.getByLabel('电影命名模板',{exact:true})).toBeVisible()
 })
 
 test('mobile navigation traps focus, closes with Escape and restores its trigger (UI)',async({page})=>{
  await page.setViewportSize({width:375,height:812});await fixtureLogin(page)
+ await expect(page.getByRole('button',{name:'退出',exact:true})).toBeVisible()
  const trigger=page.getByRole('button',{name:'打开导航',exact:true});await trigger.click()
  const drawer=page.getByRole('dialog',{name:'主导航',exact:true});await expect(drawer).toBeVisible();await expect(trigger).toHaveAttribute('aria-expanded','true')
  for(let i=0;i<24;i++){await page.keyboard.press('Tab');expect(await drawer.evaluate(el=>el.contains(document.activeElement))).toBe(true)}
  await page.screenshot({path:resolve(screenshots,'ui-navigation-mobile.png'),animations:'disabled'})
  await page.keyboard.press('Escape');await expect(drawer).toBeHidden();await expect(trigger).toBeFocused()
  await page.keyboard.press('Control+k');await expect(page.getByRole('dialog',{name:'快速前往',exact:true})).toBeVisible();await page.keyboard.press('Escape')
- await trigger.click();await drawer.getByRole('button',{name:'系统运维',exact:true}).click();await drawer.getByRole('link',{name:'程序日志',exact:true}).click();await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible();await expect(drawer).toBeHidden()
+ await trigger.click();await drawer.getByRole('link',{name:'运维',exact:true}).click();await page.locator('.workflow-page-navigation .page-tabs').getByRole('button',{name:'日志',exact:true}).click();await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible();await expect(drawer).toBeHidden()
 })
 
 test('TMDB errors and empty results are visible in media search (UI fixture)',async({page})=>{
@@ -807,38 +808,25 @@ test('media-library refresh targets home and configuration deep links keep their
 })
 
 
-test('sidebar groups start collapsed and support keyboard disclosure without auto-opening routes',async({page})=>{
+test('sidebar groups are always expanded and the active destination uses highlight only',async({page})=>{
  await fixtureLogin(page);const nav=page.getByRole('navigation',{name:'功能导航'})
- for(const name of ['媒体浏览','资源获取','文件与入库','系统运维'])await expect(nav.getByRole('button',{name,exact:true})).toHaveAttribute('aria-expanded','false')
- await expect(nav.getByRole('link')).toHaveCount(0)
- const browse=nav.getByRole('button',{name:'媒体浏览',exact:true});await expect(browse).toHaveClass(/has-current/)
- await browse.focus();await page.keyboard.press('Enter');await expect(browse).toHaveAttribute('aria-expanded','true');await expect(nav.getByRole('link',{name:'媒体库',exact:true})).toBeVisible()
- await page.keyboard.press('Tab');await expect(nav.getByRole('link',{name:'总览',exact:true})).toBeFocused()
- await browse.focus();await page.keyboard.press('Space');await expect(browse).toHaveAttribute('aria-expanded','false');await expect(nav.getByRole('link')).toHaveCount(0)
- await page.keyboard.press('Tab');await expect(nav.getByRole('button',{name:'资源获取',exact:true})).toBeFocused()
- await navigate(page,'程序日志');await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible()
- const operate=nav.getByRole('button',{name:'系统运维',exact:true});await expect(operate).toHaveAttribute('aria-expanded','true');await operate.click()
- await expect(operate).toHaveClass(/has-current/);await expect(nav.getByRole('link')).toHaveCount(0)
- await page.reload();await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible()
- for(const name of ['媒体浏览','资源获取','文件与入库','系统运维'])await expect(nav.getByRole('button',{name,exact:true})).toHaveAttribute('aria-expanded','false')
- await page.screenshot({path:resolve(screenshots,'navigation-collapsed-desktop.png'),animations:'disabled'})
+ await expect(nav.getByRole('link')).toHaveCount(13);await expect(nav.getByRole('button')).toHaveCount(0)
+ for(const name of ['获取','媒体','系统'])await expect(nav.getByRole('heading',{name,exact:true})).toBeVisible()
+ await expect(nav.getByText('当前',{exact:true})).toHaveCount(0)
+ await nav.getByRole('link',{name:'首页',exact:true}).focus();await page.keyboard.press('Tab');await expect(nav.getByRole('link',{name:'搜索',exact:true})).toBeFocused()
+ await navigate(page,'程序日志');await expect(nav.getByRole('link',{name:'运维',exact:true})).toHaveAttribute('aria-current','page')
+ await page.reload();await expect(nav.getByRole('link')).toHaveCount(13);await expect(nav.getByRole('link',{name:'运维',exact:true})).toHaveClass(/selected/)
 })
 
-test('desktop and mobile share disclosure state with unique controlled panels',async({page})=>{
+test('desktop and mobile expose the same thirteen expanded destinations',async({page})=>{
  await fixtureLogin(page);const desktop=page.getByRole('complementary',{name:'主导航'})
- await desktop.getByRole('button',{name:'媒体浏览',exact:true}).click();await desktop.getByRole('button',{name:'文件与入库',exact:true}).click()
+ const labels=await desktop.getByRole('navigation',{name:'功能导航'}).getByRole('link').allTextContents()
  await page.setViewportSize({width:375,height:812});await page.getByRole('button',{name:'打开导航',exact:true}).click()
- const drawer=page.getByRole('dialog',{name:'主导航',exact:true});await expect(drawer.getByRole('button',{name:'媒体浏览',exact:true})).toHaveAttribute('aria-expanded','true')
- const organize=drawer.getByRole('button',{name:'文件与入库',exact:true});await expect(organize).toHaveAttribute('aria-expanded','true')
- const target=await organize.getAttribute('aria-controls');expect(target).toBeTruthy();expect(await page.locator(`[id="${target}"]`).count()).toBe(1)
- await organize.click();await expect(drawer.getByRole('link',{name:'文件管理',exact:true})).toHaveCount(0)
- await page.screenshot({path:resolve(screenshots,'navigation-dropdown-mobile.png'),animations:'disabled'})
- await page.keyboard.press('Escape');await page.setViewportSize({width:1440,height:1000})
- await expect(desktop.getByRole('button',{name:'文件与入库',exact:true})).toHaveAttribute('aria-expanded','false')
- await expect(desktop.getByRole('button',{name:'媒体浏览',exact:true})).toHaveAttribute('aria-expanded','true')
- expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
+ const drawer=page.getByRole('dialog',{name:'主导航',exact:true});expect(await drawer.getByRole('navigation',{name:'功能导航'}).getByRole('link').allTextContents()).toEqual(labels)
+ await drawer.getByRole('link',{name:'文件',exact:true}).click();await expect(drawer).toBeHidden();await expect(page.getByRole('heading',{name:'文件管理',exact:true})).toBeVisible()
+ await page.screenshot({path:resolve(screenshots,'navigation-expanded-mobile.png'),animations:'disabled'})
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
-
 
 test('console logs use server filtering, bounded pagination, compact mode and explicit details (fixture)',async({page})=>{
  await fixtureLogin(page);await page.addInitScript(()=>Object.defineProperty(navigator,'clipboard',{value:undefined,configurable:true}));const queries:Array<Record<string,string>>=[]
@@ -1023,7 +1011,7 @@ test('runtime update: configured proxy origin can log in but spoofed forwarding 
 });
 
 test('acquisition: dedicated results survive reload and every history entry navigates there (fixture)',async({page})=>{
- const id='owned-standalone';await page.route('**/api/v1/search',r=>r.fulfill({json:{data:[{id,keyword:'Owned dedicated',state:'succeeded',total:1}]}}));await page.route(`**/api/v1/search/${id}?*`,r=>r.fulfill({json:{data:{id,keyword:'Owned dedicated',state:'succeeded',sites:[],resources:[],total:0}}}));await fixtureLogin(page);await page.goto('/search');await expect(page.getByRole('link',{name:'管理PT站点账号',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'查看结果',exact:true}).click();await expect(page).toHaveURL(/\/search\/results\/owned-standalone$/);await expect(page.locator('h1')).toHaveText('搜索结果');await expect(page.getByRole('radiogroup',{name:'搜索方式'})).toHaveCount(0);await page.reload();await expect(page.locator('h1')).toHaveText('搜索结果');await page.getByRole('button',{name:'返回搜索',exact:true}).click();await expect(page).toHaveURL(/\/search$/);
+ const id='owned-standalone';await page.route('**/api/v1/search',r=>r.fulfill({json:{data:[{id,keyword:'Owned dedicated',state:'succeeded',total:1}]}}));await page.route(`**/api/v1/search/${id}?*`,r=>r.fulfill({json:{data:{id,keyword:'Owned dedicated',state:'succeeded',sites:[],resources:[],total:0}}}));await fixtureLogin(page);await page.goto('/search');await expect(page.getByRole('link',{name:'管理PT站点账号',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'查看结果',exact:true}).click();await expect(page).toHaveURL(/\/search\/results\/owned-standalone$/);await expect(page.locator('h1')).toHaveText('搜索结果');await expect(page.getByRole('radiogroup',{name:'搜索方式'})).toHaveCount(0);await page.reload();await expect(page.locator('h1')).toHaveText('搜索结果');await page.getByRole('button',{name:'返回搜索',exact:true}).click();await expect(page).toHaveURL(/\/search\?tab=query$/);
 });
 
 test('acquisition: cache pages omit size and settings, use matching buttons and meaningful TTL (fixture)',async({page})=>{
@@ -1633,7 +1621,7 @@ test('F2 plugin JSON form, shared ESM, multi-key dashboards and sidebar (UI cont
  await expect(page.getByRole('heading',{name:'启动次数',exact:true})).toBeVisible()
  await expect(page.getByText('Dashboard starts',{exact:true})).toBeVisible()
  await expect(page.getByText('Dashboard events',{exact:true})).toBeVisible()
- await page.getByRole('button',{name:'插件应用',exact:true}).click()
+ await expect(page.getByRole('navigation',{name:'插件应用',exact:true})).toBeVisible()
  await expect(page.getByRole('link',{name:'Hello Go · Hello 插件',exact:true})).toBeVisible()
 })
 

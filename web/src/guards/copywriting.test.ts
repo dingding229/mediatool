@@ -20,7 +20,9 @@ const FORBIDDEN_WORDS = [
   'Codex',
   'Claude',
   'Q5',
-  'TODO'
+  'TODO',
+  'WORKSPACE',
+  '仅展示真实服务数据'
 ]
 
 function collectVueFiles(dir: string): string[] {

@@ -12,7 +12,7 @@ async function refresh(){busy.value=true;error.value='';try{snapshot.value=await
 onMounted(refresh)
 </script>
 <template>
-<section class="page-heading"><div><span class="page-kicker">WORKSPACE / 总览</span><h1>运行总览</h1><p>服务器状态与日常媒体管理。</p></div><el-button :icon="Refresh" :loading="busy" @click="refresh">刷新状态</el-button></section>
+<section class="page-heading"><div><span class="page-kicker">总览</span><h1>运行总览</h1><p>服务器状态与日常媒体管理。</p></div><el-button :icon="Refresh" :loading="busy" @click="refresh">刷新状态</el-button></section>
 <el-alert v-if="error" :title="error" type="error" :closable="false"/>
 <section class="runtime-grid" aria-label="服务器状态">
 <article class="panel"><span>服务器负载</span><strong>{{snapshot?.server.loadAverage?.[0]?.toFixed(2) ?? '不可用'}}</strong><p class="field-hint">1 / 5 / 15 分钟：{{snapshot?.server.loadAverage?.map(n=>n.toFixed(2)).join(' / ') || '未挂载宿主机 proc'}}</p></article>

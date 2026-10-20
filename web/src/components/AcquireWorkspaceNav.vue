@@ -12,7 +12,7 @@ const links = [
 <template>
   <nav class="acquire-workspace-nav" aria-label="资源获取快捷导航">
     <div class="workspace-intro">
-      <span class="section-kicker">ACQUIRE WORKSPACE</span
+      <span class="section-kicker">资源获取</span
       ><strong>发现资源，持续追踪</strong>
     </div>
     <div class="workspace-links">

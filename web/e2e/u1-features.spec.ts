@@ -75,52 +75,58 @@ test('U1 navigation, theme toggle, and 13 primary routes', async ({ page }) => {
 
 test('U1 verification screenshots capture', async ({ page }) => {
   await ensureRegisteredAndLogin(page)
-  const dir = '/tmp/media-tool-u1-screenshots'
-  mkdirSync(dir, { recursive: true })
+  const dir = '/tmp/media-tool-u1-screenshots'; mkdirSync(dir, { recursive: true })
+  for (const width of [1440,375]) for (const theme of ['light','dark']) {
+    await page.setViewportSize({ width, height: width === 375 ? 812 : 1000 })
+    await page.addInitScript(value => localStorage.setItem('media-tool:theme-mode:v1', value), theme)
+    await page.goto('/dashboard'); await expect(page.getByRole('heading', { name: '运行总览' })).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
+    await page.screenshot({ path: `${dir}/dashboard-${width}-${theme}.png`, fullPage: true, animations: 'disabled' })
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 }); await page.addInitScript(() => localStorage.setItem('media-tool:theme-mode:v1','light'))
+  await page.goto('/ops?tab=jobs'); await expect(page.getByRole('heading', { name: '系统运维与后台任务', exact: true })).toBeVisible()
+  await page.screenshot({ path: `${dir}/ops-1440-light.png`, fullPage: true, animations: 'disabled' })
+  await page.goto('/settings'); await expect(page.getByRole('heading', { name: '系统设置', exact: true })).toBeVisible()
+  await page.screenshot({ path: `${dir}/settings-1440-light.png`, fullPage: true, animations: 'disabled' })
+  await page.setViewportSize({ width: 375, height: 812 }); await page.addInitScript(() => localStorage.setItem('media-tool:theme-mode:v1','dark'))
+  await page.goto('/files?tab=browser'); await expect(page.getByRole('heading', { name: '文件管理', exact: true })).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: `${dir}/files-375-dark.png`, fullPage: true, animations: 'disabled' })
+})
 
-  // 1. 首页 1440 浅色
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await page.evaluate(() => {
-    document.documentElement.classList.remove('dark')
-    document.documentElement.setAttribute('data-theme', 'light')
-  })
-  await page.goto('/dashboard')
-  await page.waitForTimeout(300)
-  await page.screenshot({ path: `${dir}/dashboard-1440-light.png`, fullPage: true })
+test('U1 sidebar contains exactly thirteen primary entries without current badges or accordion controls', async ({ page }) => {
+  await ensureRegisteredAndLogin(page)
+  const nav = page.getByRole('navigation', { name: '功能导航', exact: true })
+  await expect(nav.getByRole('link')).toHaveCount(13)
+  expect(await nav.getByRole('link').allTextContents()).toEqual(['首页','搜索','订阅','下载','媒体库','入库整理','文件','播放服务','连接','站点','插件','运维','设置'])
+  await expect(nav.getByRole('button')).toHaveCount(0)
+  await expect(nav.getByText('当前', { exact: true })).toHaveCount(0)
+  for (const group of ['获取','媒体','系统']) await expect(nav.getByRole('heading', { name: group, exact: true })).toBeVisible()
+})
 
-  // 2. 首页 1440 深色
-  await page.evaluate(() => {
-    document.documentElement.classList.add('dark')
-    document.documentElement.setAttribute('data-theme', 'dark')
-  })
-  await page.waitForTimeout(300)
-  await page.screenshot({ path: `${dir}/dashboard-1440-dark.png`, fullPage: true })
-
-  // 3. 首页 375 浅色
-  await page.setViewportSize({ width: 375, height: 812 })
-  await page.evaluate(() => {
-    document.documentElement.classList.remove('dark')
-    document.documentElement.setAttribute('data-theme', 'light')
-  })
-  await page.goto('/dashboard')
-  await page.waitForTimeout(300)
-  await page.screenshot({ path: `${dir}/dashboard-375-light.png`, fullPage: true })
-
-  // 4. 首页 375 深色
-  await page.evaluate(() => {
-    document.documentElement.classList.add('dark')
-    document.documentElement.setAttribute('data-theme', 'dark')
-  })
-  await page.waitForTimeout(300)
-  await page.screenshot({ path: `${dir}/dashboard-375-dark.png`, fullPage: true })
-
-  // 5. 设置页 1440 浅色
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await page.evaluate(() => {
-    document.documentElement.classList.remove('dark')
-    document.documentElement.setAttribute('data-theme', 'light')
-  })
-  await page.goto('/settings')
-  await page.waitForTimeout(300)
-  await page.screenshot({ path: `${dir}/settings-1440-light.png`, fullPage: true })
+test('U1 each outer page tab writes its exact URL tab and quick jump opens operations logs', async ({ page }) => {
+  await ensureRegisteredAndLogin(page)
+  const expected: Record<string, string[]> = {
+    search: ['query','history'], organize: ['library','history'], files: ['browser','strm','tools'],
+    playback: ['settings','users','players'], connections: ['overview','storage','notifications'],
+    sites: ['accounts','templates'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['general','classification','api'],
+  }
+  for (const [path, ids] of Object.entries(expected)) {
+    await page.goto(`/${path}?keep=owned`)
+    const nav = page.locator('.workflow-page-navigation .page-tabs')
+    await expect(nav.getByRole('button')).toHaveCount(ids.length)
+    for (let index = 0; index < ids.length; index++) {
+      await nav.getByRole('button').nth(index).click()
+      await expect.poll(() => new URL(page.url()).searchParams.get('tab')).toBe(ids[index])
+      expect(new URL(page.url()).searchParams.get('keep')).toBe('owned')
+      await expect(nav.getByRole('button').nth(index)).toHaveAttribute('aria-pressed', 'true')
+    }
+  }
+  await page.keyboard.press('Control+k')
+  const dialog = page.getByRole('dialog', { name: '快速前往', exact: true })
+  await dialog.getByRole('combobox', { name: '搜索功能入口' }).fill('日志')
+  await dialog.getByRole('combobox', { name: '搜索功能入口' }).press('Enter')
+  await expect(page).toHaveURL(/\/ops\?tab=logs/)
+  await expect(page.getByRole('heading', { name: '程序日志', exact: true })).toBeVisible()
 })

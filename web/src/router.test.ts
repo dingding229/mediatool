@@ -1,71 +1,28 @@
 import { describe, it, expect } from 'vitest'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { routes } from './router/routes'
-
-describe('Router U1 Routes & Destinations', () => {
-  function getRouter() {
-    return createRouter({
-      history: createMemoryHistory(),
-      routes
-    })
-  }
-
-  it('keeps 13 new primary routes reachable', async () => {
-    const primaryRoutes = [
-      '/dashboard',
-      '/search',
-      '/subscriptions',
-      '/downloads',
-      '/library',
-      '/organize',
-      '/files',
-      '/playback',
-      '/connections',
-      '/sites',
-      '/plugins',
-      '/ops',
-      '/settings'
-    ]
-    const router = getRouter()
-    for (const p of primaryRoutes) {
-      await router.push(p)
-      expect(router.currentRoute.value.path).toBe(p)
-    }
+import { installPageRedirects } from './router/redirects'
+import { primaryPages, settingsSections } from './navigation/pages'
+function getRouter() { const router = createRouter({ history: createMemoryHistory(), routes }); installPageRedirects(router); return router }
+const legacy = [
+  ['/emby','/library','browse'], ['/mediaLibrary','/library','browse'], ['/media-server','/playback','settings'],
+  ['/media-users','/playback','users'], ['/player-access','/playback','players'], ['/cloudStorage','/organize','library'],
+  ['/organize-history','/organize','history'], ['/classification','/settings','classification'], ['/cloud-connections','/connections','storage'],
+  ['/strm','/files','strm'], ['/strm-tools','/files','tools'], ['/maintenance','/ops','maintenance'], ['/jobs','/ops','jobs'],
+  ['/logs','/ops','logs'], ['/data','/ops','data'], ['/notifications','/connections','notifications'], ['/integrations','/connections','overview'],
+  ['/external-api','/settings','api'], ['/tmdb-cache','/ops','cache'], ['/search-cache','/search','history'], ['/site-templates','/sites','templates'],
+] as const
+describe('canonical workflow routing', () => {
+  it.each(primaryPages)('keeps /$id reachable with the default tab', async page => { const r = getRouter(); await r.push(`/${page.id}`); expect(r.currentRoute.value.path).toBe(`/${page.id}`); expect(r.currentRoute.value.query.tab).toBe(page.tabs[0]?.id || undefined) })
+  it.each(legacy)('%s redirects to %s?tab=%s and preserves every other query and hash', async (from, path, tab) => {
+    const r = getRouter(); await r.push({ path: from, query: { tab: 'obsolete', q: '中文 & 原值', assetId: 'owned', tags: ['one','two'], flag: null }, hash: '#detail' })
+    expect(r.currentRoute.value.path).toBe(path); expect(r.currentRoute.value.query).toMatchObject({ tab, q: '中文 & 原值', assetId: 'owned', tags: ['one','two'], flag: null }); expect(r.currentRoute.value.hash).toBe('#detail')
+    expect(r.getRoutes().find(record => record.path === from)?.redirect).toBeTruthy(); expect(r.getRoutes().find(record => record.path === from)?.components).toBeUndefined()
   })
-
-  it('keeps legacy addresses and integrations redirect reachable', async () => {
-    const router = getRouter()
-    const legacyRoutes = [
-      '/emby',
-      '/mediaLibrary',
-      '/media-server',
-      '/media-users',
-      '/player-access',
-      '/cloudStorage',
-      '/organize-history',
-      '/classification',
-      '/cloud-connections',
-      '/strm',
-      '/strm-tools',
-      '/maintenance',
-      '/jobs',
-      '/logs',
-      '/data',
-      '/notifications',
-      '/integrations',
-      '/external-api',
-      '/tmdb-cache',
-      '/search-cache',
-      '/site-templates'
-    ]
-    for (const p of legacyRoutes) {
-      await router.push(p)
-      expect(router.currentRoute.value.path).toBe(p)
-    }
-
-    // test integrations/:kind redirect
-    await router.push('/integrations/emby')
-    expect(router.currentRoute.value.path).toBe('/mediaLibrary')
-    expect(router.currentRoute.value.query.connectionKind).toBe('emby')
-  })
+  it.each(settingsSections)('maps old settings tab $id to general + section, including same-path navigation', async section => { const r = getRouter(); await r.push('/settings?tab=general'); await r.push({ path: '/settings', query: { tab: section.id, keep: 'yes' } }); expect(r.currentRoute.value.query).toEqual({ tab: 'general', section: section.id, keep: 'yes' }) })
+  it.each([
+    ['emby','/library','browse'], ['ptsite','/sites','accounts'], ['open115','/connections','storage'], ['clouddrive2','/connections','storage'],
+    ['qbittorrent','/downloads','tasks'], ['tmdb','/settings','general'], ['telegram','/connections','notifications'], ['local','/files','browser'], ['unknown','/connections','overview'],
+  ])('keeps integrations/%s in its existing configuration owner', async (kind, path, tab) => { const r = getRouter(); await r.push(`/integrations/${kind}?keep=value`); expect(r.currentRoute.value.path).toBe(path); expect(r.currentRoute.value.query).toMatchObject({ tab, keep: 'value', connectionKind: kind }); if (kind === 'tmdb') expect(r.currentRoute.value.query.section).toBe('tmdb') })
+  it('does not rewrite standalone result and plugin detail URLs', async () => { const r = getRouter(); for (const path of ['/search/results/owned','/plugins/owned/pages/page']) { await r.push(path+'?keep=yes'); expect(r.currentRoute.value.path).toBe(path); expect(r.currentRoute.value.query).toEqual({ keep: 'yes' }) } })
 })

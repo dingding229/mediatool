@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { routes } from './router/routes'
+import { installPageRedirects } from './router/redirects'
 
 export { routes }
 
@@ -8,6 +9,8 @@ export const router = createRouter({
   history: createWebHistory(),
   routes
 })
+
+installPageRedirects(router)
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
