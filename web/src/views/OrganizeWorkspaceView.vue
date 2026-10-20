@@ -11,7 +11,7 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import OutputRecoveryDialog from '../workflows/OutputRecoveryDialog.vue';
 import IdentityEditor from '../organize/IdentityEditor.vue';
-import BatchOrganizer from '../organize/BatchOrganizer.vue';
+import BatchOrganizer from '../workflows/FileBatchDialog.vue';
 import ScanPanel from '../organize/ScanPanel.vue';
 import HistoryPanel from '../organize/HistoryPanel.vue';
 import ArchivePanel from '../organize/ArchivePanel.vue';

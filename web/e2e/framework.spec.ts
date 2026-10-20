@@ -41,7 +41,7 @@ async function navigate(page:import('@playwright/test').Page,name:string){
  const menu=page.getByRole('navigation',{name:'功能导航'})
  if(!await menu.isVisible())await page.getByRole('button',{name:'打开导航',exact:true}).click()
  await menu.getByRole('link',{name:item.name,exact:true}).click()
- if(target[1]){const tab=page.locator(target[0]==='organize'?'.media-workspace .page-tabs':['search','downloads'].includes(target[0])?'.acquire-workspace .page-tabs':'.workflow-page-navigation .page-tabs').getByRole('button').filter({hasText:({tasks:'下载任务',uploads:'上传入库',manual:'手动添加',tools:'STRM 工具',strm:'STRM 目录',candidates:'待确认',library:'入库整理',jobs:'任务队列',logs:'日志',settings:'服务设置',accounts:'站点账号',general:'系统配置'} as Record<string,string>)[target[1]]??''});await expect(tab).toHaveCount(1);await tab.click()}
+ if(target[1]){const tab=page.locator(['organize','files'].includes(target[0])?'.media-workspace .page-tabs':['search','downloads'].includes(target[0])?'.acquire-workspace .page-tabs':'.workflow-page-navigation .page-tabs').getByRole('button').filter({hasText:({tasks:'下载任务',uploads:'上传入库',manual:'手动添加',tools:'STRM 工具',strm:'STRM 目录',candidates:'待确认',library:'入库整理',jobs:'任务队列',logs:'日志',settings:'服务设置',accounts:'站点账号',general:'系统配置'} as Record<string,string>)[target[1]]??''});await expect(tab).toHaveCount(1);await tab.click()}
 }
 async function login(page:import('@playwright/test').Page){
  await page.goto('/login')
@@ -96,9 +96,9 @@ test('STRM preview encodes cloud path and download has one stable URL',async({pa
  const path='/115/Media/电影/幽灵公主 (1997)/电影 & 特别版#1.mkv'
  await page.getByLabel('CloudDrive2 完整路径',{exact:false}).fill(path)
  await page.getByRole('button',{name:'生成固定链接'}).click()
- await page.getByRole('button',{name:'诊断云端文件',exact:true}).click()
+ await page.getByRole('button',{name:'诊断此文件',exact:true}).click()
  await expect(page.getByText('请先配置 CloudDrive2 地址及读取凭据',{exact:true})).toBeVisible()
- const textarea=page.getByRole('textbox',{name:'生成的 STRM 固定链接'})
+ const textarea=page.getByRole('textbox',{name:'STRM原文'})
  await expect(textarea).toHaveValue(/strm302\?/)
  const generated=new URL(await textarea.inputValue())
  expect(generated.searchParams.get('path')).toBe(path)
@@ -130,7 +130,7 @@ test('mobile menu, reduced motion and layout at 375px/landscape',async({page})=>
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  await page.getByRole('button',{name:'打开导航'}).click()
  await navigate(page,'STRM目录')
- await expect(page.getByRole('heading',{name:'STRM目录',exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'STRM 目录',exact:true})).toBeVisible()
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  await page.screenshot({path:resolve(screenshots,'strm-mobile.png'),fullPage:true})
  await page.setViewportSize({width:812,height:375})
@@ -622,67 +622,19 @@ test('separate 115 setup saves disabled without tokens and saved secrets never e
 })
 
 test('local file management previews organize, keeps sidecars and uses reversible trash',async({page})=>{
- // Four real isolated file operations plus desktop/mobile screenshots; retain
- // explicit dialog-close checks instead of force-clicking through transitions.
- test.setTimeout(60000)
  const directory=process.env.E2E_FILE_ROOT;if(!directory)throw new Error('Owned E2E file root required')
- await fixtureLogin(page)
- await page.goto('/files')
- const old=page.getByRole('row').filter({hasText:'Owned Film.mkv'})
- await expect(old).toBeVisible();await old.getByRole('button',{name:'影视整理',exact:true}).click()
- const edit=page.getByRole('dialog',{name:'影视分类整理',exact:true})
- await test.step('等待0day识别完成并选择电影',async()=>{await expect(edit.getByRole('button',{name:'预览变更',exact:true})).toBeEnabled();await edit.getByText('电影',{exact:true}).click();await expect(edit.getByRole('radio',{name:'电影',exact:true})).toBeChecked()})
- await edit.getByLabel('影视标题',{exact:true}).fill('Fixture Film')
- await edit.getByLabel('年份',{exact:true}).fill('2026')
- await test.step('选择自定义文件名',async()=>{await edit.getByText('自定义文件名',{exact:true}).click();await expect(edit.getByRole('radio',{name:'自定义文件名',exact:true})).toBeChecked()})
- await edit.getByRole('textbox',{name:'自定义文件名',exact:true}).fill('自定义片名.mkv')
- await test.step('获取整理预览',async()=>{const response=page.waitForResponse(r=>r.url().endsWith('/api/v1/files/preview'));await edit.getByRole('button',{name:'预览变更',exact:true}).click();const result=await response;expect(result.status()).toBe(200)})
- const plan=page.getByRole('dialog',{name:'确认文件变更',exact:true})
- await expect(plan.locator('.file-plan li')).toHaveCount(2)
- await expect(plan.getByText('电影/Fixture Film (2026)/自定义片名.mkv',{exact:true})).toBeVisible()
- await expect(plan.getByText('电影/Fixture Film (2026)/自定义片名.zh-CN.srt',{exact:true})).toBeVisible()
- await plan.screenshot({path:resolve(screenshots,'file-organize-preview-desktop.png'),animations:'disabled'})
- await page.setViewportSize({width:375,height:812})
- await expect(plan.getByRole('button',{name:'确认执行文件变更',exact:true})).toBeInViewport({ratio:1})
- expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
- await plan.screenshot({path:resolve(screenshots,'file-organize-preview-mobile.png'),animations:'disabled'})
- await plan.getByRole('button',{name:'确认执行文件变更',exact:true}).click()
- await expect(plan).not.toBeVisible()
- await page.setViewportSize({width:1440,height:1000})
- await page.getByRole('button',{name:'电影',exact:true}).click()
- await page.getByRole('button',{name:'Fixture Film (2026)',exact:true}).click()
- const video=page.getByRole('row').filter({hasText:'自定义片名.mkv'})
- await expect(video).toBeVisible();await expect(page.getByRole('row').filter({hasText:'自定义片名.zh-CN.srt'})).toBeVisible()
- await page.screenshot({path:resolve(screenshots,'files-managed-desktop.png'),animations:'disabled'})
- await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
- await page.screenshot({path:resolve(screenshots,'files-managed-mobile.png'),animations:'disabled'})
- const mobileRow=page.getByLabel('移动端文件列表',{exact:true}).getByRole('listitem').filter({hasText:'自定义片名.mkv'})
- await expect(mobileRow.getByRole('button',{name:'重命名',exact:true})).toBeVisible()
- await mobileRow.getByRole('button',{name:'重命名',exact:true}).click()
- const naming=page.getByRole('dialog',{name:'重命名',exact:true})
- await naming.getByText('命名模板',{exact:true}).click()
- await expect(naming.getByRole('radio',{name:'命名模板',exact:true})).toBeChecked()
- await naming.getByRole('textbox',{name:'命名模板',exact:true}).fill('{original} - {resolution}{ext}')
- await naming.getByRole('textbox',{name:'分辨率（模板需要时）',exact:true}).fill('1080p')
- await naming.getByRole('button',{name:'预览变更',exact:true}).click()
- await expect(plan.locator('.file-plan li')).toHaveCount(2)
- await expect(plan.getByText('电影/Fixture Film (2026)/自定义片名 - 1080p.mkv',{exact:true})).toBeVisible()
- await plan.getByRole('button',{name:'取消，不执行',exact:true}).click()
- await expect(plan).not.toBeVisible()
- await page.setViewportSize({width:1440,height:1000})
- await video.getByRole('button',{name:'删除（可恢复）',exact:true}).click()
- await page.getByRole('dialog',{name:'删除（可恢复）',exact:true}).getByRole('button',{name:'预览变更',exact:true}).click()
- await plan.getByRole('button',{name:'确认执行文件变更',exact:true}).click()
- await expect(video).toHaveCount(0);await expect(plan).not.toBeVisible()
- await page.getByRole('button',{name:'查看回收目录',exact:true}).click()
- const folder=page.locator('.file-name').filter({hasText:/^[0-9a-f-]{36}$/}).first();await folder.click()
- const recycled=page.getByRole('row').filter({hasText:'自定义片名.mkv'});await expect(recycled).toBeVisible()
- await recycled.getByRole('button',{name:'移动',exact:true}).click()
- await page.getByRole('dialog',{name:'移动文件 / 目录',exact:true}).getByLabel('目标目录',{exact:true}).fill('.')
- await page.getByRole('dialog',{name:'移动文件 / 目录',exact:true}).getByRole('button',{name:'预览变更',exact:true}).click()
- await plan.getByRole('button',{name:'确认执行文件变更',exact:true}).click()
- await page.getByRole('button',{name:'根目录',exact:true}).click()
- await expect(page.getByRole('row').filter({hasText:'自定义片名.mkv'})).toBeVisible()
+ await fixtureLogin(page);await page.goto('/files')
+ const menu=async(name:string,action:string)=>{const row=page.locator('.files-entry').filter({hasText:name});await row.getByRole('button',{name:name+' 更多',exact:true}).click();await page.getByRole('menuitem',{name:action,exact:true}).click()}
+ await test.step('打开影视整理',()=>menu('Owned Film.mkv','影视整理'));const edit=page.getByRole('dialog',{name:'影视分类整理',exact:true})
+ await expect(edit.getByRole('button',{name:'预览变更',exact:true})).toBeEnabled();await test.step('选择电影类型',async()=>{await edit.locator('.el-select').filter({has:page.getByRole('combobox',{name:'媒体类型',exact:true})}).click();await page.getByRole('option',{name:'电影',exact:true}).click()});await edit.getByLabel('媒体标题',{exact:true}).fill('Fixture Film');await edit.getByLabel('媒体年份',{exact:true}).fill('2026')
+ await edit.locator('.el-select').filter({has:page.getByRole('combobox',{name:'命名方式',exact:true})}).click();await page.getByRole('option',{name:'直接输入完整名称',exact:true}).click();await edit.getByLabel('完整名称',{exact:true}).fill('自定义片名.mkv')
+ const response=page.waitForResponse(r=>r.url().endsWith('/api/v1/files/preview'));await edit.getByRole('button',{name:'预览变更',exact:true}).click();expect((await response).status()).toBe(200)
+ await expect(edit.locator('.organize-record')).toHaveCount(2);await expect(edit).toContainText('电影/Fixture Film (2026)/自定义片名.mkv');await expect(edit).toContainText('电影/Fixture Film (2026)/自定义片名.zh-CN.srt');await edit.screenshot({path:resolve(screenshots,'file-organize-preview-desktop.png'),animations:'disabled'})
+ await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await edit.getByRole('button',{name:'核对后执行',exact:true}).click();let confirm=page.getByRole('dialog',{name:'确认文件变更',exact:true});await expect(confirm.getByRole('button',{name:'确认执行变更',exact:true})).toBeInViewport();await confirm.screenshot({path:resolve(screenshots,'file-organize-preview-mobile.png'),animations:'disabled'});await confirm.getByRole('button',{name:'确认执行变更',exact:true}).click();await expect(confirm).toBeHidden();await edit.getByRole('button',{name:'重新读取操作记录',exact:true}).click();await expect(edit).toContainText('已完成');await edit.getByRole('button',{name:'关闭',exact:true}).click()
+ await page.setViewportSize({width:1440,height:1000});await page.getByRole('button',{name:'电影',exact:true}).click();await page.getByRole('button',{name:'Fixture Film (2026)',exact:true}).click();await expect(page.locator('.files-entry').filter({hasText:'自定义片名.mkv'})).toBeVisible();await expect(page.locator('.files-entry').filter({hasText:'自定义片名.zh-CN.srt'})).toBeVisible();await page.screenshot({path:resolve(screenshots,'files-managed-desktop.png'),animations:'disabled',fullPage:true})
+ await page.setViewportSize({width:375,height:812});await menu('自定义片名.mkv','重命名');const naming=page.getByRole('dialog',{name:'重命名',exact:true});await expect(naming.getByRole('button',{name:'预览变更',exact:true})).toBeEnabled();await naming.locator('.el-select').filter({has:page.getByRole('combobox',{name:'命名方式',exact:true})}).click();await page.getByRole('option',{name:'自定义模板',exact:true}).click();await naming.getByLabel('命名模板',{exact:true}).fill('{original} - {resolution}{ext}');await naming.getByLabel('分辨率',{exact:true}).fill('1080p');await naming.getByRole('button',{name:'预览变更',exact:true}).click();await expect(naming.locator('.organize-record')).toHaveCount(2);await expect(naming).toContainText('电影/Fixture Film (2026)/自定义片名 - 1080p.mkv');await naming.getByRole('button',{name:'关闭',exact:true}).click();await expect(naming).toBeHidden()
+ await menu('自定义片名.mkv','删除（可恢复）');const trash=page.getByRole('dialog',{name:'删除（可恢复）',exact:true});await trash.getByRole('button',{name:'预览变更',exact:true}).click();await trash.getByRole('button',{name:'核对后执行',exact:true}).click();confirm=page.getByRole('dialog',{name:'确认移入回收目录',exact:true});await expect(confirm).toContainText('不永久删除');await confirm.getByRole('button',{name:'确认移入回收目录',exact:true}).click();await expect(confirm).toBeHidden();await trash.getByRole('button',{name:'重新读取操作记录',exact:true}).click();await trash.getByRole('button',{name:'关闭',exact:true}).click();await expect(page.locator('.files-entry').filter({hasText:'自定义片名.mkv'})).toHaveCount(0)
+ await page.getByRole('button',{name:'查看回收目录',exact:true}).click();await page.locator('.files-entry-copy button').filter({hasText:/^[0-9a-f-]{36}$/}).first().click();await menu('自定义片名.mkv','移动');const move=page.getByRole('dialog',{name:'移动文件 / 目录',exact:true});await move.getByLabel('目标相对目录',{exact:true}).fill('.');await move.getByRole('button',{name:'预览变更',exact:true}).click();await move.getByRole('button',{name:'核对后执行',exact:true}).click();await page.getByRole('dialog',{name:'确认文件变更',exact:true}).getByRole('button',{name:'确认执行变更',exact:true}).click();await expect(page.getByRole('dialog',{name:'确认文件变更',exact:true})).toBeHidden();await move.getByRole('button',{name:'重新读取操作记录',exact:true}).click();await move.getByRole('button',{name:'关闭',exact:true}).click();await page.getByRole('button',{name:'根目录',exact:true}).click();await expect(page.locator('.files-entry').filter({hasText:'自定义片名.mkv'})).toBeVisible()
 })
 
 test('media catalog browses managed and Emby content without exposing playback credentials (fixture)',async({page})=>{
@@ -820,7 +772,7 @@ test('desktop and mobile expose the same thirteen expanded destinations',async({
  const labels=await desktop.getByRole('navigation',{name:'功能导航'}).getByRole('link').allTextContents()
  await page.setViewportSize({width:375,height:812});await page.getByRole('button',{name:'打开导航',exact:true}).click()
  const drawer=page.getByRole('dialog',{name:'主导航',exact:true});expect(await drawer.getByRole('navigation',{name:'功能导航'}).getByRole('link').allTextContents()).toEqual(labels)
- await drawer.getByRole('link',{name:'文件',exact:true}).click();await expect(drawer).toBeHidden();await expect(page.getByRole('heading',{name:'文件管理',exact:true})).toBeVisible()
+ await drawer.getByRole('link',{name:'文件',exact:true}).click();await expect(drawer).toBeHidden();await expect(page.getByRole('heading',{name:'文件浏览',exact:true})).toBeVisible()
  await page.screenshot({path:resolve(screenshots,'navigation-expanded-mobile.png'),animations:'disabled'})
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
@@ -1043,8 +995,8 @@ test('files and library readonly capabilities, persistent batch proof, scan cont
  await page.route('**/api/v1/files/roots',r=>r.fulfill({json:{data:[{id,name:'自动发现的本地目录',kind:'local',path:'/data',revision:1,capabilities:readonly,connectionState:'accessible'}]}}))
  await page.route('**/api/v1/files?**',r=>r.fulfill({json:{data:{items:[{id:'inode',name:'Owned.Show.S01E01.mkv',path:'downloads/Owned.Show.S01E01.mkv',size:1024,directory:false,capabilities:readonly}],total:1,capabilities:readonly}}}))
  await page.route('**/api/v1/files/operations',r=>r.fulfill({json:{data:[]}}))
- await page.goto('/files');await expect(page.getByRole('button',{name:'新建文件夹',exact:true})).toBeDisabled();await expect(page.locator('.desktop-files').getByRole('button',{name:'影视整理',exact:true})).toBeDisabled()
- await page.setViewportSize({width:390,height:844});await expect(page.getByLabel('选择 Owned.Show.S01E01.mkv')).toBeDisabled();await expect(page.getByRole('button',{name:'上级目录',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.goto('/files');await expect(page.getByRole('button',{name:'新建文件夹',exact:true})).toBeDisabled();await page.getByRole('button',{name:'Owned.Show.S01E01.mkv 更多',exact:true}).click();await expect(page.getByRole('menuitem',{name:'影视整理',exact:true})).toHaveAttribute('aria-disabled','true');await page.keyboard.press('Escape')
+ await page.setViewportSize({width:390,height:844});await expect(page.getByLabel('选择 Owned.Show.S01E01.mkv')).toBeDisabled();await expect(page.getByRole('navigation',{name:'文件路径',exact:true}).getByRole('button',{name:'根目录',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  await page.screenshot({path:resolve(screenshots,'files-library-readonly-mobile.png'),animations:'disabled',fullPage:true})
  await page.route('**/api/v1/library/scans',r=>r.fulfill({json:{data:[{id,root:'/115/Media',state:'paused',files:2,directories:4,completedDirectories:1,generation:2,revision:1,message:'不完整覆盖不用于缺失判断'}]}}))
  await page.goto('/cloudStorage');await page.locator('.media-workspace .page-tabs').getByRole('button',{name:'扫描',exact:true}).click();await expect(page.getByRole('button',{name:'重新完整对账',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
@@ -1061,7 +1013,7 @@ test('isolated local batch preview writes nothing until explicit approval and su
  const names=['Batch.Owned.Show.2026.S01E01.mkv','Batch.Owned.Show.2026.S01E02.mkv']
  for(const name of names)writeFileSync(resolve(folder,name),'Isolated batch fixture, not real media.')
  await page.goto('/files')
- for(const name of names){const row=page.locator('.desktop-files .el-table__row').filter({hasText:name});await row.locator('.el-checkbox').click()}
+ for(const name of names){const row=page.locator('.files-entry').filter({hasText:name});await row.getByRole('checkbox').check()}
  await page.getByRole('button',{name:'批量整理预览（2）',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'批次整理工作台',exact:true})
  await expect(dialog.getByLabel('批次文件标题').first()).toHaveValue('Batch Owned Show')
@@ -1071,11 +1023,11 @@ test('isolated local batch preview writes nothing until explicit approval and su
  await dialog.screenshot({path:resolve(screenshots,'files-library-batch-preview-desktop.png'),animations:'disabled'})
  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  await dialog.screenshot({path:resolve(screenshots,'files-library-batch-preview-mobile.png'),animations:'disabled'})
- await dialog.getByRole('button',{name:'明确批准整个批次',exact:true}).click()
+ await dialog.getByRole('button',{name:'明确批准整个批次',exact:true}).click();await page.getByRole('dialog',{name:'批准文件批次',exact:true}).getByRole('button',{name:'确认批准',exact:true}).click()
  await expect(dialog.getByRole('button',{name:'刷新执行进度',exact:true})).toBeVisible()
  const batchLink=await dialog.getByRole('link',{name:'查看持久化批次',exact:true}).getAttribute('href');const batchID=new URL('http://localhost:18084'+batchLink).searchParams.get('batchId')!
  await expect.poll(async()=>{const response=await page.request.get(`/api/v1/files/batches/${batchID}`);return (await response.json()).data.state},{timeout:15000}).toBe('succeeded')
- await dialog.getByRole('button',{name:'刷新执行进度',exact:true}).click();await expect(dialog.locator('.batch-status')).toContainText('已完成')
+ await dialog.getByRole('button',{name:'刷新执行进度',exact:true}).click();await expect(dialog.getByText(/已完成/).first()).toBeVisible()
  for(const name of names)expect(existsSync(resolve(folder,name))).toBe(false)
  await dialog.getByRole('link',{name:'查看持久化批次',exact:true}).click();await expect(page.getByRole('heading',{name:'文件与入库历史',exact:true})).toBeVisible();await page.reload();await expect(page.getByRole('button',{name:'查看步骤详情',exact:true}).first()).toBeVisible()
 })
@@ -1098,7 +1050,7 @@ test('folder naming and scraping settings persist while history removal cannot d
  await page.screenshot({path:resolve(screenshots,'scraping-settings-desktop.png'),animations:'disabled',fullPage:true});await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'scraping-settings-mobile.png'),animations:'disabled',fullPage:true})
  // Restore isolated policy before other tests; never change production settings.
  prefs.value.scraping.movie.poster=false;expect((await page.request.put('/api/v1/settings/application',{headers:{'X-Requested-With':'media-tool'},data:prefs})).status()).toBe(200)
- await page.goto('/organize-history');const batch=page.locator('.organize-record').filter({hasText:'整理批次'}).filter({hasText:'已完成'}).first();await expect(batch).toBeVisible();await batch.getByRole('checkbox').check();await page.getByRole('button',{name:/移除所选历史/}).click();const confirm=page.getByRole('dialog',{name:'移除整理历史',exact:true});await expect(confirm).toContainText('不删除媒体');await confirm.getByRole('button',{name:'明确移除历史',exact:true}).click();await expect(batch).toHaveCount(0)
+ await page.goto('/organize-history');const batch=page.locator('.organize-record').filter({hasText:'整理批次'}).filter({hasText:'已完成'}).first();await expect(batch).toBeVisible();const selectedRecord=await batch.elementHandle();await batch.getByRole('checkbox').check();await page.getByRole('button',{name:/移除所选历史/}).click();const confirm=page.getByRole('dialog',{name:'移除整理历史',exact:true});await expect(confirm).toContainText('不删除媒体');const receipt=page.waitForResponse(r=>r.url().endsWith('/api/v1/library/activity/remove')&&r.request().method()==='POST');await confirm.getByRole('button',{name:'明确移除历史',exact:true}).click();const removed=await receipt;expect(removed.status()).toBe(200);const removedId=removed.request().postDataJSON().items[0].id;await expect.poll(()=>selectedRecord!.evaluate(el=>el.isConnected)).toBe(false);const records=await page.request.get('/api/v1/library/activity?kind=batch&page=1&pageSize=100');expect((await records.json()).data.items.some((r:any)=>r.id===removedId)).toBe(false)
 })
 
 test('native media boundary is explicit and responsive without changing Emby',async({page})=>{
@@ -1185,17 +1137,17 @@ test('subscription tabs have separation and PT metrics actions are centered',asy
 
 test('STRM directory has posters and no NFO collection while tools persist repair previews',async({page})=>{
  const asset='00000000-0000-4000-8000-000000000246',repair='00000000-0000-4000-8000-000000000247'
- await page.route('**/api/v1/library/outputs?*',r=>r.fulfill({json:{data:{items:[{id:asset,title:'自有STRM电影',year:'2026',mediaType:'movie',source:'/115/Owned/film.mkv',poster:'/pwa/icon-192.png',cloudState:'present',artifactsState:'ready',revision:1,outputs:[{kind:'strm',path:'Movies/film.strm',owner:'asset:'+asset},{kind:'nfo',path:'Movies/film.nfo',owner:'asset:'+asset}],embyState:'pending',embyPaths:[],revoked:false}],total:1}}}))
- await fixtureLogin(page);await page.goto('/strm');await expect(page.getByRole('heading',{name:'STRM目录',exact:true})).toBeVisible();await expect(page.getByRole('img',{name:'自有STRM电影海报',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'生成链接预览',exact:true})).toHaveCount(0)
- await page.getByRole('button',{name:'STRM文件与内容',exact:true}).click();await expect(page.getByRole('dialog')).toContainText('Movies/film.strm');await expect(page.getByRole('dialog')).not.toContainText('Movies/film.nfo');await page.getByRole('dialog').getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(page.locator('.el-overlay:visible')).toHaveCount(0)
+ await page.route('**/api/v1/library/outputs?*',r=>r.fulfill({json:{data:{items:[{id:asset,title:'自有STRM电影',year:'2026',mediaType:'movie',source:'/115/Owned/film.mkv',poster:'/api/v1/media/tmdb/image?path=/owned.png',cloudState:'present',artifactsState:'ready',revision:1,outputs:[{kind:'strm',path:'Movies/film.strm',owner:'asset:'+asset},{kind:'nfo',path:'Movies/film.nfo',owner:'asset:'+asset}],embyState:'pending',embyPaths:[],revoked:false}],total:1}}}))
+ await fixtureLogin(page);await page.goto('/strm');await expect(page.getByRole('heading',{name:'STRM 目录',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'生成链接预览',exact:true})).toHaveCount(0)
+ await page.getByText('本页资产与输出',{exact:true}).click();await page.getByRole('button',{name:'资产与输出详情',exact:true}).click();await expect(page.getByRole('dialog')).toContainText('Movies/film.strm');await expect(page.getByRole('img',{name:'自有STRM电影',exact:true})).toBeVisible();await expect(page.getByRole('dialog')).not.toContainText('Movies/film.nfo');await page.getByRole('dialog').getByRole('button',{name:'关闭',exact:true}).click();await expect(page.locator('.el-overlay:visible')).toHaveCount(0)
  for(const width of [375,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`workbench-strm-directory-${width}.png`),fullPage:true})}
  let approved=false
  const batch=()=>({id:repair,digest:'d'.repeat(64),state:approved?'succeeded':'preview',expiresAt:'2099-01-01T00:00:00Z',items:[{ordinal:0,assetId:asset,path:'Movies/film.strm',digest:'e'.repeat(64),state:approved?'repaired':'missing',message:'只恢复原文'}]})
  await page.route('**/api/v1/strm/repairs/preview',r=>{expect(r.request().postDataJSON()).toEqual({assetIds:[asset]});return r.fulfill({json:{data:batch()}})})
  await page.route(`**/api/v1/strm/repairs/${repair}`,r=>r.fulfill({json:{data:batch()}}))
  await page.route(`**/api/v1/strm/repairs/${repair}/approve`,r=>{expect(r.request().postDataJSON()).toEqual({digest:'d'.repeat(64),confirm:true});approved=true;return r.fulfill({json:{data:batch()}})})
- await page.goto('/strm-tools');await expect(page.getByRole('heading',{name:'STRM工具',exact:true})).toBeVisible();await page.getByRole('button',{name:'全局检查并预览修复',exact:true}).click();const selector=page.locator('.repair-selector');await expect(selector).toBeVisible();await selector.getByRole('checkbox').check();await selector.getByRole('button',{name:'检查已选 1 个资产',exact:true}).click();await expect(page).toHaveURL(/repairId=/);expect(approved).toBe(false)
- await page.reload();await expect(page.getByRole('button',{name:'批准批量修复',exact:true})).toBeVisible();await page.getByRole('button',{name:'批准批量修复',exact:true}).click();await page.getByRole('dialog',{name:'批准全局STRM修复',exact:true}).getByRole('button',{name:'明确批准修复',exact:true}).click();await expect(page.getByRole('heading',{name:'修复完成',exact:true})).toBeVisible();await expect(page.locator('.el-overlay:visible')).toHaveCount(0)
+ await page.goto('/strm-tools');await expect(page.getByRole('heading',{name:'播放链路诊断',exact:true})).toBeVisible();await page.getByRole('button',{name:'选择受管资产',exact:true}).click();const selector=page.locator('.files-repair-picker');await expect(selector).toBeVisible();await selector.getByRole('checkbox').check();await selector.getByRole('button',{name:'检查已选 1 个资产',exact:true}).click();await expect(page).toHaveURL(/repairId=/);expect(approved).toBe(false)
+ await page.reload();await expect(page.getByRole('button',{name:'批准批量修复',exact:true})).toBeVisible();await page.getByRole('button',{name:'批准批量修复',exact:true}).click();await page.getByRole('dialog',{name:'批准 STRM 修复',exact:true}).getByRole('button',{name:'明确批准修复',exact:true}).click();await page.getByRole('button',{name:'刷新批次状态',exact:true}).click();await expect(page.getByRole('heading',{name:'修复完成',exact:true})).toBeVisible();await expect(page.locator('.el-overlay:visible')).toHaveCount(0)
  await page.screenshot({path:resolve(screenshots,'workbench-strm-tools-repair.png'),fullPage:true})
 })
 
@@ -1306,7 +1258,7 @@ test('STRM directory filters before pagination and previews original content wit
  await page.route('**/api/v1/library/outputs?*',r=>{facet=new URL(r.request().url()).searchParams.get('mediaType')??'';return r.fulfill({json:{data:{items:[{id:asset,title:'自有媒体',year:'2026',mediaType:'movie',source:'/115/owned.mkv',outputs:[{kind:'strm',path:'电影/华语电影/自有媒体 (2026)/自有媒体 (2026) - 1080p.strm'}],embyState:'pending',cloudState:'present',artifactsState:'ready'}],total:1}}})})
  await page.route(`**/api/v1/library/outputs/${asset}/content?*`,r=>r.fulfill({json:{data:{kind:'strm',path:'owned.strm',digest:'fixture-digest',content:'https://owned.fixture/api/v1/cloudStorage/strm302?apiKey=owned-key\n'}}}))
  await page.goto('/strm');await page.getByRole('combobox',{name:'STRM媒体类型'}).press('ArrowDown');await page.getByRole('option',{name:'电影',exact:true}).click();await expect.poll(()=>facet).toBe('movie');await expect(page.getByRole('button',{name:'定向刷新并确认Emby',exact:true})).toHaveCount(0)
- await page.getByRole('button',{name:'预览STRM内容',exact:true}).click();await expect(page.getByLabel('托管输出原始内容')).toHaveValue('https://owned.fixture/api/v1/cloudStorage/strm302?apiKey=owned-key\n');await page.screenshot({path:resolve(screenshots,'strm-original-content.png'),fullPage:true,animations:'disabled'})
+ for(const folder of ['电影','华语电影','自有媒体 (2026)'])await page.locator('.files-directory').filter({hasText:folder}).click();await page.getByRole('button',{name:'预览STRM内容',exact:true}).click();await expect(page.getByLabel('托管输出原始内容')).toHaveValue('https://owned.fixture/api/v1/cloudStorage/strm302?apiKey=owned-key\n');await page.screenshot({path:resolve(screenshots,'strm-original-content.png'),fullPage:true,animations:'disabled'})
 })
 
 test('verified instant upload shows processing completion without inventing sent bytes (fixture)',async({page})=>{

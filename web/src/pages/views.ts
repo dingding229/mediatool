@@ -7,9 +7,7 @@ export const legacyViews: Record<string, Component> = {
   downloads: view(() => import('../views/DownloadsWorkspaceView.vue')),
   library: view(() => import('../views/MediaWorkspaceView.vue')),
   organize: view(() => import('../views/OrganizeWorkspaceView.vue')),
-  files: view(() => import('../views/FilesView.vue')),
-  strm: view(() => import('../views/StrmView.vue')),
-  strmTools: view(() => import('../views/StrmToolsView.vue')),
+  files: view(() => import('../views/FilesWorkspaceView.vue')),
   playback: view(() => import('../views/MediaServerView.vue')),
   users: view(() => import('../views/MediaUsersView.vue')),
   players: view(() => import('../views/PlayerAccessView.vue')),
@@ -28,5 +26,5 @@ export const legacyViews: Record<string, Component> = {
 }
 export const tabViews: Record<string, string[]> = {
   dashboard: ['dashboard'], search: ['search'], subscriptions: ['subscriptions'], downloads: ['downloads'], library: ['library'],
-  organize: ['organize'], files: ['files','strm','strmTools'], playback: ['playback','users','players'], connections: ['connections'], sites: ['sites','templates'], plugins: ['plugins'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['settings','classification','api'],
+  organize: ['organize'], files: ['files'], playback: ['playback','users','players'], connections: ['connections'], sites: ['sites','templates'], plugins: ['plugins'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['settings','classification','api'],
 }

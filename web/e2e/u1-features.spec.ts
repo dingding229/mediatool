@@ -89,7 +89,7 @@ test('U1 verification screenshots capture', async ({ page }) => {
   await page.goto('/settings'); await expect(page.getByRole('heading', { name: '系统设置', exact: true })).toBeVisible()
   await page.screenshot({ path: `${dir}/settings-1440-light.png`, fullPage: true, animations: 'disabled' })
   await page.setViewportSize({ width: 375, height: 812 }); await page.addInitScript(() => localStorage.setItem('media-tool:theme-mode:v1','dark'))
-  await page.goto('/files?tab=browser'); await expect(page.getByRole('heading', { name: '文件管理', exact: true })).toBeVisible()
+  await page.goto('/files?tab=browser'); await expect(page.getByRole('heading', { name: '文件浏览', exact: true })).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: `${dir}/files-375-dark.png`, fullPage: true, animations: 'disabled' })
@@ -114,7 +114,7 @@ test('U1 each outer page tab writes its exact URL tab and quick jump opens opera
   }
   for (const [path, ids] of Object.entries(expected)) {
     await page.goto(`/${path}?keep=owned`)
-    const nav = page.locator(path === 'organize' ? '.media-workspace .page-tabs' : path === 'connections' ? '.connections-workspace .page-tabs' : ['search','downloads'].includes(path) ? '.acquire-workspace .page-tabs' : '.workflow-page-navigation .page-tabs')
+    const nav = page.locator(['organize','files'].includes(path) ? '.media-workspace .page-tabs' : path === 'connections' ? '.connections-workspace .page-tabs' : ['search','downloads'].includes(path) ? '.acquire-workspace .page-tabs' : '.workflow-page-navigation .page-tabs')
     await expect(nav.getByRole('button')).toHaveCount(ids.length)
     for (let index = 0; index < ids.length; index++) {
       await nav.getByRole('button').nth(index).click()

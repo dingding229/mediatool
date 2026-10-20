@@ -5,7 +5,7 @@ import {APIError,post,request} from '../api/client'
 import {useOrganize} from './useOrganize'
 import ScanPanel from './ScanPanel.vue'
 import IdentityEditor from './IdentityEditor.vue'
-import BatchOrganizer from './BatchOrganizer.vue'
+import BatchOrganizer from '../workflows/FileBatchDialog.vue'
 import ArchivePanel from './ArchivePanel.vue'
 import {eligible,episodes,removable,selectable} from './model'
 vi.mock('../api/client',async original=>({...await original<typeof import('../api/client')>(),post:vi.fn(),request:vi.fn()}))

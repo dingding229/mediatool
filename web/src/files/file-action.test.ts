@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import FilesView from './FilesView.vue'
+import FilesView from '../files/FileActionDialog.vue'
 import { flush, setupComponent } from '../test/setup-component'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -8,9 +8,9 @@ it.each(['default', 'template', 'direct'])('mkdir sends form.name in %s naming m
   vi.stubGlobal('fetch', fetch)
   const view = setupComponent(FilesView)
   await flush()
-  view.state.connection = 'local-root'
+  view.state.root = {id:'local-root'}
   Object.assign(view.state.form, { operation: 'mkdir', name: '新建目录', nameMode: mode })
-  await view.state.makePreview()
+  await view.state.preview()
   const [, options] = fetch.mock.calls.find(([url]) => url.endsWith('/files/preview'))!
   expect(JSON.parse(String(options!.body))).toMatchObject({ operation: 'mkdir', name: '新建目录', connectionId: 'local-root' })
   view.unmount()
