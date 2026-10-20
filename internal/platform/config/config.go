@@ -102,7 +102,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	if c.SessionKey == "" {
 		key, err := hex.DecodeString(c.SecretKey)
 		if err != nil || len(key) != 32 {
-			return c, errors.New("SESSION_SECRET_KEY or a valid APP_SECRET_KEY is required; run scripts/init-env.py")
+			return c, errors.New("SESSION_SECRET_KEY or a valid APP_SECRET_KEY is required; run media-tool-dev init-env")
 		}
 		h := hmac.New(sha256.New, key)
 		h.Write([]byte("media-tool:administrator-signing:v2"))
@@ -113,7 +113,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		return c, errors.New("SESSION_SECRET_KEY must be 32 bytes encoded as hexadecimal")
 	}
 	if len(c.STRMKey) < 32 || strings.Contains(c.STRMKey, "CHANGE_ME") {
-		return c, errors.New("STRM_API_KEY must contain at least32 characters; run scripts/init-env.py")
+		return c, errors.New("STRM_API_KEY must contain at least32 characters; run media-tool-dev init-env")
 	}
 	if c.SessionKey == c.STRMKey {
 		return c, errors.New("session signing and STRM keys must differ")

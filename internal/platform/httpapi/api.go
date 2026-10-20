@@ -81,7 +81,18 @@ type APIError struct {
 	Flow    *flow.Status `json:"flow,omitempty"`
 }
 
+// routeRegistrar keeps registration observable in contract tests without changing ServeMux behavior.
+type routeRegistrar interface {
+	http.Handler
+	Handle(string, http.Handler)
+	HandleFunc(string, func(http.ResponseWriter, *http.Request))
+}
+
 func New(c config.Config, d Dependencies) http.Handler {
+	return newWithMux(c, d, http.NewServeMux())
+}
+
+func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handler {
 	if d.Logger == nil {
 		d.Logger = slog.Default()
 	}
@@ -109,7 +120,6 @@ func New(c config.Config, d Dependencies) http.Handler {
 		target, _ := url.Parse(c.EmbyUpstream)
 		a.Gateway = emby.NewGateway(emby.GatewayOptions{Identities: a.EmbyIdentities, Upstream: target, PublicOrigin: embyPublicOrigin(c.EmbyPublicURL), Enable302: c.Emby302Enabled, DirectPlayOnly: c.EmbyDirectPlayOnly, LegacyEnabled: c.LegacyPlaybackEnabled, OwnedAsset: a.ownedAsset, Builder: a.Builder, STRMOutputDir: c.STRMOutputDir, STRMPathPrefix: c.EmbySTRMPathPrefix, ResolverOrigins: c.EmbyResolverOrigins, Playback: a.Engine})
 	}
-	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/media-server/native/sessions", a.protected(a.nativeSessions))
 	mux.HandleFunc("GET /api/v1/media/emby/items/{id}", a.protected(a.catalogItem))
 	mux.HandleFunc("GET /api/v1/media/tmdb/image", a.protected(a.tmdbPoster))

@@ -158,7 +158,7 @@ func (a *API) clearPlayerObservations(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, map[string]bool{"cleared": true})
 }
-func (a *API) registerPlayerAccess(mux *http.ServeMux) {
+func (a *API) registerPlayerAccess(mux routeRegistrar) {
 	mux.HandleFunc("GET /api/v1/player-access/events", a.protected(a.playerAccessEvents))
 	mux.HandleFunc("GET /api/v1/player-access/users", a.protected(a.playerAccessUsers))
 	mux.HandleFunc("GET /api/v1/player-access/policy", a.protected(a.getPlayerAccess))

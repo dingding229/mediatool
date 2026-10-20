@@ -114,3 +114,9 @@ media-toolctl --root /root/docker/mediatool load-check --requests 500 --concurre
 | media-tool ops verify-execution -id UUID | 与上一行相同的只读核验及收据 | 不是原来的ops verify（备份包核验） |
 
 以上HTTP入口均要求管理员认证。分页现在统一拒绝重复/空值/坏编码/越界；各列表有意的pageSize/offset上限不变。journal只回收ACK且无未解决run引用、已到期的旧payload；unknown保留自身行，明确卸载实例不再压住ACK下界；源outbox在已派发通知之后仅压缩payload，小型幂等身份仍持久保留。发布前需接受7天物理回放窗口并检查blocked订阅，不能以清库消除容量告警。
+
+## Q5.5 接口契约与单次门禁
+
+前端流程/状态/确认/重试与完整路径清单见[FRONTEND_API](FRONTEND_API.md)；OpenAPI位于api/openapi.yaml（OpenAPI3.1 / JSON兼容YAML1.2，无新增依赖）。改路由/DTO后审阅 `UPDATE_OPENAPI=1 go test ./api` 产生的差异，再运行默认只读契约测试；运行时管理/原生router双向检查也包含在全仓race。
+
+`bash scripts/test-release.sh` 是单个fail-fast、共享test-lock的完整门禁，默认仅media_tool_test/Redis DB15；先build-web，再build/vet/全仓race（含集成恢复）/errcheck/Vue/plugin check-assets-matrix/E2E/govulncheck。要求环境已有errcheck/govulncheck，可用ERRCHECK_BIN/GOVULNCHECK_BIN指定路径，不向go.mod安装工具。Mac上的Linux专用skip仍须Q6 Actions补过，不等于Linux发布门已通过。

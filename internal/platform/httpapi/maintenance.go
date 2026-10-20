@@ -19,7 +19,7 @@ import (
 func (a *API) maintenance() maintenance.Engine {
 	return maintenance.Engine{DB: a.Deps.DB, Redis: a.Deps.Redis, DSN: a.Config.DatabaseURL, Root: a.Config.MaintenanceDir, OutputRoot: a.Config.STRMOutputDir, Key: a.Config.SecretKey, HostProc: a.Config.HostProcDir, Revision: buildinfo.Revision}
 }
-func (a *API) registerMaintenance(mux *http.ServeMux) {
+func (a *API) registerMaintenance(mux routeRegistrar) {
 	mux.HandleFunc("GET /api/v1/ops", a.protected(a.opsOverview))
 	mux.HandleFunc("PUT /api/v1/ops/policy", a.protected(a.opsPolicy))
 	mux.HandleFunc("POST /api/v1/ops/backups", a.protected(a.opsBackup))

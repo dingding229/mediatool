@@ -151,7 +151,7 @@ func (a *API) external(scope string, next http.HandlerFunc) http.HandlerFunc {
 		next(out, r)
 	}
 }
-func (a *API) registerExternal(mux *http.ServeMux) {
+func (a *API) registerExternal(mux routeRegistrar) {
 	mux.HandleFunc("GET /api/v1/external-api/keys", a.protected(a.listAPIKeys))
 	mux.HandleFunc("POST /api/v1/external-api/keys", a.protected(a.createAPIKey))
 	mux.HandleFunc("POST /api/v1/external-api/keys/{id}/revoke", a.protected(a.revokeAPIKey))

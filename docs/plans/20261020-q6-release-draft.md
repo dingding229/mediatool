@@ -2,6 +2,8 @@
 
 ## 阻断前提
 
+Q6首先由操作者在冻结写者的窗口执行下列只读SQL，建议在push触发发布前完成；违反即中止此轮发布/部署，绝不启动新镜像迁移。即使镜像已由Actions产出，也不因此获得部署许可。SQL连接来自本项目私有配置，本阶段未读取生产。
+
 - Q5/Q5.5审核通过；工作区干净，确认本项目批准的Git凭据，不复制其他项目凭据。
 - 只提交/推送dingding229/mediatool；插件pin未改变。如以后确需改插件，先在插件仓库测试推送，再更新pin。
 - 等待该提交build.yml全部门禁，尤其ubuntu-latest原生Linux AMD64的test-plugin-kernel.sh；任何失败中止，不以Mac skip/cross-build替代。

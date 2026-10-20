@@ -103,7 +103,7 @@ func (a *API) retrySTRMRepair(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 202, out)
 }
-func (a *API) registerSTRMTools(mux *http.ServeMux) {
+func (a *API) registerSTRMTools(mux routeRegistrar) {
 	mux.HandleFunc("POST /api/v1/strm/repairs/{id}/retry", a.protected(a.retrySTRMRepair))
 	mux.HandleFunc("POST /api/v1/strm/batch-preview", a.protected(a.batchSTRMPreview))
 	mux.HandleFunc("POST /api/v1/strm/repairs/preview", a.protected(a.previewSTRMRepair))

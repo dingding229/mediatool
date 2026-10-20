@@ -134,7 +134,7 @@ func (a *API) mutateMediaUser(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, map[string]bool{"done": true})
 }
-func (a *API) registerMediaServer(mux *http.ServeMux) {
+func (a *API) registerMediaServer(mux routeRegistrar) {
 	mux.HandleFunc("GET /api/v1/media-server/native/library-mappings", a.protected(a.nativeLibraryMappings))
 	mux.HandleFunc("GET /api/v1/media-server/users/{id}/devices", a.protected(a.mediaUserDevices))
 	mux.HandleFunc("POST /api/v1/media-server/users/{id}/devices/{deviceId}/revoke", a.protected(a.revokeMediaDevice))
