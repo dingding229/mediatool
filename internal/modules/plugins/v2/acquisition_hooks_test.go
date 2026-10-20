@@ -32,8 +32,10 @@ func policyFixture(t *testing.T) (Store, Lease) {
 	return s, l
 }
 
-// Match the real pump: expired pending calls are never eligible for a reply.
-// Otherwise an intentionally timed-out row can consume the next case's answer.
+// A scripted answer belongs only to a call submitted after this fake peer is
+// ready. A previous caller can finish its 200ms wait while its durable call is
+// still within the overall policy deadline; it must not steal a later answer.
+// Expired pending calls also remain ineligible, matching the real pump.
 func policyReply(s Store, raw json.RawMessage, fail bool) <-chan error {
 	return readyPolicyReply(s, raw, fail, nil)
 }
@@ -66,6 +68,11 @@ func readyPolicyReply(s Store, raw json.RawMessage, fail bool, start func(contex
 			return
 		}
 		defer conn.Release()
+		var preexisting []string
+		if e = conn.QueryRow(ctx, `SELECT coalesce(array_agg(id::text),ARRAY[]::text[]) FROM plugin_v2_runs WHERE kind='chain' AND state='pending'`).Scan(&preexisting); e != nil {
+			done <- e
+			return
+		}
 		// Cold AEAD/DB initialization belongs to fake peer setup, not handler latency.
 		if _, e = s.seal("call-result", jobs.UUID(), raw); e != nil {
 			done <- e
@@ -73,7 +80,7 @@ func readyPolicyReply(s Store, raw json.RawMessage, fail bool, start func(contex
 		}
 		for ctx.Err() == nil {
 			var id string
-			e := conn.QueryRow(ctx, `SELECT id::text FROM plugin_v2_runs WHERE kind='chain' AND state='pending' AND deadline_at>clock_timestamp() ORDER BY created_at,id LIMIT 1`).Scan(&id)
+			e := conn.QueryRow(ctx, `SELECT id::text FROM plugin_v2_runs WHERE kind='chain' AND state='pending' AND deadline_at>clock_timestamp() AND NOT(id::text=ANY($1::text[])) ORDER BY created_at,id LIMIT 1`, preexisting).Scan(&id)
 			announce()
 			if errors.Is(e, pgx.ErrNoRows) {
 				time.Sleep(time.Millisecond)
@@ -94,8 +101,11 @@ func readyPolicyReply(s Store, raw json.RawMessage, fail bool, start func(contex
 					return
 				}
 			}
-			_, e = conn.Exec(ctx, `UPDATE plugin_v2_runs SET state=$2,result_ciphertext=$3,finished_at=now() WHERE id=$1`, id, state, cipher)
-			done <- e
+			tag, updateErr := conn.Exec(ctx, `UPDATE plugin_v2_runs SET state=$2,result_ciphertext=$3,finished_at=now() WHERE id=$1 AND state='pending' AND deadline_at>clock_timestamp()`, id, state, cipher)
+			if updateErr == nil && tag.RowsAffected() != 1 {
+				updateErr = errors.New("fake policy reply target no longer eligible")
+			}
+			done <- updateErr
 			return
 		}
 		done <- ctx.Err()
@@ -307,5 +317,44 @@ func TestFakePolicyPeerReadinessPrecedesTimedCall(t *testing.T) {
 	}
 	if e = <-done; e != nil {
 		t.Fatal(e)
+	}
+}
+
+func TestPolicyReplyDoesNotConsumePreexistingUnexpiredCall(t *testing.T) {
+	s, l := policyFixture(t)
+	ctx := context.Background()
+	snap, d, e := s.Descriptor(ctx, l.ID, "chain", "resource.selection")
+	if e != nil {
+		t.Fatal(e)
+	}
+	// The production caller waits 200ms, while its durable call can retain the
+	// overall policy deadline. A later scripted reply belongs to the new call,
+	// not to an already-abandoned but still queue-eligible earlier invocation.
+	a, b := jobs.UUID(), jobs.UUID()
+	q := contracts.ResourceSelectionRequest{RunID: jobs.UUID(), Candidates: []contracts.ResourceCandidate{{ID: a, AccountID: b}, {ID: b, AccountID: b}}}
+	args, e := json.Marshal(map[string]any{"type": "resource.selection", "schemaVersion": 1, "payload": q})
+	if e != nil {
+		t.Fatal(e)
+	}
+	stale, e := s.Submit(ctx, snap, d, args, "preexisting-live-policy-fixture", "", nil, time.Now().Add(time.Minute))
+	if e != nil {
+		t.Fatal(e)
+	}
+	q.RunID = jobs.UUID()
+	done := policyReply(s, json.RawMessage(fmt.Sprintf(`{"ids":[%q]}`, a)), false)
+	prepared, selected, e := s.SelectResources(ctx, q)
+	if e != nil || len(selected) != 1 || selected[0] != a {
+		t.Fatal("new invocation lost its own scripted response", selected, e)
+	}
+	if e = <-done; e != nil {
+		t.Fatal(e)
+	}
+	if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
+		t.Fatal(e)
+	}
+	var state string
+	var unexpired bool
+	if e = s.DB.QueryRow(ctx, `SELECT state,deadline_at>clock_timestamp() FROM plugin_v2_runs WHERE id=$1`, stale).Scan(&state, &unexpired); e != nil || state != "pending" || !unexpired {
+		t.Fatal("preexisting invocation consumed a later response", state, unexpired, e)
 	}
 }
