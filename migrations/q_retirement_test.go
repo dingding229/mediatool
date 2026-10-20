@@ -100,3 +100,25 @@ func TestQRetirementGuardsAndPreservesLiveData(t *testing.T) {
 	}
 	f.version(t, 68)
 }
+
+func TestQJournalMigrationBackfillsSourceReceipt(t *testing.T) {
+	f, s := pluginStore(t)
+	if _, e := f.provider.UpTo(f.ctx, 65); e != nil {
+		t.Fatal(e)
+	}
+	f.exec(t, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload) VALUES(md5('pre-retention')::uuid,'files.succeeded',md5('pre-retention')::uuid,'{}')`)
+	f.exec(t, `INSERT INTO plugin_v2_event_journal(event_id,event_type,payload) VALUES(md5('pre-retention')::uuid,'library.organized','{}')`)
+	if _, e := f.provider.UpTo(f.ctx, 70); e != nil {
+		t.Fatal(e)
+	}
+	f.version(t, 70)
+	if f.integer(t, `SELECT count(*) FROM outbox_events WHERE plugin_journal_cursor IS NOT NULL`) != 1 {
+		t.Fatal("old journal identity not fenced")
+	}
+	if e := s.Bridge(f.ctx); e != nil {
+		t.Fatal(e)
+	}
+	if f.integer(t, `SELECT count(*) FROM plugin_v2_event_journal`) != 1 {
+		t.Fatal("upgraded event replayed")
+	}
+}

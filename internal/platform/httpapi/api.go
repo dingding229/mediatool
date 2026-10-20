@@ -133,6 +133,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/plugins/{id}/api-keys", a.protected(a.pluginKeyCreate))
 	mux.HandleFunc("POST /api/v1/plugins/{id}/api-keys/{key}/revoke", a.protected(a.pluginKeyRevoke))
 	mux.HandleFunc("POST /api/v1/plugins/{id}/events/replay", a.protected(a.pluginReplay))
+	mux.HandleFunc("GET /api/v1/plugins/events/retention", a.protected(a.pluginJournalCapacity))
 	mux.HandleFunc("GET /api/v1/plugins/resources", a.protected(a.pluginV2Resources))
 	mux.HandleFunc("GET /api/v1/plugins/catalog", a.protected(a.pluginV2Catalog))
 	mux.HandleFunc("POST /api/v1/plugins/operations", a.protected(a.pluginV2Operation))

@@ -28,3 +28,13 @@
 - 删除运行期 legacy grant 展开桥和旧枚举、rekey 旧密文入口、backupverify 的旧 WASM 改名兼容循环；backupverify 保留完整备份清单，只在升级对比中精确投影已批准的空对象移除（非空表仍拒绝）。旧迁移与历史结构测试继续保留，不改65以前的历史。
 - 测试覆盖非空 bootstrap/WASM/delivery/repository/site/channel/grant、非空覆盖配置、写者持锁中断/版本不前进/重跑、当前密文逐字节及 AAD/115凭据/STRM稳定身份不变、全量rekey dry-run与故障回滚。旧WASM rekey用例替换为当前plugin call args/result的双列AAD用例，旧数据保护由迁移拒绝用例承担。
 - schema 68；不可通过 schema-only Down 回滚。Q6 必须先停写、备份完整 PG/应用主密钥/Compose与STRM配置、验证恢复克隆；失败或回滚用升级前完整数据库＋对应二进制，不新建密钥、不复用升级后库运行旧程序。本阶段没有触碰生产或生成生产备份。
+
+## Q4a journal / outbox 保留与维护故障域
+
+- 00069 增加 source 的逐事件 cursor receipt、payload compact 标记、journal ingestion 时间与持久 retired cursor；旧 journal 按 event UUID 回填。事务 5s/10min。00070 使用独立非事务 CONCURRENTLY 建 pending-source 与 event FK 访问索引，移除已被 pending-source 索引覆盖的 Bridge 全来源索引；5s/10min，可重跑；最终 schema 70。
+- GC 与 Bridge、显式 Replay 共享 advisory lock 7063001；只回收所有订阅已 ACK、无引用 run、且**入 journal 满7天**的连续前缀，每轮最多1000。未 ACK/disabled 订阅、pending/running/unknown 都会钉住，不擅自跳 cursor、不清未知结果。原业务时间仍用于 SDK replayWindow 校验，迟提交不会被原时间/事务UUID高水位漏掉。
+- outbox 不删除行：业务 EmitTx 使用 event_type/aggregate_id 保证幂等，删源会重投。源只有在 journal 已退役且通知已 dispatched 后才把 payload 压为 `{}`，保留 id/type/aggregate/cursor 小收据；待发送通知及非Bridge来源（包括 plugin.notice）不压缩。**小收据行数仍增长，这是防重放的有意代价，非宣称数据库零增长。**
+- 物理事件回放窗口明确为7天；SDK replayWindow=0 仍是不额外限时的语义，但不代表无限存储。过期游标/超期仍被未知任务钉住的历史，返回 HTTP410 `event_retention_expired` 与 `X-Event-Retired-Cursor`，不会返回“成功0项”或自动前进。需长期回放者必须在发布前接受此保留协议；不提供自动重放恢复。
+- `GET /api/v1/plugins/events/retention`（管理员鉴权）返回 stored/limit/retiredCursor/retentionSeconds/state/nextAction；80% warning、100% blocked、回收后自动恢复 ready，不用手动“清除告警”。服务端告警可恢复，不误把容量满当worker损坏。
+- state recovery、run recovery、GC、Bridge、Deliver、Schedule 独立执行并聚合带域名错误，各有5s预算，不再让journal Busy中止服务调度。supervisor 不再给所有域共用一个5s截止点；单个域故障不会耗光其它域的预算。
+- 测试：50轮/10000事件的持续摄入→GC→重新Bridge、source幂等身份保留、30天旧时间的迟提交、100000满载下Schedule继续、100轮有界GC容量自动恢复、unknown与通知未发送保护、迁移回填与410过期拒绝。上述为合成协议长跑，不冒充7天真实墙钟 soak。

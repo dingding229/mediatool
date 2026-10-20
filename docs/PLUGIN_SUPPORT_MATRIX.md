@@ -1,6 +1,6 @@
 # 插件支持矩阵 · R 源码冻结
 
-- 源码候选：0.27.0；schema 68；contractVersion 2。
+- 源码候选：0.27.0；schema 70；contractVersion 2。
 - SDK pin：`v0.0.0-20261019145526-4ad0d7c57697`。
 - 契约摘要：`5fb1a7fcf7fbf87a232793570f5fda45616f1f36e2b6062f188cbd2012f3c90c`。
 - 生成/校验：`go run ./cmd/media-tool-dev plugins matrix [--check]`；仅读取编译期元数据，不执行工厂。

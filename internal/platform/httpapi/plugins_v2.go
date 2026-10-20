@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/platform/secrets"
 	"net/http"
@@ -62,6 +63,12 @@ func (a *API) pluginOperationRejected(w http.ResponseWriter, r *http.Request, co
 	}
 }
 func pluginV2Error(w http.ResponseWriter, e error) {
+	var expired *pluginv2.ReplayExpired
+	if errors.As(e, &expired) {
+		w.Header().Set("X-Event-Retired-Cursor", fmt.Sprint(expired.RetiredCursor))
+		fail(w, 410, "event_retention_expired", "事件已超出7天保留窗口，请核对游标后选择仍可用的历史；不会自动重放")
+		return
+	}
 	var rpc *contracts.Error
 	if errors.As(e, &rpc) && rpc.Code == contracts.PermissionDenied {
 		fail(w, 403, "plugin_permission_denied", "插件扩展缺少已确认的权限")

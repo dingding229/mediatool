@@ -69,11 +69,9 @@ func (s Supervisor) Run(ctx context.Context) error {
 	defer tick.Stop()
 	for {
 		if time.Now().After(nextMaintenance) {
-			bounded, stop := context.WithTimeout(ctx, 5*time.Second)
-			if e := s.Store.MaintainExtensions(bounded); e != nil && ctx.Err() == nil {
+			if e := s.Store.MaintainExtensions(ctx); e != nil && ctx.Err() == nil {
 				s.Logger.Warn("Plugin extension reconciliation deferred", "module", "plugins")
 			}
-			stop()
 			nextMaintenance = time.Now().Add(time.Second)
 		}
 		activeIDs := []string{}

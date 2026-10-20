@@ -90,7 +90,7 @@ func fixtureTracer(t *testing.T, tracer pgx.QueryTracer) Store {
 		t.Fatal(e)
 	}
 	// Copy only the G2 tables into a disposable schema; serial migration tests establish their source schema.
-	tables := []string{"plugin_v2_state_snapshots", "plugin_v2_state_values", "plugin_v2_state_tasks", "app_settings", "plugin_v2_definitions", "plugin_v2_instances", "plugin_v2_configs", "plugin_v2_kv", "plugin_v2_grants", "plugin_v2_operations", "audit_logs", "outbox_events", "jobs", "plugin_v2_snapshots", "plugin_v2_extensions", "plugin_v2_schedules", "plugin_v2_event_journal", "plugin_v2_subscriptions", "plugin_v2_runs", "plugin_v2_api_keys", "plugin_v2_api_limits", "plugin_v2_manual_requests"}
+	tables := []string{"plugin_v2_journal_retention", "plugin_v2_state_snapshots", "plugin_v2_state_values", "plugin_v2_state_tasks", "app_settings", "plugin_v2_definitions", "plugin_v2_instances", "plugin_v2_configs", "plugin_v2_kv", "plugin_v2_grants", "plugin_v2_operations", "audit_logs", "outbox_events", "jobs", "plugin_v2_snapshots", "plugin_v2_extensions", "plugin_v2_schedules", "plugin_v2_event_journal", "plugin_v2_subscriptions", "plugin_v2_runs", "plugin_v2_api_keys", "plugin_v2_api_limits", "plugin_v2_manual_requests"}
 	for _, table := range tables {
 		if _, e = base.Exec(context.Background(), `CREATE TABLE `+pgx.Identifier{schema, table}.Sanitize()+` (LIKE public.`+table+` INCLUDING ALL)`); e != nil {
 			t.Fatal(e)
@@ -107,6 +107,9 @@ func fixtureTracer(t *testing.T, tracer pgx.QueryTracer) Store {
 		}
 		pool.Close()
 	})
+	if _, e = pool.Exec(context.Background(), `INSERT INTO plugin_v2_journal_retention(singleton)VALUES(true)`); e != nil {
+		t.Fatal(e)
+	}
 	vault, e := secrets.New(strings.Repeat("33", 32))
 	if e != nil {
 		t.Fatal(e)

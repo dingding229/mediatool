@@ -79,7 +79,7 @@ func pluginHTTPFixture(t *testing.T) (context.Context, pluginv2.Store) {
 		}
 		db.Close()
 	})
-	for _, sql := range []string{`INSERT INTO ops_mode(singleton)VALUES(true)`, `INSERT INTO application_settings(singleton)VALUES(true)`, `INSERT INTO directory_classification(singleton)VALUES(true)`} {
+	for _, sql := range []string{`INSERT INTO plugin_v2_journal_retention(singleton)VALUES(true)`, `INSERT INTO ops_mode(singleton)VALUES(true)`, `INSERT INTO application_settings(singleton)VALUES(true)`, `INSERT INTO directory_classification(singleton)VALUES(true)`} {
 		if _, e = db.Exec(ctx, sql); e != nil {
 			t.Fatal(e)
 		}
