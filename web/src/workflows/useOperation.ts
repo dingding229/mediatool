@@ -13,9 +13,11 @@ export function useOperation(scope: string) {
   async function run(key: string, write: () => Promise<any>) {
     if (busy.value || pending.value)
       return;
+    let token:string;
+    try { token=requestUUID(); } catch { error.value=Error('请求尚未发出，请稍后重新确认。'); return; }
     busy.value = true;
     error.value = null;
-    pending.value = { key, token: requestUUID() };
+    pending.value = { key, token };
     savePrivate(storage, pending.value);
     phase.value = 'reconciling';
     const ticket = { ...pending.value };
