@@ -1,18 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-if [[ "${MEDIA_TOOL_TEST_LOCKED:-}" != 1 ]];then exec python3 scripts/test-lock.py "$0" "$@";fi
-set -a; source .env; source .env.test; set +a
-export DATABASE_URL="$TEST_DATABASE_URL"
-python3 - <<'PY'
-import os,urllib.parse,socket
-if urllib.parse.urlsplit(os.environ['DATABASE_URL']).path!='/media_tool_test':raise SystemExit('E2E may only use media_tool_test, never the business database.')
-for port in (18084,18085,18086,18087):
- with socket.socket()as sock:
-  sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)  # TIME_WAIT is not a live listener.
-  try:sock.bind(('127.0.0.1',port))
-  except OSError:raise SystemExit('Isolated E2E ports busy; no existing process will be stopped.')
-PY
+source scripts/test-common.sh
+isolated_test "$@"
+devtool ports 18084 18085 18086 18087
 # Always reset only the named isolated database, not the business database.
 test_db_exec(){
  if [[ "${TEST_DB_EXEC_MODE:-compose}" == psql ]];then
@@ -41,8 +32,6 @@ trap cleanup EXIT INT TERM
 export MEMBER_ADDR=127.0.0.1:18087
 export AUTH_ALLOWED_ORIGINS=https://proxy.fixture.invalid
 export APP_ENV=development APP_ADDR=127.0.0.1:18084 APP_PUBLIC_URL=http://localhost:18084 EMBY_GATEWAY_ADDR=127.0.0.1:18085
-export APP_SECRET_KEY="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
-export SESSION_SECRET_KEY="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
 export PLUGIN_DATA_ROOT="$private/plugins"
 export NATIVE_STILLS_ROOT="$private/native-media/stills"
 export STRM_OUTPUT_DIR="$private/strm"
@@ -55,11 +44,11 @@ printf 'Owned local file fixture, not a real movie.\n' > "$E2E_FILE_ROOT/Owned F
 printf '1\n00:00:00,000 --> 00:00:01,000\nOwned subtitle fixture\n' > "$E2E_FILE_ROOT/Owned Film.zh-CN.srt"
 printf 'Independent file fixture.\n' > "$E2E_FILE_ROOT/Other.mkv"
 export CLOUDDRIVE_ENDPOINT='' CLOUDDRIVE_TOKEN='' CLOUDDRIVE_USERNAME='' CLOUDDRIVE_PASSWORD='' EMBY_UPSTREAM_URL='' EMBY_PROXY_ENABLED=false EMBY_302_ENABLED=false
-export REDIS_URL="$(python3 -c 'import os,urllib.parse;u=urllib.parse.urlsplit(os.environ["REDIS_URL"]);print(urllib.parse.urlunsplit(u._replace(path="/15")))')"
+go build -o "$private/media-tool-dev" ./cmd/media-tool-dev
 export E2E_EMBY_ENDPOINT=http://127.0.0.1:18086
-python3 scripts/e2e-emby-fixture.py >"$private/provider.log" 2>&1 & pids+=("$!")
+"$private/media-tool-dev" fixture-emby >"$private/provider.log" 2>&1 & pids+=("$!")
 export E2E_ISOLATED=1 E2E_BASE_URL=http://localhost:18084 E2E_ADMIN_USERNAME=e2e_admin
-export E2E_ADMIN_PASSWORD="$(python3 -c 'import secrets;print("E2E-"+secrets.token_hex(6))')"
+export E2E_ADMIN_PASSWORD="E2E-$(devtool token)"
 go run ./cmd/migrate -test-only >/dev/null
 go build -o "$private/media-tool" ./cmd/media-tool
 "$private/media-tool" -role all >"$private/server.log" 2>&1 & pids+=("$!")

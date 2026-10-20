@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-if [[ ! -f .env ]]; then echo 'Run python3 scripts/init-env.py first.' >&2; exit 1; fi
+if [[ ! -f .env ]]; then echo 'Run go run ./cmd/media-tool-dev init-env first.' >&2; exit 1; fi
 # .env is a trusted local configuration. Never source an untrusted upload.
 set -a
 source .env

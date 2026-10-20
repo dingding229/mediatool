@@ -44,15 +44,7 @@ jobs:
         with: {node-version: '22', cache: npm, cache-dependency-path: web/package-lock.json}
       - name: Create isolated test configuration (no production secrets)
         run: |
-          python3 - <<'PY'
-          import os,secrets
-          from pathlib import Path
-          values={k:secrets.token_hex(32) for k in ('SESSION_SECRET_KEY','APP_SECRET_KEY','STRM_API_KEY')}
-          values.update(DATABASE_URL='postgres://media_tool:ci-postgres-fixture@127.0.0.1:5432/media_tool_test?sslmode=disable',REDIS_URL='redis://127.0.0.1:6379/0')
-          for name,content in [('.env','\n'.join(k+'='+v for k,v in values.items())+'\n'),('.env.test','TEST_DATABASE_URL='+values['DATABASE_URL']+'\n')]:
-            fd=os.open(name,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
-            with os.fdopen(fd,'w') as f:f.write(content)
-          PY
+          go run ./cmd/media-tool-dev ci-config
       - name: Pinned plugin initialization and resource inventory gate
         run: |
           go run ./cmd/plugin-check

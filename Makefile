@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .PHONY: init dev build build-web test test-integration vet run worker migrate compose-check
 init:
-	python3 scripts/init-env.py
+	go run ./cmd/media-tool-dev init-env
 dev:
 	bash scripts/dev.sh
 build-web:
@@ -11,7 +11,7 @@ build: build-web
 	CGO_ENABLED=0 go build -trimpath -o bin/media-tool ./cmd/media-tool
 	CGO_ENABLED=0 go build -trimpath -o bin/migrate ./cmd/migrate
 test:
-	go test -p 1 -race ./...
+	bash scripts/test-go.sh
 	npm ci --prefix web --no-fund
 	npm test --prefix web
 test-integration:
