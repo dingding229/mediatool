@@ -164,3 +164,6 @@
 
 .connections-workspace .el-button { min-height: 44px; }
 .connections-workspace .el-checkbox { min-height: 44px; }
+
+.saved-secret-controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.saved-secret-controls .el-input { flex:1 1 100%; }

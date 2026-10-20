@@ -53,7 +53,7 @@ onMounted(() => {
 </script>
 <template>
 <div class="connections-workspace">
-  <PageHeader title="服务连接" description="把存储、播放和通知接好；密钥只显示设置状态，不回显已保存的明文。">
+  <PageHeader title="服务连接" description="把存储、播放和通知接好；密钥默认隐藏，需要时可在编辑中主动查看。">
     <template #actions>
       <el-button type="primary" :loading="loading" @click="load">刷新状态</el-button>
     </template>
@@ -88,7 +88,6 @@ onMounted(() => {
         <p v-if="account.info.spaceError">空间信息暂不可用</p>
         <p v-for="(member,index) in account.info.memberships||[]" :key="index">{{ member.identity||'—' }} {{ member.level||'—' }} · 到期 {{ date(member.expiresAt) }}</p>
         <p v-if="!account.info.memberships?.length">会员信息：—</p>
-        <p>{{ account.note||'—' }}</p>
       </template>
     </section>
   </template>

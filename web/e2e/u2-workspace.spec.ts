@@ -30,7 +30,7 @@ test('completed setup can be hidden then reopened from settings with guarded loc
  await page.goto('/dashboard');const guide=page.getByRole('region',{name:'首次使用引导'});await guide.getByRole('button',{name:'收起引导',exact:true}).click();await expect(guide).toHaveCount(0);await page.reload();await expect(guide).toHaveCount(0)
  await page.goto('/settings');await page.getByRole('button',{name:'重新打开配置引导',exact:true}).click();await expect(guide).toBeVisible()
 })
-test('saved connection keys are never revealed and conflict keeps typed input until explicit revision confirmation',async({page})=>{
+test('saved connection keys stay hidden by default and conflict keeps typed input until explicit revision confirmation',async({page})=>{
  let reveals=0,puts=0;await page.route('**/secrets/reveal',r=>{reveals++;return r.abort()})
  await page.route('**/api/v1/integrations/fixture-cd2',r=>{puts++;return r.fulfill({status:409,json:{error:{code:'integration_changed',message:'变化'}}})})
  await page.goto('/connections?tab=storage');await page.locator('.saved-connection').filter({hasText:'文件服务'}).getByRole('button',{name:'编辑',exact:true}).click()
@@ -60,4 +60,15 @@ test('dashboard and connection screenshots in both themes and widths contain no 
   }
  }
  expect(errors).toEqual([])
+})
+
+test('administrator actively reveals one field, can hide it, and closing discards it',async({page})=>{
+ let reveals=0;await page.route('**/api/v1/integrations/fixture-cd2/secrets/reveal',r=>{reveals++;expect(r.request().postDataJSON()).toEqual({revision:2,fields:['token'],confirm:true});return r.fulfill({json:{data:{revision:2,values:{token:'OWNED-REVEAL-FIXTURE'}}}})})
+ await page.goto('/connections?tab=storage');const row=page.locator('.saved-connection').filter({hasText:'文件服务'});await row.getByRole('button',{name:'编辑',exact:true}).click();const dialog=page.getByRole('dialog',{name:'编辑连接',exact:true});expect(reveals).toBe(0)
+ await dialog.getByRole('button',{name:'显示CloudDrive2 API Token',exact:true}).click();await expect(dialog.getByLabel('CloudDrive2 API Token已保存值',{exact:true})).toHaveValue('OWNED-REVEAL-FIXTURE');await expect(dialog.getByLabel('CloudDrive2 API Token',{exact:true})).toHaveValue('');await dialog.getByRole('button',{name:'隐藏CloudDrive2 API Token',exact:true}).click();await expect(dialog.getByLabel('CloudDrive2 API Token已保存值',{exact:true})).toHaveCount(0)
+ await dialog.getByRole('button',{name:'显示CloudDrive2 API Token',exact:true}).click();await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(dialog).not.toBeVisible();await row.getByRole('button',{name:'编辑',exact:true}).click();await expect(dialog.getByLabel('CloudDrive2 API Token已保存值',{exact:true})).toHaveCount(0);expect(reveals).toBe(2)
+})
+test('desktop sidebar stays viewport-tall after page scroll and navigation scrolls internally',async({page})=>{
+ await page.goto('/dashboard');const aside=page.getByRole('complementary',{name:'主导航'});await page.evaluate(()=>scrollTo(0,900));const box=await aside.boundingBox();expect(box!.y).toBe(0);expect(box!.height).toBe(1000)
+ await page.setViewportSize({width:1440,height:560});const nav=aside.locator('.navigation-content');expect(await nav.evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);await expect(aside.locator('.workbench-version')).toBeInViewport();await nav.evaluate(el=>el.scrollTop=el.scrollHeight);await expect(aside.getByRole('link',{name:'设置',exact:true})).toBeInViewport()
 })

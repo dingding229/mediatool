@@ -7,17 +7,16 @@
 | 分类 | operations |
 |---|---:|
 | 未检出静态使用 | 434 |
-| 前端直接调用 | 161 |
+| 前端直接调用 | 162 |
 | 资源/链接使用 | 3 |
 | 前端经适配调用 | 23 |
 | 仅适配层调用 | 3 |
-| 按要求退出前端的明文回显 | 1 |
 
 使用TypeScript AST扫描当前web/src的request/post/fetch调用，按实际第二参数中的method（含常量三元分支）识别，不跨越下一次调用猜method；模板参数按路径形状匹配。识别当前api适配函数被导入并调用的痕迹，同时补充href/资源URL字面量。排除测试和通用transport。
 
 “前端直接调用”包含页面、组件和store；“经适配调用”表示具体adapter导出函数有前端引用调用；“仅适配层”尚未检出其页面调用。“未检出静态使用”不是后端死码或可删证明：后端返回的海报/icon URL、运行期descriptor、SSE封装、外部凭据客户端、原生播放器、链接和别名均可能不出现字面量。静态形状匹配不是运行期覆盖率；代码变化后须重新核对。原生媒体协议不应为追求前端“已用”而迁移到管理端口。
 
-U2 更新：主页、服务连接的证据已按新位置核对；存储密钥明文回显接口按本次要求退出前端，后端未删除。
+U2 更新：主页、服务连接的证据已按新位置核对；密钥默认隐藏，管理员可主动显示已保存值。
 
 ## 完整 path / method 清单
 
@@ -174,7 +173,7 @@ U2 更新：主页、服务连接的证据已按新位置核对；存储密钥�
 | POST | `/api/v1/integrations/{id}/115/auth/cancel` | management | 前端直接调用 | `web/src/components/Official115AuthDialog.vue:33` |
 | POST | `/api/v1/integrations/{id}/115/auth/poll` | management | 前端直接调用 | `web/src/components/Official115AuthDialog.vue:14` |
 | POST | `/api/v1/integrations/{id}/115/auth/start` | management | 前端直接调用 | `web/src/components/Official115AuthDialog.vue:27` |
-| POST | `/api/v1/integrations/{id}/secrets/reveal` | management | 已移除明文回显，前端不再调用 |  |
+| POST | `/api/v1/integrations/{id}/secrets/reveal` | management | 前端直接调用 | `web/src/connections/useSecretReveal.ts:21` |
 | POST | `/api/v1/integrations/{id}/test` | management | 前端直接调用 | `web/src/connections/useConnections.ts:108` |
 | GET | `/api/v1/jobs` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/jobs` | management | 未检出静态使用 |  |

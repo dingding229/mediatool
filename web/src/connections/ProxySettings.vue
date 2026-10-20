@@ -9,8 +9,14 @@ interface Proxy {
   revision: number;
 }
 const saved = ref<Proxy | null>(null), input = ref(''), tmdb = ref(false), sites = ref(false), clear = ref(false), busy = ref(false), error = ref(''), notice = ref(''), conflict = ref<Proxy | null>(null), blocked = ref(false);
+const showSaved = ref(false);
+async function copySaved() {
+  try { if (!navigator.clipboard?.writeText) throw Error('unavailable'); await navigator.clipboard.writeText(saved.value?.url || ''); notice.value = '已复制，请妥善保管。'; }
+  catch { notice.value = '复制失败，请在已显示的地址内手动选择并复制。'; }
+}
 let disposed = false;
 async function load() {
+  showSaved.value = false;
   try {
     const out = await request<Proxy>('/settings/network-proxy');
     if (!disposed) {
@@ -30,6 +36,7 @@ async function load() {
 async function save() {
   if (!saved.value || busy.value || conflict.value || blocked.value)
     return;
+  showSaved.value = false;
   busy.value = true;
   error.value = '';
   notice.value = '';
@@ -88,11 +95,15 @@ onUnmounted(() => {
     <el-button @click="load">重新读取代理设置</el-button>
   </header>
   <form v-if="saved" class="connection-editor" @submit.prevent="save">
-    <p>{{ saved.url?'代理地址已设置（不回显认证信息）':'尚未设置代理地址' }}</p>
+    <p>{{ saved.url?'代理地址已设置（默认隐藏）':'尚未设置代理地址' }}</p>
     <label>
       代理地址
       <el-input v-model="input" type="password" aria-label="代理地址" autocomplete="new-password" placeholder="留空保留现有地址，填写新地址替换" />
     </label>
+    <div v-if="saved.url" class="saved-secret-controls">
+      <el-button @click="showSaved=!showSaved">{{ showSaved?'隐藏代理地址':'显示代理地址' }}</el-button>
+      <template v-if="showSaved"><el-input :model-value="saved.url" aria-label="已保存代理地址" readonly /><el-button @click="copySaved">复制代理地址</el-button></template>
+    </div>
     <el-checkbox v-model="clear">明确清除已保存的代理地址</el-checkbox>
     <el-checkbox v-model="tmdb">TMDB查询与海报使用代理</el-checkbox>
     <el-checkbox v-model="sites">PT站点搜索、RSS与站点请求使用代理</el-checkbox>

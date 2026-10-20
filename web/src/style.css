@@ -1,15 +1,15 @@
 
 html, body {
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 .app-shell {
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 .main-shell {
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 /* Media Tool / Indigo Modern — shared design tokens for the Vue workbench. */
 :root {

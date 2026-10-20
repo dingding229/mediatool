@@ -609,7 +609,7 @@ test('separate 115 setup saves disabled without tokens and saved secrets never e
  await dialog.getByRole('button',{name:'加密保存',exact:true}).click()
  const row=page.locator('.saved-connection').filter({hasText:embyName});await row.getByRole('button',{name:'编辑',exact:true}).click()
  const edit=page.getByRole('dialog',{name:'编辑连接',exact:true}),field=edit.getByLabel('媒体库刷新 API Key',{exact:true})
- await expect(field).toHaveValue('');await expect(field).toHaveAttribute('type','password');await expect(edit).toContainText('已设置，不回显')
+ await expect(field).toHaveValue('');await expect(field).toHaveAttribute('type','password');await expect(edit).toContainText('已设置（默认隐藏）')
  await edit.screenshot({path:resolve(screenshots,'service-secrets-explicit-desktop.png'),animations:'disabled',mask:[field]})
  await page.setViewportSize({width:375,height:812});await field.scrollIntoViewIfNeeded()
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)

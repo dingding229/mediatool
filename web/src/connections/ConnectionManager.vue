@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import './connections.css';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { ElMessageBox } from 'element-plus';
 import StateView from '../ui/StateView.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
@@ -8,6 +8,7 @@ import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import Official115AuthDialog from '../components/Official115AuthDialog.vue';
 import { useConnections } from './useConnections';
+import { useSecretReveal } from './useSecretReveal';
 import { stateFor, errorText } from '../workflows/readiness';
 import { kinds, safeSettings } from './model';
 const props = defineProps<{
@@ -15,6 +16,8 @@ const props = defineProps<{
   title: string;
 }>();
 const { rows, loading, loadError, error, editing, saving, notice, conflict, saved, blocked, form, load, create, edit, save, useRevision, test, testState, testing, reconcile, authorize, authOpen, authId, askRemove, removeOpen, removeTarget, removing, remove } = useConnections();
+const reveal = useSecretReveal(() => ({ id: form.id, revision: form.revision }));
+watch(() => [editing.value, form.id, form.revision, saving.value], () => reveal.hideAll());
 const selectedKind = ref(props.allowedKinds[0] ?? 'emby'), visible = computed(() => rows.value.filter(r => props.allowedKinds.includes(r.kind)));
 async function approveRevision() {
   try {
@@ -30,7 +33,7 @@ async function approveRevision() {
   <header class="connection-section-heading">
     <div>
       <h2>{{ title }}</h2>
-      <p>保存前验证连接；密钥仅显示设置状态，留空保留原值。</p>
+      <p>保存前验证连接；密钥默认隐藏，可主动查看已保存值；留空保留原值。</p>
     </div>
     <div class="connection-buttons">
       <el-button :loading="loading" @click="load">刷新连接</el-button>
@@ -51,7 +54,7 @@ async function approveRevision() {
       <h3>{{ row.name }}</h3>
       <p>{{ kinds[row.kind]?.name }} · {{ row.enabled?'已启用':'未启用' }}</p>
       <StatusBadge :state="row.readiness?.state||row.lastCheckState" />
-      <p>{{ row.secretFields?.length?'凭据已设置（不回显）':'凭据未设置' }}</p>
+      <p>{{ row.secretFields?.length?'凭据已设置':'凭据未设置' }}</p>
     </div>
     <div class="connection-buttons">
       <el-button @click="edit(row)">{{ row.kind==='tmdb'?'编辑TMDB Token':'编辑' }}</el-button>
@@ -70,8 +73,16 @@ async function approveRevision() {
       <div v-for="field in kinds[form.kind]?.fields" :key="field.key" class="connection-field">
         {{ field.label }}
         <template v-if="field.secret">
-          <small>{{ saved?.secretFields.includes(field.key)?'已设置，不回显':'未设置' }}</small>
+          <small>{{ saved?.secretFields.includes(field.key)?'已设置（默认隐藏）':'未设置' }}</small>
           <el-input v-model="form.secrets[field.key]" :type="'password'" :aria-label="field.label" autocomplete="new-password" placeholder="留空保留；填写新值替换" />
+          <div v-if="saved?.secretFields.includes(field.key)" class="saved-secret-controls">
+            <el-button v-if="!(field.key in reveal.values)" :loading="reveal.busy[field.key]" :aria-label="`显示${field.label}`" @click="reveal.show(field.key)">显示</el-button>
+            <template v-else>
+              <el-input :model-value="reveal.values[field.key]" :aria-label="`${field.label}已保存值`" readonly />
+              <el-button :aria-label="`隐藏${field.label}`" @click="reveal.hide(field.key)">隐藏</el-button>
+              <el-button :aria-label="`复制${field.label}`" @click="reveal.copy(field.key)">复制</el-button>
+            </template>
+          </div>
           <el-checkbox v-if="saved?.secretFields.includes(field.key)" v-model="form.clear" :value="field.key">明确清除{{ field.label }}</el-checkbox>
         </template>
         <el-input v-else v-model="form.settings[field.key]" :aria-label="field.label" />
@@ -84,6 +95,7 @@ async function approveRevision() {
       </div>
       <el-checkbox v-model="form.enabled">启用连接</el-checkbox>
       <p v-if="form.kind==='open115'">扫码授权不会自动启用；授权后可回到编辑窗口明确启用。</p>
+      <p v-if="reveal.message.value" role="status">{{ reveal.message.value }}</p>
       <el-alert v-if="error" :title="error" type="warning" :closable="false" />
       <section v-if="conflict" class="connection-conflict">
         <h3>当前已保存配置（供对照）</h3>
@@ -94,7 +106,7 @@ async function approveRevision() {
             <dd>{{ value }}</dd>
           </template>
         </dl>
-        <p>凭据：{{ conflict.secretFields.length?'已设置，不回显':'未设置' }}</p>
+        <p>凭据：{{ conflict.secretFields.length?'已设置（默认隐藏）':'未设置' }}</p>
         <el-button @click="approveRevision">保留输入并采用最新修订</el-button>
       </section>
       <div class="connection-buttons">
