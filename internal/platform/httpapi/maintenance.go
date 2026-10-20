@@ -262,7 +262,7 @@ func (a *API) opsPreview(w http.ResponseWriter, r *http.Request) {
 		opsError(w, err)
 		return
 	}
-	write(w, 200, map[string]any{"request": out, "confirmText": maintenance.ConfirmText(out), "command": "python3 scripts/ops-owner.py --root /root/docker/mediatool execute " + out.ID})
+	write(w, 200, map[string]any{"request": out, "confirmText": maintenance.ConfirmText(out), "command": "media-toolctl --root /root/docker/mediatool execute " + out.ID})
 }
 func (a *API) opsApprove(w http.ResponseWriter, r *http.Request) {
 	if !a.opsReady(w) {

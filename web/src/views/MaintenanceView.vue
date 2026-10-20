@@ -514,7 +514,7 @@ onUnmounted(() => {
         </div>
       </div>
       <p class="field-hint">
-        在服务器登记已有镜像：python3 scripts/ops-owner.py --root
+        在服务器登记已有镜像：media-toolctl --root
         /root/docker/mediatool register dingding229/mediatool:sha-完整SHA
       </p>
       <div
@@ -543,7 +543,7 @@ onUnmounted(() => {
           ><small>有效至 {{ date(r.expiresAt) }}</small>
           <p>{{ r.message }}</p>
           <code v-if="r.state === 'approved'"
-            >python3 scripts/ops-owner.py --root /root/docker/mediatool execute
+            >media-toolctl --root /root/docker/mediatool execute
             {{ r.id }}</code
           >
         </div>
