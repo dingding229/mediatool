@@ -12,7 +12,7 @@ const broken = ref(new Set<string>());
 </script>
 <template>
   <div class="media-workspace">
-    <PageHeader title="媒体库" description="按来源浏览媒体；播放保留原始 STRM 与严格 302 直链。">
+    <PageHeader title="媒体库" description="按来源查找已入库的影视内容，并选择可用的播放方式。">
       <template #actions>
         <RouterLink to="/connections?tab=emby">Emby 配置</RouterLink>
         <el-button type="primary" :loading="loading" @click="load">刷新媒体库</el-button>

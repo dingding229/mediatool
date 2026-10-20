@@ -93,7 +93,7 @@ onMounted(() => {
   </template>
   <template v-else-if="tab==='emby'">
     <ConnectionManager :allowed-kinds="['emby']" title="Emby媒体库连接" />
-    <GatewayDiagnostics />
+    <GatewayDiagnostics /><nav class="connection-actions" aria-label="播放相关管理"><RouterLink to="/playback?tab=settings">本程序播放服务</RouterLink><RouterLink to="/playback?tab=players">播放器准入</RouterLink><RouterLink to="/playback?tab=users">本程序媒体用户</RouterLink></nav>
   </template>
   <template v-else-if="tab==='notifications'">
     <ConnectionManager :allowed-kinds="['telegram']" title="通知渠道" />
@@ -101,7 +101,11 @@ onMounted(() => {
   </template>
   <template v-else-if="tab==='aux'">
     <ConnectionManager :allowed-kinds="['tmdb']" title="TMDB配置" />
-    <ProxySettings />
+    <ProxySettings /><RouterLink class="connection-link" to="/sites?tab=accounts">管理站点账号</RouterLink>
   </template>
 </div>
 </template>
+
+<style scoped>
+.connection-actions{display:flex;gap:16px;flex-wrap:wrap}.connection-actions a,.connection-link{display:inline-flex;align-items:center;min-height:44px;color:var(--mt-color-primary);overflow-wrap:anywhere}
+</style>

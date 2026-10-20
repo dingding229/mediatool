@@ -109,12 +109,12 @@ test('U1 each outer page tab writes its exact URL tab and quick jump opens opera
   await ensureRegisteredAndLogin(page)
   const expected: Record<string, string[]> = {
     search: ['query','history'], downloads: ['tasks','uploads','manual'], organize: ['candidates','scans','assets','history','recovery'], files: ['browser','strm','tools'],
-    playback: ['settings','users','players'], connections: ['overview','storage','emby','notifications','aux'],
+    playback: ['settings','users','players','sessions','processing'], connections: ['overview','storage','emby','notifications','aux'],
     sites: ['accounts','templates'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['general','classification','api'],
   }
   for (const [path, ids] of Object.entries(expected)) {
     await page.goto(`/${path}?keep=owned`)
-    const nav = page.locator(['organize','files'].includes(path) ? '.media-workspace .page-tabs' : path === 'connections' ? '.connections-workspace .page-tabs' : ['search','downloads'].includes(path) ? '.acquire-workspace .page-tabs' : '.workflow-page-navigation .page-tabs')
+    const nav = page.locator(['organize','files','playback'].includes(path) ? '.media-workspace .page-tabs' : path === 'connections' ? '.connections-workspace .page-tabs' : ['search','downloads'].includes(path) ? '.acquire-workspace .page-tabs' : '.workflow-page-navigation .page-tabs')
     await expect(nav.getByRole('button')).toHaveCount(ids.length)
     for (let index = 0; index < ids.length; index++) {
       await nav.getByRole('button').nth(index).click()

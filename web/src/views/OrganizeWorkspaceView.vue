@@ -111,7 +111,7 @@ watch(detailsOpen, v => {
 </script>
 <template>
   <div class="media-workspace">
-    <PageHeader title="入库整理" description="先核对识别和范围，再明确批准；扫描、输出与归档各自保留可核对证据。">
+    <PageHeader title="入库整理" description="先确认影片和处理目录，再开始入库；遇到问题时可查看记录并继续处理。">
       <template #actions>
         <el-button type="primary" :loading="state.loading.candidates||state.loading.assets" :disabled="state.editing" @click="state.changed">刷新记录</el-button>
       </template>
@@ -121,7 +121,7 @@ watch(detailsOpen, v => {
       <header class="media-section-heading">
         <div>
           <h2>待确认文件</h2>
-          <p>单批1–20项；文件仍在库且没有已有输出恢复要求时，才可新确认。</p>
+          <p>每次可选1–20个文件；已入库或有待处理输出的文件，请先查看已有记录。</p>
         </div>
         <el-select v-model="state.filter" aria-label="候选状态" @change="state.page.candidates=1;pageChange('candidates')">
           <el-option value="needs_confirmation" label="待确认（含需核对输出）"/>

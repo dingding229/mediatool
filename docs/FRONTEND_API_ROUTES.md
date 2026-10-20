@@ -250,13 +250,13 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/media-server/native/settings` | management | 未检出静态使用 |  |
 | PUT | `/api/v1/media-server/native/settings` | management | 前端经适配调用 | `web/src/api/mediaServer.ts:48` |
 | POST | `/api/v1/media-server/native/tmdb/refresh` | management | 仅适配层调用 | `web/src/api/mediaServer.ts:10` |
-| GET | `/api/v1/media-server/providers` | management | 前端直接调用 | `web/src/views/MediaServerView.vue:13` |
+| GET | `/api/v1/media-server/providers` | management | 前端直接调用 | `web/src/playback/ServicePanel.vue:11` |
 | HEAD | `/api/v1/media-server/providers` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media-server/users` | management | 前端经适配调用 | `web/src/api/mediaServer.ts:7` |
+| GET | `/api/v1/media-server/users` | management | 前端经适配调用 | `web/src/api/mediaServer.ts:7`、`web/src/playback/UserEditor.vue:43` |
 | HEAD | `/api/v1/media-server/users` | management | 未检出静态使用 |  |
 | POST | `/api/v1/media-server/users` | management | 未检出静态使用 |  |
-| DELETE | `/api/v1/media-server/users/{id}` | management | 前端直接调用 | `web/src/views/MediaUsersView.vue:27` |
-| GET | `/api/v1/media-server/users/{id}` | management | 未检出静态使用 |  |
+| DELETE | `/api/v1/media-server/users/{id}` | management | 前端直接调用 | `web/src/playback/UsersPanel.vue:33` |
+| GET | `/api/v1/media-server/users/{id}` | management | 未检出静态使用 | `web/src/playback/SessionsPanel.vue:17`、`web/src/playback/SessionsPanel.vue:31` |
 | HEAD | `/api/v1/media-server/users/{id}` | management | 未检出静态使用 |  |
 | PUT | `/api/v1/media-server/users/{id}` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media-server/users/{id}/devices` | management | 未检出静态使用 |  |
@@ -264,8 +264,8 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | POST | `/api/v1/media-server/users/{id}/devices/{deviceId}/revoke` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media-server/users/{id}/history` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media-server/users/{id}/history` | management | 未检出静态使用 |  |
-| POST | `/api/v1/media-server/users/{id}/password` | management | 前端直接调用 | `web/src/views/MediaUsersView.vue:26` |
-| POST | `/api/v1/media-server/users/{id}/sessions/revoke` | management | 未检出静态使用 |  |
+| POST | `/api/v1/media-server/users/{id}/password` | management | 前端直接调用 | `web/src/playback/UserEditor.vue:85` |
+| POST | `/api/v1/media-server/users/{id}/sessions/revoke` | management | 未检出静态使用 | `web/src/playback/SessionsPanel.vue:32`、`web/src/playback/UsersPanel.vue:33` |
 | GET | `/api/v1/media/assets` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:220`、`web/src/organize/useOrganize.ts:16` |
 | HEAD | `/api/v1/media/assets` | management | 未检出静态使用 |  |
 | POST | `/api/v1/media/assets/{id}/grant/revoke` | management | 前端直接调用 | `web/src/views/OrganizeWorkspaceView.vue:83` |
@@ -322,16 +322,16 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | GET | `/api/v1/ops/trends` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:170` |
 | HEAD | `/api/v1/ops/trends` | management | 未检出静态使用 |  |
 | POST | `/api/v1/pipeline/{kind}/{id}/retry` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:114` |
-| GET | `/api/v1/player-access/events` | management | 前端直接调用 | `web/src/views/PlayerAccessView.vue:69` |
+| GET | `/api/v1/player-access/events` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:11` |
 | HEAD | `/api/v1/player-access/events` | management | 未检出静态使用 |  |
-| GET | `/api/v1/player-access/observations` | management | 前端直接调用 | `web/src/views/PlayerAccessView.vue:124` |
+| GET | `/api/v1/player-access/observations` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:11` |
 | HEAD | `/api/v1/player-access/observations` | management | 未检出静态使用 |  |
-| POST | `/api/v1/player-access/observations/{id}/allow` | management | 未检出静态使用 |  |
-| POST | `/api/v1/player-access/observations/clear` | management | 前端直接调用 | `web/src/views/PlayerAccessView.vue:277` |
-| GET | `/api/v1/player-access/policy` | management | 前端直接调用 | `web/src/views/PlayerAccessView.vue:123` |
+| POST | `/api/v1/player-access/observations/{id}/allow` | management | 未检出静态使用 | `web/src/playback/AccessPanel.vue:46` |
+| POST | `/api/v1/player-access/observations/clear` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:64` |
+| GET | `/api/v1/player-access/policy` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:11` |
 | HEAD | `/api/v1/player-access/policy` | management | 未检出静态使用 |  |
-| PUT | `/api/v1/player-access/policy` | management | 前端直接调用 | `web/src/views/PlayerAccessView.vue:148` |
-| GET | `/api/v1/player-access/users` | management | 前端直接调用 | `web/src/views/PlayerAccessView.vue:73` |
+| PUT | `/api/v1/player-access/policy` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:46`、`web/src/playback/AccessPanel.vue:64` |
+| GET | `/api/v1/player-access/users` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:11` |
 | HEAD | `/api/v1/player-access/users` | management | 未检出静态使用 |  |
 | DELETE | `/api/v1/plugin/{instance}/{path}` | management | 未检出静态使用 |  |
 | GET | `/api/v1/plugin/{instance}/{path}` | management | 未检出静态使用 |  |

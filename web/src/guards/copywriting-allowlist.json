@@ -1,8 +1,4 @@
 {
-  "web/src/views/MediaServerView.vue": [
-    "推荐 Go",
-    "Provider v1"
-  ],
   "web/src/views/PluginsView.vue": [
     "SDK 契约",
     "契约 V2",

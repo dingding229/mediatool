@@ -10,7 +10,7 @@ import { list } from '../dashboard/model';
 import { useDashboard } from '../dashboard/useDashboard';
 const { slots, groups, steps, complete, guideVisible, refresh, load, hideGuide, acknowledge, acknowledging, ackError } = useDashboard();
 const busy = computed(() => Object.values(slots).some(s => s.loading)), runtime = computed(() => slots.runtime?.data);
-const counters = [{ key: 'sites', label: '站点', path: '/sites' }, { key: 'subscriptions', label: '订阅', path: '/subscriptions' }, { key: 'downloads', label: '下载', path: '/downloads' }, { key: 'media', label: '媒体资产', path: '/library' }, { key: 'todaySearches', label: '今日搜索', path: '/search' }];
+const counters = [{ key: 'sites', label: '站点', path: '/sites?tab=accounts' }, { key: 'subscriptions', label: '订阅', path: '/subscriptions' }, { key: 'downloads', label: '下载', path: '/downloads' }, { key: 'media', label: '媒体资产', path: '/library' }, { key: 'todaySearches', label: '今日搜索', path: '/search' }];
 const recent = computed(() => list(slots.recent?.data).slice(0, 5));
 </script>
 <template>

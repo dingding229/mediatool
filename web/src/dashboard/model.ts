@@ -19,9 +19,10 @@ export interface Slot<T = any> {
   error: unknown;
 }
 export const list = (data: any): any[] => Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+export function failedJobTarget(row:any){return row.kind==='native.probe'||row.kind==='native.still'?{path:'/playback',query:{tab:'processing',kind:row.kind==='native.probe'?'probe':'still',jobId:row.id}}:{path:'/ops',query:{tab:'jobs',q:row.id}}}
 export function inboxGroups(slots: Record<string, Slot>): InboxGroup[] {
   const groups: InboxGroup[] = [
-    { id: 'jobs', title: '失败任务', items: list(slots.jobs?.data).map(r => ({ id: r.id, title: r.kind === 'system.check' ? '系统检查失败' : '后台任务执行失败', note: r.lastError, path: '/ops', query: { tab: 'jobs', q: r.id } })), errors: [] },
+    { id: 'jobs', title: '失败任务', items: list(slots.jobs?.data).map(r => ({ id: r.id, title: r.kind === 'system.check' ? '系统检查失败' : '后台任务执行失败', note: r.lastError, ...failedJobTarget(r) })), errors: [] },
     { id: 'candidates', title: '待确认识别', items: list(slots.candidates?.data).filter(r => ['pending', 'needs_confirmation', 'needs_output_reconciliation'].includes(r.state)).map(r => ({ id: r.id, title: r.name || r.path || '—', path: '/organize', query: { tab: 'candidates', candidateId: r.id } })), errors: [] },
     { id: 'uploads', title: '上传结果待核对', items: [...list(slots.transfers?.data).filter(r => r.state === 'uncertain' || ['reconcile_upload', 'preview_output'].includes(r.flow?.nextAction)).map(r => ({ id: r.id, title: r.destination || '上传任务', note: r.message, path: '/downloads', query: { tab: 'uploads', transferId: r.id } })), ...list(slots.manual?.data).filter(r => r.state === 'uncertain').map(r => ({ id: r.id, title: r.title || '手动下载', note: r.message, path: '/downloads', query: { tab: 'manual', taskId: r.id } }))], errors: [] },
     { id: 'batches', title: '批次结果待核对', items: list(slots.batches?.data).filter(r => r.state === 'needs_reconcile').map(r => ({ id: r.id, title: r.message || '文件批次待核对', path: '/organize', query: { tab: 'history', kind: r.kind || 'batch', batchId: r.batchId || r.id } })), errors: [] },
