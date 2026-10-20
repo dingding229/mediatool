@@ -2,7 +2,7 @@ import { defineAsyncComponent, markRaw, type Component } from 'vue'
 const view = (loader: () => Promise<any>) => markRaw(defineAsyncComponent(loader))
 export const legacyViews: Record<string, Component> = {
   dashboard: view(() => import('../views/DashboardWorkspaceView.vue')),
-  search: view(() => import('../views/SearchView.vue')),
+  search: view(() => import('../views/SearchWorkspaceView.vue')),
   subscriptions: view(() => import('../views/SubscriptionWorkspaceView.vue')),
   downloads: view(() => import('../views/DownloadsView.vue')),
   library: view(() => import('../views/MediaLibraryView.vue')),
@@ -22,12 +22,12 @@ export const legacyViews: Record<string, Component> = {
   maintenance: view(() => import('../views/MaintenanceView.vue')),
   logs: view(() => import('../views/LogsView.vue')),
   data: view(() => import('../views/DataView.vue')),
-  cache: view(() => import('../views/CacheView.vue')),
+  cache: view(() => import('./OpsCacheBridge.vue')),
   settings: view(() => import('../views/SettingsView.vue')),
   classification: view(() => import('../views/ClassificationView.vue')),
   api: view(() => import('../views/ExternalAPIView.vue')),
 }
 export const tabViews: Record<string, string[]> = {
-  dashboard: ['dashboard'], search: ['search','cache'], subscriptions: ['subscriptions'], downloads: ['downloads'], library: ['library'],
+  dashboard: ['dashboard'], search: ['search'], subscriptions: ['subscriptions'], downloads: ['downloads'], library: ['library'],
   organize: ['organize','organizeHistory'], files: ['files','strm','strmTools'], playback: ['playback','users','players'], connections: ['connections'], sites: ['sites','templates'], plugins: ['plugins'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['settings','classification','api'],
 }

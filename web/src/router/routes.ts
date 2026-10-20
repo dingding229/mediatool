@@ -10,7 +10,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/', component: Layout, children: [
     { path: '', redirect: '/dashboard' },
     ...primaryPages.map(page => ({ path: page.id, name: page.id, component: WorkflowPage, props: { pageId: page.id } })),
-    { path: 'search/results/:id', name: 'searchResults', component: () => import('../views/SearchResultsView.vue') },
+    { path: 'search/results/:id', name: 'searchResults', component: () => import('../views/ResourceResultsView.vue') },
     { path: 'plugins/:id/pages/:key', name: 'pluginPage', component: () => import('../views/PluginPageView.vue') },
     ...Object.keys(legacyDestinations).map(path => ({ path: path.slice(1), redirect: (to: Parameters<typeof legacyLocation>[1]) => legacyLocation(path, to) })),
     { path: 'integrations/:kind', name: 'integrationService', redirect: to => ({ path: connectionOwner(String(to.params.kind)), query: { ...to.query, connectionKind: String(to.params.kind), ...(connectionOwner(String(to.params.kind)) === '/connections' ? { tab: connectionTab(String(to.params.kind)) } : {}) }, hash: to.hash }) },
