@@ -2,82 +2,82 @@ package playback
 
 import (
 	"context"
-	"crypto/sha256"
-	"fmt"
 	"io"
 	"media-tool/internal/modules/storage"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 )
 
-// Owned bytes and isolated TLS servers exercise streaming, not video decoding
-// or real CDN/NAS capacity. The existing fixture transport bypass is test-only.
-func TestControlledProxyConcurrentRangeBytesAndCredentialIsolation(t *testing.T) {
-	payload := make([]byte, 1<<20)
-	for i := range payload {
-		payload[i] = byte(i % 251)
-	}
-	expected := sha256.Sum256(payload)
+// Replaces the retired positive relay throughput test: arbitrary Range/Cookie
+// inputs must never make this server read or relay media for a non-DirectOnly link.
+func TestStrictRedirectConcurrentRangesNeverReadOrRelayBytes(t *testing.T) {
 	var sourceCalls atomic.Int64
-	client, policy := proxyFixture(t, func(w http.ResponseWriter, r *http.Request) {
+	client, p := proxyFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		sourceCalls.Add(1)
-		if r.Header.Get("Authorization") != "" || r.Header.Get("X-Emby-Token") != "" || r.Header.Get("Cookie") != "" {
-			t.Error("client credentials leaked to media source")
-		}
-		if r.Header.Get("Range") != "bytes=0-1048575" {
-			t.Error("Range changed")
-		}
-		w.Header().Set("Content-Type", "video/mp4")
-		w.Header().Set("Content-Length", fmt.Sprint(len(payload)))
-		w.Header().Set("Content-Range", "bytes 0-1048575/1048576")
-		w.Header().Set("Accept-Ranges", "bytes")
-		w.Header().Set("Set-Cookie", "source-only=fixture")
-		w.WriteHeader(206)
-		w.Write(payload)
+		t.Error("server fetched media for non-official link")
 	})
-	engine := New(resolverFunc(func(context.Context, storage.FileRef) (storage.DownloadLink, error) {
-		return storage.DownloadLink{URL: "https://cdn.example.com/owned?temporary=fixture", ExpiresAt: time.Now().Add(time.Hour)}, nil
-	}), Options{Policy: policy, Client: client, ForceProxy: true})
-	app := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		engine.Serve(w, r, storage.FileRef{Path: "/115/Media/owned.mkv"})
-	}))
+	e := New(resolverFunc(func(context.Context, storage.FileRef) (storage.DownloadLink, error) {
+		return storage.DownloadLink{URL: "https://cdn.example.com/original?temporary=fixture"}, nil
+	}), Options{Policy: p, Client: client, ProxyFallback: true})
+	app := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { e.Serve(w, r, storage.FileRef{}) }))
 	defer app.Close()
 	consumer := app.Client()
-	consumer.Timeout = 10 * time.Second
-	started := time.Now()
+	consumer.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	var passed atomic.Int64
 	var wg sync.WaitGroup
-	var succeeded atomic.Int64
-	for n := 0; n < 16; n++ {
+	for range 16 {
 		wg.Go(func() {
-			for i := 0; i < 6; i++ {
-				request, _ := http.NewRequest("GET", app.URL, nil)
-				request.Header.Set("Range", "bytes=0-1048575")
-				request.Header.Set("Authorization", "Bearer synthetic-client-only")
-				request.Header.Set("X-Emby-Token", "synthetic-user-only")
-				request.Header.Set("Cookie", "administrator=synthetic")
-				response, err := consumer.Do(request)
+			for range 6 {
+				r, _ := http.NewRequest("GET", app.URL, nil)
+				r.Header.Set("Range", "bytes=0-1048575")
+				r.Header.Set("Authorization", "Bearer synthetic-only")
+				r.Header.Set("Cookie", "admin=synthetic-only")
+				response, err := consumer.Do(r)
 				if err != nil {
-					t.Error("proxy request failed", err)
+					t.Error(err)
 					continue
 				}
-				h := sha256.New()
-				size, readErr := io.CopyBuffer(h, response.Body, make([]byte, 32<<10))
-				response.Body.Close()
-				if readErr != nil || response.StatusCode != 206 || size != int64(len(payload)) || string(h.Sum(nil)) != string(expected[:]) || response.Header.Get("Set-Cookie") != "" || response.Header.Get("X-Media-Delivery") != "proxy" {
-					t.Error("range response was corrupted, truncated or leaked headers")
+				body, err := io.ReadAll(response.Body)
+				_ = response.Body.Close()
+				if err != nil || response.StatusCode != 302 || response.Header.Get("X-Media-Delivery") != "redirect" || response.Header.Get("Location") != "https://cdn.example.com/original?temporary=fixture" || len(body) > 1024 || strings.Contains(string(body), "synthetic-only") {
+					t.Error(response.StatusCode, response.Header, err)
 					continue
 				}
-				succeeded.Add(1)
+				passed.Add(1)
 			}
 		})
 	}
 	wg.Wait()
-	if succeeded.Load() != 96 || sourceCalls.Load() != 96 {
-		t.Fatal("not all proxy requests completed", succeeded.Load(), sourceCalls.Load())
+	if passed.Load() != 96 || sourceCalls.Load() != 0 {
+		t.Fatal("relay or missing redirects", passed.Load(), sourceCalls.Load())
 	}
-	t.Logf("owned TLS proxy: 96 x 1MiB Range requests, 16 concurrent, SHA256/length/status verified, elapsed=%s; not real-media decoding or CDN throughput", time.Since(started).Round(time.Millisecond))
+}
+func TestStrictDeliveryRejectsMethodsAndHeadersBeforeAnyMediaRead(t *testing.T) {
+	for _, official := range []bool{false, true} {
+		for _, force := range []bool{false, true} {
+			var reads atomic.Int32
+			client, p := proxyFixture(t, func(http.ResponseWriter, *http.Request) { reads.Add(1) })
+			e := New(resolverFunc(func(context.Context, storage.FileRef) (storage.DownloadLink, error) {
+				return storage.DownloadLink{URL: "https://cdn.example.com/original", DirectOnly: official, Headers: map[string]string{"Cookie": "provider-secret"}}, nil
+			}), Options{Policy: p, Client: client, ForceProxy: force, ProxyFallback: true})
+			for _, method := range []string{"GET", "HEAD", "POST", "PUT", "DELETE"} {
+				w := httptest.NewRecorder()
+				e.Serve(w, httptest.NewRequest(method, "http://gateway/original", nil), storage.FileRef{})
+				want := 409
+				if method != "GET" && method != "HEAD" {
+					want = 405
+				}
+				if w.Code != want || w.Header().Get("Location") != "" || w.Header().Get("X-Media-Delivery") == "proxy" || strings.Contains(w.Body.String(), "STRM_PROXY_FALLBACK") || strings.Contains(w.Body.String(), "provider-secret") {
+					t.Fatal(method, w.Code, w.Body.String())
+				}
+			}
+			if reads.Load() != 0 {
+				t.Fatal("media bytes read", reads.Load())
+			}
+		}
+	}
 }

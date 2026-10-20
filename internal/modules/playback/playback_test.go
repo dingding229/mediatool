@@ -79,78 +79,7 @@ func proxyFixture(t *testing.T, handler http.HandlerFunc) (*http.Client, Policy)
 	}}}
 	return client, testPolicy()
 }
-func TestControlledProxyRangeHEADHeadersAndCredentialIsolation(t *testing.T) {
-	client, p := proxyFixture(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.UserAgent() != "provider-agent" || r.Header.Get("Referer") != "https://115.example.test/" || r.Header.Get("Cookie") != "provider-cookie" {
-			t.Error("provider headers missing")
-		}
-		if r.Header.Get("Authorization") != "" || r.Header.Get("X-Emby-Token") != "" {
-			t.Error("client credentials leaked")
-		}
-		if r.Header.Get("Range") != "bytes=10-19" {
-			t.Error("Range lost")
-		}
-		w.Header().Set("Content-Type", "video/mp4")
-		w.Header().Set("Content-Range", "bytes 10-19/100")
-		w.Header().Set("Content-Length", "10")
-		w.Header().Set("Accept-Ranges", "bytes")
-		w.Header().Set("Set-Cookie", "secret-cookie")
-		w.WriteHeader(206)
-		if r.Method != "HEAD" {
-			io.WriteString(w, "0123456789")
-		}
-	})
-	engine := New(resolverFunc(func(context.Context, storage.FileRef) (storage.DownloadLink, error) {
-		return storage.DownloadLink{URL: "https://cdn.example.com/video", UserAgent: "provider-agent", Headers: map[string]string{"Referer": "https://115.example.test/", "Cookie": "provider-cookie"}}, nil
-	}), Options{Policy: p, ProxyFallback: true, Client: client})
-	for _, method := range []string{"GET", "HEAD"} {
-		r := httptest.NewRequest(method, "https://app.example.com/media", nil)
-		r.Header.Set("User-Agent", "client-agent")
-		r.Header.Set("Range", "bytes=10-19")
-		r.Header.Set("Cookie", "media_tool_session=admin-secret")
-		r.Header.Set("Authorization", "Bearer admin-secret")
-		r.Header.Set("X-Emby-Token", "emby-secret")
-		w := httptest.NewRecorder()
-		engine.Serve(w, r, storage.FileRef{})
-		if w.Code != 206 || w.Header().Get("Content-Range") != "bytes 10-19/100" || w.Header().Get("Set-Cookie") != "" || w.Header().Get("Location") != "" {
-			t.Fatal(w.Code, w.Header())
-		}
-		if method == "HEAD" && w.Body.Len() != 0 {
-			t.Fatal("HEAD returned body")
-		}
-		if method == "GET" && w.Body.String() != "0123456789" {
-			t.Fatal(w.Body.String())
-		}
-	}
-}
-func TestProxyRefreshes403OnceAndRejectsPrivateRedirect(t *testing.T) {
-	var resolveCalls, mediaCalls atomic.Int32
-	client, p := proxyFixture(t, func(w http.ResponseWriter, r *http.Request) {
-		if mediaCalls.Add(1) == 1 {
-			w.WriteHeader(403)
-			return
-		}
-		w.Header().Set("Content-Type", "video/mp4")
-		io.WriteString(w, "new-media")
-	})
-	resolver := resolverFunc(func(context.Context, storage.FileRef) (storage.DownloadLink, error) {
-		resolveCalls.Add(1)
-		return storage.DownloadLink{URL: "https://cdn.example.com/video", UserAgent: "provider-agent"}, nil
-	})
-	engine := New(resolver, Options{Policy: p, ProxyFallback: true, Client: client})
-	w := httptest.NewRecorder()
-	engine.Serve(w, httptest.NewRequest("GET", "https://app.example.com/media", nil), storage.FileRef{})
-	if w.Code != 200 || w.Body.String() != "new-media" || resolveCalls.Load() != 2 {
-		t.Fatal(w.Code, w.Body.String(), resolveCalls.Load())
-	}
-	client, p = proxyFixture(t, func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "https://127.0.0.1/admin", 302) })
-	engine = New(resolver, Options{Policy: p, ForceProxy: true, Client: client})
-	w = httptest.NewRecorder()
-	engine.Serve(w, httptest.NewRequest("GET", "https://app.example.com/media", nil), storage.FileRef{})
-	if w.Code != 502 {
-		t.Fatal("private redirect followed", w.Code)
-	}
-}
+
 func TestExpiredUnsafeAndProviderHeadersFailClosed(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -177,41 +106,6 @@ func TestExpiredUnsafeAndProviderHeadersFailClosed(t *testing.T) {
 	engine.Serve(w, httptest.NewRequest("GET", "https://app.example.com/media", nil), storage.FileRef{})
 	if w.Code != 502 {
 		t.Fatal("provider Host injection accepted")
-	}
-}
-func TestCancellationStopsMediaRequest(t *testing.T) {
-	done := make(chan struct{})
-	client, p := proxyFixture(t, func(w http.ResponseWriter, r *http.Request) { <-r.Context().Done(); close(done) })
-	engine := New(resolverFunc(func(context.Context, storage.FileRef) (storage.DownloadLink, error) {
-		return storage.DownloadLink{URL: "https://cdn.example.com/video", UserAgent: "provider-agent"}, nil
-	}), Options{Policy: p, ProxyFallback: true, Client: client})
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
-	defer cancel()
-	r := httptest.NewRequest("GET", "https://app.example.com/media", nil).WithContext(ctx)
-	w := httptest.NewRecorder()
-	engine.Serve(w, r, storage.FileRef{})
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("media request outlived cancellation")
-	}
-	if strings.Contains(w.Body.String(), "provider-agent") {
-		t.Fatal("sensitive diagnostic")
-	}
-}
-
-func TestProxyRejectsHTML(t *testing.T) {
-	client, p := proxyFixture(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		io.WriteString(w, "<script>SECRET</script>")
-	})
-	engine := New(resolverFunc(func(context.Context, storage.FileRef) (storage.DownloadLink, error) {
-		return storage.DownloadLink{URL: "https://cdn.example.com/v", UserAgent: "provider-agent"}, nil
-	}), Options{Policy: p, ProxyFallback: true, Client: client})
-	w := httptest.NewRecorder()
-	engine.Serve(w, httptest.NewRequest("GET", "https://app.example.com/media", nil), storage.FileRef{})
-	if w.Code != 502 || strings.Contains(w.Body.String(), "<script>") {
-		t.Fatal("proxied executable content")
 	}
 }
 
@@ -248,7 +142,7 @@ func TestInspectionProvidesNonSecretActionableUAReason(t *testing.T) {
 		return storage.DownloadLink{URL: "https://cdn.example.com/video?FILE-SECRET=hidden", UserAgent: "CloudDrive2/1.1.2 (Linux-X64)"}, nil
 	}), Options{Policy: testPolicy(), ProxyFallback: true})
 	result, err := e.Inspect(context.Background(), storage.FileRef{}, "SenPlayer/6.2.1")
-	if err != nil || result.Mode != "proxy" || result.DeliveryReason != "provider_user_agent_required" || result.RequiredUserAgent != "CloudDrive2/1.1.2 (Linux-X64)" || result.MediaBytesChecked {
+	if err != nil || result.Mode != "unsupported" || result.DeliveryReason != "provider_user_agent_required" || result.RequiredUserAgent != "CloudDrive2/1.1.2 (Linux-X64)" || result.MediaBytesChecked {
 		t.Fatal("unhelpful diagnostic", err, result)
 	}
 	raw, _ := json.Marshal(result)

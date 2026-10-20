@@ -162,3 +162,23 @@ func TestDirectOnlyOpaqueMediaRoutesNeverReachReverseProxy(t *testing.T) {
 		t.Fatal("strict policy forwarded media", forwarded.Load())
 	}
 }
+
+func TestConstructorCannotReenableLegacyMediaProxyWithFalsePolicy(t *testing.T) {
+	var forwarded atomic.Int32
+	target, _ := url.Parse("http://127.0.0.1:1")
+	g := NewGateway(GatewayOptions{Upstream: target, DirectPlayOnly: false, Enable302: true, Playback: playback.New(nil, playback.Options{})})
+	if !g.options.DirectPlayOnly {
+		t.Fatal("mutable direct-only policy")
+	}
+	g.proxy = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { forwarded.Add(1); w.WriteHeader(200) })
+	for _, path := range []string{"/Videos/1/master.m3u8", "/Videos/1/hls1/main/0.ts", "/Videos/1/stream.mp4?VideoCodec=h264", "/Audio/1/universal"} {
+		w := httptest.NewRecorder()
+		g.ServeHTTP(w, httptest.NewRequest("GET", "http://gateway"+path, nil))
+		if w.Code == 200 || w.Code == 206 {
+			t.Fatal(path, w.Code)
+		}
+	}
+	if forwarded.Load() != 0 {
+		t.Fatal("media reached metadata proxy")
+	}
+}

@@ -6,24 +6,22 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"io"
 	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/httpjson"
-	"mime"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"golang.org/x/net/http/httpguts"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/platform/requestbudget"
-
-	"golang.org/x/net/http/httpguts"
 )
 
 type Options struct {
-	Policy                    Policy
+	Policy Policy
+	// Deprecated: ignored. All accepted delivery is strict 302, never relay.
 	ProxyFallback, ForceProxy bool
 	Client                    *http.Client
 	ResolveTimeout            time.Duration
@@ -117,33 +115,40 @@ func (e *Engine) resolve(ctx context.Context, ref storage.FileRef) (link storage
 	if (!link.ExpiresAt.IsZero() && time.Until(link.ExpiresAt) < 5*time.Second) || (!link.CacheUntil.IsZero() && time.Until(link.CacheUntil) < 5*time.Second) {
 		return link, storage.ErrInvalidResponse
 	}
+	for k, v := range link.Headers {
+		if !httpguts.ValidHeaderFieldName(k) || !httpguts.ValidHeaderFieldValue(v) || forbiddenProviderHeader(http.CanonicalHeaderKey(k)) {
+			return link, storage.ErrInvalidResponse
+		}
+	}
 	return link, nil
 }
 func (e *Engine) mode(link storage.DownloadLink, ua string) string {
+	if e.options.ForceProxy {
+		return "unsupported"
+	}
 	u, _ := url.Parse(link.URL)
-	needProxy := e.options.ForceProxy || len(link.Headers) > 0 || (link.UserAgent != "" && link.UserAgent != ua) || (u != nil && u.Scheme != "https")
+	needProxy := len(link.Headers) > 0 || (link.UserAgent != "" && link.UserAgent != ua) || (u != nil && u.Scheme != "https")
 	if !needProxy {
 		return "redirect"
 	}
-	if link.DirectOnly {
-		return "unsupported"
-	}
-	if e.options.ProxyFallback || e.options.ForceProxy {
-		return "proxy"
-	}
+
 	return "unsupported"
 }
 func (e *Engine) Serve(w http.ResponseWriter, r *http.Request, ref storage.FileRef) {
-	e.serve(w, r, ref, false)
+	e.ServeRedirect(w, r, ref)
 }
 
 // ServeRedirect is a per-request delivery policy, not a claim about codecs.
 // Never mutate shared engine options when a live connection setting changes.
 func (e *Engine) ServeRedirect(w http.ResponseWriter, r *http.Request, ref storage.FileRef) {
 	w.Header().Set("X-Media-Playback-Policy", "direct-only")
-	e.serve(w, r, ref, true)
+	e.serve(w, r, ref)
 }
-func (e *Engine) serve(w http.ResponseWriter, r *http.Request, ref storage.FileRef, requireRedirect bool) {
+func (e *Engine) serve(w http.ResponseWriter, r *http.Request, ref storage.FileRef) {
+	if r.Method != "GET" && r.Method != "HEAD" {
+		writeError(w, 405, "method_not_allowed", "播放仅支持GET/HEAD")
+		return
+	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	ref.UserAgent = r.UserAgent()
@@ -172,7 +177,7 @@ func (e *Engine) serve(w http.ResponseWriter, r *http.Request, ref storage.FileR
 		return
 	}
 	mode := e.mode(link, r.UserAgent())
-	if requireRedirect && mode != "redirect" {
+	if mode != "redirect" {
 		writeError(w, 409, "direct_redirect_required", "仅直链播放：当前来源需要代理或特殊请求头，禁止服务器中转")
 		return
 	}
@@ -193,122 +198,7 @@ func (e *Engine) serve(w http.ResponseWriter, r *http.Request, ref storage.FileR
 		}
 		w.Header().Set("X-Media-Delivery", "redirect")
 		http.Redirect(w, r, link.URL, http.StatusFound)
-	case "proxy":
-		e.proxy(w, r, ref, link)
-	default:
-		if link.DirectOnly {
-			writeError(w, 409, "official_direct_required", "115官方直链模式禁止服务器中转；请关闭强制代理并检查播放前置条件")
-			return
-		}
-		writeError(w, 409, "direct_play_unsupported", "直链需要特定请求头或代理；请启用 STRM_PROXY_FALLBACK")
 	}
-}
-func (e *Engine) proxy(w http.ResponseWriter, r *http.Request, ref storage.FileRef, link storage.DownloadLink) {
-	if checkedErr := http.NewResponseController(w).SetWriteDeadline(time.Time{}); checkedErr != nil && !errors.Is(checkedErr, http.ErrNotSupported) {
-		deferutil.Report(checkedErr, "internal/modules/playback/engine.go:proxy")
-		return
-	}
-	if r.Method != "GET" && r.Method != "HEAD" {
-		writeError(w, 405, "method_not_allowed", "播放仅支持 GET/HEAD")
-		return
-	}
-	var response *http.Response
-	for attempt := 0; attempt < 2; attempt++ {
-		req, err := http.NewRequestWithContext(r.Context(), r.Method, link.URL, nil)
-		if err != nil {
-			WriteError(w, storage.ErrInvalidResponse)
-			return
-		}
-		for k, v := range link.Headers {
-			key := http.CanonicalHeaderKey(k)
-			if !httpguts.ValidHeaderFieldName(k) || !httpguts.ValidHeaderFieldValue(v) || forbiddenProviderHeader(key) {
-				WriteError(w, storage.ErrInvalidResponse)
-				return
-			}
-			req.Header.Set(key, v)
-		}
-		for _, key := range []string{"Range", "If-Range", "If-None-Match", "If-Modified-Since"} {
-			if value := r.Header.Get(key); value != "" {
-				req.Header.Set(key, value)
-			}
-		}
-		ua := link.UserAgent
-		if ua == "" {
-			ua = req.Header.Get("User-Agent")
-		}
-		if ua == "" {
-			ua = r.UserAgent()
-		}
-		req.Header.Set("User-Agent", ua)
-		response, err = e.client.Do(req)
-		if err != nil {
-			writeError(w, 502, "media_upstream_unavailable", "播放源不可达或返回了不安全的跳转")
-			return
-		}
-		if attempt == 0 && (response.StatusCode == 401 || response.StatusCode == 403) {
-			deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
-			if invalidator, ok := e.Resolver.(interface {
-				Invalidate(context.Context, storage.FileRef)
-			}); ok {
-				invalidator.Invalidate(r.Context(), ref)
-			}
-			link, err = e.resolve(r.Context(), ref)
-			if err != nil {
-				WriteError(w, err)
-				return
-			}
-			bounded, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-			err = e.options.Policy.Check(bounded, link.URL)
-			cancel()
-			if err != nil {
-				WriteError(w, err)
-				return
-			}
-			continue
-		}
-		break
-	}
-	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
-	switch response.StatusCode {
-	case 200, 206, 304, 416:
-		if response.StatusCode == 200 || response.StatusCode == 206 {
-			contentType, _, _ := mime.ParseMediaType(response.Header.Get("Content-Type"))
-			if contentType != "" && contentType != "application/octet-stream" && !strings.HasPrefix(contentType, "video/") && !strings.HasPrefix(contentType, "audio/") {
-				writeError(w, 502, "media_content_type_rejected", "播放源返回了非媒体内容")
-				return
-			}
-			if contentType == "" {
-				response.Header.Set("Content-Type", "application/octet-stream")
-			}
-		}
-		for _, key := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified"} {
-			if v := response.Header.Get(key); v != "" {
-				w.Header().Set(key, v)
-			}
-		}
-		w.Header().Set("X-Media-Delivery", "proxy")
-		if checkedErr := http.NewResponseController(w).SetWriteDeadline(time.Time{}); checkedErr != nil && !errors.Is(checkedErr, http.ErrNotSupported) {
-			deferutil.Report(checkedErr, "internal/modules/playback/engine.go:proxy")
-			return
-		}
-		w.WriteHeader(response.StatusCode)
-		if r.Method != "HEAD" && response.StatusCode != 304 {
-			buffer := make([]byte, 32<<10)
-			if _, checkedErr := io.CopyBuffer(w, response.Body, buffer); checkedErr != nil {
-				deferutil.Report(checkedErr, "internal/modules/playback/engine.go:proxy")
-				return
-			}
-		}
-	default:
-		writeError(w, 502, "media_upstream_rejected", "播放源拒绝读取，请重新检查文件、令牌或访问条件")
-	}
-}
-func forbiddenProviderHeader(key string) bool {
-	switch key {
-	case "Host", "Connection", "Content-Length", "Transfer-Encoding", "Upgrade", "Trailer", "Te", "Proxy-Authorization", "Proxy-Connection", "Range", "If-Range":
-		return true
-	}
-	return strings.HasPrefix(key, "X-Forwarded-") || strings.HasPrefix(key, "Proxy-")
 }
 func WriteError(w http.ResponseWriter, err error) {
 	switch {
@@ -364,7 +254,7 @@ func (e *Engine) NativeClientHeaders(ctx context.Context, ref storage.FileRef) m
 
 func (e *Engine) deliveryReason(link storage.DownloadLink, ua string) string {
 	if e.options.ForceProxy {
-		return "forced_proxy"
+		return "force_proxy_unsupported"
 	}
 	if len(link.Headers) > 0 {
 		return "provider_headers_required"
@@ -376,4 +266,12 @@ func (e *Engine) deliveryReason(link storage.DownloadLink, ua string) string {
 		return "non_https_source"
 	}
 	return "direct_conditions_met"
+}
+
+func forbiddenProviderHeader(key string) bool {
+	switch key {
+	case "Host", "Connection", "Content-Length", "Transfer-Encoding", "Upgrade", "Trailer", "Te", "Proxy-Authorization", "Proxy-Connection", "Range", "If-Range":
+		return true
+	}
+	return strings.HasPrefix(key, "X-Forwarded-") || strings.HasPrefix(key, "Proxy-")
 }

@@ -143,7 +143,7 @@ func run() error {
 			report["cloudLinkCapabilitiesReadable"] = false
 		}
 
-		engine := playback.New(integrations.DynamicStorage{Manager: manager}, playback.Options{Policy: playback.Policy{BlockedHosts: []string{"localhost", "server", "clouddrive2", "emby", "185.99.135.205"}}, ProxyFallback: true, ForceProxy: true})
+		engine := playback.New(integrations.DynamicStorage{Manager: manager}, playback.Options{Policy: playback.Policy{BlockedHosts: []string{"localhost", "server", "clouddrive2", "emby", "185.99.135.205"}}})
 		inspection, inspectErr := engine.Inspect(ctx, ref, "MediaTool-IntegrationCheck")
 		report["linkPolicyValidated"] = inspectErr == nil && inspection.TargetValidated
 		if inspectErr != nil {

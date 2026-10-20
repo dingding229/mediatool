@@ -103,7 +103,7 @@ func New(c config.Config, d Dependencies) http.Handler {
 		if d.Redis != nil && d.Storage != nil {
 			resolver = &linkcache.Cached{Source: d.Storage, Redis: d.Redis, Version: a.playbackCacheVersion, ResolveTimeout: c.PlaybackResolveTimeout}
 		}
-		a.Engine = playback.New(resolver, playback.Options{Policy: playback.Policy{BlockedHosts: blocked, AllowedHosts: c.PlaybackAllowedHosts, AllowHTTP: c.PlaybackAllowHTTP}, ProxyFallback: c.STRMProxyFallback, ForceProxy: c.STRMForceProxy, ResolveTimeout: c.PlaybackResolveTimeout})
+		a.Engine = playback.New(resolver, playback.Options{Policy: playback.Policy{BlockedHosts: blocked, AllowedHosts: c.PlaybackAllowedHosts, AllowHTTP: c.PlaybackAllowHTTP}, ResolveTimeout: c.PlaybackResolveTimeout})
 	}
 	if c.EmbyUpstream != "" {
 		target, _ := url.Parse(c.EmbyUpstream)
@@ -574,7 +574,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
 		"name": "Media Tool", "version": buildinfo.Version, "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.access(r.Context()).ManagementURL, "memberUrl": a.access(r.Context()).MemberURL, "playbackUrl": a.access(r.Context()).PlaybackURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
-		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": a.Config.STRMProxyFallback, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": a.Config.STRMForceProxy, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
+		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": false, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": false, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }
 func (a *API) preview(w http.ResponseWriter, r *http.Request) {

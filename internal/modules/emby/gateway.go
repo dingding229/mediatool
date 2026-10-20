@@ -47,6 +47,8 @@ var originalPathPattern = regexp.MustCompile(`(?i)^/Videos/([A-Za-z0-9_-]{1,128}
 var staticPathPattern = regexp.MustCompile(`(?i)^/Videos/([A-Za-z0-9_-]{1,128})/stream(?:\.([A-Za-z0-9]+))?$`)
 
 func NewGateway(options GatewayOptions) *Gateway {
+	// Immutable delivery policy: old config cannot reopen media relay/HLS/transcode.
+	options.DirectPlayOnly = true
 	client := options.Client
 	if client == nil {
 		client = &http.Client{Timeout: 8 * time.Second}
@@ -139,7 +141,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Unknown authorization state is not a permission to issue a cloud redirect.
-		g.fallback(w, r, "identity_or_permission_unconfirmed")
+		gatewayError(w, 503, "emby_identity_unavailable", "无法确认播放权限；未转发媒体请求")
 		return
 	}
 	source, ok := selectSource(item, queryFold(query, "MediaSourceId"))
@@ -474,18 +476,17 @@ func sameContainer(a, b string) bool {
 	return normalize(a) == normalize(b)
 }
 func (g *Gateway) fallback(w http.ResponseWriter, r *http.Request, reason string) {
-	if g.options.DirectPlayOnly {
-		w.Header().Set("X-Media-Gateway-Reason", reason)
-		if match := directOnlyMediaPath.FindStringSubmatch(gatewayRequestPath(r.URL.Path)); match != nil {
-			g.rejectTranscoding(w, r, match[1])
-		} else {
-			gatewayError(w, 409, "direct_play_required", "仅直链播放：禁止服务器媒体中转")
-		}
+	w.Header().Set("X-Media-Gateway-Reason", reason)
+	switch reason {
+	case "source_selection", "unmanaged_source", "container_mismatch":
+		gatewayError(w, 409, "direct_play_required", "仅直链播放：当前来源无法映射原始受管文件，禁止中转")
 		return
 	}
-	w.Header().Set("X-Media-Gateway", "emby-upstream")
-	w.Header().Set("X-Media-Gateway-Reason", reason)
-	g.proxy.ServeHTTP(w, r)
+	if match := directOnlyMediaPath.FindStringSubmatch(gatewayRequestPath(r.URL.Path)); match != nil {
+		g.rejectTranscoding(w, r, match[1])
+		return
+	}
+	gatewayError(w, 409, "direct_play_required", "仅直链播放：禁止服务器媒体中转")
 }
 
 // observeSession trusts only the successful upstream authentication response.

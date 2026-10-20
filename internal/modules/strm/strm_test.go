@@ -67,3 +67,26 @@ func TestAtomicWriteRejectsSymlinkEscape(t *testing.T) {
 		t.Fatal("followed external symlink")
 	}
 }
+
+func TestEncodedTraversalIsDecodedOnceAndNeverBecomesAParentPath(t *testing.T) {
+	b := Builder{BaseURL: "https://gateway.example", APIKey: "synthetic-only", AllowedRoots: []string{"/115"}}
+	for _, raw := range []string{"path=%2F115%2F..%2Fsecret", "path=%2F115%2F%2e%2e%2Fsecret", "path=%2F115%2F.%2Fmovie.mkv", "path=%2F115%2F%5c..%5csecret", "path=%2F115%2Fmovie%00.mkv"} {
+		q, e := url.ParseQuery(raw)
+		if e != nil {
+			continue
+		}
+		if _, e = b.Build(storage.FileRef{Path: q.Get("path")}); e == nil {
+			t.Fatal("traversal accepted", raw)
+		}
+	}
+	// Encoded percent text is a literal remote filename, not a second URL decode.
+	literal := "/115/%2e%2e/movie.mkv"
+	built, e := b.Build(storage.FileRef{Path: literal})
+	if e != nil {
+		t.Fatal(e)
+	}
+	u, e := url.Parse(built)
+	if e != nil || u.Query().Get("path") != literal {
+		t.Fatal("double decoding", built, e)
+	}
+}

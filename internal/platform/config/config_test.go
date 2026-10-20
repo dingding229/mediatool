@@ -57,7 +57,7 @@ func TestM0ConfigurationValidation(t *testing.T) {
 	env["CLOUDDRIVE_USERNAME"] = "user"
 	env["CLOUDDRIVE_PASSWORD"] = " password "
 	c, err := FromLookup(lookup(env))
-	if err != nil || c.CloudDrivePassword != " password " || !c.STRMProxyFallback {
+	if err != nil || c.CloudDrivePassword != " password " || c.STRMProxyFallback || c.STRMForceProxy {
 		t.Fatal(err)
 	}
 }
@@ -151,6 +151,17 @@ func TestPluginTaskBudget(t *testing.T) {
 		c, e := FromLookup(lookup(env))
 		if (e == nil) != tc.valid || (tc.valid && c.PluginMaxTasks != tc.want) {
 			t.Fatalf("%q: tasks=%d err=%v", tc.value, c.PluginMaxTasks, e)
+		}
+	}
+}
+
+func TestRemovedProxyFlagsCannotEnableMediaRelay(t *testing.T) {
+	for _, key := range []string{"STRM_PROXY_FALLBACK", "STRM_FORCE_PROXY"} {
+		env := validEnv()
+		env[key] = "true"
+		c, e := FromLookup(lookup(env))
+		if e != nil || c.STRMForceProxy || c.STRMProxyFallback {
+			t.Fatal(key, c, e)
 		}
 	}
 }

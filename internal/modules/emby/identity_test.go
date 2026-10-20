@@ -108,8 +108,8 @@ func TestEmby410LoginIdentityAndStaticTransportStream(t *testing.T) {
 		"/emby/videos/9/master.m3u8",
 	} {
 		w := request("GET", path, "actual-user-token")
-		if w.Code != 200 || w.Header().Get("X-Original-Emby") != "true" {
-			t.Fatal("remux/transcoding not preserved", w.Code)
+		if w.Code != 409 || w.Header().Get("X-Original-Emby") != "" {
+			t.Fatal("remux/transcoding reached upstream", w.Code)
 		}
 	}
 	denyPlayback = true

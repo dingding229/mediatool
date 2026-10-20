@@ -584,7 +584,7 @@ onMounted(refresh);
       <div v-if="form.kind === 'emby'">
         <el-checkbox v-model="form.settings.gatewayEnabled"
           >启用静态流302拦截</el-checkbox
-        ><el-checkbox v-model="form.settings.directPlayOnly"
+        ><el-checkbox :model-value="true" disabled
           >仅直链播放：禁止转码和媒体中转</el-checkbox
         >
         <p class="field-hint">

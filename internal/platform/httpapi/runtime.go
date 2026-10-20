@@ -143,16 +143,4 @@ func (a *API) playbackCacheVersion(ctx context.Context, ref storage.FileRef) (st
 	return a.Deps.Integrations.PlaybackVersion(ctx, ref)
 }
 
-func (a *API) directPlayOnly(ctx context.Context) bool {
-	if a.Deps.Integrations != nil {
-		if c, err := a.Deps.Integrations.Repository.Default(ctx, "emby"); err == nil {
-			if value, ok := c.Record.Settings["directPlayOnly"].(bool); ok {
-				return value
-			}
-		} else if !errors.Is(err, integrations.ErrNotFound) {
-			// Unknown live policy cannot authorize a media relay.
-			return true
-		}
-	}
-	return a.Config.EmbyDirectPlayOnly
-}
+func (a *API) directPlayOnly(context.Context) bool { return true }

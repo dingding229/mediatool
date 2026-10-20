@@ -61,6 +61,11 @@ func (p Policy) Check(ctx context.Context, raw string) error {
 	_, err = p.addresses(ctx, u.Hostname())
 	return err
 }
+
+// Addresses validates every answer before a direct dial or pinned proxy tunnel.
+func (p Policy) Addresses(ctx context.Context, host string) ([]net.IPAddr, error) {
+	return p.addresses(ctx, host)
+}
 func (p Policy) addresses(ctx context.Context, host string) ([]net.IPAddr, error) {
 	lookup := p.Lookup
 	if lookup == nil {

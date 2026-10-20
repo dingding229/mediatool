@@ -315,7 +315,7 @@ func verifyUploaded(ctx context.Context, client *clouddrive2.Adapter, file *os.F
 	// self-owned file via the same public-target/TLS checked download engine.
 	bounded, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	engine := playback.New(client, playback.Options{Policy: playback.Policy{BlockedHosts: []string{"localhost", "server", "clouddrive2", "emby", "185.99.135.205"}}, ProxyFallback: true, ForceProxy: true})
+	engine := playback.New(client, playback.Options{Policy: playback.Policy{BlockedHosts: []string{"localhost", "server", "clouddrive2", "emby", "185.99.135.205"}}})
 	req, _ := http.NewRequestWithContext(bounded, "GET", "http://diagnostic.invalid/media", nil)
 	req.Header.Set("Range", fmt.Sprintf("bytes=0-%d", j.SourceSize-1))
 	req.Header.Set("User-Agent", "MediaTool-OwnedUploadCheck/1.0")

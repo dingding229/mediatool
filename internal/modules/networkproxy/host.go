@@ -87,10 +87,9 @@ func (h *HostClient) Request(ctx context.Context, instance, profile, origin, pat
 		return out, e
 	}
 	client.Timeout = 10 * time.Second
-	// Without a proxy, enforce public DNS again at dial time (rebind-safe).
 	transport := client.Transport.(*http.Transport)
-	if config.URL == "" {
-		transport.DialContext = h.Policy.DialContext
+	if e = pinHostTransport(transport, h.Policy, config.URL); e != nil {
+		return out, e
 	}
 	defer transport.CloseIdleConnections()
 	if e = dbutil.CheckEffect(ctx); e != nil {

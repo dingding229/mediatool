@@ -1,15 +1,16 @@
 package business
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
-	"io"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/messaging"
@@ -21,6 +22,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -222,16 +224,38 @@ func TestPlatformCacheNamespaceNoRawValuesAndFencedInvalidate(t *testing.T) {
 }
 func TestPlatformHostHTTPExactOriginProxyNoBodyAndSSRF(t *testing.T) {
 	h, ctx := platformFixture(t)
-	var requests int
+	var requests atomic.Int32
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests++
-		if strings.Contains(r.URL.Path, "redirect") {
-			w.Header().Set("Location", "http://127.0.0.1/SECRET_CANARY")
-			w.WriteHeader(302)
+		if r.Method != "CONNECT" || r.Host != "8.8.8.8:80" {
+			t.Error("target DNS was delegated", r.Method, r.Host)
+			w.WriteHeader(400)
+			return
 		}
-		w.Header().Set("Set-Cookie", "SECRET_CANARY")
-		w.Header().Set("Content-Type", "text/plain")
-		_, _ = io.WriteString(w, strings.Repeat("SECRET_CANARY", 10000))
+		c, rw, e := w.(http.Hijacker).Hijack()
+		if e != nil {
+			t.Error(e)
+			return
+		}
+		defer c.Close()
+		_ = c.SetDeadline(time.Now().Add(2 * time.Second))
+		_, _ = rw.WriteString("HTTP/1.1 200 Connection Established\r\n\r\n")
+		_ = rw.Flush()
+		inner, e := http.ReadRequest(bufio.NewReader(rw))
+		if e != nil {
+			t.Error(e)
+			return
+		}
+		requests.Add(1)
+		if inner.Host != "public.fixture" || inner.Header.Get("Proxy-Authorization") != "" {
+			t.Error("tunnel authority/credential leak")
+		}
+		body := strings.Repeat("SECRET_CANARY", 10000)
+		status, location := 200, ""
+		if strings.Contains(inner.URL.Path, "redirect") {
+			status = 302
+			location = "Location: http://127.0.0.1/SECRET_CANARY\r\n"
+		}
+		_, _ = fmt.Fprintf(c, "HTTP/1.1 %d Status\r\n%sContent-Type: text/plain\r\nContent-Length: %d\r\nSet-Cookie: SECRET_CANARY\r\n\r\n%s", status, location, len(body), body)
 	}))
 	defer proxy.Close()
 	_, e := (networkproxy.Repository{DB: h.DB, Vault: h.Vault}).Save(ctx, networkproxy.Record{URL: strings.Replace(proxy.URL, "://", "://proxyuser:SECRET_CANARY@", 1), Revision: 1})
@@ -251,8 +275,8 @@ func TestPlatformHostHTTPExactOriginProxyNoBodyAndSSRF(t *testing.T) {
 		raw, _ := json.Marshal(v)
 		assertServerSafe(t, raw)
 	}
-	if requests != 2 {
-		t.Fatal("redirect followed", requests)
+	if requests.Load() != 2 {
+		t.Fatal("redirect followed", requests.Load())
 	}
 	for _, in := range []b.HostRequest{{Profile: "direct", Origin: "http://public.fixture", Path: "/safe", Method: "GET"}, {Profile: "host", Origin: "http://public.fixture", Path: "//private.invalid", Method: "GET"}, {Profile: "host", Origin: "http://127.0.0.1", Path: "/safe", Method: "GET"}, {Profile: "host", Origin: "http://public.fixture", Path: "/safe", Method: "POST"}} {
 		if _, e = platformCall(t, h, instance, "network.http", in, p); e == nil {

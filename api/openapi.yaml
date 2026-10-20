@@ -792,7 +792,7 @@ paths:
         '404':
           description: 云端文件不存在。
         '409':
-          description: 直链需要代理但 STRM_PROXY_FALLBACK 与 STRM_FORCE_PROXY 都未启用。
+          description: 严格302不支持服务器中转或特殊请求头；不会启用relay/HLS/转码。
         '416':
           description: 上游范围请求无效。
         '502':

@@ -24,7 +24,7 @@ func (r *gatewayResolver) Resolve(context.Context, storage.FileRef) (storage.Dow
 	r.calls.Add(1)
 	return storage.DownloadLink{URL: "https://cdn.example.com/file?temporary=token"}, nil
 }
-func TestStaticGatewayAuthorizesCallerMapsSourceAndKeepsTranscoding(t *testing.T) {
+func TestStaticGatewayAuthorizesCallerAndRejectsLegacyMediaFallback(t *testing.T) {
 	builder := strm.Builder{BaseURL: "https://media.example.com", APIKey: strings.Repeat("b", 64), AllowedRoots: []string{"/115/Media"}}
 	stable, _ := builder.Build(storage.FileRef{Path: "/115/Media/movie.mkv"})
 	var metadataCalls atomic.Int32
@@ -80,12 +80,14 @@ func TestStaticGatewayAuthorizesCallerMapsSourceAndKeepsTranscoding(t *testing.T
 		"/emby/Videos/item-1/stream.mp4?Static=true&MediaSourceId=source-1",
 		"/emby/Videos/item-1/stream.mkv?Static=true&MediaSourceId=source-1&VideoCodec=h264",
 		"/emby/Videos/item-1/master.m3u8?MediaSourceId=source-1",
-		"/emby/Items/item-1/PlaybackInfo",
 		"/emby/Videos/item-1/stream.mkv?MediaSourceId=source-1",
 	} {
-		if w := request(path, "user-token"); w.Code != 200 || w.Header().Get("X-Original-Emby") != "true" {
-			t.Fatal("did not preserve original path", path, w.Code)
+		if w := request(path, "user-token"); w.Code != 409 || w.Header().Get("X-Original-Emby") != "" {
+			t.Fatal("legacy media fallback accepted", path, w.Code)
 		}
+	}
+	if w := request("/emby/Items/item-1/PlaybackInfo", "user-token"); w.Code != 200 || w.Header().Get("X-Original-Emby") != "true" {
+		t.Fatal("metadata was blocked", w.Code)
 	}
 	if w := request("/emby/Videos/item-1/stream.mkv?Static=true&static=false&MediaSourceId=source-1", "user-token"); w.Code != 400 {
 		t.Fatal("case-conflicting params accepted")
@@ -180,7 +182,7 @@ func TestNativeOriginalEndpointIsAuthorizedWithoutStaticFlag(t *testing.T) {
 		r.Header.Set("X-Emby-Token", "user-token")
 		w := httptest.NewRecorder()
 		gateway.ServeHTTP(w, r)
-		if w.Code != 200 || w.Header().Get("X-Original-Emby") != "true" {
+		if w.Code != 409 || w.Header().Get("X-Original-Emby") != "" {
 			t.Fatal("transformation bypassed", w.Code)
 		}
 	}

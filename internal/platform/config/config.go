@@ -180,7 +180,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		fallback string
 	}{
 		{"STRM_LEGACY_KEY_ENABLED", &c.LegacyPlaybackEnabled, "true"},
-		{"STRM_PROXY_FALLBACK", &c.STRMProxyFallback, "true"}, {"STRM_FORCE_PROXY", &c.STRMForceProxy, "false"},
+
 		{"EMBY_DIRECT_PLAY_ONLY", &c.EmbyDirectPlayOnly, "false"},
 		{"PLAYBACK_ALLOW_HTTP", &c.PlaybackAllowHTTP, "false"}, {"EMBY_302_ENABLED", &c.Emby302Enabled, "false"},
 	} {
