@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { passwordPolicyError } from "../auth/password-policy";
+import SetupGuideControl from "../dashboard/SetupGuideControl.vue";
 import ApplicationSettings from "../components/ApplicationSettings.vue";
 import TMDBSettings from "../components/TMDBSettings.vue";
 import NetworkProxySettings from "../components/NetworkProxySettings.vue";
@@ -110,6 +111,7 @@ async function change() {
       </p>
     </div>
   </section>
+  <SetupGuideControl />
   <div class="settings-layout">
     <nav class="settings-navigation" aria-label="系统设置分类">
       <button

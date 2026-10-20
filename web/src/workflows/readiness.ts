@@ -1,0 +1,15 @@
+import { APIError } from '../api/client'
+export interface Probe { state: string; reason: string; nextAction: string }
+export interface Readiness { components: Record<string, Probe>; scope?: string; delivery?: string }
+export const services = [{ key: 'open115', name: '115 官方授权', tab: 'storage' }, { key: 'clouddrive2', name: 'CloudDrive2', tab: 'storage' }, { key: 'strm', name: 'STRM 播放入口', tab: 'emby' }, { key: 'emby', name: 'Emby', tab: 'emby' }]
+const labels: Record<string,string> = { not_configured: '未配置', configured: '已配置', authorization_required: '需要授权', disabled: '未启用', check_required: '待检测', check_failed: '检测异常', ready: '检测有效' }
+const reasons: Record<string,string> = { connection_missing: '尚未添加连接', official_grant_missing: '请完成自己的 115 应用授权', emby_api_key_missing: '请设置 Emby API Key', administrator_enable_required: '配置已保留，等待管理员启用', probe_missing_or_stale: '尚无有效检测，或上次检测已过期', last_probe_failed: '上次连接检测失败，请检查连接', fresh_saved_probe: '最近一次保存的检测仍有效，不代表实际播放器验收', resolver_configuration_invalid: '请检查固定解析地址和允许的目录', stable_resolver_configured_not_player_verified: '固定解析入口已配置，请使用实际播放器验证 302 直链' }
+export function readinessLabel(probe?: Probe) { return probe?.state === 'configured' && probe.nextAction === 'verify_player_302' ? '已配置，待播放器验证' : probe ? labels[probe.state] || '状态待核对' : '—' }
+export const readinessReason = (p?: Probe) => p ? reasons[p.reason] || p.reason || '—' : '尚未读取服务状态'
+export function stateFor(e: unknown) { return e instanceof APIError && [401,403].includes(e.status) ? 'unauthorized' : e instanceof APIError && e.status === 501 ? 'unsupported' : 'error' }
+export const errorText = (e: unknown) => e instanceof Error ? e.message : '读取失败，请稍后重新读取'
+export const date = (s?: string) => s && Number.isFinite(Date.parse(s)) ? new Date(s).toLocaleString('zh-CN', { hour12: false }) : '—'
+export const bytes = (n?: number | null) => n == null || !Number.isFinite(n) ? '—' : n < 1024 ? `${n} B` : `${(n / 1073741824).toFixed(1)} GiB`
+export const guidePreference = 'media-tool:setup-guide-hidden:v1'
+export function readGuideHidden() { try { return localStorage.getItem(guidePreference) === '1' } catch { return false } }
+export function writeGuideHidden(hidden: boolean) { try { localStorage.setItem(guidePreference, hidden ? '1' : '0') } catch {} }

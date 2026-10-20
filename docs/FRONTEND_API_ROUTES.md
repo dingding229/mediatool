@@ -392,9 +392,9 @@
 | POST | `/api/v1/pt/templates/load` | management | 前端直接调用 | `web/src/views/SiteTemplatesView.vue:60` |
 | GET | `/api/v1/pt/ua` | management | 前端直接调用 | `web/src/components/PTAccountDialog.vue:61`、`web/src/components/PTAccountDialog.vue:118` |
 | HEAD | `/api/v1/pt/ua` | management | 未检出静态使用 |  |
-| GET | `/api/v1/readiness` | management | 未检出静态使用 |  |
+| GET | `/api/v1/readiness` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:6` |
 | HEAD | `/api/v1/readiness` | management | 未检出静态使用 |  |
-| GET | `/api/v1/search` | management | 前端直接调用 | `web/src/views/DashboardView.vue:11`、`web/src/views/SearchResultsView.vue:181`、`web/src/views/SearchResultsView.vue:218`、`web/src/views/SearchView.vue:12` |
+| GET | `/api/v1/search` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:11`、`web/src/views/SearchResultsView.vue:181`、`web/src/views/SearchResultsView.vue:218`、`web/src/views/SearchView.vue:12` |
 | HEAD | `/api/v1/search` | management | 未检出静态使用 |  |
 | POST | `/api/v1/search` | management | 前端直接调用 | `web/src/views/SearchResultsView.vue:199`、`web/src/views/SearchView.vue:14` |
 | GET | `/api/v1/search/{id}` | management | 前端直接调用 | `web/src/views/SearchResultsView.vue:247` |
@@ -443,7 +443,7 @@
 | HEAD | `/api/v1/system/modules` | management | 未检出静态使用 |  |
 | GET | `/api/v1/system/operations` | management | 前端直接调用 | `web/src/views/JobsView.vue:128` |
 | HEAD | `/api/v1/system/operations` | management | 未检出静态使用 |  |
-| GET | `/api/v1/system/runtime` | management | 前端直接调用 | `web/src/views/DashboardView.vue:11` |
+| GET | `/api/v1/system/runtime` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:11` |
 | HEAD | `/api/v1/system/runtime` | management | 未检出静态使用 |  |
 | GET | `/api/v1/system/status` | management | 前端直接调用 | `web/src/stores/system.ts:7`、`web/src/views/EmbyView.vue:6` |
 | HEAD | `/api/v1/system/status` | management | 未检出静态使用 |  |
