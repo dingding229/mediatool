@@ -12,3 +12,9 @@ it('keeps the generated requestId on HTTP and malformed response failures',async
  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,status:200,headers:new Headers({'X-Request-ID':requestId}),json:async()=>{throw Error('invalid')}}))
  await expect(post('/plugins/operations',{})).rejects.toMatchObject({code:'invalid_response',requestId})
 })
+it('preserves structured recovery guidance without replaying an unknown effect',async()=>{
+ const fetch=vi.fn().mockResolvedValue({ok:false,status:409,json:async()=>({error:{code:'upload_outcome_unknown',message:'先核对',flow:{phase:'organize',retryable:false,nextAction:'reconcile_upload',reason:'upload_outcome_unknown'}}})})
+ vi.stubGlobal('fetch',fetch)
+ await expect(post('/pipeline/transfers/owned/retry',{})).rejects.toMatchObject({flow:{retryable:false,nextAction:'reconcile_upload'}})
+ expect(fetch).toHaveBeenCalledTimes(1)
+})

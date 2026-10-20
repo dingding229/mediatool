@@ -38,3 +38,13 @@
 - `GET /api/v1/plugins/events/retention`（管理员鉴权）返回 stored/limit/retiredCursor/retentionSeconds/state/nextAction；80% warning、100% blocked、回收后自动恢复 ready，不用手动“清除告警”。服务端告警可恢复，不误把容量满当worker损坏。
 - state recovery、run recovery、GC、Bridge、Deliver、Schedule 独立执行并聚合带域名错误，各有5s预算，不再让journal Busy中止服务调度。supervisor 不再给所有域共用一个5s截止点；单个域故障不会耗光其它域的预算。
 - 测试：50轮/10000事件的持续摄入→GC→重新Bridge、source幂等身份保留、30天旧时间的迟提交、100000满载下Schedule继续、100轮有界GC容量自动恢复、unknown与通知未发送保护、迁移回填与410过期拒绝。上述为合成协议长跑，不冒充7天真实墙钟 soak。
+
+## Q4b 故障分类、链路状态与分页
+
+- 共享 `flow.Status` 只描述观测：phase/retryable/nextAction/reason，不替代授权或状态机。downloads 列表与 transfers 列表新增 `flow` 对象，保留旧 state/phase 字段；下载阶段覆盖 download→organize→STRM→emby_refresh→emby_verify→complete。
+- 重试接口与列表共用阶段判定，retryable 必须有**原有且 failed 的对应 job**；缺 job 返回 job_missing/inspect_task，不创建平行任务，不靠“重试搜索/订阅”补缺口。下载来源需确认、输出布局需确认、上传starting/uploading/uncertain（即使有session ID）、暂停/取消/已完成均不允许普通重试，返回对应下一步。
+- retry 查询与上传session查询区分 ErrNoRows=404、存储故障=503；列表读取中断不返回“成功半份列表”。提交回执未知返回 verify/commit_outcome_unknown，不宣称失败未执行，不建议盲目重试。
+- 保持原有错误信封，增量增加 `error.flow`；浏览器 APIError 保留它且不自动重试。下载页仍使用原有按钮/布局，只根据flow禁用无效重试、显示原因title与在途防双击；无CSS、颜色、布局改动。
+- 三种分页共同拒绝重复、空值、非整数、越界和坏URL编码，返回400；保留各自有意的上限（通用100、插件/管理200及各自offset上限）。移除legacy first-value/default分支，不用重复的平行解析器。
+- 数据库JSON CHECK使旧“写数组再验证读取错误”夹具不再能写入；测试增强为先断言数组被拒绝，再以对象内错误字段类型验证原字节不被失败报告覆盖，没有删除/放宽原防覆盖断言。
+- 新增实际HTTP handler集成回归：无任务404、缺job409、有failed job一次入队/重复拒绝、已知session的unknown不被重放；加纯函数状态矩阵、分页跨入口与APIError传递测试。

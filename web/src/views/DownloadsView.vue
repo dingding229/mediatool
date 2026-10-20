@@ -3,7 +3,7 @@ import ManualDownloads from "../components/ManualDownloads.vue";
 import ConnectionPanel from "../components/ConnectionPanel.vue";
 import { computed, ref, onMounted, onUnmounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { request, post } from "../api/client";
+import { request, post, type FlowStatus } from "../api/client";
 import OutputRecoveryDialog from "../components/OutputRecoveryDialog.vue";
 import DownloadSourceDialog from "../components/DownloadSourceDialog.vue";
 const sourceRecovery = ref<InstanceType<typeof DownloadSourceDialog> | null>(
@@ -11,6 +11,7 @@ const sourceRecovery = ref<InstanceType<typeof DownloadSourceDialog> | null>(
 );
 const outputRecovery = ref<InstanceType<typeof OutputRecoveryDialog>>();
 interface Task {
+  flow: FlowStatus;
   cleanupState: string;
   cleanupMessage: string;
   sourceRecoveryRequired: boolean;
@@ -78,6 +79,7 @@ const transfers = ref<
     destination: string;
     state: string;
     phase: string;
+    flow: FlowStatus;
     bytes: number;
     hashBytes: number;
     total: number;
@@ -161,13 +163,19 @@ async function refresh(sync = false) {
     loading.value = false;
   }
 }
+const retrying = ref<Record<string, boolean>>({});
 async function retry(kind: string, id: string) {
+  const key = `${kind}:${id}`;
+  if (retrying.value[key]) return;
+  retrying.value[key] = true;
   try {
     await post(`/pipeline/${kind}/${id}/retry`, {});
     ElMessage.success("重试已加入持久化队列");
     await refresh();
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : "不能重试");
+  } finally {
+    delete retrying.value[key];
   }
 }
 async function control(id: string, action: string) {
@@ -354,7 +362,7 @@ onUnmounted(() => {
             v-if="scope.row.sourceRecoveryRequired"
             @click="sourceRecovery?.open(scope.row.id)"
             >核对来源</el-button
-          ><el-button v-else @click="retry('downloads', scope.row.id)"
+          ><el-button v-else :disabled="!scope.row.flow?.retryable" :title="scope.row.flow?.reason" :loading="retrying[`downloads:${scope.row.id}`]" @click="retry('downloads', scope.row.id)"
             >重试</el-button
           ><el-button
             v-if="
@@ -434,7 +442,7 @@ onUnmounted(() => {
             @click="outputRecovery?.open(scope.row.id)"
             >核对入库恢复</el-button
           ><template v-else
-            ><el-button size="small" @click="retry('transfers', scope.row.id)"
+            ><el-button size="small" :disabled="!scope.row.flow?.retryable" :title="scope.row.flow?.reason" :loading="retrying[`transfers:${scope.row.id}`]" @click="retry('transfers', scope.row.id)"
               >重试</el-button
             ><el-button size="small" @click="control(scope.row.id, 'pause')"
               >暂停</el-button

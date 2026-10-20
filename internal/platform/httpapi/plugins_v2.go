@@ -7,6 +7,7 @@ import (
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/platform/secrets"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"time"
 
@@ -203,8 +204,12 @@ func (a *API) pluginV2Inspect(w http.ResponseWriter, r *http.Request) {
 }
 
 func pluginPage(r *http.Request) (int, int, error) {
-	page, e := queryInt(r.URL.Query(), "page", 1, 1, 10001, true)
-	limit, le := queryInt(r.URL.Query(), "pageSize", 50, 1, 200, true)
+	q, e := url.ParseQuery(r.URL.RawQuery)
+	if e != nil {
+		return 0, 0, pluginv2.ErrInvalid
+	}
+	page, e := queryInt(q, "page", 1, 1, 10001)
+	limit, le := queryInt(q, "pageSize", 50, 1, 200)
 	if e != nil || le != nil || (page-1)*limit > 10000 {
 		return 0, 0, pluginv2.ErrInvalid
 	}

@@ -5,17 +5,30 @@ import (
 	"testing"
 )
 
-func TestSharedPaginationPreservesDistinctProfiles(t *testing.T) {
-	for _, tt := range []struct {
-		raw    string
-		strict bool
-		want   int
-		fail   bool
-	}{{"page=2", false, 2, false}, {"page=2&page=3", false, 2, false}, {"page=", false, 1, false}, {"page=", true, 0, true}, {"page=2&page=3", true, 0, true}, {"page=-1", true, 0, true}, {"page=201", true, 0, true}, {"", true, 1, false}} {
-		r := httptest.NewRequest("GET", "/?"+tt.raw, nil)
-		v, e := queryInt(r.URL.Query(), "page", 1, 1, 200, tt.strict)
-		if (e != nil) != tt.fail || (!tt.fail && v != tt.want) {
-			t.Fatal(tt, v, e)
+func TestSharedPaginationRejectsAmbiguityAcrossProfiles(t *testing.T) {
+	for _, raw := range []string{"page=", "page=2&page=3", "pageSize=", "pageSize=1&pageSize=2", "page=-1", "page=no", "page=%ZZ"} {
+		r := httptest.NewRequest("GET", "/?"+raw, nil)
+		if _, e := pagination(r); e == nil {
+			t.Fatal("general accepted", raw)
 		}
+		if _, _, e := pluginPage(r); e == nil {
+			t.Fatal("plugin accepted", raw)
+		}
+	}
+	for _, raw := range []string{"startIndex=", "startIndex=1&startIndex=2", "limit=", "limit=1&limit=2", "limit=201", "startIndex=%ZZ"} {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("GET", "/?"+raw, nil)
+		if _, _, ok := managementPagination(w, r); ok || w.Code != 400 {
+			t.Fatal(raw, w.Code)
+		}
+	}
+	if p, e := pagination(httptest.NewRequest("GET", "/", nil)); e != nil || p.Page != 1 || p.Limit != 50 {
+		t.Fatal(p, e)
+	}
+	if _, _, e := pluginPage(httptest.NewRequest("GET", "/?pageSize=200", nil)); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := pagination(httptest.NewRequest("GET", "/?pageSize=200", nil)); e == nil {
+		t.Fatal("general bound changed")
 	}
 }

@@ -23,6 +23,7 @@ import (
 	"media-tool/internal/platform/buildinfo"
 	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/config"
+	"media-tool/internal/platform/flow"
 	"media-tool/internal/platform/httpjson"
 	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/requestbudget"
@@ -74,11 +75,12 @@ type Envelope struct {
 	Data  any       `json:"data,omitempty"`
 	Error *APIError `json:"error,omitempty"`
 }
-type APIError struct{ Code, Message string }
-
-func (e APIError) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{"code": e.Code, "message": e.Message})
+type APIError struct {
+	Code    string       `json:"code"`
+	Message string       `json:"message"`
+	Flow    *flow.Status `json:"flow,omitempty"`
 }
+
 func New(c config.Config, d Dependencies) http.Handler {
 	if d.Logger == nil {
 		d.Logger = slog.Default()

@@ -2,12 +2,18 @@ package httpapi
 
 import (
 	"net/http"
+	"net/url"
 )
 
 // The same bounded pagination contract is used by devices/history/sessions.
 func managementPagination(w http.ResponseWriter, r *http.Request) (int, int, bool) {
-	start, e := queryInt(r.URL.Query(), "startIndex", 0, 0, 1000000, true)
-	limit, le := queryInt(r.URL.Query(), "limit", 50, 1, 200, true)
+	q, e := url.ParseQuery(r.URL.RawQuery)
+	if e != nil {
+		fail(w, 400, "invalid_management_page", "分页参数无效")
+		return 0, 0, false
+	}
+	start, e := queryInt(q, "startIndex", 0, 0, 1000000)
+	limit, le := queryInt(q, "limit", 50, 1, 200)
 	if e != nil || le != nil {
 		fail(w, 400, "invalid_management_page", "页码或条数无效")
 		return 0, 0, false

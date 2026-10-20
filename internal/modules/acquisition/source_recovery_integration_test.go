@@ -486,7 +486,16 @@ func TestPostgresSameRunHintRewriteDuringPreviewCannotBeMixedWithOldTorrentBytes
 
 func TestPostgresUnreadableTaskDetailsAreNotOverwrittenByFailureReporting(t *testing.T) {
 	f := newSourceFixture(t)
-	if _, err := f.engine.DB.Exec(f.ctx, `UPDATE download_tasks SET details='[]'::jsonb WHERE id=$1`, f.taskID); err != nil {
+	if _, err := f.engine.DB.Exec(f.ctx, `UPDATE download_tasks SET details='[]'::jsonb WHERE id=$1`, f.taskID); err == nil {
+		t.Fatal("database accepted non-object details")
+	}
+	// Model-level corruption can still be an object; keep the defense-in-depth
+	// test without disabling the new database CHECK.
+	if _, err := f.engine.DB.Exec(f.ctx, `UPDATE download_tasks SET details='{"progress":"unreadable"}'::jsonb WHERE id=$1`, f.taskID); err != nil {
+		t.Fatal(err)
+	}
+	var before []byte
+	if err := f.engine.DB.QueryRow(f.ctx, `SELECT details FROM download_tasks WHERE id=$1`, f.taskID).Scan(&before); err != nil {
 		t.Fatal(err)
 	}
 	payload, _ := json.Marshal(map[string]string{"taskId": f.taskID})
@@ -494,7 +503,7 @@ func TestPostgresUnreadableTaskDetailsAreNotOverwrittenByFailureReporting(t *tes
 		t.Fatal("invalid task details reported success")
 	}
 	var raw []byte
-	if err := f.engine.DB.QueryRow(f.ctx, `SELECT details FROM download_tasks WHERE id=$1`, f.taskID).Scan(&raw); err != nil || string(raw) != "[]" {
+	if err := f.engine.DB.QueryRow(f.ctx, `SELECT details FROM download_tasks WHERE id=$1`, f.taskID).Scan(&raw); err != nil || string(raw) != string(before) {
 		t.Fatal("failure reporting replaced unreadable original data", string(raw), err)
 	}
 }
