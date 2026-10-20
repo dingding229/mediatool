@@ -15,10 +15,10 @@ func (e Engine) copyCurrentMetadata(ctx context.Context, clone *pgxpool.Pool) er
 		return err
 	}
 	defer deferutil.Rollback(ctx, tx)
-	if _, err = tx.Exec(ctx, `TRUNCATE ops_drills,ops_backups,ops_requests,ops_releases,ops_samples,ops_alerts,ops_policy,ops_mode`); err != nil {
+	if _, err = tx.Exec(ctx, `TRUNCATE ops_request_verifications,ops_drills,ops_backups,ops_requests,ops_releases,ops_samples,ops_alerts,ops_policy,ops_mode`); err != nil {
 		return err
 	}
-	for _, table := range []string{"ops_policy", "ops_mode", "ops_releases", "ops_backups", "ops_drills", "ops_requests", "ops_samples", "ops_alerts"} {
+	for _, table := range []string{"ops_policy", "ops_mode", "ops_releases", "ops_backups", "ops_drills", "ops_requests", "ops_request_verifications", "ops_samples", "ops_alerts"} {
 		rows, err := e.DB.Query(ctx, `SELECT * FROM `+pgx.Identifier{table}.Sanitize())
 		if err != nil {
 			return err

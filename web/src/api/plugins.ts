@@ -41,3 +41,6 @@ export const workflowOperation=(input:Record<string,unknown>)=>post<WorkflowDefi
 export interface AuthProviderStatus {id:string;instanceId:string;bound:number;stale?:number;state:string;error:string}
 export const authProviders=(id:string)=>request<AuthProviderStatus[]>(`/plugins/${encodeURIComponent(id)}/auth/status`)
 export const bindProvider=(input:{instanceId:string;providerId:string;subject:string;accountId:string;fingerprint:string;confirm:boolean})=>post<{bound:boolean}>('/plugins/auth/bindings',input)
+
+export interface CapabilityStatus {kind:string;id:string;state:'unsupported'|'authorization_required'|'disabled'|'runtime_failed'|'starting'|'ready';nextAction:string;reason:string}
+export const capabilities=(id:string)=>request<CapabilityStatus[]>(`/plugins/${encodeURIComponent(id)}/capabilities`)

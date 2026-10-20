@@ -15,6 +15,7 @@ import Official115AuthDialog from "../components/Official115AuthDialog.vue";
 import { accountHeadersError } from "../sites/account-headers";
 import { changedSecrets } from "../files/secrets";
 interface Connection {
+  readiness?: {state:string;nextAction:string;reason:string};
   id: string;
   kind: string;
   name: string;
@@ -32,6 +33,7 @@ interface Field {
   secret?: boolean;
 }
 const props = defineProps<{ allowedKinds: string[]; title: string;configOnly?:boolean }>();
+const readinessAction:Record<string,string>={authorize_115:"请先完成官方115授权",enable_connection:"授权/配置已保留，请管理员明确启用",configure_credentials:"请配置服务凭据",test_connection:"请重新验证当前连接",inspect_connection:"请核对连接错误与授权状态"};
 const kinds: Record<string, { label: string; fields: Field[] }> = {
   local: {
     label: "本地文件目录",
@@ -473,7 +475,7 @@ onMounted(refresh);
             "
           />
           <p class="field-hint">
-            {{ scope.row.lastCheckMessage || "尚未验证" }}
+            {{ readinessAction[scope.row.readiness?.nextAction] || scope.row.lastCheckMessage || "尚未验证" }}
           </p></template
         ></el-table-column
       ><el-table-column label="操作" min-width="330"

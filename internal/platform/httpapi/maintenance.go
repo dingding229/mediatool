@@ -31,6 +31,7 @@ func (a *API) registerMaintenance(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/ops/trends", a.protected(a.opsTrends))
 	mux.HandleFunc("POST /api/v1/ops/alerts/{code}/ack", a.protected(a.opsAck))
 	mux.HandleFunc("POST /api/v1/ops/requests/preview", a.protected(a.opsPreview))
+	mux.HandleFunc("POST /api/v1/ops/requests/{id}/verify", a.protected(a.opsVerifyExecution))
 	mux.HandleFunc("POST /api/v1/ops/requests/{id}/approve", a.protected(a.opsApprove))
 	mux.HandleFunc("POST /api/v1/ops/requests/{id}/cancel", a.protected(a.opsCancel))
 	mux.HandleFunc("POST /api/v1/ops/resume", a.protected(a.opsResume))
@@ -284,7 +285,7 @@ func (a *API) opsApprove(w http.ResponseWriter, r *http.Request) {
 		opsError(w, err)
 		return
 	}
-	write(w, 200, map[string]string{"state": "approved", "message": "已审批，等待宿主机受控执行；当前尚未恢复或回滚"})
+	write(w, 200, map[string]any{"state": "approved", "message": "已审批，等待宿主机受控执行；当前尚未恢复或回滚", "flow": maintenance.RequestFlow("approved", false, false)})
 }
 func (a *API) opsCancel(w http.ResponseWriter, r *http.Request) {
 	if !a.opsReady(w) || !opsConfirm(w, r) {
@@ -329,4 +330,16 @@ func (a *API) opsCleanupDrill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, map[string]bool{"cleaned": true})
+}
+
+func (a *API) opsVerifyExecution(w http.ResponseWriter, r *http.Request) {
+	if !a.opsReady(w) || !opsConfirm(w, r) {
+		return
+	}
+	out, e := a.maintenance().VerifyExecution(r.Context(), r.PathValue("id"))
+	if e != nil {
+		opsError(w, e)
+		return
+	}
+	write(w, 200, out)
 }

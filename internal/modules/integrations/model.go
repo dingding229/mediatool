@@ -19,6 +19,7 @@ var ErrUnavailable = errors.New("integration storage unavailable")
 var ErrInvalid = errors.New("invalid integration settings")
 
 type Record struct {
+	Readiness        Readiness      `json:"readiness"`
 	ID               string         `json:"id"`
 	Kind             string         `json:"kind"`
 	Name             string         `json:"name"`

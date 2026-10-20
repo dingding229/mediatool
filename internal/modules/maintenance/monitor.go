@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"golang.org/x/sys/unix"
 	deferutil "media-tool/internal/platform/cleanup"
+	"media-tool/internal/platform/outbox"
 	"media-tool/internal/platform/scheduling"
 	"os"
 	"path/filepath"
@@ -135,6 +136,12 @@ func (e Engine) Sample(ctx context.Context, p Policy) error {
 	v["succeededJobs10m"] = succeeded
 	v["pendingJobs"] = pending
 	v["jobSeconds"] = avg
+	// Capacity collection is its own fault domain: unavailable journal metrics
+	// become unknown while host/job sampling and recovery alerts still proceed.
+	var journal int
+	if err := e.DB.QueryRow(ctx, `SELECT count(*) FROM plugin_v2_event_journal`).Scan(&journal); err == nil {
+		v["pluginJournalUsed"] = journal
+	}
 	raw, _ := json.Marshal(v)
 	if _, err := e.DB.Exec(ctx, `INSERT INTO ops_samples(value)VALUES($1)`, raw); err != nil {
 		return err
@@ -161,7 +168,7 @@ func (e Engine) evaluate(ctx context.Context, p Policy, v map[string]any) error 
 		code, key, message string
 		threshold          float64
 		below              bool
-	}{{"memory", "memoryPercent", "宿主内存使用率过高", p.MemoryPercent, false}, {"disk", "diskFreeGB", "STRM所在文件系统剩余空间不足", p.DiskFreeGB, true}, {"load", "loadPerCPU", "宿主每CPU负载过高", p.LoadPerCPU, false}, {"workers", "offlineQueues", "业务Worker离线", 1, false}, {"failures", "failedJobs10m", "十分钟内失败任务过多", float64(p.FailedJobs), false}}
+	}{{"plugin_journal", "pluginJournalUsed", "插件事件journal容量高，请核对订阅游标/unknown任务与保留窗口", outbox.PluginJournalWarning, false}, {"memory", "memoryPercent", "宿主内存使用率过高", p.MemoryPercent, false}, {"disk", "diskFreeGB", "STRM所在文件系统剩余空间不足", p.DiskFreeGB, true}, {"load", "loadPerCPU", "宿主每CPU负载过高", p.LoadPerCPU, false}, {"workers", "offlineQueues", "业务Worker离线", 1, false}, {"failures", "failedJobs10m", "十分钟内失败任务过多", float64(p.FailedJobs), false}}
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
 		return err

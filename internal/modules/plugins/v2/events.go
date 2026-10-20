@@ -229,8 +229,9 @@ func (s Store) Replay(ctx context.Context, actor, id string, after int64, limit 
 	return n, tx.Commit(ctx)
 }
 
-// Zero is the legacy unlimited replay contract. Bounded subscriptions cannot
-// resurrect effects after their declared horizon, including explicit replay.
+// Zero preserves unlimited descriptor freshness within physical journal retention.
+// Bounded subscriptions cannot resurrect effects after their declared horizon,
+// including explicit replay; the physical retention fence is independent.
 func eventFresh(d contracts.Descriptor, occurred, now time.Time) bool {
 	return d.ReplayWindowSeconds == 0 || !occurred.IsZero() && occurred.Add(time.Duration(d.ReplayWindowSeconds)*time.Second).After(now)
 }

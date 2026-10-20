@@ -2,13 +2,13 @@ package tests
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"os"
 	"strings"
 	"testing"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/secrets"
@@ -20,24 +20,31 @@ func TestSnapshotMigration20To22KeepsLegacyCipherAndAllowsStructuralRollback(t *
 	if dsn == "" {
 		t.Skip("isolated TEST_DATABASE_URL required")
 	}
-	db, err := sql.Open("pgx", dsn)
+	cfg, err := pgx.ParseConfig(dsn)
+	if err != nil || cfg.Database != "media_tool_test" {
+		t.Fatal("isolated media_tool_test required", err)
+	}
+	name := "snapshot_q_" + strings.ReplaceAll(jobs.UUID(), "-", "")
+	quoted := pgx.Identifier{name}.Sanitize()
+	cfg.RuntimeParams["search_path"] = quoted
+	db := stdlib.OpenDB(*cfg)
+	defer db.Close()
+	ctx := context.Background()
+	if _, err = db.ExecContext(ctx, "CREATE SCHEMA "+quoted); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if _, e := db.ExecContext(ctx, "DROP SCHEMA "+quoted+" CASCADE"); e != nil {
+			t.Error(e)
+		}
+	}()
+	provider, err := goose.NewProvider(goose.DialectPostgres, db, migrations.FS, goose.WithLogger(goose.NopLogger()))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
-	ctx := context.Background()
-	var name string
-	if err = db.QueryRowContext(ctx, `SELECT current_database()`).Scan(&name); err != nil || name != "media_tool_test" {
-		t.Fatal("isolated media_tool_test required", err)
-	}
-	goose.SetBaseFS(migrations.FS)
-	if err = goose.SetDialect("postgres"); err != nil {
-		t.Fatal(err)
-	}
-	// Always return the disposable schema to the candidate version, even when a
-	// negative assertion fails. No real business database is connected here.
-	defer func() { goose.UpContext(ctx, db, ".") }()
-	if err = goose.DownToContext(ctx, db, ".", 20); err != nil {
+	// Exercise historical20→22→20 in its own schema, never Down the current
+	// public schema through an intentionally irreversible retirement migration.
+	if _, err = provider.UpTo(ctx, 20); err != nil {
 		t.Fatal(err)
 	}
 	cleanup := `TRUNCATE subscriptions,integrations,resources,search_runs,download_tasks,jobs,media_items CASCADE`
@@ -65,7 +72,7 @@ func TestSnapshotMigration20To22KeepsLegacyCipherAndAllowsStructuralRollback(t *
 	if _, err = db.ExecContext(ctx, `INSERT INTO download_tasks(id,resource_id,details)VALUES($1,$2,$3)`, task, resource, originalDetails); err != nil {
 		t.Fatal(err)
 	}
-	if err = goose.UpContext(ctx, db, "."); err != nil {
+	if _, err = provider.UpTo(ctx, 22); err != nil {
 		t.Fatal(err)
 	}
 	var public []byte
@@ -78,7 +85,7 @@ func TestSnapshotMigration20To22KeepsLegacyCipherAndAllowsStructuralRollback(t *
 	if err = db.QueryRowContext(ctx, `SELECT source_control_revision,source_recovery_required FROM download_tasks WHERE id=$1`, task).Scan(&revision, &required); err != nil || revision != 1 || required {
 		t.Fatal("legacy task auto-paused or rebound", revision, required, err)
 	}
-	if err = goose.DownToContext(ctx, db, ".", 20); err != nil {
+	if _, err = provider.DownTo(ctx, 20); err != nil {
 		t.Fatal(err)
 	}
 	if err = db.QueryRowContext(ctx, `SELECT download_hint_ciphertext FROM resources WHERE id=$1`, resource).Scan(&cipher); err != nil {
@@ -96,7 +103,7 @@ func TestSnapshotMigration20To22KeepsLegacyCipherAndAllowsStructuralRollback(t *
 	if err = json.Unmarshal(details, &restored); err != nil || restored["expectedHash"] != "fixture-hash" {
 		t.Fatal("rollback changed legacy task identity", err)
 	}
-	if err = goose.UpContext(ctx, db, "."); err != nil {
+	if _, err = provider.UpTo(ctx, 22); err != nil {
 		t.Fatal(err)
 	}
 }

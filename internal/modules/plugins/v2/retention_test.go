@@ -167,3 +167,86 @@ func TestJournalGCRespectsUnackedUnknownAndNotificationDispatch(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+
+func TestJournalGCKeepsTerminalDedupeUntilSubscriberACK(t *testing.T) {
+	s, _, _ := snapshotFixture(t)
+	ctx := context.Background()
+	execRetention(t, s, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload)VALUES(md5('unacked')::uuid,'files.succeeded',md5('unacked')::uuid,'{}')`)
+	if e := s.Bridge(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if e := s.Deliver(ctx); e != nil {
+		t.Fatal(e)
+	}
+	// Simulate a successful effect with a lost cursor-update acknowledgement.
+	execRetention(t, s, `UPDATE plugin_v2_subscriptions SET cursor=0`)
+	execRetention(t, s, `UPDATE plugin_v2_runs SET state='succeeded',finished_at=now()-interval '8 days'`)
+	execRetention(t, s, `UPDATE plugin_v2_event_journal SET ingested_at=now()-interval '8 days'`)
+	if e := s.CollectJournal(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if n := countRetention(t, s, `SELECT count(*) FROM plugin_v2_runs`); n != 1 {
+		t.Fatal("lost dedupe before ACK", n)
+	}
+	if e := s.Deliver(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if n := countRetention(t, s, `SELECT count(*) FROM plugin_v2_runs`); n != 1 {
+		t.Fatal("effect replayed", n)
+	}
+	if e := s.CollectJournal(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if n := countRetention(t, s, `SELECT count(*) FROM plugin_v2_event_journal`); n != 0 {
+		t.Fatal("ACKed history not collected", n)
+	}
+}
+
+func TestJournalGCHolesRetainUnknownWithoutPinningOtherPayloads(t *testing.T) {
+	s, l, _ := snapshotFixture(t)
+	ctx := context.Background()
+	execRetention(t, s, `INSERT INTO outbox_events(id,event_type,aggregate_id,payload,dispatched_at) SELECT md5('holes'||n)::uuid,'files.succeeded',md5('holes'||n)::uuid,'{}',now() FROM generate_series(1,3)n`)
+	if e := s.Bridge(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if e := s.Deliver(ctx); e != nil {
+		t.Fatal(e)
+	}
+	execRetention(t, s, `UPDATE plugin_v2_event_journal SET ingested_at=now()-interval '8 days'`)
+	execRetention(t, s, `UPDATE plugin_v2_runs SET state=CASE WHEN event_cursor=(SELECT min(cursor)FROM plugin_v2_event_journal) THEN 'unknown' ELSE 'succeeded' END,finished_at=now()-interval '8 days'`)
+	// An explicitly uninstalled subscriber can never execute again. Preserve its
+	// configuration/KV/run records, but do not let its abandoned cursor pin GC.
+	defs, e := Catalog()
+	if e != nil {
+		t.Fatal(e)
+	}
+	info, e := s.Inspect(ctx, l.ID, "")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.Apply(ctx, "admin", Request{Kind: Remove, OperationKey: "remove-retention-hole", InstanceID: l.ID, ExpectedRevision: info.Instance.Revision, Fingerprint: defs[0].Fingerprint, Confirm: true}); e != nil {
+		t.Fatal(e)
+	}
+	execRetention(t, s, `UPDATE plugin_v2_subscriptions SET cursor=0`)
+	if e = s.CollectJournal(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if n := countRetention(t, s, `SELECT count(*) FROM plugin_v2_event_journal`); n != 1 {
+		t.Fatal("unknown pinned unrelated payloads or was erased", n)
+	}
+	if n := countRetention(t, s, `SELECT count(*) FROM plugin_v2_runs WHERE state='unknown'`); n != 1 {
+		t.Fatal("unknown receipt erased", n)
+	}
+	if n := countRetention(t, s, `SELECT count(*) FROM plugin_v2_configs`); n != 1 {
+		t.Fatal("uninstall erased configuration")
+	}
+	if n := countRetention(t, s, `SELECT count(*) FROM outbox_events WHERE plugin_compacted`); n != 2 {
+		t.Fatal("unknown source compacted or eligible sources retained", n)
+	}
+	if e = s.Bridge(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if n := countRetention(t, s, `SELECT count(*) FROM plugin_v2_event_journal`); n != 1 {
+		t.Fatal("collected events re-ingested", n)
+	}
+}

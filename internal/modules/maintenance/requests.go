@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	deferutil "media-tool/internal/platform/cleanup"
 	"path/filepath"
@@ -32,14 +33,15 @@ type Payload struct {
 	ManifestDigest  string            `json:"manifestDigest,omitempty"`
 }
 type Request struct {
-	ID        string    `json:"id"`
-	Kind      string    `json:"kind"`
-	State     string    `json:"state"`
-	Payload   Payload   `json:"payload"`
-	Digest    string    `json:"digest"`
-	ExpiresAt time.Time `json:"expiresAt"`
-	CreatedAt time.Time `json:"createdAt"`
-	Message   string    `json:"message"`
+	VerifiedAt *time.Time `json:"verifiedAt,omitempty"`
+	ID         string     `json:"id"`
+	Kind       string     `json:"kind"`
+	State      string     `json:"state"`
+	Payload    Payload    `json:"payload"`
+	Digest     string     `json:"digest"`
+	ExpiresAt  time.Time  `json:"expiresAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	Message    string     `json:"message"`
 }
 
 func (e Engine) RegisterRelease(ctx context.Context, r Release) error {
@@ -75,38 +77,33 @@ func (e Engine) Releases(ctx context.Context) ([]Release, error) {
 	}
 	return out, rows.Err()
 }
-func (e Engine) Request(ctx context.Context, id string) (Request, error) {
+
+const requestColumns = `SELECT id::text,kind,state,payload,digest,expires_at,created_at,message,(SELECT verified_at FROM ops_request_verifications v WHERE v.request_id=ops_requests.id AND v.request_digest=ops_requests.digest AND v.revision=$1) FROM ops_requests`
+
+func scanRequest(row interface{ Scan(...any) error }) (Request, error) {
 	var r Request
 	var raw []byte
+	e := row.Scan(&r.ID, &r.Kind, &r.State, &raw, &r.Digest, &r.ExpiresAt, &r.CreatedAt, &r.Message, &r.VerifiedAt)
+	if e == nil {
+		e = json.Unmarshal(raw, &r.Payload)
+	}
+	return r, e
+}
+func (e Engine) Request(ctx context.Context, id string) (Request, error) {
 	if !UUID.MatchString(id) {
-		return r, ErrUnsafe
+		return Request{}, ErrUnsafe
 	}
-	err := e.DB.QueryRow(ctx, `SELECT id::text,kind,state,payload,digest,expires_at,created_at,message FROM ops_requests WHERE id=$1`, id).Scan(&r.ID, &r.Kind, &r.State, &raw, &r.Digest, &r.ExpiresAt, &r.CreatedAt, &r.Message)
-	if err == nil {
-		err = json.Unmarshal(raw, &r.Payload)
-	}
-	return r, err
+	return scanRequest(e.DB.QueryRow(ctx, requestColumns+` WHERE id=$2`, e.Revision, id))
 }
 func (e Engine) Requests(ctx context.Context) ([]Request, error) {
-	rows, err := e.DB.Query(ctx, `SELECT id::text FROM ops_requests ORDER BY created_at DESC LIMIT 50`)
+	rows, err := e.DB.Query(ctx, requestColumns+` ORDER BY created_at DESC,id DESC LIMIT 50`, e.Revision)
 	if err != nil {
 		return nil, err
 	}
-	ids := []string{}
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			break
-		}
-		ids = append(ids, id)
-	}
-	rows.Close()
-	if err != nil {
-		return nil, err
-	}
+	defer rows.Close()
 	out := []Request{}
-	for _, id := range ids {
-		r, err := e.Request(ctx, id)
+	for rows.Next() {
+		r, err := scanRequest(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -295,12 +292,45 @@ func (e Engine) Finish(ctx context.Context, id, message string, success bool) er
 	return nil
 }
 func (e Engine) Resume(ctx context.Context, revision int64) error {
-	tag, err := e.DB.Exec(ctx, `UPDATE ops_mode SET paused=false,reason='',revision=revision+1 WHERE singleton AND revision=$1 AND NOT EXISTS(SELECT 1 FROM ops_requests WHERE state='executing')`, revision)
+	tx, err := e.DB.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead})
+	if err != nil {
+		return err
+	}
+	defer deferutil.Rollback(ctx, tx)
+	var reason string
+	if err = tx.QueryRow(ctx, `SELECT reason FROM ops_mode WHERE singleton AND revision=$1 FOR UPDATE`, revision).Scan(&reason); err != nil {
+		return ErrConflict
+	}
+	if strings.HasPrefix(reason, "维护单 ") {
+		id := strings.TrimPrefix(reason, "维护单 ")
+		var state string
+		if err = tx.QueryRow(ctx, `SELECT state FROM ops_requests WHERE id=$1 FOR UPDATE`, id).Scan(&state); err != nil {
+			return err
+		}
+		if state == "completed" {
+			var proof string
+			err = tx.QueryRow(ctx, `SELECT v.protected_digest FROM ops_request_verifications v JOIN ops_requests r ON r.id=v.request_id WHERE r.id=$1 AND v.request_digest=r.digest AND v.revision=$2 AND v.schema_version=$3`, id, e.Revision, buildinfo.Schema).Scan(&proof)
+			if err != nil {
+				return ErrConflict
+			}
+			current, e := Protected(ctx, tx)
+			if e != nil {
+				return e
+			}
+			if protectedDigest(current) != proof {
+				return ErrConflict
+			}
+		}
+	}
+	tag, err := tx.Exec(ctx, `UPDATE ops_mode SET paused=false,reason='',revision=revision+1 WHERE singleton AND revision=$1 AND NOT EXISTS(SELECT 1 FROM ops_requests WHERE state='executing')`, revision)
 	if err != nil {
 		return err
 	}
 	if tag.RowsAffected() != 1 {
 		return ErrConflict
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return err
 	}
 	e.notice(ctx, "ops.maintenance.resumed", "维护窗口已解除", "业务Cron和队列重新启用")
 	return nil

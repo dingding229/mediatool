@@ -65,7 +65,8 @@ func (a *API) listMedia(w http.ResponseWriter, r *http.Request) {
 		var raw []byte
 		var count int
 		if rows.Scan(&id, &raw, &count) != nil {
-			continue
+			fail(w, 503, "media_unavailable", "媒体索引读取失败")
+			return
 		}
 		var meta map[string]any
 		if checkedErr := json.Unmarshal(raw, &meta); checkedErr != nil {
@@ -102,6 +103,7 @@ func (a *API) retryPipeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer deferutil.Rollback(r.Context(), tx)
+	id = strings.ToLower(id)
 	var pattern, state string
 	var status flow.Status
 	if kind == "downloads" {
@@ -209,7 +211,11 @@ func (a *API) transferSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c, err := a.Deps.Integrations.Repository.Get(r.Context(), connectionID)
-	if err != nil || endpoint != "" && endpoint != c.String("endpoint") {
+	if err != nil {
+		integrationError(w, err)
+		return
+	}
+	if endpoint != "" && endpoint != c.String("endpoint") {
 		fail(w, 409, "endpoint_changed", "先恢复原上传端点再核对会话")
 		return
 	}

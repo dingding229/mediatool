@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"media-tool/internal/modules/maintenance"
 	"net/url"
 	"os"
 	"os/exec"
@@ -384,7 +385,7 @@ func (o *owner) execute(id string) (receipt map[string]any) {
 	}
 	o.docker("up", "-d", "--no-deps", "--wait", "--wait-timeout", "180", "app")
 	o.cli("finish", "-id", id, "-success", "-message", "宿主执行完成；原库和回滚备份保留。业务保持暂停，须核对后显式解除维护。")
-	receipt = map[string]any{"state": "completed", "id": id, "targetRevision": release.Revision, "schema": release.Schema, "businessPaused": true, "oldDatabasePreserved": true, "rollbackDirectory": dir}
+	receipt = map[string]any{"state": "completed", "id": id, "targetRevision": release.Revision, "schema": release.Schema, "businessPaused": true, "oldDatabasePreserved": true, "rollbackDirectory": dir, "flow": maintenance.RequestFlow("completed", false, false)}
 	o.write(filepath.Join(dir, "status.json"), receipt)
 	return receipt
 }

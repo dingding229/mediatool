@@ -102,6 +102,12 @@ func TestNativeSchemaEnumChecksMatchAllGoConstants(t *testing.T) {
 			}
 		}
 	}
+	// Historical migration55's legacy-only enum is deliberately retired at68.
+	// Assert its old contract before excluding it from current Go enum parity.
+	if !reflect.DeepEqual(checks["media_user_legacy_grants_media_type_check"], []string{"movie", "series"}) {
+		t.Fatal("historical legacy grant enum changed")
+	}
+	delete(checks, "media_user_legacy_grants_media_type_check")
 	cases := []struct{ constraint, file, enum string }{
 		{"native_item_ids_entity_type_check", "internal/modules/nativelibrary/states.go", "EntityType"},
 		{"native_libraries_collection_type_check", "internal/modules/nativelibrary/states.go", "CollectionType"},

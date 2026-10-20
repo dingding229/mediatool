@@ -52,6 +52,7 @@ func (r Repository) scan(row pgx.Row) (Credentials, error) {
 		}
 	}
 	sort.Strings(c.Record.SecretFields)
+	c.Record.Readiness = ConnectionReadiness(c.Record, time.Now())
 	return c, nil
 }
 func (r Repository) List(ctx context.Context) ([]Record, error) {

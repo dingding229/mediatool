@@ -23,4 +23,4 @@
 
 `docs/plans/` 全部早期阶段文件已标记 **superseded**，仅供追溯，不能证明当前版本已发布、已部署或通过新的质量门。
 
-Q0 的基线、D1–D5 的所有者审核决策和本阶段改动见 [Q1/Q2 执行记录](plans/20261020-q1-q2-consolidation.md)。Q3 仍采用66起 append-only，不因本轮移除代码而擅自删除 schema65 的表或凭据。Q4 journal容量问题仍为发布前必修。
+Q0/Q1/Q2历史与决策见 [Q1/Q2执行记录](plans/20261020-q1-q2-consolidation.md)；当前Q3/Q4迁移、流程/API变更、保留协议、进一步精简候选与门禁边界见 [Q3/Q4执行记录](plans/20261020-q3-q4-consolidation.md)。最终schema71，66起append-only；遗留结构只在锁定并验证为空后退役，失败安全中止。该记录不代表已发布或生产验收。

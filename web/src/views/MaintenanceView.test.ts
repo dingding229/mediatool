@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
+import {ElMessageBox} from 'element-plus'
 import MaintenanceView from './MaintenanceView.vue'
 import { flush, setupComponent } from '../test/setup-component'
-import { request } from '../api/client'
+import { request,post } from '../api/client'
 vi.mock('../api/client', () => ({ request: vi.fn(), post: vi.fn() }))
-vi.mock('element-plus', () => ({ ElMessage: { success: vi.fn() }, ElMessageBox: {} }))
+vi.mock('element-plus', () => ({ ElMessage: { success: vi.fn() }, ElMessageBox: {confirm:vi.fn().mockResolvedValue("confirm")} }))
 beforeEach(() => { vi.useFakeTimers(); vi.mocked(request).mockReset() })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 it('reloads reactive policy snapshots into independent editable values', async () => {
@@ -59,4 +60,18 @@ it('marks deleting backups as in progress and hides destructive actions', async 
   expect(view.state.canPinBackup('deleted')).toBe(false)
   expect(view.state.canPinBackup('ready')).toBe(true)
   view.unmount()
+})
+
+it('keeps execution completion separate from approved and verified states',async()=>{
+ vi.mocked(request).mockResolvedValue({policy:{value:{},revision:1}})
+ const view=setupComponent(MaintenanceView);await flush()
+ expect(view.state.labels.completed).toContain('待核验')
+ expect(view.state.ticketLabel({state:'approved',flow:{reason:'approval_expired'}})).toContain('已过期')
+ expect(view.state.ticketLabel({state:'completed',verifiedAt:'2026-10-20T00:00:00Z'})).toContain('核验通过')
+ vi.mocked(post).mockClear();vi.mocked(ElMessageBox.confirm).mockClear()
+ await view.state.verifyExecution({id:'owned',state:'completed'})
+ expect(ElMessageBox.confirm).toHaveBeenCalledOnce()
+ expect(post).toHaveBeenCalledWith('/ops/requests/owned/verify',{confirm:true})
+ expect(vi.mocked(post).mock.calls.some(([path])=>path==='/ops/resume')).toBe(false)
+ view.unmount()
 })

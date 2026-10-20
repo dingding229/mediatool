@@ -122,3 +122,20 @@ func TestQJournalMigrationBackfillsSourceReceipt(t *testing.T) {
 		t.Fatal("upgraded event replayed")
 	}
 }
+
+func TestQFinalSchema71AppendOnlyAndIdempotent(t *testing.T) {
+	f := newNativeFixture(t)
+	if _, e := f.provider.UpTo(f.ctx, 65); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := f.provider.UpTo(f.ctx, 71); e != nil {
+		t.Fatal(e)
+	}
+	f.version(t, 71)
+	if _, e := f.provider.UpTo(f.ctx, 71); e != nil {
+		t.Fatal(e)
+	}
+	if f.integer(t, `SELECT count(*) FROM information_schema.tables WHERE table_schema=current_schema() AND table_name='ops_request_verifications'`) != 1 {
+		t.Fatal("verification schema missing")
+	}
+}

@@ -17,9 +17,9 @@
 | media-tool | `media-tool server/worker/healthcheck/strm/account-info` | 既有 `-role/-queue/-cloud-path/-strm-relative` 保留；无参数仍 all；未知命令拒绝启动 |
 | migrate | `media-tool migrate` | 原 `-action up/status/down`、`-test-only`、测试插件清理参数保留 |
 | admin-reset | `media-tool admin reset` | 必须离线确认、私密密码文件；不是测试夹具，不会启用公开注册 |
-| rekey | `media-tool secrets rekey` | 默认 dry-run、全体 worker 停止、显式 apply；旧密文/AAD 保留至 Q3 审定清理 |
+| rekey | `media-tool secrets rekey` | 默认 dry-run、全体 worker 停止、显式 apply；当前密文/AAD保留；Q3批准的空旧格式已由断言迁移退役 |
 | backup-verify | `media-tool backup verify` | 私有 snapshot、精确克隆名及 test-only 守卫保留 |
-| ops-control | `media-tool ops <action>` | info/register-release/check/claim/backup/drill/verify/prepare/finish；审批不是执行成功 |
+| ops-control | `media-tool ops <action>` | info/register-release/check/claim/backup/drill/verify/verify-execution/prepare/finish；verify是备份包核验，verify-execution是维护执行后只读核验，审批不是执行成功 |
 | cloud-upload-smoke | `media-tool diagnose cloud-upload` | 自有小夹具、明确写确认、持久 journal、未知结果不重建会话 |
 | cloud-events-check | `media-tool diagnose cloud-events` | 只读 1–30s，不能宣称真实变化交付已验证 |
 | align-cloud-download-ua | `media-tool diagnose cloud-ua` | 默认只读；apply 验证失败恢复原值 |
@@ -98,3 +98,19 @@ media-toolctl --root /root/docker/mediatool load-check --requests 500 --concurre
 - ops preview 的 `command` 字符串改为 `media-toolctl --root ... execute UUID`，preview/approve/execute/verify 票据与状态语义不变。
 - 已认证管理员读取的私有请求日志，plugin query 也保留原值/完整编码/参数顺序；原登录 body/Cookie/Authorization 不额外采集，恢复口令仍仅 startup stdout，不进入 web store。
 - 没有增加远程模板/插件导入接口、source/commit/version UI、运行期编译或新的数据删除 API。
+
+## Q3/Q4 增量API/CLI契约（schema71）
+
+| 入口 | 新增/变化 | 安全语义 |
+|---|---|---|
+| GET /api/v1/downloads、/transfers | flow: phase/retryable/nextAction/reason | 原state/phase仍保留；只有对应failed job与安全阶段可重试 |
+| POST /api/v1/pipeline/{kind}/{id}/retry | 成功data.flow、拒绝error.flow；404只指真实缺行，存储故障503 | 缺job不重建；未知上传/来源/输出确认不被通用重试绕过 |
+| GET /api/v1/integrations | readiness.state/nextAction/reason | 原授权/配置保存不自动enable |
+| GET /api/v1/readiness | 配置＋最近probe的CD2/115/STRM/Emby概览 | 无联网探测/播放证明、无临时直链/凭据输出 |
+| GET /api/v1/plugins/{id}/capabilities | 当前声明/授权/运行能力分类 | unsupported、待授权与运行失败不混同；读取不启动worker |
+| GET /api/v1/plugins/events/retention | 80% warning/满载blocked/回收后ready | journal七天ingestion窗口＋订阅ACK；source幂等身份不删 |
+| POST /api/v1/plugins/{id}/events/replay | 过期游标410 + X-Event-Retired-Cursor | 不静默跳cursor；unknown仍须明确确认 |
+| POST /api/v1/ops/requests/{id}/verify | confirm:true，返回维护单flow/verifiedAt | 核验版本/schema/保护摘要，不执行/解除维护 |
+| media-tool ops verify-execution -id UUID | 与上一行相同的只读核验及收据 | 不是原来的ops verify（备份包核验） |
+
+以上HTTP入口均要求管理员认证。分页现在统一拒绝重复/空值/坏编码/越界；各列表有意的pageSize/offset上限不变。journal只回收ACK且无未解决run引用、已到期的旧payload；unknown保留自身行，明确卸载实例不再压住ACK下界；源outbox在已派发通知之后仅压缩payload，小型幂等身份仍持久保留。发布前需接受7天物理回放窗口并检查blocked订阅，不能以清库消除容量告警。

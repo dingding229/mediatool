@@ -9,7 +9,7 @@ test_db_exec(){
  if [[ "${TEST_DB_EXEC_MODE:-compose}" == psql ]];then
   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "$1" >/dev/null
  else
-  docker exec -i "${TEST_POSTGRES_CONTAINER:-media-tool-postgres-1}" sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d media_tool_test -c "$1"' sh "$1" >/dev/null
+  docker exec -i "${TEST_POSTGRES_CONTAINER:-media-tool-postgres-1}" sh -c 'psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-postgres}" -d media_tool_test -c "$1"' sh "$1" >/dev/null
  fi
 }
 go run ./cmd/media-tool migrate -test-only -cleanup-test-plugins >/dev/null

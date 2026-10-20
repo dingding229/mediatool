@@ -32,7 +32,7 @@ func TestPipelineRetryPreservesUnknownAndMissingJobs(t *testing.T) {
 	if _, e := s.DB.Exec(ctx, `INSERT INTO jobs(id,kind,state,idempotency_key)VALUES($1,'download.add','failed',$2)`, job, "download.add:"+task); e != nil {
 		t.Fatal(e)
 	}
-	if w := call("downloads", task); w.Code != 200 || !strings.Contains(w.Body.String(), `"reason":"retry_queued"`) {
+	if w := call("downloads", strings.ToUpper(task)); w.Code != 200 || !strings.Contains(w.Body.String(), `"reason":"retry_queued"`) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	if w := call("downloads", task); w.Code != 409 {

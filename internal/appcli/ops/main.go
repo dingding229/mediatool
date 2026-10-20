@@ -81,6 +81,8 @@ func run() error {
 			}, "verified")
 		}
 		out = map[string]string{"drillId": drill}
+	case "verify-execution":
+		out, err = e.VerifyExecution(ctx, *id)
 	case "verify":
 		out, _, err = e.VerifyBundle(ctx, *id)
 	case "prepare":

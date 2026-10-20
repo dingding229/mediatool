@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, toRaw } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { request, post } from "../api/client";
+import { request, post, type FlowStatus } from "../api/client";
 import StatusBadge from "../components/StatusBadge.vue";
 import MetricTrend from "../components/MetricTrend.vue";
 interface Policy {
@@ -47,6 +47,8 @@ interface Release {
   current: boolean;
 }
 interface Ticket {
+  flow?: FlowStatus;
+  verifiedAt?: string;
   id: string;
   kind: string;
   state: string;
@@ -133,7 +135,7 @@ const labels: Record<string, string> = {
   preview: "待审批",
   approved: "待宿主执行",
   executing: "宿主执行中",
-  completed: "已完成",
+  completed: "执行完成（待核验）",
   cancelled: "已取消",
   expired: "已过期",
   active: "告警中",
@@ -141,6 +143,10 @@ const labels: Record<string, string> = {
   unknown: "指标未知",
   disabled: "已关闭",
 };
+function ticketLabel(ticket:Ticket) {
+ if(ticket.flow?.reason==='approval_expired')return '审批已过期，请重新预览';
+ return ticket.verifiedAt ? '核验通过（仍须明确解除维护）' : labels[ticket.state] || ticket.state;
+}
 async function load() {
   const serial = ++epoch;
   busy.value = true;
@@ -259,6 +265,12 @@ async function approve() {
     dialog.value = false;
     ElMessage.success("已审批；尚未执行恢复或回滚，请在宿主机运行受控命令");
   });
+}
+async function verifyExecution(ticket:Ticket) {
+ try {
+ await ElMessageBox.confirm("只读核验当前版本、Schema及保护数据。不会重复执行维护单，也不会解除维护或证明真实播放通过。", "确认执行后核验", {type:"warning"});
+ await action(()=>post(`/ops/requests/${ticket.id}/verify`,{confirm:true}));
+ } catch(e) {if(e instanceof Error)ElMessage.error(e.message)}
 }
 async function resume() {
   if (!data.value) return;
@@ -538,11 +550,11 @@ onUnmounted(() => {
         <div>
           <strong
             >{{ r.kind === "restore" ? "备份恢复" : "镜像回滚" }} ·
-            {{ labels[r.state] || r.state }}</strong
+            {{ ticketLabel(r) }}</strong
           ><code>{{ r.id }}</code
           ><small>有效至 {{ date(r.expiresAt) }}</small>
           <p>{{ r.message }}</p>
-          <code v-if="r.state === 'approved'"
+          <code v-if="r.state === 'approved' && r.flow?.reason !== 'approval_expired'"
             >media-toolctl --root /root/docker/mediatool execute
             {{ r.id }}</code
           >

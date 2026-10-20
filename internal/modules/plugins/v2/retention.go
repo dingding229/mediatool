@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"github.com/jackc/pgx/v5"
+	"media-tool/internal/platform/outbox"
 	"time"
 )
 
-const journalLimit = 100000
+const journalLimit = outbox.PluginJournalLimit
 const journalRetention = 7 * 24 * time.Hour
 
 // ReplayExpired is explicit: never silently skip missing history or move a
@@ -36,7 +37,7 @@ func (s Store) JournalCapacity(ctx context.Context) (JournalCapacity, error) {
 	if out.Stored >= journalLimit {
 		out.State = "blocked"
 		out.NextAction = "inspect_subscriber_and_retention"
-	} else if out.Stored >= journalLimit*8/10 {
+	} else if out.Stored >= outbox.PluginJournalWarning {
 		out.State = "warning"
 		out.NextAction = "inspect_subscriber_and_retention"
 	}
@@ -44,9 +45,9 @@ func (s Store) JournalCapacity(ctx context.Context) (JournalCapacity, error) {
 }
 
 // CollectJournal owns the same serialization fence as Bridge and explicit
-// Replay. Only an ACKed contiguous prefix older than seven INGESTION days is
-// retired. Late committed facts get a fresh ingestion horizon regardless of
-// their original timestamp. Unresolved runs (especially unknown) pin history.
+// Replay. Only ACKed payloads older than seven INGESTION days are retired;
+// unresolved rows remain as holes. Late commits get a fresh ingestion horizon
+// regardless of their original time. Unknown runs pin only their own payload.
 func (s Store) CollectJournal(ctx context.Context) error {
 	tx, e := s.DB.Begin(ctx)
 	if e != nil {
@@ -58,24 +59,25 @@ func (s Store) CollectJournal(ctx context.Context) error {
 	}
 	// Retain an event's dedupe key until the replay horizon expires. Replay holds
 	// the same lock, so pruning cannot race a user-confirmed replay into a new run.
-	if _, e = tx.Exec(ctx, `DELETE FROM plugin_v2_runs WHERE id IN(SELECT r.id FROM plugin_v2_runs r LEFT JOIN plugin_v2_event_journal j ON j.cursor=r.event_cursor WHERE r.state IN('succeeded','failed','canceled') AND r.finished_at<clock_timestamp()-interval '7 days' AND (r.event_cursor IS NULL OR j.ingested_at<clock_timestamp()-interval '7 days') ORDER BY r.finished_at LIMIT 1000)`); e != nil {
+	if _, e = tx.Exec(ctx, `DELETE FROM plugin_v2_runs WHERE id IN(SELECT r.id FROM plugin_v2_runs r LEFT JOIN plugin_v2_event_journal j ON j.cursor=r.event_cursor WHERE r.state IN('succeeded','failed','canceled') AND r.finished_at<clock_timestamp()-interval '7 days' AND (r.event_cursor IS NULL OR (j.ingested_at<clock_timestamp()-interval '7 days' AND r.event_cursor<=coalesce((SELECT min(p.cursor) FROM plugin_v2_subscriptions p JOIN plugin_v2_instances i ON i.id=p.instance_id WHERE i.desired_state<>'absent'),9223372036854775807))) ORDER BY r.finished_at LIMIT 1000)`); e != nil {
 		return e
 	}
-	var floor int64
-	e = tx.QueryRow(ctx, `SELECT coalesce(max(cursor),0) FROM (SELECT cursor FROM plugin_v2_event_journal WHERE cursor<=coalesce((SELECT min(cursor) FROM plugin_v2_subscriptions),9223372036854775807) AND cursor<coalesce((SELECT min(event_cursor) FROM plugin_v2_runs),9223372036854775807) AND cursor<coalesce((SELECT min(cursor) FROM plugin_v2_event_journal WHERE ingested_at>=clock_timestamp()-interval '7 days'),9223372036854775807) ORDER BY cursor LIMIT 1000) q`).Scan(&floor)
+	var cursors []int64
+	e = tx.QueryRow(ctx, `SELECT coalesce(array_agg(cursor ORDER BY cursor),'{}'::bigint[]) FROM (SELECT j.cursor FROM plugin_v2_event_journal j WHERE j.cursor<=coalesce((SELECT min(p.cursor) FROM plugin_v2_subscriptions p JOIN plugin_v2_instances i ON i.id=p.instance_id WHERE i.desired_state<>'absent'),9223372036854775807) AND j.ingested_at<clock_timestamp()-interval '7 days' AND NOT EXISTS(SELECT FROM plugin_v2_runs r WHERE r.event_cursor=j.cursor) AND j.cursor<coalesce((SELECT min(cursor) FROM plugin_v2_event_journal WHERE ingested_at>=clock_timestamp()-interval '7 days'),9223372036854775807) ORDER BY j.cursor LIMIT 1000) q`).Scan(&cursors)
 	if e != nil {
 		return e
 	}
-	if floor > 0 {
+	if len(cursors) > 0 {
+		floor := cursors[len(cursors)-1]
 		// Rows inserted manually/missing receipts must fail closed, not re-ingest.
 		var missing bool
-		if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM plugin_v2_event_journal j JOIN outbox_events o ON o.id=j.event_id WHERE j.cursor<=$1 AND o.plugin_journal_cursor IS DISTINCT FROM j.cursor)`, floor).Scan(&missing); e != nil {
+		if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM plugin_v2_event_journal j JOIN outbox_events o ON o.id=j.event_id WHERE j.cursor=ANY($1::bigint[]) AND o.plugin_journal_cursor IS DISTINCT FROM j.cursor)`, cursors).Scan(&missing); e != nil {
 			return e
 		}
 		if missing {
 			return errors.New("journal receipt mismatch; collection stopped")
 		}
-		if _, e = tx.Exec(ctx, `DELETE FROM plugin_v2_event_journal WHERE cursor<=$1`, floor); e != nil {
+		if _, e = tx.Exec(ctx, `DELETE FROM plugin_v2_event_journal WHERE cursor=ANY($1::bigint[])`, cursors); e != nil {
 			return e
 		}
 		if _, e = tx.Exec(ctx, `UPDATE plugin_v2_journal_retention SET retired_cursor=greatest(retired_cursor,$1) WHERE singleton`, floor); e != nil {
@@ -85,7 +87,7 @@ func (s Store) CollectJournal(ctx context.Context) error {
 	// Compact only consumed source payloads after notification dispatch; keep
 	// id/type/aggregate receipts forever for EmitTx / business transition dedupe.
 	// Never delete source rows, pending notifications, or plugin.notice receipts.
-	if _, e = tx.Exec(ctx, `WITH ready AS(SELECT id FROM outbox_events WHERE NOT plugin_compacted AND plugin_journal_cursor<=(SELECT retired_cursor FROM plugin_v2_journal_retention WHERE singleton) AND dispatched_at IS NOT NULL ORDER BY plugin_journal_cursor LIMIT 1000 FOR UPDATE SKIP LOCKED) UPDATE outbox_events o SET payload='{}',plugin_compacted=true FROM ready WHERE o.id=ready.id`); e != nil {
+	if _, e = tx.Exec(ctx, `WITH ready AS(SELECT id FROM outbox_events WHERE NOT plugin_compacted AND plugin_journal_cursor<=(SELECT retired_cursor FROM plugin_v2_journal_retention WHERE singleton) AND dispatched_at IS NOT NULL AND NOT EXISTS(SELECT FROM plugin_v2_event_journal j WHERE j.event_id=outbox_events.id) ORDER BY plugin_journal_cursor LIMIT 1000 FOR UPDATE SKIP LOCKED) UPDATE outbox_events o SET payload='{}',plugin_compacted=true FROM ready WHERE o.id=ready.id`); e != nil {
 		return e
 	}
 	return tx.Commit(ctx)
