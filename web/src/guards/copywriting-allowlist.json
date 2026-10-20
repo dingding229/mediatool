@@ -1,0 +1,22 @@
+{
+  "web/src/views/MediaServerView.vue": [
+    "推荐 Go",
+    "Provider v1"
+  ],
+  "web/src/views/PluginsView.vue": [
+    "SDK 契约",
+    "契约 V2",
+    "operationKey",
+    "fingerprint"
+  ],
+  "web/src/plugins/PluginAutomation.vue": [
+    "operationKey",
+    "fingerprint"
+  ],
+  "web/src/plugins/PluginSnapshots.vue": [
+    "operationKey"
+  ],
+  "web/src/plugins/PluginTools.vue": [
+    "operationKey"
+  ]
+}

@@ -46,7 +46,11 @@ export function searchNavigation(query: string) {
   return navigationItems.filter(item => terms.every(term => `${item.name} ${item.keywords} ${item.group}`.toLocaleLowerCase().includes(term)))
 }
 export function navigationLocation(path: string) {
- if(path==='/maintenance')return navigationItems.find(item=>item.id==='jobs')
+ if(path==='/maintenance' || path==='/ops')return navigationItems.find(item=>item.id==='jobs')
+ if(path==='/library')return navigationItems.find(item=>item.id==='mediaLibrary')
+ if(path==='/organize')return navigationItems.find(item=>item.id==='cloudStorage')
+ if(path==='/playback')return navigationItems.find(item=>item.id==='media-server')
+ if(path==='/connections')return navigationItems.find(item=>item.id==='cloud-connections')
   return navigationItems.find(item => path === `/${item.id}` || path.startsWith(`/${item.id}/`))
     ?? (path === '/emby' ? navigationItems.find(item => item.id === 'mediaLibrary') : undefined)
 }

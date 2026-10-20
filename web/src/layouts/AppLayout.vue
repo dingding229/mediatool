@@ -13,6 +13,8 @@ import { useSystemStore } from "../stores/system";
 import { navigationLocation } from "../navigation/items";
 import NavigationMenu from "../components/NavigationMenu.vue";
 import QuickNavigator from "../components/QuickNavigator.vue";
+import ThemeToggle from "../components/ThemeToggle.vue";
+
 const route = useRoute(),
   router = useRouter(),
   auth = useAuthStore(),
@@ -23,6 +25,7 @@ const menuOpen = ref(false),
 const expandedGroups = ref<string[]>([]);
 const current = computed(() => navigationLocation(route.path));
 let mobile: MediaQueryList | undefined;
+
 function onResize() {
   if (!mobile?.matches) menuOpen.value = false;
 }
@@ -76,19 +79,18 @@ async function logout() {
   <div class="app-shell">
     <a href="#main-content" class="skip-link">跳到主要内容</a>
     <aside class="sidebar" aria-label="主导航">
-      <RouterLink to="/dashboard" class="brand"
-        ><span class="brand-mark" aria-hidden="true"
-          ><span></span><span></span><span></span></span
-        ><span>Media Tool<small>你的媒体自动化工作台</small></span></RouterLink
-      >
+      <RouterLink to="/dashboard" class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span>Media Tool<small>你的媒体自动化工作台</small></span>
+      </RouterLink>
       <NavigationMenu v-model:expanded="expandedGroups" />
       <div class="sidebar-note">
-        <span class="sidebar-system-dot" aria-hidden="true"></span
-        ><span
-          >媒体自动化<span class="build-label">{{
-            system.status?.version ?? "读取版本中"
-          }}</span></span
-        >
+        <span class="sidebar-system-dot" aria-hidden="true"></span>
+        <span>媒体自动化<span class="build-label">{{
+          system.status?.version ?? "读取版本中"
+        }}</span></span>
       </div>
     </aside>
     <el-drawer
@@ -113,11 +115,11 @@ async function logout() {
             :aria-expanded="menuOpen"
             @click="menuOpen = true"
           >
-            <MenuIcon aria-hidden="true" /></button
-          ><span>{{ current?.group ?? "工作台" }}</span
-          ><ArrowRight class="topbar-divider" aria-hidden="true" /><strong>{{
-            current?.name ?? "媒体管理"
-          }}</strong>
+            <MenuIcon aria-hidden="true" />
+          </button>
+          <span>{{ current?.group ?? "工作台" }}</span>
+          <ArrowRight class="topbar-divider" aria-hidden="true" />
+          <strong>{{ current?.name ?? "媒体管理" }}</strong>
         </div>
         <div class="topbar-actions">
           <button
@@ -125,15 +127,17 @@ async function logout() {
             aria-label="快速前往"
             @click="navigatorOpen = true"
           >
-            <Search aria-hidden="true" /><span>快速前往</span
-            ><kbd>⌘ / Ctrl K</kbd>
+            <Search aria-hidden="true" /><span>快速前往</span>
+            <kbd>⌘ / Ctrl K</kbd>
           </button>
+          <ThemeToggle />
           <RouterLink
             to="/notifications"
             class="icon-button notification-link"
             aria-label="查看通知"
-            ><Bell aria-hidden="true"
-          /></RouterLink>
+          >
+            <Bell aria-hidden="true" />
+          </RouterLink>
           <span class="environment">{{
             system.status?.environment === "production"
               ? "生产环境"
@@ -150,8 +154,8 @@ async function logout() {
         <RouterView />
       </main>
       <footer class="app-footer">
-        <span>Media Tool · 资源到播放，一站整理</span
-        ><span>仅展示真实服务数据</span>
+        <span>Media Tool · 资源到播放，一站整理</span>
+        <span>仅展示真实服务数据</span>
       </footer>
     </div>
     <QuickNavigator v-model="navigatorOpen" />
