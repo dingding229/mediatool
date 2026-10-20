@@ -6,9 +6,9 @@
 
 | 分类 | operations |
 |---|---:|
-| 未检出静态使用 | 434 |
-| 前端直接调用 | 162 |
-| 资源/链接使用 | 3 |
+| 未检出静态使用 | 432 |
+| 前端直接调用 | 163 |
+| 资源/链接使用 | 4 |
 | 前端经适配调用 | 23 |
 | 仅适配层调用 | 3 |
 
@@ -272,19 +272,19 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | POST | `/api/v1/media/assets/{id}/grant/rotate` | management | 前端直接调用 | `web/src/views/LibraryView.vue:532` |
 | POST | `/api/v1/media/assets/{id}/identity` | management | 前端直接调用 | `web/src/views/LibraryView.vue:468`、`web/src/views/LibraryView.vue:508` |
 | POST | `/api/v1/media/assets/{id}/identity-preview` | management | 前端直接调用 | `web/src/views/LibraryView.vue:456` |
-| GET | `/api/v1/media/assets/{id}/strm` | management | 未检出静态使用 |  |
+| GET | `/api/v1/media/assets/{id}/strm` | management | 资源/链接使用 | `web/src/media/model.ts:40` |
 | HEAD | `/api/v1/media/assets/{id}/strm` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/assets/{id}/validation-ref` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/assets/{id}/validation-ref` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/emby/items/{id}` | management | 前端直接调用 | `web/src/views/MediaLibraryView.vue:17` |
+| GET | `/api/v1/media/emby/items/{id}` | management | 前端直接调用 | `web/src/media/useCatalog.ts:85` |
 | HEAD | `/api/v1/media/emby/items/{id}` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/library` | management | 前端直接调用 | `web/src/views/MediaLibraryView.vue:13` |
+| GET | `/api/v1/media/library` | management | 前端直接调用 | `web/src/media/useCatalog.ts:31` |
 | HEAD | `/api/v1/media/library` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/library/emby/{id}/image` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/library/emby/{id}/image` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/library/emby/home` | management | 前端直接调用 | `web/src/components/EmbyHome.vue:8` |
+| GET | `/api/v1/media/library/emby/home` | management | 前端直接调用 | `web/src/media/useCatalog.ts:24` |
 | HEAD | `/api/v1/media/library/emby/home` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/library/sources` | management | 未检出静态使用 |  |
+| GET | `/api/v1/media/library/sources` | management | 前端直接调用 | `web/src/media/useCatalog.ts:15` |
 | HEAD | `/api/v1/media/library/sources` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/organize-history` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/organize-history` | management | 未检出静态使用 |  |
@@ -292,7 +292,7 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | GET | `/api/v1/media/tmdb/image` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/tmdb/image` | management | 未检出静态使用 |  |
 | POST | `/api/v1/messaging/command-actions` | management | 未检出静态使用 |  |
-| GET | `/api/v1/metadata/details` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:165`、`web/src/acquisition/MediaContext.vue:28` |
+| GET | `/api/v1/metadata/details` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:165`、`web/src/acquisition/MediaContext.vue:28`、`web/src/media/useCatalog.ts:91` |
 | HEAD | `/api/v1/metadata/details` | management | 未检出静态使用 |  |
 | GET | `/api/v1/metadata/episodes` | management | 前端直接调用 | `web/src/views/LibraryView.vue:426` |
 | HEAD | `/api/v1/metadata/episodes` | management | 未检出静态使用 |  |

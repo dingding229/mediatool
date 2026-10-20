@@ -1,0 +1,16 @@
+import {test,expect} from '@playwright/test'
+import {mkdirSync} from 'node:fs'
+import {u4Fixture} from './u4-fixture'
+test.beforeEach(async({page})=>u4Fixture(page))
+test('U4 source switching preserves original STRM and never fabricates an Emby stream',async({page})=>{
+ const writes:string[]=[];page.on('request',r=>{if(r.url().includes('/api/')&&r.method()!=='GET')writes.push(r.url())});await page.goto('/library');await page.locator('.media-poster-card').first().click();const detail=page.getByRole('dialog',{name:'海边的故事',exact:true});await expect(detail.getByRole('link',{name:'下载原始 STRM 播放',exact:true})).toHaveAttribute('href','/api/v1/media/assets/owned-asset/strm');await detail.getByRole('button',{name:'关闭',exact:true}).click();await page.getByRole('navigation',{name:'媒体库来源'}).getByRole('button',{name:'Emby',exact:true}).click();await page.getByRole('button',{name:/Emby影片/}).click();await expect(page.getByRole('dialog',{name:'海边的故事',exact:true})).toContainText('此条目未提供可用播放入口');expect(writes).toEqual([])
+})
+test('U4 plugin sources stay read-only and retain their attribution and pagination contract',async({page})=>{
+ await page.goto('/library');await page.getByRole('button',{name:'插件来源',exact:true}).click();await expect(page.getByRole('button',{name:/插件发现条目/})).toBeVisible();await page.getByRole('button',{name:/插件发现条目/}).click();await expect(page.getByRole('dialog',{name:'插件发现条目',exact:true})).toContainText('只读媒体信息');await expect(page.getByRole('link',{name:'下载原始 STRM 播放',exact:true})).toHaveCount(0)
+})
+test('U4 long page keeps the sidebar column painted while only its inner navigation is sticky',async({page})=>{
+ await page.route('**/api/v1/media/library?*',r=>r.fulfill({json:{data:{items:Array.from({length:24},(_,i)=>({id:'owned-'+i,source:'managed',title:'媒体 '+i,mediaType:'movie'})),total:24}}}));await page.goto('/library');const aside=page.getByRole('complementary',{name:'主导航'});expect((await aside.boundingBox())!.height).toBeGreaterThan(1000);expect(await aside.evaluate(el=>getComputedStyle(el).backgroundColor)).toBe(await page.locator('.workbench-brand').evaluate(el=>getComputedStyle(el.parentElement!.parentElement!).backgroundColor));await page.evaluate(()=>scrollTo(0,700));expect((await aside.locator('.workbench-sidebar-inner').boundingBox())!.y).toBe(0)
+})
+test('U4 library screenshots fit 375 and 1440 in both themes',async({page})=>{
+ const dir='/tmp/media-tool-u4-screenshots';mkdirSync(dir,{recursive:true});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='warning'&&m.text().includes('Failed to resolve component'))errors.push(m.text())});for(const width of [375,1440])for(const theme of ['light','dark']){await page.setViewportSize({width,height:width===375?950:1000});await page.addInitScript(v=>localStorage.setItem('media-tool:theme-mode:v1',v),theme);await page.goto('/library');await expect(page.locator('.media-poster-card')).toHaveCount(1);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`${dir}/library-${width}-${theme}.png`,fullPage:true,animations:'disabled'})}expect(errors).toEqual([])
+})

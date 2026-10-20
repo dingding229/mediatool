@@ -69,6 +69,6 @@ test('administrator actively reveals one field, can hide it, and closing discard
  await dialog.getByRole('button',{name:'显示CloudDrive2 API Token',exact:true}).click();await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(dialog).not.toBeVisible();await row.getByRole('button',{name:'编辑',exact:true}).click();await expect(dialog.getByLabel('CloudDrive2 API Token已保存值',{exact:true})).toHaveCount(0);expect(reveals).toBe(2)
 })
 test('desktop sidebar stays viewport-tall after page scroll and navigation scrolls internally',async({page})=>{
- await page.goto('/dashboard');const aside=page.getByRole('complementary',{name:'主导航'});await page.evaluate(()=>scrollTo(0,900));const box=await aside.boundingBox();expect(box!.y).toBe(0);expect(box!.height).toBe(1000)
+ await page.goto('/dashboard');const aside=page.getByRole('complementary',{name:'主导航'});await page.evaluate(()=>scrollTo(0,900));const box=await aside.locator('.workbench-sidebar-inner').boundingBox();expect(box!.y).toBe(0);expect(box!.height).toBe(1000);expect((await aside.boundingBox())!.height).toBeGreaterThanOrEqual(await page.locator('.workbench-main').evaluate(el=>el.getBoundingClientRect().height))
  await page.setViewportSize({width:1440,height:560});const nav=aside.locator('.navigation-content');expect(await nav.evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);await expect(aside.locator('.workbench-version')).toBeInViewport();await nav.evaluate(el=>el.scrollTop=el.scrollHeight);await expect(aside.getByRole('link',{name:'设置',exact:true})).toBeInViewport()
 })
