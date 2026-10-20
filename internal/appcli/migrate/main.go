@@ -30,7 +30,7 @@ func Main() {
 		os.Exit(1)
 	}
 	defer deferutil.Close(db, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	if err = db.PingContext(ctx); err != nil {
 		slog.Error("database unavailable")
