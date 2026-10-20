@@ -21,3 +21,11 @@
 - 按已禁止功能退役4个relay正向用例及旧relay吞吐用例；替换为96次并发严格302、非DirectOnly来源零媒体读取、GET/HEAD/非法method与provider headers拒绝、Emby false策略不可重开媒体代理。旧“保留转码/原媒体fallback”断言改为明确409且上游零媒体；账号、权限、撤销、logout、STRM来源校验等负向断言未放宽。
 - S5新增单次解码/编码穿越测试，保留字面percent文件名，不做危险的二次解码。S4真实复合FK/state跨实例、snapshot兼容/链接/可执行文件拒绝、准备态交换崩溃恢复，以及鉴权/CSRF/会话、worker环境等现有套件全部实际执行。Linux内核/资源隔离依R2留Actions。
 - 组件race最终通过：playback/strm/networkproxy/auth/accounts/business/v2/httpapi/integrations及迁移state/ownership用例；针对旧断言/编译遗漏发现的失败均已修复后复跑，未把初轮失败计为通过。尚不声称Q5c全仓一次性门完成。
+
+## Q5c：依赖复扫与一次性完整门
+
+- 单次完整命令：任务专用media-tool-dev test-lock bash "$TASKROOT/gates-q5c.sh"；脚本set -euo pipefail，顺序执行下表全部命令。真实日志以COMPLETE_GATE_EXIT_0和complete-command-exit=0结束；没有跳过恢复夹具/集成/E2E，也没有用多次局部成功拼接门禁。MEDIA_TOOL_REQUIRE_FFMPEG=1，race默认-p1/-count=1/-timeout=20m。
+- 耗时（秒）：build-web 12.13；go build ./... 4.79；go vet ./... 0.86；scripts/test-go.sh全仓race 653.99；errcheck 1.18；Vue 3.76（47文件159测试）；plugins check 0.28、assets --check 0.14、matrix --check 0.14；完整E2E 172.29（122通过，1个原有Linux专用case按平台跳过）；govulncheck 3.94（0可达/导入包漏洞）。原生Linux资源门仍是Q6 Actions阻断项，不能把Mac跳过算成通过。
+- 全仓发现M0协议/E2E仍期待已禁止relay和可切换直链策略；更新为header-requiring来源409/零媒体读取、fresh302、Emby302、HLS409，以及直链checkbox必须checked+disabled。原鉴权、私有原值日志和媒体来源断言保留。没有CSS/视觉改动。
+- go list -m -u -e -json all：138模块、0查询错误，完整版本表见20261020-q5-dependencies.md。未修改go.mod/go.sum，未升大版本或插件pin；require-only GO-2026-5932不在导入/可达包内且无已发布修复，按报告保留风险，不假称所有模块均无advisory。
+- Q6只读预检SQL与发布步骤草案随附；当前没有生产查询、push、Actions触发或部署。Q5.5将以合成schema65夹具实际验证SQL的READ ONLY、断言中止与不改数据。

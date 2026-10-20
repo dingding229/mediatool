@@ -165,16 +165,17 @@ func TestProtocolFixtureSTRMCloudGRPCEmbyAndMediaFlow(t *testing.T) {
 		res := request(method, stable, "")
 		data, _ := io.ReadAll(res.Body)
 		res.Body.Close()
-		if res.StatusCode != 206 || res.Header.Get("X-Media-Delivery") != "proxy" {
+		if res.StatusCode != 409 || res.Header.Get("Location") != "" || res.Header.Get("X-Media-Delivery") == "proxy" {
 			t.Fatal(res.StatusCode, string(data))
 		}
-		if method == "GET" && string(data) != "456789ab" {
-			t.Fatal(string(data))
+		if method == "GET" && (len(data) > 1024 || strings.Contains(string(data), "456789ab")) {
+			t.Fatal("media relay accepted", string(data))
 		}
 		if method == "HEAD" && len(data) != 0 {
 			t.Fatal("HEAD streamed body")
 		}
 	}
+	cloud.headerMode.Store(false)
 	embyURL := app.URL + "/emby/Videos/item-1/stream.mkv?Static=true&MediaSourceId=source-1"
 	denied := request("GET", embyURL, "wrong-token")
 	denied.Body.Close()
@@ -184,7 +185,7 @@ func TestProtocolFixtureSTRMCloudGRPCEmbyAndMediaFlow(t *testing.T) {
 	served := request("GET", embyURL, "user-test-token")
 	data, _ := io.ReadAll(served.Body)
 	served.Body.Close()
-	if served.StatusCode != 206 || served.Header.Get("X-Media-Gateway") != "emby-static" || string(data) != "456789ab" {
+	if served.StatusCode != 302 || served.Header.Get("X-Media-Gateway") != "emby-static" || served.Header.Get("Location") == "" || strings.Contains(string(data), "456789ab") {
 		t.Fatal(served.StatusCode, string(data))
 	}
 	cloud.headerMode.Store(false)
@@ -198,10 +199,10 @@ func TestProtocolFixtureSTRMCloudGRPCEmbyAndMediaFlow(t *testing.T) {
 	callsBefore := cloud.calls.Load()
 	hls := request("GET", app.URL+"/emby/Videos/item-1/master.m3u8", "user-test-token")
 	hls.Body.Close()
-	if hls.StatusCode != 200 || cloud.calls.Load() != callsBefore || originalCalls.Load() != 1 {
-		t.Fatal("transcoding path was intercepted")
+	if hls.StatusCode != 409 || cloud.calls.Load() != callsBefore || originalCalls.Load() != 0 {
+		t.Fatal("transcoding path reached upstream")
 	}
-	if mediaCalls.Load() != 3 {
+	if mediaCalls.Load() != 0 {
 		t.Fatal("unexpected media reads", mediaCalls.Load())
 	}
 	// Inspect metadata is deliberately not a real-device playback assertion.

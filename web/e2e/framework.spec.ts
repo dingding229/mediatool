@@ -270,14 +270,14 @@ test('Go template catalog supports selective loading, version, icon and website'
  await page.screenshot({path:resolve(screenshots,'go-templates-mobile.png'),fullPage:true,animations:'disabled'})
 })
 
-test('strict direct-only policy is explicit, persistent and visible (isolated settings fixture)',async({page})=>{
+test('strict direct-only policy is immutable and visible (isolated settings fixture)',async({page})=>{
  await fixtureLogin(page);await page.goto('/mediaLibrary')
  await page.getByRole('button',{name:'Emby 配置',exact:true}).click()
  await page.getByRole('button',{name:'添加连接'}).click()
  const name='Direct-only fixture '+Date.now()
  await page.getByLabel('连接名称',{exact:true}).fill(name)
  await page.getByLabel('Emby 服务地址',{exact:true}).fill('http://127.0.0.1:9')
- await page.getByText('仅直链播放：禁止转码和媒体中转',{exact:true}).click()
+ await expect(page.getByRole('checkbox',{name:'仅直链播放：禁止转码和媒体中转'})).toBeDisabled()
  await expect(page.getByRole('checkbox',{name:'仅直链播放：禁止转码和媒体中转'})).toBeChecked()
  await expect(page.getByText(/不支持原始TS\/MKV或音频格式/)).toBeVisible()
  await page.getByRole('button',{name:'加密保存',exact:true}).click()
