@@ -22,18 +22,12 @@ var CipherColumns = []CipherColumn{
 	{Table: "manual_download_tasks", Column: "payload_ciphertext", AADPrefix: "manual-download:"},
 	{Table: "external_api_keys", Column: "token_ciphertext", AADPrefix: "api-key:"},
 	{Table: "network_proxy_settings", Column: "url_ciphertext", AADPrefix: "network-proxy:", AllowEmpty: true},
-	{Table: "plugin_legacy_wasm_plugins", Column: "plugin_data_ciphertext", AADPrefix: "plugin-data:", AllowEmpty: true},
-	{Table: "plugin_legacy_wasm_plugins", Column: "config_ciphertext", AADPrefix: "plugin:", AllowEmpty: true},
-	{Table: "extension_plugins", Column: "plugin_data_ciphertext", AADPrefix: "plugin-data:", AllowEmpty: true},
-	{Table: "extension_plugins", Column: "config_ciphertext", AADPrefix: "plugin:", AllowEmpty: true},
 	{Table: "integrations", Column: "credentials_ciphertext"},
 	{Table: "resources", Column: "download_hint_ciphertext"},
 	{Table: "search_run_resources", Column: "download_hint_ciphertext", AADPrefix: "search-run:"},
 	{Table: "playback_grants", Column: "token_ciphertext"},
 	{Table: "media_artifact_journal", Column: "content_ciphertext"},
-	{Table: "site_accounts", Column: "credentials_ciphertext"},
 	{Table: "storage_connections", Column: "credentials_ciphertext"},
-	{Table: "notification_channels", Column: "credentials_ciphertext"},
 	{Table: "open115_authorizations", Column: "payload_ciphertext", AADPrefix: "open115-auth:", AllowEmpty: true},
 }
 
@@ -51,7 +45,7 @@ func Rekey(ctx context.Context, db *pgxpool.Pool, old, next *Vault, dryRun bool)
 		if err = tx.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, spec.Table).Scan(&exists); err != nil {
 			return nil, err
 		}
-		if !exists && (spec.Table == "plugin_v2_state_values" || spec.Table == "plugin_v2_runs" || spec.Table == "extension_plugins" || spec.Table == "plugin_legacy_wasm_plugins" || spec.Table == "plugin_v2_configs" || spec.Table == "plugin_v2_kv") {
+		if !exists && (spec.Table == "plugin_v2_state_values" || spec.Table == "plugin_v2_runs" || spec.Table == "plugin_v2_configs" || spec.Table == "plugin_v2_kv") {
 			continue
 		}
 		table := pgx.Identifier{spec.Table}.Sanitize()

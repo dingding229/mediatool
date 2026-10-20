@@ -168,54 +168,10 @@ func syncLibraries(ctx context.Context, tx pgx.Tx, plans []byte, revision int64)
   WHERE NOT hidden AND id NOT IN('f:movie','f:series') AND NOT EXISTS(SELECT 1 FROM jsonb_to_recordset($1::jsonb)AS p(id text) WHERE p.id=native_libraries.id)`, string(plans), revision); err != nil {
 		return err
 	}
-	// Fallbacks are assignment-owned, never classification-plan members. Repair
-	// their persisted visibility in this transaction, including on startup, and
-	// before expanding legacy grants to the resulting visible libraries.
-	if err := hideFallback(ctx, tx); err != nil {
-		return err
-	}
-	rows, err := tx.Query(ctx, `SELECT user_id,media_type,can_play FROM media_user_legacy_grants FOR UPDATE`)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	type legacyGrant struct {
-		userID, mediaType string
-		canPlay           bool
-	}
-	pending := []legacyGrant{}
-	for rows.Next() {
-		var g legacyGrant
-		if err := rows.Scan(&g.userID, &g.mediaType, &g.canPlay); err != nil {
-			return err
-		}
-		pending = append(pending, g)
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	for _, g := range pending {
-		collection := "movies"
-		if g.mediaType == "series" {
-			collection = "tvshows"
-		}
-		var visible int64
-		if err := tx.QueryRow(ctx, `SELECT count(*) FROM native_libraries WHERE NOT hidden AND collection_type=$1`, collection).Scan(&visible); err != nil {
-			return err
-		}
-		if visible == 0 {
-			continue
-		}
-		if _, err := tx.Exec(ctx, `INSERT INTO media_user_library_grants(user_id,library_id,can_play,can_download)
-          SELECT $1,id,$2,false FROM native_libraries WHERE NOT hidden AND collection_type=$3 ON CONFLICT(user_id,library_id) DO NOTHING`, g.userID, g.canPlay, collection); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `DELETE FROM media_user_legacy_grants WHERE user_id=$1 AND media_type=$2`, g.userID, g.mediaType); err != nil {
-			return err
-		}
-	}
-	return err
+	// Fallback visibility is assignment-owned, not classification-plan membership.
+	return hideFallback(ctx, tx)
 }
+
 func (r Repository) List(ctx context.Context, start, limit int) (Page, error) {
 	out := Page{Items: []Library{}, StartIndex: start, Limit: limit}
 	if start < 0 || start > 1000000 || limit < 1 || limit > 200 {

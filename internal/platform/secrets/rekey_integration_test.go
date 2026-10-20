@@ -26,8 +26,8 @@ func TestPostgresRekeyDryRunAndRollback(t *testing.T) {
 	if name != "media_tool_test" {
 		t.Fatal("test DB required")
 	}
-	db.Exec(ctx, `TRUNCATE integrations,resources,storage_connections,site_accounts,notification_channels,cloud_files,media_assets CASCADE`)
-	defer db.Exec(ctx, `TRUNCATE integrations,resources,storage_connections,site_accounts,notification_channels,cloud_files,media_assets CASCADE`)
+	db.Exec(ctx, `TRUNCATE integrations,resources,storage_connections,cloud_files,media_assets CASCADE`)
+	defer db.Exec(ctx, `TRUNCATE integrations,resources,storage_connections,cloud_files,media_assets CASCADE`)
 	old, _ := New(strings.Repeat("a", 64))
 	next, _ := New(strings.Repeat("b", 64))
 	id := jobs.UUID()
@@ -52,7 +52,7 @@ func TestPostgresRekeyDryRunAndRollback(t *testing.T) {
 	}
 	// Any invalid ciphertext aborts the whole transaction, including prior rows.
 	broken := jobs.UUID()
-	db.Exec(ctx, `INSERT INTO notification_channels(id,name,kind,credentials_ciphertext)VALUES($1,'broken','telegram',$2)`, broken, []byte("bad"))
+	db.Exec(ctx, `INSERT INTO storage_connections(id,name,provider,credentials_ciphertext)VALUES($1,'broken','clouddrive2',$2)`, broken, []byte("bad"))
 	if _, err = Rekey(ctx, db, next, old, false); err == nil {
 		t.Fatal("partial rekey committed")
 	}
@@ -78,10 +78,10 @@ func TestPostgresRekeyIncludesScopedOfficialAuthorizationPayloads(t *testing.T) 
 	if err = db.QueryRow(ctx, `SELECT current_database()`).Scan(&databaseName); err != nil || databaseName != "media_tool_test" {
 		t.Fatal("isolated DB required")
 	}
-	if _, err = db.Exec(ctx, `TRUNCATE integrations,resources,storage_connections,site_accounts,notification_channels,cloud_files,media_assets,administrator_accounts CASCADE`); err != nil {
+	if _, err = db.Exec(ctx, `TRUNCATE integrations,resources,storage_connections,cloud_files,media_assets,administrator_accounts CASCADE`); err != nil {
 		t.Fatal(err)
 	}
-	defer db.Exec(ctx, `TRUNCATE integrations,resources,storage_connections,site_accounts,notification_channels,cloud_files,media_assets,administrator_accounts CASCADE`)
+	defer db.Exec(ctx, `TRUNCATE integrations,resources,storage_connections,cloud_files,media_assets,administrator_accounts CASCADE`)
 	old, _ := New(strings.Repeat("a", 64))
 	next, _ := New(strings.Repeat("b", 64))
 	connection, owner, active, completed := jobs.UUID(), jobs.UUID(), jobs.UUID(), jobs.UUID()
@@ -156,7 +156,7 @@ func TestPostgresRekeyIncludesScopedSearchSnapshots(t *testing.T) {
 	if err = db.QueryRow(ctx, `SELECT current_database()`).Scan(&name); err != nil || name != "media_tool_test" {
 		t.Fatal("isolated DB required", err)
 	}
-	clean := `TRUNCATE integrations,resources,storage_connections,site_accounts,notification_channels,cloud_files,media_assets,search_runs CASCADE`
+	clean := `TRUNCATE integrations,resources,storage_connections,cloud_files,media_assets,search_runs CASCADE`
 	if _, err = db.Exec(ctx, clean); err != nil {
 		t.Fatal(err)
 	}

@@ -106,7 +106,6 @@ func TestNativeSchemaEnumChecksMatchAllGoConstants(t *testing.T) {
 		{"native_item_ids_entity_type_check", "internal/modules/nativelibrary/states.go", "EntityType"},
 		{"native_libraries_collection_type_check", "internal/modules/nativelibrary/states.go", "CollectionType"},
 		{"native_asset_libraries_source_check", "internal/modules/nativelibrary/states.go", "AssetLibrarySource"},
-		{"media_user_legacy_grants_media_type_check", "internal/modules/mediausers/states.go", "LegacyMediaType"},
 		{"media_probe_results_state_check", "internal/modules/mediaprobe/states.go", "ProbeState"},
 		{"media_probe_results_error_class_check", "internal/modules/mediaprobe/linksource/types.go", "Class"},
 		{"media_probe_results_error_reason_check", "internal/modules/mediaprobe/linksource/types.go", "Reason"},

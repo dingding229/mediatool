@@ -46,11 +46,8 @@ func TestPostgresCloneGuardAndCompleteRekeyMigrationImmutability(t *testing.T) {
 	}
 	defer db.Exec(ctx, cleanup)
 	vault, _ := secrets.New(strings.Repeat("9", 64))
-	cipher, _ := vault.Seal("plugin:restore-fixture", map[string]string{"apiKey": "owned"})
-	state, _ := vault.Seal("plugin-data:restore-fixture", map[string]string{"data": "{\"count\":1}"})
-	manifest := []byte(`{"id":"restore-fixture","name":"Owned","version":"1","runtime":"wasm"}`)
-	module := []byte{0, 97, 115, 109, 1, 0, 0, 0}
-	_, e = db.Exec(ctx, `INSERT INTO plugin_legacy_wasm_plugins(id,name,version,manifest,config_ciphertext,plugin_data_ciphertext,wasm_module)VALUES('restore-fixture','Owned','1',$1,$2,$3,$4)`, manifest, cipher, state, module)
+	cipher, _ := vault.Seal("11111111-0000-4000-8000-000000000068", map[string]string{"apiKey": "owned"})
+	_, e = db.Exec(ctx, `INSERT INTO integrations(id,kind,name,credentials_ciphertext) VALUES('11111111-0000-4000-8000-000000000068','tmdb','restore fixture',$1)`, cipher)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -69,8 +66,8 @@ func TestPostgresCloneGuardAndCompleteRekeyMigrationImmutability(t *testing.T) {
 		t.Fatal(report, e)
 	}
 	var after []byte
-	db.QueryRow(ctx, `SELECT plugin_data_ciphertext FROM plugin_legacy_wasm_plugins WHERE id='restore-fixture'`).Scan(&after)
-	if string(after) != string(state) {
+	db.QueryRow(ctx, `SELECT credentials_ciphertext FROM integrations WHERE id='11111111-0000-4000-8000-000000000068'`).Scan(&after)
+	if string(after) != string(cipher) {
 		t.Fatal("dry-run modified state bytes")
 	}
 }

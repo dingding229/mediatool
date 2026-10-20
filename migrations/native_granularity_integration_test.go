@@ -18,7 +18,7 @@ func TestNativeLibraryGranularityMigrationAndCatalogSync(t *testing.T) {
 	f.version(t, 56)
 	user := "88888888-0000-4000-8000-000000000056"
 	f.exec(t, `INSERT INTO media_users(id,username,display_name,password_hash,credential_version)VALUES($1,'t11_user','Synthetic T11 user','synthetic-hash',1)`, user)
-	f.exec(t, `INSERT INTO media_user_legacy_grants(user_id,media_type,can_play)VALUES($1,'movie',true),($1,'series',false)`, user)
+
 	policy := classification.Policy{Groups: []classification.Group{
 		{ID: "movie", Name: "电影", Directory: "电影", MediaType: "movie", Enabled: true, Rules: []classification.Rule{{ID: "doc", Name: "纪录片", Directory: "纪录片", Enabled: true}}},
 		{ID: "series", Name: "电视剧", Directory: "电视剧", MediaType: "series", Enabled: true, Rules: []classification.Rule{{ID: "series-doc", Name: "纪录片", Directory: "纪录片", Enabled: true}}},
@@ -29,12 +29,7 @@ func TestNativeLibraryGranularityMigrationAndCatalogSync(t *testing.T) {
 	if err := repo.Sync(f.ctx, policy, 2, nativelibrary.GranularityRule); err != nil {
 		t.Fatal(err)
 	}
-	if f.integer(t, `SELECT count(*) FROM media_user_legacy_grants`) != 0 {
-		t.Fatal("legacy grants not consumed")
-	}
-	if f.integer(t, `SELECT count(*) FROM media_user_library_grants WHERE user_id=$1`, user) != 2 {
-		t.Fatal("legacy grants not expanded")
-	}
+	f.exec(t, `INSERT INTO media_user_library_grants(user_id,library_id,can_play) SELECT $1,id,collection_type='movies' FROM native_libraries WHERE NOT hidden`, user)
 	if f.integer(t, `SELECT count(*) FROM native_libraries WHERE NOT hidden`) != 2 {
 		t.Fatal("visible libraries")
 	}
