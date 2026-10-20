@@ -129,20 +129,20 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/data/redis/value` | management | 未检出静态使用 |  |
 | GET | `/api/v1/diagnostics/playback/preflight` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/diagnostics/playback/preflight` | management | 未检出静态使用 |  |
-| GET | `/api/v1/downloads` | management | 前端直接调用 | `web/src/views/DownloadsView.vue:154`、`web/src/acquisition/useDelivery.ts:62` |
+| GET | `/api/v1/downloads` | management | 前端直接调用 | `web/src/acquisition/useDelivery.ts:65`、`web/src/acquisition/useDownloads.ts:35` |
 | HEAD | `/api/v1/downloads` | management | 未检出静态使用 |  |
-| POST | `/api/v1/downloads` | management | 前端直接调用 | `web/src/acquisition/useDelivery.ts:83` |
-| POST | `/api/v1/downloads/{id}/cleanup` | management | 前端直接调用 | `web/src/views/DownloadsView.vue:66` |
-| POST | `/api/v1/downloads/{id}/cleanup/reconcile` | management | 前端直接调用 | `web/src/views/DownloadsView.vue:48` |
-| POST | `/api/v1/downloads/{id}/reconfirm-source` | management | 前端直接调用 | `web/src/components/DownloadSourceDialog.vue:11` |
+| POST | `/api/v1/downloads` | management | 前端直接调用 | `web/src/acquisition/useDelivery.ts:86` |
+| POST | `/api/v1/downloads/{id}/cleanup` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:112` |
+| POST | `/api/v1/downloads/{id}/cleanup/reconcile` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:167` |
+| POST | `/api/v1/downloads/{id}/reconfirm-source` | management | 前端直接调用 | `web/src/acquisition/SourceRecoveryDialog.vue:62` |
 | GET | `/api/v1/downloads/{id}/source-preview` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/downloads/{id}/source-preview` | management | 未检出静态使用 |  |
-| GET | `/api/v1/downloads/manual` | management | 前端直接调用 | `web/src/components/ManualDownloads.vue:49`、`web/src/dashboard/useDashboard.ts:5` |
+| GET | `/api/v1/downloads/manual` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/acquisition/useManual.ts:26` |
 | HEAD | `/api/v1/downloads/manual` | management | 未检出静态使用 |  |
-| POST | `/api/v1/downloads/manual` | management | 前端直接调用 | `web/src/components/ManualDownloads.vue:101` |
-| POST | `/api/v1/downloads/manual/{id}/inspect` | management | 前端直接调用 | `web/src/components/ManualDownloads.vue:118` |
-| POST | `/api/v1/downloads/manual/{id}/retry` | management | 前端直接调用 | `web/src/components/ManualDownloads.vue:130` |
-| POST | `/api/v1/downloads/sync` | management | 前端直接调用 | `web/src/components/ManualDownloads.vue:60`、`web/src/views/DownloadsView.vue:150` |
+| POST | `/api/v1/downloads/manual` | management | 前端直接调用 | `web/src/acquisition/useManual.ts:95` |
+| POST | `/api/v1/downloads/manual/{id}/inspect` | management | 前端直接调用 | `web/src/acquisition/useManual.ts:119` |
+| POST | `/api/v1/downloads/manual/{id}/retry` | management | 前端直接调用 | `web/src/acquisition/useManual.ts:143` |
+| POST | `/api/v1/downloads/sync` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:74`、`web/src/acquisition/useManual.ts:49` |
 | POST | `/api/v1/emby/check` | management | 未检出静态使用 |  |
 | POST | `/api/v1/emby/test` | management | 前端直接调用 | `web/src/connections/GatewayDiagnostics.vue:20` |
 | GET | `/api/v1/external-api/calls` | management | 前端直接调用 | `web/src/views/ExternalAPIView.vue:62` |
@@ -184,7 +184,7 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/jobs/browse` | management | 未检出静态使用 |  |
 | GET | `/api/v1/jobs/events` | management | 前端直接调用 | `web/src/views/JobsView.vue:158` |
 | HEAD | `/api/v1/jobs/events` | management | 未检出静态使用 |  |
-| GET | `/api/v1/library/activity` | management | 前端直接调用 | `web/src/views/OrganizeHistoryView.vue:137`、`web/src/dashboard/useDashboard.ts:5` |
+| GET | `/api/v1/library/activity` | management | 前端直接调用 | `web/src/views/OrganizeHistoryView.vue:137`、`web/src/dashboard/useDashboard.ts:5`、`web/src/acquisition/useDownloads.ts:35` |
 | HEAD | `/api/v1/library/activity` | management | 未检出静态使用 |  |
 | POST | `/api/v1/library/activity/remove` | management | 前端直接调用 | `web/src/views/OrganizeHistoryView.vue:100` |
 | GET | `/api/v1/library/archive-cleanups/{id}` | management | 前端直接调用 | `web/src/components/ArchiveManager.vue:18` |
@@ -298,7 +298,7 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/metadata/episodes` | management | 未检出静态使用 |  |
 | GET | `/api/v1/metadata/image/{size}/{file}` | management | 资源/链接使用 | `web/src/utils/tmdb-image.ts:3` |
 | HEAD | `/api/v1/metadata/image/{size}/{file}` | management | 未检出静态使用 |  |
-| GET | `/api/v1/metadata/search` | management | 前端直接调用 | `web/src/views/LibraryView.vue:365`、`web/src/acquisition/useDelivery.ts:46` |
+| GET | `/api/v1/metadata/search` | management | 前端直接调用 | `web/src/views/LibraryView.vue:365`、`web/src/acquisition/useDelivery.ts:49` |
 | HEAD | `/api/v1/metadata/search` | management | 未检出静态使用 |  |
 | POST | `/api/v1/notification-deliveries/{id}/retry` | management | 前端直接调用 | `web/src/connections/NotificationHistory.vue:41` |
 | GET | `/api/v1/notifications` | management | 前端直接调用 | `web/src/connections/NotificationHistory.vue:22` |
@@ -321,7 +321,7 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | POST | `/api/v1/ops/resume` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:287` |
 | GET | `/api/v1/ops/trends` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:170` |
 | HEAD | `/api/v1/ops/trends` | management | 未检出静态使用 |  |
-| POST | `/api/v1/pipeline/{kind}/{id}/retry` | management | 前端直接调用 | `web/src/views/DownloadsView.vue:172` |
+| POST | `/api/v1/pipeline/{kind}/{id}/retry` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:114` |
 | GET | `/api/v1/player-access/events` | management | 前端直接调用 | `web/src/views/PlayerAccessView.vue:69` |
 | HEAD | `/api/v1/player-access/events` | management | 未检出静态使用 |  |
 | GET | `/api/v1/player-access/observations` | management | 前端直接调用 | `web/src/views/PlayerAccessView.vue:124` |
@@ -449,13 +449,13 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/system/runtime` | management | 未检出静态使用 |  |
 | GET | `/api/v1/system/status` | management | 前端直接调用 | `web/src/stores/system.ts:7`、`web/src/connections/GatewayDiagnostics.vue:7` |
 | HEAD | `/api/v1/system/status` | management | 未检出静态使用 |  |
-| GET | `/api/v1/transfers` | management | 前端直接调用 | `web/src/views/DownloadsView.vue:155`、`web/src/dashboard/useDashboard.ts:5` |
+| GET | `/api/v1/transfers` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/acquisition/useDownloads.ts:35` |
 | HEAD | `/api/v1/transfers` | management | 未检出静态使用 |  |
-| POST | `/api/v1/transfers/{id}/control` | management | 前端直接调用 | `web/src/views/DownloadsView.vue:186`、`web/src/views/DownloadsView.vue:220`、`web/src/views/DownloadsView.vue:246` |
-| GET | `/api/v1/transfers/{id}/output-preview` | management | 前端直接调用 | `web/src/components/OutputRecoveryDialog.vue:8` |
+| POST | `/api/v1/transfers/{id}/control` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:116`、`web/src/acquisition/useDownloads.ts:147` |
+| GET | `/api/v1/transfers/{id}/output-preview` | management | 前端直接调用 | `web/src/components/OutputRecoveryDialog.vue:8`、`web/src/acquisition/OutputRecoveryDialog.vue:23` |
 | HEAD | `/api/v1/transfers/{id}/output-preview` | management | 未检出静态使用 |  |
-| POST | `/api/v1/transfers/{id}/resume-import` | management | 前端直接调用 | `web/src/components/OutputRecoveryDialog.vue:10` |
-| GET | `/api/v1/transfers/{id}/sessions` | management | 前端直接调用 | `web/src/views/DownloadsView.vue:229` |
+| POST | `/api/v1/transfers/{id}/resume-import` | management | 前端直接调用 | `web/src/components/OutputRecoveryDialog.vue:10`、`web/src/acquisition/OutputRecoveryDialog.vue:50` |
+| GET | `/api/v1/transfers/{id}/sessions` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:187` |
 | HEAD | `/api/v1/transfers/{id}/sessions` | management | 未检出静态使用 |  |
 | GET | `/Branding/Configuration` | native-media | 未检出静态使用 |  |
 | HEAD | `/Branding/Configuration` | native-media | 未检出静态使用 |  |

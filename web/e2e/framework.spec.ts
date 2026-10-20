@@ -36,12 +36,12 @@ test.afterEach(async({page},info)=>{
  await info.attach('isolated-transport-diagnostic',{body:JSON.stringify(diagnostic),contentType:'application/json'})
 })
 async function navigate(page:import('@playwright/test').Page,name:string){
- const aliases:Record<string,[string,string?]>={'系统设置':['settings','general'],'PT 站点':['sites','accounts'],'STRM工具':['files','tools'],'STRM目录':['files','strm'],'下载与传输':['downloads','tasks'],'云盘索引':['organize','library'],'任务队列':['ops','jobs'],'程序日志':['ops','logs'],'自研媒体库':['playback','settings'],'资源订阅':['subscriptions']}
+ const aliases:Record<string,[string,string?]>={'系统设置':['settings','general'],'PT 站点':['sites','accounts'],'STRM工具':['files','tools'],'STRM目录':['files','strm'],'下载与传输':['downloads','uploads'],'云盘索引':['organize','library'],'任务队列':['ops','jobs'],'程序日志':['ops','logs'],'自研媒体库':['playback','settings'],'资源订阅':['subscriptions']}
  const target=aliases[name]??[navigationItems.find(item=>item.name===name)?.id];const item=navigationItems.find(item=>item.id===target[0]);if(!item)throw new Error('Unknown navigation target: '+name)
  const menu=page.getByRole('navigation',{name:'功能导航'})
  if(!await menu.isVisible())await page.getByRole('button',{name:'打开导航',exact:true}).click()
  await menu.getByRole('link',{name:item.name,exact:true}).click()
- if(target[1]){const tab=page.locator('.workflow-page-navigation .page-tabs').getByRole('button').filter({hasText:({tools:'STRM 工具',strm:'STRM 目录',library:'入库整理',jobs:'任务队列',logs:'日志',settings:'服务设置',accounts:'站点账号',general:'系统配置'} as Record<string,string>)[target[1]]??''});if(await tab.count()===1)await tab.click()}
+ if(target[1]){const tab=page.locator(['search','downloads'].includes(target[0])?'.acquire-workspace .page-tabs':'.workflow-page-navigation .page-tabs').getByRole('button').filter({hasText:({tasks:'下载任务',uploads:'上传入库',manual:'手动添加',tools:'STRM 工具',strm:'STRM 目录',library:'入库整理',jobs:'任务队列',logs:'日志',settings:'服务设置',accounts:'站点账号',general:'系统配置'} as Record<string,string>)[target[1]]??''});await expect(tab).toHaveCount(1);await tab.click()}
 }
 async function login(page:import('@playwright/test').Page){
  await page.goto('/login')
@@ -464,14 +464,14 @@ test('blocked legacy imports require read-only review before import-only approva
  await page.route(`**/api/v1/transfers/${transfer}/output-preview`,route=>route.fulfill({json:{data:{transferId:transfer,assetId:asset,controlRevision:1,assetRevision:migrated?2:1,state:'needs_output_reconciliation',existingPaths:migrated?['TV/Owned/S01E01.strm','TV/Owned/S01E03.strm']:['TV/Owned/S01E01E03.strm'],expectedPaths:['TV/Owned/S01E01.strm','TV/Owned/S01E03.strm'],needsMigration:!migrated,needsArtifactRecovery:false,ready:migrated,planDigest:migrated?'e'.repeat(64):'',message:migrated?'现有输出布局一致，可恢复入库':'旧布局会补出未声明集号，先明确迁移',noUploadRecreation:true,sourceFilesPreserved:true}}}))
  await page.route(`**/api/v1/transfers/${transfer}/resume-import`,async route=>{approvals.push(route.request().postDataJSON());await route.fulfill({json:{data:{approved:true,uploadRestarted:false}}})})
  await fixtureLogin(page);await navigate(page,'下载与传输')
- const row=page.getByRole('row').filter({hasText:'Owned.S01E01E03.mkv'})
+ const row=page.locator('.acquire-task').filter({hasText:'Owned.S01E01E03.mkv'})
  await expect(row.getByRole('button',{name:'恢复',exact:true})).toHaveCount(0)
  await row.getByRole('button',{name:'核对入库恢复',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'核对并恢复已有入库',exact:true})
  const resume=dialog.getByRole('button',{name:'明确恢复入库（不重新上传）',exact:true})
  await expect(resume).toBeDisabled();expect(approvals).toHaveLength(0)
  const link=dialog.getByRole('link',{name:'前往云盘索引核对该资产、恢复已有输出并明确预览迁移',exact:true})
- await expect(link).toHaveAttribute('href',`/cloudStorage?assetId=${asset}`)
+ await expect(link).toHaveAttribute('href',`/organize?tab=library&assetId=${asset}`)
  await dialog.getByRole('button',{name:'关闭',exact:true}).click();expect(approvals).toHaveLength(0)
  migrated=true;await row.getByRole('button',{name:'核对入库恢复',exact:true}).click()
  await expect(resume).toBeEnabled()
@@ -480,7 +480,7 @@ test('blocked legacy imports require read-only review before import-only approva
  await dialog.screenshot({path:resolve(screenshots,'output-import-recovery-preview-mobile.png'),animations:'disabled'})
  await resume.click();await expect.poll(()=>approvals.length).toBe(1)
  expect(approvals[0]).toEqual({controlRevision:1,planDigest:'e'.repeat(64)})
- await expect(page.getByText('入库恢复已明确批准；不重新上传、不改播放链接，请核对后续状态',{exact:true})).toBeVisible()
+ await expect(page.getByText('入库恢复已受理；不重新上传，请核对后续状态。',{exact:true})).toBeVisible()
 })
 
 test('download binds the selected search snapshot and announces refresh errors (fixture)',async({page})=>{
@@ -1006,7 +1006,7 @@ test('runtime update: overview metrics, categorized connections and separate dow
  await page.route('**/api/v1/system/runtime',r=>r.fulfill({json:{data:{server:{loadAverage:[.5,.4,.3],memoryUsed:2147483648,memoryTotal:8589934592,diskAvailable:107374182400,diskTotal:214748364800,uptimeSeconds:90000,sampledAt:new Date().toISOString()},daily:{sites:2,subscriptions:3,downloads:1,media:50,todaySearches:4,failedJobs:0}}}}));
  await fixtureLogin(page);await expect(page.getByText('100.0 GiB',{exact:true})).toBeVisible();for(const old of ['依赖服务','最近任务','资源到播放的路径'])await expect(page.getByRole('heading',{name:old,exact:true})).toHaveCount(0);await page.screenshot({path:resolve(screenshots,'runtime-dashboard.png'),fullPage:true,animations:'disabled'});
  await page.goto('/integrations');await expect(page.getByRole('region',{name:'服务就绪状态'})).toBeVisible();await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(0);
- await page.goto('/downloads');await expect(page.getByRole('heading',{name:'下载任务',exact:true})).toBeVisible();await expect(page.locator('.transfer-section')).toBeVisible();const gap=await page.evaluate(()=>document.querySelector('.transfer-section')!.getBoundingClientRect().top-document.querySelector('.download-section')!.getBoundingClientRect().bottom);expect(gap).toBeGreaterThanOrEqual(24);await page.screenshot({path:resolve(screenshots,'runtime-downloads.png'),fullPage:true,animations:'disabled'});
+ await page.goto('/downloads');await expect(page.getByRole('heading',{name:'下载任务',exact:true})).toBeVisible();await page.locator('.acquire-workspace .page-tabs').getByRole('button',{name:'上传入库',exact:true}).click();await expect(page).toHaveURL(/tab=uploads/);await expect(page.getByRole('heading',{name:'115上传与入库',exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,'runtime-downloads.png'),fullPage:true,animations:'disabled'});
 });
 
 test('runtime update: configured proxy origin can log in but spoofed forwarding and missing CSRF fail (isolated)',async({page})=>{
@@ -1309,7 +1309,7 @@ test('STRM directory filters before pagination and previews original content wit
 })
 
 test('verified instant upload shows processing completion without inventing sent bytes (fixture)',async({page})=>{
- await fixtureLogin(page);await page.route('**/api/v1/downloads',r=>r.fulfill({json:{data:[]}}));await page.route('**/api/v1/transfers',r=>r.fulfill({json:{data:[{id:'owned',destination:'/115/电影/自有影片.mkv',state:'imported',phase:'verified',bytes:279011,hashBytes:7960117968,total:7960117968,processingProgress:100,processingStage:'入库完成',transferMethod:'instant_or_reused'}]}}));await page.goto('/downloads');await expect(page.getByText('入库完成',{exact:true})).toBeVisible();await expect(page.getByText('秒传或复用；节省字节不计作网络传输',{exact:true})).toBeVisible();await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow','100')
+ await fixtureLogin(page);await page.route('**/api/v1/downloads',r=>r.fulfill({json:{data:[]}}));await page.route('**/api/v1/transfers',r=>r.fulfill({json:{data:[{id:'owned',destination:'/115/电影/自有影片.mkv',state:'imported',phase:'verified',bytes:279011,hashBytes:7960117968,total:7960117968,processingProgress:100,processingStage:'入库完成',transferMethod:'instant_or_reused'}]}}));await page.goto('/downloads?tab=uploads');await expect(page.getByText('入库完成',{exact:true})).toBeVisible();await expect(page.getByText('秒传或复用；节省字节不计作网络传输',{exact:true})).toBeVisible();await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow','100')
 })
 
 test('classification real defaults render without null collection failures (isolated)',async({page})=>{
@@ -1435,7 +1435,7 @@ test('domain settings validate origins and update generated STRM without touchin
 
 test('manual torrent imports support file and magnet input with persistent status and honest unknown progress (fixture)',async({page})=>{
  await fixtureLogin(page);let imports:any[]=[];await page.route('**/api/v1/downloads/manual',async route=>{if(route.request().method()==='POST'){imports.push({contentType:route.request().headers()['content-type'],body:route.request().postData()});return route.fulfill({status:202,json:{data:{id:'fixture-manual'}}})}return route.fulfill({json:{data:[{id:'fixture-manual',title:'Owned Manual.mkv',sourceKind:'file',source:'Owned.torrent',infoHash:'a'.repeat(40),state:'downloading',progress:null,qbState:'',downloadSpeed:0,savePath:'/downloads',endpoint:'http://qb.fixture:8080',category:'media-tool',message:'等待同步',createdAt:'2026-10-15T10:00:00Z'}]}})})
- await page.goto('/downloads');await expect(page.getByRole('heading',{name:'手动种子下载',exact:true})).toBeVisible();await expect(page.getByText('进度待下载器同步，不以0%代替未知进度。',{exact:true})).toBeVisible();await page.getByRole('button',{name:'添加种子',exact:true}).click();const dialog=page.getByRole('dialog',{name:'添加种子下载',exact:true});await dialog.getByLabel('种子文件（.torrent）',{exact:true}).setInputFiles({name:'Owned.torrent',mimeType:'application/x-bittorrent',buffer:Buffer.from('owned-file-fixture')});await dialog.getByRole('button',{name:'确认添加下载',exact:true}).click();await expect(dialog).toBeHidden();expect(imports[0].contentType).toContain('multipart/form-data');expect(imports[0].body).toContain('Owned.torrent')
+ await page.goto('/downloads?tab=manual');await expect(page.getByRole('heading',{name:'手动种子下载',exact:true})).toBeVisible();await expect(page.getByText('进度待下载器同步，不以0%代替未知进度。',{exact:true})).toBeVisible();await page.getByRole('button',{name:'添加种子',exact:true}).click();const dialog=page.getByRole('dialog',{name:'添加种子下载',exact:true});await dialog.getByLabel('种子文件（.torrent）',{exact:true}).setInputFiles({name:'Owned.torrent',mimeType:'application/x-bittorrent',buffer:Buffer.from('owned-file-fixture')});await dialog.getByRole('button',{name:'确认添加下载',exact:true}).click();await expect(dialog).toBeHidden();expect(imports[0].contentType).toContain('multipart/form-data');expect(imports[0].body).toContain('Owned.torrent')
  await page.getByRole('button',{name:'添加种子',exact:true}).click();await dialog.getByText('种子链接',{exact:true}).click();const magnet='magnet:?xt=urn:btih:'+'a'.repeat(40);await dialog.getByLabel('种子链接或磁力链接',{exact:true}).fill(magnet);await dialog.getByRole('button',{name:'确认添加下载',exact:true}).click();await expect(dialog).toBeHidden();expect(JSON.parse(imports[1].body).url).toBe(magnet)
  for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`manual-downloads-${width}.png`),fullPage:true,animations:'disabled'})}
 })

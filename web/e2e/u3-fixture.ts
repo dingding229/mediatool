@@ -15,3 +15,12 @@ export async function u3Fixture(page:Page){
  await page.route('**/api/v1/cache/search?*',r=>r.fulfill({json:{data:{items:[{id:'run-u3',query:u3Media.title,count:1,state:'succeeded',createdAt:u3Run.createdAt}],total:1,truncated:false}}}))
  await page.route('**/api/v1/cache/search/run-u3',r=>r.fulfill({json:{data:{id:'run-u3',query:u3Media.title,state:'succeeded',data:u3Run}}}))
 }
+export const u3Task={id:'task-u3',resourceId:'resource-u3',title:'A.Story.by.the.Sea.2026.1080p.WEB-DL.H264',state:'imported',seedingState:'seeding',progress:1,qbState:'uploading',downloadSpeed:0,uploadSpeed:1024,seeds:4,peers:1,syncedAt:'2026-10-21T00:00:00Z',media:u3Media,cleanupState:'disabled',flow:{retryable:false},message:'文件已入库，原下载保留做种。'}
+export const u3Transfer={id:'upload-u3',destination:'/115/电影/海边的故事 (2026).mkv',state:'uncertain',phase:'uploading',bytes:0,hashBytes:1073741824,total:1073741824,processingProgress:50,processingStage:'等待远端核对',controlRevision:2,flow:{retryable:false},message:'远端回执待核对'}
+export async function u3DownloadsFixture(page:Page){
+ await u3Fixture(page)
+ await page.route('**/api/v1/downloads',r=>r.fulfill({json:{data:[u3Task]}}))
+ await page.route('**/api/v1/transfers',r=>r.fulfill({json:{data:[u3Transfer]}}))
+ await page.route('**/api/v1/library/activity?*',r=>r.fulfill({json:{data:{items:[{id:'batch-u3',kind:'batch',batchId:'batch-u3',state:'needs_reconcile',source:'待整理目录',message:'批次结果待核对'}],total:1}}}))
+ await page.route('**/api/v1/downloads/manual',r=>r.fulfill({json:{data:[{id:'manual-u3',title:'手动添加的种子',state:'uncertain',submitAttempted:true,progress:null,message:'需先在下载器核对提交结果'}]}}))
+}

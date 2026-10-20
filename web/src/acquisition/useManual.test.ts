@@ -1,0 +1,17 @@
+import {afterEach,beforeEach,expect,it,vi} from 'vitest'
+import {defineComponent} from 'vue'
+import {post,request} from '../api/client'
+import {flush,setupComponent} from '../test/setup-component'
+import {useManual} from './useManual'
+vi.mock('../api/client',async original=>({...await original<typeof import('../api/client')>(),request:vi.fn(),post:vi.fn()}))
+let view:ReturnType<typeof setupComponent>
+beforeEach(async()=>{vi.useFakeTimers();const store=new Map<string,string>();vi.stubGlobal('sessionStorage',{getItem:(k:string)=>store.get(k)||null,setItem:(k:string,v:string)=>store.set(k,v),removeItem:(k:string)=>store.delete(k)});vi.mocked(post).mockReset();vi.mocked(request).mockReset().mockResolvedValue([]);view=setupComponent(defineComponent({setup:useManual}));await flush()})
+afterEach(()=>{view.unmount();vi.useRealTimers();vi.unstubAllGlobals()})
+it('never directly retries an uncertain task',()=>{view.state.retry({id:'id-1',state:'uncertain'});expect(view.state.confirmOpen).toBe(false);expect(post).not.toHaveBeenCalled()})
+it('posts explicit confirmation and duplicate acknowledgement only after the confirmation',async()=>{view.state.retry({id:'id-1',state:'absent_confirmed'});expect(post).not.toHaveBeenCalled();expect(view.state.confirmOpen).toBe(true);await view.state.approveRetry();expect(post).toHaveBeenCalledWith('/downloads/manual/id-1/retry',{confirm:true,acceptDuplicateRisk:true})})
+it('posts read-only inspection without silently requeueing',async()=>{vi.mocked(post).mockResolvedValue({state:'absent_confirmed'});await view.state.reconcile({id:'id-1',state:'uncertain'});expect(post).toHaveBeenCalledExactlyOnceWith('/downloads/manual/id-1/inspect',{})})
+it('blocked known-not-attempted task does not falsely accept duplicate risk',async()=>{view.state.retry({id:'id-1',state:'blocked',submitAttempted:false});await view.state.approveRetry();expect(post).toHaveBeenCalledWith('/downloads/manual/id-1/retry',{confirm:true,acceptDuplicateRisk:false})})
+it('an attempted blocked task cannot be retried without an absent observation',()=>{view.state.retry({id:'id-1',state:'blocked',submitAttempted:true});expect(view.state.confirmOpen).toBe(false)})
+it('lost retry receipt cannot be submitted again before inspection',async()=>{vi.mocked(post).mockRejectedValue(Error('lost'));view.state.retry({id:'id-1',state:'absent_confirmed'});await view.state.approveRetry();await view.state.approveRetry();expect(post).toHaveBeenCalledTimes(1);expect(view.state.confirmOpen).toBe(false)})
+it('validates torrent size/extension before creating an intent',async()=>{view.state.file=new File(['fixture'],'wrong.txt');await view.state.submit();expect(view.state.error.message).toContain('.torrent');expect(view.state.intent).toBeNull();expect(request).toHaveBeenCalledTimes(1)})
+it('202 manual receipt stays queued; lost receipt permits only GET readback',async()=>{view.state.kind='link';view.state.url='magnet:?xt=urn:btih:'+'a'.repeat(40);vi.mocked(request).mockResolvedValueOnce({id:'accepted'});await view.state.submit();expect(view.state.intent).toEqual({phase:'queued',id:'accepted'});view.state.create();view.state.kind='link';view.state.url='magnet:?xt=urn:btih:'+'b'.repeat(40);vi.mocked(request).mockRejectedValueOnce(Error('lost'));await view.state.submit();expect(view.state.intent.phase).toBe('reconciling');const count=vi.mocked(request).mock.calls.length;await view.state.submit();expect(request).toHaveBeenCalledTimes(count)})

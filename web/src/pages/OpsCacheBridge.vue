@@ -16,3 +16,7 @@ function setKind(value: string | number | boolean | undefined) {
     <CacheView :kind="kind"/>
   </div>
 </template>
+
+<style scoped>
+:deep(.el-radio-button__inner) {min-height:44px;display:inline-flex;align-items:center}
+</style>

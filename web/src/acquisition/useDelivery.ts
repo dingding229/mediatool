@@ -8,6 +8,9 @@ export function useDelivery() {
   watch(() => [chosen.value?.id, chosen.value?.mediaType], () => {
     yearConfirmed.value = false;
   });
+  watch(() => [query.value, kind.value], () => {
+    if (!usingIdentity.value && !intent.value) { epoch++; media.value = []; chosen.value = null; loading.value = false; }
+  });
   function close() {
     epoch++;
     busy.value = false;

@@ -109,3 +109,4 @@ export function writeIntent(key: string, value: Intent | null) {
   catch {
   }
 }
+export const seedingLabel = (state?:string) => ({pending:'待开始或未在做种',seeding:'持续做种中',stopped:'做种已停止',removed:'种子已移除'} as Record<string,string>)[state||'']||'—'

@@ -72,8 +72,9 @@ async function suggest(automatic = false) {
       busy.value = false;
   }
 }
-watch(() => [props.keyword, props.initial] as const, () => {
+watch(() => [props.keyword, props.initial?.id, props.initial?.mediaType, props.disabled] as const, () => {
   epoch++;
+  if (props.disabled) { busy.value = false; return; }
   if (props.initial)
     void select(props.initial, false);
   else {

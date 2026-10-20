@@ -9,13 +9,13 @@ const props = defineProps<{ pageId: string }>()
 const route = useRoute(), page = computed(() => pageById(props.pageId))
 const index = computed(() => Math.max(0, page.value.tabs.findIndex(tab => tab.id === route.query.tab)))
 const active = computed(() => page.value.tabs[index.value]!)
-const view = computed(() => legacyViews[tabViews[props.pageId]![['connections','search'].includes(props.pageId) ? 0 : index.value]!]!)
+const view = computed(() => legacyViews[tabViews[props.pageId]![['connections','search','downloads'].includes(props.pageId) ? 0 : index.value]!]!)
 </script>
 <template>
   <section class="workflow-page" :aria-label="`${page.name}工作区`">
-    <div v-if="page.tabs.length > 1 && !['connections','search'].includes(page.id)" class="workflow-page-navigation"><p>{{ page.description }}</p><PageTabs :tabs="page.tabs" :default-tab="page.tabs[0]?.id" /></div>
+    <div v-if="page.tabs.length > 1 && !['connections','search','downloads'].includes(page.id)" class="workflow-page-navigation"><p>{{ page.description }}</p><PageTabs :tabs="page.tabs" :default-tab="page.tabs[0]?.id" /></div>
     <section class="workflow-content" :aria-label="active.label">
-      <LegacyTabHost :key="['connections','search'].includes(page.id) ? page.id : `${page.id}:${active.id}`" :settings="page.id === 'settings' && active.id === 'general'"><component :is="view" /></LegacyTabHost>
+      <LegacyTabHost :key="['connections','search','downloads'].includes(page.id) ? page.id : `${page.id}:${active.id}`" :settings="page.id === 'settings' && active.id === 'general'"><component :is="view" /></LegacyTabHost>
     </section>
   </section>
 </template>

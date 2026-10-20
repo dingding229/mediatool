@@ -24,8 +24,8 @@ const { run, loading, error, mediaSaving, mediaReady, page, filters, activeMedia
     <StateView v-if="error" :state="stateFor(error)" title="搜索记录读取失败" :description="errorText(error)" @retry="refresh()"/>
     <StateView v-else-if="loading&&!run" state="loading" title="正在读取资源快照…"/>
     <AsyncResultBanner v-if="searchIntent" :status="searchIntent.phase" message="搜索请求已提交，结果尚未确认；请先核对记录。" @refresh="refresh()"/>
-    <template v-if="run">
-      <MediaContext :key="run.id" :keyword="run.keyword" :initial="activeMedia" :disabled="mediaSaving" @selected="persistMedia"/>
+    <p v-if="!mediaReady&&!mediaSaving" role="alert">媒体身份尚未核对，请刷新结果后再操作。</p><template v-if="run">
+      <MediaContext :key="run.id" :keyword="run.keyword" :initial="activeMedia" :disabled="mediaSaving||!mediaReady" @selected="persistMedia"/>
       <section class="acquire-surface">
         <header class="acquire-section-heading">
           <div>

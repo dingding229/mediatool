@@ -24,7 +24,7 @@ test('U3 unknown download outcome persists through reload and only permits readb
 })
 
 test('U3 search and results screenshots fit 375 and 1440 in both themes',async({page})=>{
- const {mkdirSync}=await import('node:fs');const dir='/tmp/media-tool-u3-screenshots';mkdirSync(dir,{recursive:true});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
+ const {mkdirSync}=await import('node:fs');const dir='/tmp/media-tool-u3-screenshots';mkdirSync(dir,{recursive:true});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='warning'&&m.text().includes('Failed to resolve component'))errors.push(m.text())})
  for(const width of [375,1440])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height:width===375?950:1000});await page.addInitScript(value=>localStorage.setItem('media-tool:theme-mode:v1',value),theme)
   await page.goto('/search');await page.getByLabel('TMDB媒体名称',{exact:true}).fill(u3Media.title);await page.getByRole('button',{name:'搜索媒体',exact:true}).click();await page.getByRole('button',{name:u3Media.title,exact:true}).click();await expect(page.locator('html')).toHaveAttribute('data-theme',theme);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`${dir}/search-${width}-${theme}.png`,fullPage:true,animations:'disabled'})

@@ -1,0 +1,41 @@
+import {test,expect} from '@playwright/test'
+import {mkdirSync} from 'node:fs'
+import {u3DownloadsFixture,u3Task,u3Transfer} from './u3-fixture'
+test.beforeEach(async({page})=>u3DownloadsFixture(page))
+test('U3 download tabs own exact URL values and source errors are isolated',async({page})=>{
+ await page.route('**/api/v1/downloads',r=>r.fulfill({status:503,json:{error:{code:'unavailable',message:'下载列表暂不可用'}}}))
+ await page.goto('/downloads');await expect(page.getByText('下载列表暂不可用',{exact:true})).toBeVisible();const nav=page.locator('.acquire-workspace .page-tabs');await nav.getByRole('button',{name:'上传入库',exact:true}).click();await expect(page).toHaveURL(/tab=uploads/);await expect(page.getByText(u3Transfer.destination,{exact:true})).toBeVisible();await expect(page.getByText('批次结果待核对',{exact:true})).toBeVisible();await nav.getByRole('button',{name:'手动添加',exact:true}).click();await expect(page).toHaveURL(/tab=manual/);await expect(page.getByRole('heading',{name:'手动种子下载',exact:true})).toBeVisible()
+})
+test('U3 cleanup confirms both local files and seeding impact before sending one queued request',async({page})=>{
+ let posts=0;await page.route('**/api/v1/downloads/task-u3/cleanup',r=>{posts++;expect(r.request().postDataJSON()).toEqual({confirm:true,hrSatisfied:true});return r.fulfill({status:202,json:{data:{queued:true}}})})
+ await page.goto('/downloads');await page.getByRole('button',{name:'更多',exact:true}).click();await page.getByRole('menuitem',{name:'清理本地与种子',exact:true}).click();const dialog=page.getByRole('dialog',{name:'清理本地下载与种子',exact:true});await expect(dialog).toContainText('同时删除本地下载文件');await expect(dialog).toContainText('不删除云端文件');expect(posts).toBe(0);await dialog.getByRole('button',{name:'已满足做种要求，批准清理',exact:true}).click();await expect(dialog).not.toBeVisible();await expect(page.locator('.async-result-banner')).toContainText('尚未确认后续执行完成');expect(posts).toBe(1)
+})
+test('U3 lost cleanup reply closes confirmation and only exposes readback, not another delete',async({page})=>{
+ let posts=0,reads=0;await page.route('**/api/v1/downloads',r=>{reads++;return r.fulfill({json:{data:[u3Task]}})});await page.route('**/api/v1/downloads/task-u3/cleanup',r=>{posts++;return r.abort()})
+ await page.goto('/downloads');await page.getByRole('button',{name:'更多',exact:true}).click();await page.getByRole('menuitem',{name:'清理本地与种子',exact:true}).click();await page.getByRole('button',{name:'已满足做种要求，批准清理',exact:true}).click();await expect(page.getByRole('dialog',{name:'清理本地下载与种子'})).not.toBeVisible();await page.locator('.async-result-banner').getByRole('button',{name:'刷新状态',exact:true}).click();expect(posts).toBe(1);expect(reads).toBeGreaterThan(1);await page.getByRole('button',{name:'更多',exact:true}).click();await expect(page.getByRole('menuitem',{name:'清理本地与种子',exact:true})).toHaveAttribute('aria-disabled','true')
+})
+test('U3 upload reconciliation cannot silently recreate a missing remote session',async({page})=>{
+ const calls:any[]=[];await page.route('**/api/v1/transfers/upload-u3/control',r=>{const body=r.request().postDataJSON();calls.push(body);return body.allowRestartIfAbsent?r.fulfill({json:{data:{accepted:true}}}):r.fulfill({status:409,json:{error:{code:'transfer_control_failed',message:'no matching remote task/file; explicitly confirm a restart before creating a new session'}}})})
+ await page.goto('/downloads?tab=uploads');await page.getByRole('button',{name:'核对',exact:true}).click();const dialog=page.getByRole('dialog',{name:'核对后重建',exact:true});await expect(dialog).toBeVisible();expect(calls).toEqual([{action:'reconcile',allowRestartIfAbsent:false}]);await dialog.getByRole('button',{name:'确认操作',exact:true}).click();expect(calls).toEqual([{action:'reconcile',allowRestartIfAbsent:false},{action:'reconcile',allowRestartIfAbsent:true}])
+})
+test('U3 manual unknown submit survives reload and does not offer blind resubmission',async({page})=>{
+ let posts=0;await page.route('**/api/v1/downloads/manual',r=>{if(r.request().method()==='POST'){posts++;return r.abort()}return r.fulfill({json:{data:[]}})})
+ await page.goto('/downloads?tab=manual');await page.getByRole('button',{name:'添加种子',exact:true}).click();const dialog=page.getByRole('dialog',{name:'添加种子下载',exact:true});await dialog.getByText('种子链接',{exact:true}).click();await dialog.getByLabel('种子链接或磁力链接',{exact:true}).fill('magnet:?xt=urn:btih:'+'b'.repeat(40));await dialog.getByRole('button',{name:'确认添加下载',exact:true}).click();await expect(dialog.getByRole('button',{name:'确认添加下载',exact:true})).toHaveCount(0);await page.reload();await expect(page.locator('.async-result-banner')).toContainText('回执未知');await page.getByRole('button',{name:'添加种子',exact:true}).click();await expect(dialog.getByRole('button',{name:'确认添加下载',exact:true})).toHaveCount(0);expect(posts).toBe(1)
+})
+test('U3 output recovery unknown receipt remains locked until a fresh proof changes',async({page})=>{
+ let posts=0;await page.route('**/api/v1/transfers',r=>r.fulfill({json:{data:[{...u3Transfer,state:'needs_output_reconciliation'}]}}));await page.route('**/api/v1/transfers/upload-u3/output-preview',r=>r.fulfill({json:{data:{controlRevision:2,assetRevision:1,planDigest:'proof-fixture',state:'needs_output_reconciliation',ready:true,existingPaths:['Movies/Owned.strm'],expectedPaths:['Movies/Owned.strm'],message:'输出一致，可明确恢复'}}}));await page.route('**/api/v1/transfers/upload-u3/resume-import',r=>{posts++;return r.abort()})
+ await page.goto('/downloads?tab=uploads');await page.getByRole('button',{name:'核对入库恢复',exact:true}).click();const dialog=page.getByRole('dialog',{name:'核对并恢复已有入库',exact:true});await dialog.getByRole('button',{name:'明确恢复入库（不重新上传）',exact:true}).click();await expect(dialog.getByRole('button',{name:'明确恢复入库（不重新上传）',exact:true})).toBeDisabled();await dialog.getByRole('button',{name:'重新核对',exact:true}).click();await expect(dialog.getByRole('button',{name:'明确恢复入库（不重新上传）',exact:true})).toBeDisabled();expect(posts).toBe(1)
+})
+test('U3 downloads screenshots and all tab content fit both themes at 375 and 1440',async({page})=>{
+ const dir='/tmp/media-tool-u3-screenshots';mkdirSync(dir,{recursive:true});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='warning'&&m.text().includes('Failed to resolve component'))errors.push(m.text())})
+ for(const width of [375,1440])for(const theme of ['light','dark']){
+  await page.setViewportSize({width,height:width===375?950:1000});await page.addInitScript(value=>localStorage.setItem('media-tool:theme-mode:v1',value),theme)
+  for(const tab of ['tasks','uploads','manual']){await page.goto('/downloads?tab='+tab);await expect(page.locator('.acquire-task')).toHaveCount(tab==='uploads'?2:1);await expect(page.locator('html')).toHaveAttribute('data-theme',theme);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);for(const button of await page.locator('.acquire-workspace button:visible').all())expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);if(tab==='tasks')await page.screenshot({path:`${dir}/downloads-${width}-${theme}.png`,fullPage:true,animations:'disabled'})}
+ }
+ expect(errors).toEqual([])
+})
+
+test('U3 each upload pause/resume/cancel action waits for confirmation and preserves file semantics',async({page})=>{
+ let state='uploading';const bodies:any[]=[];await page.route('**/api/v1/transfers',r=>r.fulfill({json:{data:[{...u3Transfer,state}]}}));await page.route('**/api/v1/transfers/upload-u3/control',r=>{const body=r.request().postDataJSON();bodies.push(body);state=body.action==='pause'?'paused':body.action==='resume'?'uploading':'cancelled';return r.fulfill({json:{data:{accepted:true}}})})
+ await page.goto('/downloads?tab=uploads');for(const [menu,title,action] of [['暂停','暂停上传','pause'],['恢复','恢复上传','resume'],['取消上传','取消上传','cancel']]){const count=bodies.length;await page.getByRole('button',{name:'上传控制',exact:true}).click();await page.getByRole('menuitem',{name:menu,exact:true}).click();const dialog=page.getByRole('dialog',{name:title,exact:true});await expect(dialog).toContainText('不删除本地做种文件或云端已有数据');expect(bodies).toHaveLength(count);await dialog.getByRole('button',{name:'确认操作',exact:true}).click();await expect(dialog).not.toBeVisible();expect(bodies[count]).toEqual({action,allowRestartIfAbsent:false})}
+})

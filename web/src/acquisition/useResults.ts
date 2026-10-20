@@ -57,7 +57,7 @@ export function useResults() {
       delivery.open(run.value, item);
   }
   async function persistMedia(item: Media) {
-    if (!run.value || mediaSaving.value || sameMedia(run.value.media, item))
+    if (!run.value || mediaSaving.value || !mediaReady.value || sameMedia(run.value.media, item))
       return;
     const id = run.value.id;
     epoch++;

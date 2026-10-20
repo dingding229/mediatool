@@ -4,7 +4,7 @@ export const primaryPages: PrimaryPage[] = [
   { id: 'dashboard', name: '首页', group: '', description: '查看运行概况与服务状态。', tabs: [{ id: '', label: '首页' }] },
   { id: 'search', name: '搜索', group: '获取', description: '发现资源，或从搜索历史继续查看结果。', tabs: [{ id: 'query', label: '搜索', keywords: 'TMDB 站点 资源' }, { id: 'history', label: '搜索历史', keywords: '站点缓存 历史记录' }] },
   { id: 'subscriptions', name: '订阅', group: '获取', description: '管理订阅规则与自动跟进。', tabs: [{ id: '', label: '订阅' }] },
-  { id: 'downloads', name: '下载', group: '获取', description: '跟进下载、做种、上传与手动入库。', tabs: [{ id: 'tasks', label: '下载任务', keywords: '下载器 上传入库 手动添加 qBittorrent' }] },
+  { id: 'downloads', name: '下载', group: '获取', description: '跟进下载、做种、上传与手动入库。', tabs: [{ id: 'tasks', label: '下载任务', keywords: '下载器 qBittorrent 做种' }, {id:'uploads',label:'上传入库',keywords:'上传 核对 批次 115'}, {id:'manual',label:'手动添加',keywords:'种子 磁力 手动下载'}] },
   { id: 'library', name: '媒体库', group: '媒体', description: '浏览媒体内容与 Emby 服务。', tabs: [{ id: 'browse', label: '媒体浏览', keywords: 'Emby 海报 电影 剧集' }] },
   { id: 'organize', name: '入库整理', group: '媒体', description: '扫描识别、核对入库，再检查整理结果。', tabs: [{ id: 'library', label: '入库整理', keywords: '云盘索引 扫描 待确认 恢复 归档' }, { id: 'history', label: '整理历史', keywords: '批次 记录 证据' }] },
   { id: 'files', name: '文件', group: '媒体', description: '管理文件、固定播放入口与 STRM 修复。', tabs: [{ id: 'browser', label: '文件浏览', keywords: '本地 云盘 目录 重命名 移动' }, { id: 'strm', label: 'STRM 目录', keywords: '固定链接 输出' }, { id: 'tools', label: 'STRM 工具', keywords: '批量修复 302 诊断' }] },
