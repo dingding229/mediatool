@@ -164,11 +164,11 @@ test('saved connections are editable, redacted, and can be deleted',async({page}
 test('subscriptions and scanner pages expose real configuration gates',async({page})=>{
  await login(page);await navigate(page,'资源订阅')
  await expect(page.getByRole('heading',{name:'资源订阅',exact:true})).toBeVisible()
- await page.getByRole('button',{name:'创建订阅',exact:true}).click()
- await expect(page.getByRole('button',{name:'保存订阅',exact:true})).toBeDisabled()
- await expect(page.getByText('保存后启用自动下载',{exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'新建订阅',exact:true}).click()
+ await expect(page.getByRole('button',{name:'选择站点与规则',exact:true})).toBeDisabled()
+ await expect(page.getByRole('navigation',{name:'创建订阅步骤',exact:true})).toBeVisible()
  await page.keyboard.press('Escape')
- await expect(page.getByRole('button',{name:'保存订阅',exact:true})).not.toBeVisible()
+ await expect(page.getByRole('dialog',{name:'新建订阅',exact:true})).not.toBeVisible()
  await navigate(page,'云盘索引')
  await page.getByRole('tab',{name:'已入库资产',exact:true}).click();await expect(page.getByRole('heading',{name:/^已入库文件/})).toBeVisible()
  await page.getByRole('tab',{name:'扫描与计划',exact:true}).click();await page.getByRole('button',{name:'开始扫描',exact:true}).click()
@@ -936,7 +936,7 @@ test('built-in clone retains config, isolated identities, no runtime upload/mark
 
 test('subscription structured filters persist and preview displays individual reasons (fixture)',async({page})=>{
  await page.route('**/api/v1/subscriptions**',route=>route.fulfill({json:{data:[{id:'owned-subscription',title:'Owned Rules',media:{id:1,mediaType:'movie',title:'Owned Film',year:'2026'},enabled:false,source:'search',intervalMinutes:30,rules:{accountIds:['owned-account'],keyword:'Owned',include:[],exclude:[],minSize:0,maxSize:0,minSeeders:1,freeOnly:true,allowUnknownHR:false,season:1,episodes:[],includeHistory:false,resolution:'2160p',source:'web-dl',codec:'h265'},revision:1,lastState:'succeeded',lastMessage:'',nextRunAt:''}]}}))
- await page.route('**/api/v1/subscriptions/owned-subscription/evaluate',route=>route.fulfill({status:202,json:{data:{id:'owned-preview'}}}));await page.route('**/api/v1/subscription-runs/owned-preview',route=>route.fulfill({json:{data:{id:'owned-preview',preview:true,state:'succeeded',decisions:[{id:'owned-decision',title:'Owned Film 2026 1080p WEB-DL x264',action:'skipped',episodes:[],reasons:['分辨率不匹配','编码不匹配'],checks:[{key:'resolution',label:'分辨率',expected:'2160p',actual:'1080p',state:'rejected',message:'分辨率不匹配：需要2160p，识别为1080p'},{key:'source',label:'来源',expected:'web-dl',actual:'web-dl',state:'matched',message:'来源匹配：web-dl'}]}]}}}));await fixtureLogin(page);await page.goto('/subscriptions');await page.getByRole('button',{name:'编辑',exact:true}).click();await expect(page.getByRole('combobox',{name:'订阅分辨率',exact:true})).toBeVisible();await expect(page.getByRole('dialog',{name:'编辑订阅',exact:true})).toContainText('2160p');await page.getByRole('dialog',{name:'编辑订阅',exact:true}).getByRole('button',{name:'关闭此对话框',exact:true}).click();await page.getByRole('button',{name:'预演',exact:true}).click();await expect(page.getByRole('dialog',{name:'订阅评估与决策',exact:true})).toContainText('分辨率 · 拒绝');await expect(page.getByRole('dialog',{name:'订阅评估与决策',exact:true})).toContainText('来源 · 通过');await page.screenshot({path:resolve(screenshots,'subscription-structured-preview.png'),animations:'disabled'})
+ await page.route('**/api/v1/subscriptions/owned-subscription/evaluate',route=>route.fulfill({status:202,json:{data:{id:'owned-preview'}}}));await page.route('**/api/v1/subscription-runs/owned-preview',route=>route.fulfill({json:{data:{id:'owned-preview',preview:true,state:'succeeded',decisions:[{id:'owned-decision',title:'Owned Film 2026 1080p WEB-DL x264',action:'skipped',episodes:[],reasons:['分辨率不匹配','编码不匹配'],checks:[{key:'resolution',label:'分辨率',expected:'2160p',actual:'1080p',state:'rejected',message:'分辨率不匹配：需要2160p，识别为1080p'},{key:'source',label:'来源',expected:'web-dl',actual:'web-dl',state:'matched',message:'来源匹配：web-dl'}]}]}}}));await fixtureLogin(page);await page.goto('/subscriptions');await page.getByRole('button',{name:'Owned Rules',exact:true}).click();await page.getByRole('button',{name:'编辑规则',exact:true}).click();await expect(page.getByRole('combobox',{name:'订阅分辨率',exact:true})).toBeVisible();await expect(page.getByRole('dialog',{name:'编辑订阅',exact:true})).toContainText('2160p');await page.getByRole('dialog',{name:'编辑订阅',exact:true}).getByRole('button',{name:'关闭此对话框',exact:true}).click();await page.getByRole('button',{name:'Owned Rules更多操作',exact:true}).click();await page.getByRole('menuitem',{name:'预演',exact:true}).click();await expect(page.getByRole('region',{name:'运行结果',exact:true})).toContainText('分辨率 · 拒绝');await expect(page.getByRole('region',{name:'运行结果',exact:true})).toContainText('来源 · 通过');await page.screenshot({path:resolve(screenshots,'subscription-structured-preview.png'),animations:'disabled'})
 })
 
 test('raw administrator log URLs have dedicated full request and 302 target view (fixture)',async({page})=>{
@@ -959,7 +959,17 @@ test('site action buttons and mixed search-history states align at desktop and m
 })
 
 test('subscription query controls, regex and shared TMDB cache are explicit; removed limits stay absent (fixture)',async({page})=>{
- let calls=0;await page.route('**/api/v1/search/media?*',route=>route.fulfill({json:{data:{items:[{id:42,mediaType:'movie',title:'Owned Film',year:'2026'}],cached:++calls>1,cacheSeconds:86400}}}));await fixtureLogin(page);await page.goto('/subscriptions');await page.getByRole('button',{name:'创建订阅',exact:true}).click();const dialog=page.getByRole('dialog',{name:'创建停用订阅',exact:true});const query=dialog.getByLabel('订阅TMDB关键词',{exact:true});await expect(query).toBeVisible();await expect(dialog.getByRole('button',{name:'查询TMDB',exact:true})).toBeDisabled();await query.fill('Owned Film');await dialog.getByRole('button',{name:'查询TMDB',exact:true}).click();await expect(dialog.getByText(/已查询TMDB · 缓存有效期 86400 秒/)).toBeVisible();await dialog.getByRole('button',{name:'查询TMDB',exact:true}).click();await expect(dialog.getByText(/来自TMDB缓存/)).toBeVisible();for(const label of ['最小体积 GiB','最大体积 GiB（0不限）','最少做种人数','间隔分钟'])await expect(dialog.getByText(label,{exact:true})).toHaveCount(0);await expect(dialog.getByRole('checkbox',{name:'使用正则匹配包含／排除关键词',exact:true})).toBeChecked();await dialog.getByLabel('订阅包含关键词',{exact:true}).fill('(?i)WEB[-.]DL\nS[0-9]{1,3}');await query.scrollIntoViewIfNeeded();const queryWidth=await query.evaluate(el=>el.getBoundingClientRect().width);expect(queryWidth).toBeGreaterThan(200);await page.screenshot({path:resolve(screenshots,'subscription-query-desktop.png'),animations:'disabled'});await page.setViewportSize({width:390,height:844});await query.scrollIntoViewIfNeeded();const dims=await dialog.locator('.subscription-media-query').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth}));expect(dims.scroll).toBeLessThanOrEqual(dims.width+1);await page.screenshot({path:resolve(screenshots,'subscription-query-mobile.png'),animations:'disabled'});await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await page.goto('/settings?tab=automation');await expect(page.getByLabel('订阅 Cron 表达式',{exact:true})).toBeVisible();await expect(page.getByLabel('TMDB 搜索缓存有效期（秒）',{exact:true})).toBeVisible()
+ let calls=0;await page.route('**/api/v1/search/media?*',r=>r.fulfill({json:{data:{items:[{id:42,mediaType:'movie',title:'Owned Film',year:'2026'}],cached:++calls>1,cacheSeconds:86400}}}))
+ await page.route('**/api/v1/integrations',r=>r.fulfill({json:{data:[{id:'owned-account',name:'Owned Site',kind:'ptsite',enabled:true,secretFields:[]}]}}))
+ await fixtureLogin(page);await page.goto('/subscriptions');await page.getByRole('button',{name:'新建订阅',exact:true}).click()
+ const dialog=page.getByRole('dialog',{name:'新建订阅',exact:true}),query=dialog.getByLabel('订阅TMDB关键词',{exact:true})
+ await expect(dialog.getByRole('button',{name:'查询TMDB',exact:true})).toBeDisabled();await query.fill('Owned Film');await dialog.getByRole('button',{name:'查询TMDB',exact:true}).click();await expect(dialog.getByText(/已查询TMDB · 缓存有效期 86400 秒/)).toBeVisible();await dialog.getByRole('button',{name:'查询TMDB',exact:true}).click();await expect(dialog.getByText(/来自TMDB缓存/)).toBeVisible()
+ expect(await query.evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThan(200);await page.screenshot({path:resolve(screenshots,'subscription-query-desktop.png'),animations:'disabled'})
+ await page.setViewportSize({width:390,height:844});const dims=await dialog.locator('.composer-media-search').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth}));expect(dims.scroll).toBeLessThanOrEqual(dims.width+1)
+ await dialog.getByRole('group',{name:'匹配影视',exact:true}).getByRole('button').click();await dialog.getByRole('button',{name:'选择站点与规则',exact:true}).click()
+ for(const label of ['最小体积 GiB','最大体积 GiB（0不限）','最少做种人数','间隔分钟'])await expect(dialog.getByText(label,{exact:true})).toHaveCount(0)
+ await expect(dialog.getByRole('checkbox',{name:'使用正则匹配包含／排除关键词',exact:true})).toBeChecked();await dialog.getByLabel('订阅包含关键词',{exact:true}).fill('(?i)WEB[-.]DL\nS[0-9]{1,3}');await page.screenshot({path:resolve(screenshots,'subscription-query-mobile.png'),animations:'disabled'})
+ await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await page.goto('/settings?tab=automation');await expect(page.getByLabel('订阅 Cron 表达式',{exact:true})).toBeVisible();await expect(page.getByLabel('TMDB 搜索缓存有效期（秒）',{exact:true})).toBeVisible()
 })
 
 test('template list layout persists and multi-select result facets retain repeated values (fixture)',async({page})=>{
@@ -1023,8 +1033,11 @@ test('acquisition: proxy settings are scoped, validated and persisted in isolate
 });
 
 test('acquisition: subscriptions reject HR without unknown override and expose history (fixture)',async({page})=>{
- await page.route('**/api/v1/subscriptions**',r=>r.fulfill({json:{data:[]}}));await fixtureLogin(page);await page.goto('/subscriptions');await expect(page.getByText('历史订阅',{exact:true})).toBeVisible();await page.getByText('历史订阅',{exact:true}).click();await expect(page.getByRole('radiogroup',{name:'订阅记录分类',exact:true})).toBeVisible();await page.getByRole('button',{name:'创建订阅',exact:true}).click();const dialog=page.getByRole('dialog',{name:'创建停用订阅',exact:true});await expect(dialog.getByRole('checkbox',{name:'拒绝下载H&R资源',exact:true})).toBeChecked();await expect(dialog.getByText(/明确允许H/)).toHaveCount(0);await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();
-});
+ await page.route('**/api/v1/subscriptions**',r=>r.fulfill({json:{data:[]}}));await page.route('**/api/v1/integrations',r=>r.fulfill({json:{data:[{id:'owned-account',name:'Owned Site',kind:'ptsite',enabled:true,secretFields:[]}]}}));await page.route('**/api/v1/search/media?*',r=>r.fulfill({json:{data:{items:[{id:42,mediaType:'movie',title:'Owned Film'}],cached:false,cacheSeconds:60}}}))
+ await fixtureLogin(page);await page.goto('/subscriptions');await page.locator('.mt-subscriptions .page-tabs').getByRole('button',{name:'运行记录',exact:true}).click();await expect(page).toHaveURL(/tab=history/);await expect(page.getByRole('combobox',{name:'订阅范围',exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'新建订阅',exact:true}).click();const dialog=page.getByRole('dialog',{name:'新建订阅',exact:true});await dialog.getByLabel('订阅TMDB关键词',{exact:true}).fill('Owned Film');await dialog.getByRole('button',{name:'查询TMDB',exact:true}).click();await dialog.getByRole('group',{name:'匹配影视',exact:true}).getByRole('button').click();await dialog.getByRole('button',{name:'选择站点与规则',exact:true}).click();
+ await expect(dialog.getByRole('checkbox',{name:'拒绝下载H&R资源',exact:true})).toBeChecked();await expect(dialog.getByText(/明确允许H/)).toHaveCount(0);await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
+})
 
 test('files and library readonly capabilities, persistent batch proof, scan controls and stage history (UI fixtures)',async({page})=>{
  await fixtureLogin(page)
@@ -1166,7 +1179,7 @@ test('player UA observations can be approved and enforce whitelist before all pl
 
 test('subscription tabs have separation and PT metrics actions are centered',async({page})=>{
  await fixtureLogin(page);await page.goto('/subscriptions')
- const tabs=page.getByRole('radiogroup',{name:'订阅记录分类',exact:true});const table=page.locator('.el-table').first();await expect(tabs).toBeVisible();await expect(table).toBeVisible()
+ const tabs=page.locator('.mt-subscriptions .page-tabs');const table=page.locator('.subscription-commandbar');await expect(tabs).toBeVisible();await expect(table).toBeVisible()
  const bottom=await tabs.evaluate(el=>el.getBoundingClientRect().bottom);const top=await table.evaluate(el=>el.getBoundingClientRect().top);expect(top-bottom).toBeGreaterThanOrEqual(20)
  await page.route('**/api/v1/sites/metrics',r=>r.fulfill({json:{data:[{accountId:'owned-center',name:'HDSKY',enabled:true,metrics:{uploaded:1,downloaded:0,seeding:2,seedingBytes:1024},state:'succeeded',stale:false}]}}))
  await page.goto('/sites');const metric=page.locator('.site-metric-row').first();await expect(metric).toBeVisible();expect(await metric.evaluate(el=>getComputedStyle(el).alignItems)).toBe('center')

@@ -163,7 +163,7 @@
 | POST | `/api/v1/files/preview` | management | 前端直接调用 | `web/src/views/FilesView.vue:29` |
 | GET | `/api/v1/files/roots` | management | 前端直接调用 | `web/src/views/FilesView.vue:23` |
 | HEAD | `/api/v1/files/roots` | management | 未检出静态使用 |  |
-| GET | `/api/v1/integrations` | management | 前端直接调用 | `web/src/components/ConnectionPanel.vue:247`、`web/src/components/TMDBSettings.vue:25`、`web/src/views/IntegrationsView.vue:7`、`web/src/views/SearchResultsView.vue:178`、`web/src/views/SearchView.vue:12`、`web/src/views/SubscriptionsView.vue:125` |
+| GET | `/api/v1/integrations` | management | 前端直接调用 | `web/src/components/ConnectionPanel.vue:247`、`web/src/components/TMDBSettings.vue:25`、`web/src/views/IntegrationsView.vue:7`、`web/src/views/SearchResultsView.vue:178`、`web/src/views/SearchView.vue:12`、`web/src/subscriptions/useSubscriptionWorkspace.ts:31` |
 | HEAD | `/api/v1/integrations` | management | 未检出静态使用 |  |
 | POST | `/api/v1/integrations` | management | 未检出静态使用 |  |
 | DELETE | `/api/v1/integrations/{id}` | management | 前端直接调用 | `web/src/components/ConnectionPanel.vue:398` |
@@ -290,7 +290,7 @@
 | GET | `/api/v1/media/tmdb/image` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/tmdb/image` | management | 未检出静态使用 |  |
 | POST | `/api/v1/messaging/command-actions` | management | 未检出静态使用 |  |
-| GET | `/api/v1/metadata/details` | management | 前端直接调用 | `web/src/components/SearchMediaContext.vue:38`、`web/src/views/SubscriptionsView.vue:348` |
+| GET | `/api/v1/metadata/details` | management | 前端直接调用 | `web/src/components/SearchMediaContext.vue:38`、`web/src/subscriptions/useSubscriptionWorkspace.ts:165` |
 | HEAD | `/api/v1/metadata/details` | management | 未检出静态使用 |  |
 | GET | `/api/v1/metadata/episodes` | management | 前端直接调用 | `web/src/views/LibraryView.vue:426` |
 | HEAD | `/api/v1/metadata/episodes` | management | 未检出静态使用 |  |
@@ -400,7 +400,7 @@
 | GET | `/api/v1/search/{id}` | management | 前端直接调用 | `web/src/views/SearchResultsView.vue:247` |
 | HEAD | `/api/v1/search/{id}` | management | 未检出静态使用 |  |
 | POST | `/api/v1/search/{id}/media` | management | 前端直接调用 | `web/src/views/SearchResultsView.vue:77`、`web/src/views/SearchResultsView.vue:208` |
-| GET | `/api/v1/search/media` | management | 前端直接调用 | `web/src/components/SearchMediaContext.vue:56`、`web/src/views/SearchResultsView.vue:247`、`web/src/views/SearchView.vue:13`、`web/src/views/SubscriptionsView.vue:198` |
+| GET | `/api/v1/search/media` | management | 前端直接调用 | `web/src/components/SearchMediaContext.vue:56`、`web/src/views/SearchResultsView.vue:247`、`web/src/views/SearchView.vue:13`、`web/src/subscriptions/SubscriptionComposer.vue:28` |
 | HEAD | `/api/v1/search/media` | management | 未检出静态使用 |  |
 | GET | `/api/v1/settings/access` | management | 前端直接调用 | `web/src/components/AccessSettings.vue:29` |
 | HEAD | `/api/v1/settings/access` | management | 未检出静态使用 |  |
@@ -429,15 +429,15 @@
 | POST | `/api/v1/strm/repairs/{id}/approve` | management | 前端直接调用 | `web/src/components/STRMBatchTools.vue:171` |
 | POST | `/api/v1/strm/repairs/{id}/retry` | management | 前端直接调用 | `web/src/components/STRMBatchTools.vue:198` |
 | POST | `/api/v1/strm/repairs/preview` | management | 前端直接调用 | `web/src/components/STRMBatchTools.vue:132` |
-| GET | `/api/v1/subscription-runs/{id}` | management | 前端直接调用 | `web/src/views/SubscriptionsView.vue:87`、`web/src/views/SubscriptionsView.vue:303`、`web/src/views/SubscriptionsView.vue:334` |
+| GET | `/api/v1/subscription-runs/{id}` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:108` |
 | HEAD | `/api/v1/subscription-runs/{id}` | management | 未检出静态使用 |  |
-| GET | `/api/v1/subscriptions` | management | 前端直接调用 | `web/src/views/SubscriptionsView.vue:124` |
+| GET | `/api/v1/subscriptions` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:31` |
 | HEAD | `/api/v1/subscriptions` | management | 未检出静态使用 |  |
-| POST | `/api/v1/subscriptions` | management | 前端直接调用 | `web/src/views/SubscriptionsView.vue:274` |
-| DELETE | `/api/v1/subscriptions/{id}` | management | 前端直接调用 | `web/src/views/SubscriptionsView.vue:325` |
-| PUT | `/api/v1/subscriptions/{id}` | management | 前端直接调用 | `web/src/views/SubscriptionsView.vue:270`、`web/src/views/SubscriptionsView.vue:288` |
-| POST | `/api/v1/subscriptions/{id}/evaluate` | management | 前端直接调用 | `web/src/views/SubscriptionsView.vue:299` |
-| GET | `/api/v1/subscriptions/{id}/history` | management | 前端直接调用 | `web/src/views/SubscriptionsView.vue:86` |
+| POST | `/api/v1/subscriptions` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:46` |
+| DELETE | `/api/v1/subscriptions/{id}` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:86` |
+| PUT | `/api/v1/subscriptions/{id}` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:46` |
+| POST | `/api/v1/subscriptions/{id}/evaluate` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:140` |
+| GET | `/api/v1/subscriptions/{id}/history` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:95` |
 | HEAD | `/api/v1/subscriptions/{id}/history` | management | 未检出静态使用 |  |
 | GET | `/api/v1/system/modules` | management | 前端直接调用 | `web/src/stores/system.ts:7` |
 | HEAD | `/api/v1/system/modules` | management | 未检出静态使用 |  |
