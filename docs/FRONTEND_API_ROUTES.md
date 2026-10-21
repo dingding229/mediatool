@@ -147,9 +147,9 @@
 | POST | `/api/v1/emby/test` | management | 前端直接调用 | `web/src/connections/GatewayDiagnostics.vue:21` |
 | GET | `/api/v1/external-api/calls` | management | 前端直接调用 | `web/src/settings/ExternalAccessPanel.vue:21` |
 | HEAD | `/api/v1/external-api/calls` | management | 未检出静态使用 |  |
-| GET | `/api/v1/external-api/keys` | management | 前端直接调用 | `web/src/settings/ExternalAccessPanel.vue:21` |
+| GET | `/api/v1/external-api/keys` | management | 前端直接调用（仅元数据和前缀；无令牌/哈希） | `web/src/settings/ExternalAccessPanel.vue:21` |
 | HEAD | `/api/v1/external-api/keys` | management | 未检出静态使用 |  |
-| POST | `/api/v1/external-api/keys` | management | 前端直接调用 | `web/src/settings/ExternalAccessPanel.vue:42` |
+| POST | `/api/v1/external-api/keys` | management | 前端直接调用（201仅此一次返回明文令牌） | `web/src/settings/ExternalAccessPanel.vue:42` |
 | POST | `/api/v1/external-api/keys/{id}/revoke` | management | 前端直接调用 | `web/src/settings/ExternalAccessPanel.vue:59` |
 | GET | `/api/v1/files` | management | 前端直接调用 | `web/src/files/useBrowser.ts:18`、`web/src/organize/ScanPanel.vue:56` |
 | HEAD | `/api/v1/files` | management | 未检出静态使用 |  |

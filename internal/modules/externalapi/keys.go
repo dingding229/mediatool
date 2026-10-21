@@ -14,10 +14,17 @@ import (
 	"time"
 )
 
+// Key is the one-time creation receipt. Only this type may expose the token.
 type Key struct {
+	KeySummary
+	Token string `json:"token"`
+}
+
+// KeySummary deliberately cannot serialize plaintext, ciphertext or digests.
+// Prefix is the stored 15-character display hint, not a usable credential.
+type KeySummary struct {
 	ID         string     `json:"id"`
 	Name       string     `json:"name"`
-	Token      string     `json:"token,omitempty"`
 	Prefix     string     `json:"prefix"`
 	Scopes     []string   `json:"scopes"`
 	ExpiresAt  *time.Time `json:"expiresAt"`
@@ -36,7 +43,7 @@ var ErrForbidden = errors.New("API凭据没有此接口权限")
 var ErrRate = errors.New("API每分钟最多120次调用")
 
 func (r Repository) Create(ctx context.Context, name string, scopes []string) (Key, error) {
-	out := Key{ID: jobs.UUID(), Name: name, Scopes: scopes}
+	out := Key{KeySummary: KeySummary{ID: jobs.UUID(), Name: name, Scopes: scopes}}
 	if len(name) < 1 || len(name) > 100 || len(scopes) == 0 || len(scopes) > len(Scopes) {
 		return out, errors.New("名称或权限无效")
 	}
@@ -62,27 +69,22 @@ func (r Repository) Create(ctx context.Context, name string, scopes []string) (K
 	err = r.DB.QueryRow(ctx, `INSERT INTO external_api_keys(id,name,token_digest,token_ciphertext,prefix,scopes)VALUES($1,$2,$3,$4,$5,$6)RETURNING created_at`, out.ID, name, digest[:], cipher, out.Prefix, scopeJSON).Scan(&out.CreatedAt)
 	return out, err
 }
-func (r Repository) List(ctx context.Context) ([]Key, error) {
-	rows, err := r.DB.Query(ctx, `SELECT id::text,name,prefix,scopes,expires_at,revoked_at,last_used_at,created_at,token_ciphertext FROM external_api_keys ORDER BY created_at DESC LIMIT 200`)
+func (r Repository) List(ctx context.Context) ([]KeySummary, error) {
+	rows, err := r.DB.Query(ctx, `SELECT id::text,name,prefix,scopes,expires_at,revoked_at,last_used_at,created_at FROM external_api_keys ORDER BY created_at DESC LIMIT 200`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []Key{}
+	out := []KeySummary{}
 	for rows.Next() {
-		var k Key
-		var scopes, cipher []byte
-		if err = rows.Scan(&k.ID, &k.Name, &k.Prefix, &scopes, &k.ExpiresAt, &k.RevokedAt, &k.LastUsedAt, &k.CreatedAt, &cipher); err != nil {
+		var k KeySummary
+		var scopes []byte
+		if err = rows.Scan(&k.ID, &k.Name, &k.Prefix, &scopes, &k.ExpiresAt, &k.RevokedAt, &k.LastUsedAt, &k.CreatedAt); err != nil {
 			return nil, err
 		}
 		if json.Unmarshal(scopes, &k.Scopes) != nil {
 			return nil, ErrUnauthorized
 		}
-		values, err := r.Vault.Open("api-key:"+k.ID, cipher)
-		if err != nil {
-			return nil, err
-		}
-		k.Token = values["token"]
 		out = append(out, k)
 	}
 	return out, rows.Err()

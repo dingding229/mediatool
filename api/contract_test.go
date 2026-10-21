@@ -950,6 +950,13 @@ func (s *source) build(t *testing.T) object {
 				security = []any{object{"AdminSession": []string{}}, object{"PluginAPIKey": []string{}}, object{"PluginBearer": []string{}}, object{}}
 			}
 			op := object{"operationId": operationID(method, path), "tags": []string{domain(path)}, "summary": r.handler, "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。", "security": security, "x-listener": "management", "x-go-registration": pattern, "x-go-handler": r.handler, "x-source": r.location}
+			if path == "/api/v1/external-api/keys" {
+				if method == "post" {
+					op["description"] = "创建成功的201回执仅此一次包含完整token，请立即安全保存；若结果未知，先读取无令牌列表核对，不自动重试创建。"
+				} else {
+					op["description"] = "仅返回凭据元数据和15字符前缀脱敏提示；不返回token、摘要或密文。明文仅在POST创建成功的201回执中返回一次。"
+				}
+			}
 			if r.externalScope != "" {
 				op["x-required-scope"] = r.externalScope
 			}
@@ -1151,6 +1158,10 @@ func (s *source) build(t *testing.T) object {
 			}
 		}
 		switch name {
+		case "media-tool/internal/modules/externalapi.Key":
+			props["token"].(object)["description"] = "仅201创建成功时一次性返回；列表和后续查询不再返回。"
+		case "media-tool/internal/modules/externalapi.KeySummary":
+			m["description"] = "仅元数据及15字符前缀脱敏提示；不含明文、摘要或密文。"
 		case "media-tool/internal/platform/flow.Status":
 			m["properties"] = s.schemas["FlowStatus"].(object)["properties"]
 		case "media-tool/internal/modules/integrations.Readiness":

@@ -5898,7 +5898,7 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
-      "HTTP200_ff6a44d46793": {
+      "HTTP200_ff816cf248b5": {
         "content": {
           "application/json": {
             "schema": {
@@ -5906,7 +5906,7 @@
               "properties": {
                 "data": {
                   "items": {
-                    "$ref": "#/components/schemas/modules_externalapi_Key"
+                    "$ref": "#/components/schemas/modules_externalapi_KeySummary"
                   },
                   "type": [
                     "array",
@@ -20100,7 +20100,82 @@
             ]
           },
           "token": {
+            "description": "仅201创建成功时一次性返回；列表和后续查询不再返回。",
             "type": "string"
+          }
+        },
+        "required": [
+          "createdAt",
+          "expiresAt",
+          "id",
+          "lastUsedAt",
+          "name",
+          "prefix",
+          "revokedAt",
+          "scopes",
+          "token"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/externalapi.Key"
+      },
+      "modules_externalapi_KeySummary": {
+        "additionalProperties": false,
+        "description": "仅元数据及15字符前缀脱敏提示；不含明文、摘要或密文。",
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "revokedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -20114,7 +20189,7 @@
           "scopes"
         ],
         "type": "object",
-        "x-go-type": "media-tool/internal/modules/externalapi.Key"
+        "x-go-type": "media-tool/internal/modules/externalapi.KeySummary"
       },
       "modules_filemanager_Batch": {
         "additionalProperties": false,
@@ -52917,11 +52992,11 @@
     },
     "/api/v1/external-api/keys": {
       "get": {
-        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "description": "仅返回凭据元数据和15字符前缀脱敏提示；不返回token、摘要或密文。明文仅在POST创建成功的201回执中返回一次。",
         "operationId": "get_api_v1_external_api_keys_0a58bbb1",
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_ff6a44d46793"
+            "$ref": "#/components/responses/HTTP200_ff816cf248b5"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -52951,7 +53026,7 @@
         "x-source": "external_api.go:155"
       },
       "head": {
-        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "description": "仅返回凭据元数据和15字符前缀脱敏提示；不返回token、摘要或密文。明文仅在POST创建成功的201回执中返回一次。",
         "operationId": "head_api_v1_external_api_keys_0a58bbb1",
         "responses": {
           "200": {
@@ -52985,7 +53060,7 @@
         "x-source": "external_api.go:155"
       },
       "post": {
-        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "description": "创建成功的201回执仅此一次包含完整token，请立即安全保存；若结果未知，先读取无令牌列表核对，不自动重试创建。",
         "operationId": "post_api_v1_external_api_keys_0a58bbb1",
         "parameters": [
           {

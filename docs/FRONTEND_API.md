@@ -271,7 +271,8 @@ X-Requested-With: media-tool
 
 - auth=admin：管理员Cookie+来源/CSRF；apikey：只接受X-API-Key；bearer：只接受Authorization Bearer；public：仅明确获准public descriptor。apikey与bearer不能混用；这也不是external API key。
 - 超限/descriptor失效/权限不足/维护暂停都在宿主拒绝。动态JSON不是通用OK，流式或非JSON能力不能凭UI猜测。
-- 外部API `/api/external/v1/*` 另用永久凭据+具体scope；不接受管理员Cookie或STRM key代替。创建key后仅按私有流程保存/撤销，公开示例不使用真key。
+- 外部API `/api/external/v1/*` 另用永久凭据+具体scope；不接受管理员Cookie或STRM key代替。`POST /api/v1/external-api/keys` 的 **201** 创建回执仅此一次返回完整 `token`，请立即安全保存；公开示例不使用真key。
+- `GET /api/v1/external-api/keys` 返回 `KeySummary[]`：`id/name/prefix/scopes/expiresAt/revokedAt/lastUsedAt/createdAt`。`prefix` 仅为原令牌前15字符的脱敏提示，不含完整 `token`、哈希或密文；列表不读取/解密密文，旧凭据和撤销凭据同样适用。前端列表不依赖明文，也不会补显或持久化创建回执。创建结果未知时只读列表核对，禁止自动重复创建；明文丢失则撤销并显式创建新凭据。
 
 ## 11. 运维、备份、日志与数据视图
 
