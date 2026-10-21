@@ -366,11 +366,43 @@ func (a *API) protected(next http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 		}
+		if r.Method != "GET" && r.Method != "HEAD" && !strings.HasPrefix(r.URL.Path, "/api/v1/ops/") && r.URL.Path != "/api/v1/auth/logout" {
+			select {
+			case maintenanceWriteSlots <- struct{}{}:
+				defer func() { <-maintenanceWriteSlots }()
+			case <-r.Context().Done():
+				fail(w, 503, "maintenance_busy", "写入请求等待超时，请稍后重试")
+				return
+			}
+			release, gateErr := maintenance.BeginWork(r.Context(), a.Deps.DB)
+			if gateErr != nil {
+				fail(w, 423, "maintenance_paused", "恢复维护中，业务写入暂停")
+				return
+			}
+			defer release()
+		}
 		next(w, r)
 	}
 }
+
+var maintenanceWriteSlots = make(chan struct{}, 3)
+
 func (a *API) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		allowedRestore := strings.HasPrefix(r.URL.Path, "/api/v1/ops/restores/") && (strings.HasSuffix(r.URL.Path, "/execute") || strings.HasSuffix(r.URL.Path, "/reconcile"))
+		if r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS" && !allowedRestore && r.URL.Path != "/api/v1/auth/login" && r.URL.Path != "/api/v1/auth/logout" {
+			check, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			active, err := a.maintenance().WebRestoreActive(check)
+			cancel()
+			if err != nil {
+				fail(w, 503, "maintenance_unavailable", "恢复维护状态不可读取")
+				return
+			}
+			if active {
+				fail(w, 423, "maintenance_paused", "恢复维护中，写入已暂停，请等待结果或核对中断状态")
+				return
+			}
+		}
 		nonce := make([]byte, 12)
 		if _, checkedErr := rand.Read(nonce); checkedErr != nil {
 			deferutil.Report(checkedErr, "internal/platform/httpapi/api.go:")

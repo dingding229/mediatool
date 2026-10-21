@@ -253,9 +253,15 @@ func (e Engine) Claim(ctx context.Context, id string) (Request, error) {
 		return r, err
 	}
 	defer deferutil.Rollback(ctx, tx)
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(91220880)`); err != nil {
+		return r, err
+	}
 	var paused bool
 	if err = tx.QueryRow(ctx, `SELECT paused FROM ops_mode WHERE singleton FOR UPDATE`).Scan(&paused); err != nil {
 		return r, err
+	}
+	if active, checkErr := e.WebRestoreActive(ctx); checkErr != nil || active {
+		return r, ErrConflict
 	}
 	if paused {
 		return r, errors.New("已有维护窗口，不能并发执行")
@@ -292,6 +298,9 @@ func (e Engine) Finish(ctx context.Context, id, message string, success bool) er
 	return nil
 }
 func (e Engine) Resume(ctx context.Context, revision int64) error {
+	if active, err := e.WebRestoreActive(ctx); err != nil || active {
+		return ErrConflict
+	}
 	tx, err := e.DB.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead})
 	if err != nil {
 		return err

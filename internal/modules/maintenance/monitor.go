@@ -18,6 +18,9 @@ import (
 const SampleCron = "* * * * *"
 
 func (e Engine) Schedule(ctx context.Context) error {
+	if paused, err := Paused(ctx, e.DB); err != nil || paused {
+		return err
+	}
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
 		return err

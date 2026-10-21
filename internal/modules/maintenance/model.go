@@ -68,6 +68,8 @@ type Engine struct {
 	Redis                                          *redis.Client
 	DSN, Root, OutputRoot, Key, HostProc, Revision string
 	Run                                            Command
+	prepareRestore                                 func(context.Context, WebRestore, Manifest, string) (string, func() error, error)
+	validateRestore                                func(context.Context, Manifest, string) error
 }
 type Backup struct {
 	ID          string          `json:"id"`
@@ -155,7 +157,7 @@ func (e Engine) QueueBackup(ctx context.Context, origin string) (string, error) 
 		}
 	}
 	var active bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ops_backups WHERE state IN('pending','running'))`).Scan(&active); err != nil {
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ops_backups WHERE state IN('pending','running')) OR EXISTS(SELECT 1 FROM ops_drills WHERE state IN('pending','running')) OR EXISTS(SELECT 1 FROM ops_web_restores WHERE state IN('pending','running','unknown')) OR (SELECT paused FROM ops_mode WHERE singleton)`).Scan(&active); err != nil {
 		return "", err
 	}
 	if active {
@@ -189,7 +191,7 @@ func (e Engine) QueueDrill(ctx context.Context, id string) (string, error) {
 		return "", ErrUnsafe
 	}
 	var active bool
-	if checkedErr := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ops_drills WHERE state IN('pending','running'))`).Scan(&active); checkedErr != nil {
+	if checkedErr := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ops_drills WHERE state IN('pending','running')) OR EXISTS(SELECT 1 FROM ops_backups WHERE state IN('pending','running')) OR EXISTS(SELECT 1 FROM ops_web_restores WHERE state IN('pending','running','unknown')) OR (SELECT paused FROM ops_mode WHERE singleton)`).Scan(&active); checkedErr != nil {
 		return "", checkedErr
 	}
 	if active {

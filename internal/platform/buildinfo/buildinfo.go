@@ -1,6 +1,6 @@
 package buildinfo
 
 const Version = "0.27.0"
-const Schema int64 = 74
+const Schema int64 = 75
 
 var Revision = ""

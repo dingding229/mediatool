@@ -154,8 +154,11 @@ func (e Engine) VerifyBundle(ctx context.Context, id string) (Manifest, string, 
 	if err != nil {
 		return m, "", err
 	}
-	if hash(raw) != digest || json.Unmarshal(raw, &m) != nil || m.Format != 1 || m.ID != id || m.KeyFingerprint != hash([]byte("key:"+e.Key)) {
+	if hash(raw) != digest || json.Unmarshal(raw, &m) != nil || m.Format != 1 || m.ID != id {
 		return m, "", ErrUnsafe
+	}
+	if m.KeyFingerprint != hash([]byte("key:"+e.Key)) {
+		return m, "", errors.New("备份主密钥与当前主密钥不匹配，无法安全解密，已拒绝恢复；请由所有者核对原主密钥")
 	}
 	for file, expected := range map[string]string{"database.dump": m.DatabaseDigest, "outputs.tar": m.OutputsDigest} {
 		actual, _, err := digestFile(filepath.Join(dir, file))
@@ -228,7 +231,7 @@ func (e Engine) Backup(ctx context.Context, id string) (err error) {
 	if err != nil {
 		return err
 	}
-	err = e.pg(ctx, "pg_dump", e.DSN, []string{"--format=custom", "--no-owner", "--no-acl", "--snapshot=" + snapshot}, nil, dump)
+	err = e.pg(ctx, "pg_dump", e.DSN, []string{"--format=custom", "--schema=public", "--no-owner", "--no-acl", "--snapshot=" + snapshot}, nil, dump)
 	syncErr := dump.Sync()
 	closeErr := dump.Close()
 	if err == nil {
@@ -433,7 +436,7 @@ func (e Engine) Drill(ctx context.Context, id string) (err error) {
 	if err != nil {
 		return err
 	}
-	err = e.pg(ctx, "pg_restore", dsn, []string{"--exit-on-error", "--no-owner", "--no-acl", "--dbname=" + name}, dump, io.Discard)
+	err = e.pg(ctx, "pg_restore", dsn, []string{"--schema=public", "--exit-on-error", "--no-owner", "--no-acl", "--dbname=" + name}, dump, io.Discard)
 	deferutil.Close(dump, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if err != nil {
 		return err

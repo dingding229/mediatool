@@ -63,7 +63,7 @@
 | POST | `/api/external/v1/search` | management | 未检出静态使用 |  |
 | GET | `/api/external/v1/search/{id}` | management | 未检出静态使用 |  |
 | HEAD | `/api/external/v1/search/{id}` | management | 未检出静态使用 |  |
-| GET | `/api/external/v1/status` | management | 前端直接调用 | `web/src/settings/ExternalAccessPanel.vue:89` |
+| GET | `/api/external/v1/status` | management | 前端直接调用 | `web/src/api/client.ts:29`、`web/src/settings/ExternalAccessPanel.vue:89` |
 | HEAD | `/api/external/v1/status` | management | 未检出静态使用 |  |
 | GET | `/api/external/v1/strm` | management | 未检出静态使用 |  |
 | HEAD | `/api/external/v1/strm` | management | 未检出静态使用 |  |
@@ -182,7 +182,7 @@
 | HEAD | `/api/v1/jobs/{id}` | management | 未检出静态使用 |  |
 | GET | `/api/v1/jobs/browse` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/operations/QueuePanel.vue:18` |
 | HEAD | `/api/v1/jobs/browse` | management | 未检出静态使用 |  |
-| GET | `/api/v1/jobs/events` | management | 前端直接调用 | `web/src/operations/QueuePanel.vue:70` |
+| GET | `/api/v1/jobs/events` | management | 经适配调用 | `web/src/api/client.ts:22`、`web/src/operations/QueuePanel.vue:69` |
 | HEAD | `/api/v1/jobs/events` | management | 未检出静态使用 |  |
 | GET | `/api/v1/library/activity` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:35`、`web/src/organize/HistoryPanel.vue:26`、`web/src/views/OrganizeWorkspaceView.vue:51` |
 | HEAD | `/api/v1/library/activity` | management | 未检出静态使用 |  |
@@ -272,7 +272,7 @@
 | POST | `/api/v1/media/assets/{id}/grant/rotate` | management | 前端直接调用 | `web/src/views/OrganizeWorkspaceView.vue:85` |
 | POST | `/api/v1/media/assets/{id}/identity` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:188` |
 | POST | `/api/v1/media/assets/{id}/identity-preview` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:154` |
-| GET | `/api/v1/media/assets/{id}/strm` | management | 资源/链接使用 | `web/src/media/model.ts:52` |
+| GET | `/api/v1/media/assets/{id}/strm` | management | 经适配调用 | `web/src/api/client.ts:35`、`web/src/media/model.ts:52` |
 | HEAD | `/api/v1/media/assets/{id}/strm` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/assets/{id}/validation-ref` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/assets/{id}/validation-ref` | management | 未检出静态使用 |  |
@@ -666,3 +666,12 @@
 | GET | `/api/v1/media/library` | management | 前端直接调用；作品→季→集，每层独立分页 | `web/src/media/useCatalog.ts:30` |
 | GET | `/Videos/{id}/{mediaSourceId}/Subtitles/{index}/Stream.{format}` | native-media | 原生客户端资源；实际UA、用户鉴权、仅原格式302 | `internal/modules/embyapi/playback_api.go` |
 | GET | `/Videos/{id}/subtitles/{index}/stream` | native-media | 原生客户端资源；MediaSourceId可选当前可播放版本 | `internal/modules/embyapi/playback_api.go` |
+
+### 网页恢复（B4，旧宿主维护接口保留）
+
+| Method | Path | Surface | Usage | Evidence |
+| --- | --- | --- | --- | --- |
+| GET | `/api/v1/ops/restores` | management | 前端直接调用 | `web/src/operations/WebRestorePanel.vue:14` |
+| POST | `/api/v1/ops/restores/preview` | management | 前端直接调用 | `web/src/operations/WebRestorePanel.vue:15` |
+| POST | `/api/v1/ops/restores/{id}/execute` | management | 前端直接调用 | `web/src/operations/WebRestorePanel.vue:16` |
+| POST | `/api/v1/ops/restores/{id}/reconcile` | management | 前端直接调用 | `web/src/operations/WebRestorePanel.vue:17` |

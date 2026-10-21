@@ -46,7 +46,7 @@ func (e Engine) Drills(ctx context.Context) ([]Drill, error) {
 	return out, rows.Err()
 }
 func (e Engine) Pin(ctx context.Context, id string, pin bool) error {
-	tag, err := e.DB.Exec(ctx, `UPDATE ops_backups SET pinned=$2 WHERE id=$1 AND state='ready'`, id, pin)
+	tag, err := e.DB.Exec(ctx, `UPDATE ops_backups SET pinned=$2 WHERE id=$1 AND state='ready' AND ($2 OR id IS DISTINCT FROM(SELECT r.snapshot_id FROM ops_web_restores r JOIN ops_backups s ON s.id=r.snapshot_id WHERE s.state='ready' ORDER BY r.created_at DESC LIMIT 1))`, id, pin)
 	if err == nil && tag.RowsAffected() != 1 {
 		return ErrConflict
 	}
@@ -65,7 +65,7 @@ func (e Engine) Delete(ctx context.Context, id string) error {
 		return err
 	}
 	var allowed bool
-	err = tx.QueryRow(ctx, `SELECT NOT pinned AND state IN('ready','failed','interrupted') AND id NOT IN(SELECT id FROM ops_backups WHERE state='ready' ORDER BY created_at DESC LIMIT 2) AND NOT EXISTS(SELECT 1 FROM ops_drills WHERE backup_id=$1 AND state IN('pending','running'))AND NOT EXISTS(SELECT 1 FROM ops_requests WHERE payload->>'backupId'=$1::text AND state IN('preview','approved','executing')) FROM ops_backups WHERE id=$1 FOR UPDATE`, id).Scan(&allowed)
+	err = tx.QueryRow(ctx, `SELECT NOT EXISTS(SELECT 1 FROM ops_web_restores WHERE state IN('pending','running','unknown')) AND id IS DISTINCT FROM(SELECT r.snapshot_id FROM ops_web_restores r JOIN ops_backups s ON s.id=r.snapshot_id WHERE s.state='ready' ORDER BY r.created_at DESC LIMIT 1) AND NOT pinned AND state IN('ready','failed','interrupted') AND id NOT IN(SELECT id FROM ops_backups WHERE state='ready' ORDER BY created_at DESC LIMIT 2) AND NOT EXISTS(SELECT 1 FROM ops_drills WHERE backup_id=$1 AND state IN('pending','running'))AND NOT EXISTS(SELECT 1 FROM ops_requests WHERE payload->>'backupId'=$1::text AND state IN('preview','approved','executing')) FROM ops_backups WHERE id=$1 FOR UPDATE`, id).Scan(&allowed)
 	if err != nil || !allowed {
 		return errors.New("固定、最近两份成功备份或被维护任务引用的备份不可删除")
 	}

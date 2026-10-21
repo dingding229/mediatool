@@ -1,6 +1,6 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { request } from '../api/client';
+import { request, originalSTRM } from '../api/client';
 import { rows, type Home, type MediaItem } from './model';
 export function useCatalog() {
   const route = useRoute(), router = useRouter(), source = ref(route.query.source === 'emby' ? 'emby' : 'managed'), view = ref(route.query.view === 'all' ? 'all' : 'home'), page = ref(1), query = ref(''), kind = ref(''), parentId = ref(String(route.query.parentId || '')), user = ref(''), items = ref<MediaItem[]>([]), total = ref<number | null>(null), home = ref<Home | null>(null), loading = ref(true), error = ref<unknown>(), embyConnected = ref<boolean | null>(null), connectionError = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>(), children = ref<MediaItem[]>([]), childTotal = ref(0), childPage = ref(1), childError = ref<unknown>(), childLoading = ref(false), series = ref<MediaItem | null>(null), copyMessage = ref(''), playLink = ref(''), copyBusy = ref(false);
@@ -183,10 +183,7 @@ export function useCatalog() {
     copyMessage.value = '';
     playLink.value = '';
     try {
-      const response = await fetch(path, { credentials: 'same-origin' });
-      if (!response.ok)
-        throw Error('暂时无法取得此媒体的播放链接。');
-      const text = (await response.text()).trim();
+      const text = await originalSTRM(path);
       const url = new URL(text);
       if (!['https:', 'http:'].includes(url.protocol) || /[\r\n]/.test(text))
         throw Error('播放链接格式不可用。');

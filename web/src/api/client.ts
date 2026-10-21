@@ -17,3 +17,23 @@ export async function request<T>(path:string,options:RequestInit={}):Promise<T>{
  return body.data as T
 }
 export const post=<T>(path:string,body:unknown)=>request<T>(path,{method:'POST',body:JSON.stringify(body)})
+
+// Raw transports are kept here so UI code cannot accidentally change auth semantics.
+export function subscribeJobEvents(tick:()=>void):{close:()=>void}|undefined{
+ if(typeof EventSource==='undefined')return
+ const stream=new EventSource('/api/v1/jobs/events',{withCredentials:false})
+ stream.addEventListener('tick',tick)
+ stream.onerror=()=>stream.close()
+ return {close:()=>stream.close()}
+}
+export async function testExternalToken(token:string):Promise<void>{
+ const response=await fetch('/api/external/v1/status',{credentials:'omit',headers:{Authorization:`Bearer ${token}`}})
+ const body=await response.json()
+ if(!response.ok||body.error)throw new APIError(response.status,body.error?.code??'token_rejected',body.error?.message??'验证未通过')
+}
+export async function originalSTRM(path:string):Promise<string>{
+ if(!/^\/api\/v1\/media\/assets\/[^/?]+\/strm(?:\?.*)?$/.test(path))throw Error('播放文件地址不可用。')
+ const response=await fetch(path,{credentials:'same-origin'})
+ if(!response.ok)throw Error('暂时无法取得此媒体的播放链接。')
+ return (await response.text()).trim()
+}

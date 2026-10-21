@@ -13,6 +13,7 @@ import PreviewApprove from '../ui/PreviewApprove.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import TrendChart from './TrendChart.vue';
+import WebRestorePanel from './WebRestorePanel.vue';
 import PolicyPanel from './PolicyPanel.vue';
 const data = reactive(useResource<any>(() => request('/ops'))), hours = ref(24), trends = reactive(useResource<any[]>(() => request('/ops/trends?hours=' + hours.value), [])), op = reactive(useOperation('maintenance')), section = ref('backups'), confirm = ref(false), action = ref<any>(null), detail = ref<any>(null), detailOpen = ref(false), restoreID = ref(''), rollbackID = ref(''), preview = ref<any>(null), previewLoading = ref(false), previewError = ref<unknown>(null), previewDialog = ref(false), approval = ref(false), copied = ref(''), commandCopy = ref('');
 const gapMS = computed(() => Math.max(1, Math.ceil(hours.value * 60 / 500)) * 60000), trendRows = computed(() => trends.data.map(r => ({ ...r, processMiB: typeof r.processBytes === 'number' ? r.processBytes / 1048576 : null, successRate: typeof r.succeededJobs10m === 'number' && typeof r.failedJobs10m === 'number' && r.succeededJobs10m + r.failedJobs10m > 0 ? r.succeededJobs10m / (r.succeededJobs10m + r.failedJobs10m) * 100 : null })));
@@ -139,7 +140,9 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     </section>
     <section v-else-if="section==='recovery'" class="media-surface">
       <h2>受控恢复与回滚</h2>
-      <p>浏览器只生成预览和审批，不执行正式恢复；需要管理员在服务器执行受控命令，再回到这里核验。</p>
+      <WebRestorePanel :backups="data.data?.backups||[]" :backup-error="data.error" :backups-loading="data.loading"/>
+      <h3>命令行维护</h3>
+      <p>以下保留原命令行审批流程；网页恢复请使用上方的预览与确认。</p>
       <div class="u5-filters">
         <label>
           选择备份

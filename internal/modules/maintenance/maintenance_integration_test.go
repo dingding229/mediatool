@@ -33,7 +33,7 @@ func fixture(t *testing.T) Engine {
 	if name != "media_tool_test" {
 		t.Fatal(name)
 	}
-	cleanup := `DELETE FROM jobs WHERE kind LIKE 'ops.%';DELETE FROM outbox_events WHERE event_type LIKE 'ops.%';TRUNCATE ops_requests,ops_drills,ops_backups,ops_releases,ops_alerts,ops_samples CASCADE;UPDATE ops_policy SET value='{}',revision=1,next_sample_at=now(),next_backup_at=now()+interval '1 day' WHERE singleton;UPDATE ops_mode SET paused=false,reason='',revision=1 WHERE singleton;`
+	cleanup := `DELETE FROM jobs WHERE kind LIKE 'ops.%';DELETE FROM outbox_events WHERE event_type LIKE 'ops.%';TRUNCATE ops_restore_commit,ops_requests,ops_drills,ops_backups,ops_releases,ops_alerts,ops_samples CASCADE;UPDATE ops_policy SET value='{}',revision=1,next_sample_at=now(),next_backup_at=now()+interval '1 day' WHERE singleton;UPDATE ops_mode SET paused=false,reason='',revision=1 WHERE singleton;`
 	if _, err = db.Exec(ctx, cleanup); err != nil {
 		t.Fatal(err)
 	}

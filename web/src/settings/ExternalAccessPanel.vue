@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {usePageRefresh} from '../ui/page-refresh';
 import { onMounted, onUnmounted, ref } from 'vue';
-import { post, request, responseStatus } from '../api/client';
+import { post, request, responseStatus, testExternalToken } from '../api/client';
 import { useResource } from '../workflows/useResource';
 import { useOperation } from '../workflows/useOperation';
 import ConfirmAction from '../ui/ConfirmAction.vue';
@@ -86,10 +86,7 @@ async function verify() {
   verification.value = '';
   const input = testToken.value;
   try {
-    const response = await fetch('/api/external/v1/status', { credentials: 'omit', headers: { Authorization: `Bearer ${input}` } });
-    const out = await response.json();
-    if (!response.ok || out.error)
-      throw new Error(out.error?.message || '验证未通过');
+    await testExternalToken(input);
     if (alive)
       verification.value = '验证通过：此凭据可以读取状态。';
   }

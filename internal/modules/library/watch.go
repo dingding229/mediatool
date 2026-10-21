@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"media-tool/internal/modules/maintenance"
 	deferutil "media-tool/internal/platform/cleanup"
 	"path"
 	"strings"
@@ -79,6 +80,11 @@ func (e Engine) watchStatus(ctx context.Context, connection string, revision int
 // It holds no database lock across stream reads. Adapter leases/timeout bound
 // old credentials to one minute; each callback rechecks the current revision.
 func (e Engine) WatchWindow(ctx context.Context) error {
+	release, gateErr := maintenance.BeginWork(ctx, e.DB)
+	if gateErr != nil {
+		return nil
+	}
+	defer release()
 	if e.DB == nil || e.Connections == nil {
 		return nil
 	}

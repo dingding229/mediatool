@@ -66,19 +66,22 @@ func (e Engine) restoreClone(ctx context.Context, name, dir string, m Manifest) 
 	if err != nil {
 		return "", noop, err
 	}
-	err = e.pg(ctx, "pg_restore", dsn, []string{"--exit-on-error", "--no-owner", "--no-acl", "--dbname=" + name}, dump, io.Discard)
+	err = e.pg(ctx, "pg_restore", dsn, []string{"--schema=public", "--exit-on-error", "--no-owner", "--no-acl", "--dbname=" + name}, dump, io.Discard)
 	deferutil.Close(dump, "Read/descriptor teardown only; primary operations handle their own I/O result")
 	if err != nil {
 		return "", noop, err
 	}
 	if _, err = e.verifyRestored(ctx, dsn, name, m, false); err != nil {
-		return "", noop, err
+		return "", noop, fmt.Errorf("备份密文或迁移校验失败，已拒绝恢复：%w", err)
 	}
 	ok = true
 	return dsn, ownedCleanup, nil
 }
 
 func (e Engine) restoreOutputs(ctx context.Context, archive string, proofs []FileProof) error {
+	return e.applyOutputs(ctx, archive, proofs, true)
+}
+func (e Engine) applyOutputs(ctx context.Context, archive string, proofs []FileProof, write bool) error {
 	file, err := os.OpenFile(archive, os.O_RDONLY|noFollowFlag(), 0)
 	if err != nil {
 		return err
@@ -153,6 +156,9 @@ func (e Engine) restoreOutputs(ctx context.Context, archive string, proofs []Fil
 	}
 	if len(seen) != len(expected) {
 		return ErrUnsafe
+	}
+	if !write {
+		return nil
 	}
 	if _, err = file.Seek(0, 0); err != nil {
 		return err

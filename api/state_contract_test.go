@@ -6,6 +6,7 @@ import "strings"
 // state-machine vocabularies explicit; upstream/provider qbState remains open.
 func annotateStateContracts(schemas object) {
 	states := map[string][]string{
+		"modules/maintenance.WebRestore":             {"preview", "pending", "running", "unknown", "completed", "rolled_back", "failed"},
 		"modules/search.Run":                         {"pending", "running", "succeeded", "partial", "failed"},
 		"modules/search.SiteResult":                  {"pending", "running", "succeeded", "partial", "failed"},
 		"modules/subscriptions.RunRecord":            {"pending", "running", "succeeded", "failed", "cancelled"},

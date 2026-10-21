@@ -2,6 +2,7 @@ import {expect,it} from 'vitest'
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {createHash} from 'node:crypto'
+// B4 renames the read-state callback from fetch to read; transport remains unchanged.
 // B3 explicitly adds fixed access guidance; arbitrary provider text remains excluded.
 const baseline={
   "PluginMetadata.vue": "8808b39eecb2ed02eaed906877c38da79e147e39415329048ffee52fb76f6abe",
@@ -14,7 +15,7 @@ const baseline={
   "ReadFeedback.vue": "887a2a1c450442fa2b8ba4c1ffc39f1ed9f195367673beb49e3b1d86a2a28995",
   "PluginAutomation.vue": "7fac2321f8f4858459b31d5967efc242aa911f2591793ae7fe83bc0c6c1cde41",
   "PluginSnapshots.vue": "c0e9f0007ede42e7ea5fe975d246ac1ef833c94273445f17abb0d012431e24d6",
-  "read-state.ts": "a0012acaaa43b53ce7b501570bb5c56c98633d9ae29bc12aa8213f81aa8e4bbe",
+  "read-state.ts": "a1511228125ef4f2336b760f18fa336c32a8fc48169da58277d2ebab44fe5067",
   "PluginTools.vue": "5e84eca57b155f4b12e8c14c679b57c70e6a7f31917a90000c080f3c0eb94fed",
   "PluginForm.vue": "5e94c38a89011ac58f875abeee718a3b0741602b9568d74b181d1760cfa00667",
   "PluginDashboards.vue": "eb4366cd83ac074bd391252e15b65da572278a320e25013826f3c463046dba48",

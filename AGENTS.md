@@ -43,3 +43,8 @@
   Actions -> Docker Hub immutable image -> backed-up server deployment flow.
   Use this project's approved Git credentials for both repositories; report missing
   access instead of using other credentials or alternate plugin distribution.
+
+- Per the owner's 2026-10-21 rule, frontend/backend interaction uses the API layer.
+  All browser transports live in web/src/api/, including SSE and external-token
+  tests (credentials: omit). Register frontend backend paths in the route table
+  and OpenAPI; never inject business data into index.html.

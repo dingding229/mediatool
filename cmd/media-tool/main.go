@@ -316,6 +316,12 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		},
 	}}
 	ops := maintenance.Engine{DB: db, Redis: rc, DSN: c.DatabaseURL, Root: c.MaintenanceDir, OutputRoot: c.STRMOutputDir, Key: c.SecretKey, HostProc: c.HostProcDir, Revision: buildinfo.Revision}
+	if queue == "maintenance" {
+		restoreCtx, restoreCancel := context.WithCancel(ctx)
+		restoreDone := make(chan struct{})
+		go func() { defer close(restoreDone); ops.ServeWebRestores(restoreCtx) }()
+		defer func() { restoreCancel(); <-restoreDone }()
+	}
 	w.Handlers["ops.backup"] = func(ctx context.Context, j jobs.Job) error {
 		var in struct {
 			ID string `json:"id"`
@@ -406,6 +412,11 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 				check, cancel := context.WithTimeout(watchCtx, 2*time.Minute)
 				defer cancel()
 				check = trace.With(check, logger)
+				release, gateErr := maintenance.BeginWork(check, db)
+				if gateErr != nil {
+					return
+				}
+				defer release()
 				if err := ops.Schedule(check); err != nil {
 					logger.Warn("maintenance scheduling failed", "module", "maintenance", "error", err)
 				}
@@ -547,7 +558,7 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 		}
 		supervisor := pluginv2.Supervisor{Store: store, Executable: executable, Logger: logger, MaxTasks: c.PluginMaxTasks}
 		finished := make(chan error, 1)
-		go func() { finished <- supervisor.Run(sessionCtx) }()
+		go func() { finished <- runPluginSupervisor(sessionCtx, supervisor, db) }()
 		defer func() {
 			stopSessions()
 			select {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { subscribeJobEvents } from '../api/client';
 import TaskControl from '../workflows/TaskControl.vue';
 import {scheduleLabel} from '../presentation/labels';
 import { pageResult } from './model';
@@ -65,16 +66,11 @@ watch(() => route.query.q, value => {
   filter.page = 1;
   void load();
 });
-let timer: ReturnType<typeof setInterval>, stream: EventSource | undefined;
+let timer: ReturnType<typeof setInterval>, stream: {close:()=>void} | undefined;
 onMounted(() => {
-  if (typeof EventSource !== 'undefined') {
-    stream = new EventSource('/api/v1/jobs/events');
-    stream.addEventListener('tick', () => {
-      if (!document.hidden && !jobs.loading)
-        void jobs.load();
-    });
-    stream.onerror = () => stream?.close();
-  }
+  stream = subscribeJobEvents(() => {
+    if (!document.hidden && !jobs.loading) void jobs.load();
+  });
   void load();
   let ticks = 0;
   timer = setInterval(() => {

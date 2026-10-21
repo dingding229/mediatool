@@ -14,6 +14,7 @@ import (
 	"media-tool/internal/adapters/telegram"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
+	"media-tool/internal/modules/maintenance"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
@@ -148,6 +149,11 @@ func (i CommandIngress) release(ctx context.Context, c integrations.Credentials)
 	}
 }
 func (i CommandIngress) PollOnce(ctx context.Context) (bool, error) {
+	release, gateErr := maintenance.BeginWork(ctx, i.DB)
+	if gateErr != nil {
+		return false, nil
+	}
+	defer release()
 	c, e := i.configuration(ctx)
 	if e != nil || !enabled(c) {
 		return false, nil
