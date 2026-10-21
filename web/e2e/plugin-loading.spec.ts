@@ -15,23 +15,23 @@ test('initial slow plugin lists never claim zero or no instances, including inse
  await page.route('**/api/v1/plugins?*',async r=>{await pending.promise;await r.fulfill({json:{data:[]}})})
  await page.goto(base+'/plugins');expect(await page.evaluate(()=>isSecureContext)).toBe(false)
  try{
-  await expect(page.getByRole('status').filter({hasText:'目录和实例列表加载中'})).toBeVisible()
+  await expect(page.locator('.state-view.state-loading')).toBeVisible()
   await expect(page.getByText('共 0 项',{exact:false})).toHaveCount(0)
-  await expect(page.getByText('尚无实例。未选择的插件不会创建实例或数据。',{exact:true})).toHaveCount(0)
+  await expect(page.getByText('尚未安装匹配的插件',{exact:true})).toHaveCount(0)
   await page.setViewportSize({width:390,height:1000});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
   await page.screenshot({path:info.outputPath('plugin-loading-390.png'),fullPage:true})
  }finally{pending.release()}
- await expect(page.getByText('尚无实例。未选择的插件不会创建实例或数据。',{exact:true})).toBeVisible();expect(writes).toBe(0)
+ await expect(page.getByText('尚未安装匹配的插件',{exact:true})).toBeVisible();expect(writes).toBe(0)
 })
 test('initial failure is an error with retry, never empty; successful retry can show empty',async({page})=>{
  await fixture(page);let fail=true
  await page.route('**/api/v1/plugins/catalog?*',r=>fail?r.fulfill({status:503,json:{error:{code:'plugins_unavailable',message:'private-error-sentinel'}}}):r.fulfill({json:{data:{items:[],total:0}}}))
  await page.route('**/api/v1/plugins?*',r=>r.fulfill({json:{data:[]}}))
- await page.goto(base+'/plugins');await expect(page.getByRole('alert')).toContainText('列表同步失败')
- await expect(page.getByText('尚无实例。未选择的插件不会创建实例或数据。',{exact:true})).toHaveCount(0)
+ await page.goto(base+'/plugins?tab=catalog');await expect(page.getByRole('alert').filter({hasText:'插件信息暂时无法读取'})).toBeVisible();await expect(page.locator('main')).not.toContainText('private-error-sentinel')
+ await expect(page.getByText('尚未安装匹配的插件',{exact:true})).toHaveCount(0)
  await expect(page.getByText('共 0 项',{exact:false})).toHaveCount(0)
- fail=false;await page.getByRole('button',{name:'重试读取目录和实例列表',exact:true}).click()
- await expect(page.getByRole('alert')).toHaveCount(0);await expect(page.getByText('尚无实例。未选择的插件不会创建实例或数据。',{exact:true})).toBeVisible()
+ fail=false;await page.getByRole('button',{name:'重新读取',exact:true}).click()
+ await expect(page.getByRole('alert')).toHaveCount(0);await expect(page.locator('.state-view.state-empty')).toBeVisible()
 })
 
 async function installedFixture(page:Page,running=false){
@@ -40,6 +40,7 @@ async function installedFixture(page:Page,running=false){
  const definition={manifest:{id:'hello-go',name:'Hello Go',version:'1.9.0',description:'Synthetic loading fixture',permissions:[]},fingerprint:'fixture',installedCount:1}
  await page.route('**/api/v1/plugins/catalog?*',r=>r.fulfill({json:{data:{items:[definition],total:1}}}))
  await page.route('**/api/v1/plugins?*',r=>r.fulfill({json:{data:[instance]}}))
+ await page.route('**/api/v1/plugins/'+instance.id+'?*',r=>r.fulfill({json:{data:{instance,config:{value:{},revision:22},entries:[],next:'',fingerprint:'fixture'}}}));
  return instance
 }
 for(const sample of [
@@ -49,9 +50,9 @@ for(const sample of [
  {button:'工具测试',dialog:'人工工具测试',endpoint:'**/api/v1/plugins/*/tools',caption:'工具列表',empty:'没有已授权且运行中的工具'},
 ]){
  test(`${sample.caption}: pending/error never empty; retry is read only`,async({page})=>{
-  await installedFixture(page,sample.button==='工具测试');const pending=gate();let phase='slow';const methods:string[]=[]
+  const instance=await installedFixture(page,sample.button==='工具测试');const pending=gate();let phase='slow';const methods:string[]=[]
   await page.route(sample.endpoint,async r=>{methods.push(r.request().method());if(phase==='slow')await pending.promise;await r.fulfill(phase==='empty'?{json:{data:[]}}:{status:503,json:{error:{code:'plugins_unavailable',message:'private-error-sentinel'}}})})
-  await page.goto(base+'/plugins');await page.getByRole('button',{name:sample.button,exact:true}).click();const dialog=page.getByRole('dialog',{name:sample.dialog,exact:true})
+  await page.goto(base+(sample.button==='工作流管理'?'/plugins':'/plugins/'+instance.id));if(sample.button!=='工作流管理')await page.getByRole('button',{name:'实例数据',exact:true}).click();await page.getByRole('button',{name:sample.button,exact:true}).click();const dialog=page.getByRole('dialog',{name:sample.dialog,exact:true})
   try{await expect(dialog.getByRole('status').filter({hasText:sample.caption+'加载中'})).toBeVisible();await expect(dialog.getByText(sample.empty,{exact:true})).toHaveCount(0)}finally{pending.release()}
   await expect(dialog.getByRole('alert').filter({hasText:'plugins_unavailable'})).toBeVisible();await expect(dialog.getByText(sample.empty,{exact:true})).toHaveCount(0);await expect(dialog).not.toContainText('private-error-sentinel')
   phase='empty';await dialog.getByRole('button',{name:'重试读取'+sample.caption,exact:true}).click();await expect(dialog.getByText(sample.empty,{exact:true})).toBeVisible();expect(methods).toEqual(['GET','GET'])

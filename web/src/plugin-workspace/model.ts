@@ -33,8 +33,10 @@ export function usePluginOperation() {
     canReconcile.value = false;
     try {
       await read();
-      if (!pending.value)
+      if (!pending.value) {
+        error.value = '';
         return;
+      }
       const p = pending.value;
       if (p.receipt || p.input.instanceId) {
         try {
@@ -51,7 +53,7 @@ export function usePluginOperation() {
       canReconcile.value = true;
     }
     catch {
-      error.value = '核对未完成，请先重新读取；不会重复提交。';
+      error.value = pending.value ? '核对未完成，请先重新读取；不会重复提交。' : notice.value ? '列表同步失败，操作回执仍保留；请重新读取。' : '插件列表读取失败，请重新读取。';
     }
   }
   async function send() {
@@ -75,6 +77,8 @@ export function usePluginOperation() {
     }
     catch (e) {
       technical.value = operationError(e);
+      if (e instanceof APIError && e.status === 499)
+        technical.value.uncertain = true;
       error.value = technical.value.uncertain ? '上次操作结果未确认，请先核对，不会重复创建或卸载。' : '请求被拒绝，请重新读取当前定义与修订后再确认。';
       if (!technical.value.uncertain) {
         if (ticket.input.kind === 'install')
@@ -98,6 +102,7 @@ export function usePluginOperation() {
       error.value = '请求尚未发出，无法准备此次操作，请稍后重新确认。';
       return;
     }
+    technical.value = null;
     const { config, ...safe } = input;
     pending.value = { input: safe, key };
     savePrivate(storage, pending.value);
@@ -113,4 +118,8 @@ export function usePluginOperation() {
   }
   return { pending, busy, phase, error, notice, technical, canReconcile, run, reconcile, replay };
 }
-export function safePluginError(e:unknown){if(!e)return null;return new APIError(e instanceof APIError?e.status:503,'plugin_read_failed','插件信息暂时无法读取，请重新读取核对。')}
+export function safePluginError(e: unknown) {
+  if (!e)
+    return null;
+  return new APIError(e instanceof APIError ? e.status : 503, 'plugin_read_failed', '插件信息暂时无法读取，请重新读取核对。');
+}

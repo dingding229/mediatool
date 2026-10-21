@@ -13,8 +13,14 @@ export function useOperation(scope: string) {
   async function run(key: string, write: () => Promise<any>) {
     if (busy.value || pending.value)
       return;
-    let token:string;
-    try { token=requestUUID(); } catch { error.value=Error('请求尚未发出，请稍后重新确认。'); return; }
+    let token: string;
+    try {
+      token = requestUUID();
+    }
+    catch {
+      error.value = Error('请求尚未发出，请稍后重新确认。');
+      return;
+    }
     busy.value = true;
     error.value = null;
     pending.value = { key, token };
@@ -34,7 +40,7 @@ export function useOperation(scope: string) {
     }
     catch (e) {
       error.value = e;
-      if (e instanceof APIError && e.status >= 400 && e.status < 500)
+      if (e instanceof APIError && e.status >= 400 && e.status < 500 && ![408, 499].includes(e.status) && e.code !== 'invalid_response')
         clear();
     }
     finally {

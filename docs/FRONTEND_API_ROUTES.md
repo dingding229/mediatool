@@ -79,12 +79,12 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/auth/session` | management | 未检出静态使用 |  |
 | GET | `/api/v1/auth/setup` | management | 前端直接调用 | `web/src/views/LoginView.vue:8` |
 | HEAD | `/api/v1/auth/setup` | management | 未检出静态使用 |  |
-| GET | `/api/v1/cache/{kind}` | management | 前端直接调用 | `web/src/views/CacheView.vue:52`、`web/src/acquisition/SearchHistory.vue:28` |
+| GET | `/api/v1/cache/{kind}` | management | 前端直接调用 | `web/src/acquisition/SearchHistory.vue:28`、`web/src/operations/CachePanel.vue:17` |
 | HEAD | `/api/v1/cache/{kind}` | management | 未检出静态使用 |  |
-| DELETE | `/api/v1/cache/{kind}/{id}` | management | 前端直接调用 | `web/src/views/CacheView.vue:87` |
-| GET | `/api/v1/cache/{kind}/{id}` | management | 前端直接调用 | `web/src/views/CacheView.vue:70`、`web/src/acquisition/SearchHistory.vue:46` |
+| DELETE | `/api/v1/cache/{kind}/{id}` | management | 前端直接调用 | `web/src/operations/CachePanel.vue:86` |
+| GET | `/api/v1/cache/{kind}/{id}` | management | 前端直接调用 | `web/src/acquisition/SearchHistory.vue:46`、`web/src/operations/CachePanel.vue:32`、`web/src/operations/CachePanel.vue:74` |
 | HEAD | `/api/v1/cache/{kind}/{id}` | management | 未检出静态使用 |  |
-| POST | `/api/v1/cache/{kind}/clear` | management | 前端直接调用 | `web/src/views/CacheView.vue:104` |
+| POST | `/api/v1/cache/{kind}/clear` | management | 前端直接调用 | `web/src/operations/CachePanel.vue:86` |
 | GET | `/api/v1/classification` | management | 前端直接调用 | `web/src/views/ClassificationView.vue:76`、`web/src/dashboard/useDashboard.ts:5` |
 | HEAD | `/api/v1/classification` | management | 未检出静态使用 |  |
 | PUT | `/api/v1/classification` | management | 前端直接调用 | `web/src/views/ClassificationView.vue:177` |
@@ -119,13 +119,13 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | GET | `/api/v1/cloudStorage/strm302` | management | 资源/链接使用 | `web/src/files/LinkDiagnostics.vue:80` |
 | HEAD | `/api/v1/cloudStorage/strm302` | management | 未检出静态使用 |  |
 | POST | `/api/v1/cloudStorage/test` | management | 未检出静态使用 |  |
-| GET | `/api/v1/data/postgres/tables` | management | 前端直接调用 | `web/src/views/DataView.vue:9` |
+| GET | `/api/v1/data/postgres/tables` | management | 前端直接调用 | `web/src/operations/DataPanel.vue:9` |
 | HEAD | `/api/v1/data/postgres/tables` | management | 未检出静态使用 |  |
-| GET | `/api/v1/data/postgres/tables/{table}` | management | 前端直接调用 | `web/src/views/DataView.vue:9` |
+| GET | `/api/v1/data/postgres/tables/{table}` | management | 前端直接调用 | `web/src/operations/DataPanel.vue:19` |
 | HEAD | `/api/v1/data/postgres/tables/{table}` | management | 未检出静态使用 |  |
-| GET | `/api/v1/data/redis/keys` | management | 前端直接调用 | `web/src/views/DataView.vue:9` |
+| GET | `/api/v1/data/redis/keys` | management | 前端直接调用 | `web/src/operations/DataPanel.vue:21` |
 | HEAD | `/api/v1/data/redis/keys` | management | 未检出静态使用 |  |
-| GET | `/api/v1/data/redis/value` | management | 前端直接调用 | `web/src/views/DataView.vue:11` |
+| GET | `/api/v1/data/redis/value` | management | 前端直接调用 | `web/src/operations/DataPanel.vue:22` |
 | HEAD | `/api/v1/data/redis/value` | management | 未检出静态使用 |  |
 | GET | `/api/v1/diagnostics/playback/preflight` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/diagnostics/playback/preflight` | management | 未检出静态使用 |  |
@@ -177,12 +177,12 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | POST | `/api/v1/integrations/{id}/test` | management | 前端直接调用 | `web/src/connections/useConnections.ts:108`、`web/src/sites/AccountsPanel.vue:69` |
 | GET | `/api/v1/jobs` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/jobs` | management | 未检出静态使用 |  |
-| POST | `/api/v1/jobs` | management | 前端直接调用 | `web/src/views/JobsView.vue:147` |
-| GET | `/api/v1/jobs/{id}` | management | 前端直接调用 | `web/src/views/JobsView.vue:158` |
+| POST | `/api/v1/jobs` | management | 前端直接调用 | `web/src/operations/QueuePanel.vue:34` |
+| GET | `/api/v1/jobs/{id}` | management | 前端直接调用 | `web/src/operations/QueuePanel.vue:24`、`web/src/operations/QueuePanel.vue:44` |
 | HEAD | `/api/v1/jobs/{id}` | management | 未检出静态使用 |  |
-| GET | `/api/v1/jobs/browse` | management | 前端直接调用 | `web/src/views/JobsView.vue:112`、`web/src/views/JobsView.vue:158`、`web/src/dashboard/useDashboard.ts:5` |
+| GET | `/api/v1/jobs/browse` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/operations/QueuePanel.vue:17` |
 | HEAD | `/api/v1/jobs/browse` | management | 未检出静态使用 |  |
-| GET | `/api/v1/jobs/events` | management | 前端直接调用 | `web/src/views/JobsView.vue:158` |
+| GET | `/api/v1/jobs/events` | management | 前端直接调用 | `web/src/operations/QueuePanel.vue:69` |
 | HEAD | `/api/v1/jobs/events` | management | 未检出静态使用 |  |
 | GET | `/api/v1/library/activity` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/acquisition/useDownloads.ts:35`、`web/src/organize/HistoryPanel.vue:25`、`web/src/views/OrganizeWorkspaceView.vue:47` |
 | HEAD | `/api/v1/library/activity` | management | 未检出静态使用 |  |
@@ -222,11 +222,11 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | POST | `/api/v1/library/scans/{id}/{action}` | management | 前端直接调用 | `web/src/organize/ScanPanel.vue:138` |
 | GET | `/api/v1/logs` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/logs` | management | 未检出静态使用 |  |
-| POST | `/api/v1/logs/clear` | management | 前端直接调用 | `web/src/views/LogsView.vue:37` |
-| POST | `/api/v1/logs/level` | management | 前端直接调用 | `web/src/views/LogsView.vue:39` |
-| GET | `/api/v1/logs/query` | management | 未检出静态使用 |  |
+| POST | `/api/v1/logs/clear` | management | 前端直接调用 | `web/src/operations/LogsPanel.vue:45` |
+| POST | `/api/v1/logs/level` | management | 前端直接调用 | `web/src/operations/LogsPanel.vue:51` |
+| GET | `/api/v1/logs/query` | management | 前端直接调用 | `web/src/operations/LogsPanel.vue:27` |
 | HEAD | `/api/v1/logs/query` | management | 未检出静态使用 |  |
-| GET | `/api/v1/logs/summary` | management | 前端直接调用 | `web/src/views/LogsView.vue:21` |
+| GET | `/api/v1/logs/summary` | management | 前端直接调用 | `web/src/operations/LogsPanel.vue:28` |
 | HEAD | `/api/v1/logs/summary` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media` | management | 未检出静态使用 |  |
@@ -303,23 +303,23 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | POST | `/api/v1/notification-deliveries/{id}/retry` | management | 前端直接调用 | `web/src/connections/NotificationHistory.vue:41` |
 | GET | `/api/v1/notifications` | management | 前端直接调用 | `web/src/connections/NotificationHistory.vue:22` |
 | HEAD | `/api/v1/notifications` | management | 未检出静态使用 |  |
-| GET | `/api/v1/ops` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:154`、`web/src/dashboard/useDashboard.ts:5` |
+| GET | `/api/v1/ops` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/operations/MaintenancePanel.vue:17`、`web/src/operations/PolicyPanel.vue:10` |
 | HEAD | `/api/v1/ops` | management | 未检出静态使用 |  |
-| POST | `/api/v1/ops/alerts/{code}/ack` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:53` |
-| POST | `/api/v1/ops/backups` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:233` |
-| POST | `/api/v1/ops/backups/{id}/delete` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:247` |
-| GET | `/api/v1/ops/backups/{id}/download` | management | 资源/链接使用 | `web/src/views/MaintenanceView.vue:427` |
+| POST | `/api/v1/ops/alerts/{code}/ack` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:53`、`web/src/operations/MaintenancePanel.vue:41` |
+| POST | `/api/v1/ops/backups` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
+| POST | `/api/v1/ops/backups/{id}/delete` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
+| GET | `/api/v1/ops/backups/{id}/download` | management | 资源/链接使用 | `web/src/operations/MaintenancePanel.vue:124` |
 | HEAD | `/api/v1/ops/backups/{id}/download` | management | 未检出静态使用 |  |
-| POST | `/api/v1/ops/backups/{id}/drill` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:240` |
-| POST | `/api/v1/ops/backups/{id}/pin` | management | 未检出静态使用 |  |
-| POST | `/api/v1/ops/drills/{id}/cleanup` | management | 未检出静态使用 |  |
-| PUT | `/api/v1/ops/policy` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:191` |
-| POST | `/api/v1/ops/requests/{id}/approve` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:260` |
-| POST | `/api/v1/ops/requests/{id}/cancel` | management | 未检出静态使用 |  |
-| POST | `/api/v1/ops/requests/{id}/verify` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:272` |
-| POST | `/api/v1/ops/requests/preview` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:252` |
-| POST | `/api/v1/ops/resume` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:287` |
-| GET | `/api/v1/ops/trends` | management | 前端直接调用 | `web/src/views/MaintenanceView.vue:170` |
+| POST | `/api/v1/ops/backups/{id}/drill` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
+| POST | `/api/v1/ops/backups/{id}/pin` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
+| POST | `/api/v1/ops/drills/{id}/cleanup` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
+| PUT | `/api/v1/ops/policy` | management | 前端直接调用 | `web/src/operations/PolicyPanel.vue:38` |
+| POST | `/api/v1/ops/requests/{id}/approve` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:71` |
+| POST | `/api/v1/ops/requests/{id}/cancel` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
+| POST | `/api/v1/ops/requests/{id}/verify` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
+| POST | `/api/v1/ops/requests/preview` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:57` |
+| POST | `/api/v1/ops/resume` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
+| GET | `/api/v1/ops/trends` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:17` |
 | HEAD | `/api/v1/ops/trends` | management | 未检出静态使用 |  |
 | POST | `/api/v1/pipeline/{kind}/{id}/retry` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:114` |
 | GET | `/api/v1/player-access/events` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:11` |
@@ -407,9 +407,9 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | GET | `/api/v1/settings/access` | management | 前端直接调用 | `web/src/components/AccessSettings.vue:29` |
 | HEAD | `/api/v1/settings/access` | management | 未检出静态使用 |  |
 | PUT | `/api/v1/settings/access` | management | 前端直接调用 | `web/src/components/AccessSettings.vue:40` |
-| GET | `/api/v1/settings/application` | management | 前端直接调用 | `web/src/components/ApplicationSettings.vue:49`、`web/src/components/ApplicationSettings.vue:81`、`web/src/workflows/FileBatchDialog.vue:51`、`web/src/workflows/FileBatchDialog.vue:85` |
+| GET | `/api/v1/settings/application` | management | 前端直接调用 | `web/src/components/ApplicationSettings.vue:49`、`web/src/components/ApplicationSettings.vue:81`、`web/src/workflows/FileBatchDialog.vue:51`、`web/src/workflows/FileBatchDialog.vue:85`、`web/src/operations/CachePanel.vue:17` |
 | HEAD | `/api/v1/settings/application` | management | 未检出静态使用 |  |
-| PUT | `/api/v1/settings/application` | management | 前端直接调用 | `web/src/components/ApplicationSettings.vue:110` |
+| PUT | `/api/v1/settings/application` | management | 前端直接调用 | `web/src/components/ApplicationSettings.vue:110`、`web/src/operations/CachePanel.vue:60` |
 | POST | `/api/v1/settings/naming-preview` | management | 前端直接调用 | `web/src/components/ApplicationSettings.vue:30` |
 | GET | `/api/v1/settings/network-proxy` | management | 前端直接调用 | `web/src/connections/ProxySettings.vue:15` |
 | HEAD | `/api/v1/settings/network-proxy` | management | 未检出静态使用 |  |
@@ -443,7 +443,7 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/subscriptions/{id}/history` | management | 未检出静态使用 |  |
 | GET | `/api/v1/system/modules` | management | 前端直接调用 | `web/src/stores/system.ts:7` |
 | HEAD | `/api/v1/system/modules` | management | 未检出静态使用 |  |
-| GET | `/api/v1/system/operations` | management | 前端直接调用 | `web/src/views/JobsView.vue:128` |
+| GET | `/api/v1/system/operations` | management | 前端直接调用 | `web/src/operations/QueuePanel.vue:17` |
 | HEAD | `/api/v1/system/operations` | management | 未检出静态使用 |  |
 | GET | `/api/v1/system/runtime` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5` |
 | HEAD | `/api/v1/system/runtime` | management | 未检出静态使用 |  |

@@ -5,6 +5,7 @@ import { catalog, instances, type PluginDefinition } from '../api/plugins';
 import { useResource } from '../workflows/useResource';
 import { usePluginOperation, pluginState, reasonName, safePluginError } from '../plugin-workspace/model';
 import { hasInstallIntent } from '../plugins/install-intent';
+import PluginMetadata from '../plugins/PluginMetadata.vue';
 import Permissions from '../plugin-workspace/Permissions.vue';
 import PluginAutomation from '../plugins/PluginAutomation.vue';
 import PageHeader from '../ui/PageHeader.vue';
@@ -81,25 +82,29 @@ onMounted(load);
       </template>
       <template v-else>
         <ResourceState :loading="directory.loading" :error="safePluginError(directory.error)" :empty="!definitions.length" @reload="load"/>
-        <div v-if="!directory.error" class="u6-card-grid">
+        <div v-if="!directory.error" class="u6-card-grid" role="region" aria-label="内置插件目录">
           <article v-for="d in definitions" :key="d.manifest.id" class="u6-card">
-            <h3>{{ d.manifest.name }}</h3>
-            <p>{{ d.manifest.description||'—' }}</p>
+            <PluginMetadata :metadata="d.manifest"/>
             <p>{{ d.installedCount==null?'安装数量 —':'已安装 '+d.installedCount+' 个实例' }}</p>
             <el-button :disabled="!!op.pending||op.busy" @click="select(d)">{{ hasInstallIntent(d.manifest.id,d.fingerprint)?'核对上次安装':d.installedCount?'新增独立实例':'安装插件' }}</el-button>
           </article>
         </div>
         <div class="media-actions">
           <el-button :disabled="catalogPage===1||directory.loading" @click="catalogPage--;load()">上一页目录</el-button>
-          <span>第 {{ catalogPage }} 页 · 共 {{ directory.data?.total??'—' }} 项</span>
+          <span>第 {{ catalogPage }} 页 · 共 {{ directory.loading||directory.error?'—':directory.data?.total??'—' }} 项</span>
           <el-button :disabled="catalogPage*200>=(directory.data?.total||0)||directory.loading" @click="catalogPage++;load()">下一页目录</el-button>
         </div>
       </template>
     </section>
     <el-dialog :model-value="!!consent" title="插件权限确认" width="min(700px,94vw)" class="media-dialog u5-dialog" :close-on-click-modal="false" @update:model-value="consent=null">
       <h3>{{ consent?.manifest.name }}</h3>
+      <p>尚未提交时不会创建实例；确认安装将新增独立实例，默认停用。</p>
+      <details v-if="op.technical">
+        <summary>技术详情</summary>
+        <pre class="u6-raw">{{ op.technical }}</pre>
+      </details>
       <el-alert v-if="op.error" :title="op.error" type="error" :closable="false"/>
-      <p>安装将创建独立实例，默认停用；启用后可在以下权限范围内运行。</p>
+      <p>安装将创建独立实例，默认停用；启用后将以本服务权限运行，请只选择可信插件。</p>
       <Permissions :permissions="consent?.manifest.permissions||[]"/>
       <label class="u5-check">
         <input v-model="confirmed" type="checkbox"/>

@@ -1,9 +1,9 @@
 import {beforeEach,afterEach,expect,it,vi} from 'vitest'
 import {reactive,nextTick} from 'vue'
 import {setupComponent,flush,deferred} from '../test/setup-component'
-import {usePluginOperation,pluginState} from './model'
+import {usePluginOperation,pluginState,safePluginError} from './model'
 import Workspace from '../views/PluginsWorkspaceView.vue'
-import Detail from '../views/PluginDetailView.vue'
+import Detail from './InstanceDetail.vue'
 import Extensions from './ExtensionsPanel.vue'
 import {APIError} from '../api/client'
 import {catalog,instances,inspect,operate,reviewPlan,extensions,runHistory,runExtension} from '../api/plugins'
@@ -40,3 +40,7 @@ it('configuration is never automatically replayed after an unknown reply',async(
 it('an unavailable definition does not turn a failed preview into an empty approval',async()=>{const s=mount(Detail);await flush();s.plan.data.availability='unavailable';s.plan.data.needsReview=true;s.confirmed=true;await s.approve();expect(operate).not.toHaveBeenCalled()})
 it('clone receipts must identify a new real instance and may not invent a revision',async()=>{vi.mocked(operate).mockResolvedValue({id:'clone',revision:0,pluginId:'hello-go'} as any);const op=usePluginOperation();await op.run({kind:'clone',instanceId:instance.id,fingerprint:definition.fingerprint,expectedRevision:instance.revision,scopes:[]});expect(op.pending.value).toBeTruthy();expect(op.notice.value).toBe('')})
 it('unknown extension submission is locked and read-only history refresh never triggers execution',async()=>{vi.mocked(extensions).mockResolvedValue(extensionContract.snapshot as any);vi.mocked(runHistory).mockResolvedValue(extensionContract.history as any);vi.mocked(runExtension).mockRejectedValue(Error('lost'));const s=mount(Extensions,{id:instance.id,running:true});await flush();s.selected=s.runnable[0];await s.run();await s.run();await s.load();expect(runExtension).toHaveBeenCalledTimes(1);expect(s.op.phase).toBe('reconciling')})
+it('never reconciles an extension write against another instance after navigation',async()=>{vi.mocked(extensions).mockResolvedValue(extensionContract.snapshot as any);vi.mocked(runHistory).mockResolvedValue([]);vi.mocked(runExtension).mockRejectedValue(Error('lost'));const s=mount(Extensions,{id:instance.id,running:true});await flush();s.selected=s.runnable[0];await s.run();const journal=JSON.parse(sessionStorage.getItem('media-tool:u5:plugin-run')!);journal.key=JSON.stringify({...JSON.parse(journal.key),instanceId:'another-instance'});sessionStorage.setItem('media-tool:u5:plugin-run',JSON.stringify(journal));const other=mount(Extensions,{id:'different',running:true});await flush();await other.reconcile();expect(runExtension).toHaveBeenCalledTimes(1);expect(other.op.error.message).toContain('另一插件')})
+
+it('plugin-host read failures retain authorization status without rendering arbitrary worker exception text',()=>{const safe=safePluginError(new APIError(403,'forbidden','private-worker-error'));expect(safe!.status).toBe(403);expect(safe!.message).not.toContain('private-worker-error');expect(safePluginError(null)).toBeNull()})
+it.each([408,499])('preserves the original plugin intent on an ambiguous HTTP %i timeout',async status=>{vi.mocked(operate).mockRejectedValue(new APIError(status,'request_failed','private-timeout'));const op=usePluginOperation();await op.run(input);expect(op.pending.value).toBeTruthy();expect(op.error.value).not.toContain('private-timeout');await op.replay(async()=>{});expect(vi.mocked(operate).mock.calls[0]![0].operationKey).toBe(vi.mocked(operate).mock.calls[1]![0].operationKey)})
