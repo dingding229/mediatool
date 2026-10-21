@@ -3,6 +3,9 @@ import {usePageRefresh} from '../ui/page-refresh';
 import { computed, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElDropdown, ElDropdownItem, ElDropdownMenu } from 'element-plus';
+import 'element-plus/es/components/dropdown/style/css'
+import 'element-plus/es/components/dropdown-item/style/css'
+import 'element-plus/es/components/dropdown-menu/style/css'
 import { APIError, post, request } from '../api/client';
 import PageHeader from '../ui/PageHeader.vue';
 import PageTabs from '../ui/PageTabs.vue';

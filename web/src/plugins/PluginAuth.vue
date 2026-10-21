@@ -3,6 +3,7 @@ import{ref,onMounted}from'vue'
 import ReadFeedback from './ReadFeedback.vue'
 import {useReadState} from './read-state'
 import{ElMessageBox}from'element-plus'
+import 'element-plus/es/components/message-box/style/css'
 import{authProviders,bindProvider,inspect}from'../api/plugins'
 import type{AuthProviderStatus}from'../api/plugins'
 const props=defineProps<{instanceId:string}>(),rows=ref<AuthProviderStatus[]>([]),provider=ref(''),subject=ref(''),account=ref(''),busy=ref(false),error=ref(''),notice=ref('')

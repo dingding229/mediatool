@@ -2,6 +2,10 @@
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed } from 'vue'
 import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElIcon } from 'element-plus'
+import 'element-plus/es/components/dropdown/style/css'
+import 'element-plus/es/components/dropdown-menu/style/css'
+import 'element-plus/es/components/dropdown-item/style/css'
+import 'element-plus/es/components/icon/style/css'
 import { Plus, Search, VideoPlay, ArrowRight } from '@element-plus/icons-vue'
 import PageHeader from '../ui/PageHeader.vue'
 import PageTabs from '../ui/PageTabs.vue'

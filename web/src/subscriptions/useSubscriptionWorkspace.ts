@@ -1,6 +1,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import 'element-plus/es/components/message/style/css'
 import { APIError, post, request } from '../api/client'
 import { asError, draftFor, failure, payloadFor, pendingStorageKey, restorePending } from './model'
 import type { Account, Draft, HistoryRun, Media, PendingRun, Run, Subscription } from './model'

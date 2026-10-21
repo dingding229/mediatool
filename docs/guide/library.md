@@ -30,3 +30,8 @@
 **外部 Emby + STRM 不生成伪字幕 STRM，也不下载字幕正文。** Emby 官方命名规则要求实际外挂字幕文件与影片同名放在同一目录；官方团队对 STRM 的说明也不承诺枚举远程目标的旁挂文件。
 因此本功能只在内置媒体服务器提供，不把含URL的 `.srt` 或 `.srt.strm` 冒充字幕。
 研究依据：Emby Documentation《Subtitles Naming》（`https://emby.media/support/articles/Subtitles.html`）；Emby Community《STRM files》与《STRM files when played show no subtitles....but they are there》（2026-10-21 核查）。
+
+## 大片库浏览与缓存
+
+搜索在 SQL 内先执行权限、分级和关键词过滤，再计算候选上限；超过五万匹配时明确提示范围过大，不把截断结果冒充完整结果。
+片库缓存是可再生数据：单值最多 2 MiB、总 payload 最多 16 MiB / 64 项，短期过期且校验数据库写入 fence；扫描、整理、删除或权限变化后会重新读取，不依赖手动刷新权限缓存。

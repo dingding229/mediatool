@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 
 	"media-tool/internal/modules/embyapi/dto"
 	"media-tool/internal/modules/mediausers/contracts"
@@ -108,13 +109,20 @@ func (r BrowseRepository) hydrate(ctx context.Context, records []browseRow, fiel
 	sources := map[string][]nativelibrary.MovieSource{}
 	ends := map[string]int{}
 	overflows := map[string]bool{}
-	rows, err = r.DB.Query(ctx, `WITH wanted AS(SELECT * FROM jsonb_to_recordset($1) w("Kind" text,"Key" text,tmdb bigint,"S" int,"E" int,"Libraries" text[])),eligible AS (`+ExposableAssetsSQL+`),ranked AS(
+	rows, err = r.DB.Query(ctx, `WITH wanted AS MATERIALIZED(SELECT * FROM jsonb_to_recordset($1) w("Kind" text,"Key" text,tmdb bigint,"S" int,"E" int,"Libraries" text[])),wanted_roots AS MATERIALIZED(
+ SELECT DISTINCT m.id FROM wanted w CROSS JOIN LATERAL(SELECT id FROM media_items WHERE media_type=CASE w."Kind" WHEN 'movie' THEN 'movie' ELSE 'series' END AND tmdb_id=w.tmdb LIMIT 1)m WHERE w."Kind" IN('movie','episode')
+ ),source_bindings AS MATERIALIZED(SELECT *FROM media_asset_bindings WHERE media_id IN(SELECT id FROM wanted_roots)),eligible AS MATERIALIZED (
+ SELECT e.asset_id,e.cloud_file_id,e.tmdb_id,e.media_type,e.created_at,e.season,
+ coalesce((SELECT min(value::int) FROM jsonb_array_elements_text(e.episodes)),e.episode) first_episode,
+ coalesce((SELECT max(value::int) FROM jsonb_array_elements_text(e.episodes)),e.episode,0) last_episode
+ FROM (`+strings.Replace(ExposableAssetsSQL, "JOIN media_asset_bindings b ON", "JOIN source_bindings b ON", 1)+`)e
+ ),ranked AS(
  SELECT w."Key" key,e.asset_id,coalesce(lower(substring(f.full_path FROM '\.([A-Za-z0-9]{1,16})$')),'') container,
- coalesce((SELECT max(value::int) FROM jsonb_array_elements_text(e.episodes)),e.episode,0) last_episode,
+ e.last_episode,
  row_number() OVER(PARTITION BY w."Key" ORDER BY e.created_at DESC,e.asset_id) rank,count(*) OVER(PARTITION BY w."Key") versions
  FROM wanted w JOIN eligible e ON e.tmdb_id=w.tmdb AND e.media_type=CASE w."Kind" WHEN 'movie' THEN 'movie' ELSE 'series' END
  JOIN native_asset_libraries al ON al.asset_id=e.asset_id AND al.library_id=ANY(w."Libraries") JOIN cloud_files f ON f.id=e.cloud_file_id
- WHERE w."Kind"='movie' OR w."Kind"='episode' AND e.season=w."S" AND coalesce((SELECT min(value::int) FROM jsonb_array_elements_text(e.episodes)),e.episode)=w."E")
+ WHERE w."Kind"='movie' OR w."Kind"='episode' AND e.season=w."S" AND e.first_episode=w."E")
  SELECT key,jsonb_agg(jsonb_build_object('ID',asset_id::text,'Container',container) ORDER BY rank),max(last_episode),max(versions)>100 FROM ranked WHERE rank<=100 GROUP BY key`, recordJSON)
 	if err != nil {
 		return nil, contracts.ErrUnavailable

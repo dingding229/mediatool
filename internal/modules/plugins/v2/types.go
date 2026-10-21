@@ -145,34 +145,64 @@ var contentFingerprints = sync.OnceValues(func() (map[string]string, error) {
 	return out, nil
 })
 
+// Only immutable compiled metadata is memoized. Public/internal callers receive
+// detached graphs; live instance grants, generation and revision remain PG reads.
+type metadataSnapshot struct {
+	All  json.RawMessage
+	ByID map[string]json.RawMessage
+}
+
+var compiledMetadata = sync.OnceValues(func() (metadataSnapshot, error) {
+	out := metadataSnapshot{ByID: map[string]json.RawMessage{}}
+	defs, err := registry.All()
+	if err != nil {
+		return out, ErrUnavailable
+	}
+	fingerprints, err := contentFingerprints()
+	if err != nil {
+		return out, err
+	}
+	list := make([]Definition, 0, len(defs))
+	for _, d := range defs {
+		v := Definition{Manifest: d.Manifest, Fingerprint: fingerprints[d.Manifest.ID]}
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return out, ErrUnavailable
+		}
+		out.ByID[d.Manifest.ID] = raw
+		list = append(list, v)
+	}
+	out.All, err = json.Marshal(list)
+	return out, err
+})
+
 func Catalog() ([]Definition, error) {
-	defs, e := registry.All()
-	if e != nil {
+	cached, err := compiledMetadata()
+	if err != nil {
+		return nil, err
+	}
+	var out []Definition
+	if err = json.Unmarshal(cached.All, &out); err != nil {
 		return nil, ErrUnavailable
 	}
-	fingerprints, e := contentFingerprints()
-	if e != nil {
-		return nil, e
+	return out, nil
+}
+func definition(id string) (Definition, error) {
+	cached, err := compiledMetadata()
+	if err != nil {
+		return Definition{}, err
 	}
-	out := make([]Definition, 0, len(defs))
-	for _, d := range defs {
-		out = append(out, Definition{Manifest: d.Manifest, Fingerprint: fingerprints[d.Manifest.ID]})
+	raw, ok := cached.ByID[id]
+	if !ok {
+		return Definition{}, ErrNotFound
+	}
+	var out Definition
+	if err = json.Unmarshal(raw, &out); err != nil {
+		return Definition{}, ErrUnavailable
 	}
 	return out, nil
 }
 
-func definition(id string) (Definition, error) {
-	all, e := Catalog()
-	if e != nil {
-		return Definition{}, e
-	}
-	for _, d := range all {
-		if d.Manifest.ID == id {
-			return d, nil
-		}
-	}
-	return Definition{}, ErrNotFound
-}
 func scopes(d Definition) []string {
 	out := make([]string, 0, len(d.Manifest.Permissions))
 	for _, p := range d.Manifest.Permissions {

@@ -15,7 +15,7 @@ import (
 func (r BrowseRepository) single(ctx context.Context, u contracts.User, p contracts.PermissionChecker, id string, kind dto.ItemType) (dto.BaseItemDto, error) {
 	// Parent/Similar preflight only needs identity, genres and permission checks.
 	// Do not spend a probe snapshot query outside the actual returned page.
-	items, _, err := r.query(ctx, u, p, nativelibrary.ItemQuery{IDs: []string{id}, Limit: 1}, browseOptions{skipProbes: true})
+	items, _, err := r.query(ctx, u, p, nativelibrary.ItemQuery{IDs: []string{id}, Limit: 1}, browseOptions{skipProbes: true, skipCount: true})
 	if err != nil {
 		return dto.BaseItemDto{}, err
 	}

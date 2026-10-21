@@ -2,6 +2,9 @@
 import {usePageRefresh} from '../ui/page-refresh';
 import { requestUUID } from '../utils/request-uuid';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
+import 'element-plus/es/components/dropdown/style/css'
+import 'element-plus/es/components/dropdown-menu/style/css'
+import 'element-plus/es/components/dropdown-item/style/css'
 import { computed, onMounted, ref } from 'vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import StateView from '../ui/StateView.vue';

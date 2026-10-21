@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -103,7 +102,7 @@ func SeriesDTO(in SeriesProjection) (dto.BaseItemDto, error) {
 	item.DateCreated = utcPtr(in.CreatedAt)
 	item.ProviderIds = map[string]string{"Tmdb": strconv.FormatInt(in.TMDBID, 10)}
 	if meta.ImdbID != "" {
-		if !regexp.MustCompile(`^tt[0-9]{1,20}$`).MatchString(meta.ImdbID) {
+		if !imdbIDPattern.MatchString(meta.ImdbID) {
 			return dto.BaseItemDto{}, ErrInvalidHierarchy
 		}
 		item.ProviderIds["Imdb"] = meta.ImdbID

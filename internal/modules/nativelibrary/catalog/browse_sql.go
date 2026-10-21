@@ -35,7 +35,12 @@ const browseKeysCTE = browseExpandedCTE + `,grouped AS (
 // quadratic nested-loop scans on freshly bulk-populated test libraries.
 // Only lightweight headers participate in filtering and paging. Provider
 // snapshots and physical versions are fetched once, only for this page's keys.
-const browseCTE = browseKeysCTE + `,headers AS NOT MATERIALIZED (
+const browseCTE = browseKeysCTE + `,episode_metadata AS MATERIALIZED (
+ SELECT DISTINCT ON(m.tmdb_id,m.season,m.first_episode) m.tmdb_id,m.season,m.first_episode,v.value
+ FROM members m CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(m.asset_identity->'episodeDetails')='array' THEN m.asset_identity->'episodeDetails' ELSE '[]'::jsonb END) v(value)
+ WHERE m.media_type='series' AND v.value->>'season'=m.season::text AND v.value->>'number'=m.first_episode::text
+ ORDER BY m.tmdb_id,m.season,m.first_episode,m.created_at DESC,m.asset_id
+),headers AS NOT MATERIALIZED (
  SELECT g.*,b.title,b.release_year,b.metadata || jsonb_strip_nulls(jsonb_build_object(
  'originalTitle',nullif(d.payload->>'originalTitle',''),'officialRating',nullif(d.payload->>'officialRating',''),'genres',nullif(d.payload->'genres','[]'::jsonb),'sortName',nullif(d.payload->>'sortName',''),
  'premiereDate',nullif(d.payload->>'premiereDate',''),'communityRating',d.payload->'communityRating')) meta,
@@ -46,11 +51,8 @@ const browseCTE = browseKeysCTE + `,headers AS NOT MATERIALIZED (
  AND d.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN')
  LEFT JOIN native_tmdb_details sd ON sd.tmdb_type='season' AND sd.tmdb_id=g.tmdb_id AND sd.season_number=g.s AND sd.fetched_at IS NOT NULL
  AND sd.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN')
- LEFT JOIN LATERAL (
- SELECT v.value FROM members m CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(m.asset_identity->'episodeDetails')='array' THEN m.asset_identity->'episodeDetails' ELSE '[]'::jsonb END) v(value)
- WHERE g.kind='episode' AND m.tmdb_id=g.tmdb_id AND m.season=g.s AND m.first_episode=g.e
- AND v.value->>'season'=g.s::text AND v.value->>'number'=g.e::text ORDER BY m.created_at DESC,m.asset_id LIMIT 1
- ) ep ON true
+ LEFT JOIN episode_metadata ep ON g.kind='episode' AND ep.tmdb_id=g.tmdb_id AND ep.season=g.s AND ep.first_episode=g.e
+
 ), media_rows AS NOT MATERIALIZED (
  SELECT h.kind,h.internal_key,h.tmdb_id,h.s,h.e,h.created,h.libraries,h.parent,h.title,h.meta,h.episode_info,h.seasons,h.episodes,n.id::text id,
  CASE kind WHEN 'season' THEN season_name WHEN 'episode' THEN coalesce(nullif(episode_info->>'title',''),'第 '||e||' 集') ELSE title END name,
@@ -59,7 +61,7 @@ const browseCTE = browseKeysCTE + `,headers AS NOT MATERIALIZED (
  coalesce(meta->>'officialRating','') rating,
  CASE kind WHEN 'season' THEN season_date WHEN 'episode' THEN coalesce(episode_info->>'airDate','') ELSE coalesce(meta->>'premiereDate','') END premiere,
  0 sort_order,'' collection_type,h.latest_created
- FROM headers h LEFT JOIN native_item_ids n ON n.entity_type=h.kind AND n.internal_key=h.internal_key
+ FROM headers h LEFT JOIN LATERAL(SELECT id FROM native_item_ids WHERE entity_type=h.kind AND internal_key=h.internal_key LIMIT 1)n ON true
 ), raw_item_rows AS NOT MATERIALIZED (
  SELECT * FROM media_rows UNION ALL
  SELECT 'library',l.id,0::bigint,-1,-1,l.created_at,ARRAY[l.id],'',l.name,'{}'::jsonb,'{}'::jsonb,0,0,l.item_id::text,l.name,'','','',l.sort_order,l.collection_type,l.created_at
@@ -85,7 +87,8 @@ var browseSorts = map[string]string{
 // entities and discarding them after ranking. No new index/extension required.
 func browseSQLFor(q nativelibrary.ItemQuery) string {
 	if len(q.IncludeItemTypes) == 1 && strings.EqualFold(q.IncludeItemTypes[0], "Movie") {
-		return strings.Replace(browseCTE, "WHERE NOT l.hidden", "WHERE e.media_type='movie' AND NOT l.hidden", 1)
+		sql := strings.Replace(browseCTE, "WHERE NOT l.hidden", "WHERE e.media_type='movie' AND NOT l.hidden", 1)
+		return strings.Replace(sql, "bound AS NOT MATERIALIZED", "bound AS MATERIALIZED", 1)
 	}
 	return browseCTE
 }
@@ -100,9 +103,15 @@ func browseSearchSQL(q nativelibrary.ItemQuery, bind int, normalized bool) strin
 	}
 	expr := fmt.Sprintf("strpos(lower(e.title),lower($%d::text))>0", bind)
 	if normalized {
-		original := `coalesce((SELECT nullif(d.payload->>'originalTitle','') FROM native_tmdb_details d WHERE d.tmdb_type='movie' AND d.tmdb_id=e.tmdb_id AND d.season_number IS NULL AND d.fetched_at IS NOT NULL AND d.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') LIMIT 1),e.metadata->>'originalTitle','')`
+		// Skip 100k empty override probes when this library has no fetched movie
+		// original titles. When overrides exist, keep the indexed correlated lookup
+		// (not an unindexed materialized title table that can become quadratic).
+		language := `coalesce((SELECT nullif(settings->>'language','')FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN')`
+		sql = strings.Replace(sql, "WITH ", `WITH movie_snapshot_presence AS MATERIALIZED(SELECT EXISTS(SELECT 1 FROM native_tmdb_details WHERE tmdb_type='movie' AND season_number IS NULL AND fetched_at IS NOT NULL AND language=`+language+` AND nullif(payload->>'originalTitle','') IS NOT NULL) present), `, 1)
+		original := `coalesce(CASE WHEN (SELECT present FROM movie_snapshot_presence) THEN (SELECT nullif(d.payload->>'originalTitle','') FROM native_tmdb_details d WHERE d.tmdb_type='movie' AND d.tmdb_id=e.tmdb_id AND d.season_number IS NULL AND d.fetched_at IS NOT NULL AND d.language=` + language + ` LIMIT 1)END,e.metadata->>'originalTitle','')`
 		expr = fmt.Sprintf("strpos(lower(normalize(e.title,NFKC)),lower(normalize($%d::text,NFKC)))>0 OR strpos(lower(normalize(%s,NFKC)),lower(normalize($%d::text,NFKC)))>0", bind, original, bind)
 	}
+
 	return strings.Replace(sql, "AND e.media_type=CASE l.collection_type", "AND (e.media_type<>'movie' OR ("+expr+")) AND e.media_type=CASE l.collection_type", 1)
 }
 
@@ -112,7 +121,7 @@ func pruneParentSQL(sql string, bind int, kinds ...string) string {
 	if bind == 0 {
 		return sql
 	}
-	key := fmt.Sprintf(`(SELECT internal_key FROM native_item_ids WHERE id::text=$%d::text AND entity_type IN('series','season'))`, bind)
+	key := fmt.Sprintf(`(SELECT internal_key FROM native_item_ids WHERE id=$%d::bigint AND entity_type IN('series','season'))`, bind)
 	tmdb := `split_part(substring(` + key + ` from 6),':',1)`
 	kind := ""
 	if len(kinds) > 0 {

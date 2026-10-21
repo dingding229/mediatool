@@ -1,6 +1,9 @@
 import {test,expect,type Page} from '@playwright/test'
 if(process.env.E2E_ISOLATED!=='1')throw Error('isolated test stack required')
 const base=process.env.R_INSTALL_UI_ORIGIN??'http://mediatool-insecure.test:18084'
+// Drain forwarded lazy assets before the browser context disposes APIResponse
+// bodies. This is a completion signal, not a sleep or an assertion relaxation.
+test.afterEach(async({page})=>{await page.unrouteAll({behavior:'wait'})})
 async function fixture(page:Page){
  await page.route(base+'/**',async r=>{const u=new URL(r.request().url());await r.fulfill({response:await r.fetch({url:'http://127.0.0.1:'+u.port+u.pathname+u.search})})})
  await page.route('**/api/v1/**',r=>r.fulfill({json:{data:[]}}))

@@ -25,7 +25,7 @@ const nextUpLightCTE = `,personal_series_ratings AS MATERIALIZED(
  coalesce(d.position_ticks,0) user_position,coalesce(d.play_count,0) user_count,coalesce(d.favorite,false) user_favorite,
  coalesce(d.played,false) user_played,d.last_played_at user_last_played,r.rating
  FROM keyed g JOIN personal_series_ratings r ON r.tmdb_id=g.tmdb_id
- LEFT JOIN native_item_ids n ON n.entity_type=g.kind AND n.internal_key=g.internal_key
+ LEFT JOIN LATERAL(SELECT id FROM native_item_ids WHERE entity_type=g.kind AND internal_key=g.internal_key LIMIT 1)n ON true
  LEFT JOIN media_user_item_data d ON d.item_id=n.id AND d.user_id=$5::uuid
  WHERE g.kind IN('series','season','episode')
 ) `
@@ -54,7 +54,7 @@ func (r BrowseRepository) nextUpPage(ctx context.Context, u contracts.User, p co
 	}
 
 	args = append(args, q.Limit, q.StartIndex)
-	sql := browseKeysCTE + nextUpLightCTE + nextUpCTE(where) + fmt.Sprintf(`,page AS(SELECT internal_key FROM filtered ORDER BY last_watch DESC,id::bigint NULLS LAST,internal_key LIMIT $%d OFFSET $%d)
+	sql := strings.Replace(browseKeysCTE, "WHERE NOT l.hidden", "WHERE e.media_type='series' AND NOT l.hidden", 1) + nextUpLightCTE + nextUpCTE(where) + fmt.Sprintf(`,page AS(SELECT internal_key FROM filtered ORDER BY last_watch DESC,id::bigint NULLS LAST,internal_key LIMIT $%d OFFSET $%d)
  SELECT (SELECT count(*) FROM filtered),coalesce((SELECT jsonb_agg(internal_key) FROM page),'[]'),(SELECT count(*) FROM recent_shows)<=500`, len(args)-1, len(args))
 	var total int
 	var raw []byte
@@ -73,7 +73,7 @@ func (r BrowseRepository) nextUpPage(ctx context.Context, u contracts.User, p co
 		return []dto.BaseItemDto{}, total, nil
 	}
 	// Restrict BEFORE metadata/episode JSON expansion, not after a heavy join.
-	pageSQL := strings.Replace(browseCTE, "FROM keyed g JOIN media_items b", "FROM (SELECT * FROM keyed WHERE kind='episode' AND internal_key=ANY($6::text[])) g JOIN media_items b", 1)
+	pageSQL := strings.Replace(strings.Replace(browseCTE, "WHERE NOT l.hidden", "WHERE e.media_type='series' AND NOT l.hidden", 1), "FROM keyed g JOIN media_items b", "FROM (SELECT * FROM keyed WHERE kind='episode' AND internal_key=ANY($6::text[])) g JOIN media_items b", 1)
 	pageSQL += ` SELECT coalesce(jsonb_agg(row_to_json(page)),'[]') FROM (SELECT ` + browseColumns + ` FROM item_rows WHERE kind='episode' AND ($3::boolean OR btrim(regexp_replace(upper(btrim(rating)),'^(CN:|US:)\s*',''))=ANY($2::text[])))page`
 	if err = r.DB.QueryRow(ctx, pageSQL, visible.ids, visible.codes, visible.unrated, visible.library, visible.user, keys).Scan(&raw); err != nil {
 		return nil, 0, contracts.ErrUnavailable

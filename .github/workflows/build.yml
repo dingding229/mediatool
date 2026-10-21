@@ -60,13 +60,21 @@ jobs:
           sudo apt-get install -y ffmpeg
           ffmpeg -version
           ffprobe -version
-      - name: Native AMD64 real static worker with race-instrumented host
+      - name: Build same-commit static test app once
+        run: |
+          dir="$RUNNER_TEMP/mediatool-test-app"
+          mkdir -p "$dir"
+          CGO_ENABLED=0 go build -trimpath -o "$dir/media-tool" ./cmd/media-tool
+          go build -trimpath -o "$dir/media-tool-dev" ./cmd/media-tool-dev
+          printf '%s\n' "$GITHUB_SHA" > "$dir/media-tool.sha"
+          echo "MEDIA_TOOL_STATIC_TEST_BINARY=$dir/media-tool" >> "$GITHUB_ENV"
+          echo "MEDIA_TOOL_DEV_BIN=$dir/media-tool-dev" >> "$GITHUB_ENV"
+      - name: Serial full race and real static AMD64 worker gate
+        # Includes the former focused plugins/v2,httpapi,acquisition,messaging
+        # step under the identical non-root/static-worker environment, once.
         run: |
           echo "Runner real-UID thread count: $(ps -u "$(id -u)" -L --no-headers | wc -l)"
-          bash scripts/test-go.sh ./internal/modules/plugins/v2 ./internal/platform/httpapi ./internal/modules/acquisition ./internal/modules/messaging
-        env:
-          TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
-      - run: bash scripts/test-go.sh
+          bash scripts/test-go.sh
         env:
           TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
       - name: Native AMD64 media concurrency verification (real media required)
@@ -76,7 +84,6 @@ jobs:
       - run: go vet ./...
       - name: Production error-handling boundary (exclude private local diagnostics and test fixtures)
         run: go run github.com/kisielk/errcheck@v1.9.0 -ignoretests ./cmd/... ./internal/... ./migrations/... ./tests/...
-      - run: go test -race ./internal/tooling ./internal/operator
       - name: Browser end-to-end tests (unified process)
         env:
           TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}

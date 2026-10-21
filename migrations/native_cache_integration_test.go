@@ -199,7 +199,7 @@ func TestNativeCacheIndependentResponsesAndRedisFallback(t *testing.T) {
 	var cursor uint64
 	var keys []string
 	for i := 0; i < 20; i++ {
-		batch, next, err := client.Scan(f.ctx, cursor, "native:browse:v1:*", 100).Result()
+		batch, next, err := client.Scan(f.ctx, cursor, "native:browse:v2:*", 100).Result()
 		if err != nil {
 			t.Fatal(err)
 		}

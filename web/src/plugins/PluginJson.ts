@@ -1,5 +1,14 @@
 import { defineComponent, h, type PropType, type Component as VueComponent } from 'vue'
 import { ElInput,ElSwitch,ElCheckbox,ElSelect,ElOption,ElAlert,ElTag,ElButton,ElDivider } from 'element-plus'
+import 'element-plus/es/components/input/style/css'
+import 'element-plus/es/components/switch/style/css'
+import 'element-plus/es/components/checkbox/style/css'
+import 'element-plus/es/components/select/style/css'
+import 'element-plus/es/components/option/style/css'
+import 'element-plus/es/components/alert/style/css'
+import 'element-plus/es/components/tag/style/css'
+import 'element-plus/es/components/button/style/css'
+import 'element-plus/es/components/divider/style/css'
 export interface PluginNode { component:string;key?:string;props?:Record<string,unknown>;model?:string;when?:{model:string;equals:unknown};children?:PluginNode[] }
 const safeKey=(k:string)=>/^[A-Za-z0-9_-]{1,64}$/.test(k)&&!['__proto__','constructor','prototype'].includes(k)
 const text=(v:unknown,max=4096)=>typeof v==='string'?v.slice(0,max):typeof v==='number'?String(v):''

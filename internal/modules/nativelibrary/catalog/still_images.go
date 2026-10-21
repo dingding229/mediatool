@@ -40,11 +40,11 @@ func episodeImagePage(ctx context.Context, db *pgxpool.Pool, ids []string) (map[
  FROM eligible q WHERE q.media_type='series'
  AND EXISTS(SELECT 1 FROM wanted w WHERE q.tmdb_id=CASE WHEN w.p[1]::numeric BETWEEN 1 AND 9223372036854775807 THEN w.p[1]::bigint END AND q.season=w.p[2]::int)
  AND EXISTS(SELECT 1 FROM native_asset_libraries al JOIN native_libraries l ON l.id=al.library_id WHERE al.asset_id=q.asset_id AND NOT l.hidden)),
- ranked AS (
+ ranked AS MATERIALIZED (
  SELECT w.id,w.p,a.episode_details,row_number() OVER(PARTITION BY w.id ORDER BY a.created_at DESC,a.asset_id) rn
  FROM image_assets a JOIN wanted w ON a.tmdb_id=CASE WHEN w.p[1]::numeric BETWEEN 1 AND 9223372036854775807 THEN w.p[1]::bigint END
  AND a.season=w.p[2]::int AND a.first_episode=w.p[3]::int),
- asset_images AS (
+ asset_images AS MATERIALIZED (
  SELECT DISTINCT ON(a.id) a.id,ep->>'stillPath' still FROM ranked a
  CROSS JOIN LATERAL jsonb_array_elements(a.episode_details) ep
  WHERE a.rn<=100 AND ep->>'season'=a.p[2] AND ep->>'number'=a.p[3] AND coalesce(ep->>'stillPath','')<>''

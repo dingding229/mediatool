@@ -16,7 +16,11 @@ test_exec=(go test)
 if [[ "$(uname -s)" == Linux ]]; then
  worker_dir=$(mktemp -d "${TMPDIR:-/tmp}/media-tool-test-worker.XXXXXX")
  trap 'if [[ ${MEDIA_TOOL_TEST_UID_DIR:-} == "$worker_dir" ]];then sudo chown -R "$(id -u):$(id -g)" "$worker_dir";fi;chmod -R u+w "$worker_dir";rm -rf "$worker_dir"' EXIT
+if [[ -n "${MEDIA_TOOL_STATIC_TEST_BINARY:-}" ]];then
+ copy_test_app "$worker_dir/media-tool"
+else
  CGO_ENABLED=0 go build -trimpath -o "$worker_dir/media-tool" ./cmd/media-tool
+fi
  export MEDIA_TOOL_PLUGIN_BINARY="$worker_dir/media-tool"
  if [[ "${GITHUB_ACTIONS:-}" == true && "${MEDIA_TOOL_TEST_PLUGIN_UID:-}" == 65532 ]];then
   # Keep production UID/capabilities for isolation evidence. Task budgets are

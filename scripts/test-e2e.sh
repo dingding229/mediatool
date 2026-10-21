@@ -44,13 +44,13 @@ printf 'Owned local file fixture, not a real movie.\n' > "$E2E_FILE_ROOT/Owned F
 printf '1\n00:00:00,000 --> 00:00:01,000\nOwned subtitle fixture\n' > "$E2E_FILE_ROOT/Owned Film.zh-CN.srt"
 printf 'Independent file fixture.\n' > "$E2E_FILE_ROOT/Other.mkv"
 export CLOUDDRIVE_ENDPOINT='' CLOUDDRIVE_TOKEN='' CLOUDDRIVE_USERNAME='' CLOUDDRIVE_PASSWORD='' EMBY_UPSTREAM_URL='' EMBY_PROXY_ENABLED=false EMBY_302_ENABLED=false
-go build -o "$private/media-tool-dev" ./cmd/media-tool-dev
+if [[ -n "${MEDIA_TOOL_DEV_BIN:-}" ]];then cp "$MEDIA_TOOL_DEV_BIN" "$private/media-tool-dev";else go build -o "$private/media-tool-dev" ./cmd/media-tool-dev;fi
 export E2E_EMBY_ENDPOINT=http://127.0.0.1:18086
 "$private/media-tool-dev" fixture-emby >"$private/provider.log" 2>&1 & pids+=("$!")
 export E2E_ISOLATED=1 E2E_BASE_URL=http://localhost:18084 E2E_ADMIN_USERNAME=e2e_admin
 export E2E_ADMIN_PASSWORD="$(devtool fixture-password)"
 go run ./cmd/media-tool migrate -test-only >/dev/null
-go build -o "$private/media-tool" ./cmd/media-tool
+if [[ -n "${MEDIA_TOOL_STATIC_TEST_BINARY:-}" ]];then copy_test_app "$private/media-tool";else go build -o "$private/media-tool" ./cmd/media-tool;fi
 "$private/media-tool" -role all >"$private/server.log" 2>&1 & pids+=("$!")
 
 for ((i=0;i<60;i++));do if curl -fsS --max-time 2 "$E2E_BASE_URL/readyz" >/dev/null 2>&1;then break;fi;sleep .5;done

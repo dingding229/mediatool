@@ -3,6 +3,9 @@ import TaskControl from '../workflows/TaskControl.vue';
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, ref } from 'vue';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
+import 'element-plus/es/components/dropdown/style/css'
+import 'element-plus/es/components/dropdown-menu/style/css'
+import 'element-plus/es/components/dropdown-item/style/css'
 import { useRoute } from 'vue-router';
 import PageHeader from '../ui/PageHeader.vue';
 import PageTabs from '../ui/PageTabs.vue';

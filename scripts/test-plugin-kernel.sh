@@ -6,7 +6,11 @@ isolated_test "$@"
 [[ "$(uname -s)" == Linux && "$(uname -m)" == x86_64 ]] || { echo 'Native Linux AMD64 release gate required';exit 1; }
 work=$(mktemp -d)
 trap 'chmod -R u+w "$work"; rm -rf "$work"' EXIT
+if [[ -n "${MEDIA_TOOL_STATIC_TEST_BINARY:-}" ]];then
+ copy_test_app "$work/media-tool"
+else
 CGO_ENABLED=0 go build -trimpath -o "$work/media-tool" ./cmd/media-tool
+fi
 CGO_ENABLED=0 go test -c -o "$work/sandbox.test" ./internal/modules/plugins/v2/sandbox
 CGO_ENABLED=0 go test -c -o "$work/worker.test" ./internal/modules/plugins/v2
 CGO_ENABLED=0 go test -c -o "$work/httpapi.test" ./internal/platform/httpapi

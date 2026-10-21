@@ -117,7 +117,7 @@ func TestCleanWebIsScopedAndDoesNotFollowSymlink(t *testing.T) {
 	r := t.TempDir()
 	a := filepath.Join(r, "internal/platform/webui/assets")
 	os.MkdirAll(filepath.Join(a, "assets"), 0700)
-	for _, n := range []string{".gitkeep", "sw.js", "index.html", "assets/build.js", "assets/build.css"} {
+	for _, n := range []string{".gitkeep", "sw.js", "index.html", "assets/build.js", "assets/build.css", "assets/build.js.gz", "assets/build.css.gz"} {
 		os.WriteFile(filepath.Join(a, n), []byte("keep"), 0600)
 	}
 	outside := filepath.Join(r, "outside")
@@ -131,8 +131,10 @@ func TestCleanWebIsScopedAndDoesNotFollowSymlink(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	if _, e := os.Stat(filepath.Join(a, "index.html")); !os.IsNotExist(e) {
-		t.Fatal("not cleaned")
+	for _, name := range []string{"index.html", "assets/build.js", "assets/build.css", "assets/build.js.gz", "assets/build.css.gz"} {
+		if _, e := os.Stat(filepath.Join(a, name)); !os.IsNotExist(e) {
+			t.Fatal("not cleaned", name)
+		}
 	}
 	raw, _ := os.ReadFile(outside)
 	if string(raw) != "keep" {

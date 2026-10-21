@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { ElIcon } from 'element-plus'
+import 'element-plus/es/components/icon/style/css'
 import { Search, Check, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { request } from '../api/client'
 import { resourceSources } from '../utils/resource-source'

@@ -173,7 +173,7 @@ func embyFixture() error {
 }
 func cleanWeb(root string) error {
 	base := filepath.Join(root, "internal/platform/webui/assets")
-	for _, pattern := range []string{"assets/*.js", "assets/*.css", "index.html"} {
+	for _, pattern := range []string{"assets/*.js", "assets/*.css", "assets/*.js.gz", "assets/*.css.gz", "index.html"} {
 		paths, e := filepath.Glob(filepath.Join(base, pattern))
 		if e != nil {
 			return e

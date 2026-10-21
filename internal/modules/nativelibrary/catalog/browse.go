@@ -177,10 +177,10 @@ func conditions(q nativelibrary.ItemQuery, s browseScope) (string, []any) {
 	// Additional IDs intersect the ParentId library/season scope; they must not
 	// replace it and accidentally borrow versions from another library.
 	if q.SeriesID != "" {
-		add("internal_key LIKE (SELECT internal_key FROM native_item_ids WHERE id::text=$%d::text AND entity_type='series')||':s%%'", q.SeriesID)
+		add("internal_key LIKE (SELECT internal_key FROM native_item_ids WHERE id=$%d::bigint AND entity_type='series')||':s%%'", numericID(q.SeriesID))
 	}
 	if q.SeasonID != "" {
-		add("kind='episode' AND internal_key LIKE (SELECT internal_key FROM native_item_ids WHERE id::text=$%d::text AND entity_type='season')||'e%%'", q.SeasonID)
+		add("kind='episode' AND internal_key LIKE (SELECT internal_key FROM native_item_ids WHERE id=$%d::bigint AND entity_type='season')||'e%%'", numericID(q.SeasonID))
 	}
 	return strings.Join(where, " AND "), args
 }
@@ -201,6 +201,7 @@ type browseOptions struct {
 	startID, search string
 	bounded         bool
 	skipProbes      bool
+	skipCount       bool
 	nextUp          bool
 	nextSeries      string
 	nextSpecial     bool
@@ -265,7 +266,13 @@ func (r BrowseRepository) query(ctx context.Context, u contracts.User, p contrac
 	if len(options.order) > 0 {
 		order = options.order
 	}
-	order = append(order, "id::bigint ASC NULLS LAST,kind,internal_key")
+	if items, total, handled, err := r.moviePage(ctx, u, p, q, options, planScope, where, args, order); handled {
+		return items, total, err
+	}
+	keyColumns, order, err := projectionOrder(order)
+	if err != nil {
+		return nil, 0, err
+	}
 	if options.extra != nil {
 		where, args = options.extra(where, args)
 	}
@@ -278,13 +285,17 @@ func (r BrowseRepository) query(ctx context.Context, u contracts.User, p contrac
 		where += fmt.Sprintf(" AND (strpos(lower(normalize(name,NFKC)),lower(normalize($%d::text,NFKC)))>0 OR strpos(lower(normalize(coalesce(meta->>'originalTitle',''),NFKC)),lower(normalize($%d::text,NFKC)))>0)", i, i)
 	}
 	if options.bounded {
-		prefix = fmt.Sprintf(",discovery_candidates AS MATERIALIZED(SELECT * FROM item_rows WHERE %s LIMIT %d)", where, discoveryCandidateLimit+1)
+		prefix = fmt.Sprintf(",discovery_candidates AS MATERIALIZED(SELECT %s FROM item_rows WHERE %s LIMIT %d)", strings.Join(keyColumns, ","), where, discoveryCandidateLimit+1)
 		source = "discovery_candidates"
 		where = "true"
 		within = fmt.Sprintf("(SELECT count(*) FROM discovery_candidates)<=%d", discoveryCandidateLimit)
 	}
 
-	prefix += ",filtered AS NOT MATERIALIZED(SELECT * FROM " + source + " WHERE " + where + ")"
+	projection := strings.Join(keyColumns, ",")
+	if options.bounded {
+		projection = "*"
+	}
+	prefix += ",filtered AS MATERIALIZED(SELECT " + projection + " FROM " + source + " WHERE " + where + ")"
 	pageSource, anchor, offset := "filtered", "true", ""
 	if options.startID != "" {
 		args = append(args, options.startID)
@@ -309,16 +320,22 @@ func (r BrowseRepository) query(ctx context.Context, u contracts.User, p contrac
 		pruneID = ""
 	}
 	if pruneID != "" {
-		args = append(args, pruneID)
+		args = append(args, numericID(pruneID))
 		parentBind = len(args)
 	} else if len(q.IDs) == 1 {
 		pruneKind = ""
-		args = append(args, q.IDs[0])
+		args = append(args, numericID(q.IDs[0]))
 		parentBind = len(args)
 	}
 
+	base, args := pruneHeadersSQL(browseSearchSQL(q, searchBind, true), q, args)
 	args = append(args, q.Limit, q.StartIndex)
-	sql := pruneParentSQL(browseSearchSQL(q, searchBind, true), parentBind, pruneKind) + prefix + ",page AS(SELECT " + browseColumns + " FROM " + pageSource + " ORDER BY " + strings.Join(order, ",") + fmt.Sprintf(" LIMIT $%d OFFSET "+offset+"$%d)", len(args)-1, len(args)) + " SELECT (SELECT count(*) FROM filtered),coalesce((SELECT jsonb_agg(row_to_json(page)) FROM page),'[]')," + within + "," + anchor
+	countSQL := "(SELECT count(*) FROM filtered)"
+	if options.skipCount {
+		countSQL = "0"
+	}
+	sql := pruneParentSQL(base, parentBind, pruneKind) + prefix + ",page_keys AS MATERIALIZED(SELECT kind,internal_key,row_number() OVER(ORDER BY " + strings.Join(order, ",") + ") page_order FROM " + pageSource + " ORDER BY " + strings.Join(order, ",") + fmt.Sprintf(" LIMIT $%d OFFSET "+offset+"$%d)", len(args)-1, len(args)) + selectedPageSQL() + ",page AS(SELECT " + browseColumns + " FROM page_item_rows JOIN page_keys USING(kind,internal_key) ORDER BY page_keys.page_order) SELECT " + countSQL + ",coalesce((SELECT jsonb_agg(row_to_json(page)) FROM page),'[]')," + within + "," + anchor
+
 	var total int
 	var raw []byte
 	var withinCap, anchorFound bool
@@ -459,7 +476,7 @@ func (r BrowseRepository) plan(ctx context.Context, u contracts.User, p contract
 
 	var parentKind, parentKey string
 	if q.ParentID != "" {
-		err := r.DB.QueryRow(ctx, `SELECT entity_type,internal_key FROM native_item_ids WHERE id::text=$1`, q.ParentID).Scan(&parentKind, &parentKey)
+		err := r.DB.QueryRow(ctx, `SELECT entity_type,internal_key FROM native_item_ids WHERE id=$1`, numericID(q.ParentID)).Scan(&parentKind, &parentKey)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return s, "", nil, nativelibrary.ErrNotFound
 		}
@@ -479,9 +496,10 @@ func (r BrowseRepository) plan(ctx context.Context, u contracts.User, p contract
 		var exists bool
 		preflight := browseCTE
 		if parentKind != "library" {
-			binds = append(binds, q.ParentID)
+			binds = append(binds, numericID(q.ParentID))
 			preflight = pruneParentSQL(browseCTE, len(binds), parentKind)
 		}
+		preflight, binds = pruneHeadersSQL(preflight, nativelibrary.ItemQuery{IDs: []string{q.ParentID}}, binds)
 		if err := r.DB.QueryRow(ctx, preflight+`SELECT EXISTS(SELECT 1 FROM item_rows WHERE `+check+`)`, binds...).Scan(&exists); err != nil {
 			return s, "", nil, contracts.ErrUnavailable
 		}

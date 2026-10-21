@@ -311,8 +311,42 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 		if strings.Count(strings.TrimPrefix(directory, root), "/") > 32 {
 			return errors.New("cloud tree exceeds depth limit")
 		}
+		buffer := make([]storage.File, 0, scanBatchSize)
+		bufferBytes := 0
+		flush := func() error {
+			if len(buffer) == 0 {
+				return nil
+			}
+			fast, err := e.indexNewBatch(ctx, body.ScanID, generation, connectionID, expectedRevision, buffer)
+			if err != nil {
+				return err
+			}
+			if !fast {
+				for _, file := range buffer {
+					if err := check(); err != nil {
+						return err
+					}
+					id, err := e.indexFile(ctx, connectionID, file)
+					if err != nil {
+						return err
+					}
+					if _, err = e.DB.Exec(ctx, `INSERT INTO library_scan_seen(scan_id,file_id)VALUES($1,$2)ON CONFLICT DO NOTHING`, body.ScanID, id); err != nil {
+						return err
+					}
+					if metadata.IsVideo(file.Name) && !metadata.IsSample(file.Path) {
+						if _, err = e.DB.Exec(ctx, `INSERT INTO library_candidates(id,file_id)SELECT $1,$2 WHERE NOT EXISTS(SELECT 1 FROM media_assets WHERE cloud_file_id=$2)ON CONFLICT(file_id)DO NOTHING`, jobs.UUID(), id); err != nil {
+							return err
+						}
+					}
+				}
+			}
+			clear(buffer)
+			buffer = buffer[:0]
+			bufferBytes = 0
+			return nil
+		}
 		if err = client.Iterate(ctx, directory, func(file storage.File) error {
-			if err := check(); err != nil {
+			if err := ctx.Err(); err != nil {
 				return err
 			}
 			if file.Path == "" || path.Clean(file.Path) != file.Path || path.Dir(file.Path) != directory || !inside(root, file.Path) || file.Size < 0 {
@@ -322,23 +356,34 @@ func (e Engine) Process(ctx context.Context, job jobs.Job) (result error) {
 				if file.Name == ".media-tool-trash" {
 					return nil
 				}
+				if err := flush(); err != nil {
+					return err
+				}
+				if err := check(); err != nil {
+					return err
+				}
 				_, err := e.DB.Exec(ctx, `INSERT INTO library_scan_directories(scan_id,path)VALUES($1,$2)ON CONFLICT DO NOTHING`, body.ScanID, file.Path)
 				return err
 			}
-			id, err := e.indexFile(ctx, connectionID, file)
-			if err != nil {
-				return err
+			weight := scanMetadataBytes(file)
+			if len(buffer) > 0 && bufferBytes+weight > scanBatchBytes {
+				if err := flush(); err != nil {
+					return err
+				}
 			}
-			if _, err = e.DB.Exec(ctx, `INSERT INTO library_scan_seen(scan_id,file_id)VALUES($1,$2)ON CONFLICT DO NOTHING`, body.ScanID, id); err != nil {
-				return err
+			buffer = append(buffer, file)
+			bufferBytes += weight
+			if len(buffer) == scanBatchSize || bufferBytes >= scanBatchBytes {
+				return flush()
 			}
-			if metadata.IsVideo(file.Name) && !metadata.IsSample(file.Path) {
-				_, err = e.DB.Exec(ctx, `INSERT INTO library_candidates(id,file_id)SELECT $1,$2 WHERE NOT EXISTS(SELECT 1 FROM media_assets WHERE cloud_file_id=$2)ON CONFLICT(file_id)DO NOTHING`, jobs.UUID(), id)
-			}
-			return err
+			return nil
 		}); err != nil {
 			return err
 		}
+		if err = flush(); err != nil {
+			return err
+		}
+
 		if _, err = e.DB.Exec(ctx, `UPDATE library_scan_directories SET state='completed'WHERE scan_id=$1 AND path=$2`, body.ScanID, directory); err != nil {
 			return err
 		}
@@ -402,7 +447,7 @@ func (e Engine) indexFile(ctx context.Context, connectionID string, file storage
 		return "", err
 	}
 	if id == "" && file.ID != "" && file.Hashes[2] != "" {
-		rows, err := tx.Query(ctx, `SELECT id::text,size_bytes,metadata FROM cloud_files WHERE storage_id=$1 AND provider_file_id=$2 FOR UPDATE`, connectionID, file.ID)
+		rows, err := tx.Query(ctx, `SELECT id::text,size_bytes,metadata FROM cloud_files WHERE storage_id=$1 AND provider_file_id=$2 AND provider_file_id<>'' AND md5(provider_file_id)=md5($2) FOR UPDATE`, connectionID, file.ID)
 		if err != nil {
 			return "", err
 		}

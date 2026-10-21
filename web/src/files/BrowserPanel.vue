@@ -2,6 +2,9 @@
 import { reactive, ref, onMounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElDropdown, ElDropdownItem, ElDropdownMenu } from 'element-plus';
+import 'element-plus/es/components/dropdown/style/css'
+import 'element-plus/es/components/dropdown-item/style/css'
+import 'element-plus/es/components/dropdown-menu/style/css'
 import { FolderOpened, Document } from '@element-plus/icons-vue';
 import { useBrowser, permission } from './useBrowser';
 import FileActionDialog from './FileActionDialog.vue';

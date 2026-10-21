@@ -3,6 +3,10 @@ import {usePageRefresh} from '../ui/page-refresh';
 import './connections.css';
 import { computed, ref, watch } from 'vue';
 import { ElMessageBox,ElDropdown,ElDropdownMenu,ElDropdownItem } from 'element-plus';
+import 'element-plus/es/components/message-box/style/css'
+import 'element-plus/es/components/dropdown/style/css'
+import 'element-plus/es/components/dropdown-menu/style/css'
+import 'element-plus/es/components/dropdown-item/style/css'
 import StateView from '../ui/StateView.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';

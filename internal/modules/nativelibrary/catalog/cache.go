@@ -87,12 +87,12 @@ func (r *CachedRepository) key(ctx context.Context, u contracts.User, p contract
 		Unrated            bool
 		Fence              string
 		Request            any
-	}{1, u.ID, u.CredentialVersion, scope.ids, scope.codes, scope.unrated, stamp, request})
+	}{2, u.ID, u.CredentialVersion, scope.ids, scope.codes, scope.unrated, stamp, request})
 	if err != nil {
 		return "", "", nativelibrary.ErrInvalidQuery
 	}
 	digest := sha256.Sum256(raw)
-	return "native:browse:v1:" + hex.EncodeToString(digest[:]), stamp, nil
+	return "native:browse:v2:" + hex.EncodeToString(digest[:]), stamp, nil
 }
 
 const readBrowseCache = `if redis.call('TYPE',KEYS[1]).ok~='string' then return false end if redis.call('STRLEN',KEYS[1])>tonumber(ARGV[1]) then return false end return redis.call('GET',KEYS[1])`
@@ -154,7 +154,7 @@ func cachedRun[T any](ctx context.Context, r *CachedRepository, u contracts.User
 		if err == nil && after == stamp && len(raw) <= browseCacheBytes {
 			bounded, done := context.WithTimeout(ctx, browseCacheBudget)
 			// Cache failure is a supported degradation, never a failed browse request.
-			if err := r.redis.Set(bounded, key, raw, BrowseCacheTTL).Err(); err != nil {
+			if err := r.store(bounded, key, raw); err != nil {
 				if r.Logger != nil {
 					r.Logger.Debug("Native browse cache write bypassed")
 				}

@@ -15,6 +15,9 @@ import (
 	"time"
 )
 
+var imdbIDPattern = regexp.MustCompile(`^tt[0-9]{1,20}$`)
+var containerPattern = regexp.MustCompile(`^[a-zA-Z0-9]{1,16}$`)
+
 var ErrInvalidProjection = errors.New("invalid native media projection")
 
 // StoredMovieMetadata describes optional data already persisted in media_items.
@@ -127,7 +130,7 @@ func MovieDTO(movie Movie) (dto.BaseItemDto, error) {
 	item.UserData = &dto.UserItemDataDto{}
 	item.ProviderIds = map[string]string{"Tmdb": strconv.FormatInt(movie.TMDBID, 10)}
 	if movie.Metadata.ImdbID != "" {
-		if !regexp.MustCompile(`^tt[0-9]{1,20}$`).MatchString(movie.Metadata.ImdbID) {
+		if !imdbIDPattern.MatchString(movie.Metadata.ImdbID) {
 			return dto.BaseItemDto{}, ErrInvalidProjection
 		}
 		item.ProviderIds["Imdb"] = movie.Metadata.ImdbID
@@ -153,7 +156,7 @@ func MovieDTO(movie Movie) (dto.BaseItemDto, error) {
 		media.Id = source.ID
 		media.Name = fmt.Sprintf("版本 %d", index+1)
 		if source.Container != "" {
-			if !regexp.MustCompile(`^[a-zA-Z0-9]{1,16}$`).MatchString(source.Container) {
+			if !containerPattern.MatchString(source.Container) {
 				return dto.BaseItemDto{}, ErrInvalidProjection
 			}
 			media.Container = strings.ToLower(source.Container)
