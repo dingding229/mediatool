@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TaskControl from '../workflows/TaskControl.vue';
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { APIError, post, request } from '../api/client';
@@ -201,6 +202,7 @@ defineExpose({ readback });
         <el-button :disabled="!selected.length||!!pending||!!loadError" :loading="busy" @click="preview">检查已选 {{ selected.length }} 个资产</el-button>
       </section>
       <section v-if="batch" aria-label="修复批次">
+        <TaskControl v-if="batch.state!=='preview'" kind="repairs" :id="batch.id" :state="batch.state==='needs_reconcile'?'unknown':batch.state" @changed="readback(batch.id)"/>
         <h3>{{ phase&&!readVerified?(phase==='queued'?'已排队，待核验':'正在核对上次结果'):repairLabel(batch.state) }}</h3>
         <p>预览有效至 {{ date(batch.expiresAt) }} · {{ batch.items?.length??'—' }} 项</p>
         <article v-for="row in batch.items" :key="row.ordinal" class="organize-record">

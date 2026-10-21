@@ -153,7 +153,7 @@ func (e Engine) cleanupPlan(ctx context.Context, tx pgx.Tx, ids []string) (Archi
 		var digest []byte
 		var approved bool
 		var artifactState string
-		err = tx.QueryRow(ctx, `SELECT j.id::text,j.asset_id::text,j.relative_path,j.archive_relative,j.artifact_kind,j.updated_at,j.archive_deleted_at,j.root_path,j.owner_scope,j.state,j.operation,j.expected_digest,a.artifacts_state,EXISTS(SELECT 1 FROM media_archive_cleanup_operations c WHERE c.journal_id=j.id) FROM media_artifact_journal j JOIN media_assets a ON a.id=j.asset_id WHERE j.id=$1 FOR UPDATE OF j FOR SHARE OF a`, id).Scan(&a.ID, &a.AssetID, &a.OriginalPath, &a.ArchivePath, &a.Kind, &a.ArchivedAt, &a.DeletedAt, &recordRoot, &scope, &state, &operation, &digest, &artifactState, &approved)
+		err = tx.QueryRow(ctx, `SELECT j.id::text,j.asset_id::text,j.relative_path,j.archive_relative,j.artifact_kind,j.updated_at,j.archive_deleted_at,j.root_path,j.owner_scope,j.state,j.operation,j.expected_digest,a.artifacts_state,EXISTS(SELECT 1 FROM media_archive_cleanup_operations c WHERE c.journal_id=j.id AND c.state<>'cancelled') FROM media_artifact_journal j JOIN media_assets a ON a.id=j.asset_id WHERE j.id=$1 FOR UPDATE OF j FOR SHARE OF a`, id).Scan(&a.ID, &a.AssetID, &a.OriginalPath, &a.ArchivePath, &a.Kind, &a.ArchivedAt, &a.DeletedAt, &recordRoot, &scope, &state, &operation, &digest, &artifactState, &approved)
 		if err != nil {
 			return p, errors.New("selected archive unavailable")
 		}
@@ -250,7 +250,7 @@ func (e Engine) ConfirmArchiveCleanup(ctx context.Context, in ArchiveCleanupRequ
 	for _, a := range plan.Items {
 		id := jobs.UUID()
 		quarantine := path.Join(path.Dir(a.ArchivePath), ".cleanup-"+id+".retired")
-		if _, err = tx.Exec(ctx, `INSERT INTO media_archive_cleanup_operations(id,request_id,journal_id,expected_digest,quarantine_relative)SELECT $1,$2,id,expected_digest,$4 FROM media_artifact_journal WHERE id=$3`, id, in.RequestID, a.ID, quarantine); err != nil {
+		if err = tx.QueryRow(ctx, `INSERT INTO media_archive_cleanup_operations(id,request_id,journal_id,expected_digest,quarantine_relative)SELECT $1,$2,id,expected_digest,$4 FROM media_artifact_journal WHERE id=$3 ON CONFLICT(journal_id) DO UPDATE SET request_id=EXCLUDED.request_id,expected_digest=EXCLUDED.expected_digest,quarantine_relative=EXCLUDED.quarantine_relative,state='approved',approved_at=clock_timestamp(),message='' WHERE media_archive_cleanup_operations.state='cancelled' RETURNING id::text`, id, in.RequestID, a.ID, quarantine).Scan(&id); err != nil {
 			return nil, err
 		}
 		operations = append(operations, id)

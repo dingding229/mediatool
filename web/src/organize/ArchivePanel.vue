@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TaskControl from '../workflows/TaskControl.vue';
 import {usePageRefresh} from '../ui/page-refresh';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { APIError, post, request } from '../api/client';
@@ -229,7 +230,7 @@ usePageRefresh(load, 'recovery');
       <p>{{ item.archivePath }}</p>
       <p>{{ label(item.state) }} · 保留至 {{ date(item.eligibleAfter) }}</p>
       <p>{{ item.message||'—' }}</p>
-      <el-button v-if="item.cleanupId&&item.state!=='removed'" :disabled="busy||!!retryPending" @click="retryTarget=item;retryOpen=true">继续已批准清理</el-button>
+      <TaskControl v-if="item.cleanupId&&item.state!=='removed'" kind="archives" :id="item.cleanupId" state="unknown" @changed="load"/>
     </article>
     <PagePagination v-if="total>50" v-model:current-page="page" :page-size="50" :total="total" layout="prev,pager,next,total" @current-change="load"/>
     <section v-if="plan" class="organize-plan" aria-label="归档清理计划">

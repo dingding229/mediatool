@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { request, APIError } from '../api/client';
 import { PASSWORD_MAX_LENGTH, EXISTING_PASSWORD_MAX_LENGTH, passwordPolicyError } from '../auth/password-policy';
 import { useAuthStore } from '../stores/auth';
 import AuthShell from '../auth/AuthShell.vue';
 let alive = true;
 const username = ref(''), password = ref(''), confirmation = ref(''), loading = ref(false), checking = ref(true), error = ref(''), registrationOpen = ref(false), available = ref(false), router = useRouter(), auth = useAuthStore();
+const loginRoute = useRoute();
 async function loadSetup() {
   checking.value = true;
   error.value = '';
@@ -86,6 +87,7 @@ onUnmounted(() => {
 </script>
 <template>
   <AuthShell :title="registrationOpen?'注册管理员账号':'进入管理工作台'" :description="registrationOpen?'创建唯一管理员账号。完成注册后，将自动关闭公开注册。':'使用你的管理员账号和密码登录。'">
+    <p v-if="loginRoute.query.sessionRevoked==='1'" role="status">当前管理端登录已撤销，请重新登录。</p>
     <el-alert v-if="error" :title="error" type="error" :closable="false"/>
     <p v-if="checking" role="status">正在检查账号状态…</p>
     <form @submit.prevent="submit">

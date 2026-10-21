@@ -56,6 +56,7 @@ usePageRefresh(load);
       <h3>{{ row.name }}</h3>
       <p>{{ kinds[row.kind]?.name }} · {{ row.enabled?'已启用':'未启用' }}</p>
       <StatusBadge :state="row.readiness?.state||row.lastCheckState" />
+      <p v-if="row.kind==='open115'">上次健康检测：{{row.lastCheckedAt?new Date(row.lastCheckedAt).toLocaleString('zh-CN'):'—'}} · {{row.lastCheckMessage||'尚未检测'}}</p>
       <p>{{ row.secretFields?.length?'凭据已设置':'凭据未设置' }}</p>
     </div>
     <div class="connection-buttons">

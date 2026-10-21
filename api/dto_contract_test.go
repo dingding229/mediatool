@@ -9,10 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/acquisition"
 	"media-tool/internal/modules/embyapi/dto"
 	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/modules/integrations"
+	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/maintenance"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/platform/flow"
@@ -67,7 +69,7 @@ func keys(m map[string]any) []string {
 // projection/custom MarshalJSON drift and tests the actual serialized field set.
 func TestKeyDTOFieldsAndSerializedProjectionMatchSchemas(t *testing.T) {
 	schemas := readDocument(t)["components"].(map[string]any)["schemas"].(map[string]any)
-	for _, value := range []any{externalapi.Key{}, externalapi.KeySummary{}, acquisition.Task{}, integrations.Record{}, integrations.Input{}, integrations.Readiness{}, pluginv2.Instance{}, pluginv2.Capability{}, pluginv2.Run{}, pluginv2.Request{}, pluginv2.StateRequest{}, maintenance.Request{}, flow.Status{}, httpapi.APIError{}, dto.AuthenticationResult{}, dto.PlaybackInfoResponse{}} {
+	for _, value := range []any{accounts.SessionInfo{}, accounts.SessionPage{}, jobs.ControlResult{}, externalapi.Key{}, externalapi.KeySummary{}, acquisition.Task{}, integrations.Record{}, integrations.Input{}, integrations.Readiness{}, pluginv2.Instance{}, pluginv2.Capability{}, pluginv2.Run{}, pluginv2.Request{}, pluginv2.StateRequest{}, maintenance.Request{}, flow.Status{}, httpapi.APIError{}, dto.AuthenticationResult{}, dto.PlaybackInfoResponse{}} {
 		ty := reflect.TypeOf(value)
 		name := ty.PkgPath() + "." + ty.Name()
 		var schema map[string]any

@@ -21,6 +21,10 @@ import (
 
 func TestNativeProcessingAdminRealHTTPSettingsRetryGCAndBoundaries(t *testing.T) {
 	f := newStillFixture(t)
+	// These assertions execute the current runtime, not the historical DTOs.
+	if _, err := f.provider.UpTo(f.ctx, 73); err != nil {
+		t.Fatal(err)
+	}
 	service, root := stillRuntime(t, f)
 	c := config.Config{PublicURL: "http://example.com", SessionKey: strings.Repeat("a", 64), STRMKey: strings.Repeat("b", 64), STRMAllowedRoots: []string{"/115"}}
 	h := httpapi.New(c, httpapi.Dependencies{DB: f.pool, NativeStills: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})

@@ -10,7 +10,8 @@ import (
 
 func TestNativeAssetAssignmentAndTriggerQueue(t *testing.T) {
 	f := newNativeFixture(t)
-	if _, err := f.provider.UpTo(f.ctx, 57); err != nil {
+	// This test executes the current job repository as well as assignment.
+	if _, err := f.provider.UpTo(f.ctx, 73); err != nil {
 		t.Fatal(err)
 	}
 	pool := catalogTestPool(t, f)

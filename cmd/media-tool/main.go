@@ -440,6 +440,9 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 				} else {
 					nativeIDCursor = next
 				}
+				if err := manager.TickOfficialHealth(check); err != nil {
+					logger.Warn("115 health scheduling failed", "module", "integrations", "error", err)
+				}
 				if err := downloader.Reconcile(check); err != nil && ctx.Err() == nil {
 					logger.Warn("download reconciliation unavailable")
 				}

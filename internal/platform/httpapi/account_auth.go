@@ -117,7 +117,7 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 		fail(w, 500, "session_failed", "无法建立管理会话")
 		return
 	}
-	account, err := a.accountRepository().Register(ctx, in.Username, in.Password, token)
+	account, err := a.accountRepository().Register(ctx, in.Username, in.Password, token, adminSessionMetadata(r))
 	if errors.Is(err, accounts.ErrClosed) {
 		fail(w, 409, "registration_closed", "管理员已注册，公开注册已关闭")
 		return
@@ -165,7 +165,7 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		fail(w, 500, "session_failed", "无法建立管理会话")
 		return
 	}
-	if err = a.accountRepository().CreateSession(ctx, account, token); err != nil {
+	if err = a.accountRepository().CreateSession(ctx, account, token, adminSessionMetadata(r)); err != nil {
 		fail(w, 503, "session_unavailable", "账号状态已改变或会话数据库不可用，请重新登录")
 		return
 	}

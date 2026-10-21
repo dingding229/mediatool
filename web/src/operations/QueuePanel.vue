@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TaskControl from '../workflows/TaskControl.vue';
 import {scheduleLabel} from '../presentation/labels';
 import { pageResult } from './model';
 import { formatBytes as bytes } from './model';
@@ -142,7 +143,7 @@ defineExpose({ load, create, filter, jobs, health, op });
           任务状态
           <el-select v-model="filter.state" aria-label="任务状态">
             <el-option value="" label="全部状态"/>
-            <el-option v-for="v in ['pending','running','retry','succeeded','failed','paused','cancelled']" :key="v" :value="v" :label="stateLabel(v)"/>
+            <el-option v-for="v in ['pending','running','retry','succeeded','failed','paused','cancelled','unknown','checking']" :key="v" :value="v" :label="stateLabel(v)"/>
           </el-select>
         </label>
         <label>
@@ -162,7 +163,7 @@ defineExpose({ load, create, filter, jobs, health, op });
         </label>
         <el-button native-type="submit">筛选任务</el-button>
       </form>
-      <p>失败任务请前往对应业务页核对处理；这里查看队列状态，不会重放业务。</p>
+      <p>取消只停止本程序后续执行；重试先核对原业务状态，不能证明安全时保留未知状态。</p>
       <ResourceState :loading="jobs.loading" :error="jobs.error" :empty="!!jobs.data&&!jobs.data.items?.length" @reload="load"/>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" message="系统检查请求尚未核验完成，请先读取队列，不重复提交。" @refresh="load"/>
@@ -172,6 +173,7 @@ defineExpose({ load, create, filter, jobs, health, op });
         <p v-if="j.lastError">{{ j.lastError }}</p>
         <div class="media-actions">
           <el-button @click="inspect(j.id)">任务详情</el-button>
+          <TaskControl kind="jobs" :id="j.id" :state="j.state" @changed="jobs.load"/>
           <RouterLink v-if="taskTarget(j)" :to="taskTarget(j)!">前往业务页核对</RouterLink>
         </div>
       </article>

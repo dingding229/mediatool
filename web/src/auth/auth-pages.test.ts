@@ -4,7 +4,7 @@ import {setupComponent,flush} from '../test/setup-component';
 import LoginView from '../views/LoginView.vue';
 import PasswordForm from './PasswordForm.vue';
 const mocks=vi.hoisted(()=>({auth:{login:vi.fn(),register:vi.fn(),changePassword:vi.fn(),account:{} as any},router:{push:vi.fn(),replace:vi.fn()}}));
-vi.mock('vue-router',()=>({useRouter:()=>mocks.router}));
+vi.mock('vue-router',()=>({useRouter:()=>mocks.router,useRoute:()=>({query:{}})}));
 vi.mock('../stores/auth',()=>({useAuthStore:()=>mocks.auth}));
 vi.mock('../api/client',async original=>({...await original<typeof import('../api/client')>(),request:vi.fn()}));
 let view:ReturnType<typeof setupComponent>;

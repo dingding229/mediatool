@@ -85,6 +85,9 @@ func (r Repository) ClaimQueue(ctx context.Context, owner string, lease time.Dur
 	if queue == "" {
 		queue = "default"
 	}
+	if err := r.recoverControlled(ctx); err != nil {
+		return nil, err
+	}
 	if err := r.expireExhausted(ctx); err != nil {
 		return nil, err
 	}
@@ -92,7 +95,7 @@ func (r Repository) ClaimQueue(ctx context.Context, owner string, lease time.Dur
 	token := UUID()
 	var j Job
 	err = r.DB.QueryRow(ctx, `WITH candidate AS (
- SELECT id FROM jobs WHERE queue=$4 AND (kind LIKE 'ops.%' OR NOT (SELECT paused FROM ops_mode WHERE singleton)) AND attempts<max_attempts AND
+ SELECT id FROM jobs WHERE queue=$4 AND cancel_requested_at IS NULL AND (kind LIKE 'ops.%' OR NOT (SELECT paused FROM ops_mode WHERE singleton)) AND attempts<max_attempts AND
  ((state IN ('pending','retry') AND available_at<=now()) OR (state='running' AND lease_until<now()))
  ORDER BY available_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1
  ) UPDATE jobs j SET state='running',started_at=now(),attempts=j.attempts+1,locked_by=$1,lease_token=$2,
@@ -107,7 +110,7 @@ func (r Repository) ClaimQueue(ctx context.Context, owner string, lease time.Dur
 	return &j, nil
 }
 func (r Repository) Heartbeat(ctx context.Context, j Job, lease time.Duration) error {
-	tag, err := r.DB.Exec(ctx, `UPDATE jobs SET lease_until=now()+($3::bigint*interval '1 millisecond'),updated_at=now() WHERE id=$1 AND lease_token=$2 AND state='running' AND lease_until>now()`, j.ID, j.LeaseToken, lease.Milliseconds())
+	tag, err := r.DB.Exec(ctx, `UPDATE jobs SET lease_until=now()+($3::bigint*interval '1 millisecond'),updated_at=now() WHERE id=$1 AND lease_token=$2 AND state='running' AND cancel_requested_at IS NULL AND lease_until>now()`, j.ID, j.LeaseToken, lease.Milliseconds())
 	if err != nil {
 		return err
 	}
@@ -136,6 +139,20 @@ func (r Repository) Finish(ctx context.Context, j Job, workErr error) error {
 		if state == "paused" {
 			delay = 0
 		}
+		if NeedsVerification(j.Kind) && state != "paused" {
+			knownOutput := false
+			if j.Kind == "transfer.upload" {
+				// A verified remote upload with journaled local output is not
+				// an uncertain upload. Preserve its existing terminal facts.
+				if err := r.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM transfer_tasks WHERE id::text=$1::jsonb->>'transferId' AND state IN('verified','artifacts_pending'))`, j.Payload).Scan(&knownOutput); err != nil {
+					return err
+				}
+			}
+			if !knownOutput {
+				state = "unknown"
+				delay = 0
+			}
+		}
 		if j.Kind == "emby.confirm" {
 			delay = min(delay, 60)
 		}
@@ -151,7 +168,7 @@ func (r Repository) Finish(ctx context.Context, j Job, workErr error) error {
  payload=CASE WHEN $3='succeeded' AND payload->>'rerun'='true' THEN payload-'rerun' ELSE payload END,
  last_error=NULLIF($4,''),available_at=CASE WHEN $3='succeeded' AND payload->>'rerun'='true' THEN now() ELSE now()+($5::integer*interval '1 second') END,
  lease_until=NULL,lease_token=NULL,locked_by=NULL,updated_at=now()
- WHERE id=$1 AND lease_token=$2 AND state='running' AND lease_until>now()`, j.ID, j.LeaseToken, state, message, delay)
+ WHERE id=$1 AND lease_token=$2 AND state='running' AND cancel_requested_at IS NULL AND lease_until>now()`, j.ID, j.LeaseToken, state, message, delay)
 	if err != nil {
 		return err
 	}
@@ -186,7 +203,7 @@ func (r Repository) expireExhausted(ctx context.Context) error {
 		return err
 	}
 	defer deferutil.Rollback(ctx, tx)
-	rows, err := tx.Query(ctx, `UPDATE jobs SET state='failed',last_error='lease expired after final attempt',lease_until=NULL,lease_token=NULL,locked_by=NULL,updated_at=now() WHERE id IN(SELECT id FROM jobs WHERE state='running' AND lease_until<now() AND attempts>=max_attempts ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 200) RETURNING id::text,kind`)
+	rows, err := tx.Query(ctx, `UPDATE jobs SET state='failed',last_error='lease expired after final attempt',lease_until=NULL,lease_token=NULL,locked_by=NULL,updated_at=now() WHERE id IN(SELECT id FROM jobs WHERE state='running' AND cancel_requested_at IS NULL AND lease_until<now() AND attempts>=max_attempts ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 200) RETURNING id::text,kind`)
 	if err != nil {
 		return err
 	}

@@ -84,6 +84,27 @@ func (w Worker) Run(ctx context.Context) error {
 func (w Worker) execute(parent context.Context, j Job) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
+	controlDone := make(chan struct{})
+	go func() {
+		defer close(controlDone)
+		tick := time.NewTicker(200 * time.Millisecond)
+		defer tick.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+				bounded, stop := context.WithTimeout(ctx, time.Second)
+				requested, err := w.Repository.cancellationRequested(bounded, j)
+				stop()
+				if requested || err != nil {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+	defer func() { cancel(); <-controlDone }()
 	heartbeatDone := make(chan struct{})
 	go func() {
 		defer close(heartbeatDone)
@@ -121,11 +142,23 @@ func (w Worker) execute(parent context.Context, j Job) {
 	cancel()
 	<-heartbeatDone
 	if canceled {
+		done, stop := context.WithTimeout(context.Background(), 3*time.Second)
+		if err := w.Repository.acknowledgeCancellation(done, j); err != nil {
+			w.Logger.Warn("task cancellation acknowledgement unavailable", "jobId", j.ID)
+		}
+		stop()
 		return
 	} // leave lease for recovery, never complete an unowned job
 	finishCtx, stop := context.WithTimeout(parent, 5*time.Second)
 	defer stop()
 	if err := w.Repository.Finish(finishCtx, j, workErr); err != nil {
+		if errors.Is(err, ErrLeaseLost) {
+			done, stop := context.WithTimeout(context.Background(), 3*time.Second)
+			if e := w.Repository.acknowledgeCancellation(done, j); e != nil {
+				w.Logger.Warn("task cancellation acknowledgement unavailable", "jobId", j.ID)
+			}
+			stop()
+		}
 		w.Logger.Warn("job completion not committed", "jobId", j.ID)
 		return
 	}

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TaskControl from '../workflows/TaskControl.vue';
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, ref } from 'vue';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
@@ -66,6 +67,7 @@ usePageRefresh(()=>refresh(),'uploads');
           </div>
           <div class="acquire-actions">
             <el-button @click="show(task)">查看详情</el-button>
+            <TaskControl kind="downloads" :id="task.id" :state="task.state" @changed="load('tasks')"/>
             <el-button v-if="task.sourceRecoveryRequired" @click="source?.open(task.id)">核对来源</el-button>
             <el-button v-else-if="task.flow?.retryable" :disabled="!!locked('tasks',task.id,'retry')" @click="ask(task,'tasks','retry')">确认后重试</el-button>
             <el-button v-if="['uncertain','deleting'].includes(task.cleanupState||'')" @click="reconcileCleanup(task)">核对清理结果</el-button>
@@ -108,6 +110,7 @@ usePageRefresh(()=>refresh(),'uploads');
           </div>
           <div class="acquire-actions">
             <el-button @click="show(transfer)">查看详情</el-button>
+            <TaskControl kind="transfers" :id="transfer.id" :state="transfer.state" @changed="load('transfers')"/>
             <RouterLink v-if="['needs_output_reconciliation','output_resume_approved'].includes(transfer.state)" :to="{path:'/organize',query:{tab:'recovery',transferId:transfer.id}}">核对入库恢复</RouterLink>
             <template v-else>
               <el-button :disabled="busy" @click="inspectTransfer(transfer)">核对</el-button>

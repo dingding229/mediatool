@@ -25,7 +25,13 @@ func (a *API) sessionAccount(r *http.Request) (accounts.Account, error) {
 	if reader == nil {
 		reader = a.accountRepository()
 	}
-	return reader.Session(ctx, digest[:])
+	account, err := reader.Session(ctx, digest[:])
+	if err == nil && a.Deps.AuthSessions == nil {
+		if err = a.accountRepository().TouchSession(ctx, digest[:], adminSessionMetadata(r)); err != nil {
+			return accounts.Account{}, accounts.ErrUnavailable
+		}
+	}
+	return account, err
 }
 func (a *API) authorized(r *http.Request) bool { _, err := a.sessionAccount(r); return err == nil }
 func (a *API) revokeSession(r *http.Request) error {

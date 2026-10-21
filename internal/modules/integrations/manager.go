@@ -29,18 +29,19 @@ type cloudRevision struct {
 	adapter *clouddrive2.Adapter
 }
 type Manager struct {
-	Repository    Repository
-	Config        config.Config
-	OutboundHTTP  *http.Client
-	proxyClients  map[string]*http.Client
-	proxyRevision int64
-	mu            sync.Mutex
-	lastPruned    time.Time
-	cloud         map[string]cloudRevision
+	Repository      Repository
+	Config          config.Config
+	OutboundHTTP    *http.Client
+	proxyClients    map[string]*http.Client
+	proxyRevision   int64
+	mu              sync.Mutex
+	lastPruned      time.Time
+	healthNotBefore time.Time
+	cloud           map[string]cloudRevision
 }
 
 func NewManager(repository Repository, c config.Config) *Manager {
-	return &Manager{Repository: repository, Config: c, cloud: map[string]cloudRevision{}}
+	return &Manager{Repository: repository, Config: c, cloud: map[string]cloudRevision{}, healthNotBefore: time.Now().Add(5 * time.Minute)}
 }
 func (m *Manager) Close() {
 	m.mu.Lock()

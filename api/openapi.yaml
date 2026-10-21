@@ -1965,6 +1965,25 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
+      "HTTP200_6157d44e9c6e": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/modules_accounts_SessionPage"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
       "HTTP200_61746c2b28d8": {
         "content": {
           "application/json": {
@@ -4210,6 +4229,25 @@
         },
         "description": "管理SPA/静态资源（非JSON API）"
       },
+      "HTTP200_d08da21a0f05": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/modules_jobs_ControlResult"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
       "HTTP200_d131765cb1f6": {
         "content": {
           "application/json": {
@@ -5758,6 +5796,38 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
+      "HTTP200_fde9385bef52": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "loginRequired": {
+                      "type": "boolean"
+                    },
+                    "revoked": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "loginRequired",
+                    "revoked"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
       "HTTP200_fe0d988f8748": {
         "content": {
           "application/json": {
@@ -6143,6 +6213,9 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
+      "HTTP202_3c96584e0154": {
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
       "HTTP202_6bc325ba5cec": {
         "content": {
           "application/json": {
@@ -6335,6 +6408,25 @@
                       "type": "object"
                     }
                   ]
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
+      "HTTP202_d08da21a0f05": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/modules_jobs_ControlResult"
                 }
               },
               "required": [
@@ -8050,6 +8142,41 @@
           "invalid_templates"
         ]
       },
+      "HTTP400_865742e4f5cc": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "confirmation_required",
+                            "invalid_json",
+                            "invalid_session"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "confirmation_required",
+          "invalid_json",
+          "invalid_session"
+        ]
+      },
       "HTTP400_8c4a9580f0a4": {
         "content": {
           "application/json": {
@@ -8248,6 +8375,43 @@
         "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
         "x-error-codes": [
           "invalid_json"
+        ]
+      },
+      "HTTP400_a1fb203b952b": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "confirmation_required",
+                            "invalid_json",
+                            "invalid_task",
+                            "invalid_task_action"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "confirmation_required",
+          "invalid_json",
+          "invalid_task",
+          "invalid_task_action"
         ]
       },
       "HTTP400_a31ef0b214fa": {
@@ -8656,6 +8820,37 @@
         "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
         "x-error-codes": [
           "invalid_native_sessions_query"
+        ]
+      },
+      "HTTP400_c1bb7aef7786": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "invalid_page"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "invalid_page"
         ]
       },
       "HTTP400_c581b6adbf65": {
@@ -11686,6 +11881,43 @@
           "settings_changed"
         ]
       },
+      "HTTP409_a17bf28f208b": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "host_verification_required",
+                            "task_control_failed",
+                            "task_control_unavailable",
+                            "task_not_cancellable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "host_verification_required",
+          "task_control_failed",
+          "task_control_unavailable",
+          "task_not_cancellable"
+        ]
+      },
       "HTTP409_a19cb4ec46f3": {
         "content": {
           "application/json": {
@@ -11777,6 +12009,37 @@
         "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
         "x-error-codes": [
           "registration_closed"
+        ]
+      },
+      "HTTP409_acf174334b4f": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "session_revoke_failed"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "session_revoke_failed"
         ]
       },
       "HTTP409_aeb273b66bbb": {
@@ -14538,6 +14801,39 @@
           "media_server_unavailable"
         ]
       },
+      "HTTP503_6cc3bf6fd4a5": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "maintenance_unavailable",
+                            "sessions_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "maintenance_unavailable",
+          "sessions_unavailable"
+        ]
+      },
       "HTTP503_6df1330f752a": {
         "content": {
           "application/json": {
@@ -15518,6 +15814,41 @@
           "integrations_unavailable",
           "maintenance_unavailable",
           "official_account_unavailable"
+        ]
+      },
+      "HTTP503_be948640951e": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "archives_unavailable",
+                            "maintenance_unavailable",
+                            "tasks_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "archives_unavailable",
+          "maintenance_unavailable",
+          "tasks_unavailable"
         ]
       },
       "HTTP503_c25b5105d55e": {
@@ -17528,6 +17859,77 @@
         ],
         "type": "object",
         "x-go-type": "media-tool/internal/modules/accounts.Account"
+      },
+      "modules_accounts_SessionInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "lastActiveAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "userAgent": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountId",
+          "createdAt",
+          "current",
+          "expiresAt",
+          "id",
+          "ip",
+          "lastActiveAt",
+          "userAgent",
+          "username"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/accounts.SessionInfo"
+      },
+      "modules_accounts_SessionPage": {
+        "additionalProperties": false,
+        "properties": {
+          "hasNext": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/modules_accounts_SessionInfo"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "hasNext",
+          "items"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/accounts.SessionPage"
       },
       "modules_acquisition_OutputResumePreview": {
         "additionalProperties": false,
@@ -21009,6 +21411,44 @@
         "type": "object",
         "x-go-type": "media-tool/internal/modules/integrations.Record"
       },
+      "modules_jobs_ControlResult": {
+        "additionalProperties": false,
+        "properties": {
+          "externalEffects": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "queued": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "stopPending": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "externalEffects",
+          "id",
+          "queued",
+          "reason",
+          "revision",
+          "state",
+          "stopPending"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/jobs.ControlResult"
+      },
       "modules_jobs_Detail": {
         "additionalProperties": false,
         "properties": {
@@ -21094,7 +21534,9 @@
               "succeeded",
               "failed",
               "paused",
-              "cancelled"
+              "cancelled",
+              "unknown",
+              "checking"
             ],
             "type": "string"
           },
@@ -21177,7 +21619,9 @@
               "succeeded",
               "failed",
               "paused",
-              "cancelled"
+              "cancelled",
+              "unknown",
+              "checking"
             ],
             "type": "string"
           }
@@ -26815,7 +27259,7 @@
     }
   },
   "info": {
-    "description": "由实际路由注册与Go DTO派生；JSON是YAML1.2兼容写法，无新增运行依赖。schema71；说明与示例见docs/FRONTEND_API.md。",
+    "description": "由实际路由注册与Go DTO派生；JSON是YAML1.2兼容写法，无新增运行依赖。schema73；说明与示例见docs/FRONTEND_API.md。",
     "title": "Media Tool frontend and mounted protocol API",
     "version": "0.27.0"
   },
@@ -49229,6 +49673,186 @@
         "x-go-registration": "GET /api/v1/auth/session",
         "x-listener": "management",
         "x-source": "api.go:186"
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "get_api_v1_auth_sessions_5c1e6756",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_6157d44e9c6e"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6cc3bf6fd4a5"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "listAdministratorSessions",
+        "tags": [
+          "登录会话与账号"
+        ],
+        "x-go-handler": "listAdministratorSessions",
+        "x-go-registration": "GET /api/v1/auth/sessions",
+        "x-listener": "management",
+        "x-source": "task_controls.go:309"
+      },
+      "head": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "head_api_v1_auth_sessions_5c1e6756",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6cc3bf6fd4a5"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "listAdministratorSessions",
+        "tags": [
+          "登录会话与账号"
+        ],
+        "x-go-handler": "listAdministratorSessions",
+        "x-go-registration": "GET /api/v1/auth/sessions",
+        "x-listener": "management",
+        "x-source": "task_controls.go:309"
+      }
+    },
+    "/api/v1/auth/sessions/{id}/revoke": {
+      "post": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "post_api_v1_auth_sessions_id_revoke_36e1ac63",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "还须通过同源Origin/Fetch Metadata检查；不能以此头代替会话。",
+            "in": "header",
+            "name": "X-Requested-With",
+            "required": true,
+            "schema": {
+              "const": "media-tool",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "description": "字段级与条件必填校验由业务规则决定；确认字段只在明确批准时传true，不能自动补全。",
+                "properties": {
+                  "confirm": {
+                    "const": true,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "confirm"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_fde9385bef52"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_865742e4f5cc"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_acf174334b4f"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_339fdc41dc05"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "revokeAdministratorSession",
+        "tags": [
+          "登录会话与账号"
+        ],
+        "x-go-handler": "revokeAdministratorSession",
+        "x-go-registration": "POST /api/v1/auth/sessions/{id}/revoke",
+        "x-listener": "management",
+        "x-source": "task_controls.go:310"
       }
     },
     "/api/v1/auth/setup": {
@@ -73079,6 +73703,248 @@
         "x-go-registration": "GET /api/v1/system/status",
         "x-listener": "management",
         "x-source": "api.go:190"
+      }
+    },
+    "/api/v1/tasks/{kind}/{id}": {
+      "get": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "get_api_v1_tasks_kind_id_5325abf1",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_d08da21a0f05"
+          },
+          "202": {
+            "$ref": "#/components/responses/HTTP202_d08da21a0f05"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_a1fb203b952b"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_67de8ce7d28e"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_a17bf28f208b"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_be948640951e"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "taskControl",
+        "tags": [
+          "基础与静态挂载"
+        ],
+        "x-go-handler": "taskControl",
+        "x-go-registration": "GET /api/v1/tasks/{kind}/{id}",
+        "x-listener": "management",
+        "x-source": "task_controls.go:311"
+      },
+      "head": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "head_api_v1_tasks_kind_id_5325abf1",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "202": {
+            "$ref": "#/components/responses/HTTP202_3c96584e0154"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_a1fb203b952b"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_67de8ce7d28e"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_a17bf28f208b"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_be948640951e"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "taskControl",
+        "tags": [
+          "基础与静态挂载"
+        ],
+        "x-go-handler": "taskControl",
+        "x-go-registration": "GET /api/v1/tasks/{kind}/{id}",
+        "x-listener": "management",
+        "x-source": "task_controls.go:311"
+      }
+    },
+    "/api/v1/tasks/{kind}/{id}/{action}": {
+      "post": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "post_api_v1_tasks_kind_id_action_e65a8a8a",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "还须通过同源Origin/Fetch Metadata检查；不能以此头代替会话。",
+            "in": "header",
+            "name": "X-Requested-With",
+            "required": true,
+            "schema": {
+              "const": "media-tool",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "description": "字段级与条件必填校验由业务规则决定；确认字段只在明确批准时传true，不能自动补全。",
+                "properties": {
+                  "confirm": {
+                    "type": "boolean"
+                  },
+                  "revision": {
+                    "format": "int64",
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_d08da21a0f05"
+          },
+          "202": {
+            "$ref": "#/components/responses/HTTP202_d08da21a0f05"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_a1fb203b952b"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_67de8ce7d28e"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_a17bf28f208b"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_be948640951e"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "taskControl",
+        "tags": [
+          "基础与静态挂载"
+        ],
+        "x-go-handler": "taskControl",
+        "x-go-registration": "POST /api/v1/tasks/{kind}/{id}/{action}",
+        "x-listener": "management",
+        "x-source": "task_controls.go:312"
       }
     },
     "/api/v1/transfers": {

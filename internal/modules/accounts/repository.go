@@ -45,7 +45,7 @@ func (r Repository) Registered(ctx context.Context) (bool, error) {
 	}
 	return exists, nil
 }
-func (r Repository) Register(ctx context.Context, username, password, token string) (Account, error) {
+func (r Repository) Register(ctx context.Context, username, password, token string, metadata ...SessionMetadata) (Account, error) {
 	value, err := NormalizeUsername(username)
 	if err != nil {
 		return Account{}, err
@@ -76,7 +76,7 @@ func (r Repository) Register(ctx context.Context, username, password, token stri
 	if _, err = tx.Exec(ctx, `INSERT INTO administrator_accounts(id,username,password_hash)VALUES($1,$2,$3)`, account.ID, account.Username, hash); err != nil {
 		return Account{}, ErrUnavailable
 	}
-	if err = insertSession(ctx, tx, account, token); err != nil {
+	if err = insertSession(ctx, tx, account, token, metadata...); err != nil {
 		return Account{}, ErrUnavailable
 	}
 	raw, _ := json.Marshal(map[string]string{"accountId": account.ID})
@@ -110,12 +110,12 @@ func (r Repository) Authenticate(ctx context.Context, username, password string)
 	a.Hash = ""
 	return a, nil
 }
-func insertSession(ctx context.Context, tx pgx.Tx, a Account, token string) error {
+func insertSession(ctx context.Context, tx pgx.Tx, a Account, token string, metadata ...SessionMetadata) error {
 	digest := sha256.Sum256([]byte(token))
-	_, err := tx.Exec(ctx, `INSERT INTO administrator_sessions(token_digest,account_id,credential_version,expires_at)VALUES($1,$2,$3,now()+interval '8 hours')`, digest[:], a.ID, a.Version)
+	_, err := tx.Exec(ctx, `INSERT INTO administrator_sessions(token_digest,account_id,credential_version,expires_at,ip,user_agent)VALUES($1,$2,$3,now()+interval '8 hours',$4,$5)`, digest[:], a.ID, a.Version, sessionMetadata(metadata).IP, sessionMetadata(metadata).UserAgent)
 	return err
 }
-func (r Repository) CreateSession(ctx context.Context, account Account, token string) error {
+func (r Repository) CreateSession(ctx context.Context, account Account, token string, metadata ...SessionMetadata) error {
 	if r.DB == nil {
 		return ErrUnavailable
 	}
@@ -134,7 +134,7 @@ func (r Repository) CreateSession(ctx context.Context, account Account, token st
 	if _, err = tx.Exec(ctx, `DELETE FROM administrator_sessions WHERE expires_at<now()-interval '1 day'`); err != nil {
 		return ErrUnavailable
 	}
-	if err = insertSession(ctx, tx, account, token); err != nil {
+	if err = insertSession(ctx, tx, account, token, metadata...); err != nil {
 		return ErrUnavailable
 	}
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','session.login',jsonb_build_object('accountId',$1::text))`, account.ID); err != nil {

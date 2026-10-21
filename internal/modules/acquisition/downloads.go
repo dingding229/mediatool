@@ -638,3 +638,48 @@ func inspectDownloadTarget(ctx context.Context, client *qbittorrent.Adapter, has
 	}
 	return task, nil
 }
+
+// VerifyAdd observes the immutable downloader/hash/path before a generic retry.
+// An existing torrent (even still downloading) proves the add effect completed;
+// no second add is sent. No known hash means no outbound add could have started.
+func (e Engine) VerifyAdd(ctx context.Context, id string) (bool, error) {
+	conn, err := e.DB.Acquire(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer conn.Release()
+	var locked bool
+	if err = conn.QueryRow(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1,0))`, "download-task:"+id).Scan(&locked); err != nil {
+		return false, err
+	}
+	if !locked {
+		return false, errors.New("原下载提交尚未退出，不能核对后重试")
+	}
+	defer dbutil.Unlock(context.WithoutCancel(ctx), conn, `SELECT pg_advisory_unlock(hashtextextended($1,0))`, "download-task:"+id)
+	_, connection, hash, _, details, err := e.load(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	var sourceRequired bool
+	if err = e.DB.QueryRow(ctx, `SELECT source_recovery_required FROM download_tasks WHERE id=$1`, id).Scan(&sourceRequired); err != nil {
+		return false, err
+	}
+	if sourceRequired {
+		return false, ErrSourceRecoveryRequired
+	}
+	if hash == "" {
+		return false, nil
+	}
+	client, err := e.client(ctx, connection, details)
+	if err != nil {
+		return false, err
+	}
+	_, err = inspectDownloadTarget(ctx, client, hash, details)
+	if errors.Is(err, qbittorrent.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, e.transition(ctx, id, "downloading", "download.started", details)
+}

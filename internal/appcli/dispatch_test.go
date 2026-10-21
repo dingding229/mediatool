@@ -49,7 +49,7 @@ func TestAllApplicationLeavesHaveOfflineHelpAndOpsInfo(t *testing.T) {
 		Schema  int64
 		Version string
 	}
-	if e = json.Unmarshal(b, &v); e != nil || v.Schema != 71 || v.Version == "" {
+	if e = json.Unmarshal(b, &v); e != nil || v.Schema != 73 || v.Version == "" {
 		t.Fatal("info needs no environment", e, string(b))
 	}
 	cmd = exec.Command(bin, "not-a-command")

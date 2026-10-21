@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TaskControl from '../workflows/TaskControl.vue';
 import {scheduleLabel} from '../presentation/labels';
 import {usePageRefresh} from '../ui/page-refresh';
 import { ref, onMounted, onUnmounted, watch } from 'vue';
@@ -260,7 +261,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
         <el-button @click="inspect(scan)">查看目录记录</el-button>
         <el-button v-if="['pending','running'].includes(scan.state)" :disabled="!!scanError||busy" @click="askControl(scan,'pause')">暂停扫描</el-button>
         <el-button v-if="['paused','failed'].includes(scan.state)" :disabled="!!scanError||busy" @click="askControl(scan,'resume')">重新完整对账</el-button>
-        <el-button v-if="['pending','running','paused','failed'].includes(scan.state)" :disabled="!!scanError||busy" @click="askControl(scan,'cancel')">取消扫描</el-button>
+        <TaskControl kind="scans" :id="scan.id" :state="scan.state" @changed="emit('changed')"/>
       </div>
     </article>
     <PagePagination v-if="scans.length>8" v-model:current-page="scanPage" :page-size="8" :total="scans.length" layout="prev,pager,next"/>

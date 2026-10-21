@@ -57,6 +57,10 @@ func (p *pipelineProbe) Probe(_ context.Context, url string, o probequeue.ProbeO
 }
 func TestNativeProbeExecutionPersistsWhitelistAndWakeNeverRetries(t *testing.T) {
 	f := newProbeQueueFixture(t)
+	// These assertions execute the current runtime, not the historical DTOs.
+	if _, err := f.provider.UpTo(f.ctx, 73); err != nil {
+		t.Fatal(err)
+	}
 	f.enqueue(t, false)
 	links := &pipelineLinks{}
 	probe := &pipelineProbe{t: t}

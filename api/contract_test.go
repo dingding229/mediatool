@@ -1173,11 +1173,11 @@ func (s *source) build(t *testing.T) object {
 		case "media-tool/internal/modules/maintenance.Request":
 			set("state", "preview", "approved", "executing", "completed", "failed", "cancelled", "expired")
 		case "media-tool/internal/modules/jobs.Owned":
-			set("state", "pending", "running", "retry", "succeeded", "failed", "paused", "cancelled")
+			set("state", "pending", "running", "retry", "succeeded", "failed", "paused", "cancelled", "unknown", "checking")
 		}
 	}
 
-	return object{"openapi": "3.1.0", "info": object{"title": "Media Tool frontend and mounted protocol API", "version": "0.27.0", "description": "由实际路由注册与Go DTO派生；JSON是YAML1.2兼容写法，无新增运行依赖。schema71；说明与示例见docs/FRONTEND_API.md。"}, "servers": []any{object{"url": "/"}}, "paths": paths, "components": object{"schemas": s.schemas, "securitySchemes": schemes}, "x-protocol-boundaries": object{"emby": "挂载入口单列；原生Emby协议不是管理员Envelope。", "plugin": "仅声明宿主挂载；实际path/method/auth来自当前同pin运行descriptor，禁止远程代码。", "fallback": "/api/*为明确404；cloudStorage兼容前缀为明确501，不代表已实现功能。"}}
+	return object{"openapi": "3.1.0", "info": object{"title": "Media Tool frontend and mounted protocol API", "version": "0.27.0", "description": "由实际路由注册与Go DTO派生；JSON是YAML1.2兼容写法，无新增运行依赖。schema73；说明与示例见docs/FRONTEND_API.md。"}, "servers": []any{object{"url": "/"}}, "paths": paths, "components": object{"schemas": s.schemas, "securitySchemes": schemes}, "x-protocol-boundaries": object{"emby": "挂载入口单列；原生Emby协议不是管理员Envelope。", "plugin": "仅声明宿主挂载；实际path/method/auth来自当前同pin运行descriptor，禁止远程代码。", "fallback": "/api/*为明确404；cloudStorage兼容前缀为明确501，不代表已实现功能。"}}
 }
 func httpDescription(code int) string {
 	switch {

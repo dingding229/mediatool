@@ -647,3 +647,14 @@
 | HEAD | `/watch` | management | 未检出静态使用 |  |
 | GET | `/watch/{rest}` | management | 未检出静态使用 |  |
 | HEAD | `/watch/{rest}` | management | 未检出静态使用 |  |
+
+## B2 新增管理端接口
+
+| 方法 | 路径 | 监听器 | 使用情况 | 前端证据 |
+| --- | --- | --- | --- | --- |
+| GET | `/api/v1/auth/sessions` | management | 前端直接调用 | `web/src/settings/AdministratorSessions.vue:12` |
+| HEAD | `/api/v1/auth/sessions` | management | 未检出静态使用 |  |
+| POST | `/api/v1/auth/sessions/{id}/revoke` | management | 前端直接调用 | `web/src/settings/AdministratorSessions.vue:15` |
+| GET | `/api/v1/tasks/{kind}/{id}` | management | 前端直接调用 | `web/src/workflows/TaskControl.vue:12` |
+| HEAD | `/api/v1/tasks/{kind}/{id}` | management | 未检出静态使用 |  |
+| POST | `/api/v1/tasks/{kind}/{id}/{action}` | management | 前端直接调用 | `web/src/workflows/TaskControl.vue:14` |

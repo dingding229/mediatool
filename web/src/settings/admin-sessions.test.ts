@@ -1,0 +1,16 @@
+import {afterEach,beforeEach,expect,it,vi} from 'vitest';
+import {request,post} from '../api/client';
+import {setupComponent,flush,deferred} from '../test/setup-component';
+import AdministratorSessions from './AdministratorSessions.vue';
+const m=vi.hoisted(()=>({replace:vi.fn(),forget:vi.fn()}));
+vi.mock('vue-router',()=>({useRouter:()=>({replace:m.replace})}));
+vi.mock('../stores/auth',()=>({useAuthStore:()=>({forget:m.forget})}));
+vi.mock('../api/client',async original=>({...await original<typeof import('../api/client')>(),request:vi.fn(),post:vi.fn()}));
+let view:ReturnType<typeof setupComponent>;
+beforeEach(async()=>{vi.clearAllMocks();vi.mocked(request).mockResolvedValue({items:[{id:'owned',username:'admin',current:true,ip:'192.0.2.3',userAgent:'Original UA 原值'}],hasNext:false});view=setupComponent(AdministratorSessions);await flush()});
+afterEach(()=>view.unmount());
+it('enumerates management sessions independently of media user sessions',()=>{expect(request).toHaveBeenCalledWith('/auth/sessions?page=1');expect(view.state.sessions.data.value.items[0].userAgent).toBe('Original UA 原值');expect(post).not.toHaveBeenCalled()});
+it('current revoke clears local auth only after the explicit successful receipt',async()=>{view.state.target={id:'owned',current:true};vi.mocked(post).mockResolvedValue({revoked:true,loginRequired:true});await view.state.revoke();expect(post).toHaveBeenCalledWith('/auth/sessions/owned/revoke',{confirm:true});expect(m.forget).toHaveBeenCalledOnce();expect(m.replace).toHaveBeenCalledWith('/login?sessionRevoked=1')});
+it('other revoke rereads list and does not sign out current login',async()=>{view.state.target={id:'other',current:false};vi.mocked(post).mockResolvedValue({revoked:true,loginRequired:false});await view.state.revoke();expect(m.forget).not.toHaveBeenCalled();expect(view.state.notice).toContain('已撤销指定管理端登录');expect(request).toHaveBeenCalledTimes(2)});
+it('unknown revoke is read back without repeating POST',async()=>{view.state.target={id:'owned'};vi.mocked(post).mockRejectedValue(Error('lost receipt'));await view.state.revoke();await view.state.revoke();expect(post).toHaveBeenCalledOnce();expect(view.state.error).toBeTruthy();expect(m.forget).not.toHaveBeenCalled()});
+it('late current-session receipt cannot redirect after leaving the panel',async()=>{const p=deferred();vi.mocked(post).mockReturnValue(p.promise);view.state.target={id:'owned'};const pending=view.state.revoke();view.unmount();p.resolve({revoked:true,loginRequired:true});await pending;expect(m.replace).not.toHaveBeenCalled()});

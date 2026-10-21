@@ -124,6 +124,9 @@ func (e Engine) ApplyArchiveCleanup(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	if state == "cancelled" {
+		return errors.New("清理已取消，需重新预览批准")
+	}
 	if state == "removed" {
 		return nil
 	}
@@ -193,4 +196,46 @@ func (e Engine) cleanupConflict(ctx context.Context, tx pgx.Tx, id, message stri
 		return err
 	}
 	return ErrArtifactConflict
+}
+
+// Cancellation is only safe while the approved archive is still intact at its
+// original path. A crashed rename can leave an unrecorded quarantine file; that
+// is unknown, not an unexecuted approval we may silently abandon.
+func (e Engine) CancelArchiveCleanup(ctx context.Context, id string) error {
+	tx, err := e.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer deferutil.Rollback(ctx, tx)
+	var state, root, archive, quarantine string
+	var digest []byte
+	if err = tx.QueryRow(ctx, `SELECT c.state,j.root_path,j.archive_relative,c.quarantine_relative,c.expected_digest FROM media_archive_cleanup_operations c JOIN media_artifact_journal j ON j.id=c.journal_id WHERE c.id=$1 FOR UPDATE OF c,j`, id).Scan(&state, &root, &archive, &quarantine, &digest); err != nil {
+		return err
+	}
+	if state == "cancelled" {
+		return nil
+	}
+	if state != "approved" {
+		return errors.New("清理已产生或可能产生外部副作用，不能撤回，请核对原批准记录")
+	}
+	configured, err := filepath.Abs(e.Connections.Config.STRMOutputDir)
+	if err != nil || root != configured || !validCleanupPaths(archive, quarantine) {
+		return ErrArtifactConflict
+	}
+	fs, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer deferutil.Close(fs, "Archive cancellation read-only descriptor teardown")
+	if _, err = fs.Lstat(quarantine); !errors.Is(err, os.ErrNotExist) {
+		return errors.New("隔离目标已存在或不能核对，保留未知状态，不取消批准")
+	}
+	raw, err := readRegular(fs, archive)
+	if err != nil || !digestEqual(raw, digest) {
+		return ErrArtifactConflict
+	}
+	if _, err = tx.Exec(ctx, `UPDATE media_archive_cleanup_operations SET state='cancelled',message='管理员取消未执行的清理',updated_at=clock_timestamp() WHERE id=$1`, id); err != nil {
+		return err
+	}
+	return dbutil.Commit(ctx, tx)
 }

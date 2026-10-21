@@ -10,5 +10,6 @@ export const useAuthStore=defineStore('auth',()=>{
  async function register(username:string,password:string,confirmPassword:string){const response=await post<AuthResponse>('/auth/register',{username,password,confirmPassword});authenticated.value=true;checked.value=true;account.value=response.account}
  async function logout(){try{await post('/auth/logout',{})}finally{authenticated.value=false;checked.value=true;account.value=null}}
  async function changePassword(currentPassword:string,newPassword:string,confirmPassword:string){await post('/auth/password',{currentPassword,newPassword,confirmPassword});authenticated.value=false;checked.value=true;account.value=null}
- return{authenticated,checked,account,ensure,login,register,logout,changePassword}
+ function forget(){authenticated.value=false;checked.value=true;account.value=null}
+ return{forget,authenticated,checked,account,ensure,login,register,logout,changePassword}
 })

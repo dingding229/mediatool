@@ -339,6 +339,7 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 		}
 		ui.ServeHTTP(w, r)
 	})
+	a.registerAccountTasks(mux)
 	return a.middleware(mux)
 }
 func (a *API) protected(next http.HandlerFunc) http.HandlerFunc {

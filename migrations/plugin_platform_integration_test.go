@@ -55,6 +55,10 @@ func TestF4DSettingsDiffIsTransactionalAndNeverContainsSecurityValues(t *testing
 }
 func TestF4DErrorBusAggregatesThrottlesExcludesPluginsAndCommitsWithTerminalJob(t *testing.T) {
 	f := latestDiscoveryFixture(t)
+	// These assertions execute the current runtime, not the historical DTOs.
+	if _, err := f.provider.UpTo(f.ctx, 73); err != nil {
+		t.Fatal(err)
+	}
 	bus := safeerrors.Bus{DB: f.pool}
 	tx, e := f.pool.Begin(f.ctx)
 	if e != nil {

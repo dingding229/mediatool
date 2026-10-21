@@ -231,7 +231,7 @@ func (e Engine) STRMRepairBatch(ctx context.Context, id string) (STRMRepairBatch
 	}
 	if out.State == "running" {
 		var failed bool
-		if err := e.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM strm_repair_batches b JOIN jobs j ON j.id=b.job_id WHERE b.id=$1 AND j.state='failed')`, id).Scan(&failed); err != nil {
+		if err := e.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM strm_repair_batches b JOIN jobs j ON j.id=b.job_id WHERE b.id=$1 AND j.state IN('failed','unknown','cancelled'))`, id).Scan(&failed); err != nil {
 			return out, err
 		}
 		if failed {
@@ -431,4 +431,49 @@ func (e Engine) RetrySTRMRepair(ctx context.Context, id, digest string, confirm 
 		return STRMRepairBatch{}, err
 	}
 	return e.STRMRepairBatch(ctx, id)
+}
+
+// VerifyRepairJob checks each original body and existing file without writing.
+// The subsequent handler keeps the same immutable batch/journal; no replacement
+// URL or new grant is generated for a retry.
+func (e Engine) VerifyRepairJob(ctx context.Context, id string) (jobs.Verification, error) {
+	batch, err := e.STRMRepairBatch(ctx, id)
+	if err != nil {
+		return jobs.Verification{}, err
+	}
+	tx, err := e.DB.Begin(ctx)
+	if err != nil {
+		return jobs.Verification{}, err
+	}
+	defer deferutil.Rollback(ctx, tx)
+	complete := true
+	for _, item := range batch.Items {
+		var live bool
+		if err = tx.QueryRow(ctx, `SELECT true FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id JOIN playback_grants g ON g.asset_id=a.id WHERE a.id=$1 AND a.revision=$2 AND f.state='present' AND g.revoked_at IS NULL FOR SHARE OF a,f,g`, item.AssetID, item.Revision).Scan(&live); err != nil {
+			return jobs.Verification{}, ErrArtifactConflict
+		}
+		checked, _, err := e.inspectSTRM(ctx, tx, item)
+		if err != nil {
+			return jobs.Verification{}, err
+		}
+		if checked.State == "blocked" {
+			return jobs.Verification{}, ErrArtifactConflict
+		}
+		if checked.State == "missing" {
+			complete = false
+		} else if checked.State == "ready" {
+			if _, err = tx.Exec(ctx, `UPDATE strm_repair_items SET state='ready',message=$3 WHERE batch_id=$1 AND ordinal=$2`, id, item.Ordinal, checked.Message); err != nil {
+				return jobs.Verification{}, err
+			}
+		}
+	}
+	if complete {
+		if _, err = tx.Exec(ctx, `UPDATE strm_repair_batches SET state='succeeded',updated_at=clock_timestamp() WHERE id=$1`, id); err != nil {
+			return jobs.Verification{}, err
+		}
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return jobs.Verification{}, err
+	}
+	return jobs.Verification{Complete: complete, Reason: "已核对原STRM正文、文件归属及当前目标；不覆盖手工内容"}, nil
 }

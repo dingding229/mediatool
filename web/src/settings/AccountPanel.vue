@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { request } from '../api/client';
 import { useAuthStore } from '../stores/auth';
 import { useResource } from '../workflows/useResource';
+import AdministratorSessions from './AdministratorSessions.vue';
 import PasswordForm from '../auth/PasswordForm.vue';
 import StateView from '../ui/StateView.vue';
 import { readGuideHidden, writeGuideHidden } from '../workflows/readiness';
@@ -57,11 +58,12 @@ usePageRefresh(session.load, 'security');
       <template v-else-if="session.data.value">
         <p>管理员：{{session.data.value.account.username||'—'}}</p>
         <p>{{session.data.value.authenticated?'已登录':'未登录'}} · {{session.data.value.account.mustChangePassword?'需要修改密码':'密码可正常使用'}}</p>
-        <p>目前仅提供当前登录状态，不能查看其他会话列表。修改密码会撤销所有会话。</p>
+        <p>下方可查看并撤销指定的管理端登录；修改密码会撤销该账号所有会话。</p>
         <el-button :loading="busy" @click="logout">退出当前会话</el-button>
         <p v-if="error" role="alert">{{error}}</p>
       </template>
     </section>
+    <AdministratorSessions/>
     <section class="settings-card" aria-label="修改管理员密码">
       <h2>修改密码</h2>
       <PasswordForm/>

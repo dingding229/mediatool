@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TaskControl from '../workflows/TaskControl.vue';
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -181,6 +182,7 @@ usePageRefresh(load, 'history');
       <p>目标位置：{{ item.destination||'—' }}</p>
       <p>{{ item.category||'—' }} · {{ item.message||'—' }}</p>
       <el-button @click="detail=item;open=true">查看步骤详情</el-button>
+      <TaskControl v-if="item.kind==='batch'" kind="organize" :id="item.batchId||item.id" :state="item.state" @changed="load"/>
     </article>
     <StateView v-if="!loading&&!error&&!items.length" state="empty" title="暂无符合条件的历史"/>
     <PagePagination v-if="total>25" v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next,total" @current-change="load"/>

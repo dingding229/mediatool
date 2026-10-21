@@ -323,3 +323,40 @@ func TestArchiveCleanupRetryRechecksCurrentOutputPolicyAndRecoveryState(t *testi
 		})
 	}
 }
+
+func TestB2ArchiveCancellationChecksActualFilesAndRequiresNewApproval(t *testing.T) {
+	f := newArchiveFixture(t)
+	_, id, _ := f.approve(t)
+	if err := f.e.CancelArchiveCleanup(f.ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.e.CancelArchiveCleanup(f.ctx, id); err != nil {
+		t.Fatal("cancel not idempotent", err)
+	}
+	f.operation(t, id, "cancelled")
+	f.preserved(t, f.archivePath)
+	if err := f.e.ApplyArchiveCleanup(f.ctx, id); err == nil {
+		t.Fatal("cancelled approval reused")
+	}
+	preview, err := f.e.PreviewArchiveCleanup(f.ctx, []string{f.archive})
+	if err != nil {
+		t.Fatal("cancelled operation blocks new preview", err)
+	}
+	result, err := f.e.ConfirmArchiveCleanup(f.ctx, ArchiveCleanupRequest{RequestID: jobs.UUID(), ArchiveIDs: []string{f.archive}, PlanDigest: preview.PlanDigest})
+	if err != nil || len(result) != 1 || result[0].State != "removed" {
+		t.Fatal("new explicit approval failed", result, err)
+	}
+}
+func TestB2ArchiveCancellationCannotHideUncommittedQuarantine(t *testing.T) {
+	f := newArchiveFixture(t)
+	_, id, quarantine := f.approve(t)
+	sum := sha256.Sum256(f.raw)
+	if ok, err := quarantineArchive(f.root, f.archivePath, quarantine, sum[:]); err != nil || !ok {
+		t.Fatal(err)
+	}
+	if err := f.e.CancelArchiveCleanup(f.ctx, id); err == nil {
+		t.Fatal("unrecorded external effect declared unexecuted")
+	}
+	f.operation(t, id, "approved")
+	f.preserved(t, quarantine)
+}

@@ -329,3 +329,15 @@ X-Requested-With: media-tool
 ## 工作区呈现与交互规范
 
 页面归属、标签和统一组件规则见 [前端设计规范](FRONTEND_DESIGN_MASTER.md)。刷新仅读取当前标签，下载器同步为显式业务操作；统一分页为上一页/第N页/下一页，子分区统一分段控件。空、错、不支持、未授权须分别呈现。配置预填当前生效值而不自动写回默认值，未保存草稿在刷新和修订冲突时保留。日志与数据浏览按管理员权限显示原始值及完整请求/跳转URL。
+
+## B2 管理端会话、任务控制与115健康检测（schema73）
+
+- 管理员登录位于 PostgreSQL `administrator_sessions`，不同于媒体服务器用户会话。`GET /api/v1/auth/sessions?page=1` 返回 `{items,hasNext}`，每页50条，含无凭据意义的会话 UUID、账号、创建/最后活动/到期时间、原始连接IP及UA、`current`。所有管理端账号目前均为完整管理员，可分页读取全部有效管理端登录；不返回cookie、摘要或密码。IP不信任任意转发头。升级前没有活动元数据的旧会话以其创建时间作为最早可确认活动，IP/UA保持空值至实际请求更新，不伪造迁移时登录。
+- `POST /api/v1/auth/sessions/{id}/revoke` 必须 `{confirm:true}`；幂等。撤销当前登录返回 `loginRequired:true` 并清cookie，下一次请求401；UI明确跳转登录页。撤销单个管理端登录不影响其他管理端登录或媒体服务器用户登录。
+- `GET /api/v1/tasks/{kind}/{id}` 返回 `ControlResult{id,state,revision,queued,stopPending,externalEffects,reason}`。类型为 `jobs/downloads/transfers/scans/repairs/organize/archives/ops`；业务ID解析为当前阶段原job，不新建另一套业务任务。`POST /api/v1/tasks/{kind}/{id}/{action}` 的 action 仅为 `cancel/retry`，要求 `{confirm:true,revision:<刚读取的修订>}`。
+- 202仅表示排队或请求协作停止，不代表完成。pending取消立即阻止认领；running请求持久化，执行器200ms检查并取消context，HTTP有界等待2秒，尚未退出返回202。已发送的外部副作用不保证可撤回；写任务中断保留unknown并禁止租约过期自动重放。读取核对不触发新的外部提交。
+- retry以行锁+修订CAS进入持久化checking，在锁外核对业务真实状态，只有确认未完成才重新排队；已完成直接收敛，失败保留unknown与原因。并发/重复同修订请求最多执行一次核对；失联checking两分钟后回unknown，不自动执行。下载核对原下载器/哈希/路径，上传核对原端点/目标大小哈希及活动会话，修复核对原STRM正文与归属；扫描重建新generation，不复用不完整缺失票据。文件整理核对路径后若有剩余项必须重新预览，不能重放旧计划。宿主维护仍必须沿原维护单核验；通用层明确拒绝不可证明安全的重试。
+- `archives`是已有人工批准的同步清理账本：取消仅限未执行的approved；retry按原批准范围重新检查归属、保留期、隔离文件和当前输出，原子路径步骤幂等。已发生的物理删除不能撤回。`ops`仅取消preview/approved，executing不能从应用撤回，retry要求原宿主核验。
+- 旧 `/pipeline/{kind}/{id}/retry`、上传control、扫描pause/resume/cancel、STRM批次retry、归档retry、文件核对、ops取消/核验接口**全部保留**，未删除调用点。原预览/批准/digest/来源重确认边界不被通用层替代。
+- 115健康检测由现有default调度器调用，PG持久化租约、配置修订、下次时间与失败次数。新建/配置变化后延迟5–10分钟，正常6–7小时，失败30分钟指数退避至6小时并加抖动；多实例和重启共享截止时间。只调用已有`/open/user/info` Probe，必要时复用原串行令牌刷新；不列目录、不取下载链接。回写已有lastCheckState/lastCheckMessage/lastCheckedAt，修订变化不写入旧检测结果，保留原授权。连接页只读展示检测时间/结果；成功不是实际播放验收证明。
+- 手动下载的“未见目标”仍有延迟接受风险，通用层仅核对，不绕过原页面的重复风险确认。已取消归档操作仅可通过新的预览与批准重新开始，旧取消批准不能由retry恢复。
