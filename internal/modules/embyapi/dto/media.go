@@ -132,6 +132,9 @@ func (s *MediaSourceInfo) UnmarshalJSON(raw []byte) error {
 // Explicit false for embedded subtitles avoids client heuristics that infer
 // external delivery from an absent property. Non-subtitle goldens stay intact.
 func (s MediaStream) MarshalJSON() ([]byte, error) {
+	if e := safeMetadata(s); e != nil {
+		return nil, e
+	}
 	type fields MediaStream
 	var external *bool
 	if s.IsExternal || s.DeliveryMethod == "Embed" {

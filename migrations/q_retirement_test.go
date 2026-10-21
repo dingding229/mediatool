@@ -8,8 +8,8 @@ import (
 )
 
 func TestQRetirementGuardsAndPreservesLiveData(t *testing.T) {
-	f, s := pluginStore(t)
-	in, e := s.Apply(f.ctx, "admin", installRequest(t))
+	f, s := pluginStoreAt(t, 64)
+	in, e := historicalInstall(f, s)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -102,7 +102,7 @@ func TestQRetirementGuardsAndPreservesLiveData(t *testing.T) {
 }
 
 func TestQJournalMigrationBackfillsSourceReceipt(t *testing.T) {
-	f, s := pluginStore(t)
+	f, s := pluginStoreAt(t, 64)
 	if _, e := f.provider.UpTo(f.ctx, 65); e != nil {
 		t.Fatal(e)
 	}

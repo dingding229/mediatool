@@ -38,7 +38,7 @@ type ItemQuery struct {
 	StartIndex                                                         int64
 	Limit                                                              int
 	SortBy, SortOrder, Fields, IDs, IncludeItemTypes, ExcludeItemTypes []string
-	ParentID                                                           string
+	ParentID, SeriesID, SeasonID string
 	Genres, Years                                                      []string
 	SearchTerm                                                         string
 	Recursive, IsFolder, IsPlayed, IsFavorite, IsResumable             *bool

@@ -21,6 +21,7 @@ var (
 )
 
 type FileRef struct {
+	CloudFileID  string `json:"-"` // Host-authorized external subtitle identity; never wire input.
 	ExpectedSize int64  `json:"-"`
 	UserAgent    string `json:"-"`
 	ClientIP     string `json:"-"`

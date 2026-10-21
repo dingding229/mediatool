@@ -87,7 +87,8 @@ func TestPostgresCloudScanConfirmationFileGrantAndMissingSafety(t *testing.T) {
 	}
 	defer db.Exec(context.Background(), cleanup)
 	file := &pb.CloudDriveFile{Id: "stable-cloud-file", Name: "Owned.Movie.2026.mkv", FullPathName: "/115/Media/Owned.Movie.2026.mkv", FileType: pb.CloudDriveFile_File, Size: 100, FileHashes: map[uint32]string{2: strings.Repeat("a", 40)}}
-	cloud := &fixtureCloud{files: []*pb.CloudDriveFile{file}}
+	subtitle := &pb.CloudDriveFile{Id: "stable-subtitle", Name: "Owned.Movie.2026.zh.forced.srt", FullPathName: "/115/Media/Owned.Movie.2026.zh.forced.srt", FileType: pb.CloudDriveFile_File, Size: 42}
+	cloud := &fixtureCloud{files: []*pb.CloudDriveFile{file, subtitle}}
 	listener, _ := net.Listen("tcp", "127.0.0.1:0")
 	server := grpc.NewServer()
 	pb.RegisterCloudDriveFileSrvServer(server, cloud)
@@ -116,6 +117,10 @@ func TestPostgresCloudScanConfirmationFileGrantAndMissingSafety(t *testing.T) {
 	payload, _ := json.Marshal(map[string]string{"scanId": scanID})
 	if err = engine.Process(ctx, jobs.Job{Payload: payload, Attempts: 1, MaxAttempts: 3}); err != nil {
 		t.Fatal(err)
+	}
+	var subtitleCount int
+	if e := db.QueryRow(ctx, `SELECT count(*) FROM cloud_files f WHERE f.full_path=$1 AND f.state='present' AND NOT EXISTS(SELECT 1 FROM library_candidates c WHERE c.file_id=f.id)`, subtitle.FullPathName).Scan(&subtitleCount); e != nil || subtitleCount != 1 {
+		t.Fatal("subtitle was not indexed independently of video candidates", subtitleCount, e)
 	}
 	candidates, err := engine.Candidates(ctx)
 	if err != nil || len(candidates) != 1 {

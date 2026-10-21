@@ -32,10 +32,10 @@ func TestPluginStateMigrationUpDownUpPreservesNonPluginData(t *testing.T) {
 
 func TestPluginStateSnapshotRekeyKeepsRestorableAAD(t *testing.T) {
 	f, s := pluginStore(t)
-	if _, e := f.provider.UpTo(f.ctx, 71); e != nil {
+	if _, e := f.provider.UpTo(f.ctx, 74); e != nil {
 		t.Fatal(e)
 	}
-	f.version(t, 71)
+	f.version(t, 74)
 	t.Log("schema71 constrained snapshot/rekey/restore round trip")
 	q := installRequest(t)
 	in, e := s.Apply(f.ctx, "admin", q)

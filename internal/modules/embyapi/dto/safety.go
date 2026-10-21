@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -110,6 +111,12 @@ func safeMetadata(value any) error {
 					}
 					continue
 				}
+				if v.Type() == reflect.TypeFor[MediaStream]() && name == "DeliveryUrl" {
+					if field.String() != "" && (!v.FieldByName("IsExternal").Bool() || v.FieldByName("DeliveryMethod").String() != "External" || !safeSubtitleURL(field.String())) {
+						return false
+					}
+					continue
+				}
 				if name == "ProviderIds" || name == "ImageTags" {
 					for _, key := range field.MapKeys() {
 						allowed := " Tmdb Imdb "
@@ -176,4 +183,41 @@ func validateCapabilities(flags map[string]json.RawMessage) error {
 		}
 	}
 	return nil
+}
+
+func safeSubtitleURL(value string) bool {
+	u, e := url.Parse(value)
+	if e != nil {
+		return false
+	}
+	q := u.Query()
+	id := q.Get("SubtitleId")
+	if len(q["SubtitleId"]) != 1 || len(id) != 36 {
+		return false
+	}
+	for _, c := range id {
+		if !(c >= 'a' && c <= 'f' || c >= '0' && c <= '9' || c == '-') {
+			return false
+		}
+	}
+	parts := strings.Split(u.Path, "/")
+	if len(parts) != 7 || parts[1] != "Videos" || parts[3] != q.Get("MediaSourceId") || parts[4] != "Subtitles" || !strings.HasPrefix(parts[6], "Stream.") {
+		return false
+	}
+	n, e := strconv.Atoi(parts[5])
+	if e != nil || n < 0 {
+		return false
+	}
+	ext := strings.TrimPrefix(parts[6], "Stream.")
+	if len(ext) < 1 || len(ext) > 8 {
+		return false
+	}
+	for _, c := range ext {
+		if c < 'a' || c > 'z' {
+			return false
+		}
+	}
+	q.Del("SubtitleId")
+	u.RawQuery = q.Encode()
+	return safeStreamURL(u.String())
 }

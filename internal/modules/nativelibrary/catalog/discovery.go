@@ -70,6 +70,7 @@ func (r BrowseRepository) Discover(ctx context.Context, u contracts.User, p cont
 		q.IsResumable = &value
 		options.order = []string{"user_last_played DESC NULLS LAST"}
 	case nativelibrary.NextUp:
+		q.SeriesID, q.SeasonID = "", "" // The optimized NextUp path already binds and verifies in.ItemID.
 		q.IDs = nil
 		q.Genres = nil
 		q.Years = nil

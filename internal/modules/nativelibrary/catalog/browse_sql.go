@@ -105,3 +105,36 @@ func browseSearchSQL(q nativelibrary.ItemQuery, bind int, normalized bool) strin
 	}
 	return strings.Replace(sql, "AND e.media_type=CASE l.collection_type", "AND (e.media_type<>'movie' OR ("+expr+")) AND e.media_type=CASE l.collection_type", 1)
 }
+
+// Restrict the physical members before materialized grouping. Keep outer parent
+// checks for visibility and cross-series rejection; bind every client value.
+func pruneParentSQL(sql string, bind int, kinds ...string) string {
+	if bind == 0 {
+		return sql
+	}
+	key := fmt.Sprintf(`(SELECT internal_key FROM native_item_ids WHERE id::text=$%d::text AND entity_type IN('series','season'))`, bind)
+	tmdb := `split_part(substring(` + key + ` from 6),':',1)`
+	kind := ""
+	if len(kinds) > 0 {
+		kind = kinds[0]
+	}
+	if kind == "library" {
+		return sql
+	}
+	condition := ` AND (` + key + ` IS NULL OR (m.media_type='series' AND m.tmdb_id=(` + tmdb + `)::bigint AND (` + key + ` NOT LIKE '%:s%' OR b.season::text=split_part(` + key + `,':s',2)))) `
+
+	if kind == "series" || kind == "season" {
+		filter := `media_id=(SELECT id FROM media_items WHERE media_type='series' AND tmdb_id=(` + tmdb + `)::bigint)`
+		if kind == "season" {
+			filter += ` AND season=(split_part(` + key + `,':s',2))::int`
+		}
+		// Fence the selective index lookup before membership joins. The shared bound
+		// scope is consumed by per-episode lateral projections: materialize it once,
+		// not once per returned/grouped episode (quadratic on cold planner stats).
+		sql = strings.Replace(sql, "WITH ", `WITH parent_bindings AS MATERIALIZED(SELECT * FROM media_asset_bindings WHERE `+filter+`), `, 1)
+		sql = strings.Replace(sql, "JOIN media_asset_bindings b ON", "JOIN parent_bindings b ON", 1)
+		return strings.Replace(sql, "bound AS NOT MATERIALIZED", "bound AS MATERIALIZED", 1)
+	}
+
+	return strings.Replace(sql, `WHERE EXISTS(SELECT 1 FROM strm_entries`, `WHERE true `+condition+` AND EXISTS(SELECT 1 FROM strm_entries`, 1)
+}

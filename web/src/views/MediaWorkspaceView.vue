@@ -10,7 +10,7 @@ import { image, originalSTRM, mediaType, sourceState } from '../media/model';
 import { errorText } from '../workflows/readiness';
 import { formatBytes } from '../operations/model';
 import '../media/catalog.css';
-const { displayItems, source, view, page, query, kind, parentId, items, total, home, groups, loading, error, embyConnected, connectionError, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, season, seasons, episodes, series, copyMessage, playLink, copyBusy, load, search, chooseSource, all, browse, inspect, homeItem, refresh, readChildren, copyLink } = useCatalog();
+const { selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, items, total, home, groups, loading, error, embyConnected, connectionError, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, copyMessage, playLink, copyBusy, load, search, chooseSource, all, browse, inspect, homeItem, refresh, readChildren, copyLink } = useCatalog();
 usePageRefresh(refresh,'*');
 </script>
 <template>
@@ -106,14 +106,11 @@ usePageRefresh(refresh,'*');
         <StateView v-if="childLoading" state="loading"/>
         <StateView v-else-if="childError" :state="sourceState(childError)" :description="errorText(childError)" @retry="readChildren"/>
         <template v-else>
-          <p>{{source==='managed'?'以下仅为本页已入库文件的季集分组；其他分页的文件不计入本组。':'按来源返回的本页记录浏览季与集，翻页可查看其他记录。'}} 共 {{childTotal}} 项。</p>
-          <nav class="catalog-subnav mt-segments" aria-label="本页剧集季">
-            <button :aria-pressed="season===null" @click="season=null">本页全部</button>
-            <button v-for="value in seasons" :key="value" :aria-pressed="season===value" @click="season=value">第 {{value}} 季</button>
-          </nav>
+          <p>{{selectedSeason ? selectedSeason.title + ' · 集列表' : '季列表'}} · 共 {{childTotal}} 项，按季号、集号排序。</p>
+          <el-button v-if="selectedSeason" plain @click="chooseSeason(null)">返回季列表</el-button>
           <ol class="catalog-episodes">
             <li v-for="episode in episodes" :key="episode.id">
-              <button @click="inspect(episode,true)">{{episode.season!=null?'第 '+episode.season+' 季 · ':''}}{{episode.episode!=null?'第 '+episode.episode+' 集 · ':''}}{{episode.title}}</button>
+              <button @click="episode.type==='Season' ? chooseSeason(episode) : inspect(episode,true)">{{episode.season!=null?'第 '+episode.season+' 季 · ':''}}{{episode.episode!=null?'第 '+episode.episode+' 集 · ':''}}{{episode.title}}</button>
             </li>
           </ol>
           <StateView v-if="!children.length" state="empty" title="来源尚未返回季集内容"/>
@@ -124,7 +121,7 @@ usePageRefresh(refresh,'*');
         <h3>剧集资料</h3>
         <p v-for="episode in detail.episodeDetails" :key="episode.id">第 {{episode.season}} 季 · 第 {{episode.number}} 集 · {{episode.title}}</p>
       </section>
-      <p v-if="source==='managed'&&detail?.mediaType==='series'">内置媒体库按当前分页的已入库文件展示季集，不代表整部剧集已收齐。</p>
+      <p v-if="source==='managed'&&detail?.mediaType==='series'">内置媒体库按作品、季、集分层读取，仅反映已入库内容，不代表整部剧集已收齐。</p>
       <div v-if="!detail?.groupFiles&&originalSTRM(detail)" class="catalog-link">
         <el-button :loading="copyBusy" @click="copyLink(originalSTRM(detail))">复制播放链接</el-button>
         <p>仅复制给兼容播放器使用，本页不播放。链接含此文件的访问权限，请勿公开分享。</p>

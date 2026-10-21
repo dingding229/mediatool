@@ -52,6 +52,7 @@ type browseScope struct {
 	ids, codes []string
 	unrated    bool
 	library    string
+	parentKind string
 }
 
 func scope(ctx context.Context, u contracts.User, p contracts.PermissionChecker) (browseScope, error) {
@@ -172,6 +173,15 @@ func conditions(q nativelibrary.ItemQuery, s browseScope) (string, []any) {
 			add(f.expr, *f.v)
 		}
 	}
+
+	// Additional IDs intersect the ParentId library/season scope; they must not
+	// replace it and accidentally borrow versions from another library.
+	if q.SeriesID != "" {
+		add("internal_key LIKE (SELECT internal_key FROM native_item_ids WHERE id::text=$%d::text AND entity_type='series')||':s%%'", q.SeriesID)
+	}
+	if q.SeasonID != "" {
+		add("kind='episode' AND internal_key LIKE (SELECT internal_key FROM native_item_ids WHERE id::text=$%d::text AND entity_type='season')||'e%%'", q.SeasonID)
+	}
 	return strings.Join(where, " AND "), args
 }
 func lower(in []string) []string {
@@ -202,12 +212,38 @@ func (r BrowseRepository) query(ctx context.Context, u contracts.User, p contrac
 	if err := validateBrowseQuery(&q); err != nil {
 		return nil, 0, err
 	}
+	if q.SeriesID != "" || q.SeasonID != "" {
+		parent := q.SeriesID
+		if q.SeasonID != "" {
+			parent = q.SeasonID
+		}
+		if q.SeriesID != "" {
+			if _, e := r.single(ctx, u, p, q.SeriesID, dto.Series); e != nil {
+				return nil, 0, e
+			}
+		}
+		if q.SeasonID != "" {
+			v, e := r.single(ctx, u, p, q.SeasonID, dto.Season)
+			if e != nil {
+				return nil, 0, e
+			}
+			if q.SeriesID != "" && v.SeriesId != q.SeriesID {
+				return nil, 0, nativelibrary.ErrNotFound
+			}
+		}
+		if q.ParentID == "" {
+			q.ParentID = parent
+		}
+		recursive := true
+		q.Recursive = &recursive
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if options.nextUp {
 		return r.nextUpPage(ctx, u, p, q, options.nextSeries, options.nextSpecial)
 	}
-	_, where, args, err := r.plan(ctx, u, p, q)
+	planScope, where, args, err := r.plan(ctx, u, p, q)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -258,8 +294,31 @@ func (r BrowseRepository) query(ctx context.Context, u contracts.User, p contrac
 		anchor = fmt.Sprintf("EXISTS(SELECT 1 FROM filtered WHERE id=$%d::text)", i)
 		offset = fmt.Sprintf("coalesce((SELECT ordinal FROM numbered WHERE id=$%d::text),0)+", i)
 	}
+	parentBind := 0
+	pruneID := q.ParentID
+	pruneKind := planScope.parentKind
+	if q.SeriesID != "" {
+		pruneID = q.SeriesID
+		pruneKind = "series"
+	}
+	if q.SeasonID != "" {
+		pruneID = q.SeasonID
+		pruneKind = "season"
+	}
+	if pruneKind == "library" {
+		pruneID = ""
+	}
+	if pruneID != "" {
+		args = append(args, pruneID)
+		parentBind = len(args)
+	} else if len(q.IDs) == 1 {
+		pruneKind = ""
+		args = append(args, q.IDs[0])
+		parentBind = len(args)
+	}
+
 	args = append(args, q.Limit, q.StartIndex)
-	sql := browseSearchSQL(q, searchBind, true) + prefix + ",page AS(SELECT " + browseColumns + " FROM " + pageSource + " ORDER BY " + strings.Join(order, ",") + fmt.Sprintf(" LIMIT $%d OFFSET "+offset+"$%d)", len(args)-1, len(args)) + " SELECT (SELECT count(*) FROM filtered),coalesce((SELECT jsonb_agg(row_to_json(page)) FROM page),'[]')," + within + "," + anchor
+	sql := pruneParentSQL(browseSearchSQL(q, searchBind, true), parentBind, pruneKind) + prefix + ",page AS(SELECT " + browseColumns + " FROM " + pageSource + " ORDER BY " + strings.Join(order, ",") + fmt.Sprintf(" LIMIT $%d OFFSET "+offset+"$%d)", len(args)-1, len(args)) + " SELECT (SELECT count(*) FROM filtered),coalesce((SELECT jsonb_agg(row_to_json(page)) FROM page),'[]')," + within + "," + anchor
 	var total int
 	var raw []byte
 	var withinCap, anchorFound bool
@@ -414,10 +473,16 @@ func (r BrowseRepository) plan(ctx context.Context, u contracts.User, p contract
 			s.library = parentKey
 		}
 	}
+	s.parentKind = parentKind
 	if parentKind != "" {
 		check, binds := conditions(nativelibrary.ItemQuery{IDs: []string{q.ParentID}}, s)
 		var exists bool
-		if err := r.DB.QueryRow(ctx, browseCTE+`SELECT EXISTS(SELECT 1 FROM item_rows WHERE `+check+`)`, binds...).Scan(&exists); err != nil {
+		preflight := browseCTE
+		if parentKind != "library" {
+			binds = append(binds, q.ParentID)
+			preflight = pruneParentSQL(browseCTE, len(binds), parentKind)
+		}
+		if err := r.DB.QueryRow(ctx, preflight+`SELECT EXISTS(SELECT 1 FROM item_rows WHERE `+check+`)`, binds...).Scan(&exists); err != nil {
 			return s, "", nil, contracts.ErrUnavailable
 		}
 		if !exists {

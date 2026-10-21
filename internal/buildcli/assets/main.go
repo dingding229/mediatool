@@ -31,6 +31,8 @@ type inventory struct {
 	ContractVersion int                  `json:"contractVersion"`
 	Manifests       []contracts.Manifest `json:"manifests"`
 	Resources       []resource           `json:"resources"`
+	ContentHashes   map[string]string    `json:"contentHashes"`
+	LegacyContents  map[string]string    `json:"legacyContents"`
 }
 
 func Main() {
@@ -58,7 +60,7 @@ func export(check bool) error {
 		return e
 	}
 	sort.Slice(defs, func(i, j int) bool { return defs[i].Manifest.ID < defs[j].Manifest.ID })
-	out := inventory{HostMethods: b.Methods(), Pin: module.Version, ContractVersion: contracts.ContractVersion, Manifests: []contracts.Manifest{}, Resources: []resource{}}
+	out := inventory{HostMethods: b.Methods(), Pin: module.Version, ContractVersion: contracts.ContractVersion, Manifests: []contracts.Manifest{}, Resources: []resource{}, ContentHashes: map[string]string{}}
 	destination := "web/public/plugins"
 	buildSources := "web/plugin-ui"
 	if !check {
@@ -78,6 +80,11 @@ func export(check bool) error {
 	var totalBytes int64
 	for _, d := range defs {
 		out.Manifests = append(out.Manifests, d.Manifest)
+		hash, err := sourceDigest(module.Dir, d.Manifest.ID)
+		if err != nil {
+			return err
+		}
+		out.ContentHashes[d.Manifest.ID] = hash
 		icon, e := exportIcon(module.Dir, d.Manifest.ID, d.Manifest.Icon, destination, check)
 		if e != nil {
 			return e
@@ -138,6 +145,10 @@ func export(check bool) error {
 			return e
 		}
 	}
+	out.LegacyContents, e = legacyContents(defs, module.Version, module.Dir)
+	if e != nil {
+		return e
+	}
 	encoded, e := json.MarshalIndent(out, "", "  ")
 	if e != nil {
 		return e
@@ -175,4 +186,107 @@ func safeOutput(dir string) error {
 		}
 	}
 	return nil
+}
+
+// Hash relative names and exact source bytes, never module paths, timestamps or
+// release IDs. Include SDK behavior and all per-plugin assets/handlers.
+func sourceDigest(root, id string) (string, error) {
+	h := sha256.New()
+	for _, dir := range []string{"sdk", "plugins/" + id} {
+		err := filepath.WalkDir(filepath.Join(root, dir), func(p string, d fs.DirEntry, e error) error {
+			if e != nil {
+				return e
+			}
+			if d.Type()&os.ModeSymlink != 0 {
+				return errors.New("plugin source symlink prohibited")
+			}
+			if d.IsDir() {
+				if d.Name() == "testdata" || d.Name() == "plugintest" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if filepath.Base(p) == "manifest.json" || strings.HasSuffix(p, "_test.go") || strings.HasSuffix(p, ".md") {
+				return nil
+			}
+			raw, e := os.ReadFile(p)
+			if e != nil {
+				return e
+			}
+			rel, e := filepath.Rel(root, p)
+			if e != nil {
+				return e
+			}
+			sum := sha256.Sum256(raw)
+			_, e = fmt.Fprintf(h, "%s\x00%x\n", filepath.ToSlash(rel), sum)
+			return e
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// Build-time migration evidence is restricted to module versions already locked
+// by this repository's go.sum. No historical factories/code run or ship at runtime.
+func legacyContents(defs []registry.Definition, current, dir string) (map[string]string, error) {
+	raw, e := os.ReadFile("go.sum")
+	if e != nil {
+		return nil, e
+	}
+	out := map[string]string{}
+	for _, line := range strings.Split(string(raw), "\n") {
+		f := strings.Fields(line)
+		if len(f) != 3 || f[0] != "github.com/dingding229/mediatool-plugin" || strings.HasSuffix(f[1], "/go.mod") {
+			continue
+		}
+		source := dir
+		if f[1] != current {
+			data, e := exec.Command("go", "mod", "download", "-json", f[0]+"@"+f[1]).Output()
+			if e != nil {
+				return nil, e
+			}
+			var module struct{ Dir, Version, Sum string }
+			if json.Unmarshal(data, &module) != nil || module.Version != f[1] || module.Sum != f[2] || module.Dir == "" {
+				return nil, errors.New("legacy content evidence does not match locked checksum")
+			}
+			source = module.Dir
+		}
+		for _, d := range defs {
+			manifest, e := os.ReadFile(filepath.Join(source, "plugins", d.Manifest.ID, "manifest.json"))
+			if errors.Is(e, os.ErrNotExist) {
+				continue
+			}
+			if e != nil {
+				return nil, e
+			}
+			m, e := contracts.ParseManifest(manifest)
+			if e != nil {
+				continue
+			} // Not equivalent to this contract.
+			old, e := json.Marshal(m)
+			if e != nil {
+				return nil, e
+			}
+			legacy := sha256.Sum256(append(append([]byte{}, old...), []byte(f[1])...))
+			decoder := json.NewDecoder(strings.NewReader(string(old)))
+			decoder.UseNumber()
+			var value any
+			if e = decoder.Decode(&value); e != nil {
+				return nil, e
+			}
+			canonical, e := json.Marshal(value)
+			if e != nil {
+				return nil, e
+			}
+			hash, e := sourceDigest(source, d.Manifest.ID)
+			if e != nil {
+				return nil, e
+			}
+			content := sha256.Sum256(append(canonical, []byte(hash)...))
+			out[hex.EncodeToString(legacy[:])] = "content-v1:" + hex.EncodeToString(content[:])
+		}
+	}
+	return out, nil
 }

@@ -6,8 +6,10 @@ import (
 	"media-tool/internal/modules/embyapi/dto"
 	"media-tool/internal/modules/mediausers/contracts"
 	"media-tool/internal/modules/playeraccess/clientinfo"
+	"media-tool/internal/platform/mediaext"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -24,8 +26,10 @@ type Actor struct {
 	Address                   clientinfo.Address
 }
 type Request struct {
-	ItemID, MediaSourceID string
-	Download              bool
+	ItemID, MediaSourceID      string
+	SubtitleIndex              *int
+	SubtitleID, SubtitleFormat string
+	Download                   bool
 }
 type Service interface {
 	Info(context.Context, Actor, Request) (dto.PlaybackInfoResponse, error)
@@ -36,6 +40,7 @@ type RetryError struct{ After time.Duration }
 func (*RetryError) Error() string { return "native playback rate limited" }
 func (*RetryError) Unwrap() error { return ErrUpstream }
 
+var ErrSubtitleConversion = errors.New("external subtitle conversion unsupported")
 var ErrInvalid = errors.New("invalid native playback request")
 var digits = regexp.MustCompile(`^[1-9][0-9]{0,18}$`)
 var sourceID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,512}$`)
@@ -60,4 +65,18 @@ func StreamURLs(origin, item, source, container, token string) (string, string, 
 		return "", "", ErrInvalid
 	}
 	return absolute, relative, nil
+}
+
+// Subtitle URLs expose only an authenticated native endpoint, never the cloud path.
+func SubtitleURL(origin, item, source, token, id string, index int, ext string) (string, error) {
+	absolute, _, e := StreamURLs(origin, item, source, "mkv", token)
+	if e != nil || !sourceID.MatchString(id) || index < 0 || !mediaext.IsSubtitle("x."+ext) {
+		return "", ErrInvalid
+	}
+	u, _ := url.Parse(absolute)
+	u.Path = "/Videos/" + item + "/" + source + "/Subtitles/" + strconv.Itoa(index) + "/Stream." + ext
+	q := u.Query()
+	q.Set("SubtitleId", id)
+	u.RawQuery = q.Encode()
+	return u.String(), nil
 }

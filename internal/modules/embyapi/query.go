@@ -11,7 +11,7 @@ type Query struct {
 	StartIndex                                                         int64
 	Limit                                                              int
 	SortBy, SortOrder, Fields, IDs, IncludeItemTypes, ExcludeItemTypes []string
-	ParentID                                                           string
+	ParentID, SeriesID, SeasonID                                       string
 	Genres, Years                                                      []string
 	SearchTerm                                                         string
 	Recursive, IsFolder, IsPlayed, IsFavorite, IsResumable             *bool
@@ -92,6 +92,16 @@ func ParseQuery(v Values) (Query, error) {
 			return Query{}, ErrInvalid
 		}
 	}
+	for _, f := range []struct {
+		name string
+		v    *string
+	}{{"SeriesId", &q.SeriesID}, {"SeasonId", &q.SeasonID}} {
+		*f.v, err = v.Scalar(f.name)
+		if err != nil || *f.v != "" && !opaqueID(*f.v) {
+			return Query{}, ErrInvalid
+		}
+	}
+
 	q.ParentID, err = v.Scalar("ParentId")
 	if err != nil || (q.ParentID != "" && !opaqueID(q.ParentID)) {
 		return Query{}, ErrInvalid

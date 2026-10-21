@@ -2,6 +2,7 @@ package sites
 
 import (
 	"context"
+	"encoding/json"
 	"html"
 	"io"
 	deferutil "media-tool/internal/platform/cleanup"
@@ -9,23 +10,37 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 type ControlledRequest struct {
 	Origin, Path, Method, Body, SuccessMarker string
+	MaxResponseBytes                          int
 	Raw                                       bool
 }
 type ControlledResponse struct {
-	Status  int
-	State   string
-	Matched bool
+	Status    int
+	State     string
+	Matched   bool
+	Body      string
+	Headers   map[string]string
+	Truncated bool
+	Encoding  string
 }
 
 // Controlled binds every credential to the administrator-configured account's
-// exact origin. It has no caller headers, redirect following, cookie jar, raw
-// response or auth-material output. Challenges require operator action.
+// exact origin. It has no caller headers, redirect following, cookie jar or auth-material output. The UTF-8 response is bounded and redacted;
+// binary bodies are rejected. Challenges require operator action.
 func (c Client) Controlled(ctx context.Context, in ControlledRequest) (ControlledResponse, error) {
-	out := ControlledResponse{State: "unknown"}
+	out := ControlledResponse{State: "unknown", Headers: map[string]string{}, Encoding: "utf-8"}
+	limit := 256 << 10
+	if in.MaxResponseBytes < 0 || in.MaxResponseBytes > limit {
+		return out, ErrConfig
+	}
+	if in.MaxResponseBytes > 0 {
+		limit = in.MaxResponseBytes
+	}
 	base, err := url.Parse(c.Account.Endpoint)
 	origin, oe := url.Parse(in.Origin)
 	rel, re := url.Parse(in.Path)
@@ -76,8 +91,22 @@ func (c Client) Controlled(ctx context.Context, in ControlledRequest) (Controlle
 	}
 	defer deferutil.Close(response.Body, "Bounded controlled-site response descriptor")
 	out.Status = response.StatusCode
-	raw, err := io.ReadAll(io.LimitReader(response.Body, (1<<20)+1))
-	if err != nil || len(raw) > 1<<20 {
+	raw, err := io.ReadAll(io.LimitReader(response.Body, int64(limit+1)))
+	if err != nil {
+		return out, ErrRequest
+	}
+	out.Truncated = len(raw) > limit
+	if out.Truncated {
+		raw = raw[:limit]
+		for len(raw) > 0 && !utf8.Valid(raw) && len(raw) > limit-4 {
+			raw = raw[:len(raw)-1]
+		}
+	}
+	if !utf8.Valid(raw) || strings.ContainsFunc(string(raw), func(r rune) bool { return unicode.IsControl(r) && r != '\t' && r != '\r' && r != '\n' }) {
+		return out, ErrRequest
+	}
+	ct := strings.ToLower(strings.Split(response.Header.Get("Content-Type"), ";")[0])
+	if ct != "" && !strings.HasPrefix(ct, "text/") && ct != "application/json" && !strings.HasSuffix(ct, "+json") && ct != "application/xml" && !strings.HasSuffix(ct, "+xml") {
 		return out, ErrRequest
 	}
 	body := html.UnescapeString(string(raw))
@@ -97,9 +126,60 @@ func (c Client) Controlled(ctx context.Context, in ControlledRequest) (Controlle
 		if secret != "" {
 			body = strings.ReplaceAll(body, secret, "[redacted]")
 			body = strings.ReplaceAll(body, url.QueryEscape(secret), "[redacted]")
+			if out.Truncated {
+				for _, variant := range []string{secret, url.QueryEscape(secret)} {
+					for n := min(len(variant)-1, len(body)); n > 0; n-- {
+						if strings.HasSuffix(body, variant[:n]) {
+							body = body[:len(body)-n] + "[redacted]"
+							break
+						}
+					}
+				}
+			}
 		}
 	}
-	lower := strings.ToLower(body)
+	out.Body = body
+	if len(out.Body) > limit {
+		out.Body = out.Body[:limit]
+		for !utf8.ValidString(out.Body) {
+			out.Body = out.Body[:len(out.Body)-1]
+		}
+		out.Truncated = true
+	}
+	// Never expose Set-Cookie, Location, authorization or arbitrary custom headers.
+	for _, k := range []string{"Content-Type", "Content-Language", "Retry-After"} {
+		if v := response.Header.Get(k); len(v) <= 512 && v != "" {
+			safe := true
+			for _, secret := range secrets {
+				if secret != "" && (strings.Contains(v, secret) || strings.Contains(v, url.QueryEscape(secret))) {
+					safe = false
+				}
+			}
+			if safe {
+				out.Headers[k] = v
+			}
+		}
+	}
+
+	// JSON escaping can expand text by 6x. Keep the entire typed response below
+	// the existing encrypted business receipt budget, without broadening KV quotas.
+	for {
+		encoded, e := json.Marshal(out)
+		if e != nil {
+			return out, ErrRequest
+		}
+		if len(encoded) <= 80<<10 {
+			break
+		}
+		n := len(out.Body) * 3 / 4
+		out.Body = out.Body[:n]
+		for !utf8.ValidString(out.Body) {
+			out.Body = out.Body[:len(out.Body)-1]
+		}
+		out.Truncated = true
+	}
+
+	lower := strings.ToLower(out.Body)
 	if response.StatusCode == 401 || response.StatusCode == 403 || strings.Contains(lower, "captcha") || strings.Contains(lower, "cf-chl-") {
 		out.State = "needs_action"
 		return out, nil
@@ -108,7 +188,7 @@ func (c Client) Controlled(ctx context.Context, in ControlledRequest) (Controlle
 		return out, nil
 	}
 	if in.SuccessMarker != "" {
-		out.Matched = strings.Contains(body, in.SuccessMarker)
+		out.Matched = strings.Contains(out.Body, in.SuccessMarker)
 		if out.Matched {
 			out.State = "matched"
 		}

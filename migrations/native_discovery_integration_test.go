@@ -125,6 +125,16 @@ func TestNativeDiscoveryHTTPHierarchyLatestSearchFacetsSimilar(t *testing.T) {
 	if selected.TotalRecordCount != 1 || len(selected.Items[0].MediaSources) != 2 {
 		t.Fatal("multi-edition cross-library episode")
 	}
+
+	generic := list("/Items?SeriesId=" + seriesID + "&SeasonId=" + season1 + "&IncludeItemTypes=Episode")
+	if generic.TotalRecordCount != 1 || generic.Items[0].SeasonId != season1 {
+		t.Fatal("generic SeriesId/SeasonId ignored", generic)
+	}
+	scopedIDs := list("/Items?ParentId=" + tv + "&SeriesId=" + seriesID + "&SeasonId=" + season1 + "&IncludeItemTypes=Episode")
+	if scopedIDs.TotalRecordCount != 1 || len(scopedIDs.Items[0].MediaSources) != 1 {
+		t.Fatal("ID filters escaped parent library scope", scopedIDs)
+	}
+	call("GET", "/Shows/"+seriesID+"/Episodes?SeriesId="+secretID, "", 400)
 	numeric := list("/Shows/" + seriesID + "/Episodes?Season=2")
 	if numeric.TotalRecordCount != 1 || numeric.Items[0].SeasonId != season2 {
 		t.Fatal("numeric season")

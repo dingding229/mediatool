@@ -22,10 +22,11 @@ import (
 	"media-tool/internal/platform/secrets"
 )
 
-func pluginStore(t *testing.T) (nativeFixture, v2.Store) {
+func pluginStore(t *testing.T) (nativeFixture, v2.Store) { return pluginStoreAt(t, 74) }
+func pluginStoreAt(t *testing.T, version int64) (nativeFixture, v2.Store) {
 	t.Helper()
 	f := newNativeFixture(t)
-	if _, e := f.provider.UpTo(f.ctx, 64); e != nil {
+	if _, e := f.provider.UpTo(f.ctx, version); e != nil {
 		t.Fatal(e)
 	}
 	var search string

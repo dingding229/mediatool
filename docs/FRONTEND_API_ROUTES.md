@@ -658,3 +658,11 @@
 | GET | `/api/v1/tasks/{kind}/{id}` | management | 前端直接调用 | `web/src/workflows/TaskControl.vue:12` |
 | HEAD | `/api/v1/tasks/{kind}/{id}` | management | 未检出静态使用 |  |
 | POST | `/api/v1/tasks/{kind}/{id}/{action}` | management | 前端直接调用 | `web/src/workflows/TaskControl.vue:14` |
+
+### B3 已有路由语义补全（未删除旧接口）
+
+| 方法 | 路径 | listener | 使用 | 证据 |
+| --- | --- | --- | --- | --- |
+| GET | `/api/v1/media/library` | management | 前端直接调用；作品→季→集，每层独立分页 | `web/src/media/useCatalog.ts:30` |
+| GET | `/Videos/{id}/{mediaSourceId}/Subtitles/{index}/Stream.{format}` | native-media | 原生客户端资源；实际UA、用户鉴权、仅原格式302 | `internal/modules/embyapi/playback_api.go` |
+| GET | `/Videos/{id}/subtitles/{index}/stream` | native-media | 原生客户端资源；MediaSourceId可选当前可播放版本 | `internal/modules/embyapi/playback_api.go` |

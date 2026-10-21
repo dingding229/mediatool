@@ -12,3 +12,7 @@ it('does not mistake an unreadable successful reply or a server timeout for a re
 it('keeps definitive host rejection separate from unknown commit outcomes',()=>{
  for(const status of [400,401,403,404,409,429])expect(operationError(new APIError(status,'plugin_conflict','private','abcdef0123456789abcdef01'))).toEqual({uncertain:false,label:'plugin_conflict · requestId=abcdef0123456789abcdef01'})
 })
+it('keeps only fixed Chinese access guidance and refuses arbitrary remote text',()=>{
+ for(const message of ['插件处于只读状态（权限待确认），请在插件页确认权限后重试','插件已停用，无法执行写操作，请在插件页启用后重试','插件处于只读状态，当前调用未获写权限，请在插件页核对授权后重试'])expect(operationError(new APIError(403,'plugin_permission_denied',message)).label).toContain(message)
+ expect(operationError(new APIError(403,'plugin_permission_denied','private-remote-secret')).label).not.toContain('private-remote-secret')
+})

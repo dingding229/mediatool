@@ -2,9 +2,10 @@ import {expect,it} from 'vitest'
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {createHash} from 'node:crypto'
+// B3 explicitly adds fixed access guidance; arbitrary provider text remains excluded.
 const baseline={
   "PluginMetadata.vue": "8808b39eecb2ed02eaed906877c38da79e147e39415329048ffee52fb76f6abe",
-  "operation-error.ts": "018bc358abf257b49a0e89009e413d8c24ae7a396849fe6aa5545c5f465062fc",
+  "operation-error.ts": "e9420bd2615fa8326d33a0b558fd8a90c538f788fb45b648de2e34665464d6dd",
   "PluginAuth.vue": "10d93e8b37ca1d52f3738d0ae489bf7f58e2b24c5080456151792d03359ef124",
   "PluginJson.ts": "a6a24b2335b501ebe9e6866f218da5115298cbf2281d2d632943893327d7d1e7",
   "PluginSurface.vue": "ca0efd7a95b8d1440dc85038332bbdb938141808309f3b893295d03d74f152ec",

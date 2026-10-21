@@ -105,13 +105,13 @@ func (s *source) addNative(t *testing.T, doc object) {
 			switch r.kind {
 			case "playbackResponse":
 				delete(responses, "302")
-			case "streamResponse":
-				responses = object{"302": object{"description": "仅原始STRM到CDN302，实际播放器UA；不读取/中转媒体正文。", "headers": object{"Location": object{"schema": object{"type": "string", "format": "uri"}}}}}
+			case "streamResponse", "subtitleResponse":
+				responses = object{"302": object{"description": "原始视频/外挂字幕严格302到官方CDN，按实际播放器UA取链；不读取正文、不提取或转换字幕。", "headers": object{"Location": object{"schema": object{"type": "string", "format": "uri"}}}}}
 			case "imageResponse":
 				responses = object{"200": object{"description": "受控图片", "content": object{"image/jpeg": object{"schema": object{"type": "string", "format": "binary"}}, "image/png": object{"schema": object{"type": "string", "format": "binary"}}, "image/webp": object{"schema": object{"type": "string", "format": "binary"}}}}, "304": object{"description": "ETag匹配，无正文"}}
 			case "brandingCSSResponse":
 				responses = object{"200": object{"description": "本地空样式，不加载外部资源", "content": object{"text/css": object{"schema": object{"type": "string"}}}}}
-			case "socketResponse", "subtitleResponse":
+			case "socketResponse":
 				responses = object{}
 			case "reportResponse", "passwordResponse", "logoutResponse", "noContentResponse":
 				delete(responses, "200")
@@ -145,7 +145,7 @@ func (s *source) addNative(t *testing.T, doc object) {
 			if r.kind == "imageResponse" {
 				params = append(params, object{"name": "If-None-Match", "in": "header", "schema": object{"type": "string"}})
 			}
-			if r.kind == "streamResponse" {
+			if r.kind == "streamResponse" || r.kind == "subtitleResponse" {
 				params = append(params, object{"name": "User-Agent", "in": "header", "required": true, "schema": object{"type": "string"}})
 			}
 			op := object{"operationId": "native_" + operationID(method, path), "tags": []string{"原生Emby协议"}, "summary": r.kind, "description": "仅native/media listener；允许/emby与/mediabrowser前缀及大小写兼容，不提供管理路由。GET同时支持HEAD，已知path的OPTIONS为204静态Allow。/socket为501，不支持WebSocket；嵌入字幕为404。", "security": security, "servers": []any{object{"url": "{nativeOrigin}", "variables": object{"nativeOrigin": object{"default": "http://localhost:8092", "description": "替换为MEMBER_PUBLIC_URL/原生MEMBER_ADDR对应地址，示例为默认内部8092，非管理端口或外部Emby8096。"}}}}, "x-listener": "native-media", "x-go-registration": r.method + " " + r.path, "x-go-handler": "handle:" + r.kind, "x-source": r.location, "responses": responses}

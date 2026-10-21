@@ -6520,8 +6520,8 @@
           }
         }
       },
-      "HTTP302_fd4f304e4405": {
-        "description": "仅原始STRM到CDN302，实际播放器UA；不读取/中转媒体正文。",
+      "HTTP302_3cce5d00cc33": {
+        "description": "原始视频/外挂字幕严格302到官方CDN，按实际播放器UA取链；不读取正文、不提取或转换字幕。",
         "headers": {
           "Location": {
             "schema": {
@@ -18601,6 +18601,9 @@
           "title": {
             "type": "string"
           },
+          "type": {
+            "type": "string"
+          },
           "year": {
             "type": "string"
           }
@@ -19759,6 +19762,9 @@
             "type": "string"
           },
           "DeliveryMethod": {
+            "type": "string"
+          },
+          "DeliveryUrl": {
             "type": "string"
           },
           "DisplayTitle": {
@@ -27259,7 +27265,7 @@
     }
   },
   "info": {
-    "description": "由实际路由注册与Go DTO派生；JSON是YAML1.2兼容写法，无新增运行依赖。schema73；说明与示例见docs/FRONTEND_API.md。",
+    "description": "由实际路由注册与Go DTO派生；JSON是YAML1.2兼容写法，无新增运行依赖。schema74；说明与示例见docs/FRONTEND_API.md。",
     "title": "Media Tool frontend and mounted protocol API",
     "version": "0.27.0"
   },
@@ -28406,6 +28412,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -28732,6 +28746,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -29040,6 +29062,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -29312,6 +29350,22 @@
           {
             "in": "query",
             "name": "SearchTerm",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
             "required": false,
             "schema": {
               "type": "string"
@@ -29618,6 +29672,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -29890,6 +29960,22 @@
           {
             "in": "query",
             "name": "SearchTerm",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
             "required": false,
             "schema": {
               "type": "string"
@@ -30236,6 +30322,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -30556,6 +30650,14 @@
           {
             "in": "query",
             "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
             "required": false,
             "schema": {
               "type": "string"
@@ -30910,6 +31012,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -31236,6 +31346,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -31552,6 +31670,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -31838,6 +31972,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -32078,6 +32228,14 @@
           },
           {
             "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "SubtitleStreamIndex",
             "required": false,
             "schema": {
@@ -32127,7 +32285,7 @@
         ],
         "responses": {
           "302": {
-            "$ref": "#/components/responses/HTTP302_fd4f304e4405"
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
@@ -32287,6 +32445,14 @@
           },
           {
             "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "SubtitleStreamIndex",
             "required": false,
             "schema": {
@@ -32336,7 +32502,7 @@
         ],
         "responses": {
           "302": {
-            "$ref": "#/components/responses/HTTP302_fd4f304e4405"
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
@@ -33157,6 +33323,14 @@
           },
           {
             "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "SubtitleStreamIndex",
             "required": false,
             "schema": {
@@ -33354,6 +33528,14 @@
             "required": false,
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -33584,6 +33766,14 @@
             "required": false,
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -33983,6 +34173,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -34317,6 +34515,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -34634,6 +34840,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -34906,6 +35128,22 @@
           {
             "in": "query",
             "name": "SearchTerm",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
             "required": false,
             "schema": {
               "type": "string"
@@ -35429,6 +35667,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -35749,6 +35995,14 @@
           {
             "in": "query",
             "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
             "required": false,
             "schema": {
               "type": "string"
@@ -38380,6 +38634,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -38708,6 +38970,14 @@
           {
             "in": "query",
             "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
             "required": false,
             "schema": {
               "type": "string"
@@ -39079,6 +39349,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -39407,6 +39685,14 @@
           {
             "in": "query",
             "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
             "required": false,
             "schema": {
               "type": "string"
@@ -41385,6 +41671,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -41665,6 +41967,22 @@
           {
             "in": "query",
             "name": "SearchTerm",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
             "required": false,
             "schema": {
               "type": "string"
@@ -42028,6 +42346,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -42356,6 +42682,14 @@
           {
             "in": "query",
             "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
             "required": false,
             "schema": {
               "type": "string"
@@ -42740,6 +43074,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -43087,6 +43429,14 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -43420,6 +43770,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -43708,6 +44074,22 @@
           {
             "in": "query",
             "name": "SearchTerm",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
             "required": false,
             "schema": {
               "type": "string"
@@ -45822,6 +46204,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -46108,6 +46506,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "SeasonId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SeriesId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "SortBy",
@@ -46356,6 +46770,14 @@
           },
           {
             "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "SubtitleStreamIndex",
             "required": false,
             "schema": {
@@ -46405,7 +46827,7 @@
         ],
         "responses": {
           "302": {
-            "$ref": "#/components/responses/HTTP302_fd4f304e4405"
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
@@ -46573,6 +46995,14 @@
           },
           {
             "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "SubtitleStreamIndex",
             "required": false,
             "schema": {
@@ -46622,7 +47052,7 @@
         ],
         "responses": {
           "302": {
-            "$ref": "#/components/responses/HTTP302_fd4f304e4405"
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
@@ -46821,6 +47251,14 @@
           },
           {
             "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "SubtitleStreamIndex",
             "required": false,
             "schema": {
@@ -46870,7 +47308,7 @@
         ],
         "responses": {
           "302": {
-            "$ref": "#/components/responses/HTTP302_fd4f304e4405"
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
@@ -47030,6 +47468,14 @@
           },
           {
             "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "SubtitleStreamIndex",
             "required": false,
             "schema": {
@@ -47079,7 +47525,7 @@
         ],
         "responses": {
           "302": {
-            "$ref": "#/components/responses/HTTP302_fd4f304e4405"
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
@@ -47278,6 +47724,14 @@
           },
           {
             "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "SubtitleStreamIndex",
             "required": false,
             "schema": {
@@ -47327,7 +47781,7 @@
         ],
         "responses": {
           "302": {
-            "$ref": "#/components/responses/HTTP302_fd4f304e4405"
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
@@ -47495,6 +47949,14 @@
           },
           {
             "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "SubtitleStreamIndex",
             "required": false,
             "schema": {
@@ -47544,7 +48006,7 @@
         ],
         "responses": {
           "302": {
-            "$ref": "#/components/responses/HTTP302_fd4f304e4405"
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
@@ -47660,9 +48122,156 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "AudioCodec",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "AudioStreamIndex",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "DeviceProfile",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableDirectPlay",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableDirectStream",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableTranscoding",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "MaxStreamingBitrate",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "MediaSourceId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SegmentContainer",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "StartTimeTicks",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "Static",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SubtitleStreamIndex",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "TranscodingContainer",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "TranscodingProtocol",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "UserId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "VideoCodec",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
+          "302": {
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
+          },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
           },
@@ -47738,9 +48347,156 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "AudioCodec",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "AudioStreamIndex",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "DeviceProfile",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableDirectPlay",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableDirectStream",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableTranscoding",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "MaxStreamingBitrate",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "MediaSourceId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SegmentContainer",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "StartTimeTicks",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "Static",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SubtitleStreamIndex",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "TranscodingContainer",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "TranscodingProtocol",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "UserId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "VideoCodec",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
+          "302": {
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
+          },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
           },
@@ -47871,9 +48627,156 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "AudioCodec",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "AudioStreamIndex",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "DeviceProfile",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableDirectPlay",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableDirectStream",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableTranscoding",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "MaxStreamingBitrate",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "MediaSourceId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SegmentContainer",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "StartTimeTicks",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "Static",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SubtitleStreamIndex",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "TranscodingContainer",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "TranscodingProtocol",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "UserId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "VideoCodec",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
+          "302": {
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
+          },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
           },
@@ -47965,9 +48868,156 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "AudioCodec",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "AudioStreamIndex",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "DeviceProfile",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableDirectPlay",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableDirectStream",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "EnableTranscoding",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "MaxStreamingBitrate",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "MediaSourceId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SegmentContainer",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "StartTimeTicks",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "Static",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SubtitleId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "SubtitleStreamIndex",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "TranscodingContainer",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "TranscodingProtocol",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "UserId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "VideoCodec",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
+          "302": {
+            "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
+          },
           "400": {
             "$ref": "#/components/responses/HTTP400_3eb1791c4d8d"
           },

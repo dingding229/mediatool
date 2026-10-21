@@ -121,6 +121,7 @@ type BaseItemDto struct {
 	UserData                *UserItemDataDto       `json:"UserData,omitempty"`
 }
 type MediaStream struct {
+	DeliveryUrl          string   `json:"DeliveryUrl,omitempty"`
 	DeliveryMethod       string   `json:"DeliveryMethod,omitempty"`
 	Profile              string   `json:"Profile,omitempty"`
 	Level                *int     `json:"Level,omitempty"`

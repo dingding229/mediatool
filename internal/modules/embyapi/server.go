@@ -202,9 +202,7 @@ func (s *Server) handle(e endpoint) http.HandlerFunc {
 		case reportResponse:
 			s.report(w, r, info)
 		case subtitleResponse:
-			// STRM-only delivery: embedded subtitles must be read by the player from
-			// the 302 media URL. No extraction, conversion, or media slot is attempted.
-			s.router.fail(w, 404)
+			s.playback(w, r, info, true)
 		case playbackResponse, streamResponse:
 			s.playback(w, r, info, e.kind == streamResponse)
 		case seasonsResponse, episodesResponse, latestResponse, hintsResponse, genresResponse, filtersResponse, similarResponse, resumeResponse, nextUpResponse:

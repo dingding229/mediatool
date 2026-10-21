@@ -2,12 +2,14 @@ package sites
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestControlledRequestExactOriginCredentialsBoundsAndChallenge(t *testing.T) {
@@ -42,6 +44,9 @@ func TestControlledRequestExactOriginCredentialsBoundsAndChallenge(t *testing.T)
 	if e != nil || !out.Matched || out.State != "matched" {
 		t.Fatal(e, out)
 	}
+	if strings.Contains(out.Body, "private") || out.Headers["Set-Cookie"] != "" {
+		t.Fatal("credential leak", out)
+	}
 	out, e = c.Controlled(ctx, ControlledRequest{Origin: server.URL, Path: "/", Method: "GET", SuccessMarker: "private-key"})
 	if e != nil || out.Matched {
 		t.Fatal("credential matching oracle", e, out)
@@ -54,10 +59,39 @@ func TestControlledRequestExactOriginCredentialsBoundsAndChallenge(t *testing.T)
 	if e != nil || out.Status != 302 || out.Matched {
 		t.Fatal(e, out)
 	}
-	if _, e = c.Controlled(ctx, ControlledRequest{Origin: server.URL, Path: "/large", Method: "GET"}); e == nil {
-		t.Fatal("oversize allowed")
+	if out, e = c.Controlled(ctx, ControlledRequest{Origin: server.URL, Path: "/large", Method: "GET", MaxResponseBytes: 32}); e != nil || len(out.Body) != 32 || !out.Truncated || len(out.Headers) > 1 {
+		t.Fatal("bounded truncation failed", out, e)
 	}
 	if _, e = c.Controlled(ctx, ControlledRequest{Origin: server.URL, Path: "/", Method: "GET", Raw: true}); e == nil {
 		t.Fatal("raw credentials possible")
+	}
+}
+
+func TestControlledBinaryUTF8JSONReceiptAndLowerLimits(t *testing.T) {
+	fake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/binary" {
+			w.Header().Set("Content-Type", "application/octet-stream")
+			_, _ = io.WriteString(w, "binary-ascii")
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Language", "zh")
+		w.Header().Set("Authorization", "must-not-export")
+		_, _ = io.WriteString(w, strings.Repeat("中<", 100000))
+	}))
+	defer fake.Close()
+	c := Client{Account: Account{Endpoint: fake.URL}, HTTP: fake.Client()}
+	if _, e := c.Controlled(context.Background(), ControlledRequest{Origin: fake.URL, Path: "/binary", Method: "GET"}); e == nil {
+		t.Fatal("binary returned")
+	}
+	for _, limit := range []int{7, 0} {
+		v, e := c.Controlled(context.Background(), ControlledRequest{Origin: fake.URL, Path: "/text", Method: "GET", MaxResponseBytes: limit})
+		if e != nil {
+			t.Fatal(e)
+		}
+		raw, _ := json.Marshal(v)
+		if !v.Truncated || !utf8.ValidString(v.Body) || len(raw) > 96<<10 || limit > 0 && len(v.Body) > limit || v.Headers["Content-Language"] != "zh" || v.Headers["Authorization"] != "" {
+			t.Fatal("response bounds", len(raw), v.Headers, e)
+		}
 	}
 }

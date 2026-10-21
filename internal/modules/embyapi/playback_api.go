@@ -144,6 +144,28 @@ func (s *Server) playback(w http.ResponseWriter, r *http.Request, info RequestCo
 		return
 	}
 	request := nativeplayback.Request{ItemID: r.PathValue("id"), MediaSourceID: source, Download: strings.HasSuffix(strings.ToLower(r.URL.Path), "/download")}
+	if raw := r.PathValue("index"); raw != "" {
+		n, e := strconv.Atoi(raw)
+		if e != nil || n < 0 || n > 10000 {
+			s.router.fail(w, 400)
+			return
+		}
+		request.SubtitleIndex = &n
+		request.SubtitleFormat = strings.ToLower(r.PathValue("format"))
+		if sourcePath := r.PathValue("mediaSourceId"); sourcePath != "" {
+			if source != "" && source != sourcePath {
+				s.router.fail(w, 400)
+				return
+			}
+			request.MediaSourceID = sourcePath
+		}
+		request.SubtitleID, err = values.Scalar("SubtitleId")
+		if err != nil || request.SubtitleID != "" && !opaqueID(request.SubtitleID) {
+			s.router.fail(w, 400)
+			return
+		}
+	}
+
 	actor := nativeplayback.Actor{User: *info.User, Device: *info.Device, Permissions: info.Permissions, Token: info.Auth.Token, UserAgent: info.UserAgent, Address: info.Address, Method: info.Method}
 	if stream {
 		static, e := values.Boolean("Static")
@@ -162,7 +184,7 @@ func (s *Server) playback(w http.ResponseWriter, r *http.Request, info RequestCo
 		}
 		ext := strings.ToLower(r.PathValue("ext"))
 		if ext == "m3u8" || ext == "mpd" || unsupported {
-			writeAuthError(w, 400, "仅支持原始媒体直链，不支持转码、HLS或DASH")
+			writeAuthError(w, 400, "仅支持原始媒体及字幕直链，不支持格式转换、转码、HLS或DASH")
 			return
 		}
 		target, err := s.options.Playback.Stream(r.Context(), actor, request)
@@ -211,6 +233,10 @@ func (s *Server) playbackError(w http.ResponseWriter, err error) {
 		seconds := max(1, int(math.Ceil(retry.After.Seconds())))
 		w.Header().Set("Retry-After", strconv.Itoa(seconds))
 		s.router.fail(w, 429)
+		return
+	}
+	if errors.Is(err, nativeplayback.ErrSubtitleConversion) {
+		writeAuthError(w, 400, "仅支持原始字幕直链，此客户端请求的字幕格式转换不受支持")
 		return
 	}
 	if errors.Is(err, nativeplayback.ErrInvalid) {

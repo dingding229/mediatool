@@ -2,6 +2,7 @@
 package v2
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"runtime/debug"
 	"slices"
+	"sync"
 )
 
 type Desired string
@@ -114,21 +116,51 @@ func BuildID() string {
 	return ""
 }
 func digest(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
+
+// Pinned compiled metadata is immutable; do not rehash the entire inventory per
+// host RPC. Catalog still returns fresh manifests so callers cannot mutate it.
+var contentFingerprints = sync.OnceValues(func() (map[string]string, error) {
+	defs, e := registry.All()
+	if e != nil {
+		return nil, ErrUnavailable
+	}
+	var inventory struct {
+		ContentHashes map[string]string `json:"contentHashes"`
+	}
+	if json.Unmarshal(libraryInventory, &inventory) != nil {
+		return nil, ErrUnavailable
+	}
+	out := map[string]string{}
+	for _, d := range defs {
+		hash := inventory.ContentHashes[d.Manifest.ID]
+		if len(hash) != 64 {
+			return nil, ErrUnavailable
+		}
+		raw, e := canonicalManifest(d.Manifest)
+		if e != nil {
+			return nil, ErrUnavailable
+		}
+		out[d.Manifest.ID] = "content-v1:" + digest(append(raw, []byte(hash)...))
+	}
+	return out, nil
+})
+
 func Catalog() ([]Definition, error) {
 	defs, e := registry.All()
 	if e != nil {
 		return nil, ErrUnavailable
 	}
+	fingerprints, e := contentFingerprints()
+	if e != nil {
+		return nil, e
+	}
 	out := make([]Definition, 0, len(defs))
 	for _, d := range defs {
-		raw, e := json.Marshal(d.Manifest)
-		if e != nil {
-			return nil, ErrUnavailable
-		}
-		out = append(out, Definition{Manifest: d.Manifest, Fingerprint: digest(append(raw, []byte(BuildID())...))})
+		out = append(out, Definition{Manifest: d.Manifest, Fingerprint: fingerprints[d.Manifest.ID]})
 	}
 	return out, nil
 }
+
 func definition(id string) (Definition, error) {
 	all, e := Catalog()
 	if e != nil {
@@ -148,4 +180,18 @@ func scopes(d Definition) []string {
 	}
 	slices.Sort(out)
 	return out
+}
+
+func canonicalManifest(m contracts.Manifest) ([]byte, error) {
+	raw, e := json.Marshal(m)
+	if e != nil {
+		return nil, e
+	}
+	var v any
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if e = decoder.Decode(&v); e != nil {
+		return nil, e
+	}
+	return json.Marshal(v)
 }

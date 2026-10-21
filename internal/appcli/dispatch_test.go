@@ -2,6 +2,7 @@ package appcli
 
 import (
 	"encoding/json"
+	"media-tool/internal/platform/buildinfo"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -49,7 +50,7 @@ func TestAllApplicationLeavesHaveOfflineHelpAndOpsInfo(t *testing.T) {
 		Schema  int64
 		Version string
 	}
-	if e = json.Unmarshal(b, &v); e != nil || v.Schema != 73 || v.Version == "" {
+	if e = json.Unmarshal(b, &v); e != nil || v.Schema != buildinfo.Schema || v.Version == "" {
 		t.Fatal("info needs no environment", e, string(b))
 	}
 	cmd = exec.Command(bin, "not-a-command")

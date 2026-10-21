@@ -341,3 +341,29 @@ X-Requested-With: media-tool
 - 旧 `/pipeline/{kind}/{id}/retry`、上传control、扫描pause/resume/cancel、STRM批次retry、归档retry、文件核对、ops取消/核验接口**全部保留**，未删除调用点。原预览/批准/digest/来源重确认边界不被通用层替代。
 - 115健康检测由现有default调度器调用，PG持久化租约、配置修订、下次时间与失败次数。新建/配置变化后延迟5–10分钟，正常6–7小时，失败30分钟指数退避至6小时并加抖动；多实例和重启共享截止时间。只调用已有`/open/user/info` Probe，必要时复用原串行令牌刷新；不列目录、不取下载链接。回写已有lastCheckState/lastCheckMessage/lastCheckedAt，修订变化不写入旧检测结果，保留原授权。连接页只读展示检测时间/结果；成功不是实际播放验收证明。
 - 手动下载的“未见目标”仍有延迟接受风险，通用层仅核对，不绕过原页面的重复风险确认。已取消归档操作仅可通过新的预览与批准重新开始，旧取消批准不能由retry恢复。
+
+## B3：内容身份、层级媒体与外挂字幕（schema74）
+
+- 管理端登录仍每请求读取 PG；活动时间同 IP/UA 下最多每 60 秒写入一次，IP/UA
+  变化立即记录。UA 以 UTF-8 边界限制为 512 字节；活动更新失败只记日志，不否定已通过的认证。
+- 插件定义指纹为 `content-v1:<sha256>`：规范 JSON 描述符、权限/schema/处理器声明，
+  同 pin 的插件源码、SDK 和捆绑 ESM 内容参与计算；主程序 BuildID 不参与。
+  旧 BuildID 身份只有在构建期对 go.sum 已锁定历史 pin 的源码/ESM 哈希证明内容等价时才静默重绑；不能仅凭同一 manifest 猜测处理器相同。无法证明等价则正常增修订并换代，但不误判为权限变化、不改变已启用意图。权限变化仍待确认。
+- 插件写权限错误返回固定中文原因和下一步（停用、只读、权限待确认），不透传远端任意错误文本。
+  `sites.request`/`sites.checkin` 返回 `status/state/matched/body/headers/truncated/encoding`。
+  默认正文上限 256 KiB，`maxResponseBytes` 可设置更低正整数；同时受现有业务回执
+  JSON 80 KiB 安全预算约束，必要时更早截断并标记。只接受 UTF-8 文本，二进制拒绝；
+  仅保留 Content-Type、Content-Language、Retry-After，清除账号凭据，不跟随重定向。
+- GET `/api/v1/media/library?source=managed` 返回作品级列表（Series/Movie），不再按当前文件页分组。
+  `parentId=series_<作品UUID>` 返回按季号排序的季列表；
+  `parentId=season_<作品UUID>_<季号>` 返回季内按集号排序的物理文件列表。
+  各层独立使用 `page/pageSize/total`。季/作品没有原始 STRM 文件链接。
+  Emby 来源使用真实 ParentId，非递归读取 Season/Episode。
+- 原生 Emby GET `/Items` 同时校验 ParentId、SeriesId、SeasonId；
+  `/Shows/{id}/Seasons` 和 `/Shows/{id}/Episodes?SeasonId=...` 保留分页和跨作品校验。
+- 原生 PlaybackInfo 中，外挂字幕 MediaStreams 返回 `IsExternal=true`、
+  `DeliveryMethod=External` 和用户鉴权的 `DeliveryUrl`。字幕流路由沿用
+  GET/HEAD `/Videos/{id}/{mediaSourceId}/Subtitles/{index}/Stream.{format}` 及已有短路由；
+  `SubtitleId` 绑定云盘文件身份，`MediaSourceId` 绑定当前可播放版本。
+  仅原格式零正文 302，实际请求 UA 同样通过播放器白名单并用于官方 115 取链；
+  格式转换明确 400，嵌入字幕提取不支持。字幕正文不落地、不代理、不转码。

@@ -300,6 +300,12 @@ func (d DynamicStorage) Resolve(ctx context.Context, ref storage.FileRef) (stora
 			return storage.DownloadLink{}, storage.ErrUnavailable
 		}
 	}
+	if ref.CloudFileID != "" {
+		if err := d.Manager.Repository.DB.QueryRow(ctx, `SELECT storage_id::text,full_path,size_bytes,coalesce(pick_code,'') FROM cloud_files WHERE id=$1 AND state='present'`, ref.CloudFileID).Scan(&connectionID, &ref.Path, &ref.ExpectedSize, &ref.PickCode); err != nil {
+			return storage.DownloadLink{}, storage.ErrNotFound
+		}
+	}
+
 	started := time.Now()
 	official, err := d.Manager.Repository.Default(ctx, "open115")
 	storage.ObserveResolve(ctx, storage.StageCloudProfile, started, storage.ContextFailure(ctx, err))

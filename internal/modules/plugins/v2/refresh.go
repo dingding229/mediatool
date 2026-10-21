@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
 	"github.com/jackc/pgx/v5"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -117,6 +119,32 @@ func (s Store) refresh(ctx context.Context, defs []Definition) error {
 			}
 			review = requiresReview(before, d.Manifest)
 		}
+
+		// Legacy build identities only rebind silently when locked build-time source
+		// evidence proves content equality; matching manifests alone is insufficient.
+		if exists && old.availability == Available && legacyContent(old.fp) == fp {
+			var before contracts.Manifest
+			if json.Unmarshal(old.raw, &before) != nil {
+				return ErrUnavailable
+			}
+			a, _ := canonicalManifest(before)
+			b, _ := canonicalManifest(d.Manifest)
+			if bytes.Equal(a, b) {
+				if e = captureApprovalMetadata(ctx, tx, old.id, old.fp, before, false); e != nil {
+					return e
+				}
+				if _, e = tx.Exec(ctx, `UPDATE plugin_v2_definitions SET fingerprint=$2 WHERE id=$1`, old.id, fp); e != nil {
+					return e
+				}
+				if _, e = tx.Exec(ctx, `UPDATE plugin_v2_instances SET approved_fingerprint=$2 WHERE plugin_id=$1 AND approved_fingerprint=$3`, old.id, fp, old.fp); e != nil {
+					return e
+				}
+				if _, e = tx.Exec(ctx, `UPDATE plugin_v2_grants g SET fingerprint=$2 FROM plugin_v2_instances i WHERE i.id=g.instance_id AND i.plugin_id=$1 AND g.fingerprint=$3`, old.id, fp, old.fp); e != nil {
+					return e
+				}
+				continue
+			}
+		}
 		var previous contracts.Manifest
 		if json.Unmarshal(old.raw, &previous) != nil {
 			return ErrUnavailable
@@ -166,3 +194,15 @@ func reviewGrants(ctx context.Context, tx pgx.Tx, id string, d Definition) error
 	}
 	return nil
 }
+
+var legacyContentIndex = sync.OnceValue(func() map[string]string {
+	var inventory struct {
+		LegacyContents map[string]string `json:"legacyContents"`
+	}
+	if json.Unmarshal(libraryInventory, &inventory) != nil {
+		return nil
+	}
+	return inventory.LegacyContents
+})
+
+func legacyContent(fp string) string { return legacyContentIndex()[fp] }

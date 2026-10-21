@@ -151,7 +151,7 @@ func (s Store) hostDeclared(ctx context.Context, l Lease, call contracts.HostCal
 	e = tx.QueryRow(ctx, `SELECT runtime_state FROM plugin_v2_instances i JOIN plugin_v2_definitions d ON d.id=i.plugin_id WHERE i.id=$1 AND i.generation=$2 AND i.owner_id=$3 AND i.grant_revision=$4 AND i.desired_state='enabled' AND i.lease_until>now() AND i.approved_fingerprint=d.fingerprint AND d.availability='available'`+lock, l.ID, l.Token, l.Owner, l.GrantRevision).Scan(&state)
 	if e != nil {
 		if errors.Is(e, pgx.ErrNoRows) {
-			return nil, contracts.NewError(contracts.PermissionDenied)
+			return nil, accessError(ctx, tx, l.ID)
 		}
 		return nil, e
 	}
@@ -404,7 +404,7 @@ func fenceHost(ctx context.Context, tx pgx.Tx, l Lease, scope string) error {
 		return e
 	}
 	if tag.RowsAffected() != 1 {
-		return contracts.NewError(contracts.PermissionDenied)
+		return accessError(ctx, tx, l.ID)
 	}
 	return nil
 }

@@ -125,8 +125,8 @@ func (h AcquisitionHost) callOther(ctx context.Context, call contracts.HostCall,
 		if e = admit(); e != nil {
 			return nil, e
 		}
-		v, e := c.Controlled(ctx, sites.ControlledRequest{Origin: in.Origin, Path: in.Path, Method: in.Method, Body: in.Body, SuccessMarker: in.SuccessMarker})
-		return b.SiteResponse{Status: v.Status, State: safeState(v.State), Matched: v.Matched}, e
+		v, e := c.Controlled(ctx, sites.ControlledRequest{Origin: in.Origin, Path: in.Path, Method: in.Method, Body: in.Body, SuccessMarker: in.SuccessMarker, MaxResponseBytes: in.MaxResponseBytes})
+		return b.SiteResponse{Status: v.Status, State: safeState(v.State), Matched: v.Matched, Body: v.Body, Headers: v.Headers, Truncated: v.Truncated, Encoding: v.Encoding}, e
 	case "sites.metrics.collect", "sites.rss.discover", "sites.rss.refresh":
 		id, e := businessID(call.Args)
 		if e != nil {

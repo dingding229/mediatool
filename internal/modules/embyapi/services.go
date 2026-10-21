@@ -34,7 +34,7 @@ func (q Query) ItemQuery() nativelibrary.ItemQuery {
 		return &value
 	}
 	return nativelibrary.ItemQuery{StartIndex: q.StartIndex, Limit: q.Limit,
-		SortBy: slices.Clone(q.SortBy), SortOrder: slices.Clone(q.SortOrder), Fields: slices.Clone(q.Fields), IDs: slices.Clone(q.IDs), IncludeItemTypes: slices.Clone(q.IncludeItemTypes), ExcludeItemTypes: slices.Clone(q.ExcludeItemTypes), ParentID: q.ParentID, Genres: slices.Clone(q.Genres), Years: slices.Clone(q.Years), SearchTerm: q.SearchTerm,
+		SortBy: slices.Clone(q.SortBy), SortOrder: slices.Clone(q.SortOrder), Fields: slices.Clone(q.Fields), IDs: slices.Clone(q.IDs), IncludeItemTypes: slices.Clone(q.IncludeItemTypes), ExcludeItemTypes: slices.Clone(q.ExcludeItemTypes), ParentID: q.ParentID, SeriesID: q.SeriesID, SeasonID: q.SeasonID, Genres: slices.Clone(q.Genres), Years: slices.Clone(q.Years), SearchTerm: q.SearchTerm,
 		Recursive: clone(q.Recursive), IsFolder: clone(q.IsFolder), IsPlayed: clone(q.IsPlayed), IsFavorite: clone(q.IsFavorite), IsResumable: clone(q.IsResumable)}
 }
 

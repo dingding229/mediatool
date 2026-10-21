@@ -238,7 +238,7 @@ func TestControlledSiteHostNeverExportsAuthAndTemplateSelection(t *testing.T) {
 			t.Fatal(e)
 		}
 		r := v.(b.SiteResponse)
-		if !r.Matched || r.Body != "" {
+		if !r.Matched || r.Body != "[redacted] signed" || r.Headers["Set-Cookie"] != "" || r.Truncated || r.Encoding != "utf-8" {
 			t.Fatal(r)
 		}
 	}

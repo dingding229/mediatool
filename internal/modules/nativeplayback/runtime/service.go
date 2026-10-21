@@ -150,6 +150,17 @@ func (s *Service) Info(ctx context.Context, a nativeplayback.Actor, q nativeplay
 	if err != nil {
 		return out, err
 	}
+	ids := []string{}
+	for _, v := range sources {
+		if v.play && (q.MediaSourceID == "" || v.Id == q.MediaSourceID) {
+			ids = append(ids, v.Id)
+		}
+	}
+	groups, err := s.subtitleGroups(ctx, ids)
+	if err != nil {
+		return out, err
+	}
+
 	for _, v := range sources {
 		if !v.play || q.MediaSourceID != "" && v.Id != q.MediaSourceID {
 			continue
@@ -157,6 +168,9 @@ func (s *Service) Info(ctx context.Context, a nativeplayback.Actor, q nativeplay
 		v.Path, v.DirectStreamUrl, err = nativeplayback.StreamURLs(a.Origin, q.ItemID, v.Id, v.Container, a.Token)
 		if err != nil {
 			return out, nativeplayback.ErrUpstream
+		}
+		if err = addSubtitles(a, q.ItemID, &v, groups[v.Id]); err != nil {
+			return out, err
 		}
 		out.MediaSources = append(out.MediaSources, v.MediaSourceInfo)
 	}
@@ -184,6 +198,9 @@ func (s *Service) Stream(ctx context.Context, a nativeplayback.Actor, q nativepl
 	}
 	if s.Links == nil {
 		return nativeplayback.RedirectTarget{}, nativeplayback.ErrUpstream
+	}
+	if q.SubtitleIndex != nil {
+		return s.subtitleTarget(ctx, a, q, chosen)
 	}
 	slot, err := s.session(ctx, a, q.ItemID, chosen.Id, true)
 	if err != nil {

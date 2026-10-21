@@ -2,14 +2,16 @@ package migrations_test
 
 import (
 	"encoding/json"
+	"media-tool/internal/modules/jobs"
+	v2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/migrations"
 	"strings"
 	"testing"
 )
 
 func TestQIndexesSyntheticPlansAndRestart(t *testing.T) {
-	f, s := pluginStore(t)
-	in, e := s.Apply(f.ctx, "admin", installRequest(t))
+	f, s := pluginStoreAt(t, 64)
+	in, e := historicalInstall(f, s)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -89,14 +91,15 @@ func migrationsSQL(name string) (string, error) {
 }
 
 func TestQStateAndJSONConstraints(t *testing.T) {
-	f, s := pluginStore(t)
-	in, e := s.Apply(f.ctx, "admin", installRequest(t))
+	f, s := pluginStoreAt(t, 64)
+	in, e := historicalInstall(f, s)
 	if e != nil {
 		t.Fatal(e)
 	}
 	q := installRequest(t)
 	q.OperationKey = "other-install"
-	other, e := s.Apply(f.ctx, "admin", q)
+	other, e := historicalInstall(f, s)
+	_ = q
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -115,8 +118,8 @@ func TestQStateAndJSONConstraints(t *testing.T) {
 }
 
 func TestQInvalidHistoricalStateAbortsValidation(t *testing.T) {
-	f, s := pluginStore(t)
-	in, e := s.Apply(f.ctx, "admin", installRequest(t))
+	f, s := pluginStoreAt(t, 64)
+	in, e := historicalInstall(f, s)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -136,4 +139,23 @@ func TestQInvalidHistoricalStateAbortsValidation(t *testing.T) {
 	if _, e = f.provider.UpTo(f.ctx, 67); e != nil {
 		t.Fatal(e)
 	}
+}
+
+// Historical schema tests seed their historical representation directly. They
+// must not run today's content-fingerprint installer against schema64.
+func historicalInstall(f nativeFixture, s v2.Store) (v2.Instance, error) {
+	id := jobs.UUID()
+	if _, e := f.db.ExecContext(f.ctx, `INSERT INTO plugin_v2_definitions(id,manifest,fingerprint)VALUES('synthetic','{}',repeat('a',64)) ON CONFLICT DO NOTHING`); e != nil {
+		return v2.Instance{}, e
+	}
+	_, e := f.db.ExecContext(f.ctx, `INSERT INTO plugin_v2_instances(id,plugin_id,approved_fingerprint)VALUES($1,'synthetic',repeat('a',64))`, id)
+	if e != nil {
+		return v2.Instance{}, e
+	}
+	cipher, e := s.Vault.Seal("plugin:v2:config:"+id, map[string]string{"value": "{}"})
+	if e != nil {
+		return v2.Instance{}, e
+	}
+	_, e = f.db.ExecContext(f.ctx, `INSERT INTO plugin_v2_configs(id,ciphertext)VALUES($1,$2)`, id, cipher)
+	return v2.Instance{ID: id}, e
 }

@@ -163,12 +163,18 @@ func (m *Manager) resolveOfficial(ctx context.Context, c Credentials, ref storag
 // updates while keeping CloudDrive2 as the scanner/upload source.
 func (m *Manager) PlaybackVersion(ctx context.Context, ref storage.FileRef) (string, error) {
 	var base string
+	if ref.CloudFileID != "" {
+		if err := m.Repository.DB.QueryRow(ctx, `SELECT i.id::text||':'||i.revision::text||':'||f.updated_at::text FROM cloud_files f JOIN integrations i ON i.id=f.storage_id WHERE f.id=$1 AND f.state='present'`, ref.CloudFileID).Scan(&base); err != nil {
+			return "", err
+		}
+	}
+
 	if ref.AssetID != "" {
 		err := m.Repository.DB.QueryRow(ctx, `SELECT i.id::text||':'||i.revision::text||':'||f.updated_at::text FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id JOIN integrations i ON i.id=f.storage_id WHERE a.id=$1 AND f.state='present'`, ref.AssetID).Scan(&base)
 		if err != nil {
 			return "", err
 		}
-	} else {
+	} else if ref.CloudFileID == "" {
 		c, err := m.Repository.Default(ctx, "clouddrive2")
 		if err != nil {
 			return "", err

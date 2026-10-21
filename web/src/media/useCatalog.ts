@@ -1,15 +1,16 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { request } from '../api/client';
-import { rows, groupManaged, type Home, type MediaItem } from './model';
+import { rows, type Home, type MediaItem } from './model';
 export function useCatalog() {
-  const route = useRoute(), router = useRouter(), source = ref(route.query.source === 'emby' ? 'emby' : 'managed'), view = ref(route.query.view === 'all' ? 'all' : 'home'), page = ref(1), query = ref(''), kind = ref(''), parentId = ref(String(route.query.parentId || '')), user = ref(''), items = ref<MediaItem[]>([]), total = ref<number | null>(null), home = ref<Home | null>(null), loading = ref(true), error = ref<unknown>(), embyConnected = ref<boolean | null>(null), connectionError = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>(), children = ref<MediaItem[]>([]), childTotal = ref(0), childPage = ref(1), childError = ref<unknown>(), childLoading = ref(false), season = ref<number | null>(null), series = ref<MediaItem | null>(null), copyMessage = ref(''), playLink = ref(''), copyBusy = ref(false);
+  const route = useRoute(), router = useRouter(), source = ref(route.query.source === 'emby' ? 'emby' : 'managed'), view = ref(route.query.view === 'all' ? 'all' : 'home'), page = ref(1), query = ref(''), kind = ref(''), parentId = ref(String(route.query.parentId || '')), user = ref(''), items = ref<MediaItem[]>([]), total = ref<number | null>(null), home = ref<Home | null>(null), loading = ref(true), error = ref<unknown>(), embyConnected = ref<boolean | null>(null), connectionError = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>(), children = ref<MediaItem[]>([]), childTotal = ref(0), childPage = ref(1), childError = ref<unknown>(), childLoading = ref(false), series = ref<MediaItem | null>(null), copyMessage = ref(''), playLink = ref(''), copyBusy = ref(false);
   let epoch = 0, detailEpoch = 0, childEpoch = 0, copyEpoch = 0, alive = true;
-  const displayItems = computed(() => source.value === 'managed' ? groupManaged(items.value) : items.value);
+  const displayItems = computed(() => items.value);
   const groups = computed(() => [{ key: 'libraries', title: '媒体库分类' }, { key: 'playing', title: '正在播放' }, { key: 'resume', title: '继续观看' }, { key: 'recent', title: '近期观看' }, { key: 'latest', title: '最新入库' }].map(g => ({ ...g, items: rows((home.value as any)?.[g.key]) })));
-  const seasons = computed(() => [...new Set(children.value.filter(x => x.season != null).map(x => x.season!))].sort((a, b) => a - b));
-  const episodes = computed(() => children.value.filter(x => season.value == null || x.season === season.value));
-  const isSeries = (item: MediaItem) => !['Episode', 'Season'].includes(item.type || '') && (source.value === 'emby' || !!item.groupFiles) && ['series', 'Series'].includes(item.mediaType || item.type || '') && item.episode == null;
+  const selectedSeason = ref<MediaItem | null>(null);
+  const episodes = computed(() => children.value);
+  async function chooseSeason(item: MediaItem | null) { selectedSeason.value=item; childPage.value=1; await readChildren(); }
+  const isSeries = (item: MediaItem) => !['Episode', 'Season'].includes(item.type || '') && (source.value === 'emby' || item.type === 'Series') && ['series', 'Series'].includes(item.mediaType || item.type || '') && item.episode == null;
   async function connections() {
     try {
       const list = await request<any[]>('/integrations');
@@ -102,22 +103,15 @@ export function useCatalog() {
   async function readChildren() {
     if (!series.value)
       return;
-    if (source.value === 'managed') {
-      children.value = series.value.groupFiles || [];
-      childTotal.value = children.value.length;
-      childLoading.value = false;
-      return;
-    }
     const version = ++childEpoch;
     childLoading.value = true;
     childError.value = undefined;
     children.value = [];
     try {
-      const out = await catalogPage(series.value.id, childPage.value, true);
+      const out = await catalogPage(selectedSeason.value?.id || series.value.id, childPage.value, true);
       if (alive && version === childEpoch) {
         children.value = rows(out.items);
         childTotal.value = out.total ?? 0;
-        season.value = null;
       }
     }
     catch (e) {
@@ -144,7 +138,7 @@ export function useCatalog() {
       children.value = [];
       childEpoch++;
       childPage.value = 1;
-      season.value = null;
+      selectedSeason.value = null;
       if (series.value)
         void readChildren();
     }
@@ -242,5 +236,5 @@ export function useCatalog() {
     epoch++;
     close();
   });
-  return { displayItems, source, view, page, query, kind, parentId, user, items, total, home, groups, loading, error, embyConnected, connectionError, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, season, seasons, episodes, series, copyMessage, playLink, copyBusy, load, search, chooseSource, all, browse, inspect, homeItem, refresh, readChildren, copyLink };
+  return { selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, user, items, total, home, groups, loading, error, embyConnected, connectionError, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, copyMessage, playLink, copyBusy, load, search, chooseSource, all, browse, inspect, homeItem, refresh, readChildren, copyLink };
 }

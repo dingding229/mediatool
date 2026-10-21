@@ -72,7 +72,11 @@ func pluginV2Error(w http.ResponseWriter, e error) {
 	}
 	var rpc *contracts.Error
 	if errors.As(e, &rpc) && rpc.Code == contracts.PermissionDenied {
-		fail(w, 403, "plugin_permission_denied", "插件扩展缺少已确认的权限")
+		message := contracts.SafeError(rpc).Message
+		if message == "permission_denied" {
+			message = "插件扩展缺少已确认的权限，请在插件页核对并确认权限后重试"
+		}
+		fail(w, 403, "plugin_permission_denied", message)
 		return
 	}
 	if errors.As(e, &rpc) && rpc.Code == contracts.Busy {

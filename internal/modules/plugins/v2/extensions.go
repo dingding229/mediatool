@@ -181,7 +181,7 @@ func (s Store) Snapshot(ctx context.Context, id string) (Snapshot, error) {
 			return out, check
 		}
 		if !available {
-			return out, ErrNotFound
+			return out, accessError(ctx, s.DB, id)
 		}
 		return out, ErrUnavailable
 	}

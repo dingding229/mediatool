@@ -215,6 +215,9 @@ func TestF4CCachedSourcePaginationNeverInvokesWorkerAndRevokeHidesCache(t *testi
 	rc := redis.NewClient(opts)
 	defer rc.Close()
 	f := latestDiscoveryFixture(t)
+	if _, e := f.provider.UpTo(f.ctx, 74); e != nil {
+		t.Fatal(e)
+	}
 	vault, e := secrets.New(strings.Repeat("33", 32))
 	if e != nil {
 		t.Fatal(e)

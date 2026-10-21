@@ -55,6 +55,14 @@ func (s *Server) discover(w http.ResponseWriter, r *http.Request, info RequestCo
 	case similarResponse:
 		in.Mode = nativelibrary.Similar
 	}
+	if kind == seasonsResponse || kind == episodesResponse {
+ in.Items.SeriesID,in.Items.SeasonID="",""
+		if q.SeriesID != "" && q.SeriesID != in.ItemID {
+			s.router.fail(w, 400)
+			return
+		}
+	}
+
 	if kind == latestResponse || kind == hintsResponse || kind == similarResponse {
 		if raw, err := info.Parameters.Scalar("Limit"); err != nil {
 			s.router.fail(w, 400)

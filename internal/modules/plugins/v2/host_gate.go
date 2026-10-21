@@ -54,7 +54,7 @@ func (s Store) scopedHost(l Lease, g *hostGate) func(context.Context, json.RawMe
 		}
 		g.mu.RUnlock()
 		if !allowed {
-			return nil, contracts.NewError(contracts.PermissionDenied)
+			return nil, contracts.AccessError("read_only")
 		}
 		return call(ctx, raw)
 	}

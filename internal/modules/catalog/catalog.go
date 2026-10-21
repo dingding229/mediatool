@@ -22,6 +22,7 @@ var ErrInvalid = errors.New("invalid catalog query")
 
 type Item struct {
 	ID        string `json:"id"`
+	Type      string `json:"type,omitempty"`
 	Source    string `json:"source"`
 	Title     string `json:"title"`
 	Year      string `json:"year"`
@@ -64,33 +65,10 @@ func (e Engine) ListParent(ctx context.Context, source, q, kind, parent string, 
 	if source != "managed" {
 		return out, ErrInvalid
 	}
-	rows, err := e.DB.Query(ctx, `SELECT a.id::text,coalesce(m.title,f.metadata->>'name',regexp_replace(f.full_path,'^.*/','','g')),coalesce(m.release_year,''),coalesce(m.media_type,'unknown'),coalesce(m.metadata->>'overview',''),coalesce(m.metadata->>'posterPath',''),f.full_path,f.state,b.season,b.episode FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id LEFT JOIN media_asset_bindings b ON b.asset_id=a.id LEFT JOIN media_items m ON m.id=b.media_id WHERE ($1='' OR coalesce(m.title,f.metadata->>'name',f.full_path) ILIKE '%'||$1||'%') AND ($2='' OR m.media_type=$2) ORDER BY a.created_at DESC,a.id DESC LIMIT $3 OFFSET $4`, q, kind, size, (page-1)*size)
-	if err != nil {
-		return out, ErrUnavailable
-	}
-	defer rows.Close()
-	for rows.Next() {
-		item := Item{Source: "managed"}
-		var poster string
-		if err = rows.Scan(&item.ID, &item.Title, &item.Year, &item.MediaType, &item.Overview, &poster, &item.FilePath, &item.State, &item.Season, &item.Episode); err != nil {
-			return out, ErrUnavailable
-		}
-		if safePoster.MatchString(poster) {
-			item.Poster = "/api/v1/media/tmdb/image?path=" + url.QueryEscape(poster)
-		}
-		out.Items = append(out.Items, item)
-	}
-	if rows.Err() != nil {
-		return out, ErrUnavailable
-	}
-	rows.Close()
-	err = e.DB.QueryRow(ctx, `SELECT count(*) FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id LEFT JOIN media_asset_bindings b ON b.asset_id=a.id LEFT JOIN media_items m ON m.id=b.media_id WHERE ($1='' OR coalesce(m.title,f.metadata->>'name',f.full_path) ILIKE '%'||$1||'%') AND ($2='' OR m.media_type=$2)`, q, kind).Scan(&out.Total)
-	if err != nil {
-		return out, ErrUnavailable
-	}
-	return out, nil
+	return e.managed(ctx, out, q, kind)
 }
 
+var uuidID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 var safeID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,100}$`)
 var safePoster = regexp.MustCompile(`^/[A-Za-z0-9_-]+\.(?:jpg|png|webp)$`)
 
@@ -132,6 +110,9 @@ func (e Engine) embyList(ctx context.Context, out Page, q, kind string) (Page, e
 	query := url.Values{"Recursive": {"true"}, "IncludeItemTypes": {types}, "Limit": {strconv.Itoa(out.PageSize)}, "StartIndex": {strconv.Itoa((out.Page - 1) * out.PageSize)}, "SearchTerm": {q}, "Fields": {"Overview"}, "SortBy": {"SortName"}, "SortOrder": {"Ascending"}}
 	if out.ParentID != "" {
 		query.Set("ParentId", out.ParentID)
+		query.Set("Recursive", "false")
+		query.Set("IncludeItemTypes", "Season,Episode")
+		query.Set("SortBy", "IndexNumber")
 	}
 	response, err := e.embyRequest(ctx, "/Items", query)
 	if err != nil {
@@ -162,14 +143,18 @@ func (e Engine) embyList(ctx context.Context, out Page, q, kind string) (Page, e
 		if !safeID.MatchString(row.ID) {
 			return out, ErrUnavailable
 		}
-		item := Item{ID: row.ID, Source: "emby", Title: row.Name, Overview: row.Overview, Season: row.ParentIndexNumber, Episode: row.IndexNumber, State: "emby"}
+		item := Item{ID: row.ID, Source: "emby", Type: row.Type, Title: row.Name, Overview: row.Overview, Season: row.ParentIndexNumber, Episode: row.IndexNumber, State: "emby"}
+		if row.Type == "Season" {
+			item.Season = row.IndexNumber
+			item.Episode = nil
+		}
 		if row.ProductionYear > 0 {
 			item.Year = strconv.Itoa(row.ProductionYear)
 		}
 		switch row.Type {
 		case "Movie":
 			item.MediaType = "movie"
-		case "Series", "Episode":
+		case "Series", "Episode", "Season":
 			item.MediaType = "series"
 		default:
 			return out, ErrUnavailable
