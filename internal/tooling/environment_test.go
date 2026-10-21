@@ -173,7 +173,7 @@ func has(t *testing.T, s string, terms ...string) {
 func TestNativeMediaAndPluginCIPolicies(t *testing.T) {
 	w := source(t, ".github/workflows/build.yml")
 	verify := strings.Split(strings.Split(w, "  verify:")[1], "  publish:")[0]
-	has(t, verify, "sudo apt-get install -y ffmpeg", "go test -race -count=3 -v ./internal/modules/mediaprobe/...", `MEDIA_TOOL_REQUIRE_FFMPEG: "1"`, "bash scripts/test-go.sh", "bash scripts/test-plugin-kernel.sh", "go run ./cmd/media-tool-dev plugins check", "go run ./cmd/media-tool-dev plugins assets --check", "-ignoretests ./cmd/... ./internal/... ./migrations/... ./tests/...")
+	has(t, verify, "timeout-minutes: 60", "sudo apt-get install -y ffmpeg", "go test -race -count=3 -v ./internal/modules/mediaprobe/...", `MEDIA_TOOL_REQUIRE_FFMPEG: "1"`, "bash scripts/test-go.sh", "bash scripts/test-plugin-kernel.sh", "go run ./cmd/media-tool-dev plugins check", "go run ./cmd/media-tool-dev plugins assets --check", "-ignoretests ./cmd/... ./internal/... ./migrations/... ./tests/...")
 	if strings.Index(verify, "sudo apt-get install") > strings.Index(verify, "bash scripts/test-go.sh") {
 		t.Fatal("tools installed too late")
 	}
