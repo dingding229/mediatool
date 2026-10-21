@@ -2,6 +2,7 @@ package strm
 
 import (
 	"media-tool/internal/modules/storage"
+	"media-tool/internal/platform/mediaext"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -88,5 +89,18 @@ func TestEncodedTraversalIsDecodedOnceAndNeverBecomesAParentPath(t *testing.T) {
 	u, e := url.Parse(built)
 	if e != nil || u.Query().Get("path") != literal {
 		t.Fatal("double decoding", built, e)
+	}
+}
+
+func TestSTRMOnlyAcceptsSharedPlayableContainers(t *testing.T) {
+	for _, ext := range mediaext.VideoExtensions() {
+		if _, err := builder().Build(storage.FileRef{Path: "/115/媒体/Owned" + strings.ToUpper(ext)}); err != nil {
+			t.Fatal(ext, err)
+		}
+	}
+	for _, ext := range append(mediaext.SubtitleExtensions(), ".iso", ".ISO", ".nfo", ".strm", "") {
+		if _, err := builder().Build(storage.FileRef{Path: "/115/媒体/Owned" + ext}); err == nil {
+			t.Fatal("nonplayable STRM accepted", ext)
+		}
 	}
 }

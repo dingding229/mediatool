@@ -3,6 +3,7 @@ package filemanager
 import (
 	"context"
 	"errors"
+	"media-tool/internal/platform/mediaext"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,5 +151,24 @@ func TestLocalRejectsHardlinkEscapeAndSymlinkSubdirectories(t *testing.T) {
 	raw, e := os.ReadFile(filepath.Join(outside, "secret.mkv"))
 	if e != nil || string(raw) != "outside sentinel" {
 		t.Fatal(e, string(raw))
+	}
+}
+
+func TestAllVideoAndDiscRenamesPreserveContainer(t *testing.T) {
+	for _, ext := range append(mediaext.VideoExtensions(), ".iso") {
+		source := File{Name: "Owned" + strings.ToUpper(ext)}
+		for _, tc := range []struct{ name, want string }{{"Renamed", "Renamed" + strings.ToUpper(ext)}, {"Renamed.1080p", "Renamed.1080p" + strings.ToUpper(ext)}, {"Renamed" + ext, "Renamed" + ext}} {
+			got, err := FileName(Input{Name: tc.name}, source)
+			if err != nil || got != tc.want {
+				t.Fatalf("%s -> %s: got %s err=%v", source.Name, tc.name, got, err)
+			}
+		}
+		other := ".mkv"
+		if ext == other {
+			other = ".iso"
+		}
+		if _, err := FileName(Input{Name: "Converted" + other}, source); !errors.Is(err, ErrInvalid) {
+			t.Fatal("container change allowed", ext, err)
+		}
 	}
 }

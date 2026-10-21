@@ -1,7 +1,9 @@
 package metadata
 
 import (
+	"media-tool/internal/platform/mediaext"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -18,5 +20,18 @@ func TestEpisodeCoverage(t *testing.T) {
 				t.Fatal(s, eps, ok)
 			}
 		})
+	}
+}
+
+func TestIsVideoUsesSharedPolicy(t *testing.T) {
+	for _, ext := range mediaext.VideoExtensions() {
+		if !IsVideo("Show.S01E01" + strings.ToUpper(ext)) {
+			t.Fatal("video missed", ext)
+		}
+	}
+	for _, ext := range append(mediaext.SubtitleExtensions(), ".iso", ".nfo", ".strm", "") {
+		if IsVideo("Show.S01E01" + ext) {
+			t.Fatal("nonvideo accepted", ext)
+		}
 	}
 }

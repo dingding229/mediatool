@@ -16,6 +16,7 @@ import (
 	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/database"
+	"media-tool/internal/platform/mediaext"
 	"media-tool/internal/platform/secrets"
 	"net/http"
 	"net/url"
@@ -111,8 +112,7 @@ func run() error {
 					directories = append(directories, file.Path)
 				}
 			} else {
-				ext := strings.ToLower(path.Ext(file.Path))
-				if file.Size > 0 && (ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".mov" || ext == ".m4v" || ext == ".ts") {
+				if file.Size > 0 && mediaext.IsVideo(file.Path) {
 					copy := file
 					selected = &copy
 					return errListingBudget

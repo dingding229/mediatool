@@ -14,6 +14,7 @@ import (
 	"media-tool/internal/modules/settings"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/mediaext"
 	"os"
 	"path"
 	"path/filepath"
@@ -53,8 +54,7 @@ func (e Engine) PrepareTransfers(ctx context.Context) error {
 	}
 	rows.Close()
 	for _, item := range items {
-		extension := strings.ToLower(path.Ext(item.name))
-		if extension != ".mkv" && extension != ".mp4" && extension != ".avi" && extension != ".mov" && extension != ".m4v" && extension != ".ts" {
+		if !mediaext.IsVideo(item.name) {
 			if _, checkedErr := e.DB.Exec(ctx, `UPDATE download_files SET media_state='non_media' WHERE id=$1`, item.fileID); checkedErr != nil {
 				return checkedErr
 			}
@@ -85,6 +85,7 @@ func (e Engine) PrepareTransfers(ctx context.Context) error {
 			}
 			continue
 		}
+		extension := strings.ToLower(path.Ext(item.name))
 		rel, match, layoutErr := classification.Render(policy.Value, details.Media, item.name, prefs.Value.MovieTemplate, prefs.Value.SeriesTemplate, extension, season, episodes)
 		if layoutErr != nil {
 			return layoutErr

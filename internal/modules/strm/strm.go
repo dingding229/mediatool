@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"media-tool/internal/modules/storage"
+	"media-tool/internal/platform/mediaext"
 	"net/url"
 	"os"
 	"path"
@@ -59,6 +60,9 @@ func (b Builder) Validate(ref storage.FileRef) error {
 func (b Builder) Build(ref storage.FileRef) (string, error) {
 	if err := b.Validate(ref); err != nil {
 		return "", err
+	}
+	if !mediaext.IsVideo(ref.Path) {
+		return "", errors.New("STRM requires a supported video container; disc images are not playable via HTTP 302")
 	}
 	u, err := url.Parse(b.BaseURL)
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {

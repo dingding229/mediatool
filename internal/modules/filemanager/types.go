@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/releasename"
+	"media-tool/internal/platform/mediaext"
 	"path"
 	"regexp"
 	"strings"
@@ -182,9 +183,8 @@ func FileName(in Input, source File) (string, error) {
 	}
 	if !source.Directory {
 		extension := path.Ext(source.Name)
-		mediaExtensions := map[string]bool{".mkv": true, ".mp4": true, ".m4v": true, ".rmvb": true, ".vob": true, ".iso": true, ".avi": true, ".ts": true, ".m2ts": true, ".mov": true, ".wmv": true, ".flv": true, ".webm": true, ".mpg": true, ".mpeg": true}
-		if mediaExtensions[strings.ToLower(extension)] && !strings.EqualFold(path.Ext(name), extension) {
-			if mediaExtensions[strings.ToLower(path.Ext(name))] {
+		if mediaext.IsContainer(source.Name) && !strings.EqualFold(path.Ext(name), extension) {
+			if mediaext.IsContainer(name) {
 				return "", ErrInvalid
 			} // rename is not format conversion.
 			name += extension

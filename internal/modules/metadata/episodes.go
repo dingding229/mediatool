@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"media-tool/internal/platform/mediaext"
 	"path"
 	"regexp"
 	"sort"
@@ -48,13 +49,10 @@ func Episodes(filename string) (int, []int, bool) {
 	sort.Ints(out)
 	return season, out, len(out) > 0
 }
-func IsVideo(name string) bool {
-	switch strings.ToLower(path.Ext(name)) {
-	case ".mkv", ".mp4", ".m4v", ".mov", ".avi", ".ts", ".m2ts", ".webm":
-		return true
-	}
-	return false
-}
+
+// IsVideo shares the ingest/STRM extension policy; ISO is deliberately excluded.
+func IsVideo(name string) bool { return mediaext.IsVideo(name) }
+
 func IsSample(name string) bool {
 	return strings.EqualFold(strings.TrimSuffix(path.Base(name), path.Ext(name)), "sample") || strings.Contains(strings.ToLower(name), "/sample/")
 }
