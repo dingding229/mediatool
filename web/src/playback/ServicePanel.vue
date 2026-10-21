@@ -71,7 +71,7 @@ defineExpose({ load, form, save, status, libraries, op });
           <el-button @click="form.revision=latest.revision;latest=null">保留输入并采用最新修订</el-button>
         </section>
         <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>
-        <el-button native-type="submit" :loading="op.busy" :disabled="!status.data||!!status.error||!!latest||!!op.pending">保存服务设置</el-button>
+        <el-button native-type="submit" :loading="op.busy" :disabled="!status.data||!!status.error||!!latest||!!op.pending" class="mt-save-button" type="primary">保存服务设置</el-button>
       </form>
     </section>
     <section class="media-surface">
@@ -85,9 +85,6 @@ defineExpose({ load, form, save, status, libraries, op });
       <p>服务器不中转流量。</p>
       <el-button @click="technical=true">技术详情</el-button>
       <div class="media-actions">
-        <RouterLink to="/library">浏览媒体库</RouterLink>
-        <RouterLink to="/library?source=emby">浏览 Emby 媒体库</RouterLink>
-        <RouterLink to="/connections?tab=emby">管理 Emby 连接</RouterLink>
         <RouterLink to="/playback?tab=users">管理媒体用户</RouterLink>
       </div>
     </section>

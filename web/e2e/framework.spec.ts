@@ -57,7 +57,7 @@ async function login(page:import('@playwright/test').Page){
  await page.getByLabel('管理员账号',{exact:true}).fill(username)
  await page.getByLabel('密码',{exact:true}).fill(password)
  await page.getByRole('button',{name:'进入工作台',exact:true}).click()
- await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'首页'})).toBeVisible()
  await expect(page.getByText('服务器负载',{exact:true})).toBeVisible()
  await expect(page.locator('.workbench-version')).toContainText(expectedVersion)
 }
@@ -69,7 +69,7 @@ async function fixtureLogin(page:import('@playwright/test').Page){
  if(!fixtureCookies){await login(page);fixtureCookies=await page.context().cookies();return}
  await page.context().addCookies(fixtureCookies)
  await page.goto('/dashboard')
- await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'首页'})).toBeVisible()
 }
 test('first registration creates the administrator and closes public registration',async({page,request})=>{
  await page.goto('/login');await expect(page.getByRole('heading',{name:'注册管理员账号',exact:true})).toBeVisible()
@@ -79,7 +79,7 @@ test('first registration creates the administrator and closes public registratio
  mkdirSync(screenshots,{recursive:true});await page.screenshot({path:resolve(screenshots,'account-registration-desktop.png'),fullPage:true,mask:[page.getByLabel('密码',{exact:true}),page.getByLabel('确认密码',{exact:true})]})
  await page.getByRole('button',{name:'注册并进入工作台'}).click();await expect(page.getByText('两次输入的密码不一致',{exact:true})).toBeVisible()
  await page.getByLabel('确认密码',{exact:true}).fill(password);const registered=page.waitForResponse(r=>r.url().endsWith('/auth/register'));await page.getByRole('button',{name:'注册并进入工作台'}).click();const reply=await registered;expect(reply.status()).toBe(201);expect(await reply.text()).not.toContain(password)
- await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible();const setup=await request.get('/api/v1/auth/setup');expect((await setup.json()).data.registrationOpen).toBe(false)
+ await expect(page.getByRole('heading',{name:'首页'})).toBeVisible();const setup=await request.get('/api/v1/auth/setup');expect((await setup.json()).data.registrationOpen).toBe(false)
  const second=await request.post('/api/v1/auth/register',{headers:{'X-Requested-With':'media-tool'},data:{username:'second_admin',password,confirmPassword:password}});expect(second.status()).toBe(409)
  await page.getByRole('button',{name:'退出',exact:true}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible();await expect(page.getByLabel('确认密码',{exact:true})).toHaveCount(0)
 })
@@ -170,7 +170,7 @@ test('saved connections are editable, redacted, and can be deleted',async({page}
 
 test('subscriptions and scanner pages expose real configuration gates',async({page})=>{
  await login(page);await navigate(page,'资源订阅')
- await expect(page.getByRole('heading',{name:'资源订阅',exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'订阅',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'新建订阅',exact:true}).click()
  await expect(page.getByRole('button',{name:'选择站点与规则',exact:true})).toBeDisabled()
  await expect(page.getByRole('navigation',{name:'创建订阅步骤',exact:true})).toBeVisible()
@@ -206,7 +206,7 @@ test('wrong credentials are rejected and password change revokes captured sessio
  await page.locator('.settings-workspace > .page-tabs').getByRole('button',{name:'账号安全',exact:true}).click();const next=password+'-new';await page.getByLabel('当前密码',{exact:true}).fill(password);await page.getByLabel('新密码',{exact:true}).fill(next);await page.getByLabel('确认新密码',{exact:true}).fill(next);await page.getByRole('button',{name:'修改密码并重新登录'}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible()
  const replay=await request.get('/api/v1/auth/session',{headers:{Cookie:'media_tool_session='+captured.value}});expect(replay.status()).toBe(401)
  const old=await request.post('/api/v1/auth/login',{headers:{'X-Requested-With':'media-tool'},data:{username,password}});expect(old.status()).toBe(401)
- await page.getByLabel('管理员账号',{exact:true}).fill(username);await page.getByLabel('密码',{exact:true}).fill(next);await page.getByRole('button',{name:'进入工作台',exact:true}).click();await expect(page.getByRole('heading',{name:'运行总览'})).toBeVisible()
+ await page.getByLabel('管理员账号',{exact:true}).fill(username);await page.getByLabel('密码',{exact:true}).fill(next);await page.getByRole('button',{name:'进入工作台',exact:true}).click();await expect(page.getByRole('heading',{name:'首页'})).toBeVisible()
  // Restore only the synthetic test account, never a user's administrator.
  await navigate(page,'系统设置');await page.locator('.settings-workspace > .page-tabs').getByRole('button',{name:'账号安全',exact:true}).click();await page.getByLabel('当前密码',{exact:true}).fill(next);await page.getByLabel('新密码',{exact:true}).fill(password);await page.getByLabel('确认新密码',{exact:true}).fill(password);await page.getByRole('button',{name:'修改密码并重新登录'}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible()
 })
@@ -270,13 +270,13 @@ test('strict direct-only policy is immutable and visible (isolated settings fixt
  const name='Direct-only fixture '+Date.now()
  await page.getByLabel('连接名称',{exact:true}).fill(name)
  await page.getByLabel('Emby 服务地址',{exact:true}).fill('http://127.0.0.1:9')
- await expect(page.getByRole('checkbox',{name:'仅直链播放：禁止转码和媒体中转'})).toBeDisabled()
- await expect(page.getByRole('checkbox',{name:'仅直链播放：禁止转码和媒体中转'})).toBeChecked()
- await expect(page.getByText(/不支持原始TS\/MKV或音频格式/)).toBeVisible()
+ await expect(page.getByRole('checkbox',{name:'只使用影片原格式，不中转或转码'})).toBeDisabled()
+ await expect(page.getByRole('checkbox',{name:'只使用影片原格式，不中转或转码'})).toBeChecked()
+ await expect(page.getByText(/服务器不会转换视频或音频格式/)).toBeVisible()
  await page.getByRole('button',{name:'加密保存',exact:true}).click()
  const row=page.locator('.saved-connection').filter({hasText:name})
  await row.getByRole('button',{name:'编辑',exact:true}).click()
- await expect(page.getByRole('checkbox',{name:'仅直链播放：禁止转码和媒体中转'})).toBeChecked()
+ await expect(page.getByRole('checkbox',{name:'只使用影片原格式，不中转或转码'})).toBeChecked()
  await page.getByRole('button',{name:'关闭此对话框',exact:true}).click()
  await row.getByRole('button',{name:'删除',exact:true}).click()
  await page.getByRole('button',{name:'删除连接',exact:true}).click()
@@ -638,8 +638,8 @@ test('media catalog browses managed and Emby content without exposing playback c
 })
 
 
-test('service overview is read-only and settings own naming and TMDB',async({page})=>{
- await login(page);await page.goto('/integrations');await expect(page.getByRole('heading',{name:'服务连接',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(0)
+test('connections own external configuration while settings own naming',async({page})=>{
+ await login(page);await page.goto('/integrations');await expect(page.getByRole('heading',{name:'连接',exact:true})).toBeVisible();await expect(page).toHaveURL(/tab=storage/);await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(1)
  await page.goto('/settings?tab=library');await expect(page.getByLabel('电影命名模板',{exact:true})).toHaveValue('{title} ({year})/{title} ({year}) - {videoFormat}');await expect(page.getByLabel('剧集命名模板',{exact:true})).toBeVisible();await page.goto('/settings?section=tmdb');await expect(page.getByRole('heading',{name:'TMDB配置',exact:true})).toBeVisible();await page.goto('/settings?section=automation');await page.locator('.settings-workspace > .page-tabs').getByRole('button',{name:'搜索订阅',exact:true}).click();await expect(page.getByRole('button',{name:'生成 / 更换恢复码',exact:true})).toHaveCount(0)
  const ttl=page.locator('#pt-cache-seconds');const previousTTL=Number(await ttl.inputValue());await ttl.fill(String(previousTTL===600?601:600));await page.getByRole('button',{name:'保存搜索订阅设置',exact:true}).click();await expect(page.getByText('当前分区已保存。',{exact:true})).toBeVisible()
  await page.screenshot({path:resolve(screenshots,'workbench-settings-desktop.png'),animations:'disabled',fullPage:true});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-settings-mobile.png'),animations:'disabled',fullPage:false})
@@ -911,7 +911,7 @@ test('runtime update: compact media title searches all sites inline with promoti
 test('runtime update: overview metrics, categorized connections and separate downloader panels (fixture)',async({page})=>{
  await page.route('**/api/v1/system/runtime',r=>r.fulfill({json:{data:{server:{loadAverage:[.5,.4,.3],memoryUsed:2147483648,memoryTotal:8589934592,diskAvailable:107374182400,diskTotal:214748364800,uptimeSeconds:90000,sampledAt:new Date().toISOString()},daily:{sites:2,subscriptions:3,downloads:1,media:50,todaySearches:4,failedJobs:0}}}}));
  await fixtureLogin(page);await expect(page.getByText('100.0 GiB',{exact:true})).toBeVisible();for(const old of ['依赖服务','最近任务','资源到播放的路径'])await expect(page.getByRole('heading',{name:old,exact:true})).toHaveCount(0);await page.screenshot({path:resolve(screenshots,'runtime-dashboard.png'),fullPage:true,animations:'disabled'});
- await page.goto('/integrations');await expect(page.getByRole('region',{name:'服务就绪状态'})).toBeVisible();await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(0);
+ await page.goto('/integrations');await expect(page.getByRole('region',{name:'本页服务状态'})).toBeVisible();await expect(page.getByRole('button',{name:'添加连接',exact:true})).toHaveCount(1);
  await page.goto('/downloads');await expect(page.getByRole('heading',{name:'下载任务',exact:true})).toBeVisible();await page.locator('.acquire-workspace .page-tabs').getByRole('button',{name:'上传入库',exact:true}).click();await expect(page).toHaveURL(/tab=uploads/);await expect(page.getByRole('heading',{name:'115上传与入库',exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,'runtime-downloads.png'),fullPage:true,animations:'disabled'});
 });
 
@@ -1011,7 +1011,7 @@ test('native media boundary is explicit and responsive without changing Emby',as
  await page.goto('/media-server')
  await expect(page.getByRole('heading',{name:'播放服务',exact:true})).toBeVisible()
  await expect(page.getByText('服务器不中转流量。',{exact:true})).toBeVisible()
- await expect(page.getByRole('link',{name:'浏览 Emby 媒体库'})).toHaveAttribute('href','/library?source=emby')
+ await expect(page.getByRole('link',{name:'浏览 Emby 媒体库'})).toHaveCount(0);await expect(page.getByRole('link',{name:'管理媒体用户',exact:true})).toHaveAttribute('href','/playback?tab=users')
  for(const width of [375,768,1440]){
   await page.setViewportSize({width,height:900})
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
@@ -1236,7 +1236,7 @@ test('classification checkbox editor preserves original countries and genre IDs 
 })
 
 test('system operations has real bounded health, paginated tasks and details (isolated)',async({page})=>{
- await fixtureLogin(page);await page.goto('/jobs');await expect(page.getByRole('heading',{name:'运行与队列',exact:true})).toBeVisible();await page.getByText('查看调度与依赖详情',{exact:true}).click();await expect(page.getByText(/核心协调/)).toBeVisible();await expect(page.locator('.u5-stats').first().getByText('可用',{exact:true})).toHaveCount(2)
+ await fixtureLogin(page);await page.goto('/jobs');await expect(page.getByRole('heading',{name:'运行与队列',exact:true})).toBeVisible();await page.getByText('查看运行计划与连接状态',{exact:true}).click();await expect(page.getByText(/核心协调/)).toBeVisible();await expect(page.locator('.u5-stats').first().getByText('可用',{exact:true})).toHaveCount(2)
  const health=await page.request.get('/api/v1/system/operations');expect(health.status()).toBe(200);expect(health.headers()['cache-control']).toBe('no-store');const snapshot=(await health.json()).data;expect(snapshot.migration).toBe(expectedSchema);expect(snapshot.unavailable).toEqual([]);expect(snapshot.workers.some((w:any)=>w.online)).toBe(true);expect(snapshot.schedules.some((s:any)=>s.id==='core'&&s.cron==='*/15 * * * * *')).toBe(true)
  const response=await page.request.post('/api/v1/jobs',{headers:{'X-Requested-With':'media-tool'},data:{kind:'system.check'}});expect(response.status()).toBe(201);const job=(await response.json()).data;await page.getByLabel('搜索任务',{exact:true}).fill(job.id);await page.getByRole('button',{name:'筛选任务',exact:true}).click();await expect(page.getByRole('button',{name:'任务详情',exact:true})).toHaveCount(1);await expect(page.getByRole('button',{name:'任务详情',exact:true})).toBeVisible();await page.getByRole('button',{name:'任务详情',exact:true}).click();const dialog=page.getByRole('dialog',{name:'任务与运行技术详情',exact:true});await dialog.getByRole('button',{name:/技术细节与原始记录/}).click();await expect(dialog).toContainText(job.id);await expect(page.getByText(/不会重放业务/)).toBeVisible();await dialog.getByRole('button',{name:'关闭',exact:true}).click();await expect(dialog).not.toBeVisible()
  expect((await page.request.get('/api/v1/jobs/browse?page=0')).status()).toBe(400);expect((await page.request.get('/api/v1/jobs/not-a-uuid')).status()).toBe(400);const empty=await page.request.get(`/api/v1/jobs/browse?page=2&pageSize=25&q=${job.id}`);expect((await empty.json()).data).toEqual({items:[],total:1})
@@ -1367,9 +1367,9 @@ test('friendly log details keep raw values and copy controls without redundant U
 test('native preprocessing controls, statistics, retry confirmation and bounded GC (UI contract)',async({page})=>{
  const c=JSON.parse(readFileSync(resolve(root,'internal/platform/httpapi/testdata/contracts/native-processing.json'),'utf8'))
  let settings={...c.summary.response.data.settings},single=0,batches=0,gcs=0,queued=false
- await page.route('**/api/v1/media-server/native/processing**',async route=>{const r=route.request(),path=new URL(r.url()).pathname;if(path.endsWith('/settings')){expect(r.method()).toBe('PUT');expect(r.headers()['x-requested-with']).toBe('media-tool');expect(r.postDataJSON()).toEqual(c.settings.request);settings={...c.settings.response.data};return route.fulfill({json:c.settings.response})}if(path.endsWith('/tasks'))return route.fulfill({json:{data:{...c.tasks.response.data,items:queued?c.tasks.response.data.items.map((t:any)=>({...t,state:'pending',attempts:0})):c.tasks.response.data.items}}});if(path.endsWith('/retry')){const body=r.postDataJSON();expect(r.method()).toBe('POST');expect(r.headers()['x-requested-with']).toBe('media-tool');queued=true;if(body.bulk){batches++;expect(body).toEqual(c.batch.request);return route.fulfill({status:202,json:c.batch.response})}single++;expect(body).toEqual(c.retry.request);return route.fulfill({status:202,json:c.retry.response})}if(path.endsWith('/gc')){gcs++;expect(r.method()).toBe('POST');return route.fulfill({json:c.gc.response})}return route.fulfill({json:{data:{...c.summary.response.data,settings,probe:queued?[{state:'failed',count:0},{state:'pending',count:1}]:c.summary.response.data.probe}}})})
+ await page.route('**/api/v1/media-server/native/processing**',async route=>{const r=route.request(),path=new URL(r.url()).pathname;if(path.endsWith('/settings')){expect(r.method()).toBe('PUT');expect(r.headers()['x-requested-with']).toBe('media-tool');expect(r.postDataJSON()).toEqual({...c.settings.request,enabled:false});settings={...c.settings.response.data,enabled:false};return route.fulfill({json:{data:settings}})}if(path.endsWith('/tasks'))return route.fulfill({json:{data:{...c.tasks.response.data,items:queued?c.tasks.response.data.items.map((t:any)=>({...t,state:'pending',attempts:0})):c.tasks.response.data.items}}});if(path.endsWith('/retry')){const body=r.postDataJSON();expect(r.method()).toBe('POST');expect(r.headers()['x-requested-with']).toBe('media-tool');queued=true;if(body.bulk){batches++;expect(body).toEqual(c.batch.request);return route.fulfill({status:202,json:c.batch.response})}single++;expect(body).toEqual(c.retry.request);return route.fulfill({status:202,json:c.retry.response})}if(path.endsWith('/gc')){gcs++;expect(r.method()).toBe('POST');return route.fulfill({json:c.gc.response})}return route.fulfill({json:{data:{...c.summary.response.data,settings,probe:queued?[{state:'failed',count:0},{state:'pending',count:1}]:c.summary.response.data.probe}}})})
  await fixtureLogin(page);const realStatus=await page.request.get('/api/v1/media-server/native/processing');expect(realStatus.status()).toBe(200);expect((await realStatus.json()).data.settings.enabled).toBe(false);const realGC=await page.request.post('/api/v1/media-server/native/processing/gc',{headers:{'X-Requested-With':'media-tool'}});expect(realGC.status()).toBe(200);const report=(await realGC.json()).data;expect(report.scanned).toBeLessThanOrEqual(200);expect(report.reclaimed).toBe(0)
- await page.goto('/playback?tab=processing');await expect(page.getByRole('heading',{name:'探测与截图任务',exact:true})).toBeVisible();await expect(page.getByText(/失败 1/)).toBeVisible();await expect(page.getByText(/上限 2.0 GiB/)).toBeVisible();const enabled=page.getByRole('checkbox',{name:'启用播放服务与预处理',exact:true});await expect(enabled).not.toBeChecked();await enabled.check();await page.getByRole('button',{name:'保存预处理设置',exact:true}).click();await expect(enabled).toBeChecked();expect(settings).toEqual(c.settings.response.data)
+ await page.goto('/playback?tab=processing');await expect(page.getByRole('heading',{name:'探测与截图任务',exact:true})).toBeVisible();await expect(page.getByText(/失败 1/)).toBeVisible();await expect(page.getByText(/上限 2.0 GiB/)).toBeVisible();await expect(page.getByRole('checkbox',{name:'启用播放服务与预处理',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'管理播放服务开关',exact:true})).toHaveAttribute('href','/playback?tab=settings');await page.getByRole('button',{name:'保存预处理设置',exact:true}).click();expect(settings).toEqual({...c.settings.response.data,enabled:false})
  await page.getByRole('button',{name:'重试此任务',exact:true}).click();await page.getByRole('button',{name:'确认执行',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'服务回执：选中 1 条'})).toContainText('已排队 1 条');expect(single).toBe(1)
  await page.getByRole('button',{name:'批量重试当前筛选',exact:true}).click();await page.getByRole('dialog',{name:'确认批量重试',exact:true}).getByRole('button',{name:'取消',exact:true}).click();expect(batches).toBe(0);await page.getByRole('button',{name:'批量重试当前筛选',exact:true}).click();await page.getByRole('button',{name:'确认执行',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'服务回执：选中 500 条'})).toContainText('失败 1 条');expect(batches).toBe(1)
  await page.getByRole('button',{name:'清理截图缓存',exact:true}).click();expect(gcs).toBe(0);await page.getByRole('button',{name:'确认执行',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'服务回执：扫描'})).toContainText('扫描 8 项，回收 2 个文件');expect(gcs).toBe(1)

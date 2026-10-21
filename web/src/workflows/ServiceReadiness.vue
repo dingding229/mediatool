@@ -22,7 +22,7 @@ defineEmits<{
       <StatusBadge :state="value?.components?.[service.key]?.state || 'unavailable'" :label="readinessLabel(value?.components?.[service.key])" />
       <p>{{ readinessReason(value?.components?.[service.key]) }}</p>
       <RouterLink :to="{ path: '/connections', query: { tab: service.tab } }">
-        去处理
+        {{value?.components?.[service.key]?.state==='ready'?'查看':'去处理'}}
         <span class="sr-only">{{ service.name }}</span>
         →
       </RouterLink>
@@ -78,8 +78,13 @@ defineEmits<{
   .readiness-cards {
     grid-template-columns:1fr
   }
-  .readiness-cards p {
-    min-height:0
-  }
+  .readiness-cards{gap:0;border:1px solid var(--mt-border-color);border-radius:12px;background:var(--mt-bg-surface);overflow:hidden}
+  .readiness-cards article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;border:0;border-radius:0;padding:12px 16px;border-bottom:1px solid var(--mt-border-color)}
+  .readiness-cards article:last-child{border-bottom:0}
+  .readiness-cards h3{font-size:14px;margin:0}
+  .readiness-cards :deep(.status-badge){justify-self:end}
+  .readiness-cards p{min-height:0;margin:0;grid-column:1;font-size:12px}
+  .readiness-cards a{grid-column:2;grid-row:2;justify-self:end;align-self:center;min-height:44px}
+
 }
 </style>

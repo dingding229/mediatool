@@ -118,7 +118,7 @@ usePageRefresh(()=>load(true));
     <p>不会影响 115、Emby、CloudDrive2 或下载器。关闭两个路由即可停用代理。</p>
     <el-alert v-if="conflict" :title="`服务端最新路由：TMDB ${conflict.tmdb?'代理':'直连'}；PT ${conflict.sites?'代理':'直连'}。地址仅显示是否已设置：${conflict.url?'已设置':'未设置'}`" type="info" :closable="false" />
     <el-button v-if="conflict" @click="adopt">保留输入并采用最新修订</el-button>
-    <el-button type="primary" native-type="submit" :loading="busy" :disabled="!!conflict||blocked">保存代理设置</el-button>
+    <el-button type="primary" native-type="submit" :loading="busy" :disabled="!!conflict||blocked" class="mt-save-button">保存代理设置</el-button>
     <p v-if="notice" role="status">{{ notice }}</p>
   </form>
   <el-alert v-if="error" :title="error" type="warning" :closable="false" />

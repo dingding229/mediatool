@@ -99,4 +99,8 @@ function selectTab(id: string) {
   background: var(--mt-color-primary);
   color: var(--el-color-white);
 }
+@media(max-width:680px){
+  .page-tabs{flex-wrap:nowrap;overflow-x:auto;max-width:100%;min-width:0;overscroll-behavior-x:contain;scrollbar-width:thin}
+  .tab-button{flex:none;white-space:nowrap}
+}
 </style>

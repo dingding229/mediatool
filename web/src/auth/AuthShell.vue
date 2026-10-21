@@ -19,13 +19,13 @@ defineProps<{
           到随时点开看。
         </h1>
         <p>
-          把搜索、收藏、入库和播放放在一处，
+          把搜索、订阅、入库和播放放在一处，
           <br>
           每一步都清楚，每一次都可追踪。
         </p>
         <ol class="auth-path" aria-label="媒体流程">
           <li>发现</li>
-          <li>收藏</li>
+          <li>订阅</li>
           <li>入库</li>
           <li>播放</li>
         </ol>

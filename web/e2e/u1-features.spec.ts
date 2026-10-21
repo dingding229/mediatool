@@ -16,14 +16,14 @@ async function ensureRegisteredAndLogin(page: import('@playwright/test').Page) {
     await page.getByLabel('密码', { exact: true }).fill(password)
     await page.getByLabel('确认密码', { exact: true }).fill(password)
     await page.getByRole('button', { name: '注册并进入工作台' }).click()
-    await expect(page.getByRole('heading', { name: '运行总览' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '首页' })).toBeVisible()
     return
   }
   await expect(page.getByRole('heading', { name: '进入管理工作台', exact: true })).toBeVisible()
   await page.getByLabel('管理员账号', { exact: true }).fill(username)
   await page.getByLabel('密码', { exact: true }).fill(password)
   await page.getByRole('button', { name: '进入工作台', exact: true }).click()
-  await expect(page.getByRole('heading', { name: '运行总览' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '首页' })).toBeVisible()
 }
 
 test('U1 navigation, theme toggle, and 13 primary routes', async ({ page }) => {
@@ -87,7 +87,7 @@ test('U1 each outer page tab writes its exact URL tab and quick jump opens opera
   await ensureRegisteredAndLogin(page)
   const expected: Record<string, string[]> = {
     search: ['query','history','discover'], downloads: ['tasks','uploads','manual'], organize: ['candidates','scans','assets','history','recovery'], files: ['browser','strm','tools'],
-    playback: ['settings','users','players','sessions','processing'], connections: ['overview','storage','emby','notifications','aux'],
+    playback: ['settings','users','players','sessions','processing'], connections: ['storage','emby','downloader','notifications','aux'],
     sites: ['accounts','templates'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['general','naming','automation','api','mobile','security'],
   }
   for (const [path, ids] of Object.entries(expected)) {

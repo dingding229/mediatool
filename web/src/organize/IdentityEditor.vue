@@ -333,7 +333,7 @@ defineExpose({ open });
     <template #footer>
       <el-button :disabled="saving" @click="visible=false">取消</el-button>
       <el-button v-if="asset" :disabled="saving" @click="reconcile">保留输入并核对版本</el-button>
-      <el-button type="primary" :disabled="!selected||recognizing||!!phase" :loading="saving" @click="prepare">{{ asset&&migrate?plan?'核对后确认迁移':'预览输出迁移':'确认入库或保存身份' }}</el-button>
+      <el-button type="primary" :disabled="!selected||recognizing||!!phase" :loading="saving" @click="prepare" class="mt-save-button">{{ asset&&migrate?plan?'核对后确认迁移':'预览输出迁移':'确认入库或保存身份' }}</el-button>
     </template>
   </el-dialog>
   <ConfirmAction v-model:visible="confirmOpen" :title="migrate?'确认输出迁移':asset?'确认修正身份':'确认入库'" :description="`将核对并保存「${selected?.title||'—'}」的媒体绑定。`" :impact-scope="migrate?'新输出就绪后归档旧托管输出；不移动云端源文件、不改变文件播放链接，不覆盖手工内容。':'确认后可能生成 STRM / NFO；保留媒体和做种源，播放仍需真实播放器验证。'" :confirm-text="migrate?'确认生成并归档':'确认生成'" cancel-text="返回检查" :loading="saving" class="media-dialog" @confirm="apply"/>

@@ -68,7 +68,7 @@ defineExpose({ load, open, save, form, data, latest, op });
     </div>
     <template #footer>
       <el-button :disabled="op.busy" @click="visible=false">取消</el-button>
-      <el-button :loading="op.busy" :disabled="!!latest||!!op.pending||!form.cron.trim()" @click="save">保存采集计划</el-button>
+      <el-button :loading="op.busy" :disabled="!!latest||!!op.pending||!form.cron.trim()" @click="save" type="primary" class="mt-save-button">保存采集计划</el-button>
     </template>
   </el-dialog>
 </template>

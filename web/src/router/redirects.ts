@@ -17,7 +17,7 @@ export const legacyDestinations: Record<string, { path: string; tab: string; que
   '/logs': { path: '/ops', tab: 'logs' },
   '/data': { path: '/ops', tab: 'data' },
   '/notifications': { path: '/connections', tab: 'notifications' },
-  '/integrations': { path: '/connections', tab: 'overview' },
+  '/integrations': { path: '/connections', tab: 'storage' },
   '/external-api': { path: '/settings', tab: 'api' },
   '/tmdb-cache': { path: '/ops', tab: 'cache' },
   '/search-cache': { path: '/search', tab: 'history' },

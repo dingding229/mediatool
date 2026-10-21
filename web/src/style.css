@@ -133,8 +133,8 @@ html.dark, html[data-theme="dark"] {
 }
 
 /* 深色模式下主按钮文字保持易读深色 */
-html.dark .el-button--primary:not(.is-plain):not(.is-text):not(.is-link) {
-  color: #0f1217;
+html.dark .el-button--primary:not(.is-plain):not(.is-text):not(.is-link):not(.is-disabled) {
+  color: var(--mt-bg-canvas);
   font-weight: 600;
 }
 

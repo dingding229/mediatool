@@ -78,8 +78,8 @@ defineExpose({ refresh: browser.refresh });
     <p v-if="browser.capability?.reason">{{ browser.capability.reason }}</p>
     <nav class="files-breadcrumbs" aria-label="文件路径">
       <button v-for="crumb in browser.crumbs" :key="crumb.path" :aria-current="browser.directory===crumb.path?'location':undefined" @click="browser.navigate(crumb.path)">{{ crumb.name }}</button>
-      <el-button v-if="browser.directory!=='.'" @click="browser.navigate(browser.directory.includes('/')?browser.directory.slice(0,browser.directory.lastIndexOf('/')):'.')">上级目录</el-button>
-      <el-button :disabled="!browser.root" @click="browser.navigate('.media-tool-trash')">查看回收目录</el-button>
+      <button type="button" v-if="browser.directory!=='.'" @click="browser.navigate(browser.directory.includes('/')?browser.directory.slice(0,browser.directory.lastIndexOf('/')):'.')">上级目录</button>
+      <button type="button" :disabled="!browser.root" @click="browser.navigate('.media-tool-trash')">查看回收目录</button>
     </nav>
     <div class="media-actions">
       <el-button :disabled="browser.loading||!browser.shown.length" @click="selectPage">选择本页可整理文件（最多20项）</el-button>

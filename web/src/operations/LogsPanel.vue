@@ -189,7 +189,7 @@ defineExpose({ load, refresh, filter, data, summary, from, to, clear, change, op
           <option v-for="v in ['debug','info','warn','error']" :key="v" :value="v">{{ v.toUpperCase() }}</option>
         </select>
       </label>
-      <el-button :disabled="!!op.pending||!!summary.error" @click="change">保存运行日志级别</el-button>
+      <el-button :disabled="!!op.pending||!!summary.error" @click="change" type="primary" class="mt-save-button">保存运行日志级别</el-button>
       <p>不回填过去日志；永久默认值在部署配置中设置。</p>
       <article v-for="file in summary.data?.files||[]" :key="file.name" class="organize-record">
         <h3>{{ file.name }}</h3>

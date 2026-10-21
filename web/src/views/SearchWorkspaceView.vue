@@ -45,12 +45,12 @@ onMounted(() => {
 usePageRefresh(load, 'query');
 </script>
 <template>
-  <div class="mt-segments acquire-workspace">
-    <PageHeader title="资源搜索" description="先确认作品，再选择站点；投递前核对身份与做种要求。"/>
+  <div class="acquire-workspace">
+    <PageHeader title="搜索" description="先确认作品，再选择站点；投递前核对身份与做种要求。"/>
     <PageTabs :tabs="tabs" default-tab="query"/>
     <template v-if="tab==='query'">
       <section class="acquire-surface">
-        <div class="acquire-mode" role="group" aria-label="搜索方式">
+        <div class="acquire-mode mt-segments" role="group" aria-label="搜索方式">
           <button type="button" :aria-pressed="mode==='media'" @click="mode='media'">TMDB 媒体搜索</button>
           <button type="button" :aria-pressed="mode==='site'" @click="mode='site'">站点直搜</button>
         </div>

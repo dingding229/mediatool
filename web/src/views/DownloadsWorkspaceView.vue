@@ -9,7 +9,6 @@ import StateView from '../ui/StateView.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-import ConnectionManager from '../connections/ConnectionManager.vue';
 import SourceRecoveryDialog from '../acquisition/SourceRecoveryDialog.vue';
 import ManualWorkspace from '../acquisition/ManualWorkspace.vue';
 import { useDownloads } from '../acquisition/useDownloads';
@@ -29,7 +28,7 @@ usePageRefresh(()=>refresh(),'uploads');
 </script>
 <template>
   <div class="acquire-workspace">
-    <PageHeader title="下载与入库" description="下载、做种、上传与入库分开跟进；100%传输不代表文件校验或播放完成。">
+    <PageHeader title="下载" description="下载、做种、上传与入库分开跟进；100%传输不代表文件校验或播放完成。">
       <template #actions>
         <el-button v-if="tab==='tasks'" type="primary" :loading="loading.tasks||loading.transfers" @click="refresh(true)">同步下载任务</el-button>
       </template>
@@ -42,7 +41,7 @@ usePageRefresh(()=>refresh(),'uploads');
         <header class="acquire-section-heading">
           <div>
             <h2>下载任务</h2>
-            <p>当前读取 {{ loading.tasks||errors.tasks?'—':tasks.length }} 项 · 流水线中 {{ loading.tasks||errors.tasks?'—':tasks.filter(t=>!['imported','failed','cancelled'].includes(t.state)).length }} 项</p>
+            <p>共 {{ loading.tasks||errors.tasks?'—':tasks.length }} 项 · 处理中 {{ loading.tasks||errors.tasks?'—':tasks.filter(t=>!['imported','failed','cancelled'].includes(t.state)).length }} 项</p>
             <p>下载进度与做种状态独立，原文件保留在下载器中。</p>
           </div>
           <RouterLink to="/search?tab=query">搜索并创建下载</RouterLink>
@@ -80,19 +79,16 @@ usePageRefresh(()=>refresh(),'uploads');
             </el-dropdown>
           </div>
         </article>
-        <p>当前管理入口不支持暂停/恢复或仅移除下载器任务，请在下载器中操作；这里的清理会同时删除本地文件。</p>
+        <p>暂停、恢复或只移除任务，请在下载器里操作。这里的“清理”会同时删除本地文件。</p>
       </section>
-      <details class="acquire-surface">
-        <summary>下载器配置</summary>
-        <ConnectionManager :allowed-kinds="['qbittorrent']" title="下载器配置"/>
-      </details>
+      <RouterLink to="/connections?tab=downloader">管理下载器</RouterLink>
     </template>
     <template v-else-if="tab==='uploads'">
       <section class="acquire-surface">
         <header class="acquire-section-heading">
           <div>
             <h2>115上传与入库</h2>
-            <p>当前读取 {{ loading.transfers||errors.transfers?'—':transfers.length }} 项 · 待跟进 {{ loading.transfers||errors.transfers?'—':transfers.filter(t=>!['imported','cancelled'].includes(t.state)).length }} 项</p>
+            <p>共 {{ loading.transfers||errors.transfers?'—':transfers.length }} 项 · 待跟进 {{ loading.transfers||errors.transfers?'—':transfers.filter(t=>!['imported','cancelled'].includes(t.state)).length }} 项</p>
             <p>先核对远端会话、文件和哈希，再确认输出与入库；保留本地做种源。</p>
           </div>
           <RouterLink to="/organize?tab=history&amp;kind=transfer">查看上传与入库记录</RouterLink>

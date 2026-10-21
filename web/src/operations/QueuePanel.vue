@@ -115,17 +115,17 @@ defineExpose({ load, create, filter, jobs, health, op });
       </div>
       <div class="u6-card-grid">
         <article v-for="w in health.error?[]:health.data?.workers||[]" :key="w.owner+':'+w.queue" class="u6-card">
-          <h3>{{ queueLabel(w.queue) }}执行器</h3>
+          <h3>{{ w.queue==='default'?'后台任务服务':queueLabel(w.queue)+'服务' }}</h3>
           <p>{{ w.online?'在线':'离线' }} · {{ date(w.lastSeenAt) }}</p>
           <el-button @click="detail=w;open=true">执行器详情</el-button>
         </article>
       </div>
-      <p v-if="!health.loading&&!health.error&&health.data&&!health.data.workers?.length">尚无执行器心跳。</p>
+      <p v-if="!health.loading&&!health.error&&health.data&&!health.data.workers?.length">尚未收到后台任务服务的状态。</p>
       <article v-for="q in health.error?[]:health.data?.queues||[]" :key="q.name+q.state" class="organize-record">
-        <p>{{ queueLabel(q.name) }} · {{ stateLabel(q.state) }} · {{ q.count??'—' }} 项 · 过期租约 {{ q.expiredLeases??'—' }}</p>
+        <p>{{ queueLabel(q.name) }} · {{ stateLabel(q.state) }} · {{ q.count??'—' }} 项 · 等待重新分配 {{ q.expiredLeases??'—' }}</p>
       </article>
       <details>
-        <summary>查看调度与依赖详情</summary>
+        <summary>查看运行计划与连接状态</summary>
         <article v-for="s in health.error?[]:health.data?.schedules||[]" :key="s.id" class="organize-record">
           <h3>{{ s.name }}</h3>
           <p>{{ s.enabled?'已启用':'已停用' }} · {{ scheduleLabel(s.cron) }} · 下次 {{ date(s.nextRunAt) }} · 上次 {{ date(s.lastRunAt) }}</p>
@@ -140,17 +140,17 @@ defineExpose({ load, create, filter, jobs, health, op });
       <form class="u5-filters" @submit.prevent="search">
         <label>
           任务状态
-          <select v-model="filter.state" aria-label="任务状态">
-            <option value="">全部状态</option>
-            <option v-for="v in ['pending','running','retry','succeeded','failed','paused','cancelled']" :key="v" :value="v">{{ stateLabel(v) }}</option>
-          </select>
+          <el-select v-model="filter.state" aria-label="任务状态">
+            <el-option value="" label="全部状态"/>
+            <el-option v-for="v in ['pending','running','retry','succeeded','failed','paused','cancelled']" :key="v" :value="v" :label="stateLabel(v)"/>
+          </el-select>
         </label>
         <label>
           队列
-          <select v-model="filter.queue" aria-label="任务队列">
-            <option value="">全部队列</option>
-            <option v-for="v in ['default','library','transfer','maintenance']" :key="v" :value="v">{{ queueLabel(v) }}</option>
-          </select>
+          <el-select v-model="filter.queue" aria-label="任务队列">
+            <el-option value="" label="全部队列"/>
+            <el-option v-for="v in ['default','library','transfer','maintenance']" :key="v" :value="v" :label="queueLabel(v)"/>
+          </el-select>
         </label>
         <label>
           任务类别

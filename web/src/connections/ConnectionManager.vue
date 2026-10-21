@@ -2,7 +2,7 @@
 import {usePageRefresh} from '../ui/page-refresh';
 import './connections.css';
 import { computed, ref, watch } from 'vue';
-import { ElMessageBox } from 'element-plus';
+import { ElMessageBox,ElDropdown,ElDropdownMenu,ElDropdownItem } from 'element-plus';
 import StateView from '../ui/StateView.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
@@ -91,9 +91,9 @@ usePageRefresh(load);
         <small v-if="field.hint">{{ field.hint }}</small>
       </div>
       <div v-if="form.kind==='emby'">
-        <el-checkbox v-model="form.settings.gatewayEnabled">启用静态流302拦截</el-checkbox>
-        <el-checkbox :model-value="true" disabled>仅直链播放：禁止转码和媒体中转</el-checkbox>
-        <p>不支持原始TS/MKV或音频格式的播放器需要更换为支持原格式的客户端；不会回退中转。</p>
+        <el-checkbox v-model="form.settings.gatewayEnabled">通过网关直接播放</el-checkbox>
+        <el-checkbox :model-value="true" disabled>只使用影片原格式，不中转或转码</el-checkbox>
+        <p>播放器需要支持文件的原始格式；服务器不会转换视频或音频格式。</p>
       </div>
       <el-checkbox v-model="form.enabled">启用连接</el-checkbox>
       <p v-if="form.kind==='open115'">扫码授权不会自动启用；授权后可回到编辑窗口明确启用。</p>
@@ -112,8 +112,11 @@ usePageRefresh(load);
         <el-button @click="approveRevision">保留输入并采用最新修订</el-button>
       </section>
       <div class="connection-buttons">
-        <el-button :disabled="saving||blocked||!!conflict" :loading="saving" native-type="submit" type="primary">{{ form.kind==='tmdb'?'保存TMDB Token':'加密保存' }}</el-button>
-        <el-button v-if="form.kind==='open115'" :disabled="saving||blocked||!!conflict" @click="save(true)">保存并115扫码授权</el-button>
+        <el-button :disabled="saving||blocked||!!conflict" :loading="saving" native-type="submit" type="primary" class="mt-save-button">{{ form.kind==='tmdb'?'保存TMDB Token':'加密保存' }}</el-button>
+        <ElDropdown v-if="form.kind==='open115'" trigger="click">
+          <el-button :disabled="saving||blocked||!!conflict">更多保存方式</el-button>
+          <template #dropdown><ElDropdownMenu><ElDropdownItem :disabled="saving||blocked||!!conflict" @click="save(true)">保存并115扫码授权</ElDropdownItem></ElDropdownMenu></template>
+        </ElDropdown>
         <el-button v-if="blocked" @click="load">核对结果</el-button>
       </div>
     </form>

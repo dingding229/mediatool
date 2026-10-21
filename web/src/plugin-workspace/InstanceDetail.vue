@@ -128,7 +128,7 @@ function dataPage(n:number){if(n>cursorIndex.value){if(!data.data?.next)return;c
           <pre class="u6-raw">{{ JSON.stringify(data.data?.config.value,null,2) }}</pre>
         </details>
         <el-button v-if="latest" @click="draftRevision=data.data!.instance.revision;latest=false">保留输入并采用最新修订</el-button>
-        <el-button :disabled="!!op.pending||latest||!!data.error" @click="ask('configure')">保存插件配置</el-button>
+        <el-button :disabled="!!op.pending||latest||!!data.error" @click="ask('configure')" type="primary" class="mt-save-button">保存插件配置</el-button>
       </template>
       <template v-else-if="panel==='data'">
         <h2>实例数据</h2>

@@ -184,7 +184,7 @@ defineExpose({ open, load, save, form, current, latest, op, reveal });
     </form>
     <template #footer>
       <el-button :disabled="op.busy" @click="visible=false">取消</el-button>
-      <el-button :loading="op.busy" :disabled="!!op.pending||!!loadError||!!latest||loading||missingTemplate" @click="save">验证并保存</el-button>
+      <el-button :loading="op.busy" :disabled="!!op.pending||!!loadError||!!latest||loading||missingTemplate" @click="save" type="primary" class="mt-save-button">验证并保存</el-button>
     </template>
   </el-dialog>
 </template>

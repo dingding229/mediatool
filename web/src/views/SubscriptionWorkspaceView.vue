@@ -2,7 +2,7 @@
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed } from 'vue'
 import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElIcon } from 'element-plus'
-import { Plus, Refresh, Search, VideoPlay, ArrowRight } from '@element-plus/icons-vue'
+import { Plus, Search, VideoPlay, ArrowRight } from '@element-plus/icons-vue'
 import PageHeader from '../ui/PageHeader.vue'
 import PageTabs from '../ui/PageTabs.vue'
 import StateView from '../ui/StateView.vue'
@@ -35,7 +35,7 @@ usePageRefresh(refresh,'*');
 </script>
 <template>
   <div class="mt-subscriptions">
-    <PageHeader title="资源订阅" description="选影视、设筛选，预演核对后再启用；每次运行都可追溯。">
+    <PageHeader title="订阅" description="选择想看的影视，设置筛选条件，自动跟进新资源。">
       <template #actions><el-button type="primary" :icon="Plus" @click="compose()">新建订阅</el-button></template>
     </PageHeader>
     <PageTabs :tabs="tabs" default-tab="list" />
@@ -44,7 +44,7 @@ usePageRefresh(refresh,'*');
     <section class="subscription-workbench" aria-label="订阅工作区">
       <header class="subscription-commandbar">
         <div><h2>{{ tab === 'list' ? '我的跟进清单' : '跟进记录' }}</h2><p v-if="tab === 'history'">记录不会因订阅归档而丢失。选择一次运行，逐条核对决策。</p></div>
-        <el-select :model-value="scope" aria-label="订阅范围" @change="changeScope"><el-option label="当前订阅" value="current" /><el-option label="已归档订阅" value="history" /></el-select>
+        <label class="subscription-scope">查看范围<el-select :model-value="scope" aria-label="订阅范围" @change="changeScope"><el-option label="当前" value="current" /><el-option label="已归档" value="history" /></el-select></label>
       </header>
       <StateView v-if="loading" state="loading" title="正在读取订阅…" />
       <StateView v-else-if="listError" :state="stateFor(listError)" :title="stateTitle(listError, '订阅列表')" :description="listError.message" @retry="refresh" />

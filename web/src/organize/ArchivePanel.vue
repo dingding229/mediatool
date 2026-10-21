@@ -209,9 +209,10 @@ usePageRefresh(load, 'recovery');
         归档保留天数
         <el-input-number v-model="days" aria-label="归档保留天数" :min="1" :max="3650" :disabled="!!phase"/>
       </label>
-      <el-button :disabled="!policy||busy||!!phase||!!conflict" @click="savePolicy">保存保留期</el-button>
+
       <el-button :disabled="!selected.length||busy||!!phase" @click="preview">预览清理所选 {{ selected.length }}</el-button>
     </div>
+    <div class="mt-save-actions"><el-button :disabled="!policy||busy||!!phase||!!conflict" @click="savePolicy" type="primary" class="mt-save-button">保存保留期</el-button></div>
     <p v-if="retryPending" role="status">上次继续清理的结果未知，请先刷新归档核对状态。</p>
     <section v-if="conflict">
       <p>服务端当前保留期 {{ conflict.retentionDays }} 天。你的输入 {{ days }} 天。</p>

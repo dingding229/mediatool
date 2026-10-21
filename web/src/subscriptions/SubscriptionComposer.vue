@@ -110,7 +110,7 @@ onUnmounted(() => { disposed = true; ++sequence })
         </template>
         <template v-else-if="step === 2">
           <el-alert title="此操作会保存停用草稿；编辑已启用订阅时也会先停用。已有下载和文件不受影响，退出向导后草稿仍保留。" type="info" :closable="false" />
-          <el-button :disabled="!!pending || !!accountError || error.includes('刷新列表')" :loading="saving" @click="emit('preview', draft)">{{ previewRun ? '重新保存停用草稿并预演' : '保存停用草稿并预演' }}</el-button>
+          <el-button :disabled="!!pending || !!accountError || error.includes('刷新列表')" :loading="saving" @click="emit('preview', draft)" type="primary" class="mt-save-button">{{ previewRun ? '重新保存停用草稿并预演' : '保存停用草稿并预演' }}</el-button>
           <p v-if="pending" role="status">{{ pending.status === 'locked' ? '正在提交，尚未确认排队。' : pending.status === 'queued' ? '预演已排队，尚未完成。' : '预演回执未知，请核对后再继续，不会重复提交。' }}</p>
           <RunReview v-if="previewRun || previewError" compact :run="previewRun || null" :loading="false" :error="previewError || null" @refresh="emit('reconcile')" />
           <el-button v-if="pending?.status === 'reconciling'" @click="emit('reconcile')">核对预演状态</el-button>
@@ -133,7 +133,7 @@ onUnmounted(() => { disposed = true; ++sequence })
           <el-button v-if="step > (draft.id ? 1 : 0)" :icon="ArrowLeft" :disabled="saving || !!pending" @click="step--">上一步</el-button>
           <span v-else />
           <el-button v-if="step < 3" type="primary" :disabled="finding || (step === 0 ? !draft.media : step === 1 ? !draft.accountIds.length || !!accountError : !previewReady)" @click="advance">{{ step === 0 ? '选择站点与规则' : step === 1 ? '进入预演' : '确认并继续' }}<el-icon><ArrowRight /></el-icon></el-button>
-          <el-button v-else type="primary" native-type="submit" :loading="saving" :disabled="!previewReady || !!pending || !!accountError || error.includes('刷新列表')">保存订阅</el-button>
+          <el-button v-else type="primary" native-type="submit" :loading="saving" :disabled="!previewReady || !!pending || !!accountError || error.includes('刷新列表')" class="mt-save-button">保存订阅</el-button>
         </div>
       </form>
     </div>

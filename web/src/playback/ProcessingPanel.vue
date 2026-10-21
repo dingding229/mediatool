@@ -123,10 +123,7 @@ defineExpose({ load, save, ask, apply, form, filter, summary, tasks, op, action,
       <ResourceState :loading="summary.loading" :error="summary.error" @reload="load"/>
       <p>总开关与服务设置同步；关闭后，该服务的播放、探测和截图都会暂停。</p>
       <div class="u5-form">
-        <label class="u5-check">
-          <input v-model="form.enabled" type="checkbox" :disabled="op.busy" aria-label="启用播放服务与预处理"/>
-          启用预处理
-        </label>
+        <p>播放服务：{{form.enabled?'已启用':'已停用'}} · <RouterLink to="/playback?tab=settings">管理播放服务开关</RouterLink></p>
         <label class="u5-check">
           <input v-model="form.probeEnabled" type="checkbox" :disabled="op.busy" aria-label="允许媒体探测"/>
           允许媒体探测
@@ -135,12 +132,13 @@ defineExpose({ load, save, ask, apply, form, filter, summary, tasks, op, action,
           <input v-model="form.stillsEnabled" type="checkbox" :disabled="op.busy" aria-label="允许单集截图"/>
           允许单集截图
         </label>
-        <el-button :disabled="!summary.data||!!summary.error||!!op.pending||!!latest" :loading="op.busy" @click="save">保存预处理设置</el-button>
+
         <section v-if="latest">
           <p>当前设置已重新读取，输入保留供对照。</p>
           <el-button @click="form.revision=latest.revision;latest=null">保留输入并采用最新修订</el-button>
         </section>
       </div>
+      <div class="mt-save-actions"><el-button :disabled="!summary.data||!!summary.error||!!op.pending||!!latest" :loading="op.busy" @click="save" type="primary" class="mt-save-button">保存预处理设置</el-button></div>
       <p>已用 {{ bytes(summary.data?.capacity?.usedBytes) }} · 预留 {{ bytes(summary.data?.capacity?.reservedBytes) }} · 上限 {{ bytes(summary.data?.capacity?.limitBytes) }} · 大小待核对 {{ summary.data?.capacity?.unknownSizes??'—' }} 项</p>
       <el-progress v-if="summary.data?.capacity?.limitBytes" :percentage="capacityPercent"/>
       <el-button :disabled="!!op.pending||op.busy||!!summary.error" @click="ask(null,true)">清理截图缓存</el-button>

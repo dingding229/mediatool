@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed } from 'vue';
-import { Refresh } from '@element-plus/icons-vue';
 import PageHeader from '../ui/PageHeader.vue';
 import StateView from '../ui/StateView.vue';
 import PluginDashboards from '../plugins/PluginDashboards.vue';
@@ -10,33 +9,31 @@ import { bytes, date, errorText, stateFor } from '../workflows/readiness';
 import { list } from '../dashboard/model';
 import { useDashboard } from '../dashboard/useDashboard';
 const { slots, groups, steps, complete, guideVisible, refresh, load, hideGuide } = useDashboard();
+const inboxLoading=computed(()=>['jobs','candidates','transfers','manual','batches','alerts','plugins'].some(k=>slots[k]?.loading));
+const visibleGroups=computed(()=>groups.value.filter(g=>g.items.length||g.errors.length));
 const busy = computed(() => Object.values(slots).some(s => s.loading)), runtime = computed(() => slots.runtime?.data);
-const counters = [{ key: 'sites', label: '站点', path: '/sites?tab=accounts' }, { key: 'subscriptions', label: '订阅', path: '/subscriptions' }, { key: 'downloads', label: '下载', path: '/downloads' }, { key: 'media', label: '媒体资产', path: '/library' }, { key: 'todaySearches', label: '今日搜索', path: '/search' }];
+const counters = [{ key: 'sites', label: '站点', path: '/sites?tab=accounts' }, { key: 'subscriptions', label: '订阅', path: '/subscriptions' }, { key: 'downloads', label: '下载', path: '/downloads' }, { key: 'media', label: '媒体文件', path: '/library' }, { key: 'todaySearches', label: '今日搜索', path: '/search' }];
 const recent = computed(() => list(slots.recent?.data).slice(0, 5));
 usePageRefresh(refresh,'*');
 </script>
 <template>
   <div class="dashboard-workspace">
-    <PageHeader title="运行总览" description="先看服务是否可用，再处理需要介入的任务。">
+    <PageHeader title="首页" description="先看服务是否可用，再处理需要介入的任务。">
       <template #actions>
 
       </template>
     </PageHeader>
     <ServiceReadiness :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" @retry="load('readiness')" />
     <section class="dashboard-inbox u2-surface" aria-label="待处理收件箱">
-      <header>
-        <h2>待处理</h2>
-        <span>每组最多展示当前读取到的近期事项</span>
-      </header>
-      <div class="inbox-grid">
-        <article v-for="group in groups" :key="group.id" :aria-label="group.title">
+      <header v-if="visibleGroups.length"><h2>待处理</h2></header>
+      <StateView v-if="!visibleGroups.length&&inboxLoading" state="loading" title="正在读取待处理事项…"/>
+      <p v-else-if="!visibleGroups.length" class="dashboard-empty">暂无待处理事项</p>
+      <div v-if="visibleGroups.length" class="inbox-grid">
+        <article v-for="group in visibleGroups" :key="group.id" :aria-label="group.title">
           <h3>{{ group.title }}</h3>
           <p v-if="(group.id === 'uploads' ? ['transfers','manual'] : [group.id]).some(k=>slots[k]?.loading)" role="status">正在读取…</p>
           <template v-else>
-            <div v-for="source in group.errors" :key="source" class="inbox-source-error" role="alert">
-              <span>这一组部分数据暂不可用，数量未知。</span>
-
-            </div>
+            <StateView v-for="source in group.errors" :key="source" :state="stateFor(slots[source]?.error)" title="这一组部分数据暂不可用，数量未知。" :description="errorText(slots[source]?.error)" @retry="load(source)"/>
             <div v-for="item in group.items.slice(0,5)" :key="item.id" class="inbox-item">
               <RouterLink :to="{path:item.path,query:item.query}">
                 {{ item.title }}
@@ -44,7 +41,7 @@ usePageRefresh(refresh,'*');
               </RouterLink>
               <small v-if="item.alert">请在运维页确认；确认告警不等于问题已解决。</small>
             </div>
-            <p v-if="!group.items.length&&!group.errors.length" class="dashboard-empty">暂无待处理事项</p>
+
           </template>
         </article>
       </div>
@@ -53,7 +50,7 @@ usePageRefresh(refresh,'*');
       <header>
         <div>
           <h2>完成配置，开始自动跟进</h2>
-          <p>{{ steps.filter(s=>s.done).length }} / 4 项已完成；状态由服务检测和已保存配置推导。</p>
+          <p>{{ steps.filter(s=>s.done).length }} / 4 项已完成。</p>
         </div>
         <el-button v-if="complete" @click="hideGuide">收起引导</el-button>
       </header>

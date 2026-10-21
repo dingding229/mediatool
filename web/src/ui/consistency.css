@@ -1,5 +1,13 @@
 .mt-segments.mt-segments{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:4px;border:1px solid var(--mt-border-color);border-radius:10px;background:var(--mt-bg-canvas);width:fit-content;max-width:100%;margin-block:12px}
 .mt-segments.mt-segments button{min-height:44px;padding:10px 14px;margin:0;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--mt-text-muted);font:inherit;font-size:13px;cursor:pointer;height:auto;white-space:normal}
 .mt-segments.mt-segments button[aria-pressed=true]{background:var(--mt-bg-surface);border-color:var(--mt-border-color);color:var(--mt-color-primary);font-weight:600}
-.mt-segments.mt-segments button:hover:not(:disabled){color:var(--mt-color-primary)}.mt-segments.mt-segments button:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:-2px}.mt-segments.mt-segments button:disabled{opacity:.55;cursor:not-allowed}
+.mt-segments.mt-segments button:hover:not(:disabled){color:var(--mt-color-primary)}.mt-segments.mt-segments button:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:-2px}.mt-segments.mt-segments button:disabled{opacity:1;cursor:not-allowed}
 .mt-link-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;border:1px solid var(--mt-border-color);border-radius:8px;color:var(--mt-text-primary);background:var(--mt-bg-surface);font-size:14px;text-decoration:none}.mt-link-button:hover{color:var(--mt-color-primary);border-color:var(--mt-color-primary)}
+
+/* Save actions have the same weight and placement in cards and edit dialogs. */
+.el-button.mt-save-button{width:auto;justify-self:start;align-self:start;flex:0 0 auto;max-width:100%;min-height:44px}
+.u5-dialog .el-dialog__footer,.settings-dialog .el-dialog__footer,.u2-connection-dialog .el-dialog__footer{display:flex;justify-content:flex-start;gap:8px;flex-wrap:wrap}
+.mt-save-actions{display:flex;justify-content:flex-start;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+/* Disabled does not mean invisible; retain readable text in both themes. */
+:root .el-button.is-disabled,:root .el-button.is-disabled:hover,:root .el-button.is-disabled:focus{color:var(--mt-text-muted);background:var(--mt-bg-canvas);border-color:var(--mt-border-bold);opacity:1;cursor:not-allowed;--el-button-disabled-text-color:var(--mt-text-muted);--el-button-disabled-bg-color:var(--mt-bg-canvas);--el-button-disabled-border-color:var(--mt-border-bold)}
+@media(max-width:680px){.mt-segments.mt-segments{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}.mt-segments.mt-segments button{flex:none;white-space:nowrap}}

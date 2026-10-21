@@ -161,7 +161,7 @@ usePageRefresh(settings.load, 'naming');
     </div>
     <footer>
       <p>仅影响新确认的入库，不移动或删除已有媒体。</p>
-      <el-button type="primary" :loading="settings.busy.value" :disabled="settings.conflict.value||!settings.changed.value" @click="settings.save(['groups'])">保存目录分类</el-button>
+      <el-button type="primary" :loading="settings.busy.value" :disabled="settings.conflict.value||!settings.changed.value" @click="settings.save(['groups'])" class="mt-save-button">保存目录分类</el-button>
     </footer>
     <el-dialog class="settings-dialog" v-model="dialog" destroy-on-close :title="groupMode?'编辑媒体分组':'编辑分流规则'" width="min(700px,94vw)">
       <form class="settings-stack" @submit.prevent="apply">
@@ -191,7 +191,7 @@ usePageRefresh(settings.load, 'naming');
         </template>
         <div class="settings-actions">
           <el-button @click="dialog=false">取消</el-button>
-          <el-button type="primary" native-type="submit">应用到草稿</el-button>
+          <el-button type="primary" native-type="submit" class="mt-save-button">应用到草稿</el-button>
         </div>
       </form>
     </el-dialog>

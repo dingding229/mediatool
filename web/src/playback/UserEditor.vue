@@ -191,7 +191,7 @@ defineExpose({ open, save, reread, form, op, latest });
     </form>
     <template #footer>
       <el-button :disabled="op.busy||!!op.pending" @click="visible=false">取消</el-button>
-      <el-button :loading="op.busy" :disabled="!!op.pending||!!latest" @click="save">{{ resetMode?'重置密码':'保存媒体用户' }}</el-button>
+      <el-button :loading="op.busy" :disabled="!!op.pending||!!latest" @click="save" type="primary" class="mt-save-button">{{ resetMode?'重置密码':'保存媒体用户' }}</el-button>
     </template>
   </el-dialog>
 </template>

@@ -129,14 +129,14 @@ usePageRefresh(state.refresh,'*');
           <p>可同时核对多个文件；已有入库记录的文件，请先查看处理结果。</p>
         </div>
         <el-select v-model="state.filter" aria-label="候选状态" @change="state.page.candidates=1;pageChange('candidates')">
-          <el-option value="needs_confirmation" label="待确认（含需核对输出）"/>
+          <el-option value="needs_confirmation" label="需要确认或继续处理"/>
           <el-option value="" label="全部状态"/>
           <el-option value="confirmed" label="已确认"/>
           <el-option value="artifacts_pending" label="输出待恢复"/>
         </el-select>
       </header>
       <div class="media-actions">
-        <el-button :disabled="!state.selected.candidates.length||state.selected.candidates.length>20" @click="edit(state.selected.candidates)">批量核对身份 · {{ state.selected.candidates.length }}</el-button>
+        <el-button :disabled="!state.selected.candidates.length||state.selected.candidates.length>20" @click="edit(state.selected.candidates)">批量确认作品 · {{ state.selected.candidates.length }}</el-button>
         <RouterLink v-if="state.selected.candidates.length>0&&state.selected.candidates.length<=20" :to="{path:'/files',query:{tab:'browser',selectionKind:'candidates',selection:state.selected.candidates.map((x:any)=>x.id)}}">在文件页批量整理 · {{state.selected.candidates.length}}</RouterLink>
       </div>
       <StateView v-if="state.loading.candidates&&!state.data.candidates.length" state="loading" title="正在读取候选文件…"/>
@@ -150,7 +150,7 @@ usePageRefresh(state.refresh,'*');
         <p>{{ candidate.path }}</p>
         <p>{{ label(candidate.state) }} · 云端：{{ label(candidate.cloudState) }} · {{ size(candidate.size) }}</p>
         <p v-if="selectable(candidate)">尚未绑定准确作品，先核对识别候选，再确认入库。</p>
-        <el-button :disabled="!selectable(candidate)" @click="edit([candidate])">核对身份</el-button>
+        <el-button :disabled="!selectable(candidate)" @click="edit([candidate])">确认作品</el-button>
         <RouterLink v-if="candidate.assetId" :to="{path:'/organize',query:{tab:'assets',assetId:candidate.assetId}}">查看已有资产与输出</RouterLink>
       </article>
       <PagePagination v-if="state.total.candidates>50" v-model:current-page="state.page.candidates" :page-size="50" :total="state.total.candidates" layout="prev,pager,next,total" @current-change="pageChange('candidates')"/>

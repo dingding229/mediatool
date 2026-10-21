@@ -313,7 +313,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     </div>
     <template #footer>
       <el-button @click="scheduleOpen=false">取消</el-button>
-      <el-button type="primary" :loading="scheduleBusy" :disabled="!!conflict" @click="saveSchedule">保存定时扫描</el-button>
+      <el-button type="primary" :loading="scheduleBusy" :disabled="!!conflict" @click="saveSchedule" class="mt-save-button">保存定时扫描</el-button>
     </template>
   </el-dialog>
 </template>

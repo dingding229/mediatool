@@ -1,0 +1,16 @@
+import {it,expect} from 'vitest';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {parse} from '@vue/compiler-sfc';
+import {primaryPages} from '../navigation/pages';
+import {stateFor} from '../workflows/readiness';
+import {APIError} from '../api/client';
+const read=(p:string)=>readFileSync(resolve(__dirname,'..',p),'utf8');
+const views=['Dashboard','Search','Subscription','Downloads','Media','Organize','Files','Playback','Connections','Sites','Plugins','Ops','Settings'];
+it.each(primaryPages.map((p,i)=>[p.id,p.name,views[i]]))('%s heading matches navigation name %s',(_id,name,view)=>{expect(read(`views/${view}WorkspaceView.vue`)).toContain(`PageHeader title="${name}"`)});
+it('search segments wrap search modes only, never the workspace shell',()=>{const template=parse(read('views/SearchWorkspaceView.vue')).descriptor.template!.content;expect(template.trim()).toMatch(/^<div class="acquire-workspace">/);expect(template).toContain('class="acquire-mode mt-segments"');expect(template.indexOf('<PageHeader')).toBeLessThan(template.indexOf('<PageTabs'))});
+it('connection configuration has one owner and no duplicate overview',()=>{const page=read('views/ConnectionsWorkspaceView.vue'),downloads=read('views/DownloadsWorkspaceView.vue');expect(primaryPages.find(p=>p.id==='connections')!.tabs.map(t=>t.id)).toEqual(['storage','emby','downloader','notifications','aux']);expect(page).toContain(":allowed-kinds=\"['qbittorrent']\"");expect(downloads).not.toContain('ConnectionManager');expect(downloads).toContain('管理下载器');expect(page).not.toContain('<ServiceReadiness')});
+it('processing links to the service switch instead of duplicating it',()=>{const template=parse(read('playback/ProcessingPanel.vue')).descriptor.template!.content;expect(template).not.toContain('v-model="form.enabled"');expect(template).toContain('管理播放服务开关');expect(read('playback/ServicePanel.vue')).toContain('v-model="form.enabled"')});
+it('save actions have a primary style without changing the plugin runtime script',()=>{for(const path of ['playback/ServicePanel.vue','playback/UserEditor.vue','playback/ProcessingPanel.vue','operations/PolicyPanel.vue','sites/AccountEditor.vue','settings/ConfigPanel.vue']){const template=parse(read(path)).descriptor.template!.content;expect(template).toContain('mt-save-button');const tag=template.match(/<el-button[^>]*class="[^"]*mt-save-button[^>]*>/)![0];expect(tag,path).toContain('type="primary"')}});
+it.each([[401,'unauthorized'],[403,'unauthorized'],[501,'unsupported'],[503,'error']] as const)('service failures keep a distinct state for %s',(status,kind)=>{expect(stateFor(new APIError(status,'unavailable','读取失败'))).toBe(kind)});
+it('small-screen tabs and disabled buttons retain readable explicit states',()=>{expect(read('ui/PageTabs.vue')).toContain('flex-wrap:nowrap');expect(read('ui/PageTabs.vue')).toContain('overflow-x:auto');expect(read('ui/consistency.css')).toContain('--el-button-disabled-text-color:var(--mt-text-muted)');expect(read('ui/consistency.css')).toContain('opacity:1')});

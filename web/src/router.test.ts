@@ -9,7 +9,7 @@ const legacy = [
   ['/media-users','/playback','users'], ['/player-access','/playback','players'], ['/cloudStorage','/organize','assets'],
   ['/organize-history','/organize','history'], ['/classification','/settings','naming'], ['/cloud-connections','/connections','storage'],
   ['/strm','/files','strm'], ['/strm-tools','/files','tools'], ['/maintenance','/ops','maintenance'], ['/jobs','/ops','jobs'],
-  ['/logs','/ops','logs'], ['/data','/ops','data'], ['/notifications','/connections','notifications'], ['/integrations','/connections','overview'],
+  ['/logs','/ops','logs'], ['/data','/ops','data'], ['/notifications','/connections','notifications'], ['/integrations','/connections','storage'],
   ['/external-api','/settings','api'], ['/tmdb-cache','/ops','cache'], ['/search-cache','/search','history'], ['/site-templates','/sites','templates'],
 ] as const
 describe('canonical workflow routing', () => {
@@ -24,7 +24,7 @@ describe('canonical workflow routing', () => {
   it('moves the obsolete cache settings to operations',async()=>{const r=getRouter();await r.push('/settings?tab=cache&keep=yes');expect(r.currentRoute.value.path).toBe('/ops');expect(r.currentRoute.value.query).toEqual({tab:'cache',keep:'yes'})})
   it.each([
     ['emby','/connections','emby'], ['ptsite','/sites','accounts'], ['open115','/connections','storage'], ['clouddrive2','/connections','storage'],
-    ['qbittorrent','/downloads','tasks'], ['tmdb','/connections','aux'], ['telegram','/connections','notifications'], ['local','/files','browser'], ['unknown','/connections','overview'],
+    ['qbittorrent','/connections','downloader'], ['tmdb','/connections','aux'], ['telegram','/connections','notifications'], ['local','/files','browser'], ['unknown','/connections','storage'],
   ])('keeps integrations/%s in its existing configuration owner', async (kind, path, tab) => { const r = getRouter(); await r.push(`/integrations/${kind}?keep=value`); expect(r.currentRoute.value.path).toBe(path); expect(r.currentRoute.value.query).toMatchObject({ tab, keep: 'value', connectionKind: kind }); if (kind === 'tmdb') expect(r.currentRoute.value.query.tab).toBe('aux') })
   it('does not rewrite standalone result and plugin detail URLs', async () => { const r = getRouter(); for (const path of ['/search/results/owned','/plugins/owned/pages/page']) { await r.push(path+'?keep=yes'); expect(r.currentRoute.value.path).toBe(path); expect(r.currentRoute.value.query).toEqual({ keep: 'yes' }) } })
 })
@@ -35,3 +35,5 @@ it.each(['/cloudStorage','/organize?tab=library','/organize'])('organize legacy 
 
 it.each([['access','general'],['library','naming'],['automation','automation'],['account','security'],['mobile','mobile']])('migrates section-only settings %s',async(section,tab)=>{const r=getRouter();await r.push(`/settings?section=${section}&keep=yes`);expect(r.currentRoute.value.query).toEqual({tab,keep:'yes'})})
 it('moves the former library plugin source into discovery without dropping other filters or hash',async()=>{const r=getRouter();await r.push('/library?source=plugins&keep=yes#owned');expect(r.currentRoute.value.path).toBe('/search');expect(r.currentRoute.value.query).toMatchObject({tab:'discover',kind:'discover.source',keep:'yes'});expect(r.currentRoute.value.query.source).toBeUndefined();expect(r.currentRoute.value.hash).toBe('#owned')});
+
+it('redirects the removed overview to storage without dropping other query or hash',async()=>{const r=getRouter();await r.push('/connections?tab=overview&keep=yes#form');expect(r.currentRoute.value.path).toBe('/connections');expect(r.currentRoute.value.query).toEqual({tab:'storage',keep:'yes'});expect(r.currentRoute.value.hash).toBe('#form')});

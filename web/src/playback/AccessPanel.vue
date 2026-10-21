@@ -190,7 +190,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
     </div>
     <template #footer>
       <el-button :disabled="op.busy" @click="editing=false">取消</el-button>
-      <el-button :disabled="!!op.pending||!!latest" :loading="op.busy" @click="submit">保存规则</el-button>
+      <el-button :disabled="!!op.pending||!!latest" :loading="op.busy" @click="submit" type="primary" class="mt-save-button">保存规则</el-button>
     </template>
   </el-dialog>
   <DetailDrawer v-model:visible="detailOpen" title="完整 UA 与访问详情" :technical-data="details" class="media-detail">

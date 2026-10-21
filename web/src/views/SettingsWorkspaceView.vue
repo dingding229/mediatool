@@ -18,7 +18,7 @@ watch(tab, value => {
 </script>
 <template>
   <div class="settings-workspace">
-    <PageHeader title="设置" description="分区管理配置；修改先留在草稿中，核对后单独保存。"/>
+    <PageHeader title="设置" description="按分区修改，每个分区单独保存。"/>
     <PageTabs :tabs="tabs" default-tab="general"/>
     <div class="settings-stack" v-for="section in (['general','naming','automation'] as const)" :key="section" v-show="tab===section">
       <template v-if="visited.has(section)">

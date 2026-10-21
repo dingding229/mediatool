@@ -90,7 +90,7 @@ usePageRefresh(load,'maintenance');
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" message="策略保存结果尚未确认，请先重新读取核对。" @refresh="load"/>
       <div class="media-actions">
-        <el-button :disabled="!!op.pending||!!latest||!!read.error" native-type="submit">保存维护策略</el-button>
+        <el-button :disabled="!!op.pending||!!latest||!!read.error" native-type="submit" class="mt-save-button" type="primary">保存维护策略</el-button>
         <el-button @click="reloadPolicy">放弃草稿</el-button>
       </div>
     </form>

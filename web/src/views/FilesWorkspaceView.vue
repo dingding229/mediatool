@@ -30,7 +30,7 @@ usePageRefresh(refresh,'*');
 </script>
 <template>
   <div class="media-workspace files-workspace">
-    <PageHeader title="文件与 STRM" description="浏览目录、核对文件变更，再检查受管输出与播放链路。">
+    <PageHeader title="文件" description="浏览目录、核对文件变更，再检查受管输出与播放链路。">
       <template #actions>
 
       </template>

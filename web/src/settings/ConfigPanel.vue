@@ -107,7 +107,7 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
         </p>
 
         <footer>
-          <el-button type="primary" native-type="submit" :loading="access.busy.value" :disabled="access.conflict.value||!access.changed.value">保存域名设置</el-button>
+          <el-button type="primary" native-type="submit" :loading="access.busy.value" :disabled="access.conflict.value||!access.changed.value" class="mt-save-button">保存域名设置</el-button>
         </footer>
       </form>
     </section>
@@ -125,7 +125,7 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
           <label for="trusted-proxies">可信反代 IP / CIDR（每行一个）</label>
           <el-input id="trusted-proxies" v-model="proxyText" type="textarea" :rows="4"/>
           <p>只填写实际代理来源。错误信任会导致访客地址被伪造；留空仅记录直接连接地址。</p>
-          <RouterLink to="/connections?tab=aux">管理 TMDB 与网络代理</RouterLink>
+
         </template>
         <template v-else-if="section==='naming'">
           <div class="settings-field">
@@ -197,7 +197,7 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
           </div>
         </template>
         <footer>
-          <el-button native-type="submit" type="primary" :loading="app.busy.value" :disabled="app.conflict.value||!app.changed.value">{{section==='general'?'保存访客地址设置':section==='naming'?'保存命名与入库设置':'保存搜索订阅设置'}}</el-button>
+          <el-button native-type="submit" type="primary" :loading="app.busy.value" :disabled="app.conflict.value||!app.changed.value" class="mt-save-button">{{section==='general'?'保存访客地址设置':section==='naming'?'保存命名与入库设置':'保存搜索订阅设置'}}</el-button>
         </footer>
       </form>
     </section>

@@ -10,6 +10,7 @@ import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AccountEditor from './AccountEditor.vue';
 import SchedulePanel from './SchedulePanel.vue';
+import StatusBadge from '../components/StatusBadge.vue';
 import { bytes, date, errorText } from '../workflows/readiness';
 import { publicAccount, numberText, addSamples, chartPoints } from './accountModel';
 const accounts = reactive(useResource<any>(() => request<any[]>('/integrations').then(rows => rows.filter(r => r.kind === 'ptsite').map(publicAccount)), [])), connections = accounts, metrics = reactive(useResource<any>(() => request('/sites/metrics'), [])), op = reactive(useOperation('site-actions')), query = ref(''), editor = ref<InstanceType<typeof AccountEditor>>(), detailId = ref(''), detailOpen = ref(false), schedule = ref<InstanceType<typeof SchedulePanel>>(), confirm = ref(false), action = ref<any>(null), notice = ref(''), samples = reactive<Record<string, any[]>>({});
@@ -95,7 +96,7 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
         <h2>站点账号</h2>
         <div class="media-actions">
 
-          <el-button :disabled="!!op.pending||op.busy||!!metrics.error" @click="sync()">采集启用站点</el-button>
+          <el-button :disabled="!!op.pending||op.busy||!!metrics.error" @click="sync()">更新站点数据</el-button>
         </div>
       </header>
       <p>按站点管理登录信息和订阅地址，查看最近采集的数据。</p>
@@ -130,7 +131,7 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
             <img v-if="row.metric?.iconUrl?.startsWith('/api/v1/pt/templates/')" :src="row.metric.iconUrl" :alt="row.name+'图标'"/>
             <h3>{{ row.name }}</h3>
           </div>
-          <span>{{ row.connection?row.connection.enabled?'已启用':'已停用':'开关状态 —' }}</span>
+          <StatusBadge :state="row.connection?row.connection.enabled?'running':'disabled':'unavailable'" :label="row.connection?row.connection.enabled?'已启用':'已停用':'状态未确认'"/>
         </header>
         <p>登录：{{ siteState(row.connection?.lastCheckState||row.state) }} · {{ date(row.connection?.lastCheckedAt) }} · 订阅地址：{{ row.settings.rssState==='ready'?'已获取':row.settings.rssState==='unavailable'?'尚未获取':'—' }}</p>
         <div class="u5-stats">
