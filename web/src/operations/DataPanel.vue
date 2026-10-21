@@ -63,7 +63,7 @@ defineExpose({ load, change, source, table, page, cursor, cursorHistory, pattern
     <header class="media-section-heading">
       <h2>只读数据浏览</h2>
       <div class="media-actions">
-        <el-button @click="load">刷新数据</el-button>
+
         <el-button :disabled="!visible.length" @click="copy">复制当前页</el-button>
       </div>
     </header>
@@ -106,11 +106,8 @@ defineExpose({ load, change, source, table, page, cursor, cursorHistory, pattern
     </div>
     <p v-if="source==='postgres'">{{ table||'尚无数据表' }} · 共 {{ data.loading||data.error?'—':data.data?.total??'—' }} 行 · 每页25行；实时变化可能影响页序。</p>
     <p v-else>当前游标返回 {{ data.loading||data.error?'—':data.data?.items.length??'—' }} 个键；数据库共 {{ data.data?.total??'—' }} 个键（非筛选匹配总数）。游标扫描可能返回空页或重复键。</p>
-    <el-pagination v-if="source==='postgres'&&data.data&&!data.error" v-model:current-page="page" :page-size="25" :total="data.data.total" layout="prev,pager,next" @current-change="load"/>
-    <div v-else-if="source==='redis'" class="media-actions">
-      <el-button :disabled="!cursorHistory.length||data.loading" @click="previous">上一游标页</el-button>
-      <el-button :disabled="!data.data||data.data.cursor==='0'||data.loading||!!data.error" @click="next">下一游标页</el-button>
-    </div>
+    <PagePagination v-if="source==='postgres'&&data.data&&!data.error" v-model:current-page="page" :page-size="25" :total="data.data.total" layout="prev,pager,next" @current-change="load"/>
+    <PagePagination v-else-if="source==='redis'" :current-page="cursorHistory.length+1" :has-next="!!data.data&&data.data.cursor!=='0'" :disabled="data.loading||!!data.error" @current-change="(n:number)=>n>cursorHistory.length+1?next():previous()"/>
     <DetailDrawer v-model:visible="open" title="只读格式化数据" class="media-detail">
       <ResourceState v-if="source==='redis'" :loading="detailState.loading" :error="detailState.error" @reload="detailState.load"/>
       <pre v-if="source==='postgres'||!detailState.error&&!detailState.loading" class="u6-raw">{{ JSON.stringify(source==='redis'?detailState.data:detail,null,2) }}</pre>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { ref } from 'vue';
 import StateView from '../ui/StateView.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
@@ -7,11 +8,12 @@ import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { useManual, type ManualTask } from './useManual';
 import { label, progress, size } from './model';
 import { date, errorText, stateFor } from '../workflows/readiness';
-const { tasks, dialog, kind, url, file, busy, loading, error, listError, intent, confirmOpen, target, actionBusy, observed, load, sync, create, submit, reconcile, retry, approveRetry, associate } = useManual();
+const { tasks, dialog, kind, url, file, busy, loading, error, listError, intent, confirmOpen, target, actionBusy, observed, load, create, submit, reconcile, retry, approveRetry, associate } = useManual();
 const detail = ref<ManualTask | null>(null), detailsOpen = ref(false);
 function choose(event: Event) {
   file.value = (event.target as HTMLInputElement).files?.[0];
 }
+usePageRefresh(load,'manual');
 </script>
 <template>
   <section class="acquire-surface">
@@ -21,7 +23,8 @@ function choose(event: Event) {
         <p>仅添加到下载器；不自动识别、上传、入库或删除原文件。</p>
       </div>
       <div class="acquire-actions">
-        <el-button :loading="loading" @click="sync">同步手动下载</el-button>
+
+        <RouterLink to="/downloads?tab=tasks">同步下载器任务</RouterLink>
         <el-button type="primary" @click="create">添加种子</el-button>
       </div>
     </header>

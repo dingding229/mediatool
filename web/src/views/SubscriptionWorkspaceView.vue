@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed } from 'vue'
 import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElIcon } from 'element-plus'
 import { Plus, Refresh, Search, VideoPlay, ArrowRight } from '@element-plus/icons-vue'
@@ -30,11 +31,12 @@ const tabs = [{ id: 'list', label: '订阅列表' }, { id: 'history', label: '�
 const currentRecord = computed(() => records.value.find(s => s.id === historyId.value))
 const runTime = computed(() => history.value.find(r => r.id === activeRunId.value)?.createdAt)
 const siteNames = (ids: string[]) => ids.map(id => accounts.value.find(a => a.id === id)?.name || '站点暂不可用').join('、') || '—'
+usePageRefresh(refresh,'*');
 </script>
 <template>
   <div class="mt-subscriptions">
     <PageHeader title="资源订阅" description="选影视、设筛选，预演核对后再启用；每次运行都可追溯。">
-      <template #actions><el-button :icon="Refresh" :loading="loading" @click="refresh">刷新</el-button><el-button type="primary" :icon="Plus" @click="compose()">新建订阅</el-button></template>
+      <template #actions><el-button type="primary" :icon="Plus" @click="compose()">新建订阅</el-button></template>
     </PageHeader>
     <PageTabs :tabs="tabs" default-tab="list" />
     <AsyncResultBanner v-if="pending" :status="pending.status" :can-refresh="pending.status !== 'locked'" :message="pending.status === 'locked' ? '正在提交运行请求，已锁定重复提交；尚未确认排队。' : pending.status === 'queued' ? (pending.preview ? '规则预演已排队，不创建下载。请等待运行结果。' : '运行已排队，尚未完成；只有已启用的订阅才会自动下载。') : '上次运行回执尚未确认。已锁定重复提交，请读取状态或核对运行记录。'" @refresh="reconcile" />

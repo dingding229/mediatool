@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {providePageRefresh,usePageRefresh} from '../ui/page-refresh';
+const ownRefresh=providePageRefresh();
 import PageHeader from '../ui/PageHeader.vue';
 import StateView from '../ui/StateView.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
@@ -11,13 +13,14 @@ import { size, label } from '../acquisition/model';
 import { errorText, stateFor } from '../workflows/readiness';
 import '../acquisition/acquisition.css';
 const { run, loading, error, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter, queueFilter, sort, persistMedia, openDownload, searchAgain } = useResults();
+ownRefresh.register(()=>refresh(),()=>true);
 </script>
 <template>
   <div class="acquire-workspace">
     <PageHeader title="搜索结果" :description="run?`“${run.keyword}” · 先看站点覆盖，再择优投递。`:'正在读取搜索记录…'">
       <template #actions>
         <RouterLink to="/search?tab=query">返回搜索</RouterLink>
-        <el-button :loading="loading" @click="refresh()">刷新结果</el-button>
+
         <el-button type="primary" :disabled="!run||!!searchIntent" :loading="busy" @click="searchAgain">重新搜索</el-button>
       </template>
     </PageHeader>
@@ -110,7 +113,7 @@ const { run, loading, error, mediaSaving, mediaReady, page, filters, activeMedia
           <el-button :disabled="mediaSaving||!mediaReady" @click="openDownload(item)">确认并下载</el-button>
         </article>
         <StateView v-if="!run.resources.length" :state="['pending','running'].includes(run.state)?'loading':'empty'" :title="['pending','running'].includes(run.state)?'站点正在查询…':'没有匹配资源'" description="若有站点失败或部分结果，请先核对上方原因。"/>
-        <el-pagination v-if="(run.total||0)>50" v-model:current-page="page" :page-size="50" :total="run.total||0" layout="prev,pager,next" @current-change="refresh()"/>
+        <PagePagination v-if="(run.total||0)>50" v-model:current-page="page" :page-size="50" :total="run.total||0" layout="prev,pager,next" @current-change="refresh()"/>
       </section>
     </template>
     <DownloadSubmission :model="delivery"/>

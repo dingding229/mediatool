@@ -128,7 +128,7 @@ onUnmounted(() => { disposed = true; ++sequence })
           <div class="composer-enable"><el-checkbox v-model="draft.enabled" :disabled="previewRun?.state !== 'succeeded'">保存后启用自动下载</el-checkbox><p>{{ draft.enabled ? '你已选择直接启用。请确认以上匹配规则与下载保护符合预期。' : '预演已完成。可以保持停用；确认匹配结果后，也可显式启用。' }}</p></div>
         </template>
         <el-alert v-if="validation || error" :title="error || validation" type="error" :closable="false" />
-        <el-button v-if="error.includes('刷新列表')" @click="emit('reload')">刷新列表并核对</el-button>
+        <el-button v-if="error.includes('刷新列表')" @click="emit('reload')">核对结果</el-button>
         <div class="composer-footer">
           <el-button v-if="step > (draft.id ? 1 : 0)" :icon="ArrowLeft" :disabled="saving || !!pending" @click="step--">上一步</el-button>
           <span v-else />

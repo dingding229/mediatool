@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { resolve, relative } from 'node:path'
+import {parse} from '@vue/compiler-dom'
+import ts from 'typescript'
 
 const root = resolve(__dirname, '..')
 const allowlistPath = resolve(__dirname, 'copywriting-allowlist.json')
@@ -22,7 +24,9 @@ const FORBIDDEN_WORDS = [
   'Q5',
   'TODO',
   'WORKSPACE',
-  '仅展示真实服务数据'
+  '仅展示真实服务数据',
+  '读取当前记录', '上一页实例', '下一页实例', '上一页目录', '下一页目录', '上一页运行', '下一页运行',
+  '刷新插件状态', '重新读取媒体', '严格302直链', '期望停用', '期望启用', '清理聚合记录', '从记录加入白名单', '带入搜索', '严格 302 直链', '保留可核对证据', '单批1–20项'
 ]
 
 function collectVueFiles(dir: string): string[] {
@@ -43,6 +47,7 @@ describe('Copywriting Guard (Forbidden Developer Jargon)', () => {
   const vueFiles = collectVueFiles(root)
 
   it('scans all .vue templates for forbidden words and respects allowlist', () => {
+    expect(allowlist).toEqual({})
     const violations: Array<{ file: string; word: string; line: number; text: string }> = []
 
     for (const filePath of vueFiles) {
@@ -50,32 +55,24 @@ describe('Copywriting Guard (Forbidden Developer Jargon)', () => {
       const allowedWords = allowlist[relPath] || []
       const content = readFileSync(filePath, 'utf8')
 
-      // Extract template part
-      const templateMatch = content.match(/<template>([\s\S]*?)<\/template>/)
+      // Main template includes nested slot templates; never inspect executable bindings as copy.
+      const start=content.indexOf('<template>'),end=content.lastIndexOf('</template>')
+      const templateMatch=start>=0&&end>start?[null,content.slice(start+10,end)]:null
       if (!templateMatch) continue
 
-      const templateContent = templateMatch[1]
-      const lines = templateContent.split('\n')
-
-      lines.forEach((lineText, idx) => {
-        // Strip comments and technical details blocks if marked
-        if (lineText.includes('class="technical-json"') || lineText.includes('class="maintenance-json"')) {
-          return
-        }
-
-        for (const word of FORBIDDEN_WORDS) {
-          if (lineText.includes(word)) {
-            if (!allowedWords.includes(word)) {
-              violations.push({
-                file: relPath,
-                word,
-                line: idx + 1,
-                text: lineText.trim()
-              })
-            }
-          }
-        }
-      })
+      const templateContent=String(templateMatch[1]);
+      const ast=parse(templateContent);
+      function check(text:string,line:number){for(const word of FORBIDDEN_WORDS)if(text.includes(word)&&!allowedWords.includes(word))violations.push({file:relPath,word,line,text:text.trim()})}
+      function expression(text:string,line:number){const tree=ts.createSourceFile('binding.ts',text,ts.ScriptTarget.Latest,true);function visit(n:ts.Node){if(ts.isStringLiteral(n)||ts.isNoSubstitutionTemplateLiteral(n))check(n.text,line);ts.forEachChild(n,visit)}visit(tree)}
+      function visit(node:any,technical=false){
+        const nested=technical||node.type===1&&node.tag==='pre'&&node.props.some((p:any)=>p.name==='class'&&/technical-json|maintenance-json/.test(p.value?.content||''));
+        if(nested)return;
+        if(node.type===2)check(node.content,node.loc.start.line);
+        if(node.type===5)expression(node.content.content,node.loc.start.line);
+        for(const p of node.props||[]){if(p.type===6&&p.value&&['title','placeholder','aria-label','label','description'].includes(p.name))check(p.value.content,p.loc.start.line);if(p.type===7&&p.name!=='on'&&p.exp)expression(p.exp.content,p.loc.start.line)}
+        for(const child of node.children||[])visit(child,nested);
+      }
+      visit(ast);
     }
 
     if (violations.length > 0) {

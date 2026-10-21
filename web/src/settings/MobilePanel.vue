@@ -22,7 +22,7 @@ async function install() {
     <div class="settings-actions">
       <el-button v-if="pwaPrompt" @click="install">安装到主屏幕</el-button>
       <el-button @click="show=!show">安装说明</el-button>
-      <el-button v-if="pwaUpdate" @click="activateUpdate">应用新版本并刷新</el-button>
+      <el-button v-if="pwaUpdate" @click="activateUpdate">应用更新</el-button>
     </div>
     <p v-if="error" role="alert">{{error}}</p>
     <section v-if="show" class="settings-preview">

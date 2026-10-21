@@ -34,8 +34,6 @@
 .catalog-episodes button{padding:12px 0;min-height:44px;background:none;border:0;border-bottom:1px solid var(--mt-border-color);color:var(--mt-text-primary);cursor:pointer;width:100%;text-align:left;overflow-wrap:anywhere}
 .catalog-link{border-top:1px solid var(--mt-border-color);margin-top:24px;padding-top:20px}
 .catalog-detail .el-button,.catalog-detail .el-drawer__close-btn{min-height:44px;min-width:44px}
-.catalog-workspace .el-pagination,.catalog-detail .el-pagination{max-width:100%;margin-top:28px;overflow:auto}
-.catalog-workspace .el-pager li,.catalog-detail .el-pager li,.catalog-workspace .el-pagination button,.catalog-detail .el-pagination button{min-height:44px;min-width:44px;line-height:44px}
 
 @media(max-width:680px){.catalog-wall{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}
 .catalog-filters{grid-template-columns:minmax(0,1fr) 120px;gap:12px}

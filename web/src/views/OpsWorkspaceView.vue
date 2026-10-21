@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import PageHeader from '../ui/PageHeader.vue';
@@ -22,12 +23,13 @@ watch(tab, async (value) => {
   if (existing)
     void load();
 });
+usePageRefresh(load,'*');
 </script>
 <template>
   <div class="media-workspace u5-workspace u6-workspace">
     <PageHeader title="运维" description="查看后台任务与运行记录，按需备份、核对和维护。">
       <template #actions>
-        <el-button type="primary" @click="load">刷新当前记录</el-button>
+
       </template>
     </PageHeader>
     <PageTabs :tabs="tabs" default-tab="jobs"/>

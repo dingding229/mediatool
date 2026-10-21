@@ -278,9 +278,10 @@ defineExpose({ open });
       </div>
       <p v-if="!lookup&&!results.length">请输入标题查询，或先重新读取识别线索。</p>
       <div class="media-choice-list" role="group" aria-label="匹配影视">
-        <button v-for="item in results" :key="item.mediaType+item.id" type="button" :disabled="!!phase||saving" :aria-pressed="selected?.id===item.id&&selected?.mediaType===item.mediaType" @click="selected=item">{{ item.title }} · {{ item.year||'—' }} · {{ item.mediaType==='series'?'剧集':'电影' }} · TMDB {{ item.id }}</button>
+        <button v-for="item in results" :key="item.mediaType+item.id" type="button" :disabled="!!phase||saving" :aria-pressed="selected?.id===item.id&&selected?.mediaType===item.mediaType" @click="selected=item">{{ item.title }} · {{ item.year||'—' }} · {{ item.mediaType==='series'?'剧集':'电影' }}</button>
       </div>
       <template v-if="asset">
+        <el-button :disabled="saving" @click="reconcile">核对媒体识别</el-button>
         <label>
           修正季度
           <el-input-number v-model="season" aria-label="修正季度" :min="0" :max="9999" :disabled="!!phase||saving"/>
@@ -306,7 +307,7 @@ defineExpose({ open });
             <el-input v-model="row.episodes" :aria-label="'实际覆盖集 '+row.candidate.name" :disabled="!!phase||saving"/>
           </label>
         </article>
-        <el-button :loading="recognizing" :disabled="saving" @click="reconcile">重新读取识别与版本</el-button>
+        <el-button :loading="recognizing" :disabled="saving" @click="reconcile">核对结果</el-button>
         <p v-for="text in evidence" :key="text">{{ text }}</p>
       </template>
       <el-button v-if="selected?.mediaType==='series'" :disabled="saving||!!phase" :loading="episodeBusy" @click="previewEpisodes">预览单集信息</el-button>
@@ -318,7 +319,7 @@ defineExpose({ open });
       </article>
       <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
       <p v-for="result in outcomes" :key="result.id">{{ result.succeeded?'输出确认已受理':'需处理' }} · {{ result.message||'—' }}</p>
-      <AsyncResultBanner v-if="phase" :status="phase" message="确认结果需核对输出与记录，不重复提交同一确认。" @refresh="reconcile"/>
+      <AsyncResultBanner v-if="phase" :can-refresh="false" :status="phase" message="确认结果需核对输出与记录，不重复提交同一确认。" @refresh="reconcile"/>
       <PreviewApprove v-if="plan" :current-step="2">
         <h3>输出迁移预览</h3>
         <p>仅预览，不写入文件；原媒体与固定链接保持不变。</p>
@@ -331,7 +332,7 @@ defineExpose({ open });
     </div>
     <template #footer>
       <el-button :disabled="saving" @click="visible=false">取消</el-button>
-      <el-button v-if="asset" :disabled="saving" @click="reconcile">保留输入并刷新版本</el-button>
+      <el-button v-if="asset" :disabled="saving" @click="reconcile">保留输入并核对版本</el-button>
       <el-button type="primary" :disabled="!selected||recognizing||!!phase" :loading="saving" @click="prepare">{{ asset&&migrate?plan?'核对后确认迁移':'预览输出迁移':'确认入库或保存身份' }}</el-button>
     </template>
   </el-dialog>

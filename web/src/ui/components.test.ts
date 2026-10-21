@@ -48,7 +48,7 @@ describe('U1 UI Components logic', () => {
       status: 'queued',
       ticketId: 't-1'
     })
-    expect(banner.state.displayMessage).toContain('后台任务队列')
+    expect(banner.state.displayMessage).toContain('已排队')
     expect(banner.state.bannerType).toBe('info')
     banner.unmount()
 
@@ -70,7 +70,7 @@ describe('U1 UI Components logic', () => {
     const custom = setupComponent(FlowHint, {
       nextAction: 'custom_step'
     })
-    expect(custom.state.displayAction).toBe('下一步：custom_step')
+    expect(custom.state.displayAction).toBe('查看处理建议')
     custom.unmount()
   })
 })

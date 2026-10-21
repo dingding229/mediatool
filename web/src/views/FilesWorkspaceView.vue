@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import PageHeader from '../ui/PageHeader.vue';
@@ -19,18 +20,19 @@ watch(tab, v => {
 });
 function refresh() {
   if (tab.value === 'browser')
-    void browser.value?.refresh();
+    return browser.value?.refresh();
   else if (tab.value === 'strm')
-    void managed.value?.refresh();
+    return managed.value?.refresh();
   else
-    void repair.value?.readback();
+    return repair.value?.readback();
 }
+usePageRefresh(refresh,'*');
 </script>
 <template>
   <div class="media-workspace files-workspace">
     <PageHeader title="文件与 STRM" description="浏览目录、核对文件变更，再检查受管输出与播放链路。">
       <template #actions>
-        <el-button type="primary" @click="refresh">刷新当前记录</el-button>
+
       </template>
     </PageHeader>
     <PageTabs :tabs="tabs" default-tab="browser"/>

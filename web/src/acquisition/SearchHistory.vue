@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { tmdbImage } from '../utils/tmdb-image';
 import { request } from '../api/client';
@@ -56,6 +57,7 @@ onUnmounted(() => {
   disposed = true;
   epoch++;
 });
+usePageRefresh(load, 'history');
 </script>
 <template>
   <section class="acquire-surface" aria-label="搜索历史">
@@ -65,7 +67,7 @@ onUnmounted(() => {
         <p>这里查看记录与结果；缓存清理和有效期在运维中管理。</p>
       </div>
       <RouterLink to="/ops?tab=cache&amp;cacheKind=search">前往缓存管理</RouterLink>
-      <el-button :loading="loading" @click="load">刷新记录</el-button>
+
     </header>
     <StateView v-if="loading" state="loading" title="正在读取搜索历史…"/>
     <StateView v-else-if="error" :state="stateFor(error)" title="部分搜索历史读取失败" :description="errorText(error)" @retry="load"/>
@@ -85,7 +87,7 @@ onUnmounted(() => {
       </article>
     </div>
     <StateView v-if="!loading&&!error&&!runsError&&!rows.length" state="empty" title="还没有搜索记录" description="先选择作品并发起站点搜索，记录会保存在这里。"/>
-    <el-pagination v-if="total>25" v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next" @current-change="load"/>
+    <PagePagination v-if="total>25" v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next" @current-change="load"/>
   </section>
   <DetailDrawer v-model:visible="open" title="搜索记录详情" :technical-data="detail">
     <h3>{{ detail?.query||detail?.keyword||'—' }}</h3>

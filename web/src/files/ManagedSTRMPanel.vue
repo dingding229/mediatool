@@ -170,7 +170,7 @@ defineExpose({ refresh: load });
           </div>
         </article>
       </details>
-      <el-pagination v-if="total>25" v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next,total" @current-change="directory='';load()"/>
+      <PagePagination v-if="total>25" v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next,total" @current-change="directory='';load()"/>
     </template>
   </section>
   <DetailDrawer v-model:visible="visible" title="受管 STRM 与媒体详情" :technical-data="{asset,content}" class="media-detail">
@@ -191,9 +191,9 @@ defineExpose({ refresh: load });
       <el-button @click="copy">复制原始内容</el-button>
       <p role="status">{{ feedback }}</p>
     </template>
-    <AsyncResultBanner v-if="phase" :status="phase" message="定向刷新仅已排队或等待核对，需重新读取逐路径可见性。" @refresh="load"/>
+    <AsyncResultBanner v-if="phase" :status="phase" message="同步请求已排队或正在核对，尚未确认作品已出现在 Emby。" @refresh="load"/>
     <div class="media-actions">
-      <el-button :disabled="!!phase||busy||!!error" @click="refreshEmby">请求定向刷新 Emby</el-button>
+      <el-button :disabled="!asset||!!phase||busy||!!error" @click="refreshEmby">同步此作品到 Emby</el-button>
       <el-button @click="load">核对 Emby 可见性</el-button>
     </div>
   </DetailDrawer>

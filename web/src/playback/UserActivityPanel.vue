@@ -43,7 +43,7 @@ onMounted(load);
 defineExpose({ load, tab, page, data, changeTab, revoke, target, op });
 </script>
 <template>
-  <nav class="media-actions" aria-label="用户活动分类">
+  <nav class="media-actions mt-segments" aria-label="用户活动分类">
     <el-button :aria-pressed="tab==='devices'" @click="changeTab('devices')">登录设备</el-button>
     <el-button :aria-pressed="tab==='history'" @click="changeTab('history')">观看历史</el-button>
   </nav>
@@ -59,6 +59,6 @@ defineExpose({ load, tab, page, data, changeTab, revoke, target, op });
     </template>
     <p v-else>观看 {{ row.playCount??'—' }} 次 · 已观看 {{ Math.floor((row.positionTicks||0)/600000000) }} 分钟 · {{ row.played?'已看完':'未看完' }} · {{ date(row.lastPlayedAt) }}</p>
   </article>
-  <el-pagination v-if="data.data?.total>50" v-model:current-page="page" :page-size="50" :total="data.data.total" layout="prev,pager,next,total" @current-change="load"/>
+  <PagePagination v-if="data.data?.total>50" v-model:current-page="page" :page-size="50" :total="data.data.total" layout="prev,pager,next,total" @current-change="load"/>
   <ConfirmAction v-model:visible="confirm" title="撤销设备登录" :description="`撤销 ${userName} 在 ${target?.name||'此设备'} 的登录？`" impact-scope="该设备需要重新输入密码，其他设备不受影响；不删除媒体或观看记录。" confirm-text="确认撤销" :loading="op.busy" class="media-dialog" @confirm="revoke"/>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {scheduleLabel} from '../presentation/labels';
 import { pageResult } from './model';
 import { formatBytes as bytes } from './model';
 import { onMounted, onUnmounted, reactive, ref, watch } from 'vue';
@@ -100,12 +101,12 @@ defineExpose({ load, create, filter, jobs, health, op });
       <div class="u5-stats">
         <div>
           <span>数据库</span>
-          <strong>{{ health.error?'—':health.data?.postgres?.state==='ready'?'可用':health.data?.postgres?.state||'—' }}</strong>
+          <strong>{{ health.error?'—':health.data?.postgres?.state==='ready'?'可用':health.data?.postgres?.state?'不可用':'—' }}</strong>
           <small>{{ health.data?.postgres?.latencyMs??'—' }} ms</small>
         </div>
         <div>
           <span>缓存服务</span>
-          <strong>{{ health.error?'—':health.data?.redis?.state==='ready'?'可用':health.data?.redis?.state||'—' }}</strong>
+          <strong>{{ health.error?'—':health.data?.redis?.state==='ready'?'可用':health.data?.redis?.state?'不可用':'—' }}</strong>
         </div>
         <div>
           <span>数据库体积</span>
@@ -127,7 +128,7 @@ defineExpose({ load, create, filter, jobs, health, op });
         <summary>查看调度与依赖详情</summary>
         <article v-for="s in health.error?[]:health.data?.schedules||[]" :key="s.id" class="organize-record">
           <h3>{{ s.name }}</h3>
-          <p>{{ s.enabled?'已启用':'已停用' }} · {{ s.cron }} · 下次 {{ date(s.nextRunAt) }} · 上次 {{ date(s.lastRunAt) }}</p>
+          <p>{{ s.enabled?'已启用':'已停用' }} · {{ scheduleLabel(s.cron) }} · 下次 {{ date(s.nextRunAt) }} · 上次 {{ date(s.lastRunAt) }}</p>
           <p v-if="s.error">{{ s.error }}</p>
           <RouterLink v-if="s.link?.startsWith('/')" :to="s.link">管理此计划</RouterLink>
         </article>
@@ -174,7 +175,7 @@ defineExpose({ load, create, filter, jobs, health, op });
           <RouterLink v-if="taskTarget(j)" :to="taskTarget(j)!">前往业务页核对</RouterLink>
         </div>
       </article>
-      <el-pagination v-if="jobs.data?.total>25" v-model:current-page="filter.page" :total="jobs.data.total" :page-size="25" layout="prev,pager,next,total" @current-change="changePage"/>
+      <PagePagination v-if="jobs.data?.total>25" v-model:current-page="filter.page" :total="jobs.data.total" :page-size="25" layout="prev,pager,next,total" @current-change="changePage"/>
     </section>
     <ConfirmAction v-model:visible="confirm" title="运行系统检查" description="创建一次新的系统检查任务？" impact-scope="只检查当前服务状态，不重放失败业务或修改媒体文件。" confirm-text="确认运行检查" :loading="op.busy" class="media-dialog" @confirm="create"/>
     <DetailDrawer v-model:visible="open" title="任务与运行技术详情" :technical-data="detail" class="media-detail">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { requestUUID } from '../utils/request-uuid';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
 import { computed, onMounted, ref } from 'vue';
@@ -92,6 +93,7 @@ function remove() {
   removal.value = undefined;
 }
 onMounted(settings.load);
+usePageRefresh(settings.load, 'naming');
 </script>
 <template>
   <section class="settings-card" aria-label="目录分类">
@@ -101,7 +103,7 @@ onMounted(settings.load);
         <p>按从上到下的顺序匹配，先选媒体分组，再按国家、题材和语言分流。</p>
       </div>
       <div class="settings-actions">
-        <el-button :disabled="settings.busy.value" @click="settings.load">重新读取分类</el-button>
+
         <el-button :disabled="!data" @click="edit(-1)">添加分类</el-button>
       </div>
     </header>

@@ -261,7 +261,7 @@ defineExpose({ open, inspect });
         <AsyncResultBanner v-if="phase" :status="phase" :message="phase==='queued'?'文件操作已排队，尚未核验完成。':'正在核对上次结果，未取得结果前不重复执行。'" @refresh="readback()"/>
         <div class="media-actions">
           <el-button v-if="!phase&&!historyOnly&&!result&&Date.parse(plan.expiresAt)>Date.now()" type="primary" @click="confirmOpen=true">核对后执行</el-button>
-          <el-button :loading="busy" @click="readback()">重新读取操作记录</el-button>
+
           <el-button :disabled="busy" @click="reconcile">核对结果（不重放）</el-button>
           <el-button v-if="!phase&&!historyOnly&&verified&&result?.state!=='succeeded'" @click="plan=null;result=null;verified=false">重新预览</el-button>
         </div>

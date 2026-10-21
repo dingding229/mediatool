@@ -175,8 +175,9 @@ defineExpose({ open, load, save, form, current, latest, op, reveal });
       <p v-if="notice" role="status">{{ notice }}</p>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <section v-if="latest">
+        <el-button v-if="latest.revision==null&&!op.phase" @click="load(true)">核对账号配置</el-button>
         <p>当前账号已重新读取；你的 Cookie 和订阅地址替换输入仍保留。请核对后采用最新修订。</p>
-        <el-button @click="load(true)">重新读取当前账号</el-button>
+
         <el-button :disabled="latest.revision==null" @click="form.revision=latest.revision;latest=null">保留输入并采用最新修订</el-button>
       </section>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'账号变更已排队，尚未核验完成。':'正在核对上次保存，不重复提交账号。'" @refresh="load(true)"/>

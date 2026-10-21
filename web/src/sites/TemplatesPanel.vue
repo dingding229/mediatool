@@ -56,7 +56,7 @@ defineExpose({ load, loadSelected, selected, blocked });
       <el-button :disabled="!available.length||!!op.pending" @click="selectAll">{{ selected.length===available.length&&selected.length?'清空选择':'选择全部未加载模板' }}</el-button>
     </header>
     <p>只加载你需要的内置模板；已被账号使用的模板会保留。</p>
-    <div class="media-actions">
+    <div class="media-actions mt-segments">
       <el-button aria-label="网格展示模板" :aria-pressed="layout==='grid'" @click="setLayout('grid')">网格</el-button>
       <el-button aria-label="列表展示模板" :aria-pressed="layout==='list'" @click="setLayout('list')">列表</el-button>
     </div>

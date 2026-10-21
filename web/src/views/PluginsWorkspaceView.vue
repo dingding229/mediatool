@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { catalog, instances, type PluginDefinition } from '../api/plugins';
@@ -40,12 +41,13 @@ async function install() {
   await load();
 }
 onMounted(load);
+usePageRefresh(load,'*');
 </script>
 <template>
   <div class="media-workspace u5-workspace u6-workspace">
     <PageHeader title="插件" description="按需安装内置插件，确认权限后再启用。">
       <template #actions>
-        <el-button type="primary" @click="load">刷新插件状态</el-button>
+
       </template>
     </PageHeader>
     <PageTabs :tabs="[{id:'installed',label:'已安装'},{id:'catalog',label:'插件目录'}]" default-tab="installed"/>
@@ -68,17 +70,13 @@ onMounted(load);
         <ResourceState :loading="list.loading" :error="safePluginError(list.error)" :empty="!shown.length" empty-title="尚未安装匹配的插件" @reload="load"/>
         <div v-if="!list.error" class="u6-card-grid">
           <article v-for="i in shown" :key="i.id" class="u6-card">
-            <h3>{{ i.metadata?.name||i.pluginId }}</h3>
-            <p>{{ pluginState(i) }} · {{ i.desiredState==='enabled'?'期望启用':'期望停用' }}</p>
+            <h3>{{ i.metadata?.name||'不可用的插件' }}</h3>
+            <p>{{ pluginState(i) }}</p>
             <p v-if="i.reason">{{ reasonName(i.reason) }}</p>
             <RouterLink :to="'/plugins/'+encodeURIComponent(i.id)" class="el-button">管理插件</RouterLink>
           </article>
         </div>
-        <div class="media-actions">
-          <el-button :disabled="page===1||list.loading" @click="page--;load()">上一页实例</el-button>
-          <span>第 {{ page }} 页</span>
-          <el-button :disabled="list.data.length<50||list.loading" @click="page++;load()">下一页实例</el-button>
-        </div>
+        <PagePagination v-model:current-page="page" :has-next="list.data.length>=50" :disabled="list.loading" @current-change="load"/>
       </template>
       <template v-else>
         <ResourceState :loading="directory.loading" :error="safePluginError(directory.error)" :empty="!definitions.length" @reload="load"/>
@@ -89,11 +87,7 @@ onMounted(load);
             <el-button :disabled="!!op.pending||op.busy" @click="select(d)">{{ hasInstallIntent(d.manifest.id,d.fingerprint)?'核对上次安装':d.installedCount?'新增独立实例':'安装插件' }}</el-button>
           </article>
         </div>
-        <div class="media-actions">
-          <el-button :disabled="catalogPage===1||directory.loading" @click="catalogPage--;load()">上一页目录</el-button>
-          <span>第 {{ catalogPage }} 页 · 共 {{ directory.loading||directory.error?'—':directory.data?.total??'—' }} 项</span>
-          <el-button :disabled="catalogPage*200>=(directory.data?.total||0)||directory.loading" @click="catalogPage++;load()">下一页目录</el-button>
-        </div>
+        <PagePagination v-model:current-page="catalogPage" :page-size="200" :total="directory.data?.total||0" :disabled="directory.loading" @current-change="load"/>
       </template>
     </section>
     <el-dialog :model-value="!!consent" title="插件权限确认" width="min(700px,94vw)" class="media-dialog u5-dialog" :close-on-click-modal="false" @update:model-value="consent=null">

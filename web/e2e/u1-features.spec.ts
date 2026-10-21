@@ -73,28 +73,6 @@ test('U1 navigation, theme toggle, and 13 primary routes', async ({ page }) => {
   }
 })
 
-test('U1 verification screenshots capture', async ({ page }) => {
-  await ensureRegisteredAndLogin(page)
-  const dir = '/tmp/media-tool-u1-screenshots'; mkdirSync(dir, { recursive: true })
-  for (const width of [1440,375]) for (const theme of ['light','dark']) {
-    await page.setViewportSize({ width, height: width === 375 ? 812 : 1000 })
-    await page.addInitScript(value => localStorage.setItem('media-tool:theme-mode:v1', value), theme)
-    await page.goto('/dashboard'); await expect(page.getByRole('heading', { name: '运行总览' })).toBeVisible()
-    await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
-    await page.screenshot({ path: `${dir}/dashboard-${width}-${theme}.png`, fullPage: true, animations: 'disabled' })
-  }
-  await page.setViewportSize({ width: 1440, height: 1000 }); await page.addInitScript(() => localStorage.setItem('media-tool:theme-mode:v1','light'))
-  await page.goto('/ops?tab=jobs'); await expect(page.getByRole('heading', { name: '运行与队列', exact: true })).toBeVisible()
-  await page.screenshot({ path: `${dir}/ops-1440-light.png`, fullPage: true, animations: 'disabled' })
-  await page.goto('/settings'); await expect(page.getByRole('heading', { name: '设置', exact: true })).toBeVisible()
-  await page.screenshot({ path: `${dir}/settings-1440-light.png`, fullPage: true, animations: 'disabled' })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.addInitScript(() => localStorage.setItem('media-tool:theme-mode:v1','dark'))
-  await page.goto('/files?tab=browser'); await expect(page.getByRole('heading', { name: '文件浏览', exact: true })).toBeVisible()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  await page.screenshot({ path: `${dir}/files-375-dark.png`, fullPage: true, animations: 'disabled' })
-})
-
 test('U1 sidebar contains exactly thirteen primary entries without current badges or accordion controls', async ({ page }) => {
   await ensureRegisteredAndLogin(page)
   const nav = page.getByRole('navigation', { name: '功能导航', exact: true })

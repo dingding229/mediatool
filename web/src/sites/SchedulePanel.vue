@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {scheduleLabel} from '../presentation/labels';
 import { onMounted, ref, reactive } from 'vue';
 import { request } from '../api/client';
 import { useResource } from '../workflows/useResource';
@@ -35,6 +36,7 @@ async function save() {
 }
 onMounted(load);
 defineExpose({ load, open, save, form, data, latest, op });
+
 </script>
 <template>
   <section class="media-surface">
@@ -43,7 +45,7 @@ defineExpose({ load, open, save, form, data, latest, op });
       <el-button @click="open">编辑采集计划</el-button>
     </header>
     <ResourceState :loading="data.loading" :error="data.error" @reload="load"/>
-    <p v-if="data.data">{{ data.data.enabled?'已启用':'已停用' }} · {{ data.data.cron }} · 下次 {{ date(data.data.nextRunAt) }}</p>
+    <p v-if="data.data">{{ data.data.enabled?'已启用':'已停用' }} · {{ scheduleLabel(data.data.cron) }} · 下次 {{ date(data.data.nextRunAt) }}</p>
     <p v-if="data.data">最近调度 {{ date(data.data.lastDispatchedAt) }}</p>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'计划变更已排队，尚未核验。':'正在核对当前计划，不重复保存。'" @refresh="load"/>
   </section>
@@ -59,8 +61,8 @@ defineExpose({ load, open, save, form, data, latest, op });
       </label>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <section v-if="latest">
-        <p>当前计划：{{ latest.cron||'—' }} · {{ latest.enabled?'启用':'停用' }}；你的输入已保留。</p>
-        <el-button @click="load">重新读取</el-button>
+        <p>当前计划：{{ scheduleLabel(latest.cron) }} · {{ latest.enabled?'启用':'停用' }}；你的输入已保留。</p>
+
         <el-button :disabled="latest.revision==null" @click="form.revision=latest.revision;latest=null">保留输入并采用最新修订</el-button>
       </section>
     </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed, ref } from 'vue';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
 import { useRoute } from 'vue-router';
@@ -23,12 +24,14 @@ function show(row: any) {
   detail.value = row;
   detailsOpen.value = true;
 }
+usePageRefresh(()=>refresh(),'tasks');
+usePageRefresh(()=>refresh(),'uploads');
 </script>
 <template>
   <div class="acquire-workspace">
     <PageHeader title="下载与入库" description="下载、做种、上传与入库分开跟进；100%传输不代表文件校验或播放完成。">
       <template #actions>
-        <el-button :type="tab==='manual'?'default':'primary'" :loading="loading.tasks||loading.transfers" @click="refresh(true)">刷新进度</el-button>
+        <el-button v-if="tab==='tasks'" type="primary" :loading="loading.tasks||loading.transfers" @click="refresh(true)">同步下载任务</el-button>
       </template>
     </PageHeader>
     <PageTabs :tabs="tabs" default-tab="tasks"/>
@@ -92,7 +95,7 @@ function show(row: any) {
             <p>当前读取 {{ loading.transfers||errors.transfers?'—':transfers.length }} 项 · 待跟进 {{ loading.transfers||errors.transfers?'—':transfers.filter(t=>!['imported','cancelled'].includes(t.state)).length }} 项</p>
             <p>先核对远端会话、文件和哈希，再确认输出与入库；保留本地做种源。</p>
           </div>
-          <RouterLink to="/organize?tab=history&amp;kind=transfer">查看上传与入库阶段证据</RouterLink>
+          <RouterLink to="/organize?tab=history&amp;kind=transfer">查看上传与入库记录</RouterLink>
         </header>
         <StateView v-if="loading.transfers&&!transfers.length" state="loading" title="正在读取上传任务…"/>
         <StateView v-else-if="errors.transfers" :state="stateFor(errors.transfers)" title="上传任务暂不可用" :description="errorText(errors.transfers)" @retry="load('transfers')"/>
@@ -164,7 +167,7 @@ function show(row: any) {
       <h3>{{ detail?.title||detail?.destination||'—' }}</h3>
       <p>{{ label(detail?.state) }} · {{ detail?.message||'—' }}</p>
       <p>下载进度：{{ progress(detail?.progress) }}</p>
-      <p>后续操作以服务端最新状态与核对证据为准。</p>
+      <p>操作前请核对任务的最新状态。</p>
     </DetailDrawer>
     <SourceRecoveryDialog ref="source" @completed="refresh()"/>
   </div>

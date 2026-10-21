@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { onMounted, ref } from 'vue';
 import { request, post } from '../api/client';
 const status = ref<Record<string, any> | null>(null), busy = ref(false), error = ref(''), message = ref(''), unknown = ref(false);
@@ -31,15 +32,16 @@ async function test() {
   }
 }
 onMounted(load);
+usePageRefresh(load);
 </script>
 <template>
 <section class="connection-manager">
   <header class="connection-section-heading">
     <div>
       <h2>Emby 网关诊断</h2>
-      <p>严格原始 STRM、302 到官方地址；不提供中转、HLS 或转码兜底。</p>
+      <p>播放时直接跳转到官方地址，服务器不中转流量。</p>
     </div>
-    <el-button @click="load">刷新网关状态</el-button>
+
   </header>
   <dl class="gateway-facts">
     <div>
@@ -47,8 +49,8 @@ onMounted(load);
       <dd>{{ status?.emby302Enabled==null?'—':status.emby302Enabled?'已启用':'未启用' }}</dd>
     </div>
     <div>
-      <dt>原画直链策略</dt>
-      <dd>{{ status?.embyDirectPlayOnly==null?'—':status.embyDirectPlayOnly?'仅原始 STRM / 302':'请核对服务端配置' }}</dd>
+      <dt>播放方式</dt>
+      <dd>{{ status?.embyDirectPlayOnly==null?'—':status.embyDirectPlayOnly?'直接访问官方地址':'请核对服务端配置' }}</dd>
     </div>
     <div>
       <dt>原全局播放凭据入口</dt>

@@ -61,16 +61,16 @@ function selectTab(id: string) {
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 20px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--mt-border-color);
   padding-bottom: 8px;
 }
 .tab-button {
   background: transparent;
   border: 1px solid transparent;
   padding: 8px 16px;
-  min-height: 38px;
+  min-height: 44px;
   border-radius: 8px;
-  color: var(--muted);
+  color: var(--mt-text-muted);
   font-size: 14px;
   cursor: pointer;
   display: inline-flex;
@@ -79,7 +79,7 @@ function selectTab(id: string) {
   transition: all 0.16s ease;
 }
 .tab-button:hover {
-  color: var(--text);
+  color: var(--mt-text-primary);
   background: var(--mt-color-primary-light);
 }
 .tab-button.is-active {
@@ -90,13 +90,13 @@ function selectTab(id: string) {
 }
 .tab-badge {
   font-size: 11px;
-  background: var(--border);
-  color: var(--text);
+  background: var(--mt-border-color);
+  color: var(--mt-text-primary);
   padding: 1px 6px;
   border-radius: 10px;
 }
 .tab-button.is-active .tab-badge {
   background: var(--mt-color-primary);
-  color: #fff;
+  color: var(--el-color-white);
 }
 </style>

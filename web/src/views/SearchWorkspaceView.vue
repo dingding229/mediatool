@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, ref, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Search } from '@element-plus/icons-vue';
@@ -41,9 +42,10 @@ onMounted(() => {
   if (typeof route.query.run === 'string')
     void router.replace(`/search/results/${route.query.run}`);
 });
+usePageRefresh(load, 'query');
 </script>
 <template>
-  <div class="acquire-workspace">
+  <div class="mt-segments acquire-workspace">
     <PageHeader title="资源搜索" description="先确认作品，再选择站点；投递前核对身份与做种要求。"/>
     <PageTabs :tabs="tabs" default-tab="query"/>
     <template v-if="tab==='query'">
@@ -137,7 +139,7 @@ onMounted(() => {
         </header>
         <p v-if="historyError" role="alert">
           搜索记录读取失败。
-          <el-button @click="load">重新读取</el-button>
+
         </p>
         <div class="acquire-history">
           <article v-for="item in history.slice(0,5)" :key="item.id">

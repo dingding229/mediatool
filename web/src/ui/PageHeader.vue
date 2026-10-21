@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import RefreshButton from './RefreshButton.vue';
+import {useRefreshControl} from './page-refresh';
+const refresh=useRefreshControl();
 defineProps<{
   title: string
   kicker?: string
@@ -13,8 +16,10 @@ defineProps<{
       <h1>{{ title }}</h1>
       <p v-if="description" class="page-description">{{ description }}</p>
     </div>
-    <div v-if="$slots.actions" class="heading-actions">
+    <div v-if="$slots.actions||refresh" class="heading-actions">
       <slot name="actions" />
+      <RefreshButton v-if="refresh&&refresh.active.value.length" :loading="refresh.busy.value" @refresh="refresh.refresh"/>
+      <p v-if="refresh?.error.value" role="status">{{refresh.error.value}}</p>
     </div>
   </header>
 </template>
@@ -38,12 +43,12 @@ defineProps<{
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--muted);
+  color: var(--mt-text-muted);
   margin-bottom: 4px;
 }
 .page-description {
   font-size: 13px;
-  color: var(--muted);
+  color: var(--mt-text-muted);
   margin-top: 4px;
 }
 .heading-actions {

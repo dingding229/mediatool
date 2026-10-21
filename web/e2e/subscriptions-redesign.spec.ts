@@ -64,7 +64,7 @@ test('202 stays queued, navigates to the accepted run and failed readback never 
   await page.goto('/subscriptions'); await page.getByRole('button', { name: '立即运行', exact: true }).first().click()
   try { await expect(page.locator('.async-result-banner')).toContainText('尚未确认排队') } finally { accept() }
   await expect(page).toHaveURL(/run=accepted/); await expect(page.locator('.async-result-banner')).toContainText('运行已排队，尚未完成'); await expect(page.locator('.el-message--success')).toHaveCount(0)
-  fail = true; await page.locator('.async-result-banner').getByRole('button', { name: '刷新状态' }).click(); await expect(page.locator('.async-result-banner')).toContainText('回执尚未确认')
+  fail = true; await page.locator('.async-result-banner').getByRole('button', { name: '核对结果' }).click(); await expect(page.locator('.async-result-banner')).toContainText('回执尚未确认')
   await tabs(page).getByRole('button', { name: '订阅列表', exact: true }).click(); await expect(page.getByRole('button', { name: '立即运行', exact: true }).first()).toBeDisabled(); expect(posts).toBe(1); expect(reads).toBeGreaterThanOrEqual(2)
 })
 test('lost response persists across reload and reads history without reposting', async ({ page }) => {

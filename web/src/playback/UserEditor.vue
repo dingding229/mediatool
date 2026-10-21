@@ -181,9 +181,10 @@ defineExpose({ open, save, reread, form, op, latest });
       <p v-if="notice" role="status">{{ notice }}</p>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <section v-if="latest">
+        <el-button v-if="latest.revision==null&&!op.phase" @click="reread().catch(e=>op.error=e)">核对账号配置</el-button>
         <p>当前用户：{{ latest.username }} · {{ latest.enabled?'启用':'停用' }} · 同时播放 {{ latest.maxStreams }}</p>
         <p v-if="!form.id">新建时遇到重复账号，请关闭后编辑已有账号。</p>
-        <el-button @click="reread().catch(e=>op.error=e)">重新读取当前用户</el-button>
+
         <el-button :disabled="!form.id||latest.revision==null" @click="form.revision=latest.revision;latest=null">保留输入并采用最新修订</el-button>
       </section>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="reread"/>

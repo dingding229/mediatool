@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { post, request } from '../api/client';
@@ -96,6 +97,7 @@ onUnmounted(() => {
   disposed = true;
   epoch++;
 });
+usePageRefresh(load, 'history');
 </script>
 <template>
   <section class="media-surface">
@@ -104,9 +106,9 @@ onUnmounted(() => {
         <h2>文件与入库历史</h2>
         <p>全部 {{ loading||error?'—':total }} 项 · 本页进行中 {{ loading||error?'—':summary.active }} · 需处理 {{ loading||error?'—':summary.attention }} · 已完成阶段 {{ loading||error?'—':summary.done }}</p>
       </div>
-      <el-button :loading="loading" @click="load">刷新历史</el-button>
+
     </header>
-    <nav class="media-actions" aria-label="历史阶段快捷筛选">
+    <nav class="media-actions mt-segments" aria-label="历史阶段快捷筛选">
       <el-button v-for="(text,value) in Object.fromEntries(Object.entries(kindLabels).filter(([key])=>key!=='cleanup'))" :key="value" :aria-pressed="kind===value" @click="kind=value;apply()">{{ text }}</el-button>
     </nav>
     <form class="media-form organize-history-filters" @submit.prevent="apply">
@@ -181,7 +183,7 @@ onUnmounted(() => {
       <el-button @click="detail=item;open=true">查看步骤详情</el-button>
     </article>
     <StateView v-if="!loading&&!error&&!items.length" state="empty" title="暂无符合条件的历史"/>
-    <el-pagination v-if="total>25" v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next,total" @current-change="load"/>
+    <PagePagination v-if="total>25" v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next,total" @current-change="load"/>
   </section>
   <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" :technical-data="detail" class="media-detail">
     <h3>{{ detail?.media?.title||kindLabels[detail?.kind]||'业务记录' }}</h3>

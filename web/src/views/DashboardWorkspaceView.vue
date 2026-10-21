@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed } from 'vue';
 import { Refresh } from '@element-plus/icons-vue';
 import PageHeader from '../ui/PageHeader.vue';
@@ -12,12 +13,13 @@ const { slots, groups, steps, complete, guideVisible, refresh, load, hideGuide }
 const busy = computed(() => Object.values(slots).some(s => s.loading)), runtime = computed(() => slots.runtime?.data);
 const counters = [{ key: 'sites', label: '站点', path: '/sites?tab=accounts' }, { key: 'subscriptions', label: '订阅', path: '/subscriptions' }, { key: 'downloads', label: '下载', path: '/downloads' }, { key: 'media', label: '媒体资产', path: '/library' }, { key: 'todaySearches', label: '今日搜索', path: '/search' }];
 const recent = computed(() => list(slots.recent?.data).slice(0, 5));
+usePageRefresh(refresh,'*');
 </script>
 <template>
   <div class="dashboard-workspace">
     <PageHeader title="运行总览" description="先看服务是否可用，再处理需要介入的任务。">
       <template #actions>
-        <el-button type="primary" :icon="Refresh" :loading="busy" @click="refresh">刷新状态</el-button>
+
       </template>
     </PageHeader>
     <ServiceReadiness :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" @retry="load('readiness')" />
@@ -33,7 +35,7 @@ const recent = computed(() => list(slots.recent?.data).slice(0, 5));
           <template v-else>
             <div v-for="source in group.errors" :key="source" class="inbox-source-error" role="alert">
               <span>这一组部分数据暂不可用，数量未知。</span>
-              <el-button @click="load(source)">重新读取</el-button>
+
             </div>
             <div v-for="item in group.items.slice(0,5)" :key="item.id" class="inbox-item">
               <RouterLink :to="{path:item.path,query:item.query}">

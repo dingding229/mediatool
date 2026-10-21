@@ -83,7 +83,7 @@ defineExpose({ load, refresh, filter, data, summary, from, to, clear, change, op
     <header class="media-section-heading">
       <h2>程序日志</h2>
       <div class="media-actions">
-        <el-button @click="refresh">刷新日志</el-button>
+
         <el-button :disabled="!!op.pending" @click="confirm=true">清理日志</el-button>
         <el-button @click="settings=true;logLevel=summary.data?.level||'info'">日志设置</el-button>
         <el-button :disabled="!!data.error||!data.data?.items.length" @click="copy(logText(data.data.items,false))">复制当前页日志</el-button>
@@ -159,7 +159,7 @@ defineExpose({ load, refresh, filter, data, summary, from, to, clear, change, op
           <option v-for="n in [50,100,200,500]" :key="n" :value="n">{{ n }}</option>
         </select>
       </label>
-      <el-pagination v-if="data.data&&!data.error" v-model:current-page="filter.page" :page-size="filter.pageSize" :total="data.data.total" :pager-count="5" layout="prev,pager,next" @current-change="load"/>
+      <PagePagination v-if="data.data&&!data.error" v-model:current-page="filter.page" :page-size="filter.pageSize" :total="data.data.total" :pager-count="5" layout="prev,pager,next" @current-change="load"/>
     </div>
     <ConfirmAction v-model:visible="confirm" title="清理日志" description="清理全部程序文件日志？" impact-scope="不删除数据库审计或启动控制台日志，也不修改媒体；现有文件日志将不可恢复。" confirm-text="确认清理" danger-level="danger" :loading="op.busy" class="media-dialog" @confirm="clear"/>
     <DetailDrawer v-model:visible="open" title="完整原始日志" class="media-detail">

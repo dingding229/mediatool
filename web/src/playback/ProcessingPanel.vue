@@ -178,7 +178,7 @@ defineExpose({ load, save, ask, apply, form, filter, summary, tasks, op, action,
         <p>已尝试 {{ task.attempts??'—' }} 次 · 下次 {{ date(task.nextAttemptAt||undefined) }}</p>
         <el-button :disabled="!!op.pending||op.busy||tasks.loading||!!tasks.error" @click="ask(task)">重试此任务</el-button>
       </article>
-      <el-pagination v-if="tasks.data?.total>50" v-model:current-page="filter.page" :page-size="50" :total="tasks.data.total" layout="prev,pager,next,total" @current-change="load"/>
+      <PagePagination v-if="tasks.data?.total>50" v-model:current-page="filter.page" :page-size="50" :total="tasks.data.total" layout="prev,pager,next,total" @current-change="load"/>
       <el-button @click="technical=true">技术详情</el-button>
     </section>
   </div>

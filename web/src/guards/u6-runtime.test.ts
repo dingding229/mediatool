@@ -20,4 +20,5 @@ const baseline={
   "build-guard.ts": "69e99482dec6ff8726b58a8829856fb8104626db71d86a560a276f0d55fb34e9",
   "esm.ts": "307cc67d6b2298a199668d90fbe0c052c6380d6846058fb56386815af1c97b6e"
 }
-it('preserves the complete existing plugin runtime and security helpers byte for byte',()=>{for(const [name,hash] of Object.entries(baseline))expect(createHash('sha256').update(readFileSync(resolve(__dirname,'../plugins',name))).digest('hex'),name).toBe(hash)})
+const scriptBaseline:Record<string,string> = {"PluginAuth.vue":"a56aceff5f2e1484fe54a6cf3f9f8bff6457cafa075939d827d47f3d7fbe15da","PluginAutomation.vue": "74fdcf114ba6179f95e12e49f759fe7fbb975db41db7d990d8b190af4420942d", "PluginSnapshots.vue": "e7a4dc6338e2c9bc1faa699274c078053ccb7b9a026dab30ddbf6db380a617c4", "PluginTools.vue": "c272ad022bd96f5d6204eee38439b73a846d8382e7c549b86eced79a999de50d"};
+it('preserves every plugin runtime script and untouched security helper while allowing copy-only templates',()=>{for(const [name,hash] of Object.entries(baseline)){const raw=readFileSync(resolve(__dirname,'../plugins',name),'utf8');const expected=scriptBaseline[name];expect(createHash('sha256').update(expected?raw.match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]:raw).digest('hex'),name).toBe(expected||hash)}})

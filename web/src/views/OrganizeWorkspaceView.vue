@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElDropdown, ElDropdownItem, ElDropdownMenu } from 'element-plus';
@@ -111,12 +112,13 @@ watch(detailsOpen, v => {
   if (!v)
     detailVersion++;
 });
+usePageRefresh(state.refresh,'*');
 </script>
 <template>
   <div class="media-workspace">
     <PageHeader title="入库整理" description="先确认影片和处理目录，再开始入库；遇到问题时可查看记录并继续处理。">
       <template #actions>
-        <el-button type="primary" :loading="state.loading.candidates||state.loading.assets" :disabled="state.editing" @click="state.changed">刷新记录</el-button>
+
       </template>
     </PageHeader>
     <PageTabs :tabs="tabs" default-tab="candidates"/>
@@ -124,7 +126,7 @@ watch(detailsOpen, v => {
       <header class="media-section-heading">
         <div>
           <h2>待确认文件</h2>
-          <p>每次可选1–20个文件；已入库或有待处理输出的文件，请先查看已有记录。</p>
+          <p>可同时核对多个文件；已有入库记录的文件，请先查看处理结果。</p>
         </div>
         <el-select v-model="state.filter" aria-label="候选状态" @change="state.page.candidates=1;pageChange('candidates')">
           <el-option value="needs_confirmation" label="待确认（含需核对输出）"/>
@@ -151,7 +153,7 @@ watch(detailsOpen, v => {
         <el-button :disabled="!selectable(candidate)" @click="edit([candidate])">核对身份</el-button>
         <RouterLink v-if="candidate.assetId" :to="{path:'/organize',query:{tab:'assets',assetId:candidate.assetId}}">查看已有资产与输出</RouterLink>
       </article>
-      <el-pagination v-if="state.total.candidates>50" v-model:current-page="state.page.candidates" :page-size="50" :total="state.total.candidates" layout="prev,pager,next,total" @current-change="pageChange('candidates')"/>
+      <PagePagination v-if="state.total.candidates>50" v-model:current-page="state.page.candidates" :page-size="50" :total="state.total.candidates" layout="prev,pager,next,total" @current-change="pageChange('candidates')"/>
     </section>
     <div v-show="tab==='scans'" class="media-stack">
       <ScanPanel :scans="state.data.scans" :schedules="state.data.schedules" :scan-error="state.errors.scans" :schedule-error="state.errors.schedules" :loading="state.loading.scans" :schedule-loading="state.loading.schedules" @changed="state.refresh"/>
@@ -189,7 +191,7 @@ watch(detailsOpen, v => {
           </ElDropdown>
         </div>
       </article>
-      <el-pagination v-if="state.total.assets>50" v-model:current-page="state.page.assets" :page-size="50" :total="state.total.assets" layout="prev,pager,next,total" @current-change="pageChange('assets')"/>
+      <PagePagination v-if="state.total.assets>50" v-model:current-page="state.page.assets" :page-size="50" :total="state.total.assets" layout="prev,pager,next,total" @current-change="pageChange('assets')"/>
     </section>
     <div v-show="tab==='history'">
       <HistoryPanel/>

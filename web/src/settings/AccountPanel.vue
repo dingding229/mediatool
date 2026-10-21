@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { request } from '../api/client';
@@ -39,6 +40,7 @@ async function logout() {
   }
 }
 onMounted(session.load);
+usePageRefresh(session.load, 'security');
 </script>
 <template>
   <div class="settings-stack">
@@ -48,7 +50,7 @@ onMounted(session.load);
           <h2>当前登录会话</h2>
           <p>账号安全从妥善保管密码开始。</p>
         </div>
-        <el-button @click="session.load">刷新登录状态</el-button>
+
       </header>
       <StateView v-if="session.error.value" :state="stateFor(session.error.value)" :description="messageFor(session.error.value)" @retry="session.load"/>
       <StateView v-else-if="session.loading.value" state="loading"/>

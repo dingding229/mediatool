@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {scheduleLabel} from '../presentation/labels';
+import {usePageRefresh} from '../ui/page-refresh';
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { APIError, post, request } from '../api/client';
 import StateView from '../ui/StateView.vue';
@@ -209,6 +211,7 @@ onUnmounted(() => {
   disposed = true;
   version++;
 });
+usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
 </script>
 <template>
   <section class="media-surface">
@@ -244,7 +247,7 @@ onUnmounted(() => {
     <el-alert v-if="error&&!scheduleOpen" :title="errorText(error)" type="error" :closable="false"/>
   </section>
   <section class="media-surface">
-    <h2>扫描进度与覆盖证据</h2>
+    <h2>扫描进度与目录记录</h2>
     <StateView v-if="scanError" :state="sourceState(scanError)" title="扫描记录读取失败" @retry="emit('changed')"/>
     <p v-else-if="loading&&!scans.length">正在读取扫描记录…</p>
     <p v-else-if="!scans.length">尚无扫描记录</p>
@@ -254,14 +257,14 @@ onUnmounted(() => {
       <el-progress v-if="scan.directories>0" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/>
       <p>{{ scan.currentDirectory||'—' }} · {{ scan.message||'—' }}</p>
       <div class="media-actions">
-        <el-button @click="inspect(scan)">查看目录证据</el-button>
+        <el-button @click="inspect(scan)">查看目录记录</el-button>
         <el-button v-if="['pending','running'].includes(scan.state)" :disabled="!!scanError||busy" @click="askControl(scan,'pause')">暂停扫描</el-button>
         <el-button v-if="['paused','failed'].includes(scan.state)" :disabled="!!scanError||busy" @click="askControl(scan,'resume')">重新完整对账</el-button>
         <el-button v-if="['pending','running','paused','failed'].includes(scan.state)" :disabled="!!scanError||busy" @click="askControl(scan,'cancel')">取消扫描</el-button>
       </div>
     </article>
-    <el-pagination v-if="scans.length>8" v-model:current-page="scanPage" :page-size="8" :total="scans.length" layout="prev,pager,next"/>
-    <p>暂停、取消、断线、修订或云端变化均不能作为缺失证据；恢复从根目录重新校准。</p>
+    <PagePagination v-if="scans.length>8" v-model:current-page="scanPage" :page-size="8" :total="scans.length" layout="prev,pager,next"/>
+    <p>扫描中断或云盘内容变化时，不会把未扫描到的文件直接标记为缺失；恢复后会重新检查。</p>
   </section>
   <section class="media-surface">
     <header class="media-section-heading">
@@ -273,7 +276,7 @@ onUnmounted(() => {
     <StateView v-else-if="!schedules.length" state="empty" title="尚无定时扫描" description="新增计划默认停用，核对目录与周期后再启用。"/>
     <article v-for="schedule in schedules" :key="schedule.id" class="organize-record">
       <h3>{{ schedule.root }}</h3>
-      <p>{{ schedule.cron }} · {{ schedule.enabled?'已启用':'未启用' }} · 下次 {{ date(schedule.nextRunAt) }}</p>
+      <p>{{ scheduleLabel(schedule.cron) }} · {{ schedule.enabled?'已启用':'未启用' }} · 下次 {{ date(schedule.nextRunAt) }}</p>
       <p>文件变化推送：{{ label(schedule.watchState) }} · {{ schedule.watchMessage||'—' }}</p>
       <p>{{ schedule.lastError||'—' }}</p>
       <el-button @click="editSchedule(schedule)">编辑</el-button>
@@ -282,7 +285,7 @@ onUnmounted(() => {
   <DetailDrawer v-model:visible="detailOpen" title="扫描目录覆盖" :technical-data="detail" class="media-detail">
     <p>{{ detail?.scan?.root }} · {{ label(detail?.scan?.state) }}</p>
     <p v-for="directory in detail?.directories||[]" :key="directory.path">{{ directory.path }} · {{ label(directory.state) }}</p>
-    <el-pagination v-if="detail" v-model:current-page="cursorPage" :page-size="25" :total="detail.scan.directories||0" layout="prev,pager,next" @current-change="inspect(detail.scan,false)"/>
+    <PagePagination v-if="detail" v-model:current-page="cursorPage" :page-size="25" :total="detail.scan.directories||0" layout="prev,pager,next" @current-change="inspect(detail.scan,false)"/>
   </DetailDrawer>
   <ConfirmAction v-model:visible="approveOpen" title="开始目录扫描" :description="`将扫描「${preview?.root||'服务端默认目录'}」。`" impact-scope="更新索引、候选与缺失对账状态，不移动媒体或做种源；未完成覆盖不作为缺失证据。" confirm-text="确认开始扫描" :loading="busy" class="media-dialog" @confirm="create"/>
   <ConfirmAction v-model:visible="controlOpen" title="扫描控制" :description="controlTarget?.action==='resume'?'从根目录重新完整对账，不复用不完整覆盖。':'暂停或取消不会把未扫描目录标为缺失。'" impact-scope="只影响此扫描，不删除媒体或输出。" :loading="busy" class="media-dialog" @confirm="control"/>
@@ -304,7 +307,7 @@ onUnmounted(() => {
       <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
       <section v-if="conflict">
         <el-button @click="checkSchedule">核对上次保存</el-button>
-        <p>当前配置：{{ conflict.root }} · {{ conflict.cron }} · {{ conflict.enabled?'启用':'停用' }}</p>
+        <p>当前配置：{{ conflict.root }} · {{ scheduleLabel(conflict.cron) }} · {{ conflict.enabled?'启用':'停用' }}</p>
         <el-button :disabled="conflict.revision==null" @click="form.id=conflict.id||form.id;form.revision=conflict.revision;conflict=null;savePrivate('media-tool:scan-schedule-write:v1',null)">保留输入并采用最新修订</el-button>
       </section>
     </div>

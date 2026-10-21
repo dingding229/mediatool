@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed, ref, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import PageHeader from '../ui/PageHeader.vue';
@@ -26,20 +27,21 @@ function act() {
   if (tab.value === 'users')
     users.value?.create();
   else if (tab.value === 'players')
-    void access.value?.load();
+    return access.value?.load();
   else if (tab.value === 'sessions')
-    void sessions.value?.load();
+    return sessions.value?.load();
   else if (tab.value === 'processing')
-    void processing.value?.load();
+    return processing.value?.load();
   else
-    void service.value?.load();
+    return service.value?.load();
 }
+usePageRefresh(()=>tab.value==='users'?users.value?.load():act(),'*');
 </script>
 <template>
   <div class="media-workspace u5-workspace">
     <PageHeader title="播放服务" description="管理播放服务、家人账号和设备访问。">
       <template #actions>
-        <el-button type="primary" @click="act">{{ tab==='users'?'新建媒体用户':'刷新当前记录' }}</el-button>
+        <el-button v-if="tab==='users'" type="primary" @click="act">新建媒体用户</el-button>
       </template>
     </PageHeader>
     <PageTabs :tabs="tabs" default-tab="settings"/>

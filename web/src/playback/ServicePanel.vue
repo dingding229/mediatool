@@ -108,7 +108,7 @@ defineExpose({ load, form, save, status, libraries, op });
         <h3>{{ library.name||'—' }}</h3>
         <p>{{ library.groupName||'—' }} / {{ library.ruleName||'—' }} · {{ library.hidden?'已隐藏':'可见' }} · {{ library.assetCount??'—' }} 项</p>
       </article>
-      <el-pagination v-if="libraries.data?.total>50" v-model:current-page="page" :page-size="50" :total="libraries.data.total" layout="prev,pager,next,total" @current-change="libraries.load"/>
+      <PagePagination v-if="libraries.data?.total>50" v-model:current-page="page" :page-size="50" :total="libraries.data.total" layout="prev,pager,next,total" @current-change="libraries.load"/>
     </section>
     <DetailDrawer v-model:visible="technical" title="服务技术详情" :technical-data="{settings:status.data,services:providers.data,libraries:libraries.data}" class="media-detail">
       <ResourceState :loading="providers.loading" :error="providers.error" @reload="providers.load"/>

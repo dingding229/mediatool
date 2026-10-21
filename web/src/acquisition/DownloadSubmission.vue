@@ -18,7 +18,7 @@ defineProps<{
           ·
           {{ model.chosen.year||'—' }}
           · TMDB
-          <span>{{ model.chosen.id }}</span>
+
         </p>
         <p>{{ model.chosen.originalTitle||'—' }}</p>
         <el-button :disabled="!!model.intent" @click="model.usingIdentity=false">更正媒体身份</el-button>

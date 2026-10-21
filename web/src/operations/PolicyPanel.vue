@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
+import {scheduleLabel} from '../presentation/labels';
 import { onMounted, reactive, ref } from 'vue';
 import { request } from '../api/client';
 import { useResource } from '../workflows/useResource';
@@ -44,6 +46,7 @@ async function save() {
 }
 onMounted(load);
 defineExpose({ load, reloadPolicy, save, form, revision, latest, op, read });
+usePageRefresh(load,'maintenance');
 </script>
 <template>
   <section class="media-surface">
@@ -72,7 +75,7 @@ defineExpose({ load, reloadPolicy, save, form, revision, latest, op, read });
       <p v-if="latest">配置已被修改，已重新读取；你的输入已保留。</p>
       <details v-if="latest?.value">
         <summary>对照当前保存策略（只读）</summary>
-        <p>定时备份：{{ latest.value.backupEnabled?'启用':'停用' }} · {{ latest.value.backupCron||'—' }}；阈值告警：{{ latest.value.alertsEnabled?'启用':'停用' }}</p>
+        <p>定时备份：{{ latest.value.backupEnabled?'启用':'停用' }} · {{ scheduleLabel(latest.value.backupCron) }}；阈值告警：{{ latest.value.alertsEnabled?'启用':'停用' }}</p>
         <dl class="u5-detail-list">
           <div v-for="field in policyFields" :key="field.key">
             <dt>{{ field.label }}</dt>
@@ -88,7 +91,7 @@ defineExpose({ load, reloadPolicy, save, form, revision, latest, op, read });
       <AsyncResultBanner v-if="op.phase" :status="op.phase" message="策略保存结果尚未确认，请先重新读取核对。" @refresh="load"/>
       <div class="media-actions">
         <el-button :disabled="!!op.pending||!!latest||!!read.error" native-type="submit">保存维护策略</el-button>
-        <el-button @click="reloadPolicy">放弃草稿并重新读取</el-button>
+        <el-button @click="reloadPolicy">放弃草稿</el-button>
       </div>
     </form>
   </section>

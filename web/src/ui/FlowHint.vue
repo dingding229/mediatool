@@ -14,7 +14,7 @@ const emit = defineEmits<{
 const actionLabels: Record<string, string> = {
   reconcile_upload: '去核对上传对账',
   reconcile_transfer: '去核对传输结果',
-  verify_player_302: '前往播放器验证 302 直链',
+  verify_player_302: '在播放器中验证播放',
   authorize_115: '去完成 115 扫码授权',
   enable_connection: '去启用该服务连接',
   configure_credentials: '去完善服务账号密码',
@@ -26,7 +26,7 @@ const actionLabels: Record<string, string> = {
 
 const displayAction = computed(() => {
   if (!props.nextAction) return ''
-  return actionLabels[props.nextAction] || `下一步：${props.nextAction}`
+  return actionLabels[props.nextAction] || (/^[a-z][a-z0-9_.:-]*$/i.test(props.nextAction)?'查看处理建议':props.nextAction)
 })
 
 function onClick() {
@@ -61,11 +61,12 @@ function onClick() {
   line-height: 1.5;
 }
 .flow-reason {
-  color: var(--muted);
+  color: var(--mt-text-muted);
 }
 .flow-action-btn {
   background: transparent;
   border: 0;
+  min-height:44px;
   padding: 0;
   color: var(--mt-color-primary);
   font-weight: 500;

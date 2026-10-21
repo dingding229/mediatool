@@ -327,3 +327,7 @@ X-Requested-With: media-tool
 - revision冲突保留用户草稿供对比，不自动覆盖；删除/危险动作显示预览范围和明确确认文案。
 - 不支持的HLS/relay/转码控件不能重新激活；禁用的直链策略开关也不能通过旧API/环境绕过后端策略。
 - 接口新增/删除必须先让双向路由契约测试与OpenAPI同步；完整门禁 `bash scripts/test-release.sh` 默认共用锁且只允许media_tool_test/Redis DB15，依赖已安装errcheck/govulncheck（可通过ERRCHECK_BIN/GOVULNCHECK_BIN指定）。
+
+## 工作区呈现与交互规范
+
+最终页面归属、标签和统一组件规则见 [前端设计规范](FRONTEND_DESIGN_MASTER.md)。刷新仅读取当前标签，下载器同步为显式业务操作；统一分页为上一页/第N页/下一页，子分区统一分段控件。空、错、不支持、未授权须分别呈现。配置预填当前生效值而不自动写回默认值，未保存草稿在刷新和修订冲突时保留。日志与数据浏览按管理员权限显示原始值及完整请求/跳转URL。

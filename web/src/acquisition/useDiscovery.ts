@@ -14,8 +14,10 @@ export function useDiscovery() {
     truncated.value = false;
     try {
       const out = await request<any>(`/media/library/sources?kind=${kind.value}&page=${page.value}&limit=24`);
+      const providers=await request<any[]>('/plugins?page=1&pageSize=200').catch(()=>[]);
+      const names=new Map(rows(providers).map(p=>[p.id,p.metadata?.name||p.name||'已启用的插件']));
       if (alive && version === epoch) {
-        items.value = rows(out.items).map(v => ({ ...v, id: `${v.instanceId}:${v.mediaType}:${v.tmdbId}`, source: v.source || 'plugin' }));
+        items.value = rows(out.items).map(v => ({ ...v, id: `${v.instanceId}:${v.mediaType}:${v.tmdbId}`, source: names.get(v.instanceId)||'已启用的发现服务' }));
         hasMore.value = !!out.hasMore;
         truncated.value = !!out.truncated;
       }

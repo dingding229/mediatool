@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { onMounted, ref, onUnmounted } from 'vue';
 import { request } from '../api/client';
 import { isConflict } from './model';
@@ -15,12 +16,18 @@ async function copySaved() {
   catch { notice.value = '复制失败，请在已显示的地址内手动选择并复制。'; }
 }
 let disposed = false;
-async function load() {
+async function load(preserve = false) {
   showSaved.value = false;
   try {
     const out = await request<Proxy>('/settings/network-proxy');
     if (!disposed) {
+      if (preserve && saved.value && (input.value || clear.value || tmdb.value!==saved.value.tmdb || sites.value!==saved.value.sites)) {
+        conflict.value=out;
+        notice.value='已刷新配置，你的输入已保留，请对照后确认。';
+        return;
+      }
       saved.value = out;
+      conflict.value = null;
       tmdb.value = out.tmdb;
       sites.value = out.sites;
       input.value = '';
@@ -77,13 +84,14 @@ function adopt() {
     error.value = '已采用最新修订，你的输入未变。';
   }
 }
-onMounted(load);
+onMounted(()=>load());
 onUnmounted(() => {
   disposed = true;
   input.value = '';
   saved.value = null;
   conflict.value = null;
 });
+usePageRefresh(()=>load(true));
 </script>
 <template>
 <section class="connection-manager" aria-label="网络代理">
@@ -92,7 +100,7 @@ onUnmounted(() => {
       <h2>网络代理</h2>
       <p>代理失效时明确报错，不静默回退直连。</p>
     </div>
-    <el-button @click="load">重新读取代理设置</el-button>
+
   </header>
   <form v-if="saved" class="connection-editor" @submit.prevent="save">
     <p>{{ saved.url?'代理地址已设置（默认隐藏）':'尚未设置代理地址' }}</p>

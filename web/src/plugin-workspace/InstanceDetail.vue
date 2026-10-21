@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {providePageRefresh,usePageRefresh} from '../ui/page-refresh';
+const ownRefresh=providePageRefresh();
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { inspect, reviewPlan } from '../api/plugins';
@@ -20,7 +22,7 @@ import ResourceState from '../workflows/ResourceState.vue';
 import '../media/media.css';
 import '../workflows/u5.css';
 import '../operations/u6.css';
-const route = useRoute(), id = String(route.params.id), after = ref(''), data = reactive(useResource(() => inspect(id, after.value))), plan = reactive(useResource(() => reviewPlan(id))), op = reactive(usePluginOperation()), config = ref(''), draftLoaded = ref(false), draftRevision = ref(0), latest = ref(false), confirm = ref(false), kind = ref(''), consent = ref(false), confirmed = ref(false), panel = ref('config'), tool = ref(''), detail = ref(false), kv = ref(false);
+const route = useRoute(), id = String(route.params.id), after = ref(''),cursors=ref(['']),cursorIndex=ref(1), data = reactive(useResource(() => inspect(id, after.value))), plan = reactive(useResource(() => reviewPlan(id))), op = reactive(usePluginOperation()), config = ref(''), draftLoaded = ref(false), draftRevision = ref(0), latest = ref(false), confirm = ref(false), kind = ref(''), consent = ref(false), confirmed = ref(false), panel = ref('config'), tool = ref(''), detail = ref(false), kv = ref(false);
 const row = computed(() => data.data?.instance), unavailable = computed(() => !!row.value && ((row.value.availability && row.value.availability !== 'available') || ['definition_missing', 'definition_unsupported'].includes(row.value.reason))), pages = computed(() => inventory.manifests.find(m => m.id === row.value?.pluginId)?.extensions.pages || []);
 async function read() {
   await Promise.all([data.load(), plan.load()]);
@@ -75,12 +77,14 @@ async function approve() {
   await load();
 }
 onMounted(load);
+ownRefresh.register(load,()=>true);
+function dataPage(n:number){if(n>cursorIndex.value){if(!data.data?.next)return;cursors.value.push(data.data.next)}cursorIndex.value=n;after.value=cursors.value[n-1]||'';void data.load()}
 </script>
 <template>
   <div class="media-workspace u5-workspace u6-workspace">
     <PageHeader :title="row?.metadata?.name||'插件详情'" description="查看权限、配置和运行状态；启停与卸载都需要明确确认。">
       <template #actions>
-        <el-button type="primary" @click="load">刷新插件状态</el-button>
+
       </template>
     </PageHeader>
     <RouterLink to="/plugins?tab=installed">返回已安装插件</RouterLink>
@@ -93,7 +97,7 @@ onMounted(load);
     <section v-if="row" class="media-surface">
       <header class="media-section-heading">
         <h2>实例状态</h2>
-        <strong>{{ pluginState(row) }} · {{ row.desiredState==='enabled'?'期望启用':'期望停用' }}</strong>
+        <strong>{{ pluginState(row) }}</strong>
       </header>
       <p v-if="row.reason">{{ reasonName(row.reason) }}</p>
       <p v-if="unavailable">此插件当前不可用，配置和数据仍保留；不能启用或创建分身。</p>
@@ -108,7 +112,7 @@ onMounted(load);
       </div>
     </section>
     <section v-if="row" class="media-surface">
-      <nav class="media-actions" aria-label="插件管理功能">
+      <nav class="media-actions mt-segments" aria-label="插件管理功能">
         <el-button v-for="(label,key) in {config:'配置',data:'实例数据',extensions:'服务与命令'}" :key="key" :aria-pressed="panel===key" @click="panel=String(key)">{{ label }}</el-button>
       </nav>
       <template v-if="panel==='config'">
@@ -159,7 +163,7 @@ onMounted(load);
       </label>
       <template #footer>
         <el-button @click="consent=false">取消</el-button>
-        <el-button @click="review">重新读取确认预览</el-button>
+        <el-button @click="review">核对结果</el-button>
         <el-button :disabled="!confirmed||!plan.data?.needsReview||plan.data?.availability!=='available'||!!op.pending" @click="approve">确认权限并保持停用</el-button>
       </template>
     </el-dialog>
@@ -174,7 +178,7 @@ onMounted(load);
         <strong>{{ entry.key }}</strong>
         <pre class="u6-raw">{{ JSON.stringify(entry.value,null,2) }}</pre>
       </article>
-      <el-button v-if="data.data?.next" @click="after=data.data!.next;data.load()">下一页数据</el-button>
+      <PagePagination v-if="data.data?.next||cursorIndex>1" :current-page="cursorIndex" :has-next="!!data.data?.next" @current-change="dataPage"/>
     </DetailDrawer>
     <DetailDrawer v-model:visible="detail" title="插件技术详情" :technical-data="{inspection:data.data,review:plan.data,error:op.technical}" class="media-detail"/>
   </div>

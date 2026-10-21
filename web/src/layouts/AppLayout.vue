@@ -12,7 +12,7 @@ import ThemeToggle from '../components/ThemeToggle.vue'
 const route = useRoute(), router = useRouter(), auth = useAuthStore(), system = useSystemStore()
 const menuOpen = ref(false), navigatorOpen = ref(false), main = ref<HTMLElement>()
 const current = computed(() => navigationLocation(route.path))
-const tabLabel = computed(() => current.value ? pageById(current.value.id).tabs.find(t => t.id === route.query.tab)?.label : '')
+const tabLabel = computed(() => current.value&&pageById(current.value.id).tabs.length>1 ? pageById(current.value.id).tabs.find(t => t.id === route.query.tab)?.label : '')
 function shortcut(event: KeyboardEvent) {
   if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return
   if (!navigatorOpen.value && [...document.querySelectorAll('.el-overlay')].some(node => node.getClientRects().length)) return

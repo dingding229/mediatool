@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { APIError, post, request } from '../api/client';
 import { requestUUID } from '../utils/request-uuid';
@@ -194,12 +195,13 @@ onMounted(load);
 onUnmounted(() => {
   disposed = true;
 });
+usePageRefresh(load, 'recovery');
 </script>
 <template>
   <section class="media-surface">
     <header class="media-section-heading">
       <h2>旧输出归档</h2>
-      <el-button :loading="loading" @click="load">刷新归档</el-button>
+
     </header>
     <p>只管理完成迁移后生成的过期托管归档；不自动清理，不操作原媒体、做种源、当前 STRM 或共享 NFO。</p>
     <div class="media-actions">
@@ -228,7 +230,7 @@ onUnmounted(() => {
       <p>{{ item.message||'—' }}</p>
       <el-button v-if="item.cleanupId&&item.state!=='removed'" :disabled="busy||!!retryPending" @click="retryTarget=item;retryOpen=true">继续已批准清理</el-button>
     </article>
-    <el-pagination v-if="total>50" v-model:current-page="page" :page-size="50" :total="total" layout="prev,pager,next,total" @current-change="load"/>
+    <PagePagination v-if="total>50" v-model:current-page="page" :page-size="50" :total="total" layout="prev,pager,next,total" @current-change="load"/>
     <section v-if="plan" class="organize-plan" aria-label="归档清理计划">
       <h3>预览归档清理</h3>
       <p>将物理删除下面选中的过期归档，不操作原媒体或当前输出。</p>

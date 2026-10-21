@@ -34,7 +34,7 @@ defineProps<{
     </aside>
     <section class="auth-entry">
       <div class="auth-form">
-        <p class="auth-eyebrow">管理工作台</p>
+
         <h2>{{title}}</h2>
         <p class="auth-description">{{description}}</p>
         <slot/>

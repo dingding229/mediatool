@@ -197,7 +197,7 @@ defineExpose({ readback });
             <small v-for="out in asset.outputs?.filter((o:any)=>o.kind==='strm')||[]" :key="out.path">{{ out.path }}</small>
           </span>
         </label>
-        <el-pagination v-if="total>100" v-model:current-page="page" :page-size="100" :total="total" layout="prev,pager,next,total" @current-change="loadAssets"/>
+        <PagePagination v-if="total>100" v-model:current-page="page" :page-size="100" :total="total" layout="prev,pager,next,total" @current-change="loadAssets"/>
         <el-button :disabled="!selected.length||!!pending||!!loadError" :loading="busy" @click="preview">检查已选 {{ selected.length }} 个资产</el-button>
       </section>
       <section v-if="batch" aria-label="修复批次">
@@ -210,7 +210,7 @@ defineExpose({ readback });
         <AsyncResultBanner v-if="phase" :status="phase" :message="phase==='queued'?'修复已排队，尚未核验完成。':'正在核对上次修复结果，不重复批准。'" @refresh="readback(pending?.id)"/>
         <div class="media-actions">
           <el-button v-if="batch.state==='preview'&&!pending" :disabled="busy||!batch.items.some((r:any)=>r.state==='missing')||Date.parse(batch.expiresAt)<=Date.now()" @click="ask()">批准批量修复</el-button>
-          <el-button :loading="busy" @click="readback()">刷新批次状态</el-button>
+
           <el-button v-if="batch.state==='needs_reconcile'" :disabled="!readVerified||busy||pending&&pending.id!==batch.id" @click="ask(true)">核对后恢复此批次</el-button>
           <el-button @click="technical=true">技术详情</el-button>
         </div>

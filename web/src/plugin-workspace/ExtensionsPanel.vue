@@ -82,9 +82,9 @@ onMounted(load);
     <RouterLink v-if="pendingInstance&&pendingInstance!==id" :to="'/plugins/'+encodeURIComponent(pendingInstance)">返回待核对插件</RouterLink>
     <el-button v-if="op.pending" :disabled="op.busy||!!read.error" @click="reconcile">核对原执行请求</el-button>
     <article v-for="d in runnable" :key="d.kind+':'+d.id" class="organize-record">
-      <h4>{{ d.name||d.id }}</h4>
+      <h4>{{ d.name||'未命名服务' }}</h4>
       <p>{{ d.description||'—' }}</p>
-      <el-button :disabled="!running||!!op.pending||!!read.error" @click="selected=d;confirm=true">执行 {{ d.name||d.id }}</el-button>
+      <el-button :disabled="!running||!!op.pending||!!read.error" @click="selected=d;confirm=true">执行 {{ d.name||'未命名服务' }}</el-button>
     </article>
     <h3>执行历史</h3>
     <ResourceState :empty="!!read.data&&!read.data[1].length"/>
@@ -93,11 +93,8 @@ onMounted(load);
       <p>{{ r.reason?'请查看运行详情核对原因。':'—' }}</p>
       <el-button @click="detail=r;open=true">运行详情</el-button>
     </article>
-    <div class="media-actions">
-      <el-button :disabled="page===1" @click="page--;load()">上一页运行</el-button>
-      <el-button :disabled="(read.data?.[1].length||0)<50" @click="page++;load()">下一页运行</el-button>
-    </div>
-    <ConfirmAction v-model:visible="confirm" title="执行插件扩展" :description="'将执行 '+(selected?.name||selected?.id||'此扩展')" impact-scope="可能产生插件权限范围内的业务变更；结果未知时先核对，不会自动重试。" confirm-text="确认执行" class="media-dialog" :loading="op.busy" @confirm="run"/>
+    <PagePagination v-model:current-page="page" :has-next="(read.data?.[1].length||0)>=50" @current-change="load"/>
+    <ConfirmAction v-model:visible="confirm" title="执行插件扩展" :description="'将执行 '+(selected?.name||'此扩展')" impact-scope="可能产生插件权限范围内的业务变更；结果未知时先核对，不会自动重试。" confirm-text="确认执行" class="media-dialog" :loading="op.busy" @confirm="run"/>
     <DetailDrawer v-model:visible="open" title="插件运行详情" :technical-data="detail" class="media-detail"/>
   </section>
 </template>

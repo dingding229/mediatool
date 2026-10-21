@@ -83,7 +83,7 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
         <h2>缓存管理</h2>
         <el-button :disabled="!!op.pending||!!data.error" @click="ask()">清理此类缓存</el-button>
       </header>
-      <nav class="media-actions" aria-label="缓存范围">
+      <nav class="media-actions mt-segments" aria-label="缓存范围">
         <el-button :aria-pressed="kind==='tmdb'" @click="setKind('tmdb')">TMDB</el-button>
         <el-button :aria-pressed="kind==='search'" @click="setKind('search')">搜索缓存</el-button>
       </nav>
@@ -93,7 +93,7 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
       <p v-if="notice" role="status">{{ notice }}</p>
       <p v-if="data.data?.truncated">扫描存在上限，当前列表未必覆盖全部缓存；可分批清理并重新读取。</p>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
-      <AsyncResultBanner v-if="op.phase" :status="op.phase" message="缓存清理结果尚未确认，请先读取当前记录，不重复清理。" @refresh="load"/>
+      <AsyncResultBanner v-if="op.phase" :status="op.phase" message="缓存清理结果尚未确认，请先查看当前结果，不重复清理。" @refresh="load"/>
       <article v-for="row in data.error?[]:data.data?.items||[]" :key="row.id" class="organize-record">
         <div class="u6-cache-content">
           <img v-if="tmdbImage(row.posterPath)&&!posterErrors.has(row.id)" :src="tmdbImage(row.posterPath)" :alt="row.query+'海报'" loading="lazy" @error="posterErrors.add(row.id)"/>
@@ -108,7 +108,7 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
           <el-button :disabled="!!op.pending" @click="ask(row.id)">删除缓存项</el-button>
         </div>
       </article>
-      <el-pagination v-if="data.data?.total>30" v-model:current-page="page" :total="data.data.total" :page-size="30" layout="prev,pager,next" @current-change="load"/>
+      <PagePagination v-if="data.data?.total>30" v-model:current-page="page" :total="data.data.total" :page-size="30" layout="prev,pager,next" @current-change="load"/>
     </section>
     <p>
       缓存有效期统一在

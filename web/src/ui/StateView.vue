@@ -55,7 +55,7 @@ const displayTitle = computed(() => props.title || defaultTitles[props.state])
         show-icon
       />
       <div class="state-action">
-        <el-button type="primary" plain @click="emit('retry')">{{ retryText }}</el-button>
+        <el-button plain @click="emit('retry')">{{ retryText }}</el-button>
         <slot name="action" />
       </div>
     </div>

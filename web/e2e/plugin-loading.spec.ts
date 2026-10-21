@@ -46,7 +46,7 @@ async function installedFixture(page:Page,running=false){
 for(const sample of [
  {button:'工作流管理',dialog:'工作流管理',endpoint:'**/api/v1/plugins/workflows?*',caption:'工作流列表',empty:'尚无工作流'},
  {button:'数据快照',dialog:'实例数据快照',endpoint:'**/api/v1/plugins/*/state-snapshots',caption:'实例快照',empty:'尚无实例快照'},
- {button:'认证状态',dialog:'认证状态',endpoint:'**/api/v1/plugins/*/auth/status',caption:'认证状态',empty:'此定义没有认证 provider'},
+ {button:'认证状态',dialog:'认证状态',endpoint:'**/api/v1/plugins/*/auth/status',caption:'认证状态',empty:'此插件不支持账号绑定'},
  {button:'工具测试',dialog:'人工工具测试',endpoint:'**/api/v1/plugins/*/tools',caption:'工具列表',empty:'没有已授权且运行中的工具'},
 ]){
  test(`${sample.caption}: pending/error never empty; retry is read only`,async({page})=>{
@@ -65,5 +65,5 @@ test('filtered log count is unknown during loading/error and retry keeps module 
  await page.goto(base+'/logs?module=plugins&instance=owned')
  try{await expect(page.getByText('日志数量加载中…',{exact:true})).toBeVisible();await expect(page.getByText('没有符合筛选条件的日志',{exact:true})).toHaveCount(0);await expect(page.getByText('当前检索窗口共 0 条',{exact:true})).toHaveCount(0)}finally{pending.release()}
  await expect(page.getByText('读取失败，数量未知',{exact:true})).toBeVisible();await expect(page.getByText('没有符合筛选条件的日志',{exact:true})).toHaveCount(0)
- phase='empty';await page.getByRole('button',{name:'刷新日志',exact:true}).click();await expect(page.getByText('当前检索窗口共 0 条',{exact:true})).toBeVisible();expect(urls).toHaveLength(2);expect(urls.every(u=>new URL(u).searchParams.get('module')==='plugins'&&new URL(u).searchParams.get('instance')==='owned')).toBe(true)
+ phase='empty';await page.getByRole('button',{name:'刷新',exact:true}).click();await expect(page.getByText('当前检索窗口共 0 条',{exact:true})).toBeVisible();expect(urls).toHaveLength(2);expect(urls.every(u=>new URL(u).searchParams.get('module')==='plugins'&&new URL(u).searchParams.get('instance')==='owned')).toBe(true)
 })

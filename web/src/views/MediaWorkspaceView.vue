@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { Refresh } from '@element-plus/icons-vue';
 import PageHeader from '../ui/PageHeader.vue';
 import StateView from '../ui/StateView.vue';
@@ -10,25 +11,26 @@ import { errorText } from '../workflows/readiness';
 import { formatBytes } from '../operations/model';
 import '../media/catalog.css';
 const { displayItems, source, view, page, query, kind, parentId, items, total, home, groups, loading, error, embyConnected, connectionError, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, season, seasons, episodes, series, copyMessage, playLink, copyBusy, load, search, chooseSource, all, browse, inspect, homeItem, refresh, readChildren, copyLink } = useCatalog();
+usePageRefresh(refresh,'*');
 </script>
 <template>
   <div class="catalog-workspace">
     <PageHeader title="媒体库" description="浏览已入库的作品，了解影片与剧集内容。"/>
     <section class="catalog-toolbar">
-      <nav aria-label="媒体库来源">
+      <nav aria-label="媒体库来源" class="mt-segments">
         <button :aria-pressed="source==='managed'" @click="chooseSource('managed')">内置媒体库</button>
         <button :aria-pressed="source==='emby'" aria-label="Emby" aria-describedby="emby-connection-state" @click="chooseSource('emby')">
           Emby
           <small id="emby-connection-state">{{embyConnected===false?'未连接':embyConnected===null?'状态未确认':''}}</small>
         </button>
       </nav>
-      <el-button :icon="Refresh" circle aria-label="重新读取媒体" :loading="loading" @click="refresh"/>
+
     </section>
     <p v-if="source==='emby'&&embyConnected===false" class="catalog-note">Emby 未连接。需要浏览时，请在“连接”页配置。</p>
     <p v-else-if="source==='emby'&&connectionError" class="catalog-note">连接状态暂未确认；以下为本次媒体读取结果。</p>
     <template v-if="source!=='emby'||embyConnected!==false">
       <h2 v-if="source==='emby'&&view==='home'">Emby 媒体库</h2>
-      <nav v-if="source==='emby'" class="catalog-subnav" aria-label="Emby 浏览范围">
+      <nav v-if="source==='emby'" class="catalog-subnav mt-segments" aria-label="Emby 浏览范围">
         <button :aria-pressed="view==='home'" @click="chooseSource('emby')">Emby 首页</button>
         <button :aria-pressed="view==='all'" @click="all">全部媒体</button>
       </nav>
@@ -63,11 +65,11 @@ const { displayItems, source, view, page, query, kind, parentId, items, total, h
       <section v-else class="catalog-section" aria-label="作品展示">
         <header>
           <h2>{{source==='managed'?'内置媒体库':'Emby 媒体库'}}</h2>
-          <span>{{total??'—'}} {{source==='managed'?'个媒体文件':'项'}}</span>
+          <span>{{total!=null&&total>items.length?'本页 ':''}}{{loading?'—':displayItems.length}} 部作品</span>
         </header>
         <PosterWall :items="displayItems" @select="inspect"/>
         <StateView v-if="!items.length" state="empty" title="暂无匹配作品" description="可调整标题或类型后再查看。"/>
-        <el-pagination v-if="total" v-model:current-page="page" :total="total" :page-size="24" layout="prev,pager,next" @current-change="load"/>
+        <PagePagination v-if="total" v-model:current-page="page" :total="total" :page-size="24" layout="prev,pager,next" @current-change="load"/>
       </section>
     </template>
     <DetailDrawer :key="detail?.id" v-model:visible="detailOpen" :title="detail?.title||'作品详情'" class="catalog-detail">
@@ -105,7 +107,7 @@ const { displayItems, source, view, page, query, kind, parentId, items, total, h
         <StateView v-else-if="childError" :state="sourceState(childError)" :description="errorText(childError)" @retry="readChildren"/>
         <template v-else>
           <p>{{source==='managed'?'以下仅为本页已入库文件的季集分组；其他分页的文件不计入本组。':'按来源返回的本页记录浏览季与集，翻页可查看其他记录。'}} 共 {{childTotal}} 项。</p>
-          <nav class="catalog-subnav" aria-label="本页剧集季">
+          <nav class="catalog-subnav mt-segments" aria-label="本页剧集季">
             <button :aria-pressed="season===null" @click="season=null">本页全部</button>
             <button v-for="value in seasons" :key="value" :aria-pressed="season===value" @click="season=value">第 {{value}} 季</button>
           </nav>
@@ -115,7 +117,7 @@ const { displayItems, source, view, page, query, kind, parentId, items, total, h
             </li>
           </ol>
           <StateView v-if="!children.length" state="empty" title="来源尚未返回季集内容"/>
-          <el-pagination v-if="childTotal>24" v-model:current-page="childPage" :total="childTotal" :page-size="24" layout="prev,pager,next" @current-change="readChildren"/>
+          <PagePagination v-if="childTotal>24" v-model:current-page="childPage" :total="childTotal" :page-size="24" layout="prev,pager,next" @current-change="readChildren"/>
         </template>
       </section>
       <section v-if="detail?.episodeDetails?.length">

@@ -20,7 +20,7 @@ test('U3 download 202 remains queued and a second click cannot submit the immuta
 })
 test('U3 unknown download outcome persists through reload and only permits readback',async({page})=>{
  let posts=0,reads=0;await page.route('**/api/v1/downloads',r=>{if(r.request().method()==='POST'){posts++;return r.abort()}reads++;return r.fulfill({json:{data:[]}})})
- await page.goto('/search/results/run-u3');await page.getByRole('button',{name:'确认并下载',exact:true}).click();await page.getByRole('button',{name:'创建下载任务',exact:true}).click();await expect(page.locator('.async-result-banner')).toContainText('回执未知');await page.reload();await page.getByRole('button',{name:'确认并下载',exact:true}).click();await expect(page.locator('.async-result-banner')).toContainText('回执未知');await page.locator('.async-result-banner').getByRole('button',{name:'刷新状态',exact:true}).click();expect(posts).toBe(1);expect(reads).toBe(1)
+ await page.goto('/search/results/run-u3');await page.getByRole('button',{name:'确认并下载',exact:true}).click();await page.getByRole('button',{name:'创建下载任务',exact:true}).click();await expect(page.locator('.async-result-banner')).toContainText('回执未知');await page.reload();await page.getByRole('button',{name:'确认并下载',exact:true}).click();await expect(page.locator('.async-result-banner')).toContainText('回执未知');await page.locator('.async-result-banner').getByRole('button',{name:'核对结果',exact:true}).click();expect(posts).toBe(1);expect(reads).toBe(1)
 })
 
 test('U3 search and results screenshots fit 375 and 1440 in both themes',async({page})=>{

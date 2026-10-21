@@ -115,10 +115,10 @@ defineExpose({ refresh: browser.refresh });
         </el-dropdown>
       </li>
     </ul>
-    <el-pagination v-if="browser.total>50" v-model:current-page="browser.page" :page-size="50" :total="browser.total" layout="prev,pager,next,total" @current-change="browser.selection=[];browser.load()"/>
+    <PagePagination v-if="browser.total>50" v-model:current-page="browser.page" :page-size="50" :total="browser.total" layout="prev,pager,next,total" @current-change="browser.selection=[];browser.load()"/>
   </section>
   <DetailDrawer v-model:visible="historyOpen" title="文件操作记录" :technical-data="browser.history" class="media-detail">
-    <el-button :loading="browser.historyLoading" @click="browser.loadHistory">刷新操作记录</el-button>
+
     <StateView v-if="browser.historyLoading" state="loading" title="正在读取操作记录…"/>
     <StateView v-else-if="browser.historyError" :state="sourceState(browser.historyError)" title="操作记录读取失败" :description="errorText(browser.historyError)" @retry="browser.loadHistory"/>
     <StateView v-else-if="!browser.history.length" state="empty" title="暂无文件操作记录"/>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { request } from '../api/client';
@@ -50,12 +51,13 @@ onMounted(() => {
   if (tab.value === 'storage')
     void loadAccount();
 });
+usePageRefresh(()=>tab.value==='storage'?loadAccount():load(),'*');
 </script>
 <template>
 <div class="connections-workspace">
   <PageHeader title="服务连接" description="把存储、播放和通知接好；密钥默认隐藏，需要时可在编辑中主动查看。">
     <template #actions>
-      <el-button type="primary" :loading="loading" @click="load">刷新状态</el-button>
+
     </template>
   </PageHeader>
   <PageTabs :tabs="tabs" default-tab="overview" />
@@ -65,7 +67,7 @@ onMounted(() => {
     <section class="connection-manager" aria-label="云盘空间和会员">
       <header class="connection-section-heading">
         <h2>空间与会员</h2>
-        <el-button :loading="accountBusy" @click="loadAccount">刷新空间与会员</el-button>
+
       </header>
       <StateView v-if="accountBusy" state="loading" title="正在读取官方账号信息…" />
       <el-alert v-else-if="accountError" :title="accountError" type="warning" :closable="false" />
@@ -84,7 +86,7 @@ onMounted(() => {
             <dd>{{ bytes(account.info.space?.free) }}</dd>
           </div>
         </dl>
-        <p>{{ account.info.userName||account.info.userId||'—' }} · {{ date(account.info.checkedAt) }}</p>
+        <p>{{ account.info.userName||'—' }} · {{ date(account.info.checkedAt) }}</p>
         <p v-if="account.info.spaceError">空间信息暂不可用</p>
         <p v-for="(member,index) in account.info.memberships||[]" :key="index">{{ member.identity||'—' }} {{ member.level||'—' }} · 到期 {{ date(member.expiresAt) }}</p>
         <p v-if="!account.info.memberships?.length">会员信息：—</p>

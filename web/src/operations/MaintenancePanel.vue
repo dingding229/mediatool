@@ -18,7 +18,7 @@ const data = reactive(useResource<any>(() => request('/ops'))), hours = ref(24),
 const gapMS = computed(() => Math.max(1, Math.ceil(hours.value * 60 / 500)) * 60000), trendRows = computed(() => trends.data.map(r => ({ ...r, processMiB: typeof r.processBytes === 'number' ? r.processBytes / 1048576 : null, successRate: typeof r.succeededJobs10m === 'number' && typeof r.failedJobs10m === 'number' && r.succeededJobs10m + r.failedJobs10m > 0 ? r.succeededJobs10m / (r.succeededJobs10m + r.failedJobs10m) * 100 : null })));
 const trendFields = [['memoryPercent', '内存使用率', '%'], ['diskFreeGB', '剩余空间', 'GiB'], ['load1', '系统负载', '1min'], ['loadPerCPU', '每CPU负载', ''], ['jobSeconds', '任务执行耗时', '秒'], ['pendingJobs', '待处理任务', '条'], ['processMiB', '应用堆内存', 'MiB'], ['failedJobs10m', '十分钟失败任务', '条'], ['successRate', '十分钟任务成功率', '%']];
 async function load() {
-  await data.load();
+  await Promise.all([data.load(),...(section.value==='trends'?[trends.load()]:[])]);
   if (preview.value && !data.error) {
     const current = data.data?.requests?.find((r: any) => r.id === preview.value.request.id);
     if (current)
@@ -106,8 +106,8 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
         <el-button :disabled="!!op.pending" @click="ask('resume')">核对后解除维护</el-button>
       </div>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
-      <AsyncResultBanner v-if="op.phase" :status="op.phase" message="维护请求尚未核验完成；请先读取当前记录，不重复执行。" @refresh="load"/>
-      <nav class="media-actions" aria-label="备份与告警功能">
+      <AsyncResultBanner v-if="op.phase" :status="op.phase" message="维护请求尚未核验完成；请先查看当前结果，不重复执行。" @refresh="load"/>
+      <nav class="media-actions mt-segments" aria-label="备份与告警功能">
         <el-button v-for="(name,key) in {backups:'备份管理',recovery:'恢复与回滚',alerts:'运维告警',trends:'运行趋势',policy:'维护策略'}" :key="key" :aria-pressed="section===key" @click="section=String(key)">{{ name }}</el-button>
       </nav>
     </section>
@@ -121,7 +121,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
         <div class="media-actions">
           <el-button @click="inspect(b)">备份详情</el-button>
           <el-button v-if="b.state==='ready'" :disabled="!!op.pending||!!data.error||data.loading||!data.data?.toolsReady" @click="ask('drill',b)">恢复演练</el-button>
-          <a v-if="b.state==='ready'" :href="`/api/v1/ops/backups/${b.id}/download`">下载备份</a>
+          <a class="mt-link-button" v-if="b.state==='ready'" :href="`/api/v1/ops/backups/${b.id}/download`">下载备份</a>
           <el-button v-if="canPinBackup(b.state)" :disabled="!!op.pending" @click="ask('pin',b)">{{ b.pinned?'取消固定':'固定备份' }}</el-button>
           <el-button v-if="canDeleteBackup(b.state)" :disabled="!!op.pending||b.pinned" @click="ask('delete',b)">删除备份</el-button>
         </div>

@@ -21,7 +21,7 @@ function total(key: string) {
 }
 async function load() {
   const [, out] = await Promise.all([accounts.load(), metrics.load()]);
-  void schedule.value?.load();
+  await schedule.value?.load();
   if (out)
     addSamples(samples, out);
   if (op.pending) {
@@ -94,7 +94,7 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
       <header class="media-section-heading">
         <h2>站点账号</h2>
         <div class="media-actions">
-          <el-button :loading="metrics.loading" @click="load">读取当前记录</el-button>
+
           <el-button :disabled="!!op.pending||op.busy||!!metrics.error" @click="sync()">采集启用站点</el-button>
         </div>
       </header>

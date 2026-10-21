@@ -81,7 +81,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
   <div class="media-stack">
     <section class="media-surface">
       <header class="media-section-heading">
-        <h2>播放器准入</h2>
+        <h2>播放器准入</h2><p>播放器标识（UA）用于识别发起请求的设备或应用。</p>
         <div class="media-actions">
           <el-button :disabled="!policy.data||!!policy.error||!!op.pending" @click="edit()">添加 UA 规则</el-button>
           <el-button :disabled="!policy.data||!!policy.error||!!op.pending" @click="ask('toggle')">{{ policy.data?.enabled?'关闭 UA 限制':'启用 UA 限制' }}</el-button>
@@ -105,7 +105,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
     <section class="media-surface">
       <header class="media-section-heading">
         <h2>播放器访问汇总</h2>
-        <el-button :disabled="!policy.data||!!op.pending" @click="ask('clear')">清理聚合记录</el-button>
+        <el-button :disabled="!policy.data||!!op.pending" @click="ask('clear')">清空访问记录</el-button>
       </header>
       <form class="u5-filters" @submit.prevent="search">
         <label>
@@ -129,10 +129,10 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
         <p>{{ record.lastClientIp||'—' }} · {{ date(record.lastSeenAt) }} · {{ reason(record.lastReason) }}</p>
         <div class="media-actions">
           <el-button @click="details=record;copyNotice='';detailOpen=true">查看完整 UA</el-button>
-          <el-button :disabled="!record.userAgent||record.whitelisted||!!op.pending||!policy.data" @click="edit(null,record)">从记录加入白名单</el-button>
+          <el-button :disabled="!record.userAgent||record.whitelisted||!!op.pending||!policy.data" @click="edit(null,record)">加入白名单</el-button>
         </div>
       </article>
-      <el-pagination v-if="records.data?.total>25" v-model:current-page="page" :page-size="25" :total="records.data.total" layout="prev,pager,next,total" @current-change="records.load"/>
+      <PagePagination v-if="records.data?.total>25" v-model:current-page="page" :page-size="25" :total="records.data.total" layout="prev,pager,next,total" @current-change="records.load"/>
     </section>
     <section class="media-surface">
       <h2>访问明细</h2>
@@ -147,14 +147,14 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <ResourceState :error="embyUsers.error" @reload="embyUsers.load"/>
       <ResourceState :loading="visits.loading" :error="visits.error" :empty="!visits.data?.items.length" @reload="visits.load"/>
       <article v-for="visit in visits.data?.items||[]" :key="visit.id" class="organize-record">
-        <h3>{{ visit.embyVerified?visit.embyUserName||visit.embyUserId:'未核验用户' }}</h3>
+        <h3>{{ visit.embyVerified?visit.embyUserName||'已核验用户':'未核验用户' }}</h3>
         <p>{{ visit.allowed?'准入通过':'准入拒绝' }} · HTTP {{ visit.status??'—' }} · {{ reason(visit.reason) }}</p>
         <p>访客地址 {{ visit.clientIp||'—' }} · {{ ipSource(visit.ipSource) }} · {{ visit.ipPublic?'公网地址':'非公网或未核验' }}</p>
         <p>连接地址 {{ visit.connectionIp||'—' }} · {{ visit.method||'—' }} · {{ date(visit.createdAt) }}</p>
         <p class="u5-original">{{ visit.userAgent||'空 UA' }}</p>
         <el-button @click="details=visit;copyNotice='';detailOpen=true">访问详情</el-button>
       </article>
-      <el-pagination v-if="visits.data?.total>25" v-model:current-page="visitPage" :page-size="25" :total="visits.data.total" layout="prev,pager,next,total" @current-change="visits.load"/>
+      <PagePagination v-if="visits.data?.total>25" v-model:current-page="visitPage" :page-size="25" :total="visits.data.total" layout="prev,pager,next,total" @current-change="visits.load"/>
     </section>
   </div>
   <el-dialog v-model="editing" :title="form.observationId?'从访问记录加入白名单':form.id?'编辑 UA 规则':'添加 UA 规则'" width="min(680px,94vw)" class="media-dialog u5-dialog" :close-on-click-modal="false">
@@ -181,9 +181,10 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <p v-if="notice">{{ notice }}</p>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <section v-if="latest">
+        <el-button v-if="latest.revision==null" @click="policy.load().then(p=>latest=p||latest)">核对准入策略</el-button>
         <p>当前策略：{{ latest.enabled?'启用限制':'不限 UA' }} · {{ latest.rules.length }} 条规则</p>
         <p v-for="rule in latest.rules" :key="rule.id" class="u5-original">{{ rule.label||'—' }}：{{ rule.userAgent }}</p>
-        <el-button @click="policy.load().then(p=>latest=p||latest)">重新读取当前策略</el-button>
+
         <el-button :disabled="latest.revision==null" @click="base=JSON.parse(JSON.stringify(latest));latest=null">保留输入并采用最新修订</el-button>
       </section>
     </div>

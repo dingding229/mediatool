@@ -77,7 +77,7 @@ defineExpose({ load, data, page });
       <p>最近进度 {{ date(session.lastProgressAt) }}</p>
       <el-button @click="detail=session;open=true">会话详情</el-button>
     </article>
-    <el-pagination v-if="data.data?.total>50" v-model:current-page="page" :page-size="50" :total="data.data.total" layout="prev,pager,next,total" @current-change="load"/>
+    <PagePagination v-if="data.data?.total>50" v-model:current-page="page" :page-size="50" :total="data.data.total" layout="prev,pager,next,total" @current-change="load"/>
   </section>
   <DetailDrawer v-model:visible="open" title="在线会话详情" :technical-data="detail" class="media-detail">
     <h3>{{ detail?.itemName||'—' }}</h3>

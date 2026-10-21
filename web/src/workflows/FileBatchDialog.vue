@@ -265,10 +265,10 @@ defineExpose({ open, openFiles });
             <p>{{ phase&&!verified?'等待核验':label(row.state) }} · {{ !phase||verified?row.message||'—':'以重新读取的记录为准' }}</p>
             <p v-for="(item,index) in row.result?.plan?.items||[]" :key="index">{{ item.source?.path }} → {{ item.target }}</p>
           </article>
-          <AsyncResultBanner v-if="phase" :status="phase" message="批准不等于文件整理完成，先读取或只读核对，不重放写入。" @refresh="readback(false)"/>
+          <AsyncResultBanner v-if="phase" :can-refresh="false" :status="phase" message="批准不等于文件整理完成，先读取或只读核对，不重放写入。" @refresh="readback(false)"/>
           <div class="media-actions">
             <el-button v-if="canApprove(batch)&&!phase" type="primary" @click="approveOpen=true">明确批准整个批次</el-button>
-            <el-button :loading="busy" @click="readback(false)">刷新执行进度</el-button>
+            <el-button :loading="busy" @click="readback(false)">核对结果</el-button>
             <el-button @click="readback(true)">核对结果（不重放）</el-button>
             <RouterLink :to="{path:'/organize',query:{tab:'history',batchId:batch.id}}" @click="close">查看持久化批次</RouterLink>
           </div>

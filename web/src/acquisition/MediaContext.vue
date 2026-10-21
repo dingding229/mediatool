@@ -97,7 +97,7 @@ onUnmounted(() => {
           <small>{{ item.year||'—' }}</small>
         </h2>
         <p>{{ item.mediaType==='series'?'剧集':'电影' }} · {{ item.genres?.join(' / ')||'—' }}</p>
-        <p>TMDB ID：{{ item.id }}</p>
+
         <p class="acquire-overview">{{ item.overview||'暂无简介' }}</p>
         <div class="acquire-actions">
           <el-button @click="details=true">查看详情</el-button>

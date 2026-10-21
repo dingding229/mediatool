@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { post, request, responseStatus } from '../api/client';
 import { useResource } from '../workflows/useResource';
@@ -116,6 +117,7 @@ onUnmounted(() => {
   hideToken();
   testToken.value = '';
 });
+usePageRefresh(load, 'api');
 </script>
 <template>
   <div class="settings-stack">
@@ -126,7 +128,7 @@ onUnmounted(() => {
           <p>独立授权，可随时撤销。默认只读；下载权限会产生真实任务。</p>
         </div>
         <div class="settings-actions">
-          <el-button @click="load">刷新凭据记录</el-button>
+
           <el-button :disabled="!!op.pending.value" @click="dialog=true">创建 API 凭据</el-button>
         </div>
       </header>

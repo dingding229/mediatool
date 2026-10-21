@@ -18,10 +18,10 @@ async function run(){const d=list.value.find(x=>x.id===selected.value);if(!d||bu
  busy.value=true;try{const identity=d.id+':'+JSON.stringify(value);let key=pending.get(identity);if(!key){key=requestUUID();pending.set(identity,key)};const result=await callTool(props.instanceId,{name:d.id,input:value,operationKey:key,confirm:d.effectKind!=='read'});pending.delete(identity);output.value=JSON.stringify(result,null,2)}catch(e){error.value=e instanceof Error?e.message:'结果未知，请核对运行历史'}finally{busy.value=false}}
 </script>
 <template>
- <p>仅管理员人工测试，不提供 LLM 对话或自动 Agent 循环。输入16KiB、输出32KiB、调用预算5秒；服务端按 schema 校验，实时授权不足即拒绝。</p>
+ <p>仅管理员可手动调用工具。调用前会检查权限，可能修改数据的操作需要再次确认。</p>
  <el-alert v-if="error" :title="error" type="error" :closable="false" role="alert"/><ReadFeedback :state="listRead" caption="工具列表" @retry="load"/><p v-if="listRead.loaded&&!list.length">没有已授权且运行中的工具</p>
  <label for="plugin-tool-select">工具</label><el-select id="plugin-tool-select" v-model="selected" aria-label="工具"><el-option v-for="t in list" :key="t.id" :value="t.id" :label="t.name"/></el-select>
- <template v-for="d in list.filter(x=>x.id===selected)" :key="d.id"><p>{{d.description}} <el-tag :type="d.effectKind==='read'?'info':'danger'">{{d.effectKind==='read'?'只读':'危险确认'}} · {{d.effectKind}}</el-tag></p><p><el-tag v-for="s in d.requiredScopes" :key="s" :type="dangerousScope(s)?'danger':'info'">{{s}}</el-tag></p><details><summary>输入 JSON schema（有界子集）</summary><pre>{{JSON.stringify(d.inputSchema,null,2)}}</pre></details></template>
+ <template v-for="d in list.filter(x=>x.id===selected)" :key="d.id"><p>{{d.description}} <el-tag :type="d.effectKind==='read'?'info':'danger'">{{d.effectKind==='read'?'只读':'危险确认'}} · {{({read:'只读',write:'会修改数据',unknown:'影响未确认'} as Record<string,string>)[d.effectKind]||'影响未确认'}}</el-tag></p><p><el-tag v-for="s in d.requiredScopes" :key="s" :type="dangerousScope(s)?'danger':'info'">{{s}}</el-tag></p><details><summary>技术详情：输入格式</summary><pre>{{JSON.stringify(d.inputSchema,null,2)}}</pre></details></template>
  <label for="plugin-tool-input">输入 JSON</label><el-input id="plugin-tool-input" v-model="input" type="textarea" :rows="6" :maxlength="16384"/><el-button :disabled="!selected||busy||listRead.loading||!listRead.loaded" :loading="busy" @click="run">人工调用工具</el-button>
  <h3>输出</h3><pre aria-live="polite">{{output||'尚无结果（不代表执行成功）'}}</pre>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import './connections.css';
 import { computed, ref, watch } from 'vue';
 import { ElMessageBox } from 'element-plus';
@@ -27,6 +28,7 @@ async function approveRevision() {
   catch {
   }
 }
+usePageRefresh(load);
 </script>
 <template>
 <section class="connection-manager" :aria-label="title">
@@ -36,7 +38,7 @@ async function approveRevision() {
       <p>保存前验证连接；密钥默认隐藏，可主动查看已保存值；留空保留原值。</p>
     </div>
     <div class="connection-buttons">
-      <el-button :loading="loading" @click="load">刷新连接</el-button>
+
       <el-select v-if="allowedKinds.length>1" v-model="selectedKind" aria-label="新增服务类型">
         <el-option v-for="kind in allowedKinds" :key="kind" :value="kind" :label="kinds[kind]?.name" />
       </el-select>
@@ -112,7 +114,7 @@ async function approveRevision() {
       <div class="connection-buttons">
         <el-button :disabled="saving||blocked||!!conflict" :loading="saving" native-type="submit" type="primary">{{ form.kind==='tmdb'?'保存TMDB Token':'加密保存' }}</el-button>
         <el-button v-if="form.kind==='open115'" :disabled="saving||blocked||!!conflict" @click="save(true)">保存并115扫码授权</el-button>
-        <el-button v-if="blocked" @click="load">重新读取核对</el-button>
+        <el-button v-if="blocked" @click="load">核对结果</el-button>
       </div>
     </form>
   </el-dialog>

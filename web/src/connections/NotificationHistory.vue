@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { post, request } from '../api/client';
 import ConfirmAction from '../ui/ConfirmAction.vue';
@@ -60,6 +61,7 @@ onUnmounted(() => {
   if (timer)
     clearInterval(timer);
 });
+usePageRefresh(load);
 </script>
 <template>
 <section class="connection-manager" aria-label="通知投递记录">
@@ -69,7 +71,7 @@ onUnmounted(() => {
       <h2>投递记录</h2>
       <p>结果未知时先在接收端核对，避免重复通知。</p>
     </div>
-    <el-button @click="load">刷新投递记录</el-button>
+
   </header>
   <el-alert v-if="pending" title="重发已排队，尚未确认投递完成。" type="info" :closable="false" />
   <el-alert v-if="error" :title="error" type="error" :closable="false" />

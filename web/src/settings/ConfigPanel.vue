@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import {usePageRefresh} from '../ui/page-refresh';
+import { computed, onMounted, onUnmounted, ref, watch, reactive } from 'vue';
 import { request } from '../api/client';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import RevisionFeedback from './RevisionFeedback.vue';
@@ -12,6 +13,10 @@ const a = app.draft, domains = access.draft, confirmCleanup = ref(false), previe
   movie: string;
   series: string;
 }>(), previewError = ref(''), previewing = ref(false);
+const touched=reactive(new Set<string>());
+function originValue(key:string){return touched.has(key)?domains.value?.[key]||'':domains.value?.[key]||effective.value?.[key]||''}
+function setOrigin(key:string,value:string){touched.add(key);if(domains.value)domains.value[key]=value}
+watch(()=>access.baseline.value?.revision,()=>{if(!access.changed.value)touched.clear()});
 const effective = computed(() => access.latest.value?.effective ?? access.baseline.value?.effective);
 const fields = [['managementUrl', '后台访问域名'], ['playbackUrl', '播放链接域名'], ['memberUrl', '内置媒体库域名'], ['embyUrl', 'Emby 网关域名']] as const;
 const scraping = [['movie', '电影', ['nfo', 'poster', 'backdrop', 'logo']], ['series', '剧集', ['nfo', 'poster', 'backdrop', 'logo']], ['season', '季', ['nfo', 'poster']], ['episode', '集', ['nfo', 'thumb']]] as const;
@@ -74,6 +79,7 @@ onMounted(() => {
   if (props.section === 'general')
     void access.load();
 });
+usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access.load()]:[])]), props.section);
 </script>
 <template>
   <div class="settings-stack">
@@ -83,19 +89,15 @@ onMounted(() => {
           <h2>访问与域名</h2>
           <p>为后台、播放和媒体库分别设置入口。</p>
         </div>
-        <el-button :disabled="access.busy.value" @click="access.load">重新读取域名</el-button>
+
       </header>
       <RevisionFeedback :form="access"/>
       <form v-if="domains" @submit.prevent="access.save(fields.map(f=>f[0]))">
         <div class="settings-grid">
           <div v-for="[key,label] in fields" :key="key" class="settings-field">
             <label :for="`access-${key}`">{{label}}</label>
-            <el-input :id="`access-${key}`" v-model="domains[key]" autocomplete="url"/>
-            <small>
-              当前生效：
-              <a v-if="key!=='playbackUrl'&&effective?.[key]" :href="effective[key]" target="_blank" rel="noopener">{{effective[key]}}</a>
-              <span v-else>{{effective?.[key]||'—'}}</span>
-            </small>
+            <el-input :id="`access-${key}`" :model-value="originValue(key)" @update:model-value="(value:string)=>setOrigin(key,value)" autocomplete="url"/>
+<small v-if="originValue(key)!==(effective?.[key]||'')">尚未保存，当前使用 {{effective?.[key]||'部署地址'}}。</small>
           </div>
         </div>
         <p>请填写完整域名，可带端口；留空使用部署地址。需要自行配置域名解析、证书和反向代理。</p>
@@ -103,10 +105,7 @@ onMounted(() => {
           修改不覆盖已有播放文件。
           <RouterLink to="/files?tab=tools">前往 STRM 工具预览修复</RouterLink>
         </p>
-        <details>
-          <summary>技术详情</summary>
-          <pre>{{access.latest.value?.listeners||access.baseline.value?.listeners||'—'}}</pre>
-        </details>
+
         <footer>
           <el-button type="primary" native-type="submit" :loading="access.busy.value" :disabled="access.conflict.value||!access.changed.value">保存域名设置</el-button>
         </footer>
@@ -118,7 +117,7 @@ onMounted(() => {
           <h2>{{section==='general'?'访客地址识别':section==='naming'?'命名与入库':'搜索与订阅'}}</h2>
           <p>{{section==='naming'?'调整新入库媒体的命名与资料，不会自动修改已有文件。':'只保存本分区的改动，不影响其他设置。'}}</p>
         </div>
-        <el-button :disabled="app.busy.value" @click="app.load">重新读取设置</el-button>
+
       </header>
       <RevisionFeedback :form="app"/>
       <form v-if="a" @submit.prevent="section==='naming'?saveNaming():app.save(section==='general'?['trustedProxyCidrs']:['searchCacheSeconds','tmdbCacheSeconds','subscriptionCron'])">

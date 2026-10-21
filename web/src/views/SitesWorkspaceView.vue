@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageRefresh} from '../ui/page-refresh';
 import { computed, ref, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import PageHeader from '../ui/PageHeader.vue';
@@ -25,6 +26,7 @@ function act() {
   else
     void templates.value?.loadSelected();
 }
+usePageRefresh(()=>tab.value==='accounts'?accounts.value?.load():templates.value?.load(),'*');
 </script>
 <template>
   <div class="media-workspace u5-workspace u5-sites">

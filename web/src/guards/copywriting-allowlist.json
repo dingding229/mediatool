@@ -1,12 +1,1 @@
-{
-  "web/src/plugins/PluginAutomation.vue": [
-    "operationKey",
-    "fingerprint"
-  ],
-  "web/src/plugins/PluginSnapshots.vue": [
-    "operationKey"
-  ],
-  "web/src/plugins/PluginTools.vue": [
-    "operationKey"
-  ]
-}
+{}
