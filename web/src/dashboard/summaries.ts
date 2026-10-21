@@ -2,6 +2,7 @@ import { failureText, jobNames } from '../presentation/failures';
 import type { InboxItem, Slot } from './model';
 const list = (data: any): any[] => Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
 const time = (row: any) => Number.isFinite(Date.parse(row.updatedAt || row.createdAt)) ? Date.parse(row.updatedAt || row.createdAt) : 0;
+export const hasResourceCount=(value:unknown)=>typeof value==='number'&&Number.isInteger(value)&&value>=0;
 export function recentSearches(data: any) {
   const seen = new Set<string>();
   return [...list(data)].sort((a, b) => time(b) - time(a)).filter(r => {

@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest';
-import {failedJobs,recentSearches,uniqueItems} from './summaries';
+import {failedJobs,recentSearches,uniqueItems,hasResourceCount} from './summaries';
 import {failureReasons,failureText} from '../presentation/failures';
 import {guideSteps,inboxGroups} from './model';
 const raw='site collection failed: site request failed; check login, network and compatibility';
@@ -13,3 +13,6 @@ it('preserves unknown original errors and non-mutating source values',()=>{const
 it('recent searches retain only latest timestamp per keyword, with stable order if dates absent',()=>{const rows=recentSearches([{id:'old',keyword:'风暴生日宴',createdAt:'2026-10-20T01:00:00Z'},{id:'latest',keyword:'风暴生日宴',createdAt:'2026-10-21T01:00:00Z'},{id:'other',keyword:'其他',createdAt:'2026-10-20T02:00:00Z'}]);expect(rows.map(r=>r.id)).toEqual(['latest','other']);expect(recentSearches([{id:'a',keyword:'作品'},{id:'b',keyword:'作品'}])[0].id).toBe('a')});
 it('other inbox categories remove only duplicate records and explain known errors',()=>{const i={id:'a',title:'文件',path:'/downloads',query:{tab:'uploads',transferId:'a'},note:'connection refused'};expect(uniqueItems([i,i,{...i,id:'b',query:{...i.query,transferId:'b'}}])).toHaveLength(2);expect(uniqueItems([i])[0]!.note).toBe(failureText(i.note));const rows=inboxGroups({alerts:slot({alerts:[{code:'network',state:'active',message:'connection refused'}]})});expect(rows.find(g=>g.id==='alerts')!.items[0]!.title).toBe(failureText(i.note))});
 it('stale detection does not undo completed connection setup, but missing authorization does',()=>{const components:any={open115:{state:'check_required'},clouddrive2:{state:'ready'}};const step=guideSteps({components},[],null)[0]!;expect(step.done).toBe(true);expect(step.note).toBe('已连接，需要检测');components.open115.state='authorization_required';expect(guideSteps({components},[],null)[0]!.done).toBe(false)});
+
+it.each([undefined,null,NaN,Infinity,-1])('unknown recent-search count %s is not rendered',value=>expect(hasResourceCount(value)).toBe(false));
+it.each([0,8])('known recent-search count %s remains visible',value=>expect(hasResourceCount(value)).toBe(true));

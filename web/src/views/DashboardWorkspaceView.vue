@@ -6,7 +6,7 @@ import StateView from '../ui/StateView.vue';
 import PluginDashboards from '../plugins/PluginDashboards.vue';
 import ServiceReadiness from '../workflows/ServiceReadiness.vue';
 import { bytes, date, errorText, stateFor } from '../workflows/readiness';
-import {recentSearches} from '../dashboard/summaries';
+import {recentSearches,hasResourceCount} from '../dashboard/summaries';
 import {useReadinessTest} from '../dashboard/useReadinessTest';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { useDashboard } from '../dashboard/useDashboard';
@@ -114,7 +114,7 @@ usePageRefresh(refresh,'*');
       <p v-else-if="!recent.length" class="dashboard-empty">暂无搜索记录，前往搜索发现作品。</p>
       <RouterLink v-for="item in recent" :key="item.id" :to="`/search/results/${item.id}`">
         <strong>{{ item.keyword }}</strong>
-        <span>{{ item.total ?? '—' }} 个资源</span>
+        <span v-if="hasResourceCount(item.total)">{{ item.total }} 个资源</span>
       </RouterLink>
     </section>
     <div class="dashboard-plugin-container">
