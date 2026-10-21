@@ -2,7 +2,7 @@ export interface PageTab { id: string; label: string; keywords?: string }
 export interface PrimaryPage { id: string; name: string; group: string; description: string; tabs: PageTab[] }
 export const primaryPages: PrimaryPage[] = [
   { id: 'dashboard', name: '首页', group: '', description: '查看运行概况与服务状态。', tabs: [{ id: '', label: '首页' }] },
-  { id: 'search', name: '搜索', group: '获取', description: '发现资源，或从搜索历史继续查看结果。', tabs: [{ id: 'query', label: '搜索', keywords: 'TMDB 站点 资源' }, { id: 'history', label: '搜索历史', keywords: '站点缓存 历史记录' }] },
+  { id: 'search', name: '搜索', group: '获取', description: '发现资源，或从搜索历史继续查看结果。', tabs: [{ id: 'query', label: '搜索', keywords: 'TMDB 站点 资源' }, { id: 'history', label: '搜索历史', keywords: '站点缓存 历史记录' },{id:'discover',label:'发现推荐',keywords:'插件 来源 发现 推荐'}] },
   { id: 'subscriptions', name: '订阅', group: '获取', description: '管理订阅规则与自动跟进。', tabs: [{ id: '', label: '订阅' }] },
   { id: 'downloads', name: '下载', group: '获取', description: '跟进下载、做种、上传与手动入库。', tabs: [{ id: 'tasks', label: '下载任务', keywords: '下载器 qBittorrent 做种' }, {id:'uploads',label:'上传入库',keywords:'上传 核对 批次 115'}, {id:'manual',label:'手动添加',keywords:'种子 磁力 手动下载'}] },
   { id: 'library', name: '媒体库', group: '媒体', description: '浏览媒体内容与 Emby 服务。', tabs: [{ id: 'browse', label: '媒体浏览', keywords: 'Emby 海报 电影 剧集' }] },

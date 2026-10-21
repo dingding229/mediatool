@@ -265,7 +265,7 @@ test('Go template catalog supports selective loading, version, icon and website'
 
 test('strict direct-only policy is immutable and visible (isolated settings fixture)',async({page})=>{
  await fixtureLogin(page);await page.goto('/mediaLibrary')
- await page.getByRole('link',{name:'Emby 配置',exact:true}).click()
+ await expect(page.getByRole('link',{name:'Emby 配置',exact:true})).toHaveCount(0);await page.goto('/connections?tab=emby')
  await page.getByRole('button',{name:'添加连接'}).click()
  const name='Direct-only fixture '+Date.now()
  await page.getByLabel('连接名称',{exact:true}).fill(name)
@@ -460,14 +460,14 @@ test('blocked legacy imports require read-only review before import-only approva
  await fixtureLogin(page);await navigate(page,'下载与传输')
  const row=page.locator('.acquire-task').filter({hasText:'Owned.S01E01E03.mkv'})
  await expect(row.getByRole('button',{name:'恢复',exact:true})).toHaveCount(0)
- await row.getByRole('button',{name:'核对入库恢复',exact:true}).click()
+ await row.getByRole('link',{name:'核对入库恢复',exact:true}).click();await page.getByRole('button',{name:'核对入库恢复',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'核对并恢复已有入库',exact:true})
  const resume=dialog.getByRole('button',{name:'明确恢复入库（不重新上传）',exact:true})
  await expect(resume).toBeDisabled();expect(approvals).toHaveLength(0)
  const link=dialog.getByRole('link',{name:'前往云盘索引核对该资产、恢复已有输出并明确预览迁移',exact:true})
  await expect(link).toHaveAttribute('href',`/organize?tab=assets&assetId=${asset}`)
  await dialog.getByRole('button',{name:'关闭',exact:true}).click();expect(approvals).toHaveLength(0)
- migrated=true;await row.getByRole('button',{name:'核对入库恢复',exact:true}).click()
+ migrated=true;await page.goto('/downloads?tab=uploads');await row.getByRole('link',{name:'核对入库恢复',exact:true}).click();await page.getByRole('button',{name:'核对入库恢复',exact:true}).click()
  await expect(resume).toBeEnabled()
  await dialog.screenshot({path:resolve(screenshots,'output-import-recovery-preview.png'),animations:'disabled'})
  await page.setViewportSize({width:375,height:812});await expect(resume).toBeInViewport({ratio:1})
@@ -583,7 +583,7 @@ test('separate 115 setup saves disabled without tokens and saved secrets never e
  const response=await saved;expect(response.status()).toBe(201);const draft=(await response.json()).data
  expect(draft.enabled).toBe(false);expect(draft.secretFields).toEqual([])
  const draftRow=page.locator('.saved-connection').filter({hasText:name});await expect(draftRow.getByRole('button',{name:'115扫码授权',exact:true})).toBeVisible()
- await page.goto('/mediaLibrary');await page.getByRole('link',{name:'Emby 配置',exact:true}).click()
+ await page.goto('/mediaLibrary');await expect(page.getByRole('link',{name:'Emby 配置',exact:true})).toHaveCount(0);await page.goto('/connections?tab=emby')
  await page.getByRole('button',{name:'添加连接',exact:true}).click()
  const embyName='Emby echo fixture '+Date.now(),value='PRIVATE-EMBY-ECHO-FIXTURE'
  await dialog.getByLabel('连接名称',{exact:true}).fill(embyName)
@@ -620,11 +620,11 @@ test('local file management previews organize, keeps sidecars and uses reversibl
 })
 
 test('media catalog browses managed and Emby content without exposing playback credentials (fixture)',async({page})=>{
- await fixtureLogin(page)
+ await page.route('**/api/v1/integrations',r=>r.fulfill({json:{data:[{kind:'emby',enabled:true}]}}));await fixtureLogin(page)
  await page.route('**/api/v1/media/library?**',route=>{const query=new URL(route.request().url()).searchParams;const source=query.get('source')??'managed';return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{items:[{id:'owned-catalog',source,title:'自有影片验证样本',year:'2026',mediaType:'movie',overview:'用于界面验收的明确测试内容，不是实际影片入库记录。',poster:'',state:'present',filePath:'/115/Owned/Owned.mkv'}],total:1,page:1,pageSize:24,source}})})})
  await page.goto('/mediaLibrary')
  await expect(page.getByRole('heading',{name:'媒体库',exact:true})).toBeVisible()
- await page.getByRole('navigation',{name:'媒体库来源',exact:true}).getByRole('button',{name:'本程序入库',exact:true}).click()
+ await page.getByRole('navigation',{name:'媒体库来源',exact:true}).getByRole('button',{name:'内置媒体库',exact:true}).click()
  await page.getByRole('button',{name:/自有影片验证样本/}).click()
  const detail=page.getByRole('dialog',{name:'自有影片验证样本',exact:true});await expect(detail.getByText('用于界面验收的明确测试内容，不是实际影片入库记录。',{exact:true})).toBeVisible()
  await detail.getByRole('button',{name:'关闭',exact:true}).click()
@@ -634,7 +634,7 @@ test('media catalog browses managed and Emby content without exposing playback c
  await page.screenshot({path:resolve(screenshots,'media-catalog-mobile.png'),animations:'disabled'})
  await page.getByRole('navigation',{name:'媒体库来源',exact:true}).getByRole('button',{name:'Emby',exact:true}).click();await page.getByRole('button',{name:'全部媒体',exact:true}).click()
  await expect(page.getByRole('navigation',{name:'媒体库来源',exact:true}).getByRole('button',{name:'Emby',exact:true})).toHaveAttribute('aria-pressed','true')
- await expect(page.locator('.media-poster-card')).toHaveCount(1)
+ await expect(page.locator('.catalog-poster')).toHaveCount(1)
 })
 
 
@@ -651,7 +651,7 @@ test('log viewer has level, sizes and confirmed cleanup; data tools are formatte
 })
 
 test('Emby home follows real category/watch/latest structure without exposing keys (fixture)',async({page})=>{
- await fixtureLogin(page);const sample={id:'owned1',title:'自有分类验证样本',type:'CollectionFolder',image:'',progress:30}
+ await page.route('**/api/v1/integrations',r=>r.fulfill({json:{data:[{kind:'emby',enabled:true}]}}));await fixtureLogin(page);const sample={id:'owned1',title:'自有分类验证样本',type:'CollectionFolder',image:'',progress:30}
  await page.route('**/api/v1/media/library/emby/home?*',route=>route.fulfill({json:{data:{users:[{id:'u1',name:'自有用户'}],userId:'u1',libraries:[sample],playing:[],resume:[{...sample,type:'Movie',title:'自有继续观看样本'}],recent:[],latest:[{...sample,type:'Episode',title:'自有最新入库样本',subtitle:'第1集'}]}}}))
  await page.goto('/library?source=emby');for(const name of ['Emby 媒体库','媒体库分类','正在播放','继续观看','近期观看','最新入库'])await expect(page.getByRole('heading',{name:new RegExp('^'+name+'(?: Emby)?$')})).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-emby-home-desktop.png'),animations:'disabled',fullPage:true});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-emby-home-mobile.png'),animations:'disabled',fullPage:false})
 })
@@ -729,10 +729,10 @@ test('workbench layouts fit desktop, tablet and mobile with reduced motion (UI)'
 })
 
 test('media-library refresh targets home and configuration deep links keep their owner (UI fixture)',async({page})=>{
- await fixtureLogin(page);let homeCalls=0
+ await page.route('**/api/v1/integrations',r=>r.fulfill({json:{data:[{kind:'emby',enabled:true}]}}));await fixtureLogin(page);let homeCalls=0
  await page.route('**/api/v1/media/library/emby/home?*',route=>{homeCalls++;return route.fulfill({json:{data:{users:[{id:'owned-user',name:'自有测试用户'}],userId:'owned-user',libraries:[],playing:[],resume:[],recent:[],latest:[]}}})})
  await page.goto('/library?source=emby');await expect.poll(()=>homeCalls).toBe(1)
- await page.getByRole('button',{name:'刷新媒体库',exact:true}).click();await expect.poll(()=>homeCalls).toBe(2)
+ await page.getByRole('button',{name:'重新读取媒体',exact:true}).click();await expect.poll(()=>homeCalls).toBe(2)
  await page.goto('/mediaLibrary?connectionKind=emby');await expect(page.getByRole('heading',{name:'Emby媒体库连接',exact:true})).toBeVisible()
  await expect(page).toHaveURL(/\/connections\?.*tab=emby/)
  await expect(page.getByRole('heading',{name:/^我的媒体库/})).toHaveCount(0)
@@ -926,8 +926,8 @@ test('acquisition: dedicated results survive reload and every history entry navi
  const id='owned-standalone';await page.route('**/api/v1/search',r=>r.fulfill({json:{data:[{id,keyword:'Owned dedicated',state:'succeeded',total:1}]}}));await page.route(`**/api/v1/search/${id}?*`,r=>r.fulfill({json:{data:{id,keyword:'Owned dedicated',state:'succeeded',sites:[],resources:[],total:0}}}));await fixtureLogin(page);await page.goto('/search');await expect(page.getByRole('link',{name:'管理PT站点账号',exact:true})).toHaveCount(0);await page.getByRole('link',{name:'查看结果',exact:true}).click();await expect(page).toHaveURL(/\/search\/results\/owned-standalone$/);await expect(page.locator('h1')).toHaveText('搜索结果');await expect(page.getByRole('radiogroup',{name:'搜索方式'})).toHaveCount(0);await page.reload();await expect(page.locator('h1')).toHaveText('搜索结果');await page.getByRole('link',{name:'返回搜索',exact:true}).click();await expect(page).toHaveURL(/\/search\?tab=query$/);
 });
 
-test('cache management owns TTL while search history stays read-only with meaningful expiry (fixture)',async({page})=>{
- const id='22222222-2222-4222-8222-222222222222';let kind='tmdb';await page.route('**/api/v1/cache/**',r=>r.fulfill({json:{data:{items:[{id:kind==='tmdb'?'a'.repeat(64):id,query:'Owned cache',state:'succeeded',count:2,bytes:9999,ttlSeconds:7200,reusable:true}],total:1}}}));await fixtureLogin(page);await page.goto('/tmdb-cache');await expect(page.getByRole('columnheader',{name:'大小',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'缓存有效期',exact:true})).toBeVisible();await expect(page.locator('.u6-cache-content').getByText(/2\.00 小时/)).toBeVisible();await expect(page.getByRole('button',{name:'缓存详情',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'删除缓存项',exact:true})).toBeVisible();kind='search';await page.goto('/search-cache');await expect(page.getByRole('columnheader',{name:'大小',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'查看结果',exact:true})).toBeVisible();await page.setViewportSize({width:390,height:844});await expect(page.locator('.acquire-history').getByRole('link',{name:'查看结果',exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,'acquire-cache-mobile.png'),fullPage:true,animations:'disabled'});
+test('cache maintenance links to settings-owned TTL while search history stays read-only with meaningful expiry (fixture)',async({page})=>{
+ const id='22222222-2222-4222-8222-222222222222';let kind='tmdb';await page.route('**/api/v1/cache/**',r=>r.fulfill({json:{data:{items:[{id:kind==='tmdb'?'a'.repeat(64):id,query:'Owned cache',state:'succeeded',count:2,bytes:9999,ttlSeconds:7200,reusable:true}],total:1}}}));await fixtureLogin(page);await page.goto('/tmdb-cache');await expect(page.getByRole('columnheader',{name:'大小',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'缓存有效期',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'设置 · 搜索订阅',exact:true})).toHaveAttribute('href','/settings?tab=automation');await expect(page.locator('.u6-cache-content').getByText(/2\.00 小时/)).toBeVisible();await expect(page.getByRole('button',{name:'缓存详情',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'删除缓存项',exact:true})).toBeVisible();kind='search';await page.goto('/search-cache');await expect(page.getByRole('columnheader',{name:'大小',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'查看结果',exact:true})).toBeVisible();await page.setViewportSize({width:390,height:844});await expect(page.locator('.acquire-history').getByRole('link',{name:'查看结果',exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,'acquire-cache-mobile.png'),fullPage:true,animations:'disabled'});
 });
 
 test('acquisition: proxy settings are scoped, validated and persisted in isolated database',async({page})=>{
@@ -1168,7 +1168,7 @@ test('cloud index bulk organizer echoes saved identity, templates and frozen fil
  let selected:Record<string,unknown>|undefined,preview:Record<string,any>|undefined
  await page.route('**/api/v1/library/organize-selection',r=>{selected=r.request().postDataJSON();return r.fulfill({json:{data:{root:{id:rootId,name:'115测试',kind:'cloud',path:'/115',revision:1},files:[{id:'provider',name:source,path:source,size:5,directory:false}],rows:[{source,title:'已确认剧集',year:'2026',mediaType:'series',tmdbId:123,season:0,episode:2,episodes:[2],resolution:'1080p',confirmed:true,warnings:[]}]}}})})
  await page.route('**/api/v1/files/batches/preview',r=>{preview=r.request().postDataJSON();return r.fulfill({json:{data:{id:batchId,state:'preview',digest:'d',expiresAt:'2099-01-01T00:00:00Z',items:[{ordinal:0,source,state:'preview',result:{id:'op',state:'preview',completedSteps:0,plan:{items:[{source:{path:source},target:'电视剧/已确认剧集 (2026)/Season 00/已确认剧集 - S00E02.mkv'}],steps:[]}}}]}}})})
- await page.clock.install();await page.goto('/cloudStorage');await page.locator('.organize-record').filter({hasText:'/115/'+source}).getByRole('checkbox').check();await expect(page.getByRole('button',{name:'批量整理115 · 1',exact:true})).toBeEnabled();await page.clock.fastForward(11000);await expect(page.getByRole('button',{name:'批量整理115 · 1',exact:true})).toBeEnabled();await page.getByRole('button',{name:'批量整理115 · 1',exact:true}).click()
+ await page.clock.install();await page.goto('/cloudStorage');await page.locator('.organize-record').filter({hasText:'/115/'+source}).getByRole('checkbox').check();await expect(page.getByRole('link',{name:'在文件页批量整理 · 1',exact:true})).toBeVisible();await page.clock.fastForward(11000);await expect(page.getByRole('link',{name:'在文件页批量整理 · 1',exact:true})).toBeVisible();await page.getByRole('link',{name:'在文件页批量整理 · 1',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'批次整理工作台'});await expect(dialog.getByText(/已确认 TMDB 123/)).toBeVisible();await expect(dialog.getByLabel('批次文件标题')).toHaveValue('已确认剧集');await expect(dialog.getByLabel('批次年份')).toHaveValue('2026');await expect(dialog.getByText('{title} ({year})/{title} ({year}) - {videoFormat}',{exact:true})).toBeVisible();expect(selected?.candidateIds).toEqual([candidateId])
  await page.screenshot({path:resolve(screenshots,'cloud-batch-identity-desktop.png'),fullPage:true,animations:'disabled'});await page.setViewportSize({width:375,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await dialog.screenshot({path:resolve(screenshots,'cloud-batch-identity-mobile.png'),animations:'disabled'})
  await dialog.getByRole('button',{name:'预览全部变更',exact:true}).click();await expect.poll(()=>preview?.items?.[0]?.expectedFileId).toBe('provider');expect(preview?.items[0]?.expectedSize).toBe(5);await expect(dialog.getByText(/Season 00/)).toBeVisible()
@@ -1183,9 +1183,9 @@ test('cloud asset selection survives a polling response that was already in flig
  await page.route('**/api/v1/media/assets?*',async r=>{reads++;if(reads===2)await pending;await r.fulfill({json:{data:{items:[asset],total:1}}})})
  await page.goto('/cloudStorage');await expect(page.getByRole('button',{name:'刷新记录',exact:true})).toBeEnabled();await page.locator('.media-workspace .page-tabs').getByRole('button',{name:'已入库',exact:true}).click()
  await page.clock.fastForward(11000);await expect.poll(()=>reads).toBe(2)
- await page.locator('.organize-record').filter({hasText:asset.path}).getByRole('checkbox').check();await expect(page.getByRole('button',{name:'批量整理115 · 1',exact:true})).toBeEnabled()
- release();await expect(page.getByRole('button',{name:'刷新记录',exact:true})).toBeEnabled();await expect(page.getByRole('button',{name:'批量整理115 · 1',exact:true})).toBeEnabled()
- await page.clock.fastForward(21000);await expect(page.getByRole('button',{name:'批量整理115 · 1',exact:true})).toBeEnabled();expect(reads).toBe(2)
+ await page.locator('.organize-record').filter({hasText:asset.path}).getByRole('checkbox').check();await expect(page.getByRole('link',{name:'在文件页批量整理 · 1',exact:true})).toBeVisible()
+ release();await expect(page.getByRole('button',{name:'刷新记录',exact:true})).toBeEnabled();await expect(page.getByRole('link',{name:'在文件页批量整理 · 1',exact:true})).toBeVisible()
+ await page.clock.fastForward(21000);await expect(page.getByRole('link',{name:'在文件页批量整理 · 1',exact:true})).toBeVisible();expect(reads).toBe(2)
 })
 
 test('directory classification has ordered rules and responsive editing (fixture)',async({page})=>{
@@ -1484,7 +1484,11 @@ test('F2 plugin JSON form, shared ESM, multi-key dashboards and sidebar (UI cont
  await fixtureLogin(page);await page.goto('/plugins/'+id)
 
  const dialog=page.locator('.u6-workspace')
+ // Wait for the initial config read before editing; the form and review load independently.
+ await expect(dialog.getByRole('textbox',{name:'插件配置 JSON',exact:true})).toHaveValue(/Initial/)
+ await expect(dialog.getByRole('textbox',{name:'问候语',exact:true})).toHaveValue('Initial')
  await dialog.getByRole('textbox',{name:'问候语',exact:true}).fill('Browser Owned')
+ await expect(dialog.getByRole('textbox',{name:'插件配置 JSON',exact:true})).toHaveValue(/Browser Owned/)
  await expect(dialog).toContainText('定时服务已开启')
  await dialog.getByRole('button',{name:'保存插件配置',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click()
  expect(configs.at(-1)?.config).toEqual({greeting:'Browser Owned',scheduled:true})

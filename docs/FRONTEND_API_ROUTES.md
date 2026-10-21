@@ -81,10 +81,10 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/auth/setup` | management | 未检出静态使用 |  |
 | GET | `/api/v1/cache/{kind}` | management | 前端直接调用 | `web/src/acquisition/SearchHistory.vue:28`、`web/src/operations/CachePanel.vue:17` |
 | HEAD | `/api/v1/cache/{kind}` | management | 未检出静态使用 |  |
-| DELETE | `/api/v1/cache/{kind}/{id}` | management | 前端直接调用 | `web/src/operations/CachePanel.vue:86` |
-| GET | `/api/v1/cache/{kind}/{id}` | management | 前端直接调用 | `web/src/acquisition/SearchHistory.vue:46`、`web/src/operations/CachePanel.vue:32`、`web/src/operations/CachePanel.vue:74` |
+| DELETE | `/api/v1/cache/{kind}/{id}` | management | 前端直接调用 | `web/src/operations/CachePanel.vue:58` |
+| GET | `/api/v1/cache/{kind}/{id}` | management | 前端直接调用 | `web/src/acquisition/SearchHistory.vue:46`、`web/src/operations/CachePanel.vue:32`、`web/src/operations/CachePanel.vue:46` |
 | HEAD | `/api/v1/cache/{kind}/{id}` | management | 未检出静态使用 |  |
-| POST | `/api/v1/cache/{kind}/clear` | management | 前端直接调用 | `web/src/operations/CachePanel.vue:86` |
+| POST | `/api/v1/cache/{kind}/clear` | management | 前端直接调用 | `web/src/operations/CachePanel.vue:58` |
 | GET | `/api/v1/classification` | management | 前端直接调用 | `web/src/settings/ClassificationPanel.vue:31`、`web/src/settings/revision.ts:25`、`web/src/dashboard/useDashboard.ts:5` |
 | HEAD | `/api/v1/classification` | management | 未检出静态使用 |  |
 | PUT | `/api/v1/classification` | management | 前端直接调用 | `web/src/settings/ClassificationPanel.vue:31`、`web/src/settings/revision.ts:93` |
@@ -165,7 +165,7 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | POST | `/api/v1/files/preview` | management | 前端直接调用 | `web/src/files/FileActionDialog.vue:73` |
 | GET | `/api/v1/files/roots` | management | 前端直接调用 | `web/src/organize/ScanPanel.vue:36`、`web/src/files/useBrowser.ts:41` |
 | HEAD | `/api/v1/files/roots` | management | 未检出静态使用 |  |
-| GET | `/api/v1/integrations` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:31`、`web/src/connections/useConnections.ts:16`、`web/src/dashboard/useDashboard.ts:5`、`web/src/acquisition/useSearch.ts:19`、`web/src/acquisition/useResults.ts:111`、`web/src/sites/AccountsPanel.vue:15`、`web/src/sites/TemplatesPanel.vue:11` |
+| GET | `/api/v1/integrations` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:31`、`web/src/connections/useConnections.ts:16`、`web/src/acquisition/useSearch.ts:19`、`web/src/acquisition/useResults.ts:111`、`web/src/sites/AccountsPanel.vue:15`、`web/src/sites/TemplatesPanel.vue:11`、`web/src/media/useCatalog.ts:15`、`web/src/dashboard/useDashboard.ts:5` |
 | HEAD | `/api/v1/integrations` | management | 未检出静态使用 |  |
 | POST | `/api/v1/integrations` | management | 前端直接调用 | `web/src/connections/useConnections.ts:56` |
 | DELETE | `/api/v1/integrations/{id}` | management | 前端直接调用 | `web/src/connections/useConnections.ts:150`、`web/src/sites/AccountsPanel.vue:61` |
@@ -184,7 +184,7 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/jobs/browse` | management | 未检出静态使用 |  |
 | GET | `/api/v1/jobs/events` | management | 前端直接调用 | `web/src/operations/QueuePanel.vue:69` |
 | HEAD | `/api/v1/jobs/events` | management | 未检出静态使用 |  |
-| GET | `/api/v1/library/activity` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/acquisition/useDownloads.ts:35`、`web/src/organize/HistoryPanel.vue:25`、`web/src/views/OrganizeWorkspaceView.vue:47` |
+| GET | `/api/v1/library/activity` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:35`、`web/src/organize/HistoryPanel.vue:25`、`web/src/views/OrganizeWorkspaceView.vue:50` |
 | HEAD | `/api/v1/library/activity` | management | 未检出静态使用 |  |
 | POST | `/api/v1/library/activity/remove` | management | 前端直接调用 | `web/src/organize/HistoryPanel.vue:56` |
 | GET | `/api/v1/library/archive-cleanups/{id}` | management | 前端直接调用 | `web/src/organize/ArchivePanel.vue:124`、`web/src/organize/ArchivePanel.vue:149` |
@@ -199,14 +199,14 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | POST | `/api/v1/library/archives/cleanup-preview` | management | 前端直接调用 | `web/src/organize/ArchivePanel.vue:85` |
 | GET | `/api/v1/library/artifact-repairs` | management | 前端直接调用 | `web/src/organize/useOrganize.ts:22` |
 | HEAD | `/api/v1/library/artifact-repairs` | management | 未检出静态使用 |  |
-| POST | `/api/v1/library/artifact-repairs/{id}/retry` | management | 前端直接调用 | `web/src/views/OrganizeWorkspaceView.vue:79` |
+| POST | `/api/v1/library/artifact-repairs/{id}/retry` | management | 前端直接调用 | `web/src/views/OrganizeWorkspaceView.vue:82` |
 | GET | `/api/v1/library/candidates` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/organize/IdentityEditor.vue:231`、`web/src/organize/useOrganize.ts:14` |
 | HEAD | `/api/v1/library/candidates` | management | 未检出静态使用 |  |
 | POST | `/api/v1/library/candidates/{id}/confirm` | management | 未检出静态使用 |  |
 | POST | `/api/v1/library/candidates/{id}/recognize` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:52` |
 | POST | `/api/v1/library/candidates/batch-confirm` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:188` |
 | POST | `/api/v1/library/organize-selection` | management | 前端直接调用 | `web/src/workflows/FileBatchDialog.vue:45` |
-| GET | `/api/v1/library/outputs` | management | 前端直接调用 | `web/src/views/OrganizeWorkspaceView.vue:47`、`web/src/files/ManagedSTRMPanel.vue:20`、`web/src/files/STRMRepairPanel.vue:38` |
+| GET | `/api/v1/library/outputs` | management | 前端直接调用 | `web/src/files/ManagedSTRMPanel.vue:20`、`web/src/files/STRMRepairPanel.vue:38`、`web/src/views/OrganizeWorkspaceView.vue:50` |
 | HEAD | `/api/v1/library/outputs` | management | 未检出静态使用 |  |
 | GET | `/api/v1/library/outputs/{id}/content` | management | 前端直接调用 | `web/src/files/ManagedSTRMPanel.vue:69` |
 | HEAD | `/api/v1/library/outputs/{id}/content` | management | 未检出静态使用 |  |
@@ -256,7 +256,7 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/media-server/users` | management | 未检出静态使用 |  |
 | POST | `/api/v1/media-server/users` | management | 未检出静态使用 |  |
 | DELETE | `/api/v1/media-server/users/{id}` | management | 前端直接调用 | `web/src/playback/UsersPanel.vue:33` |
-| GET | `/api/v1/media-server/users/{id}` | management | 未检出静态使用 | `web/src/playback/SessionsPanel.vue:17`、`web/src/playback/SessionsPanel.vue:31` |
+| GET | `/api/v1/media-server/users/{id}` | management | 未检出静态使用 | `web/src/playback/SessionsPanel.vue:15`、`web/src/playback/SessionsPanel.vue:37`、`web/src/playback/SessionsPanel.vue:51` |
 | HEAD | `/api/v1/media-server/users/{id}` | management | 未检出静态使用 |  |
 | PUT | `/api/v1/media-server/users/{id}` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media-server/users/{id}/devices` | management | 未检出静态使用 |  |
@@ -265,26 +265,26 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | GET | `/api/v1/media-server/users/{id}/history` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media-server/users/{id}/history` | management | 未检出静态使用 |  |
 | POST | `/api/v1/media-server/users/{id}/password` | management | 前端直接调用 | `web/src/playback/UserEditor.vue:85` |
-| POST | `/api/v1/media-server/users/{id}/sessions/revoke` | management | 未检出静态使用 | `web/src/playback/SessionsPanel.vue:32`、`web/src/playback/UsersPanel.vue:33` |
+| POST | `/api/v1/media-server/users/{id}/sessions/revoke` | management | 未检出静态使用 | `web/src/playback/SessionsPanel.vue:52` |
 | GET | `/api/v1/media/assets` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:220`、`web/src/organize/useOrganize.ts:16` |
 | HEAD | `/api/v1/media/assets` | management | 未检出静态使用 |  |
-| POST | `/api/v1/media/assets/{id}/grant/revoke` | management | 前端直接调用 | `web/src/views/OrganizeWorkspaceView.vue:83` |
-| POST | `/api/v1/media/assets/{id}/grant/rotate` | management | 前端直接调用 | `web/src/views/OrganizeWorkspaceView.vue:81` |
+| POST | `/api/v1/media/assets/{id}/grant/revoke` | management | 前端直接调用 | `web/src/views/OrganizeWorkspaceView.vue:86` |
+| POST | `/api/v1/media/assets/{id}/grant/rotate` | management | 前端直接调用 | `web/src/views/OrganizeWorkspaceView.vue:84` |
 | POST | `/api/v1/media/assets/{id}/identity` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:188` |
 | POST | `/api/v1/media/assets/{id}/identity-preview` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:154` |
-| GET | `/api/v1/media/assets/{id}/strm` | management | 资源/链接使用 | `web/src/media/model.ts:40` |
+| GET | `/api/v1/media/assets/{id}/strm` | management | 资源/链接使用 | `web/src/media/model.ts:52` |
 | HEAD | `/api/v1/media/assets/{id}/strm` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/assets/{id}/validation-ref` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/assets/{id}/validation-ref` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/emby/items/{id}` | management | 前端直接调用 | `web/src/media/useCatalog.ts:85` |
+| GET | `/api/v1/media/emby/items/{id}` | management | 前端直接调用 | `web/src/media/useCatalog.ts:153` |
 | HEAD | `/api/v1/media/emby/items/{id}` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/library` | management | 前端直接调用 | `web/src/media/useCatalog.ts:31` |
+| GET | `/api/v1/media/library` | management | 前端直接调用 | `web/src/media/useCatalog.ts:28` |
 | HEAD | `/api/v1/media/library` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/library/emby/{id}/image` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/library/emby/{id}/image` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/library/emby/home` | management | 前端直接调用 | `web/src/media/useCatalog.ts:24` |
+| GET | `/api/v1/media/library/emby/home` | management | 前端直接调用 | `web/src/media/useCatalog.ts:40` |
 | HEAD | `/api/v1/media/library/emby/home` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/library/sources` | management | 前端直接调用 | `web/src/media/useCatalog.ts:15` |
+| GET | `/api/v1/media/library/sources` | management | 前端直接调用 | `web/src/acquisition/useDiscovery.ts:16` |
 | HEAD | `/api/v1/media/library/sources` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/organize-history` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/organize-history` | management | 未检出静态使用 |  |
@@ -292,7 +292,7 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | GET | `/api/v1/media/tmdb/image` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/tmdb/image` | management | 未检出静态使用 |  |
 | POST | `/api/v1/messaging/command-actions` | management | 未检出静态使用 |  |
-| GET | `/api/v1/metadata/details` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:165`、`web/src/acquisition/MediaContext.vue:28`、`web/src/media/useCatalog.ts:91` |
+| GET | `/api/v1/metadata/details` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:165`、`web/src/acquisition/MediaContext.vue:28`、`web/src/media/useCatalog.ts:158`、`web/src/acquisition/useDiscovery.ts:40` |
 | HEAD | `/api/v1/metadata/details` | management | 未检出静态使用 |  |
 | GET | `/api/v1/metadata/episodes` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:130` |
 | HEAD | `/api/v1/metadata/episodes` | management | 未检出静态使用 |  |
@@ -305,7 +305,7 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | HEAD | `/api/v1/notifications` | management | 未检出静态使用 |  |
 | GET | `/api/v1/ops` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/operations/MaintenancePanel.vue:17`、`web/src/operations/PolicyPanel.vue:10` |
 | HEAD | `/api/v1/ops` | management | 未检出静态使用 |  |
-| POST | `/api/v1/ops/alerts/{code}/ack` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:53`、`web/src/operations/MaintenancePanel.vue:41` |
+| POST | `/api/v1/ops/alerts/{code}/ack` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
 | POST | `/api/v1/ops/backups` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
 | POST | `/api/v1/ops/backups/{id}/delete` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
 | GET | `/api/v1/ops/backups/{id}/download` | management | 资源/链接使用 | `web/src/operations/MaintenancePanel.vue:124` |
@@ -407,9 +407,9 @@ U2 更新：主页、服务连接的证据已按新位置核对；密钥默认�
 | GET | `/api/v1/settings/access` | management | 前端直接调用 | `web/src/settings/ConfigPanel.vue:10`、`web/src/settings/revision.ts:25` |
 | HEAD | `/api/v1/settings/access` | management | 未检出静态使用 |  |
 | PUT | `/api/v1/settings/access` | management | 前端直接调用 | `web/src/settings/ConfigPanel.vue:10`、`web/src/settings/revision.ts:93` |
-| GET | `/api/v1/settings/application` | management | 前端直接调用 | `web/src/settings/ConfigPanel.vue:10`、`web/src/settings/revision.ts:25`、`web/src/workflows/FileBatchDialog.vue:51`、`web/src/workflows/FileBatchDialog.vue:85`、`web/src/operations/CachePanel.vue:17` |
+| GET | `/api/v1/settings/application` | management | 前端直接调用 | `web/src/settings/ConfigPanel.vue:10`、`web/src/settings/revision.ts:25`、`web/src/workflows/FileBatchDialog.vue:51`、`web/src/workflows/FileBatchDialog.vue:85` |
 | HEAD | `/api/v1/settings/application` | management | 未检出静态使用 |  |
-| PUT | `/api/v1/settings/application` | management | 前端直接调用 | `web/src/settings/ConfigPanel.vue:10`、`web/src/settings/revision.ts:93`、`web/src/operations/CachePanel.vue:60` |
+| PUT | `/api/v1/settings/application` | management | 前端直接调用 | `web/src/settings/ConfigPanel.vue:10`、`web/src/settings/revision.ts:93` |
 | POST | `/api/v1/settings/naming-preview` | management | 前端直接调用 | `web/src/settings/ConfigPanel.vue:35` |
 | GET | `/api/v1/settings/network-proxy` | management | 前端直接调用 | `web/src/connections/ProxySettings.vue:15` |
 | HEAD | `/api/v1/settings/network-proxy` | management | 未检出静态使用 |  |

@@ -108,7 +108,7 @@ test('U1 sidebar contains exactly thirteen primary entries without current badge
 test('U1 each outer page tab writes its exact URL tab and quick jump opens operations logs', async ({ page }) => {
   await ensureRegisteredAndLogin(page)
   const expected: Record<string, string[]> = {
-    search: ['query','history'], downloads: ['tasks','uploads','manual'], organize: ['candidates','scans','assets','history','recovery'], files: ['browser','strm','tools'],
+    search: ['query','history','discover'], downloads: ['tasks','uploads','manual'], organize: ['candidates','scans','assets','history','recovery'], files: ['browser','strm','tools'],
     playback: ['settings','users','players','sessions','processing'], connections: ['overview','storage','emby','notifications','aux'],
     sites: ['accounts','templates'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['general','naming','automation','api','mobile','security'],
   }

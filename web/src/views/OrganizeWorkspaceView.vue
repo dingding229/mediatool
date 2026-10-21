@@ -11,7 +11,6 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import OutputRecoveryDialog from '../workflows/OutputRecoveryDialog.vue';
 import IdentityEditor from '../organize/IdentityEditor.vue';
-import BatchOrganizer from '../workflows/FileBatchDialog.vue';
 import ScanPanel from '../organize/ScanPanel.vue';
 import HistoryPanel from '../organize/HistoryPanel.vue';
 import ArchivePanel from '../organize/ArchivePanel.vue';
@@ -22,7 +21,11 @@ import { errorText } from '../workflows/readiness';
 import { readIntent, writeIntent, size } from '../acquisition/model';
 import '../media/media.css';
 const route = useRoute(), router = useRouter(), state = reactive(useOrganize()), tabs = [{ id: 'candidates', label: '待确认' }, { id: 'scans', label: '扫描' }, { id: 'assets', label: '已入库' }, { id: 'history', label: '整理历史' }, { id: 'recovery', label: '恢复与归档' }], tab = computed(() => tabs.some(t => t.id === route.query.tab) ? String(route.query.tab) : 'candidates');
-const editor = ref<InstanceType<typeof IdentityEditor>>(), organizer = ref<InstanceType<typeof BatchOrganizer>>(), output = ref<InstanceType<typeof OutputRecoveryDialog>>(), detailsOpen = ref(false), assetDetail = ref<any>(null), outputs = ref<any>(null), operations = ref<any[]>([]), detailError = ref<unknown>(null), confirmOpen = ref(false), action = ref<any>(null), busy = ref(false), phase = ref<'queued' | 'reconciling' | null>(null), actionError = ref<unknown>(null);
+const editor = ref<InstanceType<typeof IdentityEditor>>(), output = ref<InstanceType<typeof OutputRecoveryDialog>>(), detailsOpen = ref(false), assetDetail = ref<any>(null), outputs = ref<any>(null), operations = ref<any[]>([]), detailError = ref<unknown>(null), confirmOpen = ref(false), action = ref<any>(null), busy = ref(false), phase = ref<'queued' | 'reconciling' | null>(null), actionError = ref<unknown>(null);
+watch(() => route.query.transferId, value => {
+  if (typeof value === 'string')
+    state.data.transferId = value;
+}, { immediate: true });
 let detailVersion = 0;
 function edit(files: any[], asset: any = null) {
   void editor.value?.open(files, asset, { page: state.page.candidates, state: state.filter });
@@ -132,7 +135,7 @@ watch(detailsOpen, v => {
       </header>
       <div class="media-actions">
         <el-button :disabled="!state.selected.candidates.length||state.selected.candidates.length>20" @click="edit(state.selected.candidates)">批量核对身份 · {{ state.selected.candidates.length }}</el-button>
-        <el-button :disabled="!state.selected.candidates.length||state.selected.candidates.length>20" @click="organizer?.open('candidates',state.selected.candidates)">批量整理115 · {{ state.selected.candidates.length }}</el-button>
+        <RouterLink v-if="state.selected.candidates.length>0&&state.selected.candidates.length<=20" :to="{path:'/files',query:{tab:'browser',selectionKind:'candidates',selection:state.selected.candidates.map((x:any)=>x.id)}}">在文件页批量整理 · {{state.selected.candidates.length}}</RouterLink>
       </div>
       <StateView v-if="state.loading.candidates&&!state.data.candidates.length" state="loading" title="正在读取候选文件…"/>
       <StateView v-else-if="state.errors.candidates" :state="sourceState(state.errors.candidates)" title="候选读取失败，旧数据待核对" :description="errorText(state.errors.candidates)" @retry="state.load('candidates')"/>
@@ -156,7 +159,7 @@ watch(detailsOpen, v => {
     <section v-show="tab==='assets'" class="media-surface">
       <header class="media-section-heading">
         <h2>已入库资产</h2>
-        <el-button :disabled="!state.selected.assets.length||state.selected.assets.length>20" @click="organizer?.open('assets',state.selected.assets)">批量整理115 · {{ state.selected.assets.length }}</el-button>
+        <RouterLink v-if="state.selected.assets.length>0&&state.selected.assets.length<=20" :to="{path:'/files',query:{tab:'browser',selectionKind:'assets',selection:state.selected.assets.map((x:any)=>x.id)}}">在文件页批量整理 · {{state.selected.assets.length}}</RouterLink>
       </header>
       <p v-if="state.assetId">
         当前仅显示所选资产。
@@ -213,7 +216,6 @@ watch(detailsOpen, v => {
     <el-alert v-if="actionError" :title="errorText(actionError)" type="error" :closable="false"/>
     <AsyncResultBanner v-if="phase" :status="phase" message="操作结果需重新读取核对，不重复提交同一操作。" @refresh="state.refresh"/>
     <IdentityEditor ref="editor" @changed="state.changed" @editing="editing"/>
-    <BatchOrganizer ref="organizer" @changed="state.changed" @editing="editing"/>
     <OutputRecoveryDialog ref="output" @completed="state.changed"/>
     <ConfirmAction v-model:visible="confirmOpen" :title="action?.type==='repair'?'重试输出恢复':action?.type==='rotate'?'轮换播放凭据':'撤销文件播放'" :description="action?.type==='repair'?'先核对权限，移开或回退手工修改的冲突文件；不覆盖其他内容。':action?.type==='rotate'?'旧凭据将失效，STRM 重写通过恢复日志执行，不覆盖手工文件。':'固定链接将失效；此前已签发的临时 CDN 链接可能短期仍有效。'" impact-scope="不删除云端媒体或本地做种源；后续结果以恢复记录和最新资产状态为准。" :loading="busy" class="media-dialog" @confirm="apply"/>
     <DetailDrawer :key="assetDetail?.id" v-model:visible="detailsOpen" title="资产与输出详情" :technical-data="{asset:assetDetail,outputs,operations}" class="media-detail">

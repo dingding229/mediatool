@@ -48,7 +48,7 @@ test('old Emby and settings auxiliary destinations point to the new connection t
 })
 test('alert acknowledgement stays explicitly separate from resolving the underlying issue',async({page})=>{
  let ack=0;await page.route('**/api/v1/ops',r=>r.fulfill({json:{data:{alerts:[{code:'disk',state:'active',acknowledged_at:ack?'now':null,message:'空间不足'}]}}}));await page.route('**/api/v1/ops/alerts/disk/ack',r=>{ack++;expect(r.request().postDataJSON()).toEqual({confirm:true});return r.fulfill({json:{data:{acknowledged:true}}})})
- await page.goto('/dashboard');await expect(page.getByText('确认告警不等于问题已解决',{exact:true})).toBeVisible();await page.getByRole('button',{name:'确认告警',exact:true}).click();await expect(page.getByText('空间不足',{exact:true})).toHaveCount(0);expect(ack).toBe(1)
+ await page.goto('/dashboard');await expect(page.getByText(/确认告警不等于问题已解决/)).toBeVisible();await expect(page.getByRole('button',{name:'确认告警',exact:true})).toHaveCount(0);await expect(page.getByRole('link').filter({hasText:'空间不足'})).toHaveAttribute('href','/ops?tab=maintenance');expect(ack).toBe(0)
 })
 test('dashboard and connection screenshots in both themes and widths contain no horizontal overflow',async({page})=>{
  const dir='/tmp/media-tool-u2-screenshots';mkdirSync(dir,{recursive:true});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))

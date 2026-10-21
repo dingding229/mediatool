@@ -1,19 +1,42 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Search } from '@element-plus/icons-vue';
 import PageHeader from '../ui/PageHeader.vue';
 import PageTabs from '../ui/PageTabs.vue';
 import StateView from '../ui/StateView.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
+import DiscoveryPanel from '../acquisition/DiscoveryPanel.vue';
+import type { MediaItem } from '../media/model';
 import SearchHistory from '../acquisition/SearchHistory.vue';
 import { label } from '../acquisition/model';
 import { useSearch } from '../acquisition/useSearch';
 import { errorText, stateFor } from '../workflows/readiness';
 import { tmdbImage } from '../utils/tmdb-image';
 import '../acquisition/acquisition.css';
-const route = useRoute(), router = useRouter(), tab = computed(() => route.query.tab === 'history' ? 'history' : 'query'), tabs = [{ id: 'query', label: '搜索' }, { id: 'history', label: '搜索历史' }], broken = ref(new Set<string>());
-const { loading, mode, query, kind, year, keyword, selected, media, history, sites, accountIds, searching, busy, searched, cached, error, accountsError, historyError, ready, intent, load, findMedia, start, reconcile } = useSearch();
+const route = useRoute(), router = useRouter(), tab = computed(() => ['history', 'discover'].includes(String(route.query.tab)) ? String(route.query.tab) : 'query'), tabs = [{ id: 'query', label: '搜索' }, { id: 'history', label: '搜索历史' }, { id: 'discover', label: '发现推荐' }], broken = ref(new Set<string>()), discovered = ref(false);
+const { loading, mode, query, kind, year, keyword, selected, media, history, sites, accountIds, searching, busy, searched, cached, error, accountsError, historyError, ready, intent, load, findMedia: findMediaRequest, start, reconcile } = useSearch();
+function findMedia(refresh = false) {
+  discovered.value = false;
+  return findMediaRequest(refresh);
+}
+async function fromDiscovery(item: MediaItem) {
+  if (!item.tmdbId)
+    return;
+  mode.value = 'media';
+  query.value = item.title;
+  kind.value = item.mediaType || 'auto';
+  year.value = String(item.year || '');
+  await nextTick();
+  const chosen = { ...item, id: item.tmdbId, mediaType: item.mediaType || 'movie', year: String(item.year || ''), posterPath: item.poster };
+  selected.value = chosen;
+  media.value = [chosen];
+  searched.value = true;
+  discovered.value = true;
+  cached.value = false;
+  error.value = null;
+  await router.replace({ query: { ...route.query, tab: 'query' } });
+}
 onMounted(() => {
   if (typeof route.query.run === 'string')
     void router.replace(`/search/results/${route.query.run}`);
@@ -55,7 +78,7 @@ onMounted(() => {
           <div class="acquire-actions">
             <el-button :type="selected?'default':'primary'" native-type="submit" :loading="searching" :disabled="!query.trim()">搜索媒体</el-button>
             <el-button :disabled="searching||!query.trim()" @click="findMedia(true)">忽略TMDB缓存</el-button>
-            <span v-if="searched">{{ cached?'本次使用TMDB缓存':'本次已查询TMDB' }}</span>
+            <span v-if="searched">{{discovered?'已从发现推荐选择作品':cached?'本次使用TMDB缓存':'本次已查询TMDB'}}</span>
           </div>
         </form>
         <form v-else class="acquire-form" @submit.prevent="start(false)">
@@ -128,6 +151,7 @@ onMounted(() => {
         <p v-if="!loading&&!history.length&&!historyError">暂无搜索记录</p>
       </section>
     </template>
+    <DiscoveryPanel v-else-if="tab==='discover'" @select="fromDiscovery"/>
     <SearchHistory v-else :runs="history" :runs-error="historyError"/>
   </div>
 </template>

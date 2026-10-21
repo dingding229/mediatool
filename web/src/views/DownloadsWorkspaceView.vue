@@ -9,7 +9,6 @@ import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import ConnectionManager from '../connections/ConnectionManager.vue';
-import OutputRecoveryDialog from '../workflows/OutputRecoveryDialog.vue';
 import SourceRecoveryDialog from '../acquisition/SourceRecoveryDialog.vue';
 import ManualWorkspace from '../acquisition/ManualWorkspace.vue';
 import { useDownloads } from '../acquisition/useDownloads';
@@ -18,7 +17,7 @@ import { date, errorText, stateFor } from '../workflows/readiness';
 import '../acquisition/acquisition.css';
 const route = useRoute(), tabs = [{ id: 'tasks', label: '下载任务' }, { id: 'uploads', label: '上传入库' }, { id: 'manual', label: '手动添加' }], tab = computed(() => tabs.some(t => t.id === route.query.tab) ? String(route.query.tab) : 'tasks');
 const { tasks, transfers, batches, loading, errors, notice, message, busy, confirmOpen, confirmation, sessions, sessionBusy, sessionError, binding, sessionId, refresh, load, locked, ask, execute, inspectTransfer, reconcileCleanup, bind, askBinding } = useDownloads();
-const source = ref<InstanceType<typeof SourceRecoveryDialog>>(), output = ref<InstanceType<typeof OutputRecoveryDialog>>(), detail = ref<any>(null), detailsOpen = ref(false), cleanup = computed(() => confirmation.value?.action === 'cleanup');
+const source = ref<InstanceType<typeof SourceRecoveryDialog>>(), detail = ref<any>(null), detailsOpen = ref(false), cleanup = computed(() => confirmation.value?.action === 'cleanup');
 const actionName = computed(() => ({ pause: '暂停上传', resume: '恢复上传', cancel: '取消上传', restart: '核对后重建', bind: '绑定既有上传会话', retry: '重新排队', cleanup: '清理本地下载与种子' } as Record<string, string>)[confirmation.value?.action] || '确认操作');
 function show(row: any) {
   detail.value = row;
@@ -39,7 +38,8 @@ function show(row: any) {
       <section class="acquire-surface">
         <header class="acquire-section-heading">
           <div>
-            <h2>下载任务</h2><p>当前读取 {{ loading.tasks||errors.tasks?'—':tasks.length }} 项 · 流水线中 {{ loading.tasks||errors.tasks?'—':tasks.filter(t=>!['imported','failed','cancelled'].includes(t.state)).length }} 项</p>
+            <h2>下载任务</h2>
+            <p>当前读取 {{ loading.tasks||errors.tasks?'—':tasks.length }} 项 · 流水线中 {{ loading.tasks||errors.tasks?'—':tasks.filter(t=>!['imported','failed','cancelled'].includes(t.state)).length }} 项</p>
             <p>下载进度与做种状态独立，原文件保留在下载器中。</p>
           </div>
           <RouterLink to="/search?tab=query">搜索并创建下载</RouterLink>
@@ -88,7 +88,8 @@ function show(row: any) {
       <section class="acquire-surface">
         <header class="acquire-section-heading">
           <div>
-            <h2>115上传与入库</h2><p>当前读取 {{ loading.transfers||errors.transfers?'—':transfers.length }} 项 · 待跟进 {{ loading.transfers||errors.transfers?'—':transfers.filter(t=>!['imported','cancelled'].includes(t.state)).length }} 项</p>
+            <h2>115上传与入库</h2>
+            <p>当前读取 {{ loading.transfers||errors.transfers?'—':transfers.length }} 项 · 待跟进 {{ loading.transfers||errors.transfers?'—':transfers.filter(t=>!['imported','cancelled'].includes(t.state)).length }} 项</p>
             <p>先核对远端会话、文件和哈希，再确认输出与入库；保留本地做种源。</p>
           </div>
           <RouterLink to="/organize?tab=history&amp;kind=transfer">查看上传与入库阶段证据</RouterLink>
@@ -108,7 +109,7 @@ function show(row: any) {
           </div>
           <div class="acquire-actions">
             <el-button @click="show(transfer)">查看详情</el-button>
-            <el-button v-if="['needs_output_reconciliation','output_resume_approved'].includes(transfer.state)" @click="output?.open(transfer.id)">核对入库恢复</el-button>
+            <RouterLink v-if="['needs_output_reconciliation','output_resume_approved'].includes(transfer.state)" :to="{path:'/organize',query:{tab:'recovery',transferId:transfer.id}}">核对入库恢复</RouterLink>
             <template v-else>
               <el-button :disabled="busy" @click="inspectTransfer(transfer)">核对</el-button>
               <el-dropdown trigger="click" popper-class="acquire-dropdown">
@@ -166,6 +167,5 @@ function show(row: any) {
       <p>后续操作以服务端最新状态与核对证据为准。</p>
     </DetailDrawer>
     <SourceRecoveryDialog ref="source" @completed="refresh()"/>
-    <OutputRecoveryDialog ref="output" @completed="refresh()"/>
   </div>
 </template>

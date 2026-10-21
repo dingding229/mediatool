@@ -12,7 +12,7 @@ import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import UserEditor from './UserEditor.vue';
 import UserActivityPanel from './UserActivityPanel.vue';
 import { errorText, date } from '../workflows/readiness';
-const users = reactive(useResource(listMediaUsers, [])), libraries = reactive(useResource(listNativeLibraries, [])), editor = ref<InstanceType<typeof UserEditor>>(), activity = ref<any>(null), activityOpen = ref(false), target = ref<any>(null), confirm = ref(false), remove = ref(false), op = reactive(useOperation('users'));
+const users = reactive(useResource(listMediaUsers, [])), libraries = reactive(useResource(listNativeLibraries, [])), editor = ref<InstanceType<typeof UserEditor>>(), activity = ref<any>(null), activityOpen = ref(false), target = ref<any>(null), confirm = ref(false), op = reactive(useOperation('users'));
 async function load() {
   await Promise.all([users.load(), libraries.load()]);
   if (op.pending && !users.error) {
@@ -30,7 +30,7 @@ function create() {
 }
 async function apply() {
   const row = target.value;
-  await op.run((remove.value ? 'delete:' : 'sessions:') + row.id, () => remove.value ? request(`/media-server/users/${row.id}`, { method: 'DELETE', body: JSON.stringify({ revision: row.revision }) }) : request(`/media-server/users/${row.id}/sessions/revoke`, { method: 'POST', body: JSON.stringify({ revision: row.revision }) }));
+  await op.run('delete:' + row.id, () => request(`/media-server/users/${row.id}`, { method: 'DELETE', body: JSON.stringify({ revision: row.revision }) }));
   confirm.value = false;
   await load();
 }
@@ -52,13 +52,13 @@ defineExpose({ load, create });
       <div class="media-actions">
         <el-button :disabled="!!users.error||!!libraries.error" @click="editor?.open(user)">编辑用户</el-button>
         <el-button @click="activity=user;activityOpen=true">设备与历史</el-button>
+        <RouterLink :to="{path:'/playback',query:{tab:'sessions',userId:user.id}}">查看会话与撤销登录</RouterLink>
         <el-dropdown trigger="click" popper-class="media-dropdown">
           <el-button>更多</el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item @click="editor?.open(user,true)">重置密码</el-dropdown-item>
-              <el-dropdown-item :disabled="!!op.pending" @click="target=user;remove=false;confirm=true">撤销全部登录</el-dropdown-item>
-              <el-dropdown-item :disabled="!!op.pending" @click="target=user;remove=true;confirm=true">删除用户</el-dropdown-item>
+              <el-dropdown-item :disabled="!!op.pending" @click="target=user;confirm=true">删除用户</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -69,5 +69,5 @@ defineExpose({ load, create });
   <DetailDrawer v-model:visible="activityOpen" :title="(activity?.username||'媒体用户')+' · 设备与历史'" class="media-detail">
     <UserActivityPanel v-if="activity&&activityOpen" :user-id="activity.id" :user-name="activity.username"/>
   </DetailDrawer>
-  <ConfirmAction v-model:visible="confirm" :title="remove?'删除媒体用户':'撤销媒体用户全部登录'" :description="`将处理 ${target?.username||'此用户'} 的账号或登录权限。`" :impact-scope="remove?'删除账号、权限和登录，不删除媒体文件或其他用户。':'影响该用户全部设备，需重新输入密码；当前播放链接可能短期仍有效。'" :confirm-text="remove?'确认删除用户':'确认撤销全部登录'" :loading="op.busy" class="media-dialog" @confirm="apply"/>
+  <ConfirmAction v-model:visible="confirm" title="删除媒体用户" :description="`将处理 ${target?.username||'此用户'} 的账号或登录权限。`" impact-scope="删除账号、权限和登录，不删除媒体文件或其他用户。" confirm-text="确认删除用户" :loading="op.busy" class="media-dialog" @confirm="apply"/>
 </template>

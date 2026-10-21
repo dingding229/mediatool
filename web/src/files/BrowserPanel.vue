@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { reactive, ref, onMounted, watch, nextTick } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElDropdown, ElDropdownItem, ElDropdownMenu } from 'element-plus';
 import { FolderOpened, Document } from '@element-plus/icons-vue';
 import { useBrowser, permission } from './useBrowser';
@@ -12,6 +13,7 @@ import { readPrivate, label } from '../organize/model';
 import { size } from '../acquisition/model';
 import { date, errorText } from '../workflows/readiness';
 import { sourceState } from '../media/model';
+const route = useRoute();
 const browser = reactive(useBrowser()), action = ref<InstanceType<typeof FileActionDialog>>(), batch = ref<InstanceType<typeof FileBatchDialog>>(), historyOpen = ref(false);
 function allowed(operation: string, row?: any, cap?: any) {
   return !browser.error && !browser.rootError && !browser.loading && !browser.rootsLoading && permission(operation, row, cap || browser.capability);
@@ -39,6 +41,18 @@ function history() {
   historyOpen.value = true;
   void browser.loadHistory();
 }
+async function selectedLibrary() {
+  const kind = route.query.selectionKind, values = route.query.selection;
+  if (!['candidates', 'assets'].includes(String(kind)))
+    return;
+  const ids = (Array.isArray(values) ? values : [values]).filter((x): x is string => typeof x === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(x));
+  if (!ids.length || ids.length > 20)
+    return;
+  await nextTick();
+  void batch.value?.open(kind as 'candidates' | 'assets', ids.map(id => ({ id })));
+}
+onMounted(selectedLibrary);
+watch(() => [route.query.selectionKind, route.query.selection], selectedLibrary);
 defineExpose({ refresh: browser.refresh });
 </script>
 <template>

@@ -1,11 +1,11 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
-import { post, request } from '../api/client';
+import { request } from '../api/client';
 import { guideSteps, inboxGroups, type Slot } from './model';
 import { readGuideHidden, writeGuideHidden } from '../workflows/readiness';
 const endpoints: Record<string, string> = { readiness: '/readiness', runtime: '/system/runtime', recent: '/search', jobs: '/jobs/browse?state=failed&page=1&pageSize=5', candidates: '/library/candidates?state=needs_confirmation&page=1&pageSize=5', transfers: '/transfers', manual: '/downloads/manual', batches: '/library/activity?state=needs_reconcile&page=1&pageSize=5', alerts: '/ops', plugins: '/plugins?page=1&pageSize=200', accounts: '/integrations', classification: '/classification' };
 export function useDashboard() {
   const slots = reactive<Record<string, Slot>>(Object.fromEntries(Object.keys(endpoints).map(k => [k, { data: null, loading: true, error: null }])));
-  const hidden = ref(readGuideHidden()), acknowledging = ref(''), ackError = ref('');
+  const hidden = ref(readGuideHidden());
   const groups = computed(() => inboxGroups(slots)), steps = computed(() => guideSteps(slots.readiness?.data, slots.accounts?.data, slots.classification?.data));
   const complete = computed(() => steps.value.every(s => s.done)), guideVisible = computed(() => !complete.value || !hidden.value);
   let disposed = false;
@@ -44,22 +44,6 @@ export function useDashboard() {
     hidden.value = false;
     writeGuideHidden(false);
   }
-  async function acknowledge(code: string) {
-    if (acknowledging.value)
-      return;
-    acknowledging.value = code;
-    ackError.value = '';
-    try {
-      await post(`/ops/alerts/${encodeURIComponent(code)}/ack`, { confirm: true });
-      await load('alerts');
-    }
-    catch {
-      ackError.value = '确认回执未获取，请刷新告警核对，不要重复确认。';
-    }
-    finally {
-      acknowledging.value = '';
-    }
-  }
   onMounted(() => {
     void refresh();
     window.addEventListener('media-tool:show-setup', reopen);
@@ -68,5 +52,5 @@ export function useDashboard() {
     disposed = true;
     window.removeEventListener('media-tool:show-setup', reopen);
   });
-  return { slots, groups, steps, complete, guideVisible, refresh, load, hideGuide, acknowledge, acknowledging, ackError };
+  return { slots, groups, steps, complete, guideVisible, refresh, load, hideGuide };
 }

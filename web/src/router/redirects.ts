@@ -28,6 +28,7 @@ export function legacyLocation(path: string, to: Pick<RouteLocationNormalized, '
   return { path: target.path, query: { ...target.query, ...to.query, tab: path === '/cloudStorage' && to.query.assetId ? 'assets' : target.tab }, hash: to.hash }
 }
 export function normalizePageLocation(to: Pick<RouteLocationNormalized, 'path' | 'query' | 'hash'>): RouteLocationRaw | undefined {
+  if(to.path==='/library'&&to.query.source==='plugins')return {path:'/search',query:{...to.query,tab:'discover',kind:to.query.kind==='recommend.source'?'recommend.source':'discover.source',source:undefined},hash:to.hash,replace:true};
   if ((to.path === '/settings' && (['tmdb','proxy'].includes(String(to.query.section)) || ['tmdb','proxy'].includes(String(to.query.tab)))) || (['/library','/settings'].includes(to.path) && to.query.connectionKind === 'emby')) return { path: '/connections', query: { ...to.query, tab: to.query.connectionKind === 'emby' ? 'emby' : 'aux' }, hash: to.hash }
   if (to.path === '/organize' && (to.query.tab === 'library' || !to.query.tab && to.query.assetId)) return {path:'/organize',query:{...to.query,tab:to.query.assetId?'assets':'candidates'},hash:to.hash,replace:true}
   const page = primaryPages.find(page => to.path === `/${page.id}`)
