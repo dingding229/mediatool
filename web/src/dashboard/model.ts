@@ -40,6 +40,6 @@ export function guideSteps(readiness: Readiness | null, integrations: any, class
     { label: '连接 115/CD2', done: readiness?.components?.open115?.state === 'ready' && readiness.components.clouddrive2?.state === 'ready', path: '/connections', tab: 'storage' },
     { label: '关联 Emby', done: readiness?.components?.emby?.state === 'ready', path: '/connections', tab: 'emby' },
     { label: '添加站点', done: list(integrations).some(r => r.kind === 'ptsite' && r.enabled), path: '/sites', tab: 'accounts' },
-    { label: '设置分类规则', done: !!classification?.value?.groups?.some((g: any) => g.enabled && g.directory), path: '/settings', tab: 'classification' },
+    { label: '设置分类规则', done: !!classification?.value?.groups?.some((g: any) => g.enabled && g.directory), path: '/settings', tab: 'naming' },
   ];
 }

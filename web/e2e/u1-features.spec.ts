@@ -86,7 +86,7 @@ test('U1 verification screenshots capture', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 }); await page.addInitScript(() => localStorage.setItem('media-tool:theme-mode:v1','light'))
   await page.goto('/ops?tab=jobs'); await expect(page.getByRole('heading', { name: '运行与队列', exact: true })).toBeVisible()
   await page.screenshot({ path: `${dir}/ops-1440-light.png`, fullPage: true, animations: 'disabled' })
-  await page.goto('/settings'); await expect(page.getByRole('heading', { name: '系统设置', exact: true })).toBeVisible()
+  await page.goto('/settings'); await expect(page.getByRole('heading', { name: '设置', exact: true })).toBeVisible()
   await page.screenshot({ path: `${dir}/settings-1440-light.png`, fullPage: true, animations: 'disabled' })
   await page.setViewportSize({ width: 375, height: 812 }); await page.addInitScript(() => localStorage.setItem('media-tool:theme-mode:v1','dark'))
   await page.goto('/files?tab=browser'); await expect(page.getByRole('heading', { name: '文件浏览', exact: true })).toBeVisible()
@@ -110,11 +110,11 @@ test('U1 each outer page tab writes its exact URL tab and quick jump opens opera
   const expected: Record<string, string[]> = {
     search: ['query','history'], downloads: ['tasks','uploads','manual'], organize: ['candidates','scans','assets','history','recovery'], files: ['browser','strm','tools'],
     playback: ['settings','users','players','sessions','processing'], connections: ['overview','storage','emby','notifications','aux'],
-    sites: ['accounts','templates'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['general','classification','api'],
+    sites: ['accounts','templates'], ops: ['jobs','maintenance','logs','data','cache'], settings: ['general','naming','automation','api','mobile','security'],
   }
   for (const [path, ids] of Object.entries(expected)) {
     await page.goto(`/${path}?keep=owned`)
-    const nav = page.locator(['organize','files','playback','sites','plugins','ops'].includes(path) ? '.media-workspace .page-tabs' : path === 'connections' ? '.connections-workspace .page-tabs' : ['search','downloads'].includes(path) ? '.acquire-workspace .page-tabs' : '.workflow-page-navigation .page-tabs')
+    const nav = page.locator(['organize','files','playback','sites','plugins','ops'].includes(path) ? '.media-workspace .page-tabs' : path === 'connections' ? '.connections-workspace .page-tabs' : ['search','downloads'].includes(path) ? '.acquire-workspace .page-tabs' : '.settings-workspace > .page-tabs')
     await expect(nav.getByRole('button')).toHaveCount(ids.length)
     for (let index = 0; index < ids.length; index++) {
       await nav.getByRole('button').nth(index).click()

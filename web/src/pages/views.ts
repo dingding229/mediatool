@@ -1,6 +1,6 @@
-import { defineAsyncComponent, markRaw, type Component } from 'vue'
-const view = (loader: () => Promise<any>) => markRaw(defineAsyncComponent(loader))
-export const legacyViews: Record<string, Component> = {
+import { defineAsyncComponent, markRaw, type Component } from 'vue';
+const view = (loader: () => Promise<any>) => markRaw(defineAsyncComponent(loader));
+export const workspaceViews: Record<string, Component> = {
   dashboard: view(() => import('../views/DashboardWorkspaceView.vue')),
   search: view(() => import('../views/SearchWorkspaceView.vue')),
   subscriptions: view(() => import('../views/SubscriptionWorkspaceView.vue')),
@@ -13,11 +13,5 @@ export const legacyViews: Record<string, Component> = {
   sites: view(() => import('../views/SitesWorkspaceView.vue')),
   plugins: view(() => import('../views/PluginsWorkspaceView.vue')),
   ops: view(() => import('../views/OpsWorkspaceView.vue')),
-  settings: view(() => import('../views/SettingsView.vue')),
-  classification: view(() => import('../views/ClassificationView.vue')),
-  api: view(() => import('../views/ExternalAPIView.vue')),
-}
-export const tabViews: Record<string, string[]> = {
-  dashboard: ['dashboard'], search: ['search'], subscriptions: ['subscriptions'], downloads: ['downloads'], library: ['library'],
-  organize: ['organize'], files: ['files'], playback: ['playback'], connections: ['connections'], sites: ['sites'], plugins: ['plugins'], ops: ['ops'], settings: ['settings','classification','api'],
-}
+  settings: view(() => import('../views/SettingsWorkspaceView.vue')),
+};

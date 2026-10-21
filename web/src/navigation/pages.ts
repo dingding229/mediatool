@@ -13,13 +13,6 @@ export const primaryPages: PrimaryPage[] = [
   { id: 'sites', name: '站点', group: '系统', description: '维护 PT 账号与选用的站点模板。', tabs: [{ id: 'accounts', label: '站点账号', keywords: 'PT HDSKY Cookie 分享率' }, { id: 'templates', label: '站点模板', keywords: '规则 内置 加载' }] },
   { id: 'plugins', name: '插件', group: '系统', description: '管理内置插件、实例配置与授权。', tabs: [{ id: 'installed', label: '已安装' }, { id: 'catalog', label: '插件目录' }] },
   { id: 'ops', name: '运维', group: '系统', description: '查看后台任务、备份、日志和系统数据。', tabs: [{ id: 'jobs', label: '任务队列', keywords: 'Worker Cron 重试' }, { id: 'maintenance', label: '备份与告警', keywords: '维护 恢复 告警 趋势' }, { id: 'logs', label: '日志', keywords: '程序日志 debug info warn error' }, { id: 'data', label: '数据浏览', keywords: '数据库 PostgreSQL Redis 只读' }, { id: 'cache', label: '缓存', keywords: 'TMDB 缓存 TTL 清理' }] },
-  { id: 'settings', name: '设置', group: '系统', description: '管理系统配置、目录分类和外部访问。', tabs: [{ id: 'general', label: '系统配置', keywords: '' }, { id: 'classification', label: '目录分类', keywords: '动漫 国家 题材 分类规则' }, { id: 'api', label: '外部 API', keywords: '开放接口 凭据 权限' }] },
-]
-export const settingsSections = [
-  { id: 'access', label: '访问与域名', keywords: '管理入口 公开地址 端口' },
-  { id: 'library', label: '命名与刮削', keywords: '命名模板 电影 剧集' },
-  { id: 'automation', label: '搜索与订阅', keywords: 'RSS Cron 调度 搜索缓存' },
-  { id: 'account', label: '管理员账号', keywords: '密码 安全' },
-  { id: 'mobile', label: '移动端应用', keywords: 'PWA 安装' },
+  { id: 'settings', name: '设置', group: '系统', description: '按分区管理配置、命名分类和账号安全。', tabs: [{ id: 'general', label: '通用与访问', keywords: '域名 端口 反代 IP' }, { id: 'naming', label: '命名与分类', keywords: '命名模板 动漫 国家 题材 刮削 分类规则' }, { id: 'automation', label: '搜索订阅', keywords: 'RSS Cron 调度 缓存' }, { id: 'api', label: '外部 API', keywords: '开放接口 凭据 权限 验证' }, { id: 'mobile', label: '移动端', keywords: 'PWA 安装' }, { id: 'security', label: '账号安全', keywords: '管理员 密码 会话 引导' }] },
 ]
 export const pageById = (id: string) => primaryPages.find(page => page.id === id)!

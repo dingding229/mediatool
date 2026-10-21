@@ -1,5 +1,5 @@
 import type { RouteLocationNormalized, RouteLocationRaw, Router } from 'vue-router'
-import { primaryPages, settingsSections } from '../navigation/pages'
+import { primaryPages } from '../navigation/pages'
 export const legacyDestinations: Record<string, { path: string; tab: string; query?: Record<string, string> }> = {
   '/emby': { path: '/connections', tab: 'emby' },
   '/mediaLibrary': { path: '/library', tab: 'browse' },
@@ -8,7 +8,7 @@ export const legacyDestinations: Record<string, { path: string; tab: string; que
   '/player-access': { path: '/playback', tab: 'players' },
   '/cloudStorage': { path: '/organize', tab: 'candidates' },
   '/organize-history': { path: '/organize', tab: 'history' },
-  '/classification': { path: '/settings', tab: 'classification' },
+  '/classification': { path: '/settings', tab: 'naming' },
   '/cloud-connections': { path: '/connections', tab: 'storage' },
   '/strm': { path: '/files', tab: 'strm' },
   '/strm-tools': { path: '/files', tab: 'tools' },
@@ -33,8 +33,13 @@ export function normalizePageLocation(to: Pick<RouteLocationNormalized, 'path' |
   const page = primaryPages.find(page => to.path === `/${page.id}`)
   if (!page?.tabs[0]?.id) return
   const query = { ...to.query }, tab = typeof query.tab === 'string' ? query.tab : ''
-  if (page.id === 'settings' && settingsSections.some(s => s.id === tab)) { query.section = tab; query.tab = 'general' }
-  else if (!page.tabs.some(t => t.id === tab)) query.tab = page.tabs[0].id
+  if (page.id === 'settings') {
+    const old: Record<string,string> = { access:'general', library:'naming', classification:'naming', automation:'automation', account:'security', security:'security', mobile:'mobile', api:'api', general:'general', naming:'naming' };
+    const section = typeof query.section === 'string' ? query.section : '';
+    query.tab = old[(!tab || tab === 'general') && old[section] ? section : tab] || 'general';
+    if (old[section]) delete query.section;
+    if (tab === 'cache' || ((!tab || tab === 'general') && section === 'cache')) return { path:'/ops',query:{...query,tab:'cache'},hash:to.hash,replace:true };
+  } else if (!page.tabs.some(t => t.id === tab)) query.tab = page.tabs[0].id
   if (page.id === 'settings' && query.connectionKind === 'tmdb') return { path: '/connections', query: { ...query, tab: 'aux' }, hash: to.hash }
   if (JSON.stringify(query) !== JSON.stringify(to.query)) return { path: to.path, query, hash: to.hash, replace: true }
 }

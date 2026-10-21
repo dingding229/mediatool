@@ -28,7 +28,7 @@ test('dashboard keeps configured STRM pending player verification and isolates o
 })
 test('completed setup can be hidden then reopened from settings with guarded local preference',async({page})=>{
  await page.goto('/dashboard');const guide=page.getByRole('region',{name:'首次使用引导'});await guide.getByRole('button',{name:'收起引导',exact:true}).click();await expect(guide).toHaveCount(0);await page.reload();await expect(guide).toHaveCount(0)
- await page.goto('/settings');await page.getByRole('button',{name:'重新打开配置引导',exact:true}).click();await expect(guide).toBeVisible()
+ await page.goto('/settings?tab=security');await page.getByRole('button',{name:'重新打开配置引导',exact:true}).click();await expect(guide).toBeVisible()
 })
 test('saved connection keys stay hidden by default and conflict keeps typed input until explicit revision confirmation',async({page})=>{
  let reveals=0,puts=0;await page.route('**/secrets/reveal',r=>{reveals++;return r.abort()})

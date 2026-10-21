@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { routes } from './router/routes'
 import { installPageRedirects } from './router/redirects'
-import { primaryPages, settingsSections } from './navigation/pages'
+import { primaryPages } from './navigation/pages'
 function getRouter() { const router = createRouter({ history: createMemoryHistory(), routes }); installPageRedirects(router); return router }
 const legacy = [
   ['/emby','/connections','emby'], ['/mediaLibrary','/library','browse'], ['/media-server','/playback','settings'],
   ['/media-users','/playback','users'], ['/player-access','/playback','players'], ['/cloudStorage','/organize','assets'],
-  ['/organize-history','/organize','history'], ['/classification','/settings','classification'], ['/cloud-connections','/connections','storage'],
+  ['/organize-history','/organize','history'], ['/classification','/settings','naming'], ['/cloud-connections','/connections','storage'],
   ['/strm','/files','strm'], ['/strm-tools','/files','tools'], ['/maintenance','/ops','maintenance'], ['/jobs','/ops','jobs'],
   ['/logs','/ops','logs'], ['/data','/ops','data'], ['/notifications','/connections','notifications'], ['/integrations','/connections','overview'],
   ['/external-api','/settings','api'], ['/tmdb-cache','/ops','cache'], ['/search-cache','/search','history'], ['/site-templates','/sites','templates'],
@@ -19,7 +19,9 @@ describe('canonical workflow routing', () => {
     expect(r.currentRoute.value.path).toBe(path); expect(r.currentRoute.value.query).toMatchObject({ tab, q: '中文 & 原值', assetId: 'owned', tags: ['one','two'], flag: null }); expect(r.currentRoute.value.hash).toBe('#detail')
     expect(r.getRoutes().find(record => record.path === from)?.redirect).toBeTruthy(); expect(r.getRoutes().find(record => record.path === from)?.components).toBeUndefined()
   })
-  it.each(settingsSections)('maps old settings tab $id to general + section, including same-path navigation', async section => { const r = getRouter(); await r.push('/settings?tab=general'); await r.push({ path: '/settings', query: { tab: section.id, keep: 'yes' } }); expect(r.currentRoute.value.query).toEqual({ tab: 'general', section: section.id, keep: 'yes' }) })
+  it.each([['access','general'],['library','naming'],['classification','naming'],['automation','automation'],['account','security'],['mobile','mobile'],['security','security']])('maps old settings tab %s to %s', async (from,tab) => { const r=getRouter(); await r.push('/settings'); await r.push(`/settings?tab=${from}&keep=yes#form`); expect(r.currentRoute.value.query).toEqual({tab,keep:'yes'}); expect(r.currentRoute.value.hash).toBe('#form') })
+  it.each([['access','general'],['library','naming'],['automation','automation'],['account','security'],['mobile','mobile']])('migrates general section %s to %s', async (section,tab) => { const r=getRouter(); await r.push(`/settings?tab=general&section=${section}&keep=yes`); expect(r.currentRoute.value.query).toEqual({tab,keep:'yes'}); await r.push('/settings?tab=api'); await r.push(`/settings?tab=general&section=${section}&keep=second`); expect(r.currentRoute.value.query).toEqual({tab,keep:'second'}) })
+  it('moves the obsolete cache settings to operations',async()=>{const r=getRouter();await r.push('/settings?tab=cache&keep=yes');expect(r.currentRoute.value.path).toBe('/ops');expect(r.currentRoute.value.query).toEqual({tab:'cache',keep:'yes'})})
   it.each([
     ['emby','/connections','emby'], ['ptsite','/sites','accounts'], ['open115','/connections','storage'], ['clouddrive2','/connections','storage'],
     ['qbittorrent','/downloads','tasks'], ['tmdb','/connections','aux'], ['telegram','/connections','notifications'], ['local','/files','browser'], ['unknown','/connections','overview'],
@@ -30,3 +32,5 @@ describe('canonical workflow routing', () => {
 it.each(["tmdb","proxy"])("moves old settings section %s to connections aux",async section=>{const r=getRouter();await r.push(`/settings?tab=general&section=${section}&keep=yes`);expect(r.currentRoute.value.path).toBe("/connections");expect(r.currentRoute.value.query).toMatchObject({tab:"aux",keep:"yes"});await r.push(`/settings?tab=${section}`);expect(r.currentRoute.value.path).toBe("/connections")})
 
 it.each(['/cloudStorage','/organize?tab=library','/organize'])('organize legacy entry %s preserves asset links and canonical tabs',async from=>{const r=getRouter();await r.push(from+(from.includes('?')?'&':'?')+'assetId=owned&keep=yes');expect(r.currentRoute.value.query).toMatchObject({tab:'assets',assetId:'owned',keep:'yes'});await r.push('/cloudStorage');expect(r.currentRoute.value.query.tab).toBe('candidates')})
+
+it.each([['access','general'],['library','naming'],['automation','automation'],['account','security'],['mobile','mobile']])('migrates section-only settings %s',async(section,tab)=>{const r=getRouter();await r.push(`/settings?section=${section}&keep=yes`);expect(r.currentRoute.value.query).toEqual({tab,keep:'yes'})})
