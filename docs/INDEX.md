@@ -1,29 +1,39 @@
-# 现行文档索引
+# 使用文档目录
 
-此索引区分当前规范与历史证据。旧独立 cmd、外部市场/远程站点源、HLS/relay/转码验收、多 worker/多 Compose 部署指令不再适用。
+[程序简介与快速部署](../README.md) · [统一界面操作](guide/common.md)
 
-## 入口与不变约束
+## 按页面查找
 
-1. [README](../README.md)：根 Compose，唯一 app/postgres/redis，发布与安装。
-2. [前端API/流程](FRONTEND_API.md)、[逐接口使用清单](FRONTEND_API_ROUTES.md)、[OpenAPI](../api/openapi.yaml)：管理/原生listener边界、实际路由双向契约、错误/分页/flow/readiness/能力与确认流程。
-3. [CLI/API 映射](CLI_REFERENCE.md)：三个二进制、19 工具迁移、Go 测试锁、运维与严格302诊断。
-4. [部署指南](NATIVE_DEPLOYMENT.md)、[发布指南](WORKBENCH_RELEASE_GUIDE.md)：操作者私有直接值、Hub immutable AMD64、备份与验证。
-5. [架构](ARCHITECTURE.md)、[严格直链](DIRECT_PLAY_ONLY.md)、[官方115](OFFICIAL_115_PLAYBACK.md)：Go/Vue/PG/Redis，稳定 STRM、真实 UA、官方链接与302。
-6. [原生站点](NATIVE_SITE_TEMPLATES.md)、[Go站点定义](PT_GO_TEMPLATES.md)：固定 module pin、仅显式选择刷新。
-7. [插件开发](PLUGIN_DEVELOPMENT.md)、[框架V2](PLUGIN_FRAMEWORK.md)、[支持矩阵](PLUGIN_SUPPORT_MATRIX.md)：同 pin 的 SDK/宿主/UI、权限审批、worker隔离和数据保留。
+| 分组 | 页面 | 说明 |
+| --- | --- | --- |
+| 首页 | [首页](guide/dashboard.md) | 服务状态、需要处理的事项、配置引导 |
+| 获取 | [搜索](guide/search.md) | 搜索、搜索历史、发现推荐、结果投递 |
+| 获取 | [订阅](guide/subscriptions.md) | 订阅列表、运行记录、预演与归档 |
+| 获取 | [下载](guide/downloads.md) | 下载任务、上传入库、手动添加 |
+| 媒体 | [媒体库](guide/library.md) | 内置/Emby 海报浏览、季集与详情 |
+| 媒体 | [入库整理](guide/organize.md) | 待确认、扫描、已入库、整理历史、恢复与归档 |
+| 媒体 | [文件](guide/files.md) | 文件浏览、STRM 目录、STRM 工具 |
+| 媒体 | [播放服务](guide/playback.md) | 服务设置、媒体用户、播放器准入、在线会话、预处理 |
+| 系统 | [连接](guide/connections.md) | 总览、115/CD2、Emby、通知渠道、TMDB/代理 |
+| 系统 | [站点](guide/sites.md) | 站点账号、站点模板 |
+| 系统 | [插件](guide/plugins.md) | 已安装、插件目录、实例详情与插件页面 |
+| 系统 | [运维](guide/ops.md) | 任务队列、备份与告警、日志、数据浏览、缓存 |
+| 系统 | [设置](guide/settings.md) | 通用与访问、命名与分类、搜索订阅、外部 API、移动端、账号安全 |
 
-## 当前业务专题
+## 部署与维护
 
-- 获取/订阅：[工作区](ACQUIRE_WORKSPACE.md)、[RSS/代理](ACQUIRE_RESULTS_PROXY_RSS.md)、[订阅搜索](SUBSCRIPTION_SEARCH_UI.md)、[站点指标](SITE_METRIC_REFRESH.md)。
-- 文件/媒体：[文件管理](FILE_MANAGEMENT.md)、[库工作台](FILES_LIBRARY_WORKBENCH.md)、[命名刮削](CLOUD_NAMING_SCRAPING.md)、[媒体分类/API](MEDIA_LAYOUT_AND_EXTERNAL_API.md)。
-- 原生服务：[Emby兼容入口](NATIVE_EMBY_SERVER.md)、[原生媒体](NATIVE_MEDIA_SERVER.md)、[客户端序列](NATIVE_CLIENT_SEQUENCE_MATRIX.md)。
-- 安全运维：[账号](ADMIN_ACCOUNTS.md)、[系统操作](SYSTEM_OPERATIONS.md)、[日志备份](RAW_LOGS_AND_BACKUP.md)、[离线保护](OFFLINE_HARDENING.md)。
-- 测试边界见 [tests/README](../tests/README.md)；真实用户/设备/生产恢复不作为合成测试夹具。
+- [安装与配置](deploy/install.md)
+- [升级与版本登记](deploy/upgrade.md)
+- [备份、演练、恢复与回滚](deploy/backup.md)
+- [日志与数据查看](deploy/logs-data.md)
+- [账号、安全与密码恢复](deploy/security.md)
+- [播放与 302](deploy/playback.md)
+- [Emby 客户端接入](deploy/emby.md)
+- [命令参考](CLI_REFERENCE.md)
 
-## 历史证据
+## 接口与扩展
 
-`docs/plans/` 全部早期阶段文件已标记 **superseded**，仅供追溯，不能证明当前版本已发布、已部署或通过新的质量门。
-
-Q0/Q1/Q2历史与决策见 [Q1/Q2执行记录](plans/20261020-q1-q2-consolidation.md)；当前Q3/Q4迁移、流程/API变更、保留协议、进一步精简候选与门禁边界见 [Q3/Q4执行记录](plans/20261020-q3-q4-consolidation.md)。最终schema71，66起append-only；遗留结构只在锁定并验证为空后退役，失败安全中止。该记录不代表已发布或生产验收。
-
-当前Q5/Q5.5的安全修复、单次门禁与文档覆盖见 [执行记录](plans/20261020-q5-security-api.md)；[Q6只读预检SQL](sql/20261020-q6-preflight.sql)和[发布草案](plans/20261020-q6-release-draft.md)待审核执行，不表示生产已更新。
+- [插件说明与作者接口](PLUGINS.md) · [插件能力表](PLUGIN_SUPPORT_MATRIX.md)
+- [媒体协议接口](NATIVE_EMBY_SERVER.md)
+- [前端 API 与业务流程](FRONTEND_API.md) · [接口使用清单](FRONTEND_API_ROUTES.md)
+- [OpenAPI](../api/openapi.yaml) · [前端界面规范](FRONTEND_DESIGN_MASTER.md)

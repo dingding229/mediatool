@@ -1,9 +1,8 @@
-# 插件支持矩阵 · R 源码冻结
+# 插件能力表
 
-- 源码候选：0.27.0；schema 71；contractVersion 2。
-- SDK pin：`v0.0.0-20261019145526-4ad0d7c57697`。
+- contractVersion：2。
 - 契约摘要：`5fb1a7fcf7fbf87a232793570f5fda45616f1f36e2b6062f188cbd2012f3c90c`。
-- 生成/校验：`go run ./cmd/media-tool-dev plugins matrix [--check]`；仅读取编译期元数据，不执行工厂。
+- 读取/生成：`go run ./cmd/media-tool-dev plugins matrix [--check]`；读取编译期元数据，不执行工厂。
 - `registered` 只表示存在窄门面，不保证任意环境可用；actor、adapter、owner、selector、revision 和实时 scope 不满足时 fail-closed。
 - 表中的 supported=false 为固定 unsupported；其他条件性 unsupported 见下文。
 
@@ -187,7 +186,7 @@
 
 ## 广播与链
 
-原 MP 映射50项（含4项N/A）之外，宿主另有 `plugin.config.changed` 配置事实；所以当前SDK合计51个typed标识（32广播/19链），不是扩大MP能力声明。
+SDK 提供51个 typed 标识（32广播/19链），其中 N/A 项不接受注册。
 
 | 类型 | 稳定标识 | 精确 scope / 边界 |
 |---|---|---|
@@ -243,36 +242,36 @@
 | 广播 | `transfer.audio.failed` | **N/A：契约不接受注册** |
 | 广播 | `workflow.started` | `events.subscribe.workflow.started` |
 
-## 拒绝矩阵与证据边界
+## 调用与授权边界
 
-- 每个业务 RPC 均经 `TestEveryBusinessMethodLiveScopeAndRevocation`（host_business_test）逐项走成功代理、缺 scope、撤权、unsupported；真实门面的成功/投影/保护另由 plugins/business 单测与集成测试证明，不能把代理成功算真实业务成功。
-- 核心配置/KV/状态：concurrency_test、host_test、v2_test 覆盖 KEY SHARE 并发读取、续租、撤权和提交前写 fence；scope 从不缓存。
-- 广播：acquisition/organizing/discovery/platform/workflow 对应 map/integration/真实 worker 测试覆盖 commit/rollback、精确 scope、撤权；版本化事实键，不把 requested/unknown 当成功。
-- 链：生产每 handler 200ms、整链 2s、最多 8；SDK schema 和宿主再次校验，非法结果只收窄或回落，RPC 不跨写事务，提交前 fence。
-- 严格 302：server_test、server_integration_test、media_integration_test 与 worker 接线用例保护 STRM 原文、合法 actor 和无播放/115 URL 投影；插件不得替换 Resolve。
-- 管理 API：admin 会话/非 GET CSRF；媒体端口无插件 API。实例 key/public 网关另有精确权限与限流。失败记录只保留固定结果码/requestId，不记正文、配置、operationKey 或原始错误。
+- 业务 RPC 使用当前实例和授权范围；缺少权限、调用者身份或所需适配器时明确拒绝，不把接口存在当成业务可用。
+- 配置、KV 和状态写入受修订号、实时授权及执行身份约束；撤权或保存配置后旧身份不能继续写入。
+- 广播只接收已声明且授权的精确事件。排队、请求已受理和结果未知不等于完成。
+- 策略链每个处理器最多200毫秒、整链2秒、最多8个处理器；输入输出经过校验，不能提升权限。
+- 插件不能替换固定播放解析、取得115授权或临时媒体地址，也不能通过媒体端口访问插件管理 API。
+- 管理 API 要求管理员会话与写请求来源检查；固定结果记录不收集配置、正文或操作密钥。
 
-## 明确 unsupported / N/A（不因 R 扩范围）
+## 不支持的能力
 
-- catalog.home/discover/nextUp/userData 为固定 unsupported；catalog/nativelibrary 等依赖宿主真实 actor，不能采用插件传入的 userId/visibleLibraries 替代。缺失 actor/媒体适配器时其他相关方法也返回 unsupported。
-- downloads.retry、fs.media.readText 固定 unsupported。CloudDrive2 没有可靠 mtime 时不退化为仅 size 静默检测。
-- 私有 TMDB 收藏/OAuth、真实 auth provider 登录适配器、LLM 对话/自动 Agent 循环不支持；AgentLLMProvider N/A。假 provider 测试不是生产登录能力。
-- 不开放任意正文提取、Cookie/Set-Cookie/认证头、TMDB token、代理凭据、115 授权/直链、原始播放 API 或媒体中转。sites.request 只有有界脱敏布尔标记，不返回正文。
-- 没有推荐引擎；discover/recommend 只接插件 typed 候选的后台缓存。收集结束不是追剧完成；unknown/缺 TMDB/缺资产不发完成事件。
-- workflows 仅管理员批准的有界 DAG，工具仅人工调用；未知外部副作用不自动重放，不恢复旧代码。
+- catalog.home/discover/nextUp/userData、downloads.retry、fs.media.readText 为固定 unsupported。其他目录能力还要求真实调用者和媒体适配器，不能采用插件传入的用户权限替代。
+- CloudDrive2 缺少可靠修改时间时，不退化为仅依靠文件大小判断静默。
+- 不支持私有 TMDB 收藏/OAuth、外部账号直接登录、LLM 对话或自动工具循环；AgentLLMProvider 为 N/A。
+- 不开放任意网页正文、Cookie/认证头、共享 TMDB 或代理凭据、115 授权/直链和媒体中转。sites.request 只返回允许范围内的有界信息。
+- 发现/推荐只读取插件候选的后台缓存，不是通用推荐引擎。收集结束不代表追剧完成，身份或资产未知时不发送完成事件。
+- 工作流只执行管理员批准的有界定义，工具只由管理员人工调用；未知外部副作用不自动重放。
 
-## 内置插件与停用态安全验收
+## 内置插件与运行范围
 
-| ID | 版本 | 当前版本 history（来自 manifest） | 安全配置/当前范围 |
-|---|---|---|---|
-| `hello-go` | 1.9.0 | Bounded manual agent tools (no autonomous loop), readonly echo and own-KV write examples | 人工框架检查；不自动运行验收业务 |
-| `library-refresh-notify` | 1.1.0 | F6-β：宿主强制七日重投窗口；仅淘汰完成八日且已过重投窗口的记录 | active=false；7日原事实重投/8日完成账本滚动 |
-| `seeding-cleanup` | 1.0.0 | F6-β：默认停用；有界队列、持久收据、宿主实时授权与危险操作确认 | active=false / execute=false / deleteFiles=false |
-| `site-checkin` | 1.0.0 | F6-α：有界、默认不执行业务、Host 实时授权与幂等收据 | active=false；宿主持有凭据 |
-| `torrent-assistant` | 1.0.0 | F6-γ：默认停用，合成来源验收，有界输入/队列，危险写操作需管理员确认 | active=false / write=false / recheck=false；活跃监控即使不写也可能通知 |
-| `watch-organize` | 1.1.0 | F6-γ：默认 3 / 最大 5 层、有界递归、叶文件静默和宿主链接证据保护 | active=false；默认深度3/上限5，叶文件size+mtime静默，总项≤200/轮提交≤10 |
-| `wishlist-subscribe` | 1.0.0 | F6-γ：默认停用，合成来源验收，有界输入/队列，危险写操作需管理员确认 | active=false / create=false；公开来源，唯一匹配只创建停用订阅 |
+| ID | 版本 | 安全配置/使用范围 |
+|---|---|---|
+| `hello-go` | 1.9.0 | 人工调用示例；不自动运行业务 |
+| `library-refresh-notify` | 1.1.0 | active=false；7日原事实重投/8日完成账本滚动 |
+| `seeding-cleanup` | 1.0.0 | active=false / execute=false / deleteFiles=false |
+| `site-checkin` | 1.0.0 | active=false；宿主持有凭据 |
+| `torrent-assistant` | 1.0.0 | active=false / write=false / recheck=false；活跃监控即使不写也可能通知 |
+| `watch-organize` | 1.1.0 | active=false；默认深度3/上限5，叶文件size+mtime静默，总项≤200/轮提交≤10 |
+| `wishlist-subscribe` | 1.0.0 | active=false / create=false；公开来源，唯一匹配只创建停用订阅 |
 
-安装/确认权限后仍停用；JSON 配置可在停用时保存。动态表单/状态页需要显式启用的 worker，不能为渲染自动启动。离线静态 schema 表单仅作后续设计建议，不在 R 实施。
-安全模式浏览器验收只证明安装/权限/配置读回/停用隔离；六插件活跃业务分支由合成站点/downloader/TMDB/豆瓣/115 Transport/小文件的真实同 app worker E2E 证明，不能宣称在生产真实账户上签到/删种/整理成功。
-保留的 absent 实例和测试快照由用户决定；R 不自动清理。新插件先在插件仓库测试推送并过 CI，再更新主程序精确 pin 和同源 UI 清单，最后经另行批准的备份部署。
+安装或确认权限后仍保持停用，只有管理员明确启用才运行。JSON 配置可在停用时保存；动态表单和页面需要启用的实例，不会为了渲染自动启动。
+
+不可用实例的配置与数据保留。插件修改通过固定模块与同源界面资源分发，不接受运行期来源、提交、版本选择或上传安装。具体操作见[插件说明](PLUGINS.md)。

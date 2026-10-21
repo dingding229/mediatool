@@ -1,2 +1,3 @@
-Frozen public mediatool-site native fixtures for offline tests only. Runtime always downloads the built-in repository at an explicit commit. Source SHA is recorded in docs/NATIVE_SITE_TEMPLATES.md.
-Public source commit: f28a0b70a3541ad740adb4aa3dae4b722a6df90b
+# 站点解析样本
+
+本目录包含公开定义的离线解析样本，只供自动检查读取，不作为运行期模板来源或导入入口。运行时模板来自程序固定的站点模块，使用方式见[站点说明](../../../../../docs/guide/sites.md)。

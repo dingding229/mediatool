@@ -1,6 +1,6 @@
-# 前端接口与业务流程契约（Q5.5 / schema71）
+# 前端接口与业务流程
 
-> 2026-10-20；供后续 UI 重构使用。本次不改视觉。接口事实以当前 Go 注册器、DTO 和 `api/openapi.yaml` 为准，不以历史页面截图/计划文档作为功能已实现的证据。本文不代表 Q6 已发布或生产验收。
+> 字段、参数、状态码及监听端口以 [OpenAPI](../api/openapi.yaml) 和实际服务响应为准。
 
 ## 0. 使用方式、覆盖范围与维护
 
@@ -8,8 +8,6 @@
 - **管理端 259 个实际注册 pattern**（包括 prefix/静态/兼容入口）；**原生媒体端 61 个实际注册项**。管理端 Go GET 隐含 HEAD，methodless mount 展开 OpenAPI 支持的八种标准方法；原生 GET 隐含 HEAD，已知 path 有 OPTIONS。展开后 **291 paths / 625 path-method operations**，其中管理端467、原生端158；这些不是625个独立业务功能。
 - `x-listener=management` 只属于管理端；`native-media` 的 operation-level `servers` 指向单独媒体地址。管理端 `/emby/{path}` 是外部 Emby 兼容网关；不是把 `/Users` 暴露到管理员端口。原生 `/emby`、`/mediabrowser` 前缀/大小写别名和 mount 内动态路径见第9、10节，不伪装为静态管理路由。
 - prefix 的 `{path}`、插件 `{path}` 与原生 `{wildcard}` 可覆盖多段路径；保留 `x-go-registration` 中的原始 pattern。methodless 的 `x-any-http-method` 表示 Go 无 method 限制，未被 OpenAPI 标准表达的 CONNECT 等方法不据此获得业务能力。未知 `/api/` 是404，旧 `/cloudStorage` prefix 是501；精确的 `strm302` 除外。
-- `api/contract_test.go` 从可达构造器注册和 Go 类型生成规格/golden；**另有运行时** recording ServeMux/NewServer 路由 ↔ OpenAPI 双向比较，不能仅靠生成器和生成物互相证明。DTO 反射/实际序列化、custom MarshalJSON、引用完整性、鉴权 scheme、path 参数、严格302契约均有独立测试。
-- 更新接口：先改 Go handler/DTO，运行 `UPDATE_OPENAPI=1 go test ./api`，审阅规格 diff，再跑正常 `go test ./api` 与完整锁内门禁。不要仅为让文档测试变绿手改路径列表或放宽 DTO 断言。新流式/动态协议必须补明确 wire 投影。
 - [逐接口前端使用清单](FRONTEND_API_ROUTES.md) 列出全部 path/method、调用痕迹及源文件。这里的“未检出”不等于死代码：原生播放器、外部API、HEAD、下载/图片URL、运行中插件均可能没有 Vue `request()` 调用。
 
 ## 1. 所有业务共同遵守的约定
@@ -92,10 +90,10 @@ X-Requested-With: media-tool
 ## 4. 115 / CloudDrive2 / Emby 连接、授权与 readiness
 
 1. GET `/integrations`；创建/编辑指定 kind 的连接，保留secretFields所表示的已有秘密。未重新输入不等于清除秘密，清除/替换须按请求契约明确处理。
-2. 115：POST `/integrations/{id}/115/auth/start`（JSON `{}`）→ 显示本次 sessionId 对应二维码 → poll（同sessionId）→ waiting/scanned → exchanging → authorized/expired/cancelled/failed；离开/取消只取消本次会话。不要丢失session后不断start，更不要从其它项目借授权。
+2. 115：POST `/integrations/{id}/115/auth/start`（JSON `{}`）→ 显示该 sessionId 对应二维码 → poll（同sessionId）→ waiting/scanned → exchanging → authorized/expired/cancelled/failed；离开/取消只取消该会话。不要丢失session后不断start，更不要从其它项目借授权。
 3. POST `/integrations/{id}/test` → 回读连接 readiness；授权、保存、连接probe和显式启用是不同步骤，授权成功不自动enable。
 4. GET `/readiness` 汇总 open115 / clouddrive2 / strm / emby。not_configured → configure；authorization_required → authorize/configure_credentials；disabled → enable；check_required → test；check_failed → inspect；ready 仅指新鲜保存probe。STRM configured 的下一步仍是实际播放器302验证。
-5. `revision`变化使旧probe过期；24小时陈旧probe需重新测试。不能把CD2根目录可读等同115取链可用，更不能把HTTP健康等同真实播放/seek验收。
+5. `revision`变化使旧probe过期；24小时陈旧probe需重新测试。不能把CD2根目录可读等同115取链可用，更不能把HTTP健康等同播放器实际播放和拖动成功。
 6. 私有管理员 reveal 需明确confirm、revision和字段；仅展示给已认证管理员，不复制到公开截图、遥测、Actions。保留115授权、主密钥和现有账号。
 
 ```http
@@ -280,7 +278,7 @@ X-Requested-With: media-tool
 1. GET `/ops` 获取policy/backups/drills/releases/requests/mode/schema/toolsReady →备份/演练排队需confirm →轮询原ID；不能把202显示成已完成。备份下载是私有tar，不按JSON解析。
 2. restore/rollback：POST requests/preview →展示保护范围、digest、confirmText →approve →**宿主受控CLI execute** →读取结果 →POST verify →人工复核 →resume。网页没有任意shell/容器执行入口。
 3. flow：preview/approve/execute/verify/complete。approved不是已执行，completed但verifiedAt缺失仍需verify；failed/未知不得自动重复切库。verify是核对receipt/版本/schema/受保护摘要，不重新执行、不自动解除维护。
-4. Q6只能正式Hub immutable AMD64镜像发布后在自有服务器执行。schema71不可随意Down；回滚要完整旧数据库+密钥/STRM+匹配旧镜像备份。
+4. 使用正式 Docker Hub 不可变 AMD64 镜像执行维护，不随意逆向修改数据库；回滚要完整旧数据库+密钥/STRM+匹配旧镜像备份。
 5. GET `/logs/query`、`/logs/summary`，数据视图 `/data/postgres/tables`、`/{table}`、`/data/redis/keys|value` 只读分页；原始URL/数据是管理员私有原值，不能自动打码造成诊断失真，也不能上传公开Actions。
 6. 仅允许白名单表/列/固定排序映射；界面不要提供SQL片段/where拼接。日志导出必须显式用户触发并提示私有范围；登录body/Cookie/Authorization不额外收集，恢复口令不入web日志。
 7. ACK容量告警不等于问题解决；blocked恢复要检查GC/订阅ACK/未解决run，禁止清库、截断幂等身份或绕过迟提交保护。
@@ -319,15 +317,14 @@ X-Requested-With: media-tool
 
 这是重新排队，不是外部送达证明；409 notification_retry_blocked应保留原记录，提示inspect或重复风险确认，不能改成“发送成功”。
 
-## 13. UI 重构接入检查表
+## 13. 界面调用约定
 
 - 以schema字段/枚举和真实source区分empty/loading/error/unsupported/disabled/authorization_required/unknown；不要把catch统一变空数组。
 - 所有修改入口防重复点击并保留原意图；取消请求不等于撤销已提交操作，重连先回读/对账。
 - 时间按date-time处理，原生UTCDateTime固定7位小数Z；数值ID可能是字符串，不强制转JS Number丢精度。
 - revision冲突保留用户草稿供对比，不自动覆盖；删除/危险动作显示预览范围和明确确认文案。
 - 不支持的HLS/relay/转码控件不能重新激活；禁用的直链策略开关也不能通过旧API/环境绕过后端策略。
-- 接口新增/删除必须先让双向路由契约测试与OpenAPI同步；完整门禁 `bash scripts/test-release.sh` 默认共用锁且只允许media_tool_test/Redis DB15，依赖已安装errcheck/govulncheck（可通过ERRCHECK_BIN/GOVULNCHECK_BIN指定）。
 
 ## 工作区呈现与交互规范
 
-最终页面归属、标签和统一组件规则见 [前端设计规范](FRONTEND_DESIGN_MASTER.md)。刷新仅读取当前标签，下载器同步为显式业务操作；统一分页为上一页/第N页/下一页，子分区统一分段控件。空、错、不支持、未授权须分别呈现。配置预填当前生效值而不自动写回默认值，未保存草稿在刷新和修订冲突时保留。日志与数据浏览按管理员权限显示原始值及完整请求/跳转URL。
+页面归属、标签和统一组件规则见 [前端设计规范](FRONTEND_DESIGN_MASTER.md)。刷新仅读取当前标签，下载器同步为显式业务操作；统一分页为上一页/第N页/下一页，子分区统一分段控件。空、错、不支持、未授权须分别呈现。配置预填当前生效值而不自动写回默认值，未保存草稿在刷新和修订冲突时保留。日志与数据浏览按管理员权限显示原始值及完整请求/跳转URL。

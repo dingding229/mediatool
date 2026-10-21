@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"media-tool/internal/platform/buildinfo"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -116,7 +115,7 @@ func RenderMatrix(root string) ([]byte, error) {
 	}
 	digest := sha256.Sum256(b)
 	var out strings.Builder
-	fmt.Fprintf(&out, "# 插件支持矩阵 · R 源码冻结\n\n- 源码候选：%s；schema %d；contractVersion %d。\n- SDK pin：`%s`。\n- 契约摘要：`%x`。\n- 生成/校验：`go run ./cmd/media-tool-dev plugins matrix [--check]`；仅读取编译期元数据，不执行工厂。\n", buildinfo.Version, buildinfo.Schema, inv.ContractVersion, inv.Pin, digest)
+	fmt.Fprintf(&out, "# 插件能力表\n\n- contractVersion：%d。\n- 契约摘要：`%x`。\n- 读取/生成：`go run ./cmd/media-tool-dev plugins matrix [--check]`；读取编译期元数据，不执行工厂。\n", inv.ContractVersion, digest)
 	out.WriteString("- `registered` 只表示存在窄门面，不保证任意环境可用；actor、adapter、owner、selector、revision 和实时 scope 不满足时 fail-closed。\n- 表中的 supported=false 为固定 unsupported；其他条件性 unsupported 见下文。\n\n")
 	fmt.Fprintf(&out, "## 业务 Host RPC（%d 项）\n\n| RPC | scope | 级别 | 注册能力 |\n|---|---|---|---|\n", len(inv.HostMethods))
 	for _, m := range inv.HostMethods {
@@ -130,7 +129,7 @@ func RenderMatrix(root string) ([]byte, error) {
 	for _, m := range core {
 		fmt.Fprintf(&out, "| `%s` | `%s` | %s |\n", m["name"], m["scope"], m["level"])
 	}
-	out.WriteString("\n## 广播与链\n\n原 MP 映射50项（含4项N/A）之外，宿主另有 `plugin.config.changed` 配置事实；所以当前SDK合计51个typed标识（32广播/19链），不是扩大MP能力声明。\n\n| 类型 | 稳定标识 | 精确 scope / 边界 |\n|---|---|---|\n")
+	out.WriteString("\n## 广播与链\n\nSDK 提供51个 typed 标识（32广播/19链），其中 N/A 项不接受注册。\n\n| 类型 | 稳定标识 | 精确 scope / 边界 |\n|---|---|---|\n")
 	slices.SortFunc(names, func(a, b string) int {
 		va, vb := constants[a], constants[b]
 		if n := strings.Compare(va[0], vb[0]); n != 0 {
@@ -155,19 +154,14 @@ func RenderMatrix(root string) ([]byte, error) {
 		return nil, errors.New("matrix policy boundary missing")
 	}
 	out.WriteString("\n" + policy)
-	out.WriteString("## 内置插件与停用态安全验收\n\n| ID | 版本 | 当前版本 history（来自 manifest） | 安全配置/当前范围 |\n|---|---|---|---|\n")
-	boundaries := map[string]string{"hello-go": "人工框架检查；不自动运行验收业务", "site-checkin": "active=false；宿主持有凭据", "library-refresh-notify": "active=false；7日原事实重投/8日完成账本滚动", "seeding-cleanup": "active=false / execute=false / deleteFiles=false", "watch-organize": "active=false；默认深度3/上限5，叶文件size+mtime静默，总项≤200/轮提交≤10", "wishlist-subscribe": "active=false / create=false；公开来源，唯一匹配只创建停用订阅", "torrent-assistant": "active=false / write=false / recheck=false；活跃监控即使不写也可能通知"}
+	out.WriteString("## 内置插件与运行范围\n\n| ID | 版本 | 安全配置/使用范围 |\n|---|---|---|\n")
+	boundaries := map[string]string{"hello-go": "人工调用示例；不自动运行业务", "site-checkin": "active=false；宿主持有凭据", "library-refresh-notify": "active=false；7日原事实重投/8日完成账本滚动", "seeding-cleanup": "active=false / execute=false / deleteFiles=false", "watch-organize": "active=false；默认深度3/上限5，叶文件size+mtime静默，总项≤200/轮提交≤10", "wishlist-subscribe": "active=false / create=false；公开来源，唯一匹配只创建停用订阅", "torrent-assistant": "active=false / write=false / recheck=false；活跃监控即使不写也可能通知"}
 	for _, m := range inv.Manifests {
 		bound, ok := boundaries[m.ID]
 		if !ok {
 			return nil, errors.New("plugin boundary requires review")
 		}
-		history := m.History[m.Version]
-		if history == "" {
-			history = "未声明"
-		}
-		history = strings.NewReplacer("|", "\\|", "\n", " ").Replace(history)
-		fmt.Fprintf(&out, "| `%s` | %s | %s | %s |\n", m.ID, m.Version, history, bound)
+		fmt.Fprintf(&out, "| `%s` | %s | %s |\n", m.ID, m.Version, bound)
 	}
 	out.WriteString(footer)
 	return []byte(out.String()), nil
