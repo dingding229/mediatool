@@ -28,6 +28,10 @@ test('B2 task control confirms, preserves 202 pending, reconciles unknown and ne
 test('B2 real isolated session revoke denies only the selected cookie on next request',async({page,browser})=>{
  const base=process.env.E2E_BASE_URL!,username=process.env.E2E_ADMIN_USERNAME!,password=process.env.E2E_ADMIN_PASSWORD!;expect(process.env.E2E_ISOLATED).toBe('1');
  const login={username,password},headers={'X-Requested-With':'media-tool'};
+ // Graded runs need not include framework's first-registration test. Bootstrap
+ // only this explicitly isolated stack, never reset an existing account.
+ const setup=await(await page.request.get(`${base}/api/v1/auth/setup`)).json();
+ if(setup.data.registrationOpen)expect((await page.request.post(`${base}/api/v1/auth/register`,{headers,data:{username,password,confirmPassword:password}})).status()).toBe(201);
  expect((await page.request.post(`${base}/api/v1/auth/login`,{headers,data:login})).status()).toBe(200);
  const other=await browser.newContext({baseURL:base,userAgent:'Owned B2 second management session'});
  try{
