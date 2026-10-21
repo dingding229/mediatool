@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {providePageRefresh,usePageRefresh} from '../ui/page-refresh';
 const ownRefresh=providePageRefresh();
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { inspect, reviewPlan } from '../api/plugins';
 import inventory from '../../../internal/modules/plugins/v2/library.json';
@@ -62,7 +62,17 @@ async function apply() {
   await op.run({ kind: kind.value as any, instanceId: id, fingerprint: data.data.fingerprint, expectedRevision: kind.value === 'configure' ? draftRevision.value : r.revision, scopes: [], ...(kind.value === 'configure' ? { config: value } : {}) });
   confirm.value = false;
   await load();
+  settle();
 }
+let settleTimer: ReturnType<typeof setTimeout> | undefined;
+const transitional = (i?: { state: string; desiredState?: string }) => !!i && (['starting', 'stopping'].includes(i.state) || (i.state === 'stopped' && i.desiredState === 'enabled') || (i.state === 'running' && i.desiredState === 'disabled'));
+function settle(left = 20) {
+  clearTimeout(settleTimer);
+  if (left <= 0 || !transitional(row.value))
+    return;
+  settleTimer = setTimeout(async () => { await data.load(); settle(left - 1); }, 1500);
+}
+onBeforeUnmount(() => clearTimeout(settleTimer));
 async function review() {
   await plan.load();
   confirmed.value = false;
