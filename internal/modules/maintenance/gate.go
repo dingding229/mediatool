@@ -3,6 +3,7 @@ package maintenance
 import (
 	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
+	deferutil "media-tool/internal/platform/cleanup"
 	"time"
 )
 
@@ -28,7 +29,7 @@ func BeginWork(ctx context.Context, db *pgxpool.Pool) (func(), error) {
 		c, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if _, err := conn.Exec(c, `SELECT pg_advisory_unlock_shared(91220883)`); err != nil {
-			conn.Conn().Close(c)
+			deferutil.CloseContext(c, conn.Conn(), "Discard only after failed advisory unlock; no application data is written during teardown")
 		}
 		conn.Release()
 	}

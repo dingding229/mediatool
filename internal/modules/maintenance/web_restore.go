@@ -88,7 +88,7 @@ func (e Engine) PreviewWebRestore(ctx context.Context, id string) (WebRestore, e
 		c, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if _, err := conn.Exec(c, `SELECT pg_advisory_unlock(91220880)`); err != nil {
-			conn.Conn().Close(c)
+			deferutil.CloseContext(c, conn.Conn(), "Discard only after failed advisory unlock; no application data is written during teardown")
 		}
 	}()
 	var busy bool
@@ -204,7 +204,7 @@ func (e Engine) RunWebRestore(ctx context.Context) error {
 		c, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if _, err := conn.Exec(c, `SELECT pg_advisory_unlock(91220882)`); err != nil {
-			conn.Conn().Close(c)
+			deferutil.CloseContext(c, conn.Conn(), "Discard only after failed advisory unlock; no application data is written during teardown")
 		}
 	}()
 	// A released executor lock with a running ledger is an interrupted operation.
@@ -254,7 +254,7 @@ func (e Engine) executeWebRestore(ctx context.Context, id string) (result error)
 			c, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			if _, err := gate.Exec(c, `SELECT pg_advisory_unlock(91220883)`); err != nil {
-				gate.Conn().Close(c)
+				deferutil.CloseContext(c, gate.Conn(), "Discard only after failed advisory unlock; no application data is written during teardown")
 			}
 		}
 	}()
@@ -433,7 +433,7 @@ func (e Engine) ReconcileWebRestore(ctx context.Context, id string) (WebRestore,
 		c, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if _, err := conn.Exec(c, `SELECT pg_advisory_unlock(91220882)`); err != nil {
-			conn.Conn().Close(c)
+			deferutil.CloseContext(c, conn.Conn(), "Discard only after failed advisory unlock; no application data is written during teardown")
 		}
 	}()
 	r, err := e.WebRestore(ctx, id)
