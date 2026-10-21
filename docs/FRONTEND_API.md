@@ -368,30 +368,16 @@ X-Requested-With: media-tool
   仅原格式零正文 302，实际请求 UA 同样通过播放器白名单并用于官方 115 取链；
   格式转换明确 400，嵌入字幕提取不支持。字幕正文不落地、不代理、不转码。
 
-## 网页恢复（B4，schema 75）
+## 网页恢复（B4b，schema 77）
 
-`GET /api/v1/ops/restores` 返回最近50条执行记录。`POST /api/v1/ops/restores/preview`
-接收 `{backupId}`；校验清单/两个文件的SHA256、主密钥匹配、克隆库全部密文可读与向上迁移，
-返回 `{restore,confirmText,includes,excludes,message}`。备份 schema 高于程序拒绝，保护数据不一致拒绝。
-`POST /api/v1/ops/restores/{id}/execute` 接收 `{digest,text}`，精确匹配预览摘要与 `恢复 <备份UUID>`。
-需要有效管理员会话、原有同源/`X-Requested-With` CSRF校验、创建于10分钟内的管理会话（活动时间不算新近登录）。
-同一个预览ID是幂等键；**202仅表示已排队，不表示恢复成功**。并发另一个恢复/备份/演练返回冲突。
-执行记录状态：`preview/pending/running/unknown/completed/rolled_back/failed`，含恢复前`snapshotId`、
-原子提交标记`appliedBackup`、原因与完成时间；执行中禁止盲目重试。
-`POST /api/v1/ops/restores/{id}/reconcile` 接收 `{confirm:true}`，仅核对中断后的PG事务提交标记及保护摘要，不重跑导入。
-PG维护客户端仍存在或保护摘要不符时保持unknown/维护。恢复/回滚过程其他业务写入返回423中文维护提示。
-原 `ops/requests/*` 宿主维护接口全部保留。
+`GET /api/v1/ops/restores` 返回最近50条持久化执行记录。schema77新增 `tableChanges:[{name,currentRows,backupRows,currentMissing}]`，仅表名/行数，不返回内部摘要、凭据或密文。预览响应为具名 `WebRestorePreview`，新增固定 `warnings[]`（管理员密码回退、115令牌回退/可能需授权、会话失效），原 `restore/confirmText/includes/excludes/message` 保留。
 
-前端传输统一由 `web/src/api/client.ts` 管理：SSE `subscribeJobEvents`、外部令牌
-`testExternalToken`（固定 `credentials:'omit'`，不带管理cookie）、`originalSTRM`（仅同源既有媒体STRM路径）。
-普通 JSON API 保持same-origin；后端静态index.html不注入业务数据。api-coverage守卫同时校验传输归属和调用路径登记。
+`POST /api/v1/ops/restores/preview` 接收 `{backupId}`。全部public业务表随备份回退，不比较当前保护表是否与备份一致；当前业务数据为空/逻辑损坏也允许。候选校验完整性、当前master key下全部备份密文及向上迁移，高schema拒绝。`tableChanges`给出每张将回退表的当前/原备份行数差异；相同行数不表示不回退。
 
-B4 导出/导入只处理 PostgreSQL `public` 业务 schema，不删除或恢复其他 schema。
-管理端认证表和运维进度/策略表在导入期间保留在线；事务提交标记随业务数据一同提交，
-因此可持续查询状态，完成后才撤销旧管理会话。自动保护最近一份就绪恢复前快照；
-旧快照按保留策略处理，手动固定仍保留，不把所有历史快照永久固定。
+`POST /api/v1/ops/restores/{id}/execute` 仍接收 `{digest,text}`，精确短语 `恢复 <备份UUID>`；CSRF及10分钟内新近登录不变。202仅排队，重复同ID不重复执行。执行先暂停/排空任务和写入，强制恢复前快照，单事务按外键顺序DELETE/COPY全部业务表。导入期间认证/进度SELECT可读；提交时账号、密码与会话一起切换，旧会话失效，401不证明失败或未执行。前端只记回执UUID，提示备份账号重新登录后进入运维恢复页GET结果，禁止自动重放POST。
 
-恢复记录还返回 `backupSchema` 与 `programSchema`，预览明确显示向上迁移范围。
-同一预览重复提交只读取原记录：pending/running 返回202，已经终结或unknown返回200及原状态，
-绝不新建执行；界面按返回state展示核对结果，不把历史结果误报为新排队。
-执行记录message区分等待排空、创建快照、候选校验迁移、事务导入、自动回滚等阶段。
+`POST /api/v1/ops/restores/{id}/reconcile` 接收 `{confirm:true}`，仅核对中断提交标记及已应用备份的数据，不重跑。失败自动补偿，仍不明则unknown并保持维护。CLI使用同一执行器。API路径无增删；保留的协调账本、运行态安全归一化、磁盘不覆盖边界详见[部署恢复说明](deploy/backup.md)。
+
+状态仍为preview/pending/running/unknown/completed/rolled_back/failed，返回backupSchema/programSchema、snapshotId/appliedBackup及阶段message。重复execute对pending/running返回202，对历史终态/unknown返回200原状态，不新建执行。
+
+前端传输仍统一由`web/src/api/client.ts`管理：SSE subscribeJobEvents、外部令牌testExternalToken（credentials:omit）、originalSTRM（仅同源既有媒体路径）。普通JSON API保持same-origin；index.html不注入业务数据，传输归属与调用路径守卫继续生效。

@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"io"
 	"media-tool/internal/platform/backupverify"
+	"media-tool/internal/platform/buildinfo"
 	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/database"
 	"net/url"
@@ -30,7 +31,10 @@ func cleanupFailedCandidate(committed *bool, result *error, cleanup func() error
 	}
 }
 
-func (e Engine) restoreClone(ctx context.Context, name, dir string, m Manifest) (dsn string, cleanup func() error, err error) {
+func (e Engine) restoreClone(ctx context.Context, name, dir string, m Manifest) (string, func() error, error) {
+	return e.restoreCloneChecked(ctx, name, dir, m, true)
+}
+func (e Engine) restoreCloneChecked(ctx context.Context, name, dir string, m Manifest, checkCipher bool) (dsn string, cleanup func() error, err error) {
 	noop := func() error { return nil }
 	if !strings.HasPrefix(name, "media_tool_restore_") || len(name) != len("media_tool_restore_")+12 {
 		return "", noop, ErrUnsafe
@@ -71,8 +75,25 @@ func (e Engine) restoreClone(ctx context.Context, name, dir string, m Manifest) 
 	if err != nil {
 		return "", noop, err
 	}
-	if _, err = e.verifyRestored(ctx, dsn, name, m, false); err != nil {
-		return "", noop, fmt.Errorf("备份密文或迁移校验失败，已拒绝恢复：%w", err)
+	if checkCipher {
+		if _, err = e.verifyRestored(ctx, dsn, name, m, false); err != nil {
+			return "", noop, fmt.Errorf("备份密文或迁移校验失败，已拒绝恢复：%w", err)
+		}
+	} else {
+		// Automatic compensation must return even an already damaged source as
+		// it was. Only our just-created same-schema snapshot may use this path.
+		if m.Schema != buildinfo.Schema {
+			return "", noop, ErrUnsafe
+		}
+		candidate, openErr := database.Open(ctx, dsn)
+		if openErr != nil {
+			return "", noop, openErr
+		}
+		actual, checkErr := Inventory(ctx, candidate)
+		candidate.Close()
+		if checkErr != nil || !sameTables(m.Tables, actual) {
+			return "", noop, errors.New("恢复前快照库存校验失败")
+		}
 	}
 	ok = true
 	return dsn, ownedCleanup, nil

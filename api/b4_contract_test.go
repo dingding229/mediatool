@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -37,12 +38,22 @@ func TestB4WebRestoreContract(t *testing.T) {
 		}
 	}
 	model := spec.Components.Schemas["modules_maintenance_WebRestore"]
-	for _, field := range []string{"state", "snapshotId", "appliedBackup", "expiresAt", "message"} {
+	for _, field := range []string{"state", "snapshotId", "appliedBackup", "expiresAt", "message", "tableChanges"} {
 		if _, ok := model.Properties[field]; !ok {
 			t.Fatal(field)
 		}
 	}
 	if _, ok := model.Properties["protected"]; ok {
 		t.Fatal("internal protection digests leaked")
+	}
+}
+
+func TestB4bRestorePreviewExplicitRiskAndTableCounts(t *testing.T) {
+	_, doc := generatedContract(t)
+	raw, _ := json.Marshal(doc)
+	for _, name := range []string{"tableChanges", "currentRows", "backupRows", "currentMissing", "warnings"} {
+		if !strings.Contains(string(raw), `"`+name+`"`) {
+			t.Fatal(name)
+		}
 	}
 }

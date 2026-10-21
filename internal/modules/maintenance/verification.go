@@ -96,7 +96,19 @@ func (e Engine) VerifyExecution(ctx context.Context, id string) (Request, error)
 	if err != nil {
 		return r, err
 	}
-	if !sameProtected(current, r.Payload.Protected) {
+	expected := r.Payload.Protected
+	if r.Kind == "restore" {
+		restored, err := e.WebRestore(ctx, id)
+		if err != nil || restored.State != "completed" {
+			return r, ErrConflict
+		}
+		var committed string
+		if err = tx.QueryRow(ctx, `SELECT backup_id::text FROM ops_restore_commit WHERE request_id=$1`, id).Scan(&committed); err != nil || restored.AppliedBackup == nil || committed != restored.BackupID || *restored.AppliedBackup != committed {
+			return r, ErrConflict
+		}
+		expected = restored.Protected
+	}
+	if !sameProtected(current, expected) {
 		return r, ErrConflict
 	}
 	_, err = tx.Exec(ctx, `INSERT INTO ops_request_verifications(request_id,request_digest,schema_version,revision,protected_digest)VALUES($1,$2,$3,$4,$5) ON CONFLICT(request_id)DO UPDATE SET request_digest=excluded.request_digest,schema_version=excluded.schema_version,revision=excluded.revision,protected_digest=excluded.protected_digest,verified_at=clock_timestamp()`, id, r.Digest, version, e.Revision, protectedDigest(current))

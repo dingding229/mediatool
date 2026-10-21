@@ -48,3 +48,12 @@
   All browser transports live in web/src/api/, including SSE and external-token
   tests (credentials: omit). Register frontend backend paths in the route table
   and OpenAPI; never inject business data into index.html.
+
+- Owner-approved 2026-10-22 backup recovery is an explicit, scoped exception to
+  retaining the latest business credentials: restore all public business rows
+  (including accounts, 115 authorization, settings, media/index/STRM records and
+  plugin configuration/KV) to the verified backup. Keep only documented restore
+  coordination/catalog ledgers current. Require the pre-restore snapshot,
+  ciphertext validation with the current separately held master key, atomic
+  import and failure compensation. This does not authorize deleting/overwriting
+  disk media/STRM bodies, changing the master key, or touching Emby/CD2 volumes.

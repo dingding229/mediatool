@@ -93,8 +93,33 @@ func TestWebRestoreRecentSessionCSRFAndMaintenanceGate(t *testing.T) {
 	if w := call("GET", "/api/v1/ops/restores", "", true, true); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
+	loginBody := `{"username":"b4_admin","password":"owned-password"}`
+	if w := call("POST", "/api/v1/auth/login", loginBody, true, false); w.Code != 423 {
+		t.Fatal("login wrote auth during import", w.Code)
+	}
 	e := maintenance.Engine{DB: db}
 	if err = e.Resume(ctx, 1); err == nil {
 		t.Fatal("CLI resume bypass")
 	}
+	if _, err = db.Exec(ctx, `UPDATE ops_web_restores SET state='unknown' WHERE id=$1`, restoreID); err != nil {
+		t.Fatal(err)
+	}
+	holder, err := db.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer holder.Rollback(context.Background())
+	if _, err = holder.Exec(ctx, `SET LOCAL application_name='mediatool-maintenance'`); err != nil {
+		t.Fatal(err)
+	}
+	if w := call("POST", "/api/v1/auth/login", loginBody, true, false); w.Code != 423 {
+		t.Fatal("live import client bypassed", w.Code)
+	}
+	if err = holder.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if w := call("POST", "/api/v1/auth/login", loginBody, true, false); w.Code != 200 {
+		t.Fatal("quiescent unknown blocked fresh login", w.Code, w.Body.String())
+	}
+
 }

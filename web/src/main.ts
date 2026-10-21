@@ -1,3 +1,4 @@
+import {pendingRestore} from './workflows/restore-session'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import {elementComponents,ElLoading} from './ui/element-components'
@@ -20,7 +21,7 @@ window.addEventListener('media-tool:session-expired', () => {
   const auth = useAuthStore()
   auth.authenticated = false
   auth.checked = true
-  router.replace('/login')
+  const restore=pendingRestore();router.replace(restore?{path:'/login',query:{restore}}:'/login')
 })
 
 app.directive('loading', ElLoading.directive)

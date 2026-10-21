@@ -4,6 +4,7 @@ package ops
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"media-tool/internal/modules/maintenance"
@@ -31,6 +32,7 @@ func run() error {
 	digest := flags.String("digest", "", "image digest")
 	schema := flags.Int64("schema", 0, "verified schema")
 	success := flags.Bool("success", false, "completed safely")
+	confirmText := flags.String("confirm-text", "", "exact preview confirmation phrase")
 	message := flags.String("message", "", "owner execution result")
 	if err := flags.Parse(os.Args[2:]); err != nil {
 		return err
@@ -52,13 +54,37 @@ func run() error {
 	e := maintenance.Engine{DB: db, DSN: c.DatabaseURL, Root: c.MaintenanceDir, OutputRoot: c.STRMOutputDir, Key: c.SecretKey, HostProc: c.HostProcDir, Revision: buildinfo.Revision}
 	var out any
 	switch action {
+	case "restore-preview":
+		var r maintenance.WebRestore
+		r, err = e.PreviewWebRestore(ctx, *id)
+		out = maintenance.RestorePreview(r)
+	case "restore-execute":
+		var r maintenance.WebRestore
+		r, err = e.QueueWebRestore(ctx, *id, *digest, *confirmText)
+		if err == nil {
+			r, err = e.WaitWebRestore(ctx, r.ID)
+		}
+		out = r
+	case "restore-status":
+		out, err = e.WebRestore(ctx, *id)
+	case "restore-reconcile":
+		out, err = e.ReconcileWebRestore(ctx, *id)
+	case "restore-request":
+		out, err = e.RestoreApprovedRequest(ctx, *id)
 	case "register-release":
 		err = e.RegisterRelease(ctx, maintenance.Release{Revision: *revision, Image: "dingding229/mediatool:sha-" + *revision, Schema: *schema, Digest: *digest, Verified: true})
 		out = map[string]bool{"registered": err == nil}
 	case "check":
 		out, err = e.CheckRequest(ctx, *id)
 	case "claim":
-		out, err = e.Claim(ctx, *id)
+		var req maintenance.Request
+		req, err = e.Request(ctx, *id)
+		if err == nil {
+			err = requireImageControl(req.Kind)
+		}
+		if err == nil {
+			out, err = e.Claim(ctx, *id)
+		}
 	case "backup":
 		var backup string
 		backup, err = e.QueueBackup(ctx, "owner-preflight")
@@ -86,11 +112,16 @@ func run() error {
 	case "verify":
 		out, _, err = e.VerifyBundle(ctx, *id)
 	case "prepare":
-		var candidate string
-		candidate, err = e.PrepareCandidate(ctx, *id)
-		out = map[string]string{"candidateDatabase": candidate}
+		err = errors.New("旧低层数据恢复入口已停用；请使用restore-preview/restore-execute或已批准维护单的restore-request，共用app内恢复器")
 	case "finish":
-		err = e.Finish(ctx, *id, *message, *success)
+		var req maintenance.Request
+		req, err = e.Request(ctx, *id)
+		if err == nil {
+			err = requireImageControl(req.Kind)
+		}
+		if err == nil {
+			err = e.Finish(ctx, *id, *message, *success)
+		}
 		out = map[string]bool{"recorded": err == nil}
 	default:
 		return maintenance.ErrUnsafe
@@ -121,4 +152,13 @@ func wait(ctx context.Context, state func() (string, error), success string) err
 		case <-ticker.C:
 		}
 	}
+}
+
+// An old host media-toolctl must fail before stopping app or swapping a DB.
+// The supported high-level data restore entry points all use the shared engine.
+func requireImageControl(kind string) error {
+	if kind == "restore" {
+		return errors.New("数据恢复必须使用app内共享执行器；请更新media-toolctl或运行restore-preview/restore-execute")
+	}
+	return nil
 }

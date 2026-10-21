@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {pendingRestore} from '../workflows/restore-session';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { request, APIError } from '../api/client';
@@ -64,7 +65,7 @@ async function submit() {
     confirmation.value = '';
     if (!alive)
       return;
-    await router.push(auth.account?.mustChangePassword ? '/reset-password' : '/dashboard');
+    await router.push(auth.account?.mustChangePassword ? '/reset-password' : pendingRestore()?{path:'/ops',query:{tab:'maintenance',restore:pendingRestore()}}:'/dashboard');
   }
   catch (e) {
     error.value = e instanceof Error ? e.message : '登录或注册失败';
@@ -87,6 +88,7 @@ onUnmounted(() => {
 </script>
 <template>
   <AuthShell :title="registrationOpen?'注册管理员账号':'进入管理工作台'" :description="registrationOpen?'创建唯一管理员账号。完成注册后，将自动关闭公开注册。':'使用你的管理员账号和密码登录。'">
+    <p v-if="pendingRestore()||loginRoute.query.restore" role="status">恢复已切换账号与会话，当前登录可能已失效。请使用备份时的管理员账号和密码登录；恢复可能已经完成，登录后在运维页查看持久化结果，不要重复执行。</p>
     <p v-if="loginRoute.query.sessionRevoked==='1'" role="status">当前管理端登录已撤销，请重新登录。</p>
     <el-alert v-if="error" :title="error" type="error" :closable="false"/>
     <p v-if="checking" role="status">正在检查账号状态…</p>

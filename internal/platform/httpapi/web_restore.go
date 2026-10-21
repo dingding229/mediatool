@@ -44,7 +44,8 @@ func (a *API) webRestorePreview(w http.ResponseWriter, r *http.Request) {
 		opsError(w, err)
 		return
 	}
-	write(w, 200, map[string]any{"restore": out, "confirmText": "恢复 " + out.BackupID, "includes": maintenance.RestoreIncludes, "excludes": maintenance.RestoreExcludes, "message": "已验证完整性、密文可读及迁移；确认后先创建恢复前快照。旧 schema 自动迁移，不执行降级。"})
+	preview := maintenance.RestorePreview(out)
+	write(w, 200, preview)
 }
 
 // Existing same-origin + X-Requested-With CSRF check is required by protected.

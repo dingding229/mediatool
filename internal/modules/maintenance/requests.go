@@ -129,15 +129,12 @@ func (e Engine) Preview(ctx context.Context, kind, id string) (Request, error) {
 		if err != nil {
 			return r, err
 		}
-		if m.Schema != buildinfo.Schema {
-			return r, errors.New("备份数据库版本不同，禁止跨版本自动恢复")
+		if m.Schema > buildinfo.Schema {
+			return r, errors.New("备份数据库版本高于当前程序，禁止恢复")
 		}
 		var verified bool
 		if err = e.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ops_drills WHERE backup_id=$1 AND state='verified' AND completed_at>now()-interval '24 hours')`, id).Scan(&verified); err != nil || !verified {
 			return r, errors.New("请先完成24小时内的恢复演练")
-		}
-		if !sameProtected(m.Protected, p.Protected) {
-			return r, errors.New("账号、授权或媒体归属已变化，恢复将回退保护数据，已阻止")
 		}
 		p.BackupID = id
 		var digest string
@@ -199,7 +196,7 @@ func (e Engine) CheckRequest(ctx context.Context, id string) (Request, error) {
 	if err != nil {
 		return r, err
 	}
-	if !sameProtected(current, r.Payload.Protected) {
+	if r.Kind != "restore" && !sameProtected(current, r.Payload.Protected) {
 		return r, ErrConflict
 	}
 	if r.Kind == "restore" {
@@ -354,7 +351,7 @@ func (e Engine) PrepareCandidate(ctx context.Context, id string) (candidate stri
 		return "", err
 	}
 	current, err := Protected(ctx, e.DB)
-	if err != nil || !sameProtected(current, r.Payload.Protected) {
+	if err != nil || r.Kind != "restore" && !sameProtected(current, r.Payload.Protected) {
 		return "", ErrConflict
 	}
 	name := "media_tool_restore_" + stripID(id)[:12]
@@ -372,7 +369,7 @@ func (e Engine) PrepareCandidate(ctx context.Context, id string) (candidate stri
 	if err = e.copyCurrentMetadata(ctx, db); err != nil {
 		return "", err
 	}
-	_, err = db.Exec(ctx, `UPDATE jobs SET state='paused',lease_until=NULL,lease_token=NULL,locked_by=NULL,last_error='数据库恢复后需人工核对，禁止自动重放',updated_at=now() WHERE state IN('pending','retry','running');UPDATE administrator_sessions SET revoked_at=now();UPDATE media_user_sessions SET revoked_at=now();UPDATE outbox_events SET dispatched_at=now() WHERE dispatched_at IS NULL;UPDATE notification_deliveries SET state='outcome_unknown',last_error='恢复后旧投递需人工核对，不自动重发' WHERE state IN('pending','retry','sending');UPDATE ops_mode SET paused=true,reason='恢复后只读核对，须显式解除维护',revision=revision+1 WHERE singleton;`)
+	_, err = db.Exec(ctx, restoreRuntimeSQL+`UPDATE ops_mode SET paused=true,reason='恢复后只读核对，须显式解除维护',revision=revision+1 WHERE singleton;`)
 	if err != nil {
 		return "", err
 	}

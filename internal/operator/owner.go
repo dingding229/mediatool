@@ -202,6 +202,16 @@ func (o *owner) execute(id string) (receipt map[string]any) {
 		o.fail(errors.New("only approved unexpired request may run"))
 		return nil
 	}
+	if req.Kind == "restore" {
+		// Runs inside the existing app. No copied executable, host PG tools,
+		// app stop, database rename or image/Compose change for data recovery.
+		raw := o.cli("restore-request", "-id", id)
+		var result map[string]any
+		if o.err == nil {
+			o.fail(json.Unmarshal(raw, &result))
+		}
+		return result
+	}
 	var info struct{ Schema int64 }
 	b = o.cli("info")
 	if o.err == nil {

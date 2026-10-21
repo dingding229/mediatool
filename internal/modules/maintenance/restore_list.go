@@ -9,73 +9,37 @@ import (
 	"strings"
 )
 
-// Keep live progress, auth and maintenance policy readable during the atomic
-// import. Matching whole TOC identifiers also covers constraints/comments and
-// actual index/owned-sequence names (not guessed naming conventions).
-func (e Engine) restoreList(ctx context.Context, dump string) (string, func(), error) {
+// Only TABLE DATA is imported, in FK order. Never DROP/TRUNCATE live tables:
+// ordinary SELECT (including administrator authentication) stays MVCC-readable.
+func (e Engine) restoreList(ctx context.Context, dump string, order []string) (string, func(), error) {
 	noop := func() {}
-	rows, err := e.DB.Query(ctx, `SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND (table_name LIKE 'ops\_%' ESCAPE '\' OR table_name LIKE 'administrator\_%' ESCAPE '\' OR table_name IN('open115_authorizations','integrations')) AND table_name<>'ops_restore_commit'`)
-	if err != nil {
-		return "", noop, err
-	}
-	tables := []string{}
-	for rows.Next() {
-		var t string
-		if err = rows.Scan(&t); err != nil {
-			rows.Close()
-			return "", noop, err
-		}
-		tables = append(tables, t)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return "", noop, err
-	}
-	names := map[string]bool{}
-	for _, t := range tables {
-		names[t] = true
-	}
-	rows, err = e.DB.Query(ctx, `SELECT indexname FROM pg_indexes WHERE schemaname='public' AND tablename=ANY($1) UNION SELECT sequence_name FROM information_schema.sequences s WHERE sequence_schema='public' AND EXISTS(SELECT 1 FROM information_schema.columns c WHERE c.table_schema='public' AND c.table_name=ANY($1) AND c.column_default LIKE '%'||s.sequence_name||'%')`, tables)
-	if err != nil {
-		return "", noop, err
-	}
-	for rows.Next() {
-		var n string
-		if err = rows.Scan(&n); err != nil {
-			rows.Close()
-			return "", noop, err
-		}
-		names[n] = true
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return "", noop, err
-	}
 	file, err := os.OpenFile(dump, os.O_RDONLY|noFollowFlag(), 0)
 	if err != nil {
 		return "", noop, err
 	}
 	var toc bytes.Buffer
 	err = e.pg(ctx, "pg_restore", e.DSN, []string{"--list"}, file, &limitedWriter{Writer: &toc, Left: 16 << 20})
-	closeErr := file.Close()
-	if err = errors.Join(err, closeErr); err != nil {
+	err = errors.Join(err, file.Close())
+	if err != nil {
 		return "", noop, err
 	}
 	if toc.Len() >= 16<<20 {
-		return "", noop, errors.New("恢复对象清单过大，已拒绝")
+		return "", noop, ErrUnsafe
+	}
+	data := map[string]string{}
+	for _, line := range strings.Split(toc.String(), "\n") {
+		f := strings.Fields(line)
+		if len(f) == 8 && f[3] == "TABLE" && f[4] == "DATA" && f[5] == "public" {
+			data[f[6]] = line
+		}
 	}
 	var out strings.Builder
-	for _, line := range strings.Split(toc.String(), "\n") {
-		if strings.HasPrefix(line, ";") {
-			out.WriteString(line + "\n")
-			continue
+	for _, name := range order {
+		line, ok := data[name]
+		if !ok {
+			return "", noop, errors.New("候选数据库缺少业务表数据对象：" + name)
 		}
-		skip := preserveTOCEntry(line, names)
-		if !skip {
-			out.WriteString(line + "\n")
-		}
+		out.WriteString(line + "\n")
 	}
 	list, err := os.CreateTemp(e.Root, ".restore-*.list")
 	if err != nil {
@@ -91,23 +55,22 @@ func (e Engine) restoreList(ctx context.Context, dump string) (string, func(), e
 	return list.Name(), clean, nil
 }
 
+// Kept as an exact identifier parser for metadata-only exports/tests, never an
+// owner substring heuristic.
 func preserveTOCEntry(line string, names map[string]bool) bool {
 	if strings.Contains(line, " SCHEMA - public ") || strings.Contains(line, " COMMENT - SCHEMA public ") {
 		return true
 	}
 	fields := strings.Fields(line)
-	for i, field := range fields {
-		if field != "public" {
-			continue
-		}
-		// The final field is the owner, not an object identifier. An owner named
-		// "integrations" must not accidentally exclude every business object.
-		for j := i + 1; j < len(fields)-1 && j <= i+2; j++ {
-			if names[strings.SplitN(fields[j], ".", 2)[0]] {
-				return true
+	for i, f := range fields {
+		if f == "public" {
+			for j := i + 1; j < len(fields)-1 && j <= i+2; j++ {
+				if names[strings.SplitN(fields[j], ".", 2)[0]] {
+					return true
+				}
 			}
+			return false
 		}
-		return false
 	}
 	return false
 }

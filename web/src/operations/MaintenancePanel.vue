@@ -13,9 +13,10 @@ import PreviewApprove from '../ui/PreviewApprove.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import TrendChart from './TrendChart.vue';
+import {useRoute} from 'vue-router';
 import WebRestorePanel from './WebRestorePanel.vue';
 import PolicyPanel from './PolicyPanel.vue';
-const data = reactive(useResource<any>(() => request('/ops'))), hours = ref(24), trends = reactive(useResource<any[]>(() => request('/ops/trends?hours=' + hours.value), [])), op = reactive(useOperation('maintenance')), section = ref('backups'), confirm = ref(false), action = ref<any>(null), detail = ref<any>(null), detailOpen = ref(false), restoreID = ref(''), rollbackID = ref(''), preview = ref<any>(null), previewLoading = ref(false), previewError = ref<unknown>(null), previewDialog = ref(false), approval = ref(false), copied = ref(''), commandCopy = ref('');
+const data = reactive(useResource<any>(() => request('/ops'))), hours = ref(24), trends = reactive(useResource<any[]>(() => request('/ops/trends?hours=' + hours.value), [])), op = reactive(useOperation('maintenance')), section = ref(useRoute().query.restore?'recovery':'backups'), confirm = ref(false), action = ref<any>(null), detail = ref<any>(null), detailOpen = ref(false), restoreID = ref(''), rollbackID = ref(''), preview = ref<any>(null), previewLoading = ref(false), previewError = ref<unknown>(null), previewDialog = ref(false), approval = ref(false), copied = ref(''), commandCopy = ref('');
 const gapMS = computed(() => Math.max(1, Math.ceil(hours.value * 60 / 500)) * 60000), trendRows = computed(() => trends.data.map(r => ({ ...r, processMiB: typeof r.processBytes === 'number' ? r.processBytes / 1048576 : null, successRate: typeof r.succeededJobs10m === 'number' && typeof r.failedJobs10m === 'number' && r.succeededJobs10m + r.failedJobs10m > 0 ? r.succeededJobs10m / (r.succeededJobs10m + r.failedJobs10m) * 100 : null })));
 const trendFields = [['memoryPercent', '内存使用率', '%'], ['diskFreeGB', '剩余空间', 'GiB'], ['load1', '系统负载', '1min'], ['loadPerCPU', '每CPU负载', ''], ['jobSeconds', '任务执行耗时', '秒'], ['pendingJobs', '待处理任务', '条'], ['processMiB', '应用堆内存', 'MiB'], ['failedJobs10m', '十分钟失败任务', '条'], ['successRate', '十分钟任务成功率', '%']];
 async function load() {
@@ -208,14 +209,14 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <ResourceState :loading="previewLoading" :error="previewError" @reload="load"/>
       <PreviewApprove :current-step="requestStep(preview?.request)" :steps="[{title:'选择范围'},{title:'核对预览'},{title:'审批后由服务器执行'},{title:'执行后核验'}]">
         <template v-if="preview">
-          <p>仅审批，不立即执行恢复或回滚。服务器执行前会新建备份并核验保护数据。</p>
+          <p>仅审批，不立即执行恢复或回滚。恢复会回退全部业务表，服务器执行前会新建快照并校验备份密文。</p>
           <p>有效至 {{ date(preview.request.expiresAt) }} · {{ ticketLabel(preview.request) }}</p>
           <el-button @click="inspect(preview)">查看预览与执行命令</el-button>
           <el-button :disabled="!!op.pending||preview.request.state!=='preview'" @click="approval=true">审批维护单（不立即执行）</el-button>
         </template>
       </PreviewApprove>
     </el-dialog>
-    <ConfirmAction v-model:visible="approval" title="确认维护审批" description="确认预览范围后，批准管理员在服务器执行受控恢复或回滚。" impact-scope="审批不会立即执行；执行后必须再核验，核验通过也不自动解除维护。" :confirm-phrase="preview?.confirmText" confirm-text="审批维护单（不立即执行）" :loading="op.busy" class="media-dialog" @confirm="approve"/>
+    <ConfirmAction v-model:visible="approval" title="确认维护审批" description="确认预览范围后，批准管理员在服务器执行受控恢复或回滚。" :impact-scope="preview?.request.kind==='restore'?'审批不会立即执行；执行时走app内共享恢复器，成功后恢复调度，旧任务仍需核对。':'审批不会立即执行；镜像回滚执行后必须再核验，核验通过也不自动解除维护。'" :confirm-phrase="preview?.confirmText" confirm-text="审批维护单（不立即执行）" :loading="op.busy" class="media-dialog" @confirm="approve"/>
     <DetailDrawer v-model:visible="detailOpen" title="维护技术详情" :technical-data="detail" class="media-detail">
       <label v-if="detail?.command" class="u5-field">
         服务器受控执行命令

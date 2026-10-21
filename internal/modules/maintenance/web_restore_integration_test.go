@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/platform/buildinfo"
 )
 
@@ -50,6 +49,23 @@ func webFixture(t *testing.T) (Engine, string) {
 				defer exec.Command("docker", "exec", container, "rm", "-f", remote).Run()
 				args[i] = "--use-list=" + remote
 			}
+		}
+		// Reordered custom-archive blocks require a seekable file, just as
+		// production exec.Cmd receives the *os.File directly (not Docker stdin).
+		if name == "pg_restore" && strings.Contains(strings.Join(args, " "), "--use-list=") {
+			remote := "/tmp/media-tool-b4b-" + newID() + ".dump"
+			container := os.Getenv("TEST_POSTGRES_CONTAINER")
+			if container == "" {
+				container = "media-tool-postgres-1"
+			}
+			copy := exec.CommandContext(ctx, "docker", "exec", "-i", container, "sh", "-c", `umask 077;cat > "$1"`, "sh", remote)
+			copy.Stdin = in
+			if err := copy.Run(); err != nil {
+				return err
+			}
+			defer exec.Command("docker", "exec", container, "rm", "-f", remote).Run()
+			args = append(args, remote)
+			in = nil
 		}
 		return basePG(ctx, name, args, env, in, out)
 	}
@@ -150,7 +166,7 @@ func TestWebRestoreSuccessRollbackAndIdempotentAdmission(t *testing.T) {
 	if err = e.RunWebRestore(ctx); err != nil {
 		t.Fatal(err)
 	}
-	e.DB.Reset() // pg_restore replaced table OIDs; app connections auto replan.
+	e.DB.Reset() // Fresh test connections must see the commit; live table OIDs are retained.
 	got, err := e.WebRestore(ctx, r.ID)
 	if err != nil || got.State != "completed" || got.SnapshotID == nil || got.AppliedBackup == nil || *got.AppliedBackup != target {
 		t.Fatal(got, err)
@@ -188,7 +204,7 @@ func TestWebRestoreSuccessRollbackAndIdempotentAdmission(t *testing.T) {
 		t.Fatal("maintenance not released", err)
 	}
 }
-func TestWebRestoreChecksumSchemaKeyAndChangedProtectionRejected(t *testing.T) {
+func TestWebRestoreChecksumSchemaKeyRejectedAndChangedBusinessAllowed(t *testing.T) {
 	e, target := webFixture(t)
 	ctx := context.Background()
 	m, dir, err := e.VerifyBundle(ctx, target)
@@ -221,8 +237,8 @@ func TestWebRestoreChecksumSchemaKeyAndChangedProtectionRejected(t *testing.T) {
 	if _, err = e.DB.Exec(ctx, `INSERT INTO integrations(id,kind,name,credentials_ciphertext)VALUES($1,'tmdb','changed','fixture')`, newID()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = e.PreviewWebRestore(ctx, target); err == nil {
-		t.Fatal("protected credentials changed")
+	if _, err = e.PreviewWebRestore(ctx, target); err != nil {
+		t.Fatal("changed credentials must be allowed", err)
 	}
 	if err = os.WriteFile(filepath.Join(dir, "database.dump"), []byte("corrupt"), 0600); err != nil {
 		t.Fatal(err)
@@ -248,7 +264,7 @@ func TestWebRestorePreflightFailureAbortsAndImportFailureRollsBack(t *testing.T)
 				if fail == "snapshot" && name == "pg_dump" {
 					return errors.New("injected snapshot failure")
 				}
-				if name == "pg_restore" && !strings.Contains(strings.Join(args, " "), "--list") {
+				if name == "psql" {
 					imports++
 					if imports == 1 {
 						if err := base(ctx, name, args, env, in, out); err != nil {
@@ -337,77 +353,16 @@ func TestWebRestoreConcurrentQueueAndInterruptedReconciliation(t *testing.T) {
 	}
 }
 
-func TestWebRestorePreservesPluginControlInCandidateSchema(t *testing.T) {
-	e := fixture(t)
-	ctx := context.Background()
-	schema := "b4_copy_" + stripID(newID())
-	if _, err := e.DB.Exec(ctx, "CREATE SCHEMA "+quote(schema)); err != nil {
-		t.Fatal(err)
-	}
-	defer e.DB.Exec(context.Background(), "DROP SCHEMA "+quote(schema)+" CASCADE")
-	for _, table := range pluginPreservedTables {
-		if _, err := e.DB.Exec(ctx, "CREATE TABLE "+quote(schema)+"."+quote(table)+" (LIKE public."+quote(table)+" INCLUDING ALL)"); err != nil {
-			t.Fatal(err)
+func TestRestoreRetainsOnlyCoordinationNotBusiness(t *testing.T) {
+	for _, name := range []string{"administrator_accounts", "administrator_sessions", "integrations", "open115_authorizations", "application_settings", "plugin_v2_configs", "plugin_v2_kv", "ops_policy", "ops_alerts", "ops_samples"} {
+		if retainedRestoreTable(name) {
+			t.Fatal("business table retained", name)
 		}
 	}
-	cfg, err := pgxpool.ParseConfig(e.DSN)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg.ConnConfig.RuntimeParams["search_path"] = schema
-	clone, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer clone.Close()
-	// Reapply the real FK graph, not merely LIKE copies without dependencies.
-	rows, err := e.DB.Query(ctx, `SELECT c.relname,k.conname,pg_get_constraintdef(k.oid),r.relname FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_class r ON r.oid=k.confrelid WHERE n.nspname='public' AND c.relname=ANY($1) AND k.contype='f'`, pluginPreservedTables)
-	if err != nil {
-		t.Fatal(err)
-	}
-	type fk struct{ table, name, def, ref string }
-	constraints := []fk{}
-	for rows.Next() {
-		var f fk
-		if err = rows.Scan(&f.table, &f.name, &f.def, &f.ref); err != nil {
-			t.Fatal(err)
+	for _, name := range []string{"ops_backups", "ops_web_restores", "ops_restore_commit", "ops_mode"} {
+		if !retainedRestoreTable(name) {
+			t.Fatal("coordination table lost", name)
 		}
-		constraints = append(constraints, f)
-	}
-	rows.Close()
-	for _, f := range constraints {
-		def := strings.Replace(f.def, "REFERENCES "+f.ref, "REFERENCES "+quote(schema)+"."+quote(f.ref), 1)
-		if _, err = clone.Exec(ctx, "ALTER TABLE "+quote(f.table)+" ADD CONSTRAINT "+quote(f.name)+" "+def); err != nil {
-			t.Fatal(err)
-		}
-	}
-	id := newID()
-	fingerprint := strings.Repeat("a", 64)
-	if _, err = e.DB.Exec(ctx, `INSERT INTO plugin_v2_definitions(id,manifest,fingerprint)VALUES('b4-test','{}',$1)`, fingerprint); err != nil {
-		t.Fatal(err)
-	}
-	defer e.DB.Exec(context.Background(), `DELETE FROM plugin_v2_grants WHERE instance_id=$1;`, id)
-	defer func() {
-		e.DB.Exec(context.Background(), `DELETE FROM plugin_v2_grants WHERE instance_id=$1`, id)
-		e.DB.Exec(context.Background(), `DELETE FROM plugin_v2_instances WHERE id=$1`, id)
-		e.DB.Exec(context.Background(), `DELETE FROM plugin_v2_definitions WHERE id='b4-test'`)
-	}()
-	if _, err = e.DB.Exec(ctx, `INSERT INTO plugin_v2_instances(id,plugin_id,desired_state,approved_fingerprint)VALUES($1,'b4-test','enabled',$2)`, id, fingerprint); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = e.DB.Exec(ctx, `INSERT INTO plugin_v2_grants(instance_id,scope,fingerprint)VALUES($1,'config.read',$2)`, id, fingerprint); err != nil {
-		t.Fatal(err)
-	}
-	if err = e.copyCurrentPlugins(ctx, clone); err != nil {
-		t.Fatal(err)
-	}
-	var state, fp string
-	if err = clone.QueryRow(ctx, `SELECT desired_state,approved_fingerprint FROM plugin_v2_instances WHERE id=$1`, id).Scan(&state, &fp); err != nil || state != "enabled" || fp != fingerprint {
-		t.Fatal(state, fp, err)
-	}
-	var grants int
-	if err = clone.QueryRow(ctx, `SELECT count(*) FROM plugin_v2_grants WHERE instance_id=$1`, id).Scan(&grants); err != nil || grants != 1 {
-		t.Fatal(grants, err)
 	}
 }
 
@@ -454,7 +409,7 @@ func TestWebRestoreStatusAndAuthReadableWhileImportWaitsOnBusinessLock(t *testin
 		t.Fatal(err)
 	}
 	defer blocker.Rollback(context.Background())
-	if _, err = blocker.Exec(ctx, `LOCK TABLE audit_logs IN ACCESS SHARE MODE`); err != nil {
+	if _, err = blocker.Exec(ctx, `LOCK TABLE administrator_accounts IN SHARE ROW EXCLUSIVE MODE`); err != nil {
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)
@@ -516,7 +471,7 @@ func TestWebRestoreFailedCompensationStaysUnknownAndReconcilesStamp(t *testing.T
 	base := e.Run
 	imports := 0
 	e.Run = func(ctx context.Context, name string, args, env []string, in io.Reader, out io.Writer) error {
-		if name == "pg_restore" && !strings.Contains(strings.Join(args, " "), "--list") {
+		if name == "psql" {
 			imports++
 			if imports == 1 {
 				if err := base(ctx, name, args, env, in, out); err != nil {

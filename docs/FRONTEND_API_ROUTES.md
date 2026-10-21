@@ -675,3 +675,5 @@
 | POST | `/api/v1/ops/restores/preview` | management | 前端直接调用 | `web/src/operations/WebRestorePanel.vue:15` |
 | POST | `/api/v1/ops/restores/{id}/execute` | management | 前端直接调用 | `web/src/operations/WebRestorePanel.vue:16` |
 | POST | `/api/v1/ops/restores/{id}/reconcile` | management | 前端直接调用 | `web/src/operations/WebRestorePanel.vue:17` |
+
+B4b（schema77）：上述恢复路径不变；preview新增warnings与restore.tableChanges。全部业务表随备份回退；401后以备份账号登录并GET执行记录，不能自动重放execute。

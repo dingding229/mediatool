@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -13,40 +12,47 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/platform/buildinfo"
 	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/database"
+	"media-tool/internal/platform/secrets"
 )
 
 // Restore uses the existing private bundle, clone verifier and PostgreSQL clients.
 // It never edits Compose, the master key, downloads or an existing output file.
 type WebRestore struct {
-	BackupSchema  int64             `json:"backupSchema"`
-	ProgramSchema int64             `json:"programSchema"`
-	ID            string            `json:"id"`
-	BackupID      string            `json:"backupId"`
-	SnapshotID    *string           `json:"snapshotId"`
-	State         string            `json:"state"`
-	Digest        string            `json:"digest"`
-	Protected     map[string]string `json:"-"`
-	AppliedBackup *string           `json:"appliedBackup"`
-	Message       string            `json:"message"`
-	CreatedAt     time.Time         `json:"createdAt"`
-	ExpiresAt     time.Time         `json:"expiresAt"`
-	CompletedAt   *time.Time        `json:"completedAt"`
+	BackupSchema  int64                `json:"backupSchema"`
+	ProgramSchema int64                `json:"programSchema"`
+	ID            string               `json:"id"`
+	BackupID      string               `json:"backupId"`
+	SnapshotID    *string              `json:"snapshotId"`
+	State         string               `json:"state"`
+	Digest        string               `json:"digest"`
+	Protected     map[string]string    `json:"-"`
+	TableChanges  []RestoreTableChange `json:"tableChanges"`
+	AppliedBackup *string              `json:"appliedBackup"`
+	Message       string               `json:"message"`
+	CreatedAt     time.Time            `json:"createdAt"`
+	ExpiresAt     time.Time            `json:"expiresAt"`
+	CompletedAt   *time.Time           `json:"completedAt"`
 }
 
-var RestoreIncludes = []string{"PostgreSQL：通过保护校验的业务数据（旧待执行任务暂停）", "outputs.tar：仅补回缺失且摘要匹配的受管 STRM/NFO/字幕"}
-var RestoreExcludes = []string{"主密钥、Compose、环境变量、其他 /data 配置", "115 授权、账号、媒体归属：不同则拒绝，不回退", "现存 STRM 正文与输出、115 原媒体、downloads、qbittorrent-downloads、logs", "Emby、CloudDrive2 及其他外部服务配置/卷", "插件实例、权限、配置、KV及工作流记录保留当前值，不回退", "管理端会话与恢复标记、当前连接和115授权表保留在线，不覆盖"}
+var RestoreIncludes = []string{"全部 public 业务表：账号、115授权、连接、设置、云盘索引、媒体及STRM记录、插件配置/KV等均回到备份状态", "旧会话撤销；旧待执行任务暂停、投递和插件运行核对后再执行", "outputs.tar：仅补回缺失且摘要匹配的受管输出"}
+var RestoreExcludes = []string{"主密钥、Compose、环境变量、其他 /data 配置", "现存STRM正文与输出、媒体、downloads、qbittorrent-downloads、logs", "Emby、CloudDrive2及其他外部服务配置/卷、插件磁盘数据", "仅备份目录、恢复回执、维护协调账本保留当前值（ops_mode/ops_releases/ops_backups/ops_drills/ops_requests/ops_request_verifications/ops_web_restores）；goose_db_version保留、ops_restore_commit由事务更新"}
+var RestoreWarnings = []string{"管理员账号与密码将回到备份时状态", "115授权将回到备份时的令牌，可能需要重新授权", "当前登录会话将失效；请使用备份中的账号密码重新登录，在运维页查看持久化结果", "外部API令牌、权限与插件启用/定时配置也会回退，请核对"}
 
-const webRestoreColumns = `SELECT id::text,backup_id::text,snapshot_id::text,state,manifest_digest,protected,applied_backup::text,message,created_at,expires_at,completed_at,(SELECT coalesce((b.manifest->>'schema')::bigint,0)FROM ops_backups b WHERE b.id=backup_id) FROM ops_web_restores`
+const webRestoreColumns = `SELECT id::text,backup_id::text,snapshot_id::text,state,manifest_digest,protected,applied_backup::text,message,created_at,expires_at,completed_at,table_changes,(SELECT coalesce((b.manifest->>'schema')::bigint,0)FROM ops_backups b WHERE b.id=backup_id) FROM ops_web_restores`
 
 func scanWebRestore(row interface{ Scan(...any) error }) (WebRestore, error) {
 	var r WebRestore
-	var raw []byte
-	err := row.Scan(&r.ID, &r.BackupID, &r.SnapshotID, &r.State, &r.Digest, &raw, &r.AppliedBackup, &r.Message, &r.CreatedAt, &r.ExpiresAt, &r.CompletedAt, &r.BackupSchema)
+	var raw, changes []byte
+	err := row.Scan(&r.ID, &r.BackupID, &r.SnapshotID, &r.State, &r.Digest, &raw, &r.AppliedBackup, &r.Message, &r.CreatedAt, &r.ExpiresAt, &r.CompletedAt, &changes, &r.BackupSchema)
 	if err == nil {
 		err = json.Unmarshal(raw, &r.Protected)
+		if err == nil {
+			err = json.Unmarshal(changes, &r.TableChanges)
+		}
 		r.ProgramSchema = buildinfo.Schema
 	}
 	return r, err
@@ -74,6 +80,9 @@ func (e Engine) WebRestores(ctx context.Context) ([]WebRestore, error) {
 	return out, rows.Err()
 }
 func (e Engine) PreviewWebRestore(ctx context.Context, id string) (WebRestore, error) {
+	return e.previewWebRestore(ctx, id, newID())
+}
+func (e Engine) previewWebRestore(ctx context.Context, id, requestID string) (WebRestore, error) {
 	// Serialize expensive preview validation with backup/drill/restore admission.
 	conn, err := e.DB.Acquire(ctx)
 	if err != nil {
@@ -91,6 +100,14 @@ func (e Engine) PreviewWebRestore(ctx context.Context, id string) (WebRestore, e
 			deferutil.CloseContext(c, conn.Conn(), "Discard only after failed advisory unlock; no application data is written during teardown")
 		}
 	}()
+	if existing, err := e.WebRestore(ctx, requestID); err == nil {
+		if existing.BackupID != id {
+			return existing, ErrConflict
+		}
+		return existing, nil
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return WebRestore{}, err
+	}
 	var busy bool
 	if err = conn.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ops_backups WHERE state IN('pending','running','deleting')) OR EXISTS(SELECT 1 FROM ops_drills WHERE state IN('pending','running')) OR EXISTS(SELECT 1 FROM ops_web_restores WHERE state IN('pending','running','unknown'))`).Scan(&busy); err != nil {
 		return WebRestore{}, err
@@ -108,12 +125,9 @@ func (e Engine) PreviewWebRestore(ctx context.Context, id string) (WebRestore, e
 	if m.Schema > buildinfo.Schema {
 		return WebRestore{}, errors.New("备份 schema 高于当前程序，禁止恢复；请先升级程序")
 	}
-	current, err := Protected(ctx, e.DB)
+	changes, err := e.restoreChanges(ctx, m)
 	if err != nil {
 		return WebRestore{}, err
-	}
-	if !sameProtected(current, m.Protected) {
-		return WebRestore{}, errors.New("账号、115授权或媒体归属与当前不同，禁止回退保护数据")
 	}
 	// Existing clone verifier validates every ciphertext, schema migration and inventory.
 	if e.validateRestore != nil {
@@ -131,13 +145,14 @@ func (e Engine) PreviewWebRestore(ctx context.Context, id string) (WebRestore, e
 	if err = e.applyOutputs(ctx, filepath.Join(dir, "outputs.tar"), m.Files, false); err != nil {
 		return WebRestore{}, err
 	}
-	r := WebRestore{ID: newID(), BackupID: id}
-	raw, _ := json.Marshal(current)
+	r := WebRestore{ID: requestID, BackupID: id}
+	raw, _ := json.Marshal(m.Protected)
+	changeRaw, _ := json.Marshal(changes)
 	var digest string
 	if err = e.DB.QueryRow(ctx, `SELECT digest FROM ops_backups WHERE id=$1`, id).Scan(&digest); err != nil {
 		return r, err
 	}
-	_, err = e.DB.Exec(ctx, `INSERT INTO ops_web_restores(id,backup_id,manifest_digest,protected)VALUES($1,$2,$3,$4)`, r.ID, id, digest, raw)
+	_, err = e.DB.Exec(ctx, `INSERT INTO ops_web_restores(id,backup_id,manifest_digest,protected,table_changes)VALUES($1,$2,$3,$4,$5)`, r.ID, id, digest, raw, changeRaw)
 	if err != nil {
 		return r, err
 	}
@@ -167,6 +182,19 @@ func (e Engine) QueueWebRestore(ctx context.Context, id, digest, text string) (W
 	}
 	if time.Now().After(r.ExpiresAt) {
 		return r, ErrConflict
+	}
+	var legacyState string
+	var legacyExpiry time.Time
+	approvalErr := tx.QueryRow(ctx, `SELECT state,expires_at FROM ops_requests WHERE id=$1 AND kind='restore' FOR UPDATE`, id).Scan(&legacyState, &legacyExpiry)
+	if approvalErr == nil {
+		if legacyState != "approved" || time.Now().After(legacyExpiry) {
+			return r, ErrConflict
+		}
+		if _, err = tx.Exec(ctx, `UPDATE ops_requests SET state='executing',message='app内共享恢复执行器已领取' WHERE id=$1`, id); err != nil {
+			return r, err
+		}
+	} else if !errors.Is(approvalErr, pgx.ErrNoRows) {
+		return r, approvalErr
 	}
 	var busy bool
 	if err = tx.QueryRow(ctx, `SELECT (SELECT paused FROM ops_mode WHERE singleton) OR EXISTS(SELECT 1 FROM ops_backups WHERE state IN('pending','running','deleting')) OR EXISTS(SELECT 1 FROM ops_drills WHERE state IN('pending','running')) OR EXISTS(SELECT 1 FROM ops_web_restores WHERE state IN('pending','running','unknown'))`).Scan(&busy); err != nil {
@@ -294,11 +322,7 @@ func (e Engine) executeWebRestore(ctx context.Context, id string) (result error)
 	if err = e.DB.QueryRow(ctx, `SELECT digest FROM ops_backups WHERE id=$1`, r.BackupID).Scan(&digest); err != nil {
 		return err
 	}
-	current, err := Protected(ctx, e.DB)
-	if err != nil {
-		return err
-	}
-	if digest != r.Digest || !sameProtected(current, r.Protected) || !sameProtected(current, m.Protected) {
+	if digest != r.Digest {
 		return e.finishUnchanged(ctx, id, ErrConflict)
 	}
 	// Reuse Backup synchronously; the latest ready snapshot is protected by retention.
@@ -326,10 +350,10 @@ func (e Engine) executeWebRestore(ctx context.Context, id string) (result error)
 	if err = e.restoreOutputs(ctx, filepath.Join(dir, "outputs.tar"), m.Files); err != nil {
 		return e.finishUnchanged(ctx, id, err)
 	}
-	if err = e.restoreStage(ctx, id, "正在事务导入业务数据库；管理会话与执行记录保持在线"); err != nil {
+	if err = e.restoreStage(ctx, id, "正在原子替换全部业务数据；提交前认证可读，提交后会话失效"); err != nil {
 		return err
 	}
-	if err = e.importWebDump(ctx, file); err == nil {
+	if err = e.importWebDump(ctx, file, id, r.BackupID); err == nil {
 		if err = e.verifyApplied(ctx, id, r.Protected); err == nil {
 			return e.finishWebRestore(ctx, id, "completed", "恢复成功；恢复前快照已保留，旧任务不会自动重放，请重新登录")
 		}
@@ -343,12 +367,14 @@ func (e Engine) executeWebRestore(ctx context.Context, id string) (result error)
 	if se == nil {
 		var f string
 		var clean func() error
-		f, clean, se = e.webDump(rollbackCtx, r, sm, sd)
+		compensation := r
+		compensation.SnapshotID = &snapshot
+		f, clean, se = e.webDump(rollbackCtx, compensation, sm, sd)
 		if clean != nil {
 			defer e.cleanupWebCandidate(id, clean)
 		}
 		if se == nil {
-			se = e.importWebDump(rollbackCtx, f)
+			se = e.importWebDump(rollbackCtx, f, id, snapshot)
 		}
 	}
 	if se == nil {
@@ -361,8 +387,8 @@ func (e Engine) executeWebRestore(ctx context.Context, id string) (result error)
 	if se == nil {
 		var p map[string]string
 		p, se = Protected(rollbackCtx, e.DB)
-		if se == nil && !sameProtected(p, r.Protected) {
-			se = errors.New("回滚保护数据核验失败")
+		if se == nil && !sameProtected(p, sm.Protected) {
+			se = errors.New("恢复前快照数据核验失败")
 		}
 	}
 	if se != nil {
@@ -385,17 +411,15 @@ func (e Engine) finishWebRestore(ctx context.Context, id, state, message string)
 	if _, err = tx.Exec(ctx, `UPDATE ops_mode SET paused=false,reason='',revision=revision+1 WHERE singleton AND reason=$1`, "网页恢复 "+id); err != nil {
 		return err
 	}
-	if state == "completed" || state == "rolled_back" {
-		if _, err = tx.Exec(ctx, `UPDATE administrator_sessions SET revoked_at=now()`); err != nil {
-			return err
-		}
-	}
+	// Session invalidation is part of the business import transaction. Do not
+	// revoke a new backup-account login used to reconcile an already committed
+	// unknown result a second time.
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('system','ops.web_restore.finished',jsonb_build_object('id',$1::text,'state',$2::text))`, id, state); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
 }
-func (e Engine) verifyApplied(ctx context.Context, id string, expected map[string]string) error {
+func (e Engine) verifyApplied(ctx context.Context, id string, _ map[string]string) error {
 	r, err := e.WebRestore(ctx, id)
 	if err != nil {
 		return err
@@ -411,7 +435,7 @@ func (e Engine) verifyApplied(ctx context.Context, id string, expected map[strin
 	if err != nil {
 		return err
 	}
-	if !sameProtected(p, expected) {
+	if !sameProtected(p, r.Protected) {
 		return errors.New("恢复后保护数据核验失败")
 	}
 	return nil
@@ -460,7 +484,15 @@ func (e Engine) ReconcileWebRestore(ctx context.Context, id string) (WebRestore,
 		if checkErr != nil {
 			return r, checkErr
 		}
-		if !sameProtected(p, r.Protected) {
+		appliedManifest, _, manifestErr := e.VerifyBundle(ctx, *r.AppliedBackup)
+		if manifestErr != nil {
+			return r, manifestErr
+		}
+		expected := appliedManifest.Protected
+		if *r.AppliedBackup == r.BackupID {
+			expected = r.Protected
+		}
+		if !sameProtected(p, expected) {
 			return r, ErrConflict
 		}
 		state := "completed"
@@ -487,7 +519,14 @@ func (e Engine) webDump(ctx context.Context, r WebRestore, m Manifest, dir strin
 }
 func (e Engine) prepareWebDump(ctx context.Context, r WebRestore, m Manifest, dir string) (string, func() error, error) {
 	name := "media_tool_restore_" + stripID(newID())[:12]
-	dsn, clean, err := e.restoreClone(ctx, name, dir, m)
+	compensation := r.SnapshotID != nil && m.ID == *r.SnapshotID && m.ID != r.BackupID
+	if compensation {
+		var origin string
+		if err := e.DB.QueryRow(ctx, `SELECT b.origin FROM ops_backups b JOIN ops_web_restores r ON r.snapshot_id=b.id WHERE b.id=$1 AND r.id=$2 AND r.state IN('running','unknown')`, m.ID, r.ID).Scan(&origin); err != nil || origin != "pre-restore" {
+			return "", nil, ErrUnsafe
+		}
+	}
+	dsn, clean, err := e.restoreCloneChecked(ctx, name, dir, m, !compensation)
 	if err != nil {
 		return "", clean, err
 	}
@@ -496,21 +535,27 @@ func (e Engine) prepareWebDump(ctx context.Context, r WebRestore, m Manifest, di
 		return "", clean, err
 	}
 	defer clone.Close()
-	if err = e.copyCurrentPlugins(ctx, clone); err != nil {
-		return "", clean, err
+	if !compensation {
+		vault, keyErr := secrets.New(e.Key)
+		if keyErr != nil {
+			return "", clean, keyErr
+		}
+		if err = (pluginv2.Store{DB: clone, Vault: vault}).Refresh(ctx); err != nil {
+			return "", clean, err
+		}
 	}
-	if err = e.copyCurrentMetadata(ctx, clone); err != nil {
-		return "", clean, err
+	if m.ID == r.BackupID {
+		expected, err := Protected(ctx, clone)
+		if err != nil {
+			return "", clean, err
+		}
+		raw, _ := json.Marshal(expected)
+		if _, err = e.DB.Exec(ctx, `UPDATE ops_web_restores SET protected=$2 WHERE id=$1`, r.ID, raw); err != nil {
+			return "", clean, err
+		}
 	}
-	// Sessions and pending work are not replayed. The admin may log in again using
-	// the unchanged protected accounts. Metadata, including snapshots, stays current.
-	_, err = clone.Exec(ctx, `UPDATE plugin_v2_runs SET state='unknown',reason='worker_lost',finished_at=now() WHERE state IN('pending','running');UPDATE administrator_sessions SET revoked_at=now();UPDATE media_user_sessions SET revoked_at=now();UPDATE jobs SET state='paused',lease_until=NULL,lease_token=NULL,locked_by=NULL,last_error='网页恢复后需人工核对，不自动重放' WHERE state IN('pending','retry','running');UPDATE outbox_events SET dispatched_at=now() WHERE dispatched_at IS NULL;UPDATE notification_deliveries SET state='outcome_unknown',last_error='恢复后需人工核对，不自动重发' WHERE state IN('pending','retry','sending');`)
-	if err != nil {
-		return "", clean, err
-	}
-	if _, err = clone.Exec(ctx, `INSERT INTO ops_restore_commit(request_id,backup_id)VALUES($1,$2)ON CONFLICT(request_id)DO UPDATE SET backup_id=excluded.backup_id`, r.ID, m.ID); err != nil {
-		return "", clean, err
-	}
+	// Only coordination/catalog receipts survive; every business domain comes
+	// from the verified backup. Session/runtime normalization is atomic at import.
 	// Dump the verified, current-schema candidate in the existing custom format.
 	temp, err := os.CreateTemp(e.Root, ".restore-*.dump")
 	if err != nil {
@@ -522,21 +567,7 @@ func (e Engine) prepareWebDump(ctx context.Context, r WebRestore, m Manifest, di
 	err = errors.Join(err, temp.Sync(), temp.Close())
 	return file, cleanup, err
 }
-func (e Engine) importWebDump(ctx context.Context, file string) error {
-	f, err := os.OpenFile(file, os.O_RDONLY|noFollowFlag(), 0)
-	if err != nil {
-		return err
-	}
-	defer deferutil.Close(f, "private restore dump")
-	// No DROP DATABASE, no pool/DSN switch. PostgreSQL rolls back every DROP/COPY
-	// together on error. Progress/auth stay live; the commit stamp is in the transaction.
-	list, clean, err := e.restoreList(ctx, file)
-	if err != nil {
-		return err
-	}
-	defer clean()
-	return e.pg(ctx, "pg_restore", e.DSN, []string{"--schema=public", "--use-list=" + list, "--clean", "--if-exists", "--single-transaction", "--exit-on-error", "--no-owner", "--no-acl", "--dbname=" + databaseName(e.DSN)}, f, io.Discard)
-}
+
 func databaseName(dsn string) string { // pg env carries secrets; argv contains name only.
 	u, err := url.Parse(dsn)
 	if err != nil {
@@ -595,4 +626,29 @@ func (e Engine) restoreSchema(ctx context.Context) error {
 		return errors.New("程序与当前数据库 schema 不一致，禁止恢复；请先核对运行版本")
 	}
 	return nil
+}
+
+type WebRestorePreview struct {
+	Restore     WebRestore `json:"restore"`
+	ConfirmText string     `json:"confirmText"`
+	Includes    []string   `json:"includes"`
+	Excludes    []string   `json:"excludes"`
+	Warnings    []string   `json:"warnings"`
+	Message     string     `json:"message"`
+}
+
+func RestorePreview(r WebRestore) WebRestorePreview {
+	return WebRestorePreview{Restore: r, ConfirmText: "恢复 " + r.BackupID, Includes: RestoreIncludes, Excludes: RestoreExcludes, Warnings: RestoreWarnings, Message: "已验证完整性、全部备份密文与向上迁移；全部业务数据随备份回退，确认后先创建恢复前快照。"}
+}
+
+// A crashed post-commit restore may have revoked every old session. Permit a
+// fresh PG-authenticated login only for a quiescent unknown record; never write
+// auth tables while an import/compensation client is still alive.
+func (e Engine) RestoreLoginAllowed(ctx context.Context) (bool, error) {
+	if e.DB == nil {
+		return true, nil
+	}
+	var allowed bool
+	err := e.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM public.ops_web_restores WHERE state='unknown') AND NOT EXISTS(SELECT 1 FROM public.ops_web_restores WHERE state IN('pending','running')) AND NOT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND application_name='mediatool-maintenance' AND pid<>pg_backend_pid())`).Scan(&allowed)
+	return allowed, err
 }

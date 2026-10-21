@@ -80,3 +80,7 @@ go run ./cmd/media-tool-dev plugins matrix --check
 ```
 
 这些命令读取锁定的插件依赖并检查或生成本地声明、资源和能力表，不是运行期安装接口。插件接口见[插件说明](PLUGINS.md)。
+
+### 数据恢复（app内，与网页共用）
+
+`media-tool ops restore-preview -id <备份UUID>` 返回逐表行数、固定风险与精确确认短语；`restore-execute -id <预览UUID> -digest <预览摘要> -confirm-text '恢复 <备份UUID>'`等待相同状态机执行；`restore-status -id <预览UUID>`查持久化结果；`restore-reconcile -id <预览UUID>`只核对不重放。正式部署请通过私有根Compose的 `docker compose exec -T app /app/media-tool ops ...` 执行。旧 `media-toolctl execute` 已批准的数据恢复也转交同一执行器，不停app或改名数据库。镜像回滚命令不变。

@@ -24,7 +24,7 @@ import (
 type Command func(context.Context, string, []string, []string, io.Reader, io.Writer) error
 
 func runCommand(ctx context.Context, name string, args, env []string, in io.Reader, out io.Writer) error {
-	if name != "pg_dump" && name != "pg_restore" {
+	if name != "pg_dump" && name != "pg_restore" && name != "psql" {
 		return ErrUnsafe
 	}
 	cmd := exec.CommandContext(ctx, name, args...)
@@ -34,6 +34,9 @@ func runCommand(ctx context.Context, name string, args, env []string, in io.Read
 	var stderr bytes.Buffer
 	cmd.Stderr = &limitedWriter{Writer: &stderr, Left: 4096}
 	if err := cmd.Run(); err != nil {
+		if name == "psql" {
+			return fmt.Errorf("数据库原子导入失败（数据详情不输出）：%w", err)
+		}
 		return fmt.Errorf("%s失败: %s: %w", name, strings.TrimSpace(stderr.String()), err)
 	}
 	return nil

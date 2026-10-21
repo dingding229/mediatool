@@ -7,6 +7,7 @@ import (
 	"media-tool/internal/platform/auth"
 	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -26,8 +27,10 @@ func (a *API) sessionAccount(r *http.Request) (accounts.Account, error) {
 		reader = a.accountRepository()
 	}
 	account, err := reader.Session(ctx, digest[:])
-	if err == nil && a.Deps.AuthSessions == nil {
-		if touchErr := a.accountRepository().TouchSession(ctx, digest[:], adminSessionMetadata(r)); touchErr != nil {
+	if err == nil && a.Deps.AuthSessions == nil && !strings.HasPrefix(r.URL.Path, "/api/v1/ops/restores") {
+		touchCtx, touchCancel := context.WithTimeout(ctx, 100*time.Millisecond)
+		defer touchCancel()
+		if touchErr := a.accountRepository().TouchSession(touchCtx, digest[:], adminSessionMetadata(r)); touchErr != nil {
 			a.Deps.Logger.Warn("administrator session activity update failed", "error", touchErr)
 		}
 	}

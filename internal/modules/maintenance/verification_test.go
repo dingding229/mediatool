@@ -50,6 +50,20 @@ func TestOpsExecutionVerificationAndResumeRecheck(t *testing.T) {
 	if err = e.Resume(ctx, 1); err == nil {
 		t.Fatal("unverified execution resumed")
 	}
+	if _, err = e.VerifyExecution(ctx, id); err == nil {
+		t.Fatal("a manual finish without the shared commit receipt was accepted")
+	}
+	backup := newID()
+	proof, _ := json.Marshal(protected)
+	if _, err = e.DB.Exec(ctx, `INSERT INTO ops_backups(id,state)VALUES($1,'ready')`, backup); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.DB.Exec(ctx, `INSERT INTO ops_web_restores(id,backup_id,state,manifest_digest,protected,applied_backup,completed_at)VALUES($1,$2,'completed','fixture',$3,$2,now());`, id, backup, proof); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.DB.Exec(ctx, `INSERT INTO ops_restore_commit(request_id,backup_id)VALUES($1,$2)`, id, backup); err != nil {
+		t.Fatal(err)
+	}
 	r, err := e.VerifyExecution(ctx, id)
 	if err != nil || r.VerifiedAt == nil {
 		t.Fatal(r, err)

@@ -4050,6 +4050,25 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
+      "HTTP200_c2844d9eac3b": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/modules_maintenance_WebRestorePreview"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
       "HTTP200_c2c928667865": {
         "content": {
           "application/json": {
@@ -4751,62 +4770,6 @@
                     "array",
                     "null"
                   ]
-                }
-              },
-              "required": [
-                "data"
-              ],
-              "type": "object"
-            }
-          }
-        },
-        "description": "实际业务响应；排队/批准不等于执行完成。"
-      },
-      "HTTP200_e4a56ca6f478": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "additionalProperties": false,
-              "properties": {
-                "data": {
-                  "additionalProperties": true,
-                  "properties": {
-                    "confirmText": {
-                      "type": "string"
-                    },
-                    "excludes": {
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": [
-                        "array",
-                        "null"
-                      ]
-                    },
-                    "includes": {
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": [
-                        "array",
-                        "null"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "restore": {
-                      "$ref": "#/components/schemas/modules_maintenance_WebRestore"
-                    }
-                  },
-                  "required": [
-                    "confirmText",
-                    "excludes",
-                    "includes",
-                    "message",
-                    "restore"
-                  ],
-                  "type": "object"
                 }
               },
               "required": [
@@ -23340,6 +23303,33 @@
         "type": "object",
         "x-go-type": "media-tool/internal/modules/maintenance.Request"
       },
+      "modules_maintenance_RestoreTableChange": {
+        "additionalProperties": false,
+        "properties": {
+          "backupRows": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "currentMissing": {
+            "type": "boolean"
+          },
+          "currentRows": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "backupRows",
+          "currentMissing",
+          "currentRows",
+          "name"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/maintenance.RestoreTableChange"
+      },
       "modules_maintenance_WebRestore": {
         "additionalProperties": false,
         "properties": {
@@ -23413,6 +23403,15 @@
               "failed"
             ],
             "type": "string"
+          },
+          "tableChanges": {
+            "items": {
+              "$ref": "#/components/schemas/modules_maintenance_RestoreTableChange"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -23427,10 +23426,62 @@
           "message",
           "programSchema",
           "snapshotId",
-          "state"
+          "state",
+          "tableChanges"
         ],
         "type": "object",
         "x-go-type": "media-tool/internal/modules/maintenance.WebRestore"
+      },
+      "modules_maintenance_WebRestorePreview": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmText": {
+            "type": "string"
+          },
+          "excludes": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "includes": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "restore": {
+            "$ref": "#/components/schemas/modules_maintenance_WebRestore"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "confirmText",
+          "excludes",
+          "includes",
+          "message",
+          "restore",
+          "warnings"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/maintenance.WebRestorePreview"
       },
       "modules_manualdownloads_Task": {
         "additionalProperties": false,
@@ -27706,7 +27757,7 @@
     }
   },
   "info": {
-    "description": "由实际路由注册与Go DTO派生；JSON是YAML1.2兼容写法，无新增运行依赖。schema74；说明与示例见docs/FRONTEND_API.md。",
+    "description": "由实际路由注册与Go DTO派生；JSON是YAML1.2兼容写法，无新增运行依赖。schema77；说明与示例见docs/FRONTEND_API.md。",
     "title": "Media Tool frontend and mounted protocol API",
     "version": "0.27.0"
   },
@@ -66656,7 +66707,7 @@
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_e4a56ca6f478"
+            "$ref": "#/components/responses/HTTP200_c2844d9eac3b"
           },
           "400": {
             "$ref": "#/components/responses/HTTP400_cadc3b44dd8d"
