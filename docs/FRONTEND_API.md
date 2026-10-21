@@ -368,7 +368,7 @@ X-Requested-With: media-tool
   仅原格式零正文 302，实际请求 UA 同样通过播放器白名单并用于官方 115 取链；
   格式转换明确 400，嵌入字幕提取不支持。字幕正文不落地、不代理、不转码。
 
-## 网页恢复（B4b，schema 77）
+## 网页恢复（schema 77）
 
 `GET /api/v1/ops/restores` 返回最近50条持久化执行记录。schema77新增 `tableChanges:[{name,currentRows,backupRows,currentMissing}]`，仅表名/行数，不返回内部摘要、凭据或密文。预览响应为具名 `WebRestorePreview`，新增固定 `warnings[]`（管理员密码回退、115令牌回退/可能需授权、会话失效），原 `restore/confirmText/includes/excludes/message` 保留。
 
