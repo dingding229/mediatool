@@ -115,13 +115,23 @@ func TestRealSameBinaryWorkflowAndBoundFakeProvider(t *testing.T) {
 	if e = broker.Bind(ctx, "admin", in.ID, "fake", "bound", account, d.Fingerprint); e != nil {
 		t.Fatal(e)
 	}
-	q, e := broker.Begin(ctx, in.ID, "fake", "https://hello.invalid")
-	if e != nil {
-		t.Fatal(e)
-	}
-	identity, e := broker.Verify(ctx, in.ID, "fake", "https://hello.invalid", q.State, q.Nonce, "bound")
-	if e != nil || identity.AccountID != account {
-		t.Fatal(identity, e)
+	var identity BrokerIdentity
+	// Each failed cold-provider attempt consumes its nonce. Retry only this pure
+	// fake fixture with a fresh challenge, never reuse a nonce or retry real login.
+	untilAuth := time.Now().Add(15 * time.Second)
+	for {
+		q, err := broker.Begin(ctx, in.ID, "fake", "https://hello.invalid")
+		if err != nil {
+			t.Fatal(err)
+		}
+		identity, e = broker.Verify(ctx, in.ID, "fake", "https://hello.invalid", q.State, q.Nonce, "bound")
+		if e == nil && identity.AccountID == account {
+			break
+		}
+		if time.Now().After(untilAuth) {
+			t.Fatal("bound fake provider did not complete", identity, e)
+		}
+		time.Sleep(30 * time.Millisecond)
 	}
 	if e = s.Bridge(ctx); e != nil {
 		t.Fatal(e)

@@ -22,7 +22,11 @@ func (s Store) Submit(ctx context.Context, snap Snapshot, d contracts.Descriptor
 	if e != nil {
 		return "", e
 	}
-	return id, tx.Commit(ctx)
+	e = tx.Commit(ctx)
+	if e == nil {
+		s.mailbox(snap.InstanceID).queued()
+	}
+	return id, e
 }
 func (s Store) submitTx(ctx context.Context, tx pgx.Tx, snap Snapshot, d contracts.Descriptor, args json.RawMessage, key, service string, event any, deadline time.Time) (string, error) {
 	if len(key) > 500 || len(key) == 0 || len(args) > 128<<10 || contracts.ValidateJSON(args) != nil || deadline.After(time.Now().Add(15*time.Minute)) {
@@ -112,6 +116,8 @@ func (s Store) invokeSnapshot(ctx context.Context, snap Snapshot, d contracts.De
 	tick := time.NewTicker(30 * time.Millisecond)
 	defer tick.Stop()
 	for {
+		// Observe before SQL so a commit between the query and select cannot be lost.
+		changed := s.mailbox(id).observed()
 		var state RunState
 		var cipher []byte
 		e = s.DB.QueryRow(ctx, `SELECT state,result_ciphertext FROM plugin_v2_runs WHERE id=$1`, run).Scan(&state, &cipher)
@@ -144,6 +150,7 @@ func (s Store) invokeSnapshot(ctx context.Context, snap Snapshot, d contracts.De
 			_, err := s.DB.Exec(cleanup, `UPDATE plugin_v2_runs SET state=CASE WHEN state='running' THEN 'unknown' ELSE 'canceled' END,reason='deadline',finished_at=now() WHERE id=$1 AND state IN('pending','running')`, run)
 			stop()
 			return nil, errors.Join(contracts.NewError(contracts.ResultUnknown), err)
+		case <-changed:
 		case <-tick.C:
 		}
 	}
@@ -152,12 +159,21 @@ func (s Store) invokeSnapshot(ctx context.Context, snap Snapshot, d contracts.De
 // pump has one RPC at a time per instance. It claims only after the peer lane is
 // available; host callbacks use independent SQL transactions and never this lease.
 func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *hostGate) error {
+	lane := &mailboxLane{wake: make(chan struct{}, 1), changed: make(chan struct{})}
+	key := mailboxKey{s.DB, l.ID}
+	if _, loaded := mailboxLanes.LoadOrStore(key, lane); loaded {
+		return ErrConflict
+	}
+	defer mailboxLanes.CompareAndDelete(key, lane)
+	defer lane.completed()
+	lane.queued()
 	tick := time.NewTicker(100 * time.Millisecond)
 	defer tick.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
+		case <-lane.wake:
 		case <-tick.C:
 		}
 		var id, handler, runKind string
@@ -275,6 +291,7 @@ func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *ho
 		if err != nil {
 			return err
 		}
+		lane.completed()
 
 		var needs *contracts.Error
 		if (kind == "service" || kind == "event") && errors.As(e, &needs) && needs.Code == contracts.NeedsAction {
@@ -287,6 +304,7 @@ func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *ho
 			return contracts.NewError(contracts.NeedsAction)
 		}
 
+		lane.queued() // Drain committed backlog without spending another policy budget on polling.
 		if state == RunUnknown {
 			return contracts.NewError(contracts.ResultUnknown)
 		} // non-cooperating call: supervisor kills the group
@@ -299,8 +317,22 @@ func (s Store) finishCall(ctx context.Context, id, token string, state RunState,
 		return e
 	}
 	if tag.RowsAffected() != 1 {
-		return ErrConflict
+		// The caller/maintenance may have terminalized a deadline receipt just
+		// before a cooperative RPC returned. Never overwrite that receipt, but
+		// do not kill a healthy lane for losing this completion race. Unknown
+		// RPC outcomes still terminate the worker; revoked generations still fail.
+		var expired bool
+		if state != RunUnknown {
+			e = s.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM plugin_v2_runs r JOIN plugin_v2_instances i ON i.id=r.instance_id WHERE r.id=$1 AND r.lease_token=$2 AND r.state IN('unknown','canceled') AND r.reason='deadline' AND i.generation=r.generation AND i.grant_revision=r.grant_revision AND i.desired_state='enabled' AND i.runtime_state='running' AND i.lease_until>clock_timestamp())`, id, token).Scan(&expired)
+		}
+		if e != nil {
+			return e
+		}
+		if !expired {
+			return ErrConflict
+		}
 	}
+
 	return nil
 }
 

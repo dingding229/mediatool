@@ -97,6 +97,13 @@ func TestRRealWorkerColdStartResourcesAndChainSamples(t *testing.T) {
 		t.Fatal(e)
 	}
 	fallbacks := strings.Count(log.String(), "资源策略回落内置逻辑") + strings.Count(log.String(), "拒绝越权资源策略结果并回落")
+
+	// A real deadline fallback may reap an uncertain worker after its receipt
+	// terminalizes. Wait for an acknowledged form round trip again, outside the
+	// timed samples, instead of racing the asynchronous PID release/restart.
+	// Keep all original real-resource assertions and every measured fallback.
+	testworker.Ready(t, s.DB, in.ID, func(c context.Context) error { _, err := s.UI(c, in.ID, "form", ""); return err })
+
 	var pid int
 	if e = s.DB.QueryRow(ctx, `SELECT worker_pid FROM plugin_v2_instances WHERE id=$1`, in.ID).Scan(&pid); e != nil {
 		t.Fatal(e)
@@ -111,7 +118,7 @@ func TestRRealWorkerColdStartResourcesAndChainSamples(t *testing.T) {
 		tasks += p.Tasks
 	}
 	if samples == 0 || pid <= 0 || rss == 0 || tasks == 0 {
-		t.Fatal("real samples/resources absent")
+		t.Fatalf("real samples/resources absent: receipts=%d pid=%d rss=%d tasks=%d", samples, pid, rss, tasks)
 	}
-	t.Logf("R_PERF realWorker startupToRegistryAndForm=%s firstChain=%s p50=%s p95=%s calls=%d receipts=%d deadlineReceipts=%d fallbackWarnings=%d fallbackRate=%.2f%% rssBytes=%d tasks=%d budget=200ms/2s maxHandlers=8", ready, first, elapsed[n/2], elapsed[n*95/100], n, samples, timeouts, fallbacks, 100*float64(fallbacks)/n, rss, tasks)
+	t.Logf("R_PERF realWorker startupToRegistryAndForm=%s firstChain=%s p50=%s p95=%s calls=%d receipts=%d deadlineReceipts=%d fallbackWarnings=%d fallbackRate=%.2f%% rssBytes=%d tasks=%d resourcePhase=afterReceiptsAndForm budget=200ms/2s maxHandlers=8", ready, first, elapsed[n/2], elapsed[n*95/100], n, samples, timeouts, fallbacks, 100*float64(fallbacks)/n, rss, tasks)
 }

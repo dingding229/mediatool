@@ -70,20 +70,27 @@ func TestRealSameBinaryAcquisitionEventsAndResourceChains(t *testing.T) {
 	}
 	testworker.Ready(t, s.DB, in.ID, func(c context.Context) error { _, err := s.UI(c, in.ID, "form", ""); return err })
 	a, b := jobs.UUID(), jobs.UUID()
-	prepared, ids, e := s.SelectResources(ctx, contracts.ResourceSelectionRequest{RunID: a, Candidates: []contracts.ResourceCandidate{{ID: b, AccountID: a}}})
-	if e != nil || len(ids) != 1 || ids[0] != b {
-		t.Fatal("real selection", ids, e)
-	}
-	if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
-		t.Fatal(e)
-	}
-	prepared, cleanup, e := s.PrepareDownload(ctx, contracts.ResourceDownloadRequest{Kind: "managed", ResourceID: b, DownloaderID: a, CleanupAfterImport: true})
-	if e != nil || !cleanup {
-		t.Fatal("real download policy", cleanup, e)
-	}
-	if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
-		t.Fatal(e)
-	}
+	until := time.Now().Add(15 * time.Second)
+	proveRealPolicy(t, s, in.ID, contracts.ChainResourceSelection, until, func() bool {
+		prepared, ids, err := s.SelectResources(ctx, contracts.ResourceSelectionRequest{RunID: a, Candidates: []contracts.ResourceCandidate{{ID: b, AccountID: a}}})
+		if err != nil || len(ids) != 1 || ids[0] != b {
+			t.Fatal("real selection", ids, err)
+		}
+		if err = dbutil.CheckPrepared(prepared, s.DB); err != nil {
+			t.Fatal(err)
+		}
+		return true
+	})
+	proveRealPolicy(t, s, in.ID, contracts.ChainResourceDownload, until, func() bool {
+		prepared, cleanup, err := s.PrepareDownload(ctx, contracts.ResourceDownloadRequest{Kind: "managed", ResourceID: b, DownloaderID: a, CleanupAfterImport: true})
+		if err != nil || !cleanup {
+			t.Fatal("real download policy", cleanup, err)
+		}
+		if err = dbutil.CheckPrepared(prepared, s.DB); err != nil {
+			t.Fatal(err)
+		}
+		return true
+	})
 	var successfulChains int
 	if e = s.DB.QueryRow(ctx, `SELECT count(DISTINCT handler) FROM plugin_v2_runs WHERE instance_id=$1 AND kind='chain' AND state='succeeded'`, in.ID).Scan(&successfulChains); e != nil || successfulChains != 2 {
 		t.Fatal("real policy handlers must actually execute", successfulChains, e)
