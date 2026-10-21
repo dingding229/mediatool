@@ -117,3 +117,84 @@ func TestMailboxDeadlineCompletionRaceKeepsReceiptAndFences(t *testing.T) {
 		t.Fatal("revocation fence bypassed", e)
 	}
 }
+
+// Exercise the actual pump with its predecessor still registered. This models
+// overlapping supervisor lifetimes; hint ownership must never veto a DB lease.
+func TestMailboxRestartReplacesOldLaneBeforeDeferredCleanup(t *testing.T) {
+	s, l := activeFixture(t)
+	key := mailboxKey{s.DB, l.ID}
+	old := &mailboxLane{wake: make(chan struct{}, 1), changed: make(chan struct{})}
+	mailboxLanes.Store(key, old)
+	defer mailboxLanes.Delete(key)
+	oldObserver := old.observed()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	var pumpErr error
+	go func() {
+		// There are no queued runs, so no peer is needed. The real claim path and
+		// pump registration/teardown still execute against the isolated database.
+		pumpErr = s.pump(ctx, l, nil, &hostGate{})
+		close(done)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+			if pumpErr != nil && !errors.Is(pumpErr, context.Canceled) {
+				t.Error(pumpErr)
+			}
+		case <-time.After(5 * time.Second):
+			t.Error("replacement pump cleanup timeout")
+		}
+	})
+	deadline := time.NewTimer(5 * time.Second)
+	defer deadline.Stop()
+	var current *mailboxLane
+	for current == nil || current == old {
+		current = s.mailbox(l.ID)
+		if current != nil && current != old {
+			break
+		}
+		select {
+		case <-done:
+			t.Fatalf("new pump rejected predecessor's advisory lane: %v", pumpErr)
+		case <-deadline.C:
+			t.Fatal("new pump did not register replacement lane")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	// Run the predecessor's deferred operations *after* replacement. It must
+	// wake its own observers without deleting or broadcasting on the new lane.
+	currentObserver := current.observed()
+	old.completed()
+	if mailboxLanes.CompareAndDelete(key, old) {
+		t.Fatal("old pump deleted new lane")
+	}
+	if s.mailbox(l.ID) != current {
+		t.Fatal("replacement lane lost")
+	}
+	select {
+	case <-oldObserver:
+	default:
+		t.Fatal("old observers stranded")
+	}
+	select {
+	case <-currentObserver:
+		t.Fatal("old cleanup broadcast on replacement lane")
+	default:
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-deadline.C:
+		t.Fatal("replacement pump did not stop")
+	}
+	if s.mailbox(l.ID) != nil {
+		t.Fatal("replacement pump leaked its lane")
+	}
+	select {
+	case <-currentObserver:
+	default:
+		t.Fatal("replacement observers stranded on exit")
+	}
+}

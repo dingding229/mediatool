@@ -161,9 +161,10 @@ func (s Store) invokeSnapshot(ctx context.Context, snap Snapshot, d contracts.De
 func (s Store) pump(ctx context.Context, l Lease, peer *transport.Peer, gate *hostGate) error {
 	lane := &mailboxLane{wake: make(chan struct{}, 1), changed: make(chan struct{})}
 	key := mailboxKey{s.DB, l.ID}
-	if _, loaded := mailboxLanes.LoadOrStore(key, lane); loaded {
-		return ErrConflict
-	}
+	// This registry carries hints, not lease ownership. A restarting supervisor
+	// may overlap its predecessor's deferred cleanup; SQL generation/grant
+	// fences own execution, and CompareAndDelete protects the replacement.
+	mailboxLanes.Store(key, lane)
 	defer mailboxLanes.CompareAndDelete(key, lane)
 	defer lane.completed()
 	lane.queued()
