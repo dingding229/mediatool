@@ -6,8 +6,12 @@ defineProps<{
   value: Readiness | null;
   loading: boolean;
   error: unknown;
+  canTest?:boolean;
+  testing?:boolean;
+  testLocked?:boolean;
 }>();
 defineEmits<{
+  test: [];
   retry: [
   ];
 }>();
@@ -21,6 +25,7 @@ defineEmits<{
       <h3>{{ service.name }}</h3>
       <StatusBadge :state="value?.components?.[service.key]?.state || 'unavailable'" :label="readinessLabel(value?.components?.[service.key])" />
       <p>{{ readinessReason(value?.components?.[service.key]) }}</p>
+      <el-button v-if="service.key==='open115'&&value?.components?.open115?.state==='check_required'&&canTest" class="readiness-test" :loading="testing" :disabled="testLocked||testing" @click="$emit('test')">立即检测</el-button>
       <RouterLink :to="{ path: '/connections', query: { tab: service.tab } }">
         {{value?.components?.[service.key]?.state==='ready'?'查看':'去处理'}}
         <span class="sr-only">{{ service.name }}</span>
@@ -87,4 +92,6 @@ defineEmits<{
   .readiness-cards a{grid-column:2;grid-row:2;justify-self:end;align-self:center;min-height:44px}
 
 }
+.readiness-test{min-height:44px;margin:0 8px 0 0}
+@media(max-width:600px){.readiness-test{grid-column:1;justify-self:start;grid-row:3}.readiness-cards article:has(.readiness-test) a{grid-row:3}}
 </style>

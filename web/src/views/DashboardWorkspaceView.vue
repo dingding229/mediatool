@@ -6,14 +6,17 @@ import StateView from '../ui/StateView.vue';
 import PluginDashboards from '../plugins/PluginDashboards.vue';
 import ServiceReadiness from '../workflows/ServiceReadiness.vue';
 import { bytes, date, errorText, stateFor } from '../workflows/readiness';
-import { list } from '../dashboard/model';
+import {recentSearches} from '../dashboard/summaries';
+import {useReadinessTest} from '../dashboard/useReadinessTest';
+import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { useDashboard } from '../dashboard/useDashboard';
 const { slots, groups, steps, complete, guideVisible, refresh, load, hideGuide } = useDashboard();
 const inboxLoading=computed(()=>['jobs','candidates','transfers','manual','batches','alerts','plugins'].some(k=>slots[k]?.loading));
 const visibleGroups=computed(()=>groups.value.filter(g=>g.items.length||g.errors.length));
 const busy = computed(() => Object.values(slots).some(s => s.loading)), runtime = computed(() => slots.runtime?.data);
 const counters = [{ key: 'sites', label: '站点', path: '/sites?tab=accounts' }, { key: 'subscriptions', label: '订阅', path: '/subscriptions' }, { key: 'downloads', label: '下载', path: '/downloads' }, { key: 'media', label: '媒体文件', path: '/library' }, { key: 'todaySearches', label: '今日搜索', path: '/search' }];
-const recent = computed(() => list(slots.recent?.data).slice(0, 5));
+const recent = computed(() => recentSearches(slots.recent?.data));
+const probe=useReadinessTest(()=>slots.accounts?.error?null:slots.accounts?.data,()=>Promise.all([load('accounts'),load('readiness')]));
 usePageRefresh(refresh,'*');
 </script>
 <template>
@@ -23,7 +26,9 @@ usePageRefresh(refresh,'*');
 
       </template>
     </PageHeader>
-    <ServiceReadiness :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" @retry="load('readiness')" />
+    <ServiceReadiness :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" :can-test="probe.available.value" :testing="probe.busy.value" :test-locked="!!probe.phase.value" @test="probe.start" @retry="load('readiness')" />
+    <AsyncResultBanner v-if="probe.phase.value" :status="probe.phase.value" :message="probe.message.value" @refresh="probe.reconcile"/>
+    <p v-else-if="probe.message.value" role="status">{{probe.message.value}}</p>
     <section class="dashboard-inbox u2-surface" aria-label="待处理收件箱">
       <header v-if="visibleGroups.length"><h2>待处理</h2></header>
       <StateView v-if="!visibleGroups.length&&inboxLoading" state="loading" title="正在读取待处理事项…"/>
@@ -35,16 +40,17 @@ usePageRefresh(refresh,'*');
           <template v-else>
             <StateView v-for="source in group.errors" :key="source" :state="stateFor(slots[source]?.error)" title="这一组部分数据暂不可用，数量未知。" :description="errorText(slots[source]?.error)" @retry="load(source)"/>
             <div v-for="item in group.items.slice(0,5)" :key="item.id" class="inbox-item">
-              <RouterLink :to="{path:item.path,query:item.query}">
-                {{ item.title }}
-                <small v-if="item.note">{{ item.note }}</small>
-              </RouterLink>
+              <strong>{{item.title}}</strong>
+              <small v-if="item.note">{{item.note}}</small>
+              <small v-if="item.count">近期记录 {{item.count}} 次 · 最近 {{date(item.latestAt)}}</small>
+              <RouterLink :to="{path:item.path,query:item.query}">去处理<span class="sr-only">{{item.title}}</span></RouterLink>
               <small v-if="item.alert">请在运维页确认；确认告警不等于问题已解决。</small>
             </div>
 
           </template>
         </article>
       </div>
+      <small v-if="slots.jobs?.data?.total>100">失败次数按最近 100 条任务记录统计，更多记录请在运维页查看。</small>
     </section>
     <section v-if="guideVisible" class="setup-guide u2-surface" aria-label="首次使用引导">
       <header>
@@ -59,7 +65,7 @@ usePageRefresh(refresh,'*');
           <span>{{ step.done?'✓':index+1 }}</span>
           <div>
             <strong>{{ step.label }}</strong>
-            <small>{{ step.done?'已完成':'待完成或尚未取得有效数据' }}</small>
+            <small>{{ step.note||(step.done?'已完成':'待完成或尚未取得有效数据') }}</small>
             <RouterLink :to="{path:step.path,query:{tab:step.tab}}">{{ step.done?'查看配置':'去配置' }}</RouterLink>
           </div>
         </li>
@@ -98,7 +104,7 @@ usePageRefresh(refresh,'*');
         </div>
       </dl>
     </section>
-    <section class="u2-surface dashboard-searches">
+    <section class="u2-surface dashboard-searches" aria-label="最近搜索">
       <header>
         <h2>最近搜索</h2>
         <RouterLink to="/search?tab=history">查看搜索记录</RouterLink>
@@ -159,7 +165,7 @@ header>span,small,.setup-guide p,.dashboard-empty {
   overflow-wrap:anywhere
 }
 .inbox-item a {
-  display:block;
+  display:inline-flex;
   min-height:44px;
   color:var(--mt-color-primary)
 }
@@ -292,4 +298,5 @@ header>span,small,.setup-guide p,.dashboard-empty {
     gap:16px
   }
 }
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 </style>

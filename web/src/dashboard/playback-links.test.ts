@@ -1,3 +1,3 @@
-import {expect,it} from 'vitest'
-import {failedJobTarget} from './model'
-it('routes only actual native worker kinds to preprocessing, and keeps the exact queue record link',()=>{expect(failedJobTarget({id:'job',kind:'native.probe'})).toEqual({path:'/playback',query:{tab:'processing',kind:'probe',jobId:'job'}});expect(failedJobTarget({id:'still-job',kind:'native.still'}).query.kind).toBe('still');expect(failedJobTarget({id:'other',kind:'other'})).toEqual({path:'/ops',query:{tab:'jobs',q:'other'}})})
+import {it,expect} from 'vitest';
+import {failedJobTarget} from './model';
+it('failure inbox links sites to their account and other jobs to the exact queue record',()=>{expect(failedJobTarget({id:'job',kind:'native.probe'})).toEqual({path:'/ops',query:{tab:'jobs',q:'job'}});expect(failedJobTarget({id:'site-job',kind:'site.metrics.refresh',payload:{accountId:'owned'}})).toEqual({path:'/sites',query:{tab:'accounts',accountId:'owned'}});expect(failedJobTarget({id:'missing',kind:'site.metrics.refresh'}).query.q).toBe('missing')});

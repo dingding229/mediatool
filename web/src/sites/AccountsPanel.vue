@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
+import {useRoute} from 'vue-router';
 import { request, post } from '../api/client';
 import { useResource } from '../workflows/useResource';
 import { useOperation } from '../workflows/useOperation';
@@ -13,8 +14,9 @@ import SchedulePanel from './SchedulePanel.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import { bytes, date, errorText } from '../workflows/readiness';
 import { publicAccount, numberText, addSamples, chartPoints } from './accountModel';
+const route=useRoute();
 const accounts = reactive(useResource<any>(() => request<any[]>('/integrations').then(rows => rows.filter(r => r.kind === 'ptsite').map(publicAccount)), [])), connections = accounts, metrics = reactive(useResource<any>(() => request('/sites/metrics'), [])), op = reactive(useOperation('site-actions')), query = ref(''), editor = ref<InstanceType<typeof AccountEditor>>(), detailId = ref(''), detailOpen = ref(false), schedule = ref<InstanceType<typeof SchedulePanel>>(), confirm = ref(false), action = ref<any>(null), notice = ref(''), samples = reactive<Record<string, any[]>>({});
-const rows = computed(() => accounts.data.map((a: any) => ({ ...a, connection: connections.data.find((r: any) => r.id === a.id), metric: metrics.data.find((m: any) => m.accountId === a.id) }))), shown = computed(() => rows.value.filter((r: any) => r.name.toLowerCase().includes(query.value.toLowerCase()))), detail = computed(() => rows.value.find((r: any) => r.id === detailId.value)), series = computed(() => samples[detailId.value] || []);
+const rows = computed(() => accounts.data.map((a: any) => ({ ...a, connection: connections.data.find((r: any) => r.id === a.id), metric: metrics.data.find((m: any) => m.accountId === a.id) }))), shown = computed(() => rows.value.filter((r: any) => (!route.query.accountId||r.id===route.query.accountId)&&r.name.toLowerCase().includes(query.value.toLowerCase()))), detail = computed(() => rows.value.find((r: any) => r.id === detailId.value)), series = computed(() => samples[detailId.value] || []);
 const siteState = (s: string) => ({ ready: '检测通过', partial: '部分数据', unchecked: '尚未检测', failed: '失败', running: '采集中', succeeded: '已采集', not_synced: '尚未采集', skipped: '已跳过', unavailable: '暂不可用' } as Record<string, string>)[s] || '状态待核对';
 function total(key: string) {
   const valid = metrics.data.filter((r: any) => r.enabled && typeof r.metrics?.[key] === 'number' && Number.isFinite(r.metrics[key]));
@@ -116,6 +118,7 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
           <small>已读取 {{ total('downloaded').count }} 个启用站点的快照</small>
         </div>
       </div>
+      <RouterLink v-if="route.query.accountId" :to="{path:'/sites',query:{...route.query,accountId:undefined,tab:'accounts'}}">查看全部站点</RouterLink>
       <label class="u5-field">
         按名称筛选
         <input v-model="query" aria-label="筛选站点账号"/>
