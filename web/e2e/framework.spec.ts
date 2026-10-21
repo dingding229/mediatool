@@ -1592,7 +1592,7 @@ test('R-F3 HTTP clicks install, enable, execute and disable the real same-binary
   await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click();expect((await execution).status()).toBe(202)
   await expect.poll(async()=>((await (await page.request.get(`/api/v1/plugins/${id}/runs?page=1&pageSize=50`,{timeout:5000})).json()).data as any[]).some(r=>r.state==='succeeded'),{timeout:20000}).toBe(true)
   await page.getByRole('button',{name:'实例数据',exact:true}).click()
-  await card.getByRole('button',{name:'查看 KV',exact:true}).click();await expect(page.getByRole('dialog',{name:'实例 KV 数据',exact:true})).toContainText('value')
+  await card.getByRole('button',{name:'查看 KV',exact:true}).click();await expect(page.getByRole('dialog',{name:'实例 KV 数据',exact:true})).toContainText('starts')
   await page.getByRole('dialog',{name:'实例 KV 数据',exact:true}).getByRole('button',{name:'关闭',exact:true}).click({timeout:5000})
   await card.getByRole('button',{name:'停用插件',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click();await expect(card).toContainText('已停用')
   expect(errors).toEqual([]);completed=true
