@@ -5,16 +5,33 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5"
 	deferutil "media-tool/internal/platform/cleanup"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type SessionMetadata struct{ IP, UserAgent string }
 
 func sessionMetadata(values []SessionMetadata) SessionMetadata {
 	if len(values) > 0 {
-		return values[0]
+		v := values[0]
+		v.UserAgent = boundedUserAgent(v.UserAgent)
+		return v
 	}
 	return SessionMetadata{}
+}
+
+// Bound bytes without splitting a UTF-8 rune, including on initial login.
+func boundedUserAgent(s string) string {
+	s = strings.ToValidUTF8(s, "�")
+	if len(s) <= 512 {
+		return s
+	}
+	s = s[:512]
+	for !utf8.ValidString(s) {
+		s = s[:len(s)-1]
+	}
+	return s
 }
 
 type SessionInfo struct {
@@ -35,9 +52,10 @@ type SessionPage struct {
 }
 
 // Touch only a still-valid session; authentication itself always reads PG, never
-// an authority cache. Record raw UA/IP, never cookies, hashes or login bodies.
+// an authority cache. Record raw UA/IP, bounded UA/IP, never cookies, hashes or login bodies.
 func (r Repository) TouchSession(ctx context.Context, digest []byte, metadata SessionMetadata) error {
-	_, err := r.DB.Exec(ctx, `UPDATE administrator_sessions s SET last_active_at=clock_timestamp(),ip=$2,user_agent=$3 FROM administrator_accounts a WHERE s.token_digest=$1 AND s.account_id=a.id AND s.credential_version=a.credential_version AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()`, digest, metadata.IP, metadata.UserAgent)
+	metadata.UserAgent = boundedUserAgent(metadata.UserAgent)
+	_, err := r.DB.Exec(ctx, `UPDATE administrator_sessions s SET last_active_at=clock_timestamp(),ip=$2,user_agent=$3 FROM administrator_accounts a WHERE s.token_digest=$1 AND s.account_id=a.id AND s.credential_version=a.credential_version AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND (s.last_active_at < clock_timestamp()-interval '60 seconds' OR s.ip<>$2 OR s.user_agent<>$3)`, digest, metadata.IP, metadata.UserAgent)
 	return err
 }
 func (r Repository) Sessions(ctx context.Context, digest []byte, page int) (SessionPage, error) {

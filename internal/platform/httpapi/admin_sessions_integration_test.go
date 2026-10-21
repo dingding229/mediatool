@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/auth"
@@ -67,6 +68,49 @@ func TestAdminSessionEnumerationAndSingleRevoke(t *testing.T) {
 			t.Fatal("secret leaked", secret)
 		}
 	}
+	// xmin changes for every actual row update, not for an UPDATE matching no rows.
+	sum := sha256.Sum256([]byte(accountToken))
+	version := func() string {
+		t.Helper()
+		var v string
+		if e := s.DB.QueryRow(ctx, `SELECT xmin::text FROM administrator_sessions WHERE token_digest=$1`, sum[:]).Scan(&v); e != nil {
+			t.Fatal(e)
+		}
+		return v
+	}
+	before := version()
+	for range 5 {
+		if v := call("GET", "/api/v1/auth/session", "", accountToken); v.Code != 200 {
+			t.Fatal(v.Code)
+		}
+	}
+	if after := version(); after != before {
+		t.Fatalf("activity wrote within one minute: %s -> %s", before, after)
+	}
+	if _, err = s.DB.Exec(ctx, `UPDATE administrator_sessions SET last_active_at=now()-interval '61 seconds' WHERE token_digest=$1`, sum[:]); err != nil {
+		t.Fatal(err)
+	}
+	before = version()
+	if v := call("GET", "/api/v1/auth/session", "", accountToken); v.Code != 200 || version() == before {
+		t.Fatal("due touch not written")
+	}
+	// Read authorization remains successful when only the activity UPDATE fails.
+	if _, err = s.DB.Exec(ctx, `CREATE FUNCTION pg_temp.reject_touch() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'touch unavailable'; END $$; CREATE TRIGGER b3_reject_touch BEFORE UPDATE ON administrator_sessions FOR EACH ROW EXECUTE FUNCTION pg_temp.reject_touch()`); err != nil {
+		t.Fatal(err)
+	}
+	// Changed IP forces the UPDATE branch without waiting.
+	r := httptest.NewRequest("GET", "/api/v1/auth/session", nil)
+	r.RemoteAddr = "192.0.2.88:1234"
+	r.AddCookie(&http.Cookie{Name: auth.CookieName, Value: accountToken})
+	wr := httptest.NewRecorder()
+	h.ServeHTTP(wr, r)
+	if _, err = s.DB.Exec(ctx, `DROP TRIGGER b3_reject_touch ON administrator_sessions`); err != nil {
+		t.Fatal(err)
+	}
+	if wr.Code != 200 {
+		t.Fatal("touch failure denied valid auth", wr.Code, wr.Body.String())
+	}
+
 	path := "/api/v1/auth/sessions/" + other + "/revoke"
 	if w = call("POST", path, `{"confirm":false}`, accountToken); w.Code != 400 {
 		t.Fatal("missing confirmation")

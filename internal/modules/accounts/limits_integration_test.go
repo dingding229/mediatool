@@ -34,7 +34,7 @@ func TestAuthenticationLimitCleanupIsIndexedAndBounded(t *testing.T) {
 	if err = db.QueryRow(ctx, `SELECT count(*) FROM administrator_auth_limits WHERE window_start<now()-interval '1 day'`).Scan(&stale); err != nil || stale != 44 {
 		t.Fatal("cleanup was not limited to 256 rows", stale, err)
 	}
-	if err = db.QueryRow(ctx, `SELECT count(*) FROM pg_indexes WHERE indexname='administrator_auth_limits_window'`).Scan(&indexes); err != nil || indexes != 1 {
+	if err = db.QueryRow(ctx, `SELECT count(*) FROM pg_indexes WHERE schemaname=current_schema() AND indexname='administrator_auth_limits_window'`).Scan(&indexes); err != nil || indexes != 1 {
 		t.Fatal("cleanup index missing", indexes, err)
 	}
 }

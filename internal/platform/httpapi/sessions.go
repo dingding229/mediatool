@@ -27,8 +27,8 @@ func (a *API) sessionAccount(r *http.Request) (accounts.Account, error) {
 	}
 	account, err := reader.Session(ctx, digest[:])
 	if err == nil && a.Deps.AuthSessions == nil {
-		if err = a.accountRepository().TouchSession(ctx, digest[:], adminSessionMetadata(r)); err != nil {
-			return accounts.Account{}, accounts.ErrUnavailable
+		if touchErr := a.accountRepository().TouchSession(ctx, digest[:], adminSessionMetadata(r)); touchErr != nil {
+			a.Deps.Logger.Warn("administrator session activity update failed", "error", touchErr)
 		}
 	}
 	return account, err
