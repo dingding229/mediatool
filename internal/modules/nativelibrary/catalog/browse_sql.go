@@ -76,7 +76,8 @@ const browseColumns = `kind,internal_key AS key,tmdb_id AS tmdb,s,e,created,libr
 
 var browseSorts = map[string]string{
 	"Name": "lower(name) COLLATE \"C\"", "SortName": "lower(CASE WHEN kind IN('season','episode') THEN name ELSE coalesce(nullif(meta->>'sortName',''),name) END) COLLATE \"C\"",
-	"DateCreated": "created", "DatePlayed": "user_last_played", "PremiereDate": "NULLIF(premiere,'')", "ProductionYear": "CASE WHEN item_year~'^[0-9]{4}$' THEN item_year::int END",
+	"DateLastContentAdded": "latest_created",
+	"DateCreated":          "created", "DatePlayed": "user_last_played", "PremiereDate": "NULLIF(premiere,'')", "ProductionYear": "CASE WHEN item_year~'^[0-9]{4}$' THEN item_year::int END",
 	"CommunityRating": "CASE WHEN jsonb_typeof(meta->'communityRating')='number' THEN (meta->>'communityRating')::numeric END",
 	"IndexNumber":     "CASE WHEN kind='season' THEN s ELSE e END", "ParentIndexNumber": "s", "IsFolder": "kind NOT IN('movie','episode')",
 	"OfficialRating": "rating", "PlayCount": "user_count", "Runtime": "(0)",

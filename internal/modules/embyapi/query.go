@@ -40,8 +40,11 @@ func ParseQuery(v Values) (Query, error) {
 		}
 		q.Limit = int(n)
 	}
-	sorts := strings.Fields("Name SortName DateCreated PremiereDate ProductionYear CommunityRating Random DatePlayed PlayCount Runtime IndexNumber ParentIndexNumber IsFolder OfficialRating")
-	types := strings.Fields("Movie Series Season Episode CollectionFolder Folder")
+	sorts := strings.Fields("Name SortName DateCreated DateLastContentAdded PremiereDate ProductionYear CommunityRating Random DatePlayed PlayCount Runtime IndexNumber ParentIndexNumber IsFolder OfficialRating")
+	// Standard Emby type filters can include kinds this catalog does not store.
+	// Preserve them as filters (zero matches), never reject the whole union or
+	// drop them and accidentally turn an unsupported-only query into all items.
+	types := strings.Fields("Movie Series Season Episode CollectionFolder Folder Video MusicVideo MusicAlbum")
 	fields := strings.Fields("Overview Genres People ProviderIds MediaSources MediaStreams PrimaryImageAspectRatio DateCreated PremiereDate ProductionYear OriginalTitle SortName CommunityRating OfficialRating UserData ChildCount RecursiveItemCount ParentId SeriesName SeriesId SeasonId Container RunTimeTicks Taglines Studios")
 	for _, spec := range []struct {
 		key     string

@@ -435,7 +435,7 @@ func validateBrowseQuery(q *nativelibrary.ItemQuery) error {
 		return nativelibrary.ErrInvalidQuery
 	}
 	for _, k := range append(slices.Clone(q.IncludeItemTypes), q.ExcludeItemTypes...) {
-		if !slices.Contains([]string{"movie", "series", "season", "episode", "library"}, itemKind(k)) {
+		if !slices.Contains([]string{"movie", "series", "season", "episode", "library", "video", "musicvideo", "musicalbum"}, itemKind(k)) {
 			return nativelibrary.ErrInvalidQuery
 		}
 	}

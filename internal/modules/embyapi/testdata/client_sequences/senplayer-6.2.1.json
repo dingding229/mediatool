@@ -1,0 +1,20 @@
+{
+  "userAgent": "SenPlayer/6.2.1",
+  "evidence": "Historical owner-device requests in private production app logs, 2026-10-13 through 2026-10-16; IDs replaced by synthetic placeholders. Not a capture of the unlogged 2026-10-22 native incident.",
+  "steps": [
+    {"name":"views","path":"/emby/Users/{user}/Views?IncludeExternalContent=false","type":"CollectionFolder","shape":"query","source":"observed"},
+    {"name":"recent-tv","path":"/emby/Users/{user}/Items?EnableImageTypes=Primary,Backdrop,Thumb,Logo&Fields=BasicSyncInfo,Overview,CollectionType,PrimaryImageAspectRatio,UserData,CommunityRating,ProviderIds,Genres,ProductionYear,ChildCount,Container,OfficialRating,CanDelete&IncludeItemTypes=Series,Movie,Video,MusicVideo,MusicAlbum&Limit=30&ParentId={tvLibrary}&Recursive=true&SortBy=DateLastContentAdded,DateCreated,SortName&SortOrder=Descending&StartIndex=0","type":"Series","shape":"query","source":"observed"},
+    {"name":"movies","path":"/emby/Users/{user}/Items?EnableImageTypes=Primary,Backdrop,Thumb&Fields=BasicSyncInfo,CommunityRating,CanDelete,ProviderIds,ProductionYear,EndDate,PrimaryImageAspectRatio,Container&GroupItemsIntoCollections=true&IncludeItemTypes=Movie,Video&Limit=30&ParentId={movieLibrary}&Recursive=true&SortBy=DateCreated,SortName&SortOrder=Ascending&StartIndex=0","type":"Movie","shape":"query","source":"observed"},
+    {"name":"recent-movies","path":"/emby/Users/{user}/Items?EnableImageTypes=Primary,Backdrop,Thumb,Logo&Fields=BasicSyncInfo,Overview,CollectionType,PrimaryImageAspectRatio,UserData,CommunityRating,ProviderIds,Genres,ProductionYear,ChildCount,Container,OfficialRating,CanDelete&IncludeItemTypes=Series,Movie,Video,MusicVideo,MusicAlbum&Limit=30&ParentId={movieLibrary}&Recursive=true&SortBy=DateLastContentAdded,DateCreated,SortName&SortOrder=Descending&StartIndex=0","type":"Movie","shape":"query","source":"observed"},
+    {"name":"movie-detail","path":"/emby/Users/{user}/Items/{movie}","type":"Movie","shape":"detail","source":"observed"},
+    {"name":"series-detail","path":"/emby/Users/{user}/Items/{series}","type":"Series","shape":"detail","source":"observed"},
+    {"name":"seasons","path":"/emby/Shows/{series}/Seasons?Fields=BasicSyncInfo,CommunityRating,ProductionYear,EndDate,Container&UserId={user}","type":"Season","shape":"query","source":"observed"},
+    {"name":"nextup","path":"/emby/Shows/NextUp?Limit=1&SeriesId={series}&UserId={user}","type":"Episode","shape":"query","allowEmpty":true,"source":"observed"},
+    {"name":"episodes","path":"/emby/Shows/{series}/Episodes?EnableImageTypes=Primary,Backdrop,Thumb&Fields=BasicSyncInfo,RunTimeTicks,CommunityRating,ProviderIds,ProductionYear,EndDate,Container,Overview,UserData,MediaSources,People,CanDownload,DateCreated,MediaStreams,Path,ParentId,Studios,AlternateMediaSources&SeasonId={season}&UserId={user}","type":"Episode","shape":"query","source":"observed"},
+    {"name":"folders","path":"/Library/MediaFolders?UserId={user}","type":"CollectionFolder","shape":"query","source":"supplemental"},
+    {"name":"latest-movies","path":"/Items/Latest?UserId={user}&ParentId={movieLibrary}&Limit=20","type":"Movie","shape":"array","source":"supplemental"},
+    {"name":"latest-tv","path":"/Items/Latest?UserId={user}&ParentId={tvLibrary}&Limit=20","type":"Series","shape":"array","source":"supplemental"},
+    {"name":"series-items","path":"/Users/{user}/Items?ParentId={series}&IncludeItemTypes=Season&Fields=ChildCount&StartIndex=0&Limit=30","type":"Season","shape":"query","source":"supplemental"},
+    {"name":"season-items","path":"/Users/{user}/Items?ParentId={season}&IncludeItemTypes=Episode&Fields=ParentId,UserData&StartIndex=0&Limit=30","type":"Episode","shape":"query","source":"supplemental"}
+  ]
+}

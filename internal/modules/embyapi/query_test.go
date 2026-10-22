@@ -87,3 +87,26 @@ func TestQueryPaginationAndAllBounds(t *testing.T) {
 		t.Fatal("canonical fields/orders", q, err)
 	}
 }
+
+// Request parameters observed in real SenPlayer 6.2.1/6.2.3 browsing logs.
+// This is protocol compatibility, not a User-Agent exception.
+func TestQueryStandardMixedTypesAndLastContentAdded(t *testing.T) {
+	for _, raw := range []string{
+		"IncludeItemTypes=Series,Movie,Video,MusicVideo,MusicAlbum&SortBy=DateLastContentAdded,DateCreated,SortName&SortOrder=Descending&Recursive=true&StartIndex=0&Limit=30",
+		"includeitemtypes=series,movie,video,musicvideo,musicalbum&sortby=datelastcontentadded,datecreated,sortname&sortorder=descending&recursive=TRUE&startindex=0&limit=30&enableUserData=false",
+	} {
+		q, err := ParseQuery(values(t, raw))
+		if err != nil {
+			t.Fatal(raw, err)
+		}
+		if strings.Join(q.IncludeItemTypes, ",") != "Series,Movie,Video,MusicVideo,MusicAlbum" || strings.Join(q.SortBy, ",") != "DateLastContentAdded,DateCreated,SortName" {
+			t.Fatalf("lost filter/sort semantics: %+v", q)
+		}
+	}
+	for _, kind := range []string{"Video", "MusicVideo", "MusicAlbum"} {
+		q, err := ParseQuery(values(t, "IncludeItemTypes="+kind+"&ExcludeItemTypes="+kind))
+		if err != nil || len(q.IncludeItemTypes) != 1 || q.IncludeItemTypes[0] != kind || len(q.ExcludeItemTypes) != 1 || q.ExcludeItemTypes[0] != kind {
+			t.Fatalf("standard type %s: %+v %v", kind, q, err)
+		}
+	}
+}

@@ -34,3 +34,17 @@ func TestBrowseRejectsUnboundedAndUnsafeInputBeforeDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestStandardUnstoredTypesRemainBoundFilters(t *testing.T) {
+	q := nativelibrary.ItemQuery{IncludeItemTypes: []string{"Movie", "Video", "MusicVideo", "MusicAlbum"}, ExcludeItemTypes: []string{"Video"}, SortBy: []string{"DateLastContentAdded", "DateCreated", "SortName"}, SortOrder: []string{"Descending"}}
+	if err := validateBrowseQuery(&q); err != nil {
+		t.Fatal(err)
+	}
+	where, args := conditions(q, browseScope{})
+	if !strings.Contains(where, "kind=ANY($6::text[])") || !strings.Contains(where, "NOT(kind=ANY($7::text[]))") || strings.Join(args[5].([]string), ",") != "movie,video,musicvideo,musicalbum" {
+		t.Fatalf("filter dropped or expanded: %s %+v", where, args)
+	}
+	if browseSorts["DateLastContentAdded"] != "latest_created" {
+		t.Fatal("last-content-added must use the newest physical member, not the original creation date")
+	}
+}
