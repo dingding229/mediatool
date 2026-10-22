@@ -59,3 +59,13 @@ for(const count of [1,10])test(`F3 review ${count} site accounts keep density, v
 for(const [environment,label]of [['development','开发环境'],['production','生产环境'],[undefined,'环境未知']]as const)test(`F3 review environment badge reports ${label} without treating unknown as development`,async({page})=>{
  await u6OpsFixture(page);await page.route('**/api/v1/system/status',r=>r.fulfill({json:{data:{version:'UI mock',environment,dependencies:[]}}}));await page.goto('/ops?tab=jobs');await expect(page.locator('.workbench-environment')).toHaveText(label);await expect(page.locator('.workbench-version')).toContainText('UI mock');
 })
+
+for(const width of [1440,390])test(`F3 review delayed multi-worker health keeps task list stationary at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:1000});await u6OpsFixture(page)
+ let release!:()=>void;const gate=new Promise<void>(r=>release=r)
+ await page.route('**/api/v1/system/operations',async r=>{await gate;await r.fulfill({json:{data:{postgres:{state:'ready',latencyMs:2},redis:{state:'ready'},databaseBytes:8388608,workers:Array.from({length:11},(_,i)=>({owner:'owned-worker-'+i,queue:'default',online:i<8,lastSeenAt:'2026-10-22T00:00:00Z'})),queues:[],schedules:[]}}})})
+ await page.goto('/ops?tab=jobs');await expect(page.locator('.f4-runtime-grid')).toBeVisible();await expect(page.locator('.f3-queue-list')).toBeVisible()
+ const before=await page.locator('.f3-queue-list').boundingBox();release();await expect(page.locator('.f4-runtime-card').nth(2)).toContainText('8.00 MiB')
+ const after=await page.locator('.f3-queue-list').boundingBox();expect(after!.y).toBeCloseTo(before!.y,1)
+ await expect(page.locator('.f4-runtime-card')).toHaveCount(4)
+})

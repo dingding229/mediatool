@@ -6,7 +6,7 @@ import TaskControl from '../workflows/TaskControl.vue';
 import {scheduleLabel} from '../presentation/labels';
 import { pageResult } from './model';
 import { formatBytes as bytes } from './model';
-import { onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { request, post } from '../api/client';
 import { useResource } from '../workflows/useResource';
@@ -20,6 +20,7 @@ import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 const route = useRoute();
 const filter = reactive({ state: '', kind: '', queue: '', q: typeof route.query.q === 'string' ? route.query.q : '', page: 1, pageSize: 25 }), jobs = reactive(useResource<any>(() => request('/jobs/browse?' + new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])))).then(pageResult))), health = reactive(useResource<any>(() => request('/system/operations'))), op = reactive(useOperation('system-check')), detail = ref<any>(null), open = ref(false), confirm = ref(false), copied = ref(''), copyText = ref('');
+const workers=computed<any[]>(()=>Array.isArray(health.data?.workers)?health.data.workers:[]), onlineWorkers=computed(()=>workers.value.filter(w=>w.online).length);
 async function load() {
   await Promise.all([jobs.load(), health.load()]);
   await settle();
@@ -99,20 +100,23 @@ defineExpose({ load, create, filter, jobs, health, op });
         <el-button :disabled="!!op.pending" @click="confirm=true">运行系统检查</el-button>
       </header>
       <div class="f3-health">
-      <ResourceState :stale="health.loaded" :loading="health.loading" :error="health.error" @reload="load"/>
+      <div class="f4-runtime-state"><ResourceState v-if="health.error" :stale="health.loaded" :error="health.error" @reload="load"/><small v-else-if="health.loading||health.refreshing" role="status">正在读取运行状态…</small></div>
       <div class="f4-runtime-grid">
         <article class="f4-runtime-card"><h3>数据库</h3><strong>{{ health.data?.postgres?.state==='ready'?'可用':health.data?.postgres?.state?'不可用':'—' }}</strong><small>{{ health.data?.postgres?.latencyMs??'—' }} ms</small></article>
         <article class="f4-runtime-card"><h3>缓存服务</h3><strong>{{ health.data?.redis?.state==='ready'?'可用':health.data?.redis?.state?'不可用':'—' }}</strong></article>
         <article class="f4-runtime-card"><h3>数据库体积</h3><strong>{{ bytes(health.data?.databaseBytes) }}</strong></article>
-        <article v-for="w in health.data?.workers||[]" :key="w.owner+':'+w.queue" class="f4-runtime-card">
-          <h3>{{ w.queue==='default'?'后台任务服务':queueLabel(w.queue)+'服务' }}</h3>
-          <p>{{ w.online?'在线':'离线' }} · {{ date(w.lastSeenAt) }}</p>
-          <el-button @click="detail=w;open=true">执行器详情</el-button>
+        <article class="f4-runtime-card">
+          <h3>后台任务服务</h3><strong>{{ health.data?.workers ? `${onlineWorkers} / ${workers.length}` : '—' }}</strong>
+          <small>{{ !health.data?.workers?'正在读取执行器状态':workers.length?`在线 / 总数 · 离线 ${workers.length-onlineWorkers}`:'尚未收到执行器状态' }}</small>
+          <el-button :disabled="!health.data" @click="detail={workers:health.data?.workers||[]};open=true">执行器详情</el-button>
         </article>
       </div>
-      <p v-if="!health.loading&&!health.error&&health.data&&!health.data.workers?.length">尚未收到后台任务服务的状态。</p>
       <details>
         <summary>查看运行计划与连接状态</summary>
+        <article v-for="w in workers" :key="w.owner+':'+w.queue" class="organize-record">
+          <h3>{{ w.queue==='default'?'后台任务服务':queueLabel(w.queue)+'服务' }}</h3><p>{{ w.online?'在线':'离线' }} · {{ date(w.lastSeenAt) }}</p>
+          <el-button @click="detail=w;open=true">执行器详情</el-button>
+        </article>
       <article v-for="q in health.data?.queues||[]" :key="q.name+q.state" class="organize-record">
         <p>{{ queueLabel(q.name) }} · {{ stateLabel(q.state) }} · {{ q.count??'—' }} 项 · 等待重新分配 {{ q.expiredLeases??'—' }}</p>
       </article>

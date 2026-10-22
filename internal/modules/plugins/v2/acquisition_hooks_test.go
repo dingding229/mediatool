@@ -69,10 +69,13 @@ func readyPolicyReply(s Store, raw json.RawMessage, fail bool, start func(contex
 		}
 		defer conn.Release()
 		var preexisting []string
-		if e = conn.QueryRow(ctx, `SELECT coalesce(array_agg(id::text),ARRAY[]::text[]) FROM plugin_v2_runs WHERE kind='chain' AND state='pending'`).Scan(&preexisting); e != nil {
+		var submittedAfter time.Time
+		if e = conn.QueryRow(ctx, `SELECT clock_timestamp(),coalesce(array_agg(id::text),ARRAY[]::text[]) FROM plugin_v2_runs WHERE kind='chain' AND state='pending'`).Scan(&submittedAfter, &preexisting); e != nil {
 			done <- e
 			return
 		}
+		// Exclude earlier transactions which are not yet visible to this snapshot
+		// but can commit after readiness; IDs alone cannot fence those calls.
 		// Cold AEAD/DB initialization belongs to fake peer setup, not handler latency.
 		if _, e = s.seal("call-result", jobs.UUID(), raw); e != nil {
 			done <- e
@@ -80,7 +83,7 @@ func readyPolicyReply(s Store, raw json.RawMessage, fail bool, start func(contex
 		}
 		for ctx.Err() == nil {
 			var id string
-			e := conn.QueryRow(ctx, `SELECT id::text FROM plugin_v2_runs WHERE kind='chain' AND state='pending' AND deadline_at>clock_timestamp() AND NOT(id::text=ANY($1::text[])) ORDER BY created_at,id LIMIT 1`, preexisting).Scan(&id)
+			e := conn.QueryRow(ctx, `SELECT id::text FROM plugin_v2_runs WHERE kind='chain' AND state='pending' AND deadline_at>clock_timestamp() AND NOT(id::text=ANY($1::text[])) AND created_at>$2::timestamptz ORDER BY created_at,id LIMIT 1`, preexisting, submittedAfter).Scan(&id)
 			announce()
 			if errors.Is(e, pgx.ErrNoRows) {
 				time.Sleep(time.Millisecond)
@@ -356,5 +359,56 @@ func TestPolicyReplyDoesNotConsumePreexistingUnexpiredCall(t *testing.T) {
 	var unexpired bool
 	if e = s.DB.QueryRow(ctx, `SELECT state,deadline_at>clock_timestamp() FROM plugin_v2_runs WHERE id=$1`, stale).Scan(&state, &unexpired); e != nil || state != "pending" || !unexpired {
 		t.Fatal("preexisting invocation consumed a later response", state, unexpired, e)
+	}
+}
+
+// An abandoned invocation can commit after peer readiness: READ COMMITTED's
+// preexisting-ID snapshot cannot see that transaction. Its created_at still
+// predates the peer, so it must not steal a later invocation's scripted reply.
+func TestPolicyReplyDoesNotConsumeEarlierInvocationCommittedAfterReadiness(t *testing.T) {
+	s, l := policyFixture(t)
+	ctx := context.Background()
+	snap, d, e := s.Descriptor(ctx, l.ID, "chain", "resource.selection")
+	if e != nil {
+		t.Fatal(e)
+	}
+	a, b := jobs.UUID(), jobs.UUID()
+	q := contracts.ResourceSelectionRequest{RunID: jobs.UUID(), Candidates: []contracts.ResourceCandidate{{ID: a, AccountID: b}, {ID: b, AccountID: b}}}
+	args, e := json.Marshal(map[string]any{"type": "resource.selection", "schemaVersion": 1, "payload": q})
+	if e != nil {
+		t.Fatal(e)
+	}
+	template, e := s.Submit(ctx, snap, d, args, "prior-commit-template", "", nil, time.Now().Add(time.Minute))
+	if e != nil {
+		t.Fatal(e)
+	}
+	tx, e := s.DB.Begin(ctx)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer rollback(ctx, tx)
+	earlier := jobs.UUID()
+	_, e = tx.Exec(ctx, `INSERT INTO plugin_v2_runs(id,instance_id,snapshot_id,generation,grant_revision,kind,handler,service_id,event_cursor,dedupe_key,request_hash,args_ciphertext,deadline_at)
+ SELECT $1::uuid,instance_id,snapshot_id,generation,grant_revision,kind,handler,service_id,event_cursor,$3::text,request_hash,args_ciphertext,deadline_at FROM plugin_v2_runs WHERE id=$2`, earlier, template, earlier)
+	if e != nil {
+		t.Fatal(e)
+	}
+	done := policyReply(s, json.RawMessage(fmt.Sprintf(`{"ids":[%q]}`, a)), false)
+	if e = tx.Commit(ctx); e != nil {
+		t.Fatal(e)
+	}
+	prepared, selected, e := s.SelectResources(ctx, q)
+	if e != nil || len(selected) != 1 || selected[0] != a {
+		t.Fatal("earlier late commit stole scripted answer", selected, e)
+	}
+	if e = <-done; e != nil {
+		t.Fatal(e)
+	}
+	if e = dbutil.CheckPrepared(prepared, s.DB); e != nil {
+		t.Fatal(e)
+	}
+	var state string
+	if e = s.DB.QueryRow(ctx, `SELECT state FROM plugin_v2_runs WHERE id=$1`, earlier).Scan(&state); e != nil || state != "pending" {
+		t.Fatal("earlier call consumed", state, e)
 	}
 }

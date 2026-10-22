@@ -59,7 +59,8 @@ footer.f3-log-footer{display:flex!important}.f3-log-footer>.media-actions{margin
 @media(max-width:700px){.u5-sites .f3-site-card .u5-stats.f3-site-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.f3-log-footer>.media-actions{margin-inline-start:0!important}.u6-workspace .organize-record.f3-job-row .media-actions{grid-row:auto}}
 .u5-grant .u5-permission-help{grid-column:1 / -1;margin:4px 0;font-size:13px;line-height:1.6;color:var(--mt-text-muted);overflow-wrap:anywhere}
 /* Review: natural pagination, aligned runtime cards and compact shared controls. */
-.f3-health{block-size:auto;overflow:visible;min-block-size:160px}
+.f3-health{position:relative;block-size:auto;overflow:visible;min-block-size:160px}
+.f4-runtime-state{position:absolute;inset:0 8px auto auto;z-index:2;font-size:11px;color:var(--mt-text-muted)}
 .f4-runtime-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-block:18px}
 .f4-runtime-card{min-width:0;border:1px solid var(--mt-border-color);border-radius:8px;padding:12px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .f4-runtime-card h3,.f4-runtime-card p{margin:0;font-size:13px;line-height:1.5}.f4-runtime-card strong{font-size:20px;font-variant-numeric:tabular-nums}.f4-runtime-card small,.f4-runtime-card p{color:var(--mt-text-muted)}
