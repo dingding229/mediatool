@@ -36,6 +36,10 @@ func (a *API) saveApplicationSettings(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "domain_endpoint_required", "请在访问与域名分组保存域名")
 		return
 	}
+	if in.Value.Logging.DebugUntil.After(time.Now().Add(24*time.Hour + time.Minute)) {
+		fail(w, 400, "invalid_log_policy", "Debug 最多开启 24 小时")
+		return
+	}
 	v, err := (settings.Repository{DB: a.Deps.DB}).Save(r.Context(), in.Value, in.Revision)
 	if errors.Is(err, settings.ErrRevision) {
 		fail(w, 409, "settings_changed", "设置已更新，请刷新后重试")
@@ -44,6 +48,9 @@ func (a *API) saveApplicationSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fail(w, 400, "invalid_settings", "模板或缓存有效期无效，请核对变量及范围")
 		return
+	}
+	if a.Deps.Logs != nil {
+		a.Deps.Logs.ApplyPolicy(v.Value.Logging, time.Now())
 	}
 	a.Deps.Logger.Info("application settings updated")
 	write(w, 200, v)
@@ -104,7 +111,7 @@ func (a *API) queryLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	values := r.URL.Query()
-	q := logging.Query{Instance: values.Get("instance"), Keyword: values.Get("keyword"), Level: values.Get("level"), Module: values.Get("module"), Page: 1, PageSize: 100}
+	q := logging.Query{Instance: values.Get("instance"), Keyword: values.Get("keyword"), Level: values.Get("level"), Module: values.Get("module"), Page: 1, PageSize: 200}
 	for key, target := range map[string]*int{"page": &q.Page, "pageSize": &q.PageSize} {
 		if raw := values.Get(key); raw != "" {
 			n, err := strconv.Atoi(raw)
@@ -158,6 +165,8 @@ func (a *API) clearLogs(w http.ResponseWriter, r *http.Request) {
 	a.Deps.Logger.Info("application file logs cleared by administrator")
 	write(w, 200, map[string]bool{"cleared": true, "auditPreserved": true})
 }
+
+// Retained API clients receive a bounded debug session too; no indefinite bypass.
 func (a *API) setLogLevel(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Level string `json:"level"`
@@ -165,9 +174,29 @@ func (a *API) setLogLevel(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	if a.Deps.Logs == nil || a.Deps.Logs.SetLevel(in.Level) != nil {
-		fail(w, 400, "invalid_log_level", "支持 debug/info/warn/error")
+	if in.Level != "info" && in.Level != "debug" {
+		fail(w, 400, "invalid_log_level", "支持 info/debug；Debug 一小时后自动关闭")
 		return
 	}
-	write(w, 200, map[string]string{"level": in.Level, "persistence": "本次运行；默认级别在Compose中修改"})
+	repo := settings.Repository{DB: a.Deps.DB}
+	if a.Deps.DB == nil || a.Deps.Logs == nil {
+		fail(w, 503, "logs_unavailable", "日志设置不可用")
+		return
+	}
+	v, e := repo.Get(r.Context())
+	if e != nil {
+		fail(w, 503, "logs_unavailable", "日志设置不可用")
+		return
+	}
+	v.Value.Logging.DebugUntil = time.Time{}
+	if in.Level == "debug" {
+		v.Value.Logging.DebugUntil = time.Now().Add(time.Hour)
+	}
+	v, e = repo.Save(r.Context(), v.Value, v.Revision)
+	if e != nil {
+		fail(w, 409, "settings_changed", "设置已更新，请刷新后重试")
+		return
+	}
+	a.Deps.Logs.ApplyPolicy(v.Value.Logging, time.Now())
+	write(w, 200, v.Value.Logging)
 }

@@ -660,3 +660,5 @@
 | POST | `/api/v1/ops/restores/{id}/reconcile` | management | 前端直接调用 | `web/src/operations/WebRestorePanel.vue:17` |
 
 B4b（schema77）：上述恢复路径不变；preview新增warnings与restore.tableChanges。全部业务表随备份回退；401后以备份账号登录并GET执行记录，不能自动重放execute。
+
+F5b：日志 `/logs/query` 默认 200 条，page/pageSize 与 before 时间快照分页；`/settings/application` 的 logging 保存 1–90 天保留策略和最多 24 小时 Debug 截止时间。文件日志保留 JSONL 实现，不写入日志 SQL 表；每日清理按 1000 条小批执行。

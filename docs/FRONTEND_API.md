@@ -393,3 +393,8 @@ X-Requested-With: media-tool
 - 实例详情的受保护 GET `/plugins/{id}` 只读实例、配置修订和定义标识，不读取或返回 KV。内部受管数据、配置、快照及 SDK 能力保留；不再提供通用实例数据查看器或配置 JSON 编辑器。
 - 已删除原调试面板独占的 `/plugins/{id}/tools`、`/tools/call`、`/auth/status`、`/state-snapshots` 以及 `/plugins/auth/bindings|begin` 管理路由。保留 `/plugins/workflows`，因为插件工作区的独立工作流管理仍在使用；保留共享 `/plugins/{id}/ui/{kind}`，因为已授权的插件页面、仪表盘和 SDK UI 契约仍使用它。
 - 数值控件按完整 min/max/step 范围设置，不以常用值枚举截断合法配置。保存仍使用修订校验、幂等操作与原有权限边界；仅更新表单不扩大执行权限，也不把已启用实例改为停用或待确认。
+
+### 日志保留与限时 Debug（F5b）
+日志仍为私有轮转 JSONL（最多 50 MiB），不是 PostgreSQL 日志表。`/logs/query` 默认每页 200 条；`before` 固定检索快照，后续页复用同一快照，检索窗口最多 20,000 条且通过 `truncated` 明示，不把窗口计数说成全量历史。返回管理员原值和完整 URL。
+
+应用设置 `logging.retentionDays` 为 1–90，默认 7；`logging.debugUntil` 是自动关闭时间，过去/零时间关闭，未来最多 24 小时。每天按 1000 条/批清理文件中的过期记录；后台按秒关闭过期 Debug，不采集登录请求体。一次性恢复密码仍只写启动 stdout。

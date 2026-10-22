@@ -10,6 +10,7 @@ import (
 	"media-tool/internal/modules/releasename"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
+	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/scheduling"
 	"regexp"
 	"strings"
@@ -20,6 +21,7 @@ var ErrInvalid = errors.New("invalid application settings")
 var ErrRevision = errors.New("settings changed; refresh first")
 
 type Value struct {
+	Logging                     logging.Policy        `json:"logging"`
 	Access                      Access                `json:"access"`
 	CleanupAfterImport          bool                  `json:"cleanupAfterImport"`
 	TrustedProxyCIDRs           []string              `json:"trustedProxyCidrs"`
@@ -39,10 +41,13 @@ type Record struct {
 type Repository struct{ DB *pgxpool.Pool }
 
 func Defaults() Value {
-	return Value{Scraping: metadata.DefaultScrapePolicy(), MovieTemplate: "{title} ({year})/{title} ({year}) - {videoFormat}", SeriesTemplate: "{title} ({year})/Season {season}/{title} - {season_episode} - 第{episode}集", SearchCacheSeconds: 900, TMDBCacheSeconds: 86400, SubscriptionIntervalMinutes: 30, SubscriptionCron: "*/30 * * * *"}
+	return Value{Logging: logging.DefaultPolicy(), Scraping: metadata.DefaultScrapePolicy(), MovieTemplate: "{title} ({year})/{title} ({year}) - {videoFormat}", SeriesTemplate: "{title} ({year})/Season {season}/{title} - {season_episode} - 第{episode}集", SearchCacheSeconds: 900, TMDBCacheSeconds: 86400, SubscriptionIntervalMinutes: 30, SubscriptionCron: "*/30 * * * *"}
 }
 
 func Validate(v Value) error {
+	if err := v.Logging.Validate(); err != nil {
+		return err
+	}
 	if err := ValidateAccess(v.Access); err != nil {
 		return err
 	}

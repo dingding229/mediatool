@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	deferutil "media-tool/internal/platform/cleanup"
 	"os"
@@ -84,6 +83,38 @@ func logModule(row map[string]any) string {
 	return "app"
 }
 
+// Only decode full arbitrary fields for the requested page, not every record.
+type queryRecord struct {
+	Raw      json.RawMessage
+	Time     time.Time
+	Level    string
+	Module   string
+	Instance string
+}
+
+func parseQueryRecord(raw []byte) (queryRecord, bool) {
+	var v struct {
+		Time      string
+		Level     string
+		Module    string
+		Component string
+		Provider  string
+		Queue     string
+		Instance  string
+		Msg       any
+		Source    struct{ File string }
+	}
+	if json.Unmarshal(raw, &v) != nil {
+		return queryRecord{}, false
+	}
+	at, err := time.Parse(time.RFC3339Nano, v.Time)
+	if err != nil {
+		return queryRecord{}, false
+	}
+	module := logModule(map[string]any{"module": v.Module, "component": v.Component, "provider": v.Provider, "queue": v.Queue, "msg": v.Msg, "source": map[string]any{"file": v.Source.File}})
+	return queryRecord{append(json.RawMessage(nil), raw...), at, v.Level, module, v.Instance}, true
+}
+
 type queryFile struct {
 	file *os.File
 	size int64
@@ -124,6 +155,9 @@ func (s *Store) queryFiles() ([]queryFile, error) {
 }
 func (s *Store) Query(ctx context.Context, q Query) (QueryResult, error) {
 	out := QueryResult{Items: []map[string]any{}, Modules: []string{}, Page: q.Page, PageSize: q.PageSize, MaxFileBytes: LogQueryFileBytes, MaxRecords: LogQueryMaxRecords}
+	if err := ctx.Err(); err != nil {
+		return out, err
+	}
 	if err := q.Validate(); err != nil {
 		return out, err
 	}
@@ -136,68 +170,131 @@ func (s *Store) Query(ctx context.Context, q Query) (QueryResult, error) {
 		v, _ := ParseLevel(level)
 		level = v.String()
 	}
+	s.queryMu.Lock()
+	defer s.queryMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return out, err
+	}
+	epoch := s.queryEpoch.Load()
+	cached := s.queryCache
+	if cached == nil || !cached.before.Equal(out.Before) || cached.epoch != epoch || time.Since(cached.created) > 2*time.Minute {
+		rows, truncated, err := s.queryWindow(ctx, out.Before)
+		if err != nil {
+			return out, err
+		}
+		cached = &querySnapshot{out.Before, time.Now(), epoch, rows, truncated}
+		s.queryCache = cached
+	}
+	window := cached.window
+	out.Truncated = cached.truncated
+	modules := map[string]bool{}
+	keyword := strings.ToLower(strings.TrimSpace(q.Keyword))
+	start := (q.Page - 1) * q.PageSize
+	for _, row := range window {
+		module := row.Module
+		modules[module] = true
+		if level != "" && !strings.EqualFold(row.Level, level) {
+			continue
+		}
+		if q.Instance != "" && row.Instance != q.Instance {
+			continue
+		}
+		if q.Module != "" && module != q.Module {
+			continue
+		}
+		at := row.Time
+		if (!q.From.IsZero() && at.Before(q.From)) || (!q.To.IsZero() && at.After(q.To)) {
+			continue
+		}
+		if keyword != "" {
+			if !strings.Contains(strings.ToLower(string(row.Raw)), keyword) {
+				continue
+			}
+		}
+		if out.Total >= start && len(out.Items) < q.PageSize {
+			var full map[string]any
+			if err := json.Unmarshal(row.Raw, &full); err != nil {
+				return out, err
+			}
+			full["module"] = module
+			out.Items = append(out.Items, full)
+		}
+		out.Total++
+	}
+	for m := range modules {
+		out.Modules = append(out.Modules, m)
+	}
+	sort.Strings(out.Modules)
+	return out, nil
+}
+
+type querySnapshot struct {
+	before    time.Time
+	created   time.Time
+	epoch     uint64
+	window    []queryRecord
+	truncated bool
+}
+
+func (s *Store) queryWindow(ctx context.Context, before time.Time) ([]queryRecord, bool, error) {
+	truncated := false
 	files, err := s.queryFiles()
 	if err != nil {
-		return out, err
+		return nil, false, err
 	}
 	defer func() {
 		for _, f := range files {
 			deferutil.Close(f.file, "Read/descriptor teardown only; primary operations handle their own I/O result")
 		}
 	}()
-	window := []map[string]any{}
+	window := []queryRecord{}
 	for index, file := range files {
 		if err := ctx.Err(); err != nil {
-			return out, err
+			return nil, false, err
 		}
 		if len(window) >= LogQueryMaxRecords {
 			if index < len(files) {
-				out.Truncated = true
+				truncated = true
 			}
 			break
 		}
 		offset := max(int64(0), file.size-LogQueryFileBytes)
 		if offset > 0 {
-			out.Truncated = true
+			truncated = true
 		}
 		if _, err = file.file.Seek(offset, io.SeekStart); err != nil {
-			return out, err
+			return nil, false, err
 		}
 		scanner := bufio.NewScanner(io.LimitReader(file.file, file.size-offset))
 		scanner.Buffer(make([]byte, 4096), 1<<20)
 		remaining := LogQueryMaxRecords - len(window)
-		records := make([]map[string]any, 0, min(remaining, 256))
+		records := make([]queryRecord, 0, min(remaining, 256))
 		next := 0
 		first := true
 		for scanner.Scan() {
 			if err := ctx.Err(); err != nil {
-				return out, err
+				return nil, false, err
 			}
 			if first && offset > 0 {
 				first = false
 				continue
 			}
 			first = false
-			var row map[string]any
-			if json.Unmarshal(scanner.Bytes(), &row) != nil || row == nil {
+			row, ok := parseQueryRecord(scanner.Bytes())
+			if !ok || row.Time.After(before) {
 				continue
 			}
-			rawTime, _ := row["time"].(string)
-			at, err := time.Parse(time.RFC3339Nano, rawTime)
-			if err != nil || at.After(out.Before) {
-				continue
-			}
-			row["module"] = logModule(row)
+
 			if len(records) < remaining {
 				records = append(records, row)
 			} else {
 				records[next] = row
 				next = (next + 1) % remaining
-				out.Truncated = true
+				truncated = true
 			}
 		}
 		if err := scanner.Err(); err != nil {
-			return out, err
+			return nil, false, err
 		}
 		// Circular buffers retain the newest records, then enumerate newest first.
 		if len(records) == remaining && next > 0 {
@@ -207,40 +304,6 @@ func (s *Store) Query(ctx context.Context, q Query) (QueryResult, error) {
 			window = append(window, records[i])
 		}
 	}
-	modules := map[string]bool{}
-	keyword := strings.ToLower(strings.TrimSpace(q.Keyword))
-	start := (q.Page - 1) * q.PageSize
-	for _, row := range window {
-		module := fmt.Sprint(row["module"])
-		modules[module] = true
-		if level != "" && !strings.EqualFold(fmt.Sprint(row["level"]), level) {
-			continue
-		}
-		if q.Instance != "" && fmt.Sprint(row["instance"]) != q.Instance {
-			continue
-		}
-		if q.Module != "" && module != q.Module {
-			continue
-		}
-		rawTime, _ := row["time"].(string)
-		at, _ := time.Parse(time.RFC3339Nano, rawTime)
-		if (!q.From.IsZero() && at.Before(q.From)) || (!q.To.IsZero() && at.After(q.To)) {
-			continue
-		}
-		if keyword != "" {
-			raw, _ := json.Marshal(row)
-			if !strings.Contains(strings.ToLower(string(raw)), keyword) {
-				continue
-			}
-		}
-		if out.Total >= start && len(out.Items) < q.PageSize {
-			out.Items = append(out.Items, row)
-		}
-		out.Total++
-	}
-	for m := range modules {
-		out.Modules = append(out.Modules, m)
-	}
-	sort.Strings(out.Modules)
-	return out, nil
+	sort.SliceStable(window, func(i, j int) bool { return window[i].Time.After(window[j].Time) })
+	return window, truncated, nil
 }

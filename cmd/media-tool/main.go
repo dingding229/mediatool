@@ -30,6 +30,7 @@ import (
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/modules/plugins/v2/sandbox"
 	"media-tool/internal/modules/search"
+	"media-tool/internal/modules/settings"
 	"media-tool/internal/modules/sitemetrics"
 	"media-tool/internal/modules/sites"
 	"media-tool/internal/modules/storage"
@@ -163,6 +164,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	logStore.ApplyPolicy(logging.DefaultPolicy(), time.Now())
 	slog.SetDefault(logger)
 	logger.Debug("runtime configuration validated", "role", *role)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -174,6 +176,17 @@ func run() error {
 	if db != nil {
 		defer db.Close()
 	}
+	// Join the log policy service before closing its DB/store dependencies.
+	policyCtx, policyCancel := context.WithCancel(ctx)
+	policyDone := make(chan struct{})
+	go func() {
+		defer close(policyDone)
+		logStore.Maintain(policyCtx, func(ctx context.Context) (logging.Policy, error) {
+			v, e := (settings.Repository{DB: db}).Get(ctx)
+			return v.Value.Logging, e
+		}, logger)
+	}()
+	defer func() { policyCancel(); <-policyDone }()
 	rc, err := cache.Open(c.RedisURL)
 	if err != nil {
 		return errors.New("invalid Redis configuration")

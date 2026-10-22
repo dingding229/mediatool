@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {Refresh,Delete,Setting,CopyDocument,Download,DArrowLeft,ArrowLeft,ArrowRight,DArrowRight} from '@element-plus/icons-vue';
+import {useRevision} from '../settings/revision';
+import RevisionFeedback from '../settings/RevisionFeedback.vue';
 import { pageResult } from './model';
 import { formatBytes as bytes } from './model';
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
@@ -27,6 +29,9 @@ const route = useRoute(), filter = reactive({ page: 1, pageSize: 200, level: '',
     q.set('to', new Date(to.value).toISOString());
   return request('/logs/query?' + q).then(pageResult);
 })), summary = reactive(useResource<any>(() => request('/logs/summary')));
+const policy=useRevision<Record<string,any>>('/settings/application'), duration=ref(1), debug=ref(false);
+watch(settings,async value=>{if(value){await policy.load();debug.value=Boolean(policy.draft.value?.logging?.debugUntil&&new Date(policy.draft.value.logging.debugUntil).getTime()>Date.now());}});
+async function savePolicy(){if(!policy.draft.value)return;policy.draft.value.logging.debugUntil=debug.value?new Date(Date.now()+duration.value*3600000).toISOString():'0001-01-01T00:00:00Z';await policy.save(['logging']);await load();}
 async function load() {
   await Promise.all([data.load(), summary.load()]);
   if (data.data && !data.error)
@@ -81,7 +86,7 @@ const timeRange=computed({get:():[string,string]|null=>from.value&&to.value?[fro
 const pageCount=computed(()=>Math.max(1,Math.ceil((data.data?.total||0)/filter.pageSize)));
 function fields(row:any) { return Object.entries(row).filter(([key])=>!['time','level','msg','source','module','traceId','trace_id','trace','spanId','span_id','span'].includes(key)).map(([key,value])=>key+'='+(typeof value==='string'?value:JSON.stringify(value))).join('  '); }
 function trace(row:any) { return [row.traceId||row.trace_id||row.trace, row.spanId||row.span_id||row.span].filter(Boolean).join(' / '); }
-defineExpose({ load, refresh, filter, data, summary, from, to, clear, change, op, copy });
+defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, data, summary, from, to, clear, change, op, copy });
 </script>
 <template>
   <section class="media-surface f3-log-console" aria-label="系统日志控制台">
@@ -107,6 +112,7 @@ defineExpose({ load, refresh, filter, data, summary, from, to, clear, change, op
     </form>
     <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" message="日志设置或清理结果尚未确认，请先读取核对，不重复操作。" @refresh="load"/>
+    <p class="f5-debug-status" role="status">Debug 日志：{{summary.data?.debugActive?'开启，'+formatLogTime(summary.data.policy.debugUntil)+' 自动关闭':'关闭'}} · 保留 {{summary.data?.policy?.retentionDays??7}} 天（同时受文件容量上限限制）</p>
     <div class="f3-log-table" role="table" aria-label="日志记录" :aria-busy="data.loading||data.refreshing">
       <div class="f3-log-row f3-log-head" role="row"><span>时间</span><span>级别</span><span>消息</span><span>来源 file:line</span></div>
       <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="data.loaded&&!data.data?.items.length" empty-title="没有符合筛选条件的日志" @reload="load"/>
@@ -118,7 +124,7 @@ defineExpose({ load, refresh, filter, data, summary, from, to, clear, change, op
       </article>
     </div>
     <footer class="f3-log-footer">
-      <label>每页行数 <el-select v-model="filter.pageSize" aria-label="每页日志数" @change="refresh"><el-option v-for="n in [50,100,200,500]" :key="n" :value="n" :label="String(n)"/></el-select></label>
+      <label>每页行数 <el-select v-model="filter.pageSize" aria-label="每页日志数" @change="refresh"><el-option v-for="n in [50,100,200]" :key="n" :value="n" :label="String(n)"/></el-select></label>
       <span v-if="data.loading&&!data.loaded">读取中，数量未知</span>
       <span v-else-if="data.error&&!data.loaded">读取失败，数量未知</span>
       <span v-else>{{data.data?.total?((filter.page-1)*filter.pageSize+1):0}} – {{Math.min(filter.page*filter.pageSize,data.data?.total||0)}}，共 {{data.data?.total??'—'}} 条</span>
@@ -155,14 +161,14 @@ defineExpose({ load, refresh, filter, data, summary, from, to, clear, change, op
       <label class="u5-check"><input v-model="friendly" type="checkbox" aria-label="友好说明"/>详情中显示友好说明</label>
       <h2>日志大小</h2>
       <p>{{ bytes(summary.data?.totalBytes) }} · 上限 {{ bytes(summary.data?.limitBytes) }}</p>
-      <label class="u5-field">
-        本次运行日志级别
-        <select v-model="logLevel" aria-label="本次运行日志级别">
-          <option v-for="v in ['debug','info','warn','error']" :key="v" :value="v">{{ v.toUpperCase() }}</option>
-        </select>
-      </label>
-      <el-button :disabled="!!op.pending||!!summary.error" @click="change" type="primary" class="mt-save-button">保存运行日志级别</el-button>
-      <p>不回填过去日志；永久默认值在部署配置中设置。</p>
+      <RevisionFeedback :form="policy"/>
+      <template v-if="policy.draft.value?.logging">
+        <label class="u5-field">日志保留天数 <el-input-number v-model="policy.draft.value.logging.retentionDays" :min="1" :max="90" :step="1" aria-label="日志保留天数"/></label>
+        <label class="u5-field">Debug 日志 <ElSwitch v-model="debug" aria-label="Debug 日志"/></label>
+        <label v-if="debug" class="u5-field">自动关闭 <el-select v-model="duration" aria-label="Debug 自动关闭时长"><el-option :value="1" label="1 小时"/><el-option :value="24" label="24 小时"/></el-select></label>
+        <p role="note">Debug 会增加日志量、磁盘与数据库压力，可能降低性能；详细请求原值属于敏感数据，请及时关闭。不采集登录请求体。</p>
+        <el-button :loading="policy.busy.value" :disabled="policy.conflict.value" @click="savePolicy" type="primary">保存日志设置</el-button>
+      </template>
       <article v-for="file in summary.data?.files||[]" :key="file.name" class="organize-record">
         <h3>{{ file.name }}</h3>
         <p>{{ bytes(file.size) }} · {{ formatLogTime(file.modified) }}</p>

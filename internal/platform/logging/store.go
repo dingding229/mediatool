@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -18,12 +19,17 @@ const MaxLogFileBytes int64 = 10 << 20
 const LogArchives = 4
 
 type Store struct {
+	queryMu    sync.Mutex
+	queryCache *querySnapshot
+	queryEpoch atomic.Uint64
+
 	mu     sync.Mutex
 	root   *os.Root
 	file   *os.File
 	size   int64
 	closed bool
 	Level  slog.LevelVar
+	policy Policy
 }
 type FileInfo struct {
 	Name     string    `json:"name"`
@@ -31,10 +37,12 @@ type FileInfo struct {
 	Modified time.Time `json:"modified"`
 }
 type Summary struct {
-	Files      []FileInfo `json:"files"`
-	TotalBytes int64      `json:"totalBytes"`
-	LimitBytes int64      `json:"limitBytes"`
-	Level      string     `json:"level"`
+	Files       []FileInfo `json:"files"`
+	TotalBytes  int64      `json:"totalBytes"`
+	LimitBytes  int64      `json:"limitBytes"`
+	Level       string     `json:"level"`
+	Policy      Policy     `json:"policy"`
+	DebugActive bool       `json:"debugActive"`
 }
 
 func Open(dir, level string) (*Store, error) {
@@ -49,7 +57,7 @@ func Open(dir, level string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Store{root: root}
+	s := &Store{root: root, policy: DefaultPolicy()}
 	v, err := ParseLevel(level)
 	if err != nil {
 		deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
@@ -162,7 +170,7 @@ func (s *Store) Close() error {
 func (s *Store) Stats() (Summary, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := Summary{Files: []FileInfo{}, LimitBytes: MaxLogFileBytes * (LogArchives + 1), Level: strings.ToLower(s.Level.Level().String())}
+	out := Summary{Files: []FileInfo{}, LimitBytes: MaxLogFileBytes * (LogArchives + 1), Level: strings.ToLower(s.Level.Level().String()), Policy: s.policy, DebugActive: s.policy.DebugActive(time.Now())}
 	for _, name := range s.names() {
 		info, err := s.root.Lstat(name)
 		if errors.Is(err, os.ErrNotExist) {
@@ -239,6 +247,7 @@ func (s *Store) Read(level string, limit int) ([]map[string]any, error) {
 	return out, nil
 }
 func (s *Store) Clear() (result error) {
+	s.queryEpoch.Add(1)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
