@@ -28,7 +28,14 @@
   ],
   "DateCreated": "2026-10-16T00:00:00.0000000Z",
   "Genres": [],
-  "People": [],
+  "People": [
+    {
+      "Name": "Lead",
+      "Id": "706572736f6e00000000000000000001",
+      "Type": "Actor",
+      "PrimaryImageTag": "ebd961876f411026659fb6aa39f494707790c9ea8da4d5f19202223197c5d21e"
+    }
+  ],
   "BackdropImageTags": [],
   "ImageTags": {
     "Primary": "0d4f763cbdbdf411b3d9af721e17b7fbd182540e1d10440fb52eeeb3c3002bf5"

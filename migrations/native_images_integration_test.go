@@ -138,6 +138,9 @@ func TestF4NativeClientImagesMovieSeriesSeasonEpisodePeople(t *testing.T) {
 				call("GET", "/Items/"+p.Id+"/Images/Primary?tag="+p.PrimaryImageTag+"&maxWidth=320&quality=90", true, "", 200)
 			}
 		}
+		if item.Type == dto.Episode && (len(detail.People) != 1 || detail.People[0].Id != nativelibrary.PersonID(2229)) {
+			t.Fatal("episode cast image fallback missing", detail.People)
+		}
 		if item.Type == dto.Season || item.Type == dto.Episode {
 			if detail.ParentLogoImageTag == "" || detail.ParentLogoItemId != series.Id || len(detail.ParentBackdropImageTags) != 2 || detail.SeriesPrimaryImageTag == "" {
 				t.Fatal("parent fallback missing", detail)

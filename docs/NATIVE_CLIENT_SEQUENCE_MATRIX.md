@@ -144,7 +144,7 @@ Person IDs use a deterministic 32-hex protocol namespace distinct from decimal
 catalog IDs; every read still requires association with a currently visible,
 parental-allowed title. No database migration or extension is required. SVG
 logo references use TMDB's PNG rendition through the existing image cache.
-No fabricated Banner/Art tags are emitted. Episode stills retain the existing
+No fabricated Banner/Art tags are emitted. Episode detail People inherits the stored series cast when requested, so its Person image links use the same scoped resolver. Episode stills retain the existing
 local-still cache, retirement and fallback behavior. Background TMDB enrichment
 continues using the existing bounded scan, metadata queue, retry/backoff and
 30-day refresh; startup does not fetch artwork synchronously. Existing stored

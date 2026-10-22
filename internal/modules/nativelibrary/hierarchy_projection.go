@@ -180,6 +180,7 @@ func EpisodeDTO(in EpisodeProjection) (dto.BaseItemDto, error) {
 		item.MediaSources[0].Name += "（仅展示最新100个版本）"
 	}
 	applyParentImageTags(&item, in.SeriesID, in.SeriesDetails)
+	addPeople(&item, in.SeriesDetails)
 	if p := ImagePath(in.StillPath); p != "" {
 		item.ImageTags = map[string]string{"Primary": ImageTag(p)}
 	} else if in.LocalStillTag != "" {
