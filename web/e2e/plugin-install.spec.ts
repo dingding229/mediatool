@@ -39,7 +39,7 @@ test('R actual insecure HTTP: lost reply survives reload, retries same intent, n
  await page.route('**/api/v1/plugins/catalog?*',r=>r.fulfill({json:{data:{items:[{...definition,installedCount:instances.length}],total:1}}}))
  await page.route('**/api/v1/plugins?*',r=>r.fulfill({json:{data:instances}}))
  await page.route('**/api/v1/plugins/operations',async r=>{const input=r.request().postDataJSON();keys.push(input.operationKey);let instance=receipts.get(input.operationKey);if(!instance){instance={...contract.response,id:instances.length?'22222222-0000-4000-8000-000000000062':contract.response.id};instances.push(instance);receipts.set(input.operationKey,instance)}if(lose){lose=false;await r.abort('connectionreset');return}await r.fulfill({json:{data:instance}})})
- await page.goto(base+'/plugins?tab=catalog');await page.getByRole('button',{name:'安装插件',exact:true}).click();await confirm(page);await expect(page.getByRole('alert')).toContainText('结果未确认')
+ await page.goto(base+'/plugins?tab=catalog');await page.getByRole('button',{name:'安装插件',exact:true}).click();await confirm(page);await expect(page.getByRole('alert').filter({hasText:'上次安装结果未确认，正在核对，不会重复安装。'})).toBeVisible()
  await page.reload();await page.getByRole('button',{name:'核对原请求',exact:true}).click();await expect.poll(()=>keys.length).toBe(2);await expect(page.getByRole('dialog',{name:'插件权限确认',exact:true})).toBeHidden()
  expect(keys).toHaveLength(2);expect(keys[0]).toBe(keys[1]);expect(instances).toHaveLength(1)
  await page.getByRole('button',{name:'新增独立实例',exact:true}).click();await expect(page.getByRole('dialog',{name:'插件权限确认',exact:true})).toContainText('将新增独立实例');await confirm(page)
