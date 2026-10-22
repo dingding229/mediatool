@@ -41,7 +41,7 @@ ownRefresh.register(()=>refresh(),()=>true);
       </section>
       <section class="acquire-surface">
         <header class="acquire-section-heading">
-          <h2>择优选择资源</h2>
+          <h2>择优选择资源 <small>{{run.total??run.resources.length}} 条匹配</small></h2>
           <el-select v-model="filters.sort" aria-label="择优排序" @change="applyFilter">
             <el-option value="seeders_desc" label="做种人数优先"/><el-option value="seeders_asc" label="做种人数从少到多"/>
             <el-option value="promotion_asc" label="促销优先"/><el-option value="promotion_desc" label="促销从高到低"/>

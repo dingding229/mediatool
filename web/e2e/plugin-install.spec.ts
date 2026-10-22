@@ -28,7 +28,7 @@ test('R actual insecure HTTP: confirmation, rejected requestId and committed/lis
  await expect(dialog).toContainText('尚未提交');await expect(dialog.getByRole('button',{name:'确认安装插件',exact:true})).toBeDisabled();expect(calls).toHaveLength(0)
  await confirm(page);await dialog.getByText('技术详情',{exact:true}).click();await expect(dialog).toContainText('plugin_conflict');await expect(dialog).toContainText('abcdef0123456789abcdef01');await expect(dialog).not.toContainText('private-response-sentinel')
  await dialog.getByRole('button',{name:'确认安装插件',exact:true}).click();await expect(dialog).toBeHidden()
- await expect(page.getByRole('status')).toContainText('已安装');await expect(page.getByRole('alert').filter({hasText:'列表同步失败'})).toBeVisible()
+ await expect(page.getByRole('status').filter({hasText:'已安装，默认停用'})).toContainText('已安装');await expect(page.getByRole('alert').filter({hasText:'列表同步失败'})).toBeVisible()
  expect(calls).toHaveLength(2)
  await page.getByRole('button',{name:'刷新',exact:true}).click();await expect(page.getByRole('alert')).toHaveCount(0);expect(calls).toHaveLength(2)
  await expect(page.getByRole('button',{name:'新增独立实例',exact:true})).toBeVisible();await page.getByRole('button',{name:'已安装',exact:true}).click();await expect(page.locator('.u6-card')).toContainText('已停用')
