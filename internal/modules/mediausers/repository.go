@@ -117,13 +117,14 @@ func (r Repository) Save(ctx context.Context, id string, in Input) (User, error)
 	u.Grants = append([]Grant{}, in.Grants...)
 	return u, nil
 }
-func (r Repository) List(ctx context.Context) ([]User, error) {
+func (r Repository) List(ctx context.Context) ([]User, error) { return r.AdminPage(ctx, 0, 500) }
+func (r Repository) AdminPage(ctx context.Context, start, limit int) ([]User, error) {
 	out := []User{}
 	if r.DB == nil {
 		return out, ErrUnavailable
 	}
 	// One snapshot avoids pairing an old user revision with new permissions.
-	rows, err := r.DB.Query(ctx, `SELECT `+userColumns+`,(SELECT count(*) FROM media_user_tokens s WHERE s.user_id=u.id AND s.revoked_at IS NULL AND s.expires_at>now() AND s.credential_version=u.credential_version),coalesce((SELECT jsonb_agg(jsonb_build_object('libraryId',g.library_id,'canPlay',g.can_play,'canDownload',g.can_download) ORDER BY g.library_id) FROM media_user_library_grants g WHERE g.user_id=u.id),'[]'::jsonb) FROM media_users u ORDER BY created_at DESC LIMIT 500`)
+	rows, err := r.DB.Query(ctx, `SELECT `+userColumns+`,(SELECT count(*) FROM media_user_tokens s WHERE s.user_id=u.id AND s.revoked_at IS NULL AND s.expires_at>now() AND s.credential_version=u.credential_version),coalesce((SELECT jsonb_agg(jsonb_build_object('libraryId',g.library_id,'canPlay',g.can_play,'canDownload',g.can_download) ORDER BY g.library_id) FROM media_user_library_grants g WHERE g.user_id=u.id),'[]'::jsonb) FROM media_users u ORDER BY created_at DESC,u.id LIMIT $1 OFFSET $2`, limit, start)
 	if err != nil {
 		return out, ErrUnavailable
 	}

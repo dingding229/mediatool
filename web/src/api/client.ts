@@ -38,3 +38,6 @@ export async function originalSTRM(path:string):Promise<string>{
  if(!response.ok)throw Error('暂时无法取得此媒体的播放链接。')
  return (await response.text()).trim()
 }
+
+export interface ListPage<T>{items:T[];total:number;page?:number;pageSize?:number}
+export function checkedPage<T>(value:ListPage<T>):ListPage<T>{if(!value||!Array.isArray(value.items)||!Number.isSafeInteger(value.total)||value.total<0)throw Error('分页回执不完整，请重新读取。');return value;}

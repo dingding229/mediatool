@@ -1,3 +1,4 @@
+import {usePageNumber} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -5,7 +6,7 @@ import { APIError, post, request } from '../api/client';
 import { list, readIntent, sameMedia, writeIntent, type Account, type Media, type Run } from './model';
 import { useDelivery } from './useDelivery';
 export function useResults() {
-  const route = useRoute(), router = useRouter(), run = ref<Run | null>(null), loading = ref(true), error = ref<unknown>(null), accounts = ref<Account[]>([]), mediaSaving = ref(false), mediaReady = ref(true), page = ref(1), busy = ref(false), searchIntent = ref(readIntent('search-again:' + route.params.id)), delivery = reactive(useDelivery());
+  const route = useRoute(), router = useRouter(), run = ref<Run | null>(null), loading = ref(true), error = ref<unknown>(null), accounts = ref<Account[]>([]), mediaSaving = ref(false), mediaReady = ref(true), page = usePageNumber(), busy = ref(false), searchIntent = ref(readIntent('search-again:' + route.params.id)), delivery = reactive(useDelivery());
   const filters = reactive({ resolution: [] as string[], source: [] as string[], codec: [] as string[], accountId: [] as string[], keyword: '', sort: 'seeders_desc' });
   const activeMedia = computed(() => run.value?.media || null);
   let epoch = 0, controller: AbortController | undefined, filterTimer: ReturnType<typeof setTimeout> | undefined, disposed = false;

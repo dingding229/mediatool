@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
+
 import TaskControl from '../workflows/TaskControl.vue';
 import {usePageRefresh} from '../ui/page-refresh';
 import { ref, onMounted, onUnmounted } from 'vue';
@@ -11,7 +13,7 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { sourceState } from '../media/model';
 import { eligible, label, rows, readPrivate, savePrivate } from './model';
-const stored = readPrivate('media-tool:archive-pending:v1'), items = ref<any[]>([]), page = ref(1), total = ref(0), policy = ref<any>(null), days = ref(30), selected = ref<any[]>([]), loading = ref(true), busy = ref(false), error = ref<unknown>(null), conflict = ref<any>(null), plan = ref<any>(stored?.plan || null), requestId = ref(stored?.requestId || ''), phase = ref<'queued' | 'reconciling' | null>(stored ? 'reconciling' : null), confirmOpen = ref(false), retryOpen = ref(false), retryTarget = ref<any>(null), readbackMissing = ref(false), results = ref<any[]>([]), detailsOpen = ref(false);
+const stored = readPrivate('media-tool:archive-pending:v1'), items = ref<any[]>([]), page = usePageNumber(), total = ref(0), policy = ref<any>(null), days = ref(30), selected = ref<any[]>([]), loading = ref(true), busy = ref(false), error = ref<unknown>(null), conflict = ref<any>(null), plan = ref<any>(stored?.plan || null), requestId = ref(stored?.requestId || ''), phase = ref<'queued' | 'reconciling' | null>(stored ? 'reconciling' : null), confirmOpen = ref(false), retryOpen = ref(false), retryTarget = ref<any>(null), readbackMissing = ref(false), results = ref<any[]>([]), detailsOpen = ref(false);
 const policyPending = ref(false), retryPending = ref(readPrivate('media-tool:archive-retry:v1'));
 let disposed = false, loadVersion = 0, previewVersion = 0;
 async function load() {
@@ -232,7 +234,7 @@ usePageRefresh(load, 'recovery');
       <p>{{ item.message||'—' }}</p>
       <TaskControl v-if="item.cleanupId&&item.state!=='removed'" kind="archives" :id="item.cleanupId" state="unknown" @changed="load"/>
     </article>
-    <PagePagination v-if="total>50" v-model:current-page="page" :page-size="50" :total="total" layout="prev,pager,next,total" @current-change="load"/>
+    <PagePagination v-model:current-page="page" :page-size="50" :total="total" layout="prev,pager,next,total" @current-change="load"/>
     <section v-if="plan" class="organize-plan" aria-label="归档清理计划">
       <h3>预览归档清理</h3>
       <p>将物理删除下面选中的过期归档，不操作原媒体或当前输出。</p>

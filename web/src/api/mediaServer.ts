@@ -1,10 +1,10 @@
-import { request, post } from './client'
+import {request,post,checkedPage,type ListPage} from './client'
 export interface MediaGrant { libraryId: string; canPlay: boolean; canDownload: boolean }
 export interface MediaUser { maxStreams: number; maxParentalRating: number | null; expiresAt: string | null; id: string; username: string; displayName: string; enabled: boolean; mustChangePassword: boolean; revision: number; grants: MediaGrant[]; activeSessions: number; createdAt: string; updatedAt: string }
 export interface MediaLibrary { id: string; name: string; mediaType: string; canPlay: boolean }
 export interface MediaProvider { id: string; name: string; contract: string; runtime: string; stage: string; note: string; capabilities: Record<string, boolean> }
 export interface MediaItem { id: string; title: string; year: string; mediaType: string; overview: string; poster: string; season?: number; episode?: number }
-export const listMediaUsers = () => request<MediaUser[]>('/media-server/users')
+export const listMediaUsers = (page=1) => request<ListPage<MediaUser>>(`/media-server/users?page=${page}&pageSize=25`).then(checkedPage<MediaUser>)
 export const listNativeLibraries = () => request<MediaLibrary[]>('/media-server/libraries')
 export interface NativeTMDBTarget { type: 'movie' | 'series' | 'season'; tmdbId: number; season?: number }
 export const refreshNativeTMDB = (target: NativeTMDBTarget) => post<{ detailId: string; queued: boolean }>('/media-server/native/tmdb/refresh', target)

@@ -662,3 +662,5 @@
 B4b（schema77）：上述恢复路径不变；preview新增warnings与restore.tableChanges。全部业务表随备份回退；401后以备份账号登录并GET执行记录，不能自动重放execute。
 
 F5b：日志 `/logs/query` 默认 200 条，page/pageSize 与 before 时间快照分页；`/settings/application` 的 logging 保存 1–90 天保留策略和最多 24 小时 Debug 截止时间。文件日志保留 JSONL 实现，不写入日志 SQL 表；每日清理按 1000 条小批执行。
+
+F5b 分页：管理端 `/downloads`、`/downloads/manual`、`/transfers`、`/subscriptions`（view/q/status）、`/subscriptions/{id}/history`、`/notifications`、`/media-server/users`、`/library/scans` 带 page/pageSize 时返回 `{items,total,page,pageSize}`，SQL 限定当前页；不带参数的后台/插件调用保留数组契约。所有 count/排序/表名均为代码常量。每页 1–100 条；日志独立上限 200。页码按列表写入 URL，翻页不清除筛选。

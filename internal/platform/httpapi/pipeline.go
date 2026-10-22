@@ -18,7 +18,15 @@ func (a *API) listTransfers(w http.ResponseWriter, r *http.Request) {
 	if !a.integrationReady(w) {
 		return
 	}
-	rows, err := a.Deps.DB.Query(r.Context(), `SELECT t.id::text,d.id::text,t.destination,t.state,t.phase,t.bytes_transferred,t.hash_bytes,f.size_bytes,t.last_error,t.updated_at,t.control_revision,f.id::text,coalesce((SELECT state FROM jobs WHERE idempotency_key='transfer:'||t.id::text),'') FROM transfer_tasks t JOIN download_files f ON f.id=t.download_file_id JOIN download_tasks d ON d.id=f.task_id ORDER BY t.created_at DESC LIMIT 200`)
+	p, err := pagination(r)
+	if err != nil {
+		fail(w, 400, "invalid_page", "页码无效")
+		return
+	}
+	if !p.Paged {
+		p.Limit = 200
+	}
+	rows, err := a.Deps.DB.Query(r.Context(), `SELECT t.id::text,d.id::text,t.destination,t.state,t.phase,t.bytes_transferred,t.hash_bytes,f.size_bytes,t.last_error,t.updated_at,t.control_revision,f.id::text,coalesce((SELECT state FROM jobs WHERE idempotency_key='transfer:'||t.id::text),'') FROM transfer_tasks t JOIN download_files f ON f.id=t.download_file_id JOIN download_tasks d ON d.id=f.task_id ORDER BY t.created_at DESC,t.id LIMIT $1 OFFSET $2`, p.Limit, p.Offset)
 	if err != nil {
 		fail(w, 503, "transfers_unavailable", "传输记录暂不可用")
 		return
@@ -45,6 +53,15 @@ func (a *API) listTransfers(w http.ResponseWriter, r *http.Request) {
 	}
 	if rows.Err() != nil {
 		fail(w, 503, "records_unavailable", "记录读取中断，请刷新而非重建任务")
+		return
+	}
+	if p.Paged {
+		var total int
+		if err = a.Deps.DB.QueryRow(r.Context(), `SELECT count(*) FROM transfer_tasks t JOIN download_files f ON f.id=t.download_file_id JOIN download_tasks d ON d.id=f.task_id`).Scan(&total); err != nil {
+			pipelineReadError(w, err)
+			return
+		}
+		write(w, 200, map[string]any{"items": out, "total": total, "page": p.Page, "pageSize": p.Limit})
 		return
 	}
 	write(w, 200, out)
@@ -79,6 +96,11 @@ func (a *API) listMedia(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) listNotifications(w http.ResponseWriter, r *http.Request) {
 	if !a.integrationReady(w) {
+		return
+	}
+	if servePage(w, r, a.Deps.DB, `SELECT count(*) FROM notification_messages m LEFT JOIN notification_deliveries n ON n.event_id=m.event_id`, nil, func(start, limit int) ([]messaging.Message, error) {
+		return (messaging.Dispatcher{DB: a.Deps.DB, Connections: a.Deps.Integrations}).Page(r.Context(), start, limit)
+	}) {
 		return
 	}
 	out, err := (messaging.Dispatcher{DB: a.Deps.DB, Connections: a.Deps.Integrations}).List(r.Context())

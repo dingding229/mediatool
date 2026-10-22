@@ -5,7 +5,7 @@ import {flush,setupComponent} from '../test/setup-component'
 import {useManual} from './useManual'
 vi.mock('../api/client',async original=>({...await original<typeof import('../api/client')>(),request:vi.fn(),post:vi.fn()}))
 let view:ReturnType<typeof setupComponent>
-beforeEach(async()=>{vi.useFakeTimers();const store=new Map<string,string>();vi.stubGlobal('sessionStorage',{getItem:(k:string)=>store.get(k)||null,setItem:(k:string,v:string)=>store.set(k,v),removeItem:(k:string)=>store.delete(k)});vi.mocked(post).mockReset();vi.mocked(request).mockReset().mockResolvedValue([]);view=setupComponent(defineComponent({setup:useManual}));await flush()})
+beforeEach(async()=>{vi.useFakeTimers();const store=new Map<string,string>();vi.stubGlobal('sessionStorage',{getItem:(k:string)=>store.get(k)||null,setItem:(k:string,v:string)=>store.set(k,v),removeItem:(k:string)=>store.delete(k)});vi.mocked(post).mockReset();vi.mocked(request).mockReset().mockResolvedValue({items:[],total:0});view=setupComponent(defineComponent({setup:useManual}));await flush()})
 afterEach(()=>{view.unmount();vi.useRealTimers();vi.unstubAllGlobals()})
 it('never directly retries an uncertain task',()=>{view.state.retry({id:'id-1',state:'uncertain'});expect(view.state.confirmOpen).toBe(false);expect(post).not.toHaveBeenCalled()})
 it('posts explicit confirmation and duplicate acknowledgement only after the confirmation',async()=>{view.state.retry({id:'id-1',state:'absent_confirmed'});expect(post).not.toHaveBeenCalled();expect(view.state.confirmOpen).toBe(true);await view.state.approveRetry();expect(post).toHaveBeenCalledWith('/downloads/manual/id-1/retry',{confirm:true,acceptDuplicateRisk:true})})

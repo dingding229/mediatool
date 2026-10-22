@@ -1,8 +1,9 @@
+import {usePageNumber} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import { request } from '../api/client';
 export function useOrganize() {
-  const data = reactive<Record<string, any>>({ candidates: [], assets: [], scans: [], schedules: [], repairs: [] }), errors = reactive<Record<string, unknown>>({}), loading = reactive<Record<string, boolean>>({}), total = reactive({ candidates: 0, assets: 0 }), page = reactive({ candidates: 1, assets: 1 }), filter = ref('needs_confirmation'), assetId = ref(''), selected = reactive<Record<string, any[]>>({ candidates: [], assets: [] }), editing = ref(false);
+  const data = reactive<Record<string, any>>({ candidates: [], assets: [], scans: [], schedules: [], repairs: [] }), errors = reactive<Record<string, unknown>>({}), loading = reactive<Record<string, boolean>>({}), total = reactive({ candidates: 0, assets: 0,scans:0 }), page = reactive({candidates:usePageNumber('candidatesPage'),assets:usePageNumber('assetsPage'),scans:usePageNumber('scansPage')}), filter = ref('needs_confirmation'), assetId = ref(''), selected = reactive<Record<string, any[]>>({ candidates: [], assets: [] }), editing = ref(false);
   let disposed = false;
   const versions: Record<string, number> = {};
   const ready = new Set<string>();
@@ -17,17 +18,17 @@ export function useOrganize() {
       else if (key === 'assets')
         out = await request(`/media/assets?page=${page.assets}&pageSize=50${assetId.value ? '&assetId=' + encodeURIComponent(assetId.value) : ''}`);
       else if (key === 'scans')
-        out = await request('/library/scans');
+        out = await request(`/library/scans?page=${page.scans}&pageSize=8`);
       else if (key === 'schedules')
         out = await request('/library/scan-schedules');
       else
         out = await request('/library/artifact-repairs');
       if (disposed || version !== versions[key])
         return;
-      if (['candidates', 'assets'].includes(key)) {
-        if (selected[key]!.length || editing.value) return;
+      if (['candidates', 'assets','scans'].includes(key)) {
+        if (selected[key]?.length || editing.value) return;
         data[key] = Array.isArray(out) ? out : out.items || [];
-        total[key as 'candidates' | 'assets'] = out.total ?? data[key].length;
+        total[key as 'candidates' | 'assets' | 'scans'] = out.total ?? data[key].length;
       } else data[key] = out || [];
       ready.add(key);
     }

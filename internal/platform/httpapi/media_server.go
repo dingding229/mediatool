@@ -65,6 +65,9 @@ func mediaError(w http.ResponseWriter, err error) {
 func (a *API) listMediaUsers(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
+	if a.Deps.DB != nil && servePage(w, r, a.Deps.DB, `SELECT count(*) FROM media_users`, nil, func(start, limit int) ([]mediausers.User, error) { return a.mediaUsers().AdminPage(ctx, start, limit) }) {
+		return
+	}
 	out, err := a.mediaUsers().List(ctx)
 	if err != nil {
 		mediaError(w, err)

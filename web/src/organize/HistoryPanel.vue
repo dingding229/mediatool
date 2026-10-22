@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
+
 import TaskControl from '../workflows/TaskControl.vue';
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -11,7 +13,7 @@ import { kindLabels, stepState } from '../files/workbench';
 import { date, errorText } from '../workflows/readiness';
 import { sourceState } from '../media/model';
 import { label, removable, rows } from './model';
-const route = useRoute(), items = ref<any[]>([]), total = ref(0), page = ref(1), kind = ref(String(route.query.kind || '')), state = ref(''), query = ref(String(route.query.q || '')), batchId = ref(String(route.query.batchId || '')), origin = ref(''), method = ref(''), from = ref(''), to = ref(''), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), selected = ref<any[]>([]), removeOpen = ref(false), busy = ref(false), uncertain = ref(false);
+const route = useRoute(), items = ref<any[]>([]), total = ref(0), page = usePageNumber(), kind = ref(String(route.query.kind || '')), state = ref(''), query = ref(String(route.query.q || '')), batchId = ref(String(route.query.batchId || '')), origin = ref(''), method = ref(''), from = ref(''), to = ref(''), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), selected = ref<any[]>([]), removeOpen = ref(false), busy = ref(false), uncertain = ref(false);
 let epoch = 0, disposed = false;
 const summary = computed(() => ({ active: items.value.filter(r => ['pending', 'running', 'paused'].includes(r.state)).length, attention: items.value.filter(r => ['needs_reconcile', 'conflict', 'failed', 'partial'].includes(r.state)).length, done: items.value.filter(r => ['succeeded', 'imported', 'visible', 'applied', 'verified'].includes(r.state)).length }));
 async function load() {
@@ -185,7 +187,7 @@ usePageRefresh(load, 'history');
       <TaskControl v-if="item.kind==='batch'" kind="organize" :id="item.batchId||item.id" :state="item.state" @changed="load"/>
     </article>
     <StateView v-if="!loading&&!error&&!items.length" state="empty" title="暂无符合条件的历史"/>
-    <PagePagination v-if="total>25" v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next,total" @current-change="load"/>
+    <PagePagination v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next,total" @current-change="load"/>
   </section>
   <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" :technical-data="detail" class="media-detail">
     <h3>{{ detail?.media?.title||kindLabels[detail?.kind]||'业务记录' }}</h3>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
+
 import { onMounted, reactive, ref } from 'vue';
 import { request } from '../api/client';
 import { getNativeServerSettings, saveNativeServerSettings, listNativeLibraryMappings } from '../api/mediaServer';
@@ -8,7 +10,7 @@ import ResourceState from '../workflows/ResourceState.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import { errorText } from '../workflows/readiness';
-const status = reactive(useResource(getNativeServerSettings)), providers = reactive(useResource(() => request('/media-server/providers'))), page = ref(1), libraries = reactive(useResource(() => listNativeLibraryMappings((page.value - 1) * 50))), op = reactive(useOperation('service')), form = reactive({ serverName: '', enabled: false, revision: 0 }), latest = ref<any>(null), technical = ref(false), notice = ref('');
+const status = reactive(useResource(getNativeServerSettings)), providers = reactive(useResource(() => request('/media-server/providers'))), page = usePageNumber(), libraries = reactive(useResource(() => listNativeLibraryMappings((page.value - 1) * 50))), op = reactive(useOperation('service')), form = reactive({ serverName: '', enabled: false, revision: 0 }), latest = ref<any>(null), technical = ref(false), notice = ref('');
 async function load() {
   const pristine = status.data && form.serverName === status.data.serverName && form.enabled === status.data.enabled && form.revision === status.data.revision;
   const s = await status.load();
@@ -105,7 +107,7 @@ defineExpose({ load, form, save, status, libraries, op });
         <h3>{{ library.name||'—' }}</h3>
         <p>{{ library.groupName||'—' }} / {{ library.ruleName||'—' }} · {{ library.hidden?'已隐藏':'可见' }} · {{ library.assetCount??'—' }} 项</p>
       </article>
-      <PagePagination v-if="libraries.data?.total>50" v-model:current-page="page" :page-size="50" :total="libraries.data.total" layout="prev,pager,next,total" @current-change="libraries.load"/>
+      <PagePagination v-model:current-page="page" :page-size="50" :total="libraries.data.total" layout="prev,pager,next,total" @current-change="libraries.load"/>
     </section>
     <DetailDrawer v-model:visible="technical" title="服务技术详情" :technical-data="{settings:status.data,services:providers.data,libraries:libraries.data}" class="media-detail">
       <ResourceState :stale="providers.loaded" :loading="providers.loading" :error="providers.error" @reload="providers.load"/>

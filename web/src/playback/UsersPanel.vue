@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
 import { onMounted, reactive, ref } from 'vue';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
 import 'element-plus/es/components/dropdown/style/css'
@@ -15,12 +16,12 @@ import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import UserEditor from './UserEditor.vue';
 import UserActivityPanel from './UserActivityPanel.vue';
 import { errorText, date } from '../workflows/readiness';
-const users = reactive(useResource(listMediaUsers, [])), libraries = reactive(useResource(listNativeLibraries, [])), editor = ref<InstanceType<typeof UserEditor>>(), activity = ref<any>(null), activityOpen = ref(false), target = ref<any>(null), confirm = ref(false), op = reactive(useOperation('users'));
+const page=usePageNumber(),users = reactive(useResource(()=>listMediaUsers(page.value), {items:[],total:0})), libraries = reactive(useResource(listNativeLibraries, [])), editor = ref<InstanceType<typeof UserEditor>>(), activity = ref<any>(null), activityOpen = ref(false), target = ref<any>(null), confirm = ref(false), op = reactive(useOperation('users'));
 async function load() {
   await Promise.all([users.load(), libraries.load()]);
   if (op.pending && !users.error) {
     const [kind, id] = op.pending.key.split(':');
-    if (kind === 'delete' && !users.data.some(u => u.id === id) || kind === 'sessions' && users.data.some(u => u.id === id && u.activeSessions === 0))
+    if (kind === 'delete' && !users.data.items.some(u => u.id === id) || kind === 'sessions' && users.data.items.some(u => u.id === id && u.activeSessions === 0))
       op.clear();
   }
 }
@@ -44,11 +45,11 @@ defineExpose({ load, create });
   <section class="media-surface">
     <h2>媒体用户</h2>
     <p>为家人或设备分配可看的媒体库；修改权限或密码后，需要重新登录。</p>
-    <ResourceState :stale="users.loaded" :loading="users.loading" :error="users.error" :empty="!users.data.length" @reload="load"/>
+    <ResourceState :stale="users.loaded" :loading="users.loading" :error="users.error" :empty="!users.data.items.length" @reload="load"/>
     <ResourceState :error="libraries.error" @reload="libraries.load"/>
     <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>
-    <article v-for="user in users.data" :key="user.id" class="organize-record">
+    <article v-for="user in users.data.items" :key="user.id" class="organize-record">
       <h3>{{ user.displayName||user.username }}</h3>
       <p>{{ user.username }} · {{ user.enabled?'启用':'停用' }} · 有效登录 {{ user.activeSessions??'—' }} · 同时播放上限 {{ user.maxStreams??'—' }}</p>
       <p>到期 {{ date(user.expiresAt||undefined) }} · 可见媒体库 {{ user.grants?.length??'—' }} 个</p>
@@ -67,6 +68,7 @@ defineExpose({ load, create });
         </el-dropdown>
       </div>
     </article>
+  <PagePagination v-model:current-page="page" :total="users.data.total" :page-size="25" @current-change="users.load"/>
   </section>
   <UserEditor ref="editor" :libraries="libraries.data" @saved="load"/>
   <DetailDrawer v-model:visible="activityOpen" :title="(activity?.username||'媒体用户')+' · 设备与历史'" class="media-detail">

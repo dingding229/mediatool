@@ -37,6 +37,9 @@ func (a *API) listLibraryScans(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "library_unavailable", "请先连接数据库")
 		return
 	}
+	if servePage(w, r, a.Deps.DB, `SELECT count(*) FROM library_scans`, nil, func(start, limit int) ([]library.Scan, error) { return engine.ScansPage(r.Context(), start, limit) }) {
+		return
+	}
 	list, err := engine.Scans(r.Context())
 	if err != nil {
 		fail(w, 503, "scans_unavailable", "扫描记录暂不可用")

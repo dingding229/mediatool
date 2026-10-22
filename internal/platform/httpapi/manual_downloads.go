@@ -22,6 +22,11 @@ func (a *API) listManualDownloads(w http.ResponseWriter, r *http.Request) {
 	if !a.integrationReady(w) {
 		return
 	}
+	if servePage(w, r, a.Deps.DB, `SELECT count(*) FROM manual_download_tasks`, nil, func(start, limit int) ([]manualdownloads.Task, error) {
+		return a.manualDownloads().Page(r.Context(), start, limit, "", "", nil)
+	}) {
+		return
+	}
 	out, err := a.manualDownloads().List(r.Context())
 	if err != nil {
 		fail(w, 503, "downloads_unavailable", "手动任务不可用")

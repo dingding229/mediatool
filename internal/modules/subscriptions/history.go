@@ -52,3 +52,20 @@ func (e Engine) History(ctx context.Context, id string) ([]HistoryRun, error) {
 	}
 	return out, rows.Err()
 }
+
+func (e Engine) BrowsePage(ctx context.Context, history bool, start, limit int, query, status string) ([]Record, error) {
+	rows, err := e.DB.Query(ctx, `SELECT `+subscriptionColumns+` FROM subscriptions WHERE (archived_at IS NOT NULL)=$1 AND ($4='' OR title ILIKE '%'||$4||'%') AND ($5='' OR $5='all' OR enabled=($5='enabled')) ORDER BY created_at DESC,id LIMIT $2 OFFSET $3`, history, limit, start, query, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Record{}
+	for rows.Next() {
+		v, err := scanRecord(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}

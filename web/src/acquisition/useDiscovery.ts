@@ -1,9 +1,10 @@
+import {usePageNumber} from '../ui/page-query';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { request } from '../api/client';
 import { rows, type MediaItem } from '../media/model';
 export function useDiscovery() {
-  const route = useRoute(), router = useRouter(), kind = ref(route.query.kind === 'recommend.source' ? 'recommend.source' : 'discover.source'), page = ref(1), items = ref<MediaItem[]>([]), hasMore = ref(false), truncated = ref(false), loading = ref(true), error = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>();
+  const route = useRoute(), router = useRouter(), kind = ref(route.query.kind === 'recommend.source' ? 'recommend.source' : 'discover.source'), page = usePageNumber(), items = ref<MediaItem[]>([]), hasMore = ref(false), truncated = ref(false), loading = ref(true), error = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>();
   let epoch = 0, detailEpoch = 0, alive = true;
   async function load() {
     const version = ++epoch;

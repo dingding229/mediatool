@@ -908,6 +908,90 @@
         },
         "description": "原生Emby协议，PascalCase，不包管理员Envelope。"
       },
+      "HTTP200_21e0012f952b": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "description": "真实开放JSON值（动态插件、元数据或数据库单元格），不代表固定DTO缺少字段定义。",
+                            "oneOf": [
+                              {
+                                "additionalProperties": true,
+                                "type": "object"
+                              },
+                              {
+                                "items": {},
+                                "type": "array"
+                              },
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "type": [
+                            "array",
+                            "null"
+                          ]
+                        },
+                        "page": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "total": {
+                          "format": "int64",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "items": {
+                        "$ref": "#/components/schemas/modules_acquisition_Task"
+                      },
+                      "type": [
+                        "array",
+                        "null"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
       "HTTP200_237e2f1adc7c": {
         "content": {
           "application/json": {
@@ -972,31 +1056,6 @@
               "properties": {
                 "data": {
                   "$ref": "#/components/schemas/modules_mediausers_ManagementPage_mediausers.Device"
-                }
-              },
-              "required": [
-                "data"
-              ],
-              "type": "object"
-            }
-          }
-        },
-        "description": "实际业务响应；排队/批准不等于执行完成。"
-      },
-      "HTTP200_2767ccf33c3f": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "additionalProperties": false,
-              "properties": {
-                "data": {
-                  "items": {
-                    "$ref": "#/components/schemas/modules_messaging_Message"
-                  },
-                  "type": [
-                    "array",
-                    "null"
-                  ]
                 }
               },
               "required": [
@@ -1102,19 +1161,78 @@
         },
         "description": "原生Emby协议，PascalCase，不包管理员Envelope。"
       },
-      "HTTP200_34164d48fef7": {
+      "HTTP200_2ccda8704a17": {
         "content": {
           "application/json": {
             "schema": {
               "additionalProperties": false,
               "properties": {
                 "data": {
-                  "items": {
-                    "$ref": "#/components/schemas/modules_manualdownloads_Task"
-                  },
-                  "type": [
-                    "array",
-                    "null"
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "description": "真实开放JSON值（动态插件、元数据或数据库单元格），不代表固定DTO缺少字段定义。",
+                            "oneOf": [
+                              {
+                                "additionalProperties": true,
+                                "type": "object"
+                              },
+                              {
+                                "items": {},
+                                "type": "array"
+                              },
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "type": [
+                            "array",
+                            "null"
+                          ]
+                        },
+                        "page": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "total": {
+                          "format": "int64",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "items": {
+                        "$ref": "#/components/schemas/modules_subscriptions_HistoryRun"
+                      },
+                      "type": [
+                        "array",
+                        "null"
+                      ]
+                    }
                   ]
                 }
               },
@@ -1158,31 +1276,6 @@
                 "data": {
                   "items": {
                     "$ref": "#/components/schemas/modules_filemanager_Result"
-                  },
-                  "type": [
-                    "array",
-                    "null"
-                  ]
-                }
-              },
-              "required": [
-                "data"
-              ],
-              "type": "object"
-            }
-          }
-        },
-        "description": "实际业务响应；排队/批准不等于执行完成。"
-      },
-      "HTTP200_3ac6ee0608ba": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "additionalProperties": false,
-              "properties": {
-                "data": {
-                  "items": {
-                    "$ref": "#/components/schemas/modules_subscriptions_HistoryRun"
                   },
                   "type": [
                     "array",
@@ -1530,6 +1623,90 @@
                     "cleared"
                   ],
                   "type": "object"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
+      "HTTP200_49575c0c42aa": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "description": "真实开放JSON值（动态插件、元数据或数据库单元格），不代表固定DTO缺少字段定义。",
+                            "oneOf": [
+                              {
+                                "additionalProperties": true,
+                                "type": "object"
+                              },
+                              {
+                                "items": {},
+                                "type": "array"
+                              },
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "type": [
+                            "array",
+                            "null"
+                          ]
+                        },
+                        "page": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "total": {
+                          "format": "int64",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "items": {
+                        "$ref": "#/components/schemas/modules_library_Scan"
+                      },
+                      "type": [
+                        "array",
+                        "null"
+                      ]
+                    }
+                  ]
                 }
               },
               "required": [
@@ -2388,6 +2565,90 @@
           }
         },
         "description": "原生Emby协议，PascalCase，不包管理员Envelope。"
+      },
+      "HTTP200_76a5f8454684": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "description": "真实开放JSON值（动态插件、元数据或数据库单元格），不代表固定DTO缺少字段定义。",
+                            "oneOf": [
+                              {
+                                "additionalProperties": true,
+                                "type": "object"
+                              },
+                              {
+                                "items": {},
+                                "type": "array"
+                              },
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "type": [
+                            "array",
+                            "null"
+                          ]
+                        },
+                        "page": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "total": {
+                          "format": "int64",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "items": {
+                        "$ref": "#/components/schemas/modules_mediausers_User"
+                      },
+                      "type": [
+                        "array",
+                        "null"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
       },
       "HTTP200_76f4b4d60e70": {
         "content": {
@@ -3356,31 +3617,6 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
-      "HTTP200_a7ba90206d8f": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "additionalProperties": false,
-              "properties": {
-                "data": {
-                  "items": {
-                    "$ref": "#/components/schemas/modules_mediausers_User"
-                  },
-                  "type": [
-                    "array",
-                    "null"
-                  ]
-                }
-              },
-              "required": [
-                "data"
-              ],
-              "type": "object"
-            }
-          }
-        },
-        "description": "实际业务响应；排队/批准不等于执行完成。"
-      },
       "HTTP200_aaa4ca77f626": {
         "content": {
           "application/json": {
@@ -3530,103 +3766,6 @@
               "properties": {
                 "data": {
                   "$ref": "#/components/schemas/modules_filemanager_Plan"
-                }
-              },
-              "required": [
-                "data"
-              ],
-              "type": "object"
-            }
-          }
-        },
-        "description": "实际业务响应；排队/批准不等于执行完成。"
-      },
-      "HTTP200_b863c0372dea": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "additionalProperties": false,
-              "properties": {
-                "data": {
-                  "items": {
-                    "additionalProperties": true,
-                    "properties": {
-                      "assetId": {
-                        "type": "string"
-                      },
-                      "bytes": {
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "controlRevision": {
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "destination": {
-                        "type": "string"
-                      },
-                      "flow": {
-                        "$ref": "#/components/schemas/platform_flow_Status"
-                      },
-                      "hashBytes": {
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "id": {
-                        "type": "string"
-                      },
-                      "message": {
-                        "type": "string"
-                      },
-                      "phase": {
-                        "type": "string"
-                      },
-                      "processingProgress": {
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "processingStage": {
-                        "type": "string"
-                      },
-                      "state": {
-                        "type": "string"
-                      },
-                      "taskId": {
-                        "type": "string"
-                      },
-                      "total": {
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "transferMethod": {
-                        "type": "string"
-                      },
-                      "updatedAt": {
-                        "format": "date-time",
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "assetId",
-                      "bytes",
-                      "controlRevision",
-                      "destination",
-                      "flow",
-                      "hashBytes",
-                      "id",
-                      "message",
-                      "phase",
-                      "processingProgress",
-                      "processingStage",
-                      "state",
-                      "taskId",
-                      "total",
-                      "transferMethod",
-                      "updatedAt"
-                    ],
-                    "type": "object"
-                  },
-                  "type": "array"
                 }
               },
               "required": [
@@ -4009,31 +4148,6 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
-      "HTTP200_c63c620bb5ba": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "additionalProperties": false,
-              "properties": {
-                "data": {
-                  "items": {
-                    "$ref": "#/components/schemas/modules_acquisition_Task"
-                  },
-                  "type": [
-                    "array",
-                    "null"
-                  ]
-                }
-              },
-              "required": [
-                "data"
-              ],
-              "type": "object"
-            }
-          }
-        },
-        "description": "实际业务响应；排队/批准不等于执行完成。"
-      },
       "HTTP200_c6ffe68d9d98": {
         "content": {
           "application/json": {
@@ -4134,31 +4248,6 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
-      "HTTP200_cf293ca0f82d": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "additionalProperties": false,
-              "properties": {
-                "data": {
-                  "items": {
-                    "$ref": "#/components/schemas/modules_library_Scan"
-                  },
-                  "type": [
-                    "array",
-                    "null"
-                  ]
-                }
-              },
-              "required": [
-                "data"
-              ],
-              "type": "object"
-            }
-          }
-        },
-        "description": "实际业务响应；排队/批准不等于执行完成。"
-      },
       "HTTP200_cffcd890864a": {
         "content": {
           "text/html": {
@@ -4235,6 +4324,90 @@
                     "remainingMayExist"
                   ],
                   "type": "object"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
+      "HTTP200_d24e3b59e722": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "description": "真实开放JSON值（动态插件、元数据或数据库单元格），不代表固定DTO缺少字段定义。",
+                            "oneOf": [
+                              {
+                                "additionalProperties": true,
+                                "type": "object"
+                              },
+                              {
+                                "items": {},
+                                "type": "array"
+                              },
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "type": [
+                            "array",
+                            "null"
+                          ]
+                        },
+                        "page": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "total": {
+                          "format": "int64",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "items": {
+                        "$ref": "#/components/schemas/modules_subscriptions_Record"
+                      },
+                      "type": [
+                        "array",
+                        "null"
+                      ]
+                    }
+                  ]
                 }
               },
               "required": [
@@ -4608,19 +4781,200 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
-      "HTTP200_e4809b1aaddb": {
+      "HTTP200_e4d19dae5555": {
         "content": {
           "application/json": {
             "schema": {
               "additionalProperties": false,
               "properties": {
                 "data": {
-                  "items": {
-                    "$ref": "#/components/schemas/modules_subscriptions_Record"
-                  },
-                  "type": [
-                    "array",
-                    "null"
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "additionalProperties": true,
+                            "properties": {
+                              "assetId": {
+                                "type": "string"
+                              },
+                              "bytes": {
+                                "format": "int64",
+                                "type": "integer"
+                              },
+                              "controlRevision": {
+                                "format": "int64",
+                                "type": "integer"
+                              },
+                              "destination": {
+                                "type": "string"
+                              },
+                              "flow": {
+                                "$ref": "#/components/schemas/platform_flow_Status"
+                              },
+                              "hashBytes": {
+                                "format": "int64",
+                                "type": "integer"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "phase": {
+                                "type": "string"
+                              },
+                              "processingProgress": {
+                                "format": "int64",
+                                "type": "integer"
+                              },
+                              "processingStage": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "type": "string"
+                              },
+                              "taskId": {
+                                "type": "string"
+                              },
+                              "total": {
+                                "format": "int64",
+                                "type": "integer"
+                              },
+                              "transferMethod": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "assetId",
+                              "bytes",
+                              "controlRevision",
+                              "destination",
+                              "flow",
+                              "hashBytes",
+                              "id",
+                              "message",
+                              "phase",
+                              "processingProgress",
+                              "processingStage",
+                              "state",
+                              "taskId",
+                              "total",
+                              "transferMethod",
+                              "updatedAt"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "total": {
+                          "format": "int64",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "items": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "assetId": {
+                            "type": "string"
+                          },
+                          "bytes": {
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          "controlRevision": {
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          "destination": {
+                            "type": "string"
+                          },
+                          "flow": {
+                            "$ref": "#/components/schemas/platform_flow_Status"
+                          },
+                          "hashBytes": {
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "phase": {
+                            "type": "string"
+                          },
+                          "processingProgress": {
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          "processingStage": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string"
+                          },
+                          "taskId": {
+                            "type": "string"
+                          },
+                          "total": {
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          "transferMethod": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "assetId",
+                          "bytes",
+                          "controlRevision",
+                          "destination",
+                          "flow",
+                          "hashBytes",
+                          "id",
+                          "message",
+                          "phase",
+                          "processingProgress",
+                          "processingStage",
+                          "state",
+                          "taskId",
+                          "total",
+                          "transferMethod",
+                          "updatedAt"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
                   ]
                 }
               },
@@ -4918,6 +5272,90 @@
                     "completed"
                   ],
                   "type": "object"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
+      "HTTP200_e90baa99f3cf": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "description": "真实开放JSON值（动态插件、元数据或数据库单元格），不代表固定DTO缺少字段定义。",
+                            "oneOf": [
+                              {
+                                "additionalProperties": true,
+                                "type": "object"
+                              },
+                              {
+                                "items": {},
+                                "type": "array"
+                              },
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "type": [
+                            "array",
+                            "null"
+                          ]
+                        },
+                        "page": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "total": {
+                          "format": "int64",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "items": {
+                        "$ref": "#/components/schemas/modules_messaging_Message"
+                      },
+                      "type": [
+                        "array",
+                        "null"
+                      ]
+                    }
+                  ]
                 }
               },
               "required": [
@@ -5572,6 +6010,90 @@
           }
         },
         "description": "原生Emby协议，PascalCase，不包管理员Envelope。"
+      },
+      "HTTP200_f86969e27eba": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "description": "真实开放JSON值（动态插件、元数据或数据库单元格），不代表固定DTO缺少字段定义。",
+                            "oneOf": [
+                              {
+                                "additionalProperties": true,
+                                "type": "object"
+                              },
+                              {
+                                "items": {},
+                                "type": "array"
+                              },
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "type": [
+                            "array",
+                            "null"
+                          ]
+                        },
+                        "page": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "total": {
+                          "format": "int64",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "items": {
+                        "$ref": "#/components/schemas/modules_manualdownloads_Task"
+                      },
+                      "type": [
+                        "array",
+                        "null"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
       },
       "HTTP200_f87bf3d31aa9": {
         "content": {
@@ -8166,6 +8688,39 @@
           "invalid_json",
           "media_unavailable",
           "search_create_failed"
+        ]
+      },
+      "HTTP400_98c4fba78777": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "invalid_media_request",
+                            "invalid_page"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "invalid_media_request",
+          "invalid_page"
         ]
       },
       "HTTP400_9b0ecaba25e2": {
@@ -14037,6 +14592,43 @@
           "search_unavailable"
         ]
       },
+      "HTTP503_2f8e6de353c1": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "maintenance_busy",
+                            "maintenance_unavailable",
+                            "media_server_unavailable",
+                            "records_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "maintenance_busy",
+          "maintenance_unavailable",
+          "media_server_unavailable",
+          "records_unavailable"
+        ]
+      },
       "HTTP503_3474f3542c38": {
         "content": {
           "application/json": {
@@ -14220,43 +14812,6 @@
           "maintenance_busy",
           "maintenance_unavailable",
           "operation_failed"
-        ]
-      },
-      "HTTP503_3c82aba4e025": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "integrations_unavailable",
-                            "maintenance_busy",
-                            "maintenance_unavailable",
-                            "notifications_unavailable"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "integrations_unavailable",
-          "maintenance_busy",
-          "maintenance_unavailable",
-          "notifications_unavailable"
         ]
       },
       "HTTP503_3eb1791c4d8d": {
@@ -14485,6 +15040,45 @@
           "maintenance_busy",
           "maintenance_unavailable",
           "preflight_unavailable"
+        ]
+      },
+      "HTTP503_570590ae4f9c": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "integrations_unavailable",
+                            "maintenance_busy",
+                            "maintenance_unavailable",
+                            "notifications_unavailable",
+                            "records_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "integrations_unavailable",
+          "maintenance_busy",
+          "maintenance_unavailable",
+          "notifications_unavailable",
+          "records_unavailable"
         ]
       },
       "HTTP503_5eaffcd426e4": {
@@ -14738,45 +15332,6 @@
           "maintenance_busy",
           "maintenance_unavailable",
           "schedule_unavailable"
-        ]
-      },
-      "HTTP503_6ce9d65e8383": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "integrations_unavailable",
-                            "maintenance_busy",
-                            "maintenance_unavailable",
-                            "records_unavailable",
-                            "transfers_unavailable"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "integrations_unavailable",
-          "maintenance_busy",
-          "maintenance_unavailable",
-          "records_unavailable",
-          "transfers_unavailable"
         ]
       },
       "HTTP503_6e1e2c0469a5": {
@@ -15112,6 +15667,45 @@
           "maintenance_unavailable"
         ]
       },
+      "HTTP503_8238c9d293db": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "api_unavailable",
+                            "integrations_unavailable",
+                            "pipeline_unavailable",
+                            "records_unavailable",
+                            "transfers_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "api_unavailable",
+          "integrations_unavailable",
+          "pipeline_unavailable",
+          "records_unavailable",
+          "transfers_unavailable"
+        ]
+      },
       "HTTP503_8340f241fc10": {
         "content": {
           "application/json": {
@@ -15184,43 +15778,6 @@
           "maintenance_busy",
           "maintenance_unavailable",
           "tasks_unavailable"
-        ]
-      },
-      "HTTP503_849b7eb379ac": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "api_unavailable",
-                            "integrations_unavailable",
-                            "records_unavailable",
-                            "transfers_unavailable"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "api_unavailable",
-          "integrations_unavailable",
-          "records_unavailable",
-          "transfers_unavailable"
         ]
       },
       "HTTP503_85dac9691251": {
@@ -15863,43 +16420,6 @@
           "operation_failed"
         ]
       },
-      "HTTP503_af1e04f2849a": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "library_unavailable",
-                            "maintenance_busy",
-                            "maintenance_unavailable",
-                            "scans_unavailable"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "library_unavailable",
-          "maintenance_busy",
-          "maintenance_unavailable",
-          "scans_unavailable"
-        ]
-      },
       "HTTP503_b111efa2f2d6": {
         "content": {
           "application/json": {
@@ -16110,6 +16630,45 @@
           "tmdb_unavailable"
         ]
       },
+      "HTTP503_caa6f88fd985": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "downloads_unavailable",
+                            "integrations_unavailable",
+                            "maintenance_busy",
+                            "maintenance_unavailable",
+                            "records_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "downloads_unavailable",
+          "integrations_unavailable",
+          "maintenance_busy",
+          "maintenance_unavailable",
+          "records_unavailable"
+        ]
+      },
       "HTTP503_cb48c5b41ac7": {
         "content": {
           "application/json": {
@@ -16143,6 +16702,47 @@
           "maintenance_busy",
           "maintenance_unavailable",
           "transfer_unavailable"
+        ]
+      },
+      "HTTP503_cda6ac35f7cb": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "integrations_unavailable",
+                            "maintenance_busy",
+                            "maintenance_unavailable",
+                            "pipeline_unavailable",
+                            "records_unavailable",
+                            "transfers_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "integrations_unavailable",
+          "maintenance_busy",
+          "maintenance_unavailable",
+          "pipeline_unavailable",
+          "records_unavailable",
+          "transfers_unavailable"
         ]
       },
       "HTTP503_d04284dc7818": {
@@ -16326,43 +16926,6 @@
         "x-error-codes": [
           "action_unavailable",
           "ingress_unavailable",
-          "maintenance_busy",
-          "maintenance_unavailable"
-        ]
-      },
-      "HTTP503_d89d3e709575": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "downloads_unavailable",
-                            "integrations_unavailable",
-                            "maintenance_busy",
-                            "maintenance_unavailable"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "downloads_unavailable",
-          "integrations_unavailable",
           "maintenance_busy",
           "maintenance_unavailable"
         ]
@@ -16583,6 +17146,43 @@
           "retry_unavailable"
         ]
       },
+      "HTTP503_e51d731e02d1": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "downloads_unavailable",
+                            "maintenance_busy",
+                            "maintenance_unavailable",
+                            "records_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "downloads_unavailable",
+          "maintenance_busy",
+          "maintenance_unavailable",
+          "records_unavailable"
+        ]
+      },
       "HTTP503_e64271ce1ff3": {
         "content": {
           "application/json": {
@@ -16723,6 +17323,45 @@
           "not_ready"
         ]
       },
+      "HTTP503_ed9080fe60bc": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "library_unavailable",
+                            "maintenance_busy",
+                            "maintenance_unavailable",
+                            "records_unavailable",
+                            "scans_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "library_unavailable",
+          "maintenance_busy",
+          "maintenance_unavailable",
+          "records_unavailable",
+          "scans_unavailable"
+        ]
+      },
       "HTTP503_edb65c106e73": {
         "content": {
           "application/json": {
@@ -16756,6 +17395,43 @@
           "maintenance_busy",
           "maintenance_unavailable",
           "native_settings_unavailable"
+        ]
+      },
+      "HTTP503_f2dc9b29db01": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "maintenance_busy",
+                            "maintenance_unavailable",
+                            "records_unavailable",
+                            "subscriptions_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "maintenance_busy",
+          "maintenance_unavailable",
+          "records_unavailable",
+          "subscriptions_unavailable"
         ]
       },
       "HTTP503_fb28446b639f": {
@@ -50457,15 +51133,43 @@
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "get_api_external_v1_transfers_3951781a",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_b863c0372dea"
+            "$ref": "#/components/responses/HTTP200_e4d19dae5555"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_52678a94d14d"
           },
           "403": {
             "$ref": "#/components/responses/HTTP403_67fa3fe812e4"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_67de8ce7d28e"
           },
           "423": {
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
@@ -50474,7 +51178,7 @@
             "$ref": "#/components/responses/HTTP429_67fa3fe812e4"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_849b7eb379ac"
+            "$ref": "#/components/responses/HTTP503_8238c9d293db"
           }
         },
         "security": [
@@ -50495,15 +51199,43 @@
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "head_api_external_v1_transfers_3951781a",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_52678a94d14d"
           },
           "403": {
             "$ref": "#/components/responses/HTTP403_67fa3fe812e4"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_67de8ce7d28e"
           },
           "423": {
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
@@ -50512,7 +51244,7 @@
             "$ref": "#/components/responses/HTTP429_67fa3fe812e4"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_849b7eb379ac"
+            "$ref": "#/components/responses/HTTP503_8238c9d293db"
           }
         },
         "security": [
@@ -53323,9 +54055,34 @@
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "get_api_v1_downloads_14419002",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_c63c620bb5ba"
+            "$ref": "#/components/responses/HTTP200_21e0012f952b"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -53337,7 +54094,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_8e39199825b8"
+            "$ref": "#/components/responses/HTTP503_e51d731e02d1"
           }
         },
         "security": [
@@ -53357,9 +54114,34 @@
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "head_api_v1_downloads_14419002",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -53371,7 +54153,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_8e39199825b8"
+            "$ref": "#/components/responses/HTTP503_e51d731e02d1"
           }
         },
         "security": [
@@ -53479,9 +54261,34 @@
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "get_api_v1_downloads_manual_c102a8a8",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_34164d48fef7"
+            "$ref": "#/components/responses/HTTP200_f86969e27eba"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -53493,7 +54300,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_d89d3e709575"
+            "$ref": "#/components/responses/HTTP503_caa6f88fd985"
           }
         },
         "security": [
@@ -53513,9 +54320,34 @@
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "head_api_v1_downloads_manual_c102a8a8",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -53527,7 +54359,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_d89d3e709575"
+            "$ref": "#/components/responses/HTTP503_caa6f88fd985"
           }
         },
         "security": [
@@ -59186,9 +60018,34 @@
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "get_api_v1_library_scans_5eb7cf47",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_cf293ca0f82d"
+            "$ref": "#/components/responses/HTTP200_49575c0c42aa"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -59200,7 +60057,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_af1e04f2849a"
+            "$ref": "#/components/responses/HTTP503_ed9080fe60bc"
           }
         },
         "security": [
@@ -59220,9 +60077,34 @@
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "head_api_v1_library_scans_5eb7cf47",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -59234,7 +60116,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_af1e04f2849a"
+            "$ref": "#/components/responses/HTTP503_ed9080fe60bc"
           }
         },
         "security": [
@@ -60131,7 +61013,7 @@
         "x-go-handler": "nativeLibraries",
         "x-go-registration": "GET /api/v1/media-server/libraries",
         "x-listener": "management",
-        "x-source": "media_server.go:153"
+        "x-source": "media_server.go:156"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60177,7 +61059,7 @@
         "x-go-handler": "nativeLibraries",
         "x-go-registration": "GET /api/v1/media-server/libraries",
         "x-listener": "management",
-        "x-source": "media_server.go:153"
+        "x-source": "media_server.go:156"
       }
     },
     "/api/v1/media-server/native/libraries": {
@@ -60216,7 +61098,7 @@
         "x-go-handler": "listNativeLibraries",
         "x-go-registration": "GET /api/v1/media-server/native/libraries",
         "x-listener": "management",
-        "x-source": "media_server.go:151"
+        "x-source": "media_server.go:154"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60253,7 +61135,7 @@
         "x-go-handler": "listNativeLibraries",
         "x-go-registration": "GET /api/v1/media-server/native/libraries",
         "x-listener": "management",
-        "x-source": "media_server.go:151"
+        "x-source": "media_server.go:154"
       }
     },
     "/api/v1/media-server/native/library-mappings": {
@@ -60314,7 +61196,7 @@
         "x-go-handler": "nativeLibraryMappings",
         "x-go-registration": "GET /api/v1/media-server/native/library-mappings",
         "x-listener": "management",
-        "x-source": "media_server.go:138"
+        "x-source": "media_server.go:141"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60373,7 +61255,7 @@
         "x-go-handler": "nativeLibraryMappings",
         "x-go-registration": "GET /api/v1/media-server/native/library-mappings",
         "x-listener": "management",
-        "x-source": "media_server.go:138"
+        "x-source": "media_server.go:141"
       }
     },
     "/api/v1/media-server/native/probe/{assetId}/retry": {
@@ -60436,7 +61318,7 @@
         "x-go-handler": "retryNativeProbe",
         "x-go-registration": "POST /api/v1/media-server/native/probe/{assetId}/retry",
         "x-listener": "management",
-        "x-source": "media_server.go:149"
+        "x-source": "media_server.go:152"
       }
     },
     "/api/v1/media-server/native/processing": {
@@ -60481,7 +61363,7 @@
         "x-go-handler": "processingSummary",
         "x-go-registration": "GET /api/v1/media-server/native/processing",
         "x-listener": "management",
-        "x-source": "media_server.go:144"
+        "x-source": "media_server.go:147"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60524,7 +61406,7 @@
         "x-go-handler": "processingSummary",
         "x-go-registration": "GET /api/v1/media-server/native/processing",
         "x-listener": "management",
-        "x-source": "media_server.go:144"
+        "x-source": "media_server.go:147"
       }
     },
     "/api/v1/media-server/native/processing/gc": {
@@ -60581,7 +61463,7 @@
         "x-go-handler": "processingGC",
         "x-go-registration": "POST /api/v1/media-server/native/processing/gc",
         "x-listener": "management",
-        "x-source": "media_server.go:148"
+        "x-source": "media_server.go:151"
       }
     },
     "/api/v1/media-server/native/processing/retry": {
@@ -60668,7 +61550,7 @@
         "x-go-handler": "processingRetry",
         "x-go-registration": "POST /api/v1/media-server/native/processing/retry",
         "x-listener": "management",
-        "x-source": "media_server.go:147"
+        "x-source": "media_server.go:150"
       }
     },
     "/api/v1/media-server/native/processing/settings": {
@@ -60773,7 +61655,7 @@
         "x-go-handler": "processingSettings",
         "x-go-registration": "PUT /api/v1/media-server/native/processing/settings",
         "x-listener": "management",
-        "x-source": "media_server.go:145"
+        "x-source": "media_server.go:148"
       }
     },
     "/api/v1/media-server/native/processing/tasks": {
@@ -60836,7 +61718,7 @@
         "x-go-handler": "processingTasks",
         "x-go-registration": "GET /api/v1/media-server/native/processing/tasks",
         "x-listener": "management",
-        "x-source": "media_server.go:146"
+        "x-source": "media_server.go:149"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60897,7 +61779,7 @@
         "x-go-handler": "processingTasks",
         "x-go-registration": "GET /api/v1/media-server/native/processing/tasks",
         "x-listener": "management",
-        "x-source": "media_server.go:146"
+        "x-source": "media_server.go:149"
       }
     },
     "/api/v1/media-server/native/sessions": {
@@ -61009,7 +61891,7 @@
         "x-go-handler": "nativeServerSettings",
         "x-go-registration": "GET /api/v1/media-server/native/settings",
         "x-listener": "management",
-        "x-source": "media_server.go:142"
+        "x-source": "media_server.go:145"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61043,7 +61925,7 @@
         "x-go-handler": "nativeServerSettings",
         "x-go-registration": "GET /api/v1/media-server/native/settings",
         "x-listener": "management",
-        "x-source": "media_server.go:142"
+        "x-source": "media_server.go:145"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61126,7 +62008,7 @@
         "x-go-handler": "nativeServerSettings",
         "x-go-registration": "PUT /api/v1/media-server/native/settings",
         "x-listener": "management",
-        "x-source": "media_server.go:143"
+        "x-source": "media_server.go:146"
       }
     },
     "/api/v1/media-server/native/tmdb/refresh": {
@@ -61210,7 +62092,7 @@
         "x-go-handler": "refreshNativeTMDB",
         "x-go-registration": "POST /api/v1/media-server/native/tmdb/refresh",
         "x-listener": "management",
-        "x-source": "media_server.go:150"
+        "x-source": "media_server.go:153"
       }
     },
     "/api/v1/media-server/providers": {
@@ -61246,7 +62128,7 @@
         "x-go-handler": "mediaProviders",
         "x-go-registration": "GET /api/v1/media-server/providers",
         "x-listener": "management",
-        "x-source": "media_server.go:152"
+        "x-source": "media_server.go:155"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61280,19 +62162,41 @@
         "x-go-handler": "mediaProviders",
         "x-go-registration": "GET /api/v1/media-server/providers",
         "x-listener": "management",
-        "x-source": "media_server.go:152"
+        "x-source": "media_server.go:155"
       }
     },
     "/api/v1/media-server/users": {
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "get_api_v1_media_server_users_420d9a98",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_a7ba90206d8f"
+            "$ref": "#/components/responses/HTTP200_76a5f8454684"
           },
           "400": {
-            "$ref": "#/components/responses/HTTP400_d5cdd3dd1272"
+            "$ref": "#/components/responses/HTTP400_98c4fba78777"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_bc20bac0bafc"
@@ -61313,7 +62217,7 @@
             "$ref": "#/components/responses/HTTP501_0ef2863af2b3"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_18bda89bf4fb"
+            "$ref": "#/components/responses/HTTP503_2f8e6de353c1"
           }
         },
         "security": [
@@ -61328,17 +62232,39 @@
         "x-go-handler": "listMediaUsers",
         "x-go-registration": "GET /api/v1/media-server/users",
         "x-listener": "management",
-        "x-source": "media_server.go:154"
+        "x-source": "media_server.go:157"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "head_api_v1_media_server_users_420d9a98",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
           },
           "400": {
-            "$ref": "#/components/responses/HTTP400_d5cdd3dd1272"
+            "$ref": "#/components/responses/HTTP400_98c4fba78777"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_bc20bac0bafc"
@@ -61359,7 +62285,7 @@
             "$ref": "#/components/responses/HTTP501_0ef2863af2b3"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_18bda89bf4fb"
+            "$ref": "#/components/responses/HTTP503_2f8e6de353c1"
           }
         },
         "security": [
@@ -61374,7 +62300,7 @@
         "x-go-handler": "listMediaUsers",
         "x-go-registration": "GET /api/v1/media-server/users",
         "x-listener": "management",
-        "x-source": "media_server.go:154"
+        "x-source": "media_server.go:157"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61525,7 +62451,7 @@
         "x-go-handler": "saveMediaUser",
         "x-go-registration": "POST /api/v1/media-server/users",
         "x-listener": "management",
-        "x-source": "media_server.go:155"
+        "x-source": "media_server.go:158"
       }
     },
     "/api/v1/media-server/users/{id}": {
@@ -61621,7 +62547,7 @@
         "x-go-handler": "mutateMediaUser",
         "x-go-registration": "DELETE /api/v1/media-server/users/{id}",
         "x-listener": "management",
-        "x-source": "media_server.go:158"
+        "x-source": "media_server.go:161"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61678,7 +62604,7 @@
         "x-go-handler": "getMediaUser",
         "x-go-registration": "GET /api/v1/media-server/users/{id}",
         "x-listener": "management",
-        "x-source": "media_server.go:156"
+        "x-source": "media_server.go:159"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61735,7 +62661,7 @@
         "x-go-handler": "getMediaUser",
         "x-go-registration": "GET /api/v1/media-server/users/{id}",
         "x-listener": "management",
-        "x-source": "media_server.go:156"
+        "x-source": "media_server.go:159"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61895,7 +62821,7 @@
         "x-go-handler": "saveMediaUser",
         "x-go-registration": "PUT /api/v1/media-server/users/{id}",
         "x-listener": "management",
-        "x-source": "media_server.go:157"
+        "x-source": "media_server.go:160"
       }
     },
     "/api/v1/media-server/users/{id}/devices": {
@@ -61974,7 +62900,7 @@
         "x-go-handler": "mediaUserDevices",
         "x-go-registration": "GET /api/v1/media-server/users/{id}/devices",
         "x-listener": "management",
-        "x-source": "media_server.go:139"
+        "x-source": "media_server.go:142"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -62051,7 +62977,7 @@
         "x-go-handler": "mediaUserDevices",
         "x-go-registration": "GET /api/v1/media-server/users/{id}/devices",
         "x-listener": "management",
-        "x-source": "media_server.go:139"
+        "x-source": "media_server.go:142"
       }
     },
     "/api/v1/media-server/users/{id}/devices/{deviceId}/revoke": {
@@ -62129,7 +63055,7 @@
         "x-go-handler": "revokeMediaDevice",
         "x-go-registration": "POST /api/v1/media-server/users/{id}/devices/{deviceId}/revoke",
         "x-listener": "management",
-        "x-source": "media_server.go:140"
+        "x-source": "media_server.go:143"
       }
     },
     "/api/v1/media-server/users/{id}/history": {
@@ -62208,7 +63134,7 @@
         "x-go-handler": "mediaUserHistory",
         "x-go-registration": "GET /api/v1/media-server/users/{id}/history",
         "x-listener": "management",
-        "x-source": "media_server.go:141"
+        "x-source": "media_server.go:144"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -62285,7 +63211,7 @@
         "x-go-handler": "mediaUserHistory",
         "x-go-registration": "GET /api/v1/media-server/users/{id}/history",
         "x-listener": "management",
-        "x-source": "media_server.go:141"
+        "x-source": "media_server.go:144"
       }
     },
     "/api/v1/media-server/users/{id}/password": {
@@ -62381,7 +63307,7 @@
         "x-go-handler": "mutateMediaUser",
         "x-go-registration": "POST /api/v1/media-server/users/{id}/password",
         "x-listener": "management",
-        "x-source": "media_server.go:159"
+        "x-source": "media_server.go:162"
       }
     },
     "/api/v1/media-server/users/{id}/sessions/revoke": {
@@ -62477,7 +63403,7 @@
         "x-go-handler": "mutateMediaUser",
         "x-go-registration": "POST /api/v1/media-server/users/{id}/sessions/revoke",
         "x-listener": "management",
-        "x-source": "media_server.go:160"
+        "x-source": "media_server.go:163"
       }
     },
     "/api/v1/media/assets": {
@@ -64770,9 +65696,34 @@
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "get_api_v1_notifications_bd1ccceb",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_2767ccf33c3f"
+            "$ref": "#/components/responses/HTTP200_e90baa99f3cf"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -64784,7 +65735,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_3c82aba4e025"
+            "$ref": "#/components/responses/HTTP503_570590ae4f9c"
           }
         },
         "security": [
@@ -64804,9 +65755,34 @@
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "head_api_v1_notifications_bd1ccceb",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -64818,7 +65794,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_3c82aba4e025"
+            "$ref": "#/components/responses/HTTP503_570590ae4f9c"
           }
         },
         "security": [
@@ -73363,6 +74339,42 @@
         "parameters": [
           {
             "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "view",
             "required": false,
             "schema": {
@@ -73372,7 +74384,10 @@
         ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_e4809b1aaddb"
+            "$ref": "#/components/responses/HTTP200_d24e3b59e722"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_e9266e260c77"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -73384,7 +74399,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_df9e48c7a552"
+            "$ref": "#/components/responses/HTTP503_f2dc9b29db01"
           }
         },
         "security": [
@@ -73407,6 +74422,42 @@
         "parameters": [
           {
             "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "view",
             "required": false,
             "schema": {
@@ -73418,6 +74469,9 @@
           "200": {
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
           },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_e9266e260c77"
+          },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
           },
@@ -73428,7 +74482,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_df9e48c7a552"
+            "$ref": "#/components/responses/HTTP503_f2dc9b29db01"
           }
         },
         "security": [
@@ -73790,11 +74844,34 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_3ac6ee0608ba"
+            "$ref": "#/components/responses/HTTP200_2ccda8704a17"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -73809,7 +74886,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_df9e48c7a552"
+            "$ref": "#/components/responses/HTTP503_f2dc9b29db01"
           }
         },
         "security": [
@@ -73838,11 +74915,34 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -73857,7 +74957,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_df9e48c7a552"
+            "$ref": "#/components/responses/HTTP503_f2dc9b29db01"
           }
         },
         "security": [
@@ -74401,9 +75501,34 @@
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "get_api_v1_transfers_545806a3",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_b863c0372dea"
+            "$ref": "#/components/responses/HTTP200_e4d19dae5555"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -74411,11 +75536,14 @@
           "403": {
             "$ref": "#/components/responses/HTTP403_2601227bedbe"
           },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_67de8ce7d28e"
+          },
           "423": {
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_6ce9d65e8383"
+            "$ref": "#/components/responses/HTTP503_cda6ac35f7cb"
           }
         },
         "security": [
@@ -74435,9 +75563,34 @@
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "head_api_v1_transfers_545806a3",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "maximum": 20000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -74445,11 +75598,14 @@
           "403": {
             "$ref": "#/components/responses/HTTP403_2601227bedbe"
           },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_67de8ce7d28e"
+          },
           "423": {
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "503": {
-            "$ref": "#/components/responses/HTTP503_6ce9d65e8383"
+            "$ref": "#/components/responses/HTTP503_cda6ac35f7cb"
           }
         },
         "security": [

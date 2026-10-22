@@ -1,6 +1,7 @@
+import {usePageNumber} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { onMounted, onUnmounted, ref } from 'vue';
-import { APIError, post, request } from '../api/client';
+import { APIError, post, request,checkedPage,type ListPage } from '../api/client';
 import { list, readIntent, writeIntent, type Intent } from './model';
 export interface ManualTask {
   id: string;
@@ -20,15 +21,16 @@ export interface ManualTask {
   syncedAt?: string;
 }
 export function useManual() {
+  const page=usePageNumber('manualPage'),total=ref(0);
   const tasks = ref<ManualTask[]>([]), dialog = ref(false), kind = ref('file'), url = ref(''), file = ref<File>(), busy = ref(false), loading = ref(true), error = ref<unknown>(null), listError = ref<unknown>(null), intent = ref<Intent | null>(readIntent('manual:create')), confirmOpen = ref(false), target = ref<ManualTask | null>(null), actionBusy = ref(''), observed = ref('');
   let disposed = false, epoch = 0, ready = false;
   async function load() {
     const version = ++epoch;
     loading.value = !ready;
     try {
-      const out = await request<ManualTask[]>('/downloads/manual');
+      const out = await request<ListPage<ManualTask>>(`/downloads/manual?page=${page.value}&pageSize=25`).then(checkedPage<ManualTask>);
       if (!disposed && version === epoch) {
-        tasks.value = list(out);
+        tasks.value = list(out.items);total.value=out.total;
         ready = true;
         for (const task of tasks.value) {
           const saved = readIntent('manual-retry:' + task.id);
@@ -173,5 +175,5 @@ export function useManual() {
     file.value = undefined;
     url.value = '';
   });
-  return { tasks, dialog, kind, url, file, busy, loading, error, listError, intent, confirmOpen, target, actionBusy, observed, load, sync, create, submit, reconcile, retry, approveRetry, associate };
+  return { page,total,tasks, dialog, kind, url, file, busy, loading, error, listError, intent, confirmOpen, target, actionBusy, observed, load, sync, create, submit, reconcile, retry, approveRetry, associate };
 }

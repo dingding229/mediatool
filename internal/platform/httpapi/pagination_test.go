@@ -32,3 +32,15 @@ func TestSharedPaginationRejectsAmbiguityAcrossProfiles(t *testing.T) {
 		t.Fatal("general bound changed")
 	}
 }
+
+func TestOptionalListPageDoesNotQueryLegacyOrAmbiguousRequests(t *testing.T) {
+	for _, raw := range []string{"page=2&page=3", "page=-1", "pageSize=0", "page=20000&pageSize=100"} {
+		w := httptest.NewRecorder()
+		if !servePage(w, httptest.NewRequest("GET", "/?"+raw, nil), nil, "never executed", nil, func(int, int) ([]string, error) { t.Fatal("read called"); return nil, nil }) || w.Code != 400 {
+			t.Fatal(raw, w.Code)
+		}
+	}
+	if servePage(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil), nil, "never executed", nil, func(int, int) ([]string, error) { t.Fatal("legacy queried"); return nil, nil }) {
+		t.Fatal("legacy response changed")
+	}
+}

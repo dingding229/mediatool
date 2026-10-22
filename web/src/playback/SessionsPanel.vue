@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
+
 import { useRoute } from 'vue-router';
 import { onMounted, ref, reactive, watch } from 'vue';
 import { request, post } from '../api/client';
@@ -11,7 +13,7 @@ import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { date, errorText } from '../workflows/readiness';
 const route = useRoute();
-const page = ref(1), data = reactive(useResource(() => listNativeSessions((page.value - 1) * 50))), detail = ref<any>(null), open = ref(false), confirm = ref(false), op = reactive(useOperation('sessions')), notice = ref('');
+const page = usePageNumber(), data = reactive(useResource(() => listNativeSessions((page.value - 1) * 50))), detail = ref<any>(null), open = ref(false), confirm = ref(false), op = reactive(useOperation('sessions')), notice = ref('');
 const account = reactive(useResource<any>(() => request(`/media-server/users/${encodeURIComponent(String(route.query.userId))}`)));
 async function accountEntry() {
   const id = route.query.userId;
@@ -77,7 +79,7 @@ defineExpose({ load, data, page });
       <p>最近进度 {{ date(session.lastProgressAt) }}</p>
       <el-button @click="detail=session;open=true">会话详情</el-button>
     </article>
-    <PagePagination v-if="data.data?.total>50" v-model:current-page="page" :page-size="50" :total="data.data.total" layout="prev,pager,next,total" @current-change="load"/>
+    <PagePagination v-model:current-page="page" :page-size="50" :total="data.data.total" layout="prev,pager,next,total" @current-change="load"/>
   </section>
   <DetailDrawer v-model:visible="open" title="在线会话详情" :technical-data="detail" class="media-detail">
     <h3>{{ detail?.itemName||'—' }}</h3>

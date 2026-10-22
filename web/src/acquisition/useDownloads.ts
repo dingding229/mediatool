@@ -1,7 +1,8 @@
+import {usePageNumber} from '../ui/page-query';
 import {useRoute} from 'vue-router';
 import { useRefresh } from '../composables/useRefresh';
 import { onMounted, onUnmounted, reactive, ref } from 'vue';
-import { APIError, post, request } from '../api/client';
+import { APIError, post, request,checkedPage,type ListPage } from '../api/client';
 import { list, readIntent, writeIntent, type DownloadTask, type Intent } from './model';
 export interface Transfer {
   id: string;
@@ -24,6 +25,7 @@ export interface Transfer {
 }
 export function useDownloads() {
   const route=useRoute();
+  const pages=reactive({tasks:usePageNumber('downloadsPage'),transfers:usePageNumber('transfersPage'),batches:usePageNumber('batchesPage')}), totals=reactive({tasks:0,transfers:0,batches:0});
   const tasks = ref<DownloadTask[]>([]), transfers = ref<Transfer[]>([]), batches = ref<any[]>([]), loading = reactive({ tasks: true, transfers: true, batches: true }), errors = reactive<Record<string, unknown>>({}), pending = reactive<Record<string, Intent>>({}), notice = ref<Intent | null>(null), message = ref(''), busy = ref(false), confirmOpen = ref(false), confirmation = ref<any>(null), sessions = ref<any[]>([]), sessionBusy = ref(false), sessionError = ref<unknown>(null), binding = ref(false), sessionId = ref(''), sessionTarget = ref<Transfer | null>(null);
   let disposed = false;
   const epochs: Record<string, number> = {};
@@ -36,10 +38,10 @@ export function useDownloads() {
     const version = epochs[kind] = (epochs[kind] || 0) + 1;
     loading[kind] = !ready.has(kind);
     try {
-      const out: any = kind === 'tasks' ? await request<DownloadTask[]>('/downloads') : kind === 'transfers' ? await request<Transfer[]>('/transfers') : await request('/library/activity?state=needs_reconcile&page=1&pageSize=25');
+      const out: any = kind === 'tasks' ? await request<ListPage<DownloadTask>>(`/downloads?page=${pages.tasks}&pageSize=25`) : kind === 'transfers' ? await request<ListPage<Transfer>>(`/transfers?page=${pages.transfers}&pageSize=25`) : await request(`/library/activity?state=needs_reconcile&page=${pages.batches}&pageSize=25`);
       if (disposed || version !== epochs[kind])
         return;
-      const rows: any[] = kind === 'batches' ? list<any>(out.items) : list<any>(out);
+      const response=checkedPage<any>(out),rows=list<any>(response.items);totals[kind]=response.total;
       if (kind === 'tasks')
         tasks.value = rows;
       else if (kind === 'transfers')
@@ -208,5 +210,5 @@ export function useDownloads() {
   onUnmounted(() => {
     disposed = true;
   });
-  return { tasks, transfers, batches, loading, errors, pending, notice, message, busy, confirmOpen, confirmation, sessions, sessionBusy, sessionError, binding, sessionId, load, refresh, locked, ask, execute, inspectTransfer, reconcileCleanup, bind, askBinding };
+  return { pages,totals,tasks, transfers, batches, loading, errors, pending, notice, message, busy, confirmOpen, confirmation, sessions, sessionBusy, sessionError, binding, sessionId, load, refresh, locked, ask, execute, inspectTransfer, reconcileCleanup, bind, askBinding };
 }

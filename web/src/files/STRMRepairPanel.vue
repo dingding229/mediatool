@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
+
 import TaskControl from '../workflows/TaskControl.vue';
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -11,7 +13,7 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import { errorText, date } from '../workflows/readiness';
 import { sourceState } from '../media/model';
 import { label, rows, readPrivate, savePrivate } from '../organize/model';
-const route = useRoute(), router = useRouter(), assets = ref<any[]>([]), page = ref(1), total = ref(0), query = ref(''), limit = ref(100), selected = ref<string[]>([]), pickerOpen = ref(false), loading = ref(false), loadError = ref<unknown>(null), batch = ref<any>(null), busy = ref(false), error = ref<unknown>(null), pending = ref<any>(readPrivate('media-tool:strm-repair:v1')), phase = ref<'queued' | 'reconciling' | null>(pending.value ? 'reconciling' : null), confirmOpen = ref(false), retry = ref(false), readVerified = ref(false), technical = ref(false);
+const route = useRoute(), router = useRouter(), assets = ref<any[]>([]), page = usePageNumber(), total = ref(0), query = ref(''), limit = ref(100), selected = ref<string[]>([]), pickerOpen = ref(false), loading = ref(false), loadError = ref<unknown>(null), batch = ref<any>(null), busy = ref(false), error = ref<unknown>(null), pending = ref<any>(readPrivate('media-tool:strm-repair:v1')), phase = ref<'queued' | 'reconciling' | null>(pending.value ? 'reconciling' : null), confirmOpen = ref(false), retry = ref(false), readVerified = ref(false), technical = ref(false);
 let epoch = 0, loadEpoch = 0, disposed = false;
 const repairLabel = (s: string) => ({ preview: '等待核对', running: '执行中', succeeded: '修复完成', partial: '部分完成，含跳过项', ready: '原文完整', missing: '待恢复缺失文件', staged: '已登记恢复意图', repaired: '已修复', needs_reconcile: '需核对后继续', blocked: '跳过，需核对', expired: '预览已过期' } as Record<string, string>)[s] || label(s);
 const allSelected = computed(() => assets.value.length > 0 && assets.value.every(a => selected.value.includes(a.id)));
@@ -198,7 +200,7 @@ defineExpose({ readback });
             <small v-for="out in asset.outputs?.filter((o:any)=>o.kind==='strm')||[]" :key="out.path">{{ out.path }}</small>
           </span>
         </label>
-        <PagePagination v-if="total>100" v-model:current-page="page" :page-size="100" :total="total" layout="prev,pager,next,total" @current-change="loadAssets"/>
+        <PagePagination v-model:current-page="page" :page-size="100" :total="total" layout="prev,pager,next,total" @current-change="loadAssets"/>
         <el-button :disabled="!selected.length||!!pending||!!loadError" :loading="busy" @click="preview">检查已选 {{ selected.length }} 个资产</el-button>
       </section>
       <section v-if="batch" aria-label="修复批次">

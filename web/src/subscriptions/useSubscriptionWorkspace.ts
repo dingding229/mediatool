@@ -1,13 +1,15 @@
+import {usePageNumber} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
-import { APIError, post, request } from '../api/client'
+import { APIError, post, request,checkedPage,type ListPage } from '../api/client'
 import { asError, draftFor, failure, payloadFor, pendingStorageKey, restorePending } from './model'
 import type { Account, Draft, HistoryRun, Media, PendingRun, Run, Subscription } from './model'
 export function useSubscriptionWorkspace() {
   const route = useRoute(), router = useRouter()
+ const page=usePageNumber('subscriptionsPage'),total=ref(0),historyPage=usePageNumber('historyPage'),historyTotal=ref(0)
   const tab = computed(() => route.query.tab === 'history' ? 'history' : 'list')
   const scope = computed(() => route.query.view === 'history' ? 'history' : 'current')
   const records = ref<Subscription[]>([]), accounts = ref<Account[]>([]), loading = ref(true)
@@ -24,15 +26,18 @@ export function useSubscriptionWorkspace() {
   const previewReady = computed(() => !!previewId.value && previewSignature.value === signature.value && !!previewRun.value && !['pending','running','needs_refresh'].includes(previewRun.value.state) && !pending.value && !previewError.value)
   const mutation = ref(''), deleteOpen = ref(false), deleting = ref(false), deleteTarget = ref<Subscription | null>(null)
   const visible = computed(() => records.value.filter(s => (filter.value === 'all' || s.enabled === (filter.value === 'enabled')) && `${s.title} ${s.media.title}`.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase())))
+  let searchTimer:ReturnType<typeof setTimeout>;
+ watch([search,filter],()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{page.value=1;void refresh()},250)});
+ onUnmounted(()=>clearTimeout(searchTimer));
   let disposed = false, listSeq = 0, historySeq = 0, detailSeq = 0, polling = false
   watch(pending, p => { try { if (p) sessionStorage.setItem(pendingStorageKey, JSON.stringify(p)); else sessionStorage.removeItem(pendingStorageKey) } catch {} }, { deep: true, flush: 'sync' })
   function location(values: Record<string, string | undefined>) { return router.replace({ query: { ...route.query, ...values } }) }
   function changeScope(value: string) { return location({ view: value, subscription: undefined, run: undefined }) }
   async function refresh() {
     const seq = ++listSeq; loading.value = records.value.length === 0; listError.value = null
-    const [list, sites] = await Promise.allSettled([request<Subscription[]>(`/subscriptions?view=${scope.value}`), request<Account[]>('/integrations')])
+    const [list, sites] = await Promise.allSettled([request<ListPage<Subscription>>(`/subscriptions?view=${scope.value}&page=${page.value}&pageSize=25&q=${encodeURIComponent(search.value)}&status=${filter.value}`).then(checkedPage<Subscription>), request<Account[]>('/integrations')])
     if (disposed || seq !== listSeq) return
-    if (list.status === 'fulfilled') records.value = list.value; else listError.value = asError(list.reason)
+    if (list.status === 'fulfilled') {records.value = list.value.items;total.value=list.value.total;} else listError.value = asError(list.reason)
     if (sites.status === 'fulfilled') { accounts.value = sites.value.filter(a => a.kind === 'ptsite' && a.enabled); accountError.value = null } else accountError.value = asError(sites.reason)
     loading.value = false
     if (!listError.value && tab.value === 'history') await loadHistory()
@@ -88,17 +93,17 @@ export function useSubscriptionWorkspace() {
     try { await request(`/subscriptions/${deleteTarget.value.id}`, { method: 'DELETE' }); deleteOpen.value = false; detailOpen.value = false; await refresh(); ElMessage.success('订阅已归档，下载和文件不受影响') }
     catch (e) { ElMessage.error(failure(e)) } finally { deleting.value = false }
   }
-  function showHistory(id: string) { detailOpen.value = false; return location({ tab: 'history', subscription: id, run: undefined }) }
+  function showHistory(id: string) { if(id!==historyId.value)historyPage.value=1; detailOpen.value = false; return location({ tab: 'history', subscription: id, run: undefined }) }
   async function loadHistory() {
     const seq = ++historySeq, id = historyId.value
-    history.value = []; historyError.value = null; historyLoading.value = !!id
+    historyError.value = null; historyLoading.value = !!id
     if (!id) { run.value = null; activeRunId.value = ''; return }
     try {
-      const rows = await request<HistoryRun[]>(`/subscriptions/${id}/history`)
+      const rows = await request<ListPage<HistoryRun>>(`/subscriptions/${id}/history?page=${historyPage.value}&pageSize=25`).then(checkedPage<HistoryRun>)
       if (disposed || seq !== historySeq) return
-      history.value = rows
+      history.value = rows.items;historyTotal.value=rows.total
       const queryId = typeof route.query.run === 'string' ? route.query.run : ''
-      const next = queryId || (pending.value?.subscriptionId === id ? pending.value.runId : '') || rows[0]?.id || ''
+      const next = queryId || (pending.value?.subscriptionId === id ? pending.value.runId : '') || rows.items[0]?.id || ''
       if (next) await readRun(next); else { run.value = null; activeRunId.value = ''; runError.value = null }
     } catch (e) { if (!disposed && seq === historySeq) historyError.value = asError(e) }
     finally { if (!disposed && seq === historySeq) historyLoading.value = false }
@@ -175,7 +180,7 @@ export function useSubscriptionWorkspace() {
   })
   useRefresh(poll, {interval:5000, immediate:false})
   onUnmounted(() => { disposed = true })
-  return { tab, scope, records, accounts, loading, listError, accountError, search, filter, visible, selected, detailOpen, inspect,
+  return {page,total,historyPage,historyTotal, tab, scope, records, accounts, loading, listError, accountError, search, filter, visible, selected, detailOpen, inspect,
     history, historyLoading, historyError, historyId, activeRunId, run, runLoading, runError, runDetailOpen, readRun, chooseRun, showHistory, loadHistory,
     pending, evaluate, reconcile, refresh, changeScope, compose, draft, editorOpen, saving, saveError, save, reloadEditor,
     previewDraft, previewReady, previewRun, previewError, toggle, mutation, askDelete, deleteOpen, deleteTarget, deleting, confirmDelete }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
+
 import { onMounted, reactive, ref, watch } from 'vue';
 import { listMediaDevices, listMediaHistory, revokeMediaDevice } from '../api/mediaServer';
 import { useResource } from '../workflows/useResource';
@@ -10,7 +12,7 @@ import { date, errorText } from '../workflows/readiness';
 const props = defineProps<{
   userId: string;
   userName: string;
-}>(), tab = ref('devices'), page = ref(1), data = reactive(useResource<any>(() => tab.value === 'devices' ? listMediaDevices(props.userId, (page.value - 1) * 50) : listMediaHistory(props.userId, (page.value - 1) * 50))), op = reactive(useOperation('devices')), confirm = ref(false), target = ref<any>(null);
+}>(), tab = ref('devices'), page = usePageNumber(), data = reactive(useResource<any>(() => tab.value === 'devices' ? listMediaDevices(props.userId, (page.value - 1) * 50) : listMediaHistory(props.userId, (page.value - 1) * 50))), op = reactive(useOperation('devices')), confirm = ref(false), target = ref<any>(null);
 async function load() {
   await data.load();
   if (op.pending) {
@@ -59,6 +61,6 @@ defineExpose({ load, tab, page, data, changeTab, revoke, target, op });
     </template>
     <p v-else>观看 {{ row.playCount??'—' }} 次 · 已观看 {{ Math.floor((row.positionTicks||0)/600000000) }} 分钟 · {{ row.played?'已看完':'未看完' }} · {{ date(row.lastPlayedAt) }}</p>
   </article>
-  <PagePagination v-if="data.data?.total>50" v-model:current-page="page" :page-size="50" :total="data.data.total" layout="prev,pager,next,total" @current-change="load"/>
+  <PagePagination v-model:current-page="page" :page-size="50" :total="data.data.total" layout="prev,pager,next,total" @current-change="load"/>
   <ConfirmAction v-model:visible="confirm" title="撤销设备登录" :description="`撤销 ${userName} 在 ${target?.name||'此设备'} 的登录？`" impact-scope="该设备需要重新输入密码，其他设备不受影响；不删除媒体或观看记录。" confirm-text="确认撤销" :loading="op.busy" class="media-dialog" @confirm="revoke"/>
 </template>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
+
 import {useRefresh} from '../composables/useRefresh';
 import { pageResult } from './model';
 import { formatBytes as bytes } from './model';
@@ -15,7 +17,7 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 const notice = ref(''), posterErrors = ref(new Set<string>());
-const route = useRoute(), router = useRouter(), kind = computed<'tmdb' | 'search'>(() => route.query.cacheKind === 'search' ? 'search' : 'tmdb'), page = ref(1), loadedAt = ref(Date.now()), now = ref(Date.now()), data = reactive(useResource<any>(() => request(`/cache/${kind.value}?page=${page.value}`).then(pageResult))), detail = ref<any>(null), open = ref(false), detailError = ref<unknown>(null), op = reactive(useOperation('cache')), confirm = ref(false), removeId = ref('');
+const route = useRoute(), router = useRouter(), kind = computed<'tmdb' | 'search'>(() => route.query.cacheKind === 'search' ? 'search' : 'tmdb'), page = usePageNumber(), loadedAt = ref(Date.now()), now = ref(Date.now()), data = reactive(useResource<any>(() => request(`/cache/${kind.value}?page=${page.value}`).then(pageResult))), detail = ref<any>(null), open = ref(false), detailError = ref<unknown>(null), op = reactive(useOperation('cache')), confirm = ref(false), removeId = ref('');
 function setKind(value: string) {
   void router.replace({ query: { ...route.query, cacheKind: value } });
 }
@@ -105,7 +107,7 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
           <el-button :disabled="!!op.pending" @click="ask(row.id)">删除缓存项</el-button>
         </div>
       </article>
-      <PagePagination v-if="data.data?.total>30" v-model:current-page="page" :total="data.data.total" :page-size="30" layout="prev,pager,next" @current-change="load"/>
+      <PagePagination v-model:current-page="page" :total="data.data.total" :page-size="30" layout="prev,pager,next" @current-change="load"/>
     </section>
     <p>
       缓存有效期统一在

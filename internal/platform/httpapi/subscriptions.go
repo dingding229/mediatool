@@ -19,6 +19,16 @@ func (a *API) listSubscriptions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	history := r.URL.Query().Get("view") == "history"
+	query, status := r.URL.Query().Get("q"), r.URL.Query().Get("status")
+	if len(query) > 800 || status != "" && status != "all" && status != "enabled" && status != "paused" {
+		fail(w, 400, "invalid_filter", "订阅筛选无效")
+		return
+	}
+	if servePage(w, r, a.Deps.DB, `SELECT count(*) FROM subscriptions WHERE (archived_at IS NOT NULL)=$1 AND ($2='' OR title ILIKE '%'||$2||'%') AND ($3='' OR $3='all' OR enabled=($3='enabled'))`, []any{history, query, status}, func(start, limit int) ([]subscriptions.Record, error) {
+		return engine.BrowsePage(r.Context(), history, start, limit, query, status)
+	}) {
+		return
+	}
 	list, err := engine.Browse(r.Context(), history)
 	if err != nil {
 		fail(w, 503, "subscriptions_unavailable", "订阅记录暂不可用")
@@ -100,6 +110,11 @@ func (a *API) subscriptionHistory(w http.ResponseWriter, r *http.Request) {
 	engine := a.subscriptionEngine()
 	if engine == nil {
 		fail(w, 503, "subscriptions_unavailable", "订阅暂不可用")
+		return
+	}
+	if servePage(w, r, a.Deps.DB, `SELECT count(*) FROM subscription_runs WHERE subscription_id=$1`, []any{r.PathValue("id")}, func(start, limit int) ([]subscriptions.HistoryRun, error) {
+		return engine.HistoryPage(r.Context(), r.PathValue("id"), start, limit)
+	}) {
 		return
 	}
 	out, err := engine.History(r.Context(), r.PathValue("id"))

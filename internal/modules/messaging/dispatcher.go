@@ -225,8 +225,9 @@ type Message struct {
 	TelegramState string     `json:"telegramState"`
 }
 
-func (d Dispatcher) List(ctx context.Context) ([]Message, error) {
-	rows, err := d.DB.Query(ctx, `SELECT m.id::text,m.title,m.body,m.created_at,m.read_at,coalesce(n.state,'not_configured'),n.id::text,coalesce(n.last_error,'') FROM notification_messages m LEFT JOIN notification_deliveries n ON n.event_id=m.event_id ORDER BY m.created_at DESC LIMIT 200`)
+func (d Dispatcher) List(ctx context.Context) ([]Message, error) { return d.Page(ctx, 0, 200) }
+func (d Dispatcher) Page(ctx context.Context, start, limit int) ([]Message, error) {
+	rows, err := d.DB.Query(ctx, `SELECT m.id::text,m.title,m.body,m.created_at,m.read_at,coalesce(n.state,'not_configured'),n.id::text,coalesce(n.last_error,'') FROM notification_messages m LEFT JOIN notification_deliveries n ON n.event_id=m.event_id ORDER BY m.created_at DESC,m.id,n.id LIMIT $1 OFFSET $2`, limit, start)
 	if err != nil {
 		return nil, err
 	}

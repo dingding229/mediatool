@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
+
 import TaskControl from '../workflows/TaskControl.vue';
 import {scheduleLabel} from '../presentation/labels';
 import {usePageRefresh} from '../ui/page-refresh';
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { APIError, post, request } from '../api/client';
 import StateView from '../ui/StateView.vue';
 import PreviewApprove from '../ui/PreviewApprove.vue';
@@ -15,16 +17,17 @@ import { scanPercent } from '../files/workbench';
 import { label, rows, readPrivate, savePrivate } from './model';
 const props = defineProps<{
   scans: any[];
+ page?:number;total?:number;
   schedules: any[];
   scanError?: unknown;
   scheduleError?: unknown;
   scheduleLoading?: boolean;
   loading?: boolean;
-}>(), emit = defineEmits<{
+}>(), emit = defineEmits<{page:[number];
   changed: [
   ];
 }>();
-const remembered = readPrivate('media-tool:scan-create:v1'), root = ref(remembered?.root || ''), useDefault = ref(!remembered?.root), roots = ref<any[]>([]), connection = ref(''), rootError = ref<unknown>(null), preview = ref<any>(null), busy = ref(false), error = ref<unknown>(null), pending = ref<any>(remembered), approveOpen = ref(false), detailOpen = ref(false), detail = ref<any>(null), cursorPage = ref(1), scanPage = ref(1), step = ref(remembered ? 3 : 1), controlTarget = ref<any>(null), controlOpen = ref(false);
+const remembered = readPrivate('media-tool:scan-create:v1'), root = ref(remembered?.root || ''), useDefault = ref(!remembered?.root), roots = ref<any[]>([]), connection = ref(''), rootError = ref<unknown>(null), preview = ref<any>(null), busy = ref(false), error = ref<unknown>(null), pending = ref<any>(remembered), approveOpen = ref(false), detailOpen = ref(false), detail = ref<any>(null), cursorPage = usePageNumber('cursorPage'), scanPage = computed({get:()=>props.page||1,set:(n:number)=>emit('page',n)}), step = ref(remembered ? 3 : 1), controlTarget = ref<any>(null), controlOpen = ref(false);
 const scheduleOpen = ref(false), scheduleBusy = ref(false), conflict = ref<any>(null), form = ref<any>({ id: '', root: '', enabled: false, watchChanges: false, cron: '0 * * * *', revision: 0 });
 const controlPending = ref<any>(readPrivate('media-tool:scan-control:v1'));
 let version = 0, detailVersion = 0, disposed = false;
@@ -252,7 +255,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <StateView v-if="scanError" :state="sourceState(scanError)" title="扫描记录读取失败" @retry="emit('changed')"/>
     <p v-else-if="loading&&!scans.length">正在读取扫描记录…</p>
     <p v-else-if="!scans.length">尚无扫描记录</p>
-    <article v-for="scan in scans.slice((scanPage-1)*8,scanPage*8)" :key="scan.id" class="organize-record">
+    <article v-for="scan in scans" :key="scan.id" class="organize-record">
       <h3>{{ scan.root }}</h3>
       <p>{{ label(scan.state) }} · {{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</p>
       <el-progress v-if="scan.directories>0" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/>
@@ -264,7 +267,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
         <TaskControl kind="scans" :id="scan.id" :state="scan.state" @changed="emit('changed')"/>
       </div>
     </article>
-    <PagePagination v-if="scans.length>8" v-model:current-page="scanPage" :page-size="8" :total="scans.length" layout="prev,pager,next"/>
+    <PagePagination v-model:current-page="scanPage" :page-size="8" :total="total??scans.length" layout="prev,pager,next"/>
     <p>扫描中断或云盘内容变化时，不会把未扫描到的文件直接标记为缺失；恢复后会重新检查。</p>
   </section>
   <section class="media-surface">

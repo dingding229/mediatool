@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
+
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
@@ -17,7 +19,7 @@ import ResourceState from '../workflows/ResourceState.vue';
 import '../media/media.css';
 import '../workflows/u5.css';
 import '../operations/u6.css';
-const route = useRoute(), tab = computed(() => route.query.tab === 'catalog' ? 'catalog' : 'installed'), page = ref(1), catalogPage = ref(1), query = ref(''), list = reactive(useResource(() => instances(page.value), [])), directory = reactive(useResource(() => catalog(catalogPage.value))), op = reactive(usePluginOperation()), consent = ref<PluginDefinition | null>(null), confirmed = ref(false), automation = ref(false), tech = ref(false);
+const route = useRoute(), tab = computed(() => route.query.tab === 'catalog' ? 'catalog' : 'installed'), page = usePageNumber(), catalogPage = usePageNumber('catalogPage'), query = ref(''), list = reactive(useResource(() => instances(page.value), [])), directory = reactive(useResource(() => catalog(catalogPage.value))), op = reactive(usePluginOperation()), consent = ref<PluginDefinition | null>(null), confirmed = ref(false), automation = ref(false), tech = ref(false);
 const shown = computed(() => list.data.filter(i => (i.metadata?.name || i.pluginId).toLowerCase().includes(query.value.toLowerCase()))), definitions = computed(() => directory.data?.items.filter(d => (d.manifest.name + ' ' + d.manifest.description).toLowerCase().includes(query.value.toLowerCase())) || []);
 async function read() {
   await Promise.all([list.load(), directory.load()]);
@@ -76,7 +78,7 @@ usePageRefresh(load,'*');
             <RouterLink :to="'/plugins/'+encodeURIComponent(i.id)" class="el-button">管理插件</RouterLink>
           </article>
         </div>
-        <PagePagination v-model:current-page="page" :has-next="list.data.length>=50" :disabled="list.loading" @current-change="load"/>
+        <PagePagination :page-size="50" v-model:current-page="page" :has-next="list.data.length>=50" :disabled="list.loading" @current-change="load"/>
       </template>
       <template v-else>
         <ResourceState :stale="directory.loaded" :loading="directory.loading" :error="safePluginError(directory.error)" :empty="!definitions.length" @reload="load"/>

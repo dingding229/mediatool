@@ -122,6 +122,25 @@ func TestPostgresWorkbenchMandatoryResetAndReadOnlyTools(t *testing.T) {
 	if w := call("POST", "/api/v1/auth/recovery-code", `{}`, cookie); w.Code != 404 {
 		t.Fatal("legacy recovery still active")
 	}
+	for _, path := range []string{"/downloads", "/downloads/manual", "/transfers", "/subscriptions", "/notifications", "/media-server/users"} {
+		w := call("GET", "/api/v1"+path+"?page=2&pageSize=1", "", cookie)
+		if w.Code != 200 || !strings.Contains(w.Body.String(), `"items":`) || !strings.Contains(w.Body.String(), `"total":`) {
+			t.Fatal("page response", path, w.Code, w.Body.String())
+		}
+		var body struct {
+			Data struct {
+				Items []json.RawMessage
+				Total int
+				Page  int
+			}
+		}
+		if json.Unmarshal(w.Body.Bytes(), &body) != nil || len(body.Data.Items) > 1 || body.Data.Page != 2 {
+			t.Fatal("SQL page bound", path, w.Body.String())
+		}
+		if w = call("GET", "/api/v1"+path+"?page=2&page=3", "", cookie); w.Code != 400 {
+			t.Fatal("ambiguous page accepted", path, w.Code)
+		}
+	}
 	parsed := call("POST", "/api/v1/media/recognize-name", `{"name":"Movie.2026.1080p.WEB-DL.x265-TEAM.mkv"}`, cookie)
 	if parsed.Code != 200 || !strings.Contains(parsed.Body.String(), `"year":"2026"`) {
 		t.Fatal("parse route")

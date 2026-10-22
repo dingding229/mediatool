@@ -31,6 +31,11 @@ func (a *API) listDownloads(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "downloads_unavailable", "请先配置数据库和业务连接")
 		return
 	}
+	if servePage(w, r, a.Deps.DB, `SELECT count(*) FROM download_tasks`, nil, func(start, limit int) ([]acquisition.Task, error) {
+		return engine.Page(r.Context(), start, limit, "", "", nil)
+	}) {
+		return
+	}
 	tasks, err := engine.List(r.Context())
 	if err != nil {
 		fail(w, 503, "downloads_unavailable", "下载任务暂不可用")

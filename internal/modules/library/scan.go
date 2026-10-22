@@ -133,8 +133,9 @@ func startScanTx(ctx context.Context, tx pgx.Tx, connectionID, root string) (str
 	}
 	return id, true, nil
 }
-func (e Engine) Scans(ctx context.Context) ([]Scan, error) {
-	rows, err := e.DB.Query(ctx, `SELECT id::text,integration_id::text,root,state,(SELECT count(*) FROM library_scan_seen s WHERE s.scan_id=library_scans.id),(SELECT count(*) FROM library_scan_directories d WHERE d.scan_id=library_scans.id),message,created_at,updated_at,integration_revision,generation,current_directory,(SELECT count(*) FROM library_scan_directories d WHERE d.scan_id=library_scans.id AND d.state='completed') FROM library_scans ORDER BY created_at DESC LIMIT 100`)
+func (e Engine) Scans(ctx context.Context) ([]Scan, error) { return e.ScansPage(ctx, 0, 100) }
+func (e Engine) ScansPage(ctx context.Context, start, limit int) ([]Scan, error) {
+	rows, err := e.DB.Query(ctx, `SELECT id::text,integration_id::text,root,state,(SELECT count(*) FROM library_scan_seen s WHERE s.scan_id=library_scans.id),(SELECT count(*) FROM library_scan_directories d WHERE d.scan_id=library_scans.id),message,created_at,updated_at,integration_revision,generation,current_directory,(SELECT count(*) FROM library_scan_directories d WHERE d.scan_id=library_scans.id AND d.state='completed') FROM library_scans ORDER BY created_at DESC,id LIMIT $1 OFFSET $2`, limit, start)
 	if err != nil {
 		return nil, err
 	}

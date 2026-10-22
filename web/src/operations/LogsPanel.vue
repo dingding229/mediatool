@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
 import {Refresh,Delete,Setting,CopyDocument,Download,DArrowLeft,ArrowLeft,ArrowRight,DArrowRight} from '@element-plus/icons-vue';
 import {useRevision} from '../settings/revision';
 import RevisionFeedback from '../settings/RevisionFeedback.vue';
@@ -17,7 +18,7 @@ import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-const route = useRoute(), filter = reactive({ page: 1, pageSize: 200, level: '', module: String(route.query.module || ''), instance: String(route.query.instance || ''), keyword: '', before: '' }), from = ref(''), to = ref(''), clean = ref(false), friendly = ref(true), detail = ref<any>(null), open = ref(false), settings = ref(false), confirm = ref(false), copied = ref(''), copyContent = ref(''), copyOpen = ref(false), logLevel = ref(''), op = reactive(useOperation('logs')), data = reactive(useResource<any>(() => {
+const route = useRoute(), filter = reactive({ page: usePageNumber(), pageSize: 200, level: '', module: String(route.query.module || ''), instance: String(route.query.instance || ''), keyword: '', before: '' }), from = ref(''), to = ref(''), clean = ref(false), friendly = ref(true), detail = ref<any>(null), open = ref(false), settings = ref(false), confirm = ref(false), copied = ref(''), copyContent = ref(''), copyOpen = ref(false), logLevel = ref(''), op = reactive(useOperation('logs')), data = reactive(useResource<any>(() => {
   const q = new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])));
   if (!filter.instance)
     q.delete('instance');
@@ -123,21 +124,8 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
         <div role="cell"><button class="f3-log-source" :aria-label="row.url||row.location?'查看完整链接':'完整原始记录'" @click="detail=row;open=true">{{logSource(row)||moduleLabel(row.module)||'—'}}</button></div>
       </article>
     </div>
-    <footer class="f3-log-footer">
-      <label>每页行数 <el-select v-model="filter.pageSize" aria-label="每页日志数" @change="refresh"><el-option v-for="n in [50,100,200]" :key="n" :value="n" :label="String(n)"/></el-select></label>
-      <span v-if="data.loading&&!data.loaded">读取中，数量未知</span>
-      <span v-else-if="data.error&&!data.loaded">读取失败，数量未知</span>
-      <span v-else>{{data.data?.total?((filter.page-1)*filter.pageSize+1):0}} – {{Math.min(filter.page*filter.pageSize,data.data?.total||0)}}，共 {{data.data?.total??'—'}} 条</span>
-      <span v-if="data.data?.truncated">检索窗口已达上限，请缩小范围。</span>
-      <div class="media-actions">
-        <ElTooltip content="首页" placement="top"><el-button :icon="DArrowLeft" aria-label="日志首页" :disabled="filter.page<=1" @click="filter.page=1;load()"/></ElTooltip>
-        <ElTooltip content="上一页" placement="top"><el-button :icon="ArrowLeft" aria-label="上一页日志" :disabled="filter.page<=1" @click="filter.page--;load()"/></ElTooltip>
-        <span>{{filter.page}} / {{pageCount}}</span>
-        <ElTooltip content="下一页" placement="top"><el-button :icon="ArrowRight" aria-label="下一页日志" :disabled="filter.page>=pageCount" @click="filter.page++;load()"/></ElTooltip>
-        <ElTooltip content="末页" placement="top"><el-button :icon="DArrowRight" aria-label="日志末页" :disabled="filter.page>=pageCount" @click="filter.page=pageCount;load()"/></ElTooltip>
-      </div>
-      <span role="status">{{copied}}</span>
-    </footer>
+    <PagePagination v-model:current-page="filter.page" v-model:page-size="filter.pageSize" :page-sizes="[50,100,200]" :total="data.data?.total" label="日志分页" @current-change="load"/>
+    <p v-if="data.data?.truncated">检索窗口已达上限，计数仅覆盖窗口内记录，请缩小时间范围。</p><span role="status">{{copied}}</span>
     <ConfirmAction v-model:visible="confirm" title="清理日志" description="清理全部程序文件日志？" impact-scope="不删除数据库审计或启动控制台日志，也不修改媒体；现有文件日志将不可恢复。" confirm-text="确认清理" danger-level="danger" :loading="op.busy" class="media-dialog" @confirm="clear"/>
     <DetailDrawer v-model:visible="open" title="完整原始日志" class="media-detail">
       <template v-if="detail">
