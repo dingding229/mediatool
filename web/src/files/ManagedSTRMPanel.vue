@@ -14,9 +14,10 @@ const items = ref<any[]>([]), page = usePageNumber(), total = ref(0), query = re
 const contentPath = ref('');
 let epoch = 0, contentEpoch = 0, disposed = false;
 const files = computed(() => items.value.flatMap(a => rows(a.outputs).filter(o => o.kind === 'strm').map(o => ({ ...o, asset: a }))).filter(o => !directory.value || o.path.startsWith(directory.value + '/'))), folders = computed(() => [...new Set(files.value.map(o => o.path.slice(directory.value ? directory.value.length + 1 : 0).split('/').slice(0, -1)[0]).filter(Boolean))]), directFiles = computed(() => files.value.filter(o => !o.path.slice(directory.value ? directory.value.length + 1 : 0).includes('/'))), crumbs = computed(() => [{ name: '本页受管目录', path: '' }, ...directory.value.split('/').filter(Boolean).map((name, i, a) => ({ name, path: a.slice(0, i + 1).join('/') }))]);
-async function load() {
+let hasLoaded=false;
+  async function load() {
   const current = ++epoch;
-  loading.value = true;
+  loading.value = !hasLoaded;
   error.value = null;
   try {
     const out: any = await request(`/library/outputs?kind=strm&page=${page.value}&pageSize=25&mediaType=${kind.value}&q=${encodeURIComponent(query.value)}`);
@@ -34,7 +35,8 @@ async function load() {
         }
       }
     }
-  }
+  hasLoaded=true;
+ }
   catch (e) {
     if (current === epoch)
       error.value = e;

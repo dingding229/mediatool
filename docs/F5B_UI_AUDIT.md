@@ -1,0 +1,65 @@
+# F5b 加载与分页检查
+
+业务页面在隔离 `media_tool_test` / Redis DB15 中逐页检查；没有修改生产权限或密码。每个业务入口覆盖 1440×1000 和 390×844，API 延迟 180ms，记录首次加载 CLS、页头坐标、刷新前后首个工作区坐标及横向溢出。
+
+以下是阶段 5 的 42 个业务入口基线（84 个 viewport）；正常空库/未配置态使用真实测试 API，非空列表、异步详情和弹窗另由客户端序列 E2E 覆盖。截图及完整 boundingBox/位移来源只保存在忽略的 `data/private/f5/f5b/loading/`，不发布运行日志。
+
+| 页面 | 桌面 CLS | 窄屏 CLS | 刷新 bbox 最大变化（px） |
+|---|---:|---:|---:|
+| /connections?tab=aux | 0.00931 | 0.00000 | 0.00 |
+| /connections?tab=downloader | 0.00000 | 0.00000 | 0.00 |
+| /connections?tab=emby | 0.00000 | 0.00000 | 0.00 |
+| /connections?tab=notifications | 0.00000 | 0.00000 | 0.00 |
+| /connections?tab=storage | 0.00000 | 0.00000 | 0.00 |
+| /dashboard | 0.00000 | 0.00009 | 0.00 |
+| /downloads?tab=manual | 0.00000 | 0.00000 | 0.00 |
+| /downloads?tab=tasks | 0.00008 | 0.00033 | 0.00 |
+| /downloads?tab=uploads | 0.00000 | 0.00000 | 0.00 |
+| /files?tab=browser | 0.00104 | 0.00000 | 0.00 |
+| /files?tab=strm | 0.00000 | 0.00002 | 0.00 |
+| /files?tab=tools | 0.00000 | 0.00000 | 0.00 |
+| /library?tab=browse | 0.00000 | 0.00000 | 0.00 |
+| /ops?tab=attention | 0.00000 | 0.00000 | 0.00 |
+| /ops?tab=cache | 0.00000 | 0.00000 | 0.00 |
+| /ops?tab=jobs | 0.00000 | 0.00000 | 0.00 |
+| /ops?tab=logs | 0.00000 | 0.00023 | 0.00 |
+| /ops?tab=maintenance | 0.00000 | 0.00000 | 0.00 |
+| /organize?tab=assets | 0.00000 | 0.00000 | 0.00 |
+| /organize?tab=candidates | 0.00000 | 0.00000 | 0.00 |
+| /organize?tab=history | 0.00074 | 0.00000 | 0.00 |
+| /organize?tab=recovery | 0.00000 | 0.00000 | 0.00 |
+| /organize?tab=scans | 0.00000 | 0.00000 | 0.00 |
+| /playback?tab=players | 0.00000 | 0.00000 | 0.00 |
+| /playback?tab=processing | 0.00508 | 0.00000 | 0.00 |
+| /playback?tab=sessions | 0.00000 | 0.00000 | 0.00 |
+| /playback?tab=settings | 0.00000 | 0.00000 | 0.00 |
+| /playback?tab=users | 0.00000 | 0.00000 | 0.00 |
+| /plugins?tab=catalog | 0.00385 | 0.00547 | 0.00 |
+| /plugins?tab=installed | 0.00000 | 0.00000 | 0.00 |
+| /search?tab=discover | 0.00000 | 0.00000 | 0.00 |
+| /search?tab=history | 0.00000 | 0.00000 | 0.00 |
+| /search?tab=query | 0.00595 | 0.00000 | 0.00 |
+| /settings?tab=api | 0.00000 | 0.00000 | 0.00 |
+| /settings?tab=automation | 0.00000 | 0.00000 | 0.00 |
+| /settings?tab=general | 0.00000 | 0.00000 | 0.00 |
+| /settings?tab=mobile | 0.00000 | 0.00000 | 0.00 |
+| /settings?tab=naming | 0.00000 | 0.00000 | 0.00 |
+| /settings?tab=security | 0.00855 | 0.00000 | 0.00 |
+| /sites?tab=accounts | 0.00000 | 0.00001 | 0.00 |
+| /sites?tab=templates | 0.00000 | 0.00000 | 0.00 |
+| /subscriptions | 0.00000 | 0.00000 | 0.00 |
+
+## 分页清单
+
+SQL 当前页 + 总数：任务、日志（明示最多 20,000 条窗口）、下载、手动下载、上传、订阅、订阅运行历史、通知、媒体用户、扫描/目录覆盖、候选文件、受管资产/STRM、整理历史、归档、文件浏览、播放器观察/访问事件、在线会话、媒体用户活动、预处理任务、搜索记录、搜索结果、缓存、媒体目录/剧集子级。
+
+发现服务及现有插件实例/工作流/运行历史接口只提供 hasNext 或固定边界，不假造总数，统一显示“总数未提供”并禁用无法证明的末页。站点账号按要求全页行式展示；内置目录有限集合沿用其总数。
+
+页码使用独立列表 URL query 键，支持重新加载与后退；筛选值在翻页时保留。固定条数的接口明确显示每页条数，日志支持 50/100/200 选择。
+
+## 克制的取舍
+
+- 小型通用表单控件及 CSS 改为首包就绪，避免异步控件把标签行突然撑高 44px；表格、弹窗和日期选择等重组件继续懒加载。首入口 gzip 从约 114 KiB 增至约 151 KiB，没有增加依赖。
+- 首次占位使用有界工作区/表单最小高度；不把队列重新放进内部滚动列表。空态插图缩至 80px，避免空态比加载占位高约 117px。
+- 后台刷新及分页保留上一份成功数据。页面切换、表单保存冲突、身份切换仍遵守原有 fencing 与权限规则。
+- 请求进度条 fixed 定位、短请求延迟显示；SSE 不被当成永不结束的普通请求。

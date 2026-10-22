@@ -77,8 +77,8 @@ defineExpose({ refresh: browser.refresh });
       </label>
       <el-button :disabled="!browser.root||!allowed('mkdir',undefined,browser.capability)" @click="act('mkdir')">新建文件夹</el-button>
     </div>
-    <p v-if="browser.root">{{ browser.root.path }} · {{ roles[browser.capability?.role||'']||'目录权限待核对' }}</p>
-    <p v-if="browser.capability?.reason">{{ browser.capability.reason }}</p>
+    <p class="f5-file-root">{{browser.root?browser.root.path+' · '+(roles[browser.capability?.role||'']||'目录权限待核对'):'正在读取目录范围…'}}</p>
+    <p class="f5-file-reason">{{browser.capability?.reason||'\u00a0'}}</p>
     <nav class="files-breadcrumbs" aria-label="文件路径">
       <button v-for="crumb in browser.crumbs" :key="crumb.path" :aria-current="browser.directory===crumb.path?'location':undefined" @click="browser.navigate(crumb.path)">{{ crumb.name }}</button>
       <button type="button" v-if="browser.directory!=='.'" @click="browser.navigate(browser.directory.includes('/')?browser.directory.slice(0,browser.directory.lastIndexOf('/')):'.')">上级目录</button>

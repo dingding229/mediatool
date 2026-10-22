@@ -16,9 +16,10 @@ import { eligible, label, rows, readPrivate, savePrivate } from './model';
 const stored = readPrivate('media-tool:archive-pending:v1'), items = ref<any[]>([]), page = usePageNumber(), total = ref(0), policy = ref<any>(null), days = ref(30), selected = ref<any[]>([]), loading = ref(true), busy = ref(false), error = ref<unknown>(null), conflict = ref<any>(null), plan = ref<any>(stored?.plan || null), requestId = ref(stored?.requestId || ''), phase = ref<'queued' | 'reconciling' | null>(stored ? 'reconciling' : null), confirmOpen = ref(false), retryOpen = ref(false), retryTarget = ref<any>(null), readbackMissing = ref(false), results = ref<any[]>([]), detailsOpen = ref(false);
 const policyPending = ref(false), retryPending = ref(readPrivate('media-tool:archive-retry:v1'));
 let disposed = false, loadVersion = 0, previewVersion = 0;
-async function load() {
+let hasLoaded=false;
+  async function load() {
   const currentVersion = ++loadVersion;
-  loading.value = true;
+  loading.value = !hasLoaded;
   error.value = null;
   try {
     const [out, current]: any = await Promise.all([request(`/library/archives?page=${page.value}&pageSize=50`), request('/library/archive-policy')]);
@@ -34,7 +35,8 @@ async function load() {
       retryPending.value = null;
       savePrivate('media-tool:archive-retry:v1', null);
     }
-  }
+  hasLoaded=true;
+ }
   catch (e) {
     error.value = e;
   }

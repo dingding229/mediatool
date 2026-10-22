@@ -19,7 +19,7 @@ const tab = computed(() => tabs.some(t => t.id === route.query.tab) ? String(rou
 const statusServices = computed(() => services.filter(s => tab.value === 'storage' ? s.tab === 'storage' : tab.value === 'emby' ? s.tab === 'emby' : false));
 const readiness = ref<Readiness | null>(null), loading = ref(false), error = ref<unknown>(null), account = ref<any>(null), accountBusy = ref(false), accountError = ref<unknown>(null);
 async function load() {
-  loading.value = true;
+  loading.value = !readiness.value;
   error.value = null;
   try {
     readiness.value = await request('/readiness');

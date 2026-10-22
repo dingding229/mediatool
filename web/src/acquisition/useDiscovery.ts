@@ -6,13 +6,11 @@ import { rows, type MediaItem } from '../media/model';
 export function useDiscovery() {
   const route = useRoute(), router = useRouter(), kind = ref(route.query.kind === 'recommend.source' ? 'recommend.source' : 'discover.source'), page = usePageNumber(), items = ref<MediaItem[]>([]), hasMore = ref(false), truncated = ref(false), loading = ref(true), error = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>();
   let epoch = 0, detailEpoch = 0, alive = true;
+  let hasLoaded=false;
   async function load() {
     const version = ++epoch;
-    loading.value = true;
+    loading.value = !hasLoaded;
     error.value = undefined;
-    items.value = [];
-    hasMore.value = false;
-    truncated.value = false;
     try {
       const out = await request<any>(`/media/library/sources?kind=${kind.value}&page=${page.value}&limit=24`);
       const providers=await request<any[]>('/plugins?page=1&pageSize=200').catch(()=>[]);
@@ -20,7 +18,7 @@ export function useDiscovery() {
       if (alive && version === epoch) {
         items.value = rows(out.items).map(v => ({ ...v, id: `${v.instanceId}:${v.mediaType}:${v.tmdbId}`, source: names.get(v.instanceId)||'已启用的发现服务' }));
         hasMore.value = !!out.hasMore;
-        truncated.value = !!out.truncated;
+        truncated.value = !!out.truncated;hasLoaded=true;
       }
     }
     catch (e) {

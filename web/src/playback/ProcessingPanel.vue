@@ -121,16 +121,16 @@ defineExpose({ load, save, ask, apply, form, filter, summary, tasks, op, action,
     <section class="media-surface">
       <h2>预处理设置</h2>
       <p>提前读取媒体信息和生成截图，方便浏览；不会改变影片的播放方式。</p>
-      <ResourceState :stale="summary.loaded" :loading="summary.loading" :error="summary.error" @reload="load"/>
+      <ResourceState overlay :stale="summary.loaded" :loading="summary.loading" :error="summary.error" @reload="load"/>
       <p>总开关与服务设置同步；关闭后，该服务的播放、探测和截图都会暂停。</p>
       <div class="u5-form">
         <p>播放服务：{{form.enabled?'已启用':'已停用'}} · <RouterLink to="/playback?tab=settings">管理播放服务开关</RouterLink></p>
         <label class="u5-check">
-          <input v-model="form.probeEnabled" type="checkbox" :disabled="op.busy" aria-label="允许媒体探测"/>
+          <input v-model="form.probeEnabled" type="checkbox" :disabled="op.busy||!summary.loaded" aria-label="允许媒体探测"/>
           允许媒体探测
         </label>
         <label class="u5-check">
-          <input v-model="form.stillsEnabled" type="checkbox" :disabled="op.busy" aria-label="允许单集截图"/>
+          <input v-model="form.stillsEnabled" type="checkbox" :disabled="op.busy||!summary.loaded" aria-label="允许单集截图"/>
           允许单集截图
         </label>
 

@@ -48,6 +48,7 @@ const showTechnical = ref(false)
 
 <style scoped>
 .detail-body {
+  min-height: min(360px,60vh);
   font-size: 14px;
   line-height: 1.6;
 }

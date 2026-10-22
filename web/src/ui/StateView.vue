@@ -31,12 +31,12 @@ const displayTitle = computed(() => props.title || defaultTitles[props.state])
 <template>
   <div class="state-view" :class="`state-${state}`" role="region" aria-live="polite">
     <div v-if="state === 'loading'" class="state-loading">
-      <el-skeleton :rows="4" animated />
+      <el-skeleton :rows="4" />
       <p class="state-hint">{{ displayTitle }}</p>
     </div>
 
     <div v-else-if="state === 'empty'" class="state-empty">
-      <el-empty :description="displayTitle">
+      <el-empty :image-size="80" :description="displayTitle">
         <template v-if="description" #default>
           <p class="state-desc">{{ description }}</p>
         </template>
@@ -87,8 +87,11 @@ const displayTitle = computed(() => props.title || defaultTitles[props.state])
 <style scoped>
 .state-view {
   padding: 24px 0;
+  box-sizing: border-box;
+  min-height: 300px;
   width: 100%;
 }
+.state-empty :deep(.el-empty){padding:16px 0}
 .state-hint {
   margin-top: 12px;
   font-size: 13px;

@@ -19,9 +19,10 @@ const rows = computed(() => {
   const combined = [...entries.value, ...(page.value === 1 ? props.runs : [])];
   return combined.filter((r, i) => combined.findIndex(x => x.id === r.id) === i);
 });
-async function load() {
+let hasLoaded=false;
+  async function load() {
   const version = ++epoch;
-  loading.value = true;
+  loading.value = !hasLoaded;
   error.value = null;
   try {
     const out = await request<{
@@ -34,7 +35,8 @@ async function load() {
       total.value = out.total;
       truncated.value = !!out.truncated;
     }
-  }
+  hasLoaded=true;
+ }
   catch (e) {
     if (version === epoch && !disposed)
       error.value = e;
@@ -71,8 +73,9 @@ usePageRefresh(load, 'history');
       <RouterLink to="/ops?tab=cache&amp;cacheKind=search">前往缓存管理</RouterLink>
 
     </header>
+    <p v-if="error&&hasLoaded" class="f3-stale-warning" role="status">刷新失败，保留上次内容。<button @click="load">重试</button></p>
     <StateView v-if="loading" state="loading" title="正在读取搜索历史…"/>
-    <StateView v-else-if="error" :state="stateFor(error)" title="部分搜索历史读取失败" :description="errorText(error)" @retry="load"/>
+    <StateView v-else-if="error&&!hasLoaded" :state="stateFor(error)" title="部分搜索历史读取失败" :description="errorText(error)" @retry="load"/>
     <p v-if="runsError" role="alert">近期搜索记录暂不可用，已取得的缓存记录仍可查看。</p>
     <p v-if="truncated" role="status">仅取得部分记录，没有显示不代表没有历史。</p>
     <div v-if="!loading" class="acquire-history">

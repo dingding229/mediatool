@@ -68,7 +68,7 @@ usePageRefresh(load,'*');
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.pending?.input.kind==='install'?'上次安装结果未确认，正在核对，不会重复安装。':'上次操作尚未确认，请先核对当前实例。'" @refresh="load"/>
       <el-button v-if="op.pending&&op.canReconcile" :disabled="op.busy" @click="op.replay(read).then(load)">核对原请求</el-button>
       <el-button v-if="op.technical" @click="tech=true">查看技术详情</el-button>
-      <template v-if="tab==='installed'">
+      <template v-if="tab==='installed'"><div class="f5-plugin-list-stage">
         <ResourceState :stale="list.loaded" :loading="list.loading" :error="safePluginError(list.error)" :empty="!shown.length" empty-title="尚未安装匹配的插件" @reload="load"/>
         <div v-if="!list.error" class="u6-card-grid">
           <article v-for="i in shown" :key="i.id" class="u6-card">
@@ -78,9 +78,9 @@ usePageRefresh(load,'*');
             <RouterLink :to="'/plugins/'+encodeURIComponent(i.id)" class="el-button">管理插件</RouterLink>
           </article>
         </div>
-        <PagePagination :page-size="50" v-model:current-page="page" :has-next="list.data.length>=50" :disabled="list.loading" @current-change="load"/>
+        </div><PagePagination :page-size="50" v-model:current-page="page" :has-next="list.data.length>=50" :disabled="list.loading" @current-change="load"/>
       </template>
-      <template v-else>
+      <template v-else><div class="f5-plugin-list-stage">
         <ResourceState :stale="directory.loaded" :loading="directory.loading" :error="safePluginError(directory.error)" :empty="!definitions.length" @reload="load"/>
         <div v-if="!directory.error" class="u6-card-grid" role="region" aria-label="内置插件目录">
           <article v-for="d in definitions" :key="d.manifest.id" class="u6-card">
@@ -89,7 +89,7 @@ usePageRefresh(load,'*');
             <el-button :disabled="!!op.pending||op.busy" @click="select(d)">{{ hasInstallIntent(d.manifest.id,d.fingerprint)?'核对上次安装':d.installedCount?'新增独立实例':'安装插件' }}</el-button>
           </article>
         </div>
-        <PagePagination v-model:current-page="catalogPage" :page-size="200" :total="directory.data?.total||0" :disabled="directory.loading" @current-change="load"/>
+        </div><PagePagination v-model:current-page="catalogPage" :page-size="200" :total="directory.data?.total||0" :disabled="directory.loading" @current-change="load"/>
       </template>
     </section>
     <el-dialog :model-value="!!consent" title="插件权限确认" width="min(700px,94vw)" class="media-dialog u5-dialog" :close-on-click-modal="false" @update:model-value="consent=null">

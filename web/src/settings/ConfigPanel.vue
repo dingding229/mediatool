@@ -143,13 +143,12 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
           </details>
           <section class="settings-preview" aria-label="命名实时预览" aria-live="polite">
             <strong>命名预览</strong>
-            <p v-if="previewing">正在预览…</p>
-            <p v-if="previewError" role="alert">{{previewError}}</p>
-            <p>
+            <p class="f5-preview-status" role="status">{{previewing?'正在预览…':previewError||'\u00a0'}}</p>
+            <p class="f5-naming-path">
               电影：
               <code>{{preview?.movie||'—'}}</code>
             </p>
-            <p>
+            <p class="f5-naming-path">
               剧集：
               <code>{{preview?.series||'—'}}</code>
             </p>

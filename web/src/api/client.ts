@@ -1,9 +1,11 @@
+import {beginActivity} from './activity'
 // Observe status without changing the data returned by request/post or adding serialized fields.
 const responseStatuses=new WeakMap<object,number>()
 export const responseStatus=(value:unknown)=>value!==null&&typeof value==='object'?responseStatuses.get(value):undefined
 export interface FlowStatus {phase:string;retryable:boolean;nextAction:string;reason:string}
 export class APIError extends Error { constructor(public status:number,public code:string,message:string,public requestId:string='',public flow?:FlowStatus){super(message)} }
 export async function request<T>(path:string,options:RequestInit={}):Promise<T>{
+ const finish=beginActivity();try{
  const headers=new Headers(options.headers)
  if(options.body&&!(options.body instanceof FormData))headers.set('Content-Type','application/json')
  if(options.method&&options.method!=='GET')headers.set('X-Requested-With','media-tool')
@@ -15,6 +17,7 @@ export async function request<T>(path:string,options:RequestInit={}):Promise<T>{
  if(!response.ok||body.error)throw new APIError(response.status,body.error?.code??'request_failed',body.error?.message??'请求失败',requestId,body.error?.flow)
  if(body.data!==null&&typeof body.data==='object')responseStatuses.set(body.data,response.status)
  return body.data as T
+ }finally{finish()}
 }
 export const post=<T>(path:string,body:unknown)=>request<T>(path,{method:'POST',body:JSON.stringify(body)})
 
@@ -28,15 +31,19 @@ export function subscribeJobEvents(tick:()=>void,state?:(connected:boolean)=>voi
  return {close:()=>{stream.close();state?.(false)}}
 }
 export async function testExternalToken(token:string):Promise<void>{
+ const finish=beginActivity();try{
  const response=await fetch('/api/external/v1/status',{credentials:'omit',headers:{Authorization:`Bearer ${token}`}})
  const body=await response.json()
  if(!response.ok||body.error)throw new APIError(response.status,body.error?.code??'token_rejected',body.error?.message??'验证未通过')
+ }finally{finish()}
 }
 export async function originalSTRM(path:string):Promise<string>{
+ const finish=beginActivity();try{
  if(!/^\/api\/v1\/media\/assets\/[^/?]+\/strm(?:\?.*)?$/.test(path))throw Error('播放文件地址不可用。')
  const response=await fetch(path,{credentials:'same-origin'})
  if(!response.ok)throw Error('暂时无法取得此媒体的播放链接。')
  return (await response.text()).trim()
+ }finally{finish()}
 }
 
 export interface ListPage<T>{items:T[];total:number;page?:number;pageSize?:number}

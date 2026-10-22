@@ -196,3 +196,5 @@
 .subscription-scope{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--mt-text-muted);white-space:nowrap}
 .subscription-scope .el-select{width:150px}
 @media(max-width:700px){.subscription-row-actions{justify-content:flex-start}.subscription-scope{width:100%;justify-content:space-between}.subscription-scope .el-select{width:160px}}
+
+.f5-subscription-results{min-height:500px}

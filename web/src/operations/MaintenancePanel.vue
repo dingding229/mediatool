@@ -90,7 +90,8 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
         <h2>备份与告警</h2>
         <el-button :disabled="!!op.pending||!!data.error||data.loading||!data.data?.toolsReady" @click="ask('backup')">创建系统备份</el-button>
       </header>
-      <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" @reload="load"/>
+      <ResourceState overlay :stale="data.loaded" :loading="data.loading" :error="data.error" @reload="load"/>
+      <div class="f5-maint-summary">
       <p v-if="data.data&&!data.data.toolsReady">备份工具暂不可用，无法创建备份或演练；已有记录仍可查看。</p>
       <p v-if="data.data">当前备份 {{ bytes(data.data.totalBytes) }} · 下次 {{ date(data.data.policy?.nextBackupAt) }}</p>
       <div v-if="data.data?.mode.paused">
@@ -99,6 +100,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       </div>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" message="维护请求尚未核验完成；请先查看当前结果，不重复执行。" @refresh="load"/>
+      </div>
       <nav class="media-actions mt-segments" aria-label="备份与告警功能">
         <el-button v-for="(name,key) in {backups:'备份管理',recovery:'恢复与回滚',alerts:'运维告警',trends:'运行趋势',policy:'维护策略'}" :key="key" :aria-pressed="section===key" @click="section=String(key)">{{ name }}</el-button>
       </nav>
@@ -106,6 +108,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     <section v-if="section==='backups'" class="media-surface">
       <h2>系统备份</h2>
       <p>保留最近两份成功备份，固定及维护单使用中的备份不参与自动清理；最多显示最近200条。</p>
+      <div class="f5-backups-region">
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.backups?.length" empty-title="尚无系统备份"/>
       <article v-for="b in data.data?.backups||[]" :key="b.id" class="organize-record">
         <h3>{{ date(b.createdAt) }} · {{ stateLabel(b.state) }}</h3>
@@ -118,7 +121,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
           <el-button v-if="canDeleteBackup(b.state)" :disabled="!!op.pending||b.pinned" @click="ask('delete',b)">删除备份</el-button>
         </div>
       </article>
-      <h2>恢复演练记录</h2>
+      </div><h2>恢复演练记录</h2>
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.drills?.length" empty-title="暂无恢复演练记录"/>
       <article v-for="d in data.data?.drills||[]" :key="d.id" class="organize-record">
         <h3>{{ stateLabel(d.state) }} · {{ date(d.createdAt) }}</h3>

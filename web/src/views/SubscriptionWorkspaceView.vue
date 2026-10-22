@@ -50,6 +50,7 @@ usePageRefresh(refresh,'*');
         <div><h2>{{ tab === 'list' ? '我的跟进清单' : '跟进记录' }}</h2><p v-if="tab === 'history'">记录不会因订阅归档而丢失。选择一次运行，逐条核对决策。</p></div>
         <label class="subscription-scope">查看范围<el-select :model-value="scope" aria-label="订阅范围" @change="changeScope"><el-option label="当前" value="current" /><el-option label="已归档" value="history" /></el-select></label>
       </header>
+      <div class="f5-subscription-results">
       <StateView v-if="loading" state="loading" title="正在读取订阅…" />
       <StateView v-else-if="listError" :state="stateFor(listError)" :title="stateTitle(listError, '订阅列表')" :description="listError.message" @retry="refresh" />
       <template v-else-if="tab === 'list'">
@@ -115,6 +116,7 @@ usePageRefresh(refresh,'*');
           <RunReview :run="run" :loading="runLoading" :error="runError" :created-at="runTime" @refresh="readRun(activeRunId)" @detail="runDetailOpen = true" />
         </div>
       </template>
+      </div>
     <PagePagination v-model:current-page="page" :total="total" :page-size="25" @current-change="refresh"/>
       <PagePagination v-if="tab==='history'" v-model:current-page="historyPage" :total="historyTotal" :page-size="25" @current-change="loadHistory"/>
       </section>

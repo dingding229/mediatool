@@ -1,3 +1,4 @@
+import {beginActivity} from './api/activity'
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { routes } from './router/routes'
@@ -11,6 +12,10 @@ export const router = createRouter({
 })
 
 installPageRedirects(router)
+const navigation=new Map<string,()=>void>()
+router.beforeEach(to=>{navigation.get(to.fullPath)?.();navigation.set(to.fullPath,beginActivity())})
+router.afterEach(to=>{navigation.get(to.fullPath)?.();navigation.delete(to.fullPath)})
+router.onError(()=>{for(const finish of navigation.values())finish();navigation.clear()})
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()

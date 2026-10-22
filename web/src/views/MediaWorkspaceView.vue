@@ -50,8 +50,9 @@ usePageRefresh(refresh,'*');
         <el-button native-type="submit">筛选</el-button>
       </form>
       <button v-if="parentId" class="catalog-back" @click="browse('')">全部媒体 / 返回目录</button>
-      <StateView v-if="loading" state="loading" title="正在读取媒体…"/>
-      <StateView v-else-if="error" :state="sourceState(error)" title="当前来源暂不可用" :description="errorText(error)" @retry="load"/>
+      <p v-if="error&&(items.length||home)" class="f3-stale-warning" role="status">刷新失败，保留上次内容。<button @click="load">重试</button></p>
+    <StateView v-if="loading" state="loading" title="正在读取媒体…"/>
+      <StateView v-else-if="error&&!(items.length||home)" :state="sourceState(error)" title="当前来源暂不可用" :description="errorText(error)" @retry="load"/>
       <template v-else-if="source==='emby'&&view==='home'&&home">
         <section v-for="group in groups" :key="group.key" class="catalog-section">
           <header>

@@ -34,7 +34,7 @@ defineExpose({load,create,health,op});
 <template>
  <section class="media-surface f5-runtime-checks" aria-label="系统运行检查">
   <header class="media-section-heading"><h2>运行检查</h2><el-button :disabled="!!op.pending||op.busy" @click="confirm=true">运行系统检查</el-button></header>
-  <ResourceState :stale="health.loaded" :loading="health.loading" :error="health.error" @reload="load"/>
+  <ResourceState overlay :stale="health.loaded" :loading="health.loading" :error="health.error" @reload="load"/>
   <p class="f5-runtime-summary">数据库 {{health.data?.postgres?.state==='ready'?'可用':health.data?.postgres?.state?'不可用':'—'}} · 缓存 {{health.data?.redis?.state==='ready'?'可用':health.data?.redis?.state?'不可用':'—'}} · 数据库体积 {{formatBytes(health.data?.databaseBytes)}} · 执行器在线 {{health.data?.workers?online+' / '+workers.length:'—'}}</p>
   <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
   <AsyncResultBanner v-if="op.phase" :status="op.phase" message="检查请求尚未核验完成，先读取原任务，不重复提交。" @refresh="load"/>
@@ -49,5 +49,6 @@ defineExpose({load,create,health,op});
  </section>
 </template>
 <style scoped>
-.f5-runtime-checks{min-height:180px;margin-bottom:24px}.f5-runtime-summary{min-height:24px;font-size:13px;line-height:1.8;color:var(--mt-text-muted)}summary{cursor:pointer;min-height:44px;display:flex;align-items:center}.organize-record{overflow-wrap:anywhere}
+.f5-runtime-checks{min-height:180px;margin-bottom:24px}.f5-runtime-summary{min-height:44px;font-size:13px;line-height:1.8;color:var(--mt-text-muted)}summary{cursor:pointer;min-height:44px;display:flex;align-items:center}.organize-record{overflow-wrap:anywhere}
+@media(max-width:600px){.f5-runtime-summary{min-height:88px}}
 </style>

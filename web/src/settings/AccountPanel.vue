@@ -54,7 +54,7 @@ usePageRefresh(session.load, 'security');
 
       </header>
       <StateView v-if="session.error.value" :state="stateFor(session.error.value)" :description="messageFor(session.error.value)" @retry="session.load"/>
-      <StateView v-else-if="session.loading.value" state="loading"/>
+      <p v-else-if="session.loading.value" role="status">正在读取登录会话…</p>
       <template v-else-if="session.data.value">
         <p>管理员：{{session.data.value.account.username||'—'}}</p>
         <p>{{session.data.value.authenticated?'已登录':'未登录'}} · {{session.data.value.account.mustChangePassword?'需要修改密码':'密码可正常使用'}}</p>

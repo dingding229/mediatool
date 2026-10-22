@@ -46,7 +46,7 @@ defineExpose({ load, loadSelected, selected, blocked });
       查找模板
       <input v-model="query" aria-label="查找站点模板"/>
     </label>
-    <ResourceState :stale="catalog.loaded" :loading="catalog.loading" :error="catalog.error" :empty="!shown.length" @reload="load"/>
+    <ResourceState overlay :stale="catalog.loaded" :loading="catalog.loading" :error="catalog.error" :empty="!shown.length" @reload="load"/>
     <ResourceState :error="accounts.error" @reload="accounts.load"/>
     <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'模板加载已排队，尚未核验完成。':'正在核对原批次，不重复加载。'" @refresh="load"/>
@@ -76,6 +76,6 @@ defineExpose({ load, loadSelected, selected, blocked });
 
 <style scoped>
 .f5-template-icon{display:grid;place-items:center;width:32px;height:32px;flex:none;background:var(--mt-bg-canvas);border-radius:6px}
-.f5-template-list{display:grid;gap:0;border-block:1px solid var(--mt-border-color);margin-block:20px}.f5-template-list>.u5-template{display:grid;grid-template-columns:minmax(160px,1fr) minmax(150px,1.5fr) minmax(90px,auto) auto;align-items:center;gap:20px;border:0;border-bottom:1px solid var(--mt-border-color);border-radius:0;padding:14px 0}.f5-template-list>.u5-template:last-child{border-bottom:0}.f5-template-list a{overflow-wrap:anywhere}.f5-template-list p{margin:0;font-size:13px;color:var(--mt-text-muted)}
+.f5-template-list{min-height:460px;display:grid;gap:0;border-block:1px solid var(--mt-border-color);margin-block:20px}.f5-template-list>.u5-template{display:grid;grid-template-columns:minmax(160px,1fr) minmax(150px,1.5fr) minmax(90px,auto) auto;align-items:center;gap:20px;border:0;border-bottom:1px solid var(--mt-border-color);border-radius:0;padding:14px 0}.f5-template-list>.u5-template:last-child{border-bottom:0}.f5-template-list a{overflow-wrap:anywhere}.f5-template-list p{margin:0;font-size:13px;color:var(--mt-text-muted)}
 @media(max-width:700px){.f5-template-list>.u5-template{grid-template-columns:minmax(0,1fr) auto;gap:12px}.f5-template-list a{grid-column:1/-1;grid-row:2}.f5-template-list .u5-template>p{grid-column:1}.f5-template-list .el-button{grid-column:2;grid-row:1}}
 </style>

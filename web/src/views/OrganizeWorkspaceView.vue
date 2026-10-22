@@ -202,7 +202,7 @@ usePageRefresh(state.refresh,'*');
     <div v-show="tab==='recovery'" class="media-stack">
       <section class="media-surface">
         <h2>输出与入库恢复</h2>
-        <StateView v-if="state.loading.repairs&&!state.data.repairs.length" state="loading" title="正在读取恢复记录…"/>
+        <p v-if="state.loading.repairs&&!state.data.repairs.length" role="status">正在读取恢复记录…</p>
         <StateView v-else-if="state.errors.repairs" :state="sourceState(state.errors.repairs)" title="恢复记录读取失败" @retry="state.load('repairs')"/>
         <p v-else-if="!state.data.repairs.length">暂无待恢复输出</p>
         <article v-for="repair in state.data.repairs" :key="repair.id" class="organize-record">

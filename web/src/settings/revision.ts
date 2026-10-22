@@ -19,7 +19,7 @@ export function useRevision<T extends Record<string, any>>(path: string) {
   const changed = computed(() => !!draft.value && !!baseline.value && !equal(draft.value, baseline.value.value));
   async function load() {
     const v = ++version;
-    loading.value = true;
+    loading.value = !baseline.value;
     error.value = undefined;
     try {
       const out = await request<RevisionRecord<T>>(path);

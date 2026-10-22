@@ -33,9 +33,10 @@ watch(limit, () => {
   limit.value = Math.min(100, Math.max(1, Number(limit.value) || 1));
   selected.value = selected.value.slice(0, limit.value);
 });
-async function loadAssets() {
+let hasLoaded=false;
+  async function loadAssets() {
   const current = ++loadEpoch;
-  loading.value = true;
+  loading.value = !hasLoaded;
   loadError.value = null;
   try {
     const out: any = await request(`/library/outputs?kind=strm&page=${page.value}&pageSize=100&q=${encodeURIComponent(query.value)}`);
@@ -43,7 +44,8 @@ async function loadAssets() {
       assets.value = rows(out.items);
       total.value = out.total;
     }
-  }
+  hasLoaded=true;
+ }
   catch (e) {
     if (current === loadEpoch)
       loadError.value = e;

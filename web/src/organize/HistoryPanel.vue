@@ -16,9 +16,10 @@ import { label, removable, rows } from './model';
 const route = useRoute(), items = ref<any[]>([]), total = ref(0), page = usePageNumber(), kind = ref(String(route.query.kind || '')), state = ref(''), query = ref(String(route.query.q || '')), batchId = ref(String(route.query.batchId || '')), origin = ref(''), method = ref(''), from = ref(''), to = ref(''), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), selected = ref<any[]>([]), removeOpen = ref(false), busy = ref(false), uncertain = ref(false);
 let epoch = 0, disposed = false;
 const summary = computed(() => ({ active: items.value.filter(r => ['pending', 'running', 'paused'].includes(r.state)).length, attention: items.value.filter(r => ['needs_reconcile', 'conflict', 'failed', 'partial'].includes(r.state)).length, done: items.value.filter(r => ['succeeded', 'imported', 'visible', 'applied', 'verified'].includes(r.state)).length }));
-async function load() {
+let hasLoaded=false;
+  async function load() {
   const version = ++epoch;
-  loading.value = true;
+  loading.value = !hasLoaded;
   error.value = null;
   try {
     const p = new URLSearchParams({ page: String(page.value), pageSize: '25', kind: kind.value, state: state.value, q: query.value, batchId: batchId.value, origin: origin.value, method: method.value });
@@ -33,7 +34,8 @@ async function load() {
       selected.value = [];
       uncertain.value = false;
     }
-  }
+  hasLoaded=true;
+ }
   catch (e) {
     if (version === epoch && !disposed)
       error.value = e;
@@ -163,8 +165,9 @@ usePageRefresh(load, 'history');
       </label>
       <el-button native-type="submit">筛选</el-button>
     </form>
+    <p v-if="error&&hasLoaded" class="f3-stale-warning" role="status">刷新失败，保留上次内容。<button @click="load">重试</button></p>
     <StateView v-if="loading" state="loading" title="正在读取历史…"/>
-    <StateView v-else-if="error" :state="sourceState(error)" title="历史读取或核对失败" :description="errorText(error)" @retry="load"/>
+    <StateView v-else-if="error&&!hasLoaded" :state="sourceState(error)" title="历史读取或核对失败" :description="errorText(error)" @retry="load"/>
     <p v-if="uncertain">移除回执未知，请先重新读取，不重复提交。</p>
     <el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button>
     <article v-for="item in items" :key="item.kind+item.id" class="organize-record">

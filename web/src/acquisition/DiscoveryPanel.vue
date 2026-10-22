@@ -28,8 +28,9 @@ usePageRefresh(load, 'discover');
       <button :aria-pressed="kind==='discover.source'" @click="change('discover.source')">发现</button>
       <button :aria-pressed="kind==='recommend.source'" @click="change('recommend.source')">推荐</button>
     </nav>
+    <p v-if="error&&(items.length)" class="f3-stale-warning" role="status">刷新失败，保留上次内容。<button @click="load">重试</button></p>
     <StateView v-if="loading" state="loading" title="正在读取推荐作品…"/>
-    <StateView v-else-if="error" :state="sourceState(error)" :description="errorText(error)" @retry="load"/>
+    <StateView v-else-if="error&&!(items.length)" :state="sourceState(error)" :description="errorText(error)" @retry="load"/>
     <template v-else>
       <div class="discovery-grid">
         <article v-for="item in items" :key="item.id">

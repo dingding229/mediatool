@@ -28,13 +28,11 @@ export function useCatalog() {
     }
   }
   const catalogPage = (parent: string, p: number, child = false) => request<any>(`/media/library?source=${source.value}&q=${encodeURIComponent(child ? '' : query.value)}&mediaType=${child ? '' : kind.value}&page=${p}&pageSize=24&parentId=${encodeURIComponent(parent)}`);
+  let hasLoaded=false;
   async function load() {
     const version = ++epoch;
-    loading.value = true;
+    loading.value = !hasLoaded;
     error.value = undefined;
-    items.value = [];
-    home.value = null;
-    total.value = null;
     try {
       if (source.value === 'emby' && embyConnected.value === false)
         return;
@@ -52,7 +50,8 @@ export function useCatalog() {
           total.value = out.total ?? null;
         }
       }
-    }
+    hasLoaded=true;
+ }
     catch (e) {
       if (alive && version === epoch)
         error.value = e;
@@ -107,7 +106,6 @@ export function useCatalog() {
     const version = ++childEpoch;
     childLoading.value = true;
     childError.value = undefined;
-    children.value = [];
     try {
       const out = await catalogPage(selectedSeason.value?.id || series.value.id, childPage.value, true);
       if (alive && version === childEpoch) {

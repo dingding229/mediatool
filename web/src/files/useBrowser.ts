@@ -6,6 +6,7 @@ export function useBrowser() {
   const roots = ref<FileRoot[]>([]), connection = ref(''), directory = ref('.'), page = usePageNumber(), total = ref(0), entries = ref<FileEntry[]>([]), filter = ref(''), selection = ref<FileEntry[]>([]), capability = ref<FileCapabilities | null>(null), loading = ref(true), rootsLoading = ref(true), error = ref<unknown>(null), rootError = ref<unknown>(null), history = ref<FileResult[]>([]), historyLoading = ref(false), historyError = ref<unknown>(null);
   const root = computed(() => roots.value.find(r => r.id === connection.value)), shown = computed(() => entries.value.filter(f => f.name.toLocaleLowerCase().includes(filter.value.toLocaleLowerCase()))), crumbs = computed(() => [{ name: '根目录', path: '.' }, ...(directory.value === '.' ? [] : directory.value.split('/').map((name, index, all) => ({ name, path: all.slice(0, index + 1).join('/') })))]);
   let version = 0, historyVersion = 0, rootVersion = 0, disposed = false;
+  let hasLoaded=false;
   async function load() {
     const current = ++version;
     if (!connection.value) {
@@ -13,7 +14,7 @@ export function useBrowser() {
       loading.value = false;
       return;
     }
-    loading.value = true;
+    loading.value = !hasLoaded;
     error.value = null;
     try {
       const out: any = await request(`/files?connectionId=${encodeURIComponent(connection.value)}&path=${encodeURIComponent(directory.value)}&page=${page.value}&pageSize=50`);
@@ -24,7 +25,8 @@ export function useBrowser() {
       entries.value = out.items;
       total.value = out.total;
       capability.value = out.capabilities || root.value?.capabilities || null;
-    }
+    hasLoaded=true;
+ }
     catch (e) {
       if (current === version && !disposed)
         error.value = e;

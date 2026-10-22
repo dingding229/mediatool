@@ -8,15 +8,17 @@ export function useConnections() {
   const authOpen = ref(false), authId = ref(''), removeOpen = ref(false), removing = ref(false), removeTarget = ref<Connection | null>(null);
   const form = reactive({ id: '', kind: 'clouddrive2', name: '', enabled: false, settings: {} as Record<string, any>, secrets: {} as Record<string, string>, clear: [] as string[], revision: 0 });
   let disposed = false;
+  let hasLoaded=false;
   async function load() {
-    loading.value = true;
+    loading.value = !hasLoaded;
     loadError.value = null;
     error.value = '';
     try {
       const value = await request<Connection[]>('/integrations');
       if (!disposed)
         rows.value = value;
-    }
+    hasLoaded=true;
+ }
     catch (e) {
       if (!disposed) {
         loadError.value = e;
