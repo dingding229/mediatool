@@ -184,6 +184,13 @@ func (a *API) pluginV2Operation(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, status, out)
 }
+
+type pluginConfiguration struct {
+	Instance    pluginv2.Instance `json:"instance"`
+	Config      contracts.Config  `json:"config"`
+	Fingerprint string            `json:"fingerprint"`
+}
+
 func (a *API) pluginV2Inspect(w http.ResponseWriter, r *http.Request) {
 	s, e := a.pluginInstances()
 	if e != nil {
@@ -191,7 +198,7 @@ func (a *API) pluginV2Inspect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reader, ok := s.(interface {
-		Inspect(context.Context, string, string) (pluginv2.Inspection, error)
+		Configuration(context.Context, string) (pluginv2.Inspection, error)
 	})
 	if !ok {
 		pluginV2Error(w, pluginv2.ErrUnavailable)
@@ -199,12 +206,13 @@ func (a *API) pluginV2Inspect(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	out, e := reader.Inspect(ctx, r.PathValue("id"), r.URL.Query().Get("after"))
+	out, e := reader.Configuration(ctx, r.PathValue("id"))
 	if e != nil {
 		pluginV2Error(w, e)
 		return
 	}
-	write(w, 200, out)
+	w.Header().Set("Cache-Control", "no-store")
+	write(w, 200, pluginConfiguration{Instance: out.Instance, Config: out.Config, Fingerprint: out.Fingerprint})
 }
 
 func pluginPage(r *http.Request) (int, int, error) {

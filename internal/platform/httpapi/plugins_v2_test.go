@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	v2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/platform/auth"
 	"net/http"
@@ -27,7 +28,7 @@ func TestPluginV2AdminCSRFMediaPortAndRetiredBoundary(t *testing.T) {
 	f := &fakePluginInstances{}
 	cfg := cfg()
 	h := New(cfg, Dependencies{PluginInstances: f, AuthSessions: testSessionReader{}})
-	for _, path := range []string{"/api/v1/plugins/11111111-0000-4000-8000-000000000062/review", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/state-snapshots", "/api/v1/plugins/resources", "/api/v1/plugins/11111111-0000-4000-8000-000000000062", "/api/v1/plugins/catalog", "/api/v1/plugins", "/api/v1/plugins/operations"} {
+	for _, path := range []string{"/api/v1/plugins/11111111-0000-4000-8000-000000000062/review", "/api/v1/plugins/resources", "/api/v1/plugins/11111111-0000-4000-8000-000000000062", "/api/v1/plugins/catalog", "/api/v1/plugins", "/api/v1/plugins/operations"} {
 		method := "GET"
 		if strings.HasSuffix(path, "operations") {
 			method = "POST"
@@ -42,7 +43,7 @@ func TestPluginV2AdminCSRFMediaPortAndRetiredBoundary(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	for _, path := range []string{"/api/v1/plugins/operations", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/state-snapshots"} {
+	for _, path := range []string{"/api/v1/plugins/operations"} {
 		missing := httptest.NewRequest("POST", path, strings.NewReader(`{}`))
 		missing.AddCookie(&http.Cookie{Name: auth.CookieName, Value: token})
 		wCSRF := httptest.NewRecorder()
@@ -57,7 +58,7 @@ func TestPluginV2AdminCSRFMediaPortAndRetiredBoundary(t *testing.T) {
 		t.Fatal(e)
 	}
 	w := httptest.NewRecorder()
-	for _, path := range []string{"/api/v1/plugins/catalog", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/review", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/state-snapshots"} {
+	for _, path := range []string{"/api/v1/plugins/catalog", "/api/v1/plugins/11111111-0000-4000-8000-000000000062/review"} {
 		w = httptest.NewRecorder()
 		media.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 		if w.Code != 404 {
@@ -136,4 +137,23 @@ func (f *fakePluginContract) Apply(_ context.Context, actor string, request v2.R
 		f.t.Fatal("contract/actor mismatch")
 	}
 	return f.response, nil
+}
+
+type configurationOnlyFixture struct{ fakePluginInstances }
+
+func (f *configurationOnlyFixture) Configuration(context.Context, string) (v2.Inspection, error) {
+	return v2.Inspection{Instance: v2.Instance{ID: "owned"}, Config: contracts.Config{Value: json.RawMessage(`{"retained":"original"}`), Revision: 1}, Entries: []v2.DataEntry{{Key: "private-kv", Value: json.RawMessage(`"must-not-export"`)}}, Next: "private-cursor", Fingerprint: "owned-definition"}, nil
+}
+func TestConfigurationHTTPDoesNotExportKVOrCachePrivateSettings(t *testing.T) {
+	h := New(cfg(), Dependencies{AuthSessions: testSessionReader{}, PluginInstances: &configurationOnlyFixture{}})
+	if w := invoke(h, "GET", "/api/v1/plugins/owned", "", ""); w.Code != 401 {
+		t.Fatal("anonymous settings", w.Code)
+	}
+	w := invoke(h, "GET", "/api/v1/plugins/owned", "", cfg().SessionKey)
+	if w.Code != 200 || w.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal(w.Code, w.Header())
+	}
+	if !strings.Contains(w.Body.String(), "original") || strings.Contains(w.Body.String(), "entries") || strings.Contains(w.Body.String(), "private-kv") || strings.Contains(w.Body.String(), "private-cursor") {
+		t.Fatal("wrong settings projection", w.Body.String())
+	}
 }

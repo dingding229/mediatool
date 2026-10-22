@@ -1,6 +1,7 @@
 import { defineComponent, h, type PropType, type Component as VueComponent } from 'vue'
-import { ElInput,ElSwitch,ElCheckbox,ElSelect,ElOption,ElAlert,ElTag,ElButton,ElDivider } from 'element-plus'
+import { ElInput,ElInputNumber,ElSwitch,ElCheckbox,ElSelect,ElOption,ElAlert,ElTag,ElButton,ElDivider } from 'element-plus'
 import 'element-plus/es/components/input/style/css'
+import 'element-plus/es/components/input-number/style/css'
 import 'element-plus/es/components/switch/style/css'
 import 'element-plus/es/components/checkbox/style/css'
 import 'element-plus/es/components/select/style/css'
@@ -19,18 +20,20 @@ export default defineComponent({name:'PluginJson',props:{nodes:{type:Array as Pr
   if(++count>256||depth>12)return h('p',{role:'status'},'插件界面超过安全上限')
   if(n.when&&(!safeKey(n.when.model)||JSON.stringify(props.model[n.when.model])!==JSON.stringify(n.when.equals)))return null
   const p=n.props??{},key=n.key??index,children=()=>n.children?.map((c,i)=>render(c,depth+1,i))??[]
+  if(n.component==='VDetails')return h('details',{key},[h('summary',text(p.label,120)||'更多设置'),...children()])
   if(containers[n.component])return h(n.component==='VCardTitle'?'h3':'div',{key,class:containers[n.component]},children())
   if(n.component==='Text')return h('p',{key},text(p.text??p.count))
   if(n.component==='VDivider')return h(ElDivider,{key})
   if(n.component==='VAlert')return h(ElAlert,{key,title:text(p.title??p.text),type:['success','info','warning','error'].includes(String(p.type))?p.type as 'info':'info',closable:false})
   if(n.component==='VChip')return h(ElTag,{key},()=>text(p.text))
   if(n.component==='VBtn')return h(ElButton,{key,disabled:true,title:'动作请使用已授权的手动执行入口'},()=>text(p.text))
-  const models:Record<string,VueComponent>={VTextField:ElInput,VTextarea:ElInput,VSwitch:ElSwitch,VCheckbox:ElCheckbox,VSelect:ElSelect}
+  const models:Record<string,VueComponent>={VTextField:ElInput,VTextarea:ElInput,VNumberInput:ElInputNumber,VSwitch:ElSwitch,VCheckbox:ElCheckbox,VSelect:ElSelect}
   const component=models[n.component]
   if(!component)return h('p',{key,role:'status',class:'plugin-json-placeholder'},`不支持的组件：${text(n.component,64)}`)
   const field=n.model??'',valid=safeKey(field),label=text(p.label,120)
-  const input:Record<string,unknown>={modelValue:valid?props.model[field]:undefined,disabled:props.readonly||p.disabled===true||!valid,'aria-label':label||field,'onUpdate:modelValue':(v:unknown)=>{if(valid&&!props.readonly&&(typeof v==='string'||typeof v==='boolean'||typeof v==='number'))emit('update:model',{...props.model,[field]:typeof v==='string'?v.slice(0,8192):v})}}
-  if(n.component==='VTextField'||n.component==='VTextarea'){input.type=n.component==='VTextarea'?'textarea':'text';input.placeholder=text(p.placeholder,120);input.maxlength=Math.min(8192,Math.max(1,Number(p.maxlength)||8192));input.readonly=p.readonly===true}
+  const input:Record<string,unknown>={modelValue:valid?props.model[field]:undefined,disabled:props.readonly||p.disabled===true||!valid,'aria-label':label||field,'onUpdate:modelValue':(v:unknown)=>{if(valid&&!props.readonly&&(typeof v==='string'||typeof v==='boolean'||typeof v==='number'||v===undefined||v===null))emit('update:model',{...props.model,[field]:typeof v==='string'?v:v})}}
+  if(n.component==='VNumberInput'){input.modelValue=props.model[field]==null?null:Number(props.model[field]);for(const k of ['min','max','step'])if(typeof p[k]==='number'&&Number.isFinite(p[k]))input[k]=p[k];input.stepStrictly=p.stepStrictly===true;input.controlsPosition='right'}
+  if(n.component==='VTextField'||n.component==='VTextarea'){input.type=n.component==='VTextarea'?'textarea':'text';input.placeholder=text(p.placeholder,120);if(Number.isFinite(p.maxlength))input.maxlength=Math.max(1,Number(p.maxlength));input.readonly=p.readonly===true}
   return h('div',{key,class:'plugin-json-field'},[h('label',label),h(component,input,n.component==='VSelect'?()=>Array.isArray(p.items)?p.items.slice(0,100).filter(v=>typeof v==='string').map(v=>h(ElOption,{key:v,label:v,value:v})):[]:undefined)])
  };return h('div',{class:'plugin-json'},props.nodes.map((n,i)=>render(n,0,i)))}
 }})

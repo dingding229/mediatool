@@ -83,3 +83,7 @@ footer.f3-log-footer{display:flex!important}.f3-log-footer>.media-actions{margin
  .f4-log-date-panel .el-date-range-picker__time-header{display:flex;flex-direction:column;gap:6px}.f4-log-date-panel .el-date-range-picker__time-header .el-date-range-picker__editors-wrap{display:flex;width:100%;float:none;gap:6px}
  .f4-log-date-panel .el-date-range-picker__time-header .el-date-range-picker__time-picker-wrap{flex:1;min-width:0;width:calc(50% - 3px)}.f4-log-date-panel .el-date-range-picker__time-header>span:not(.el-date-range-picker__editors-wrap){display:none}
 }
+
+/* F5a: settings keep a readable label/control rhythm without exposing raw data. */
+.f5-plugin-detail .plugin-json{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-block:20px}.f5-plugin-detail .plugin-json-field{display:grid;gap:8px;min-width:0}.f5-plugin-detail .plugin-json-field>label{font-size:13px;color:var(--mt-text-muted)}.f5-plugin-detail .plugin-json-field>.el-input-number{width:100%}.f5-plugin-detail .plugin-json>details{grid-column:1/-1}.f5-plugin-detail .plugin-json details .plugin-json-field{margin-block:12px}.f5-plugin-detail .f5-empty{padding-block:16px;color:var(--mt-text-muted)}
+@media(max-width:600px){.f5-plugin-detail .plugin-json{grid-template-columns:1fr}}

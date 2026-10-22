@@ -41,14 +41,11 @@ async function installedFixture(page:Page,running=false){
  const definition={manifest:{id:'hello-go',name:'Hello Go',version:'1.9.0',description:'Synthetic loading fixture',permissions:[]},fingerprint:'fixture',installedCount:1}
  await page.route('**/api/v1/plugins/catalog?*',r=>r.fulfill({json:{data:{items:[definition],total:1}}}))
  await page.route('**/api/v1/plugins?*',r=>r.fulfill({json:{data:[instance]}}))
- await page.route('**/api/v1/plugins/'+instance.id+'?*',r=>r.fulfill({json:{data:{instance,config:{value:{},revision:22},entries:[],next:'',fingerprint:'fixture'}}}));
+ await page.route('**/api/v1/plugins/'+instance.id,r=>r.fulfill({json:{data:{instance,config:{value:{},revision:22},entries:[],next:'',fingerprint:'fixture'}}}));
  return instance
 }
 for(const sample of [
  {button:'工作流管理',dialog:'工作流管理',endpoint:'**/api/v1/plugins/workflows?*',caption:'工作流列表',empty:'尚无工作流'},
- {button:'数据快照',dialog:'实例数据快照',endpoint:'**/api/v1/plugins/*/state-snapshots',caption:'实例快照',empty:'尚无实例快照'},
- {button:'认证状态',dialog:'认证状态',endpoint:'**/api/v1/plugins/*/auth/status',caption:'认证状态',empty:'此插件不支持账号绑定'},
- {button:'工具测试',dialog:'人工工具测试',endpoint:'**/api/v1/plugins/*/tools',caption:'工具列表',empty:'没有已授权且运行中的工具'},
 ]){
  test(`${sample.caption}: pending/error never empty; retry is read only`,async({page})=>{
   const instance=await installedFixture(page,sample.button==='工具测试');const pending=gate();let phase='slow';const methods:string[]=[]

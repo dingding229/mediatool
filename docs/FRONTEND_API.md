@@ -386,3 +386,10 @@ X-Requested-With: media-tool
 状态仍为preview/pending/running/unknown/completed/rolled_back/failed，返回backupSchema/programSchema、snapshotId/appliedBackup及阶段message。重复execute对pending/running返回202，对历史终态/unknown返回200原状态，不新建执行。
 
 前端传输仍统一由`web/src/api/client.ts`管理：SSE subscribeJobEvents、外部令牌testExternalToken（credentials:omit）、originalSTRM（仅同源既有媒体路径）。普通JSON API保持same-origin；index.html不注入业务数据，传输归属与调用路径守卫继续生效。
+
+### F5a 插件配置展示边界
+
+- 插件设置表单在构建时从同一固定模块版本导出到编译资源；停用实例使用静态表单，不调用 UI RPC，不启动 worker。该资源只含控件、约束和默认值，不含实例配置或凭据，也不向 index.html 注入业务数据。
+- 实例详情的受保护 GET `/plugins/{id}` 只读实例、配置修订和定义标识，不读取或返回 KV。内部受管数据、配置、快照及 SDK 能力保留；不再提供通用实例数据查看器或配置 JSON 编辑器。
+- 已删除原调试面板独占的 `/plugins/{id}/tools`、`/tools/call`、`/auth/status`、`/state-snapshots` 以及 `/plugins/auth/bindings|begin` 管理路由。保留 `/plugins/workflows`，因为插件工作区的独立工作流管理仍在使用；保留共享 `/plugins/{id}/ui/{kind}`，因为已授权的插件页面、仪表盘和 SDK UI 契约仍使用它。
+- 数值控件按完整 min/max/step 范围设置，不以常用值枚举截断合法配置。保存仍使用修订校验、幂等操作与原有权限边界；仅更新表单不扩大执行权限，也不把已启用实例改为停用或待确认。

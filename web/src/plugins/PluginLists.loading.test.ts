@@ -1,14 +1,11 @@
 import {beforeEach,expect,it,vi} from 'vitest'
 import {setupComponent,deferred,flush} from '../test/setup-component'
 import PluginAutomation from './PluginAutomation.vue'
-import PluginSnapshots from './PluginSnapshots.vue'
-import PluginAuth from './PluginAuth.vue'
-import PluginTools from './PluginTools.vue'
-import {workflows,stateSnapshots,authProviders,tools,workflowDefinition,workflowRuns} from '../api/plugins'
+import {workflows,workflowDefinition,workflowRuns} from '../api/plugins'
 vi.mock('../api/plugins',()=>({workflows:vi.fn(),workflowDefinition:vi.fn(),workflowRuns:vi.fn(),workflowOperation:vi.fn(),inspect:vi.fn(),stateSnapshots:vi.fn(),stateOperation:vi.fn(),authProviders:vi.fn(),bindProvider:vi.fn(),tools:vi.fn(),callTool:vi.fn(),dangerousScope:()=>false}))
 vi.mock('element-plus',()=>({ElMessageBox:{confirm:vi.fn()}}))
 beforeEach(()=>vi.resetAllMocks())
-for(const [name,component,api] of [['workflows',PluginAutomation,workflows],['snapshots',PluginSnapshots,stateSnapshots],['auth',PluginAuth,authProviders],['tools',PluginTools,tools]] as const){
+for(const [name,component,api] of [['workflows',PluginAutomation,workflows]] as const){
  it(`${name}: pending/failure are not empty and explicit retry is a read only`,async()=>{
   const d=deferred<any>();vi.mocked(api).mockReturnValueOnce(d.promise).mockResolvedValueOnce([])
   const v=setupComponent(component,{instanceId:'owned'})

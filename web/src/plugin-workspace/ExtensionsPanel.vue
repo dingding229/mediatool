@@ -8,12 +8,11 @@ import { useOperation } from '../workflows/useOperation';
 import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-import DetailDrawer from '../ui/DetailDrawer.vue';
 import { date, errorText } from '../workflows/readiness';
 const props = defineProps<{
   id: string;
   running: boolean;
-}>(), page = ref(1), read = reactive(useResource(() => Promise.all([extensions(props.id), runHistory(props.id, page.value)]))), op = reactive(useOperation('plugin-run')), selected = ref<any>(null), confirm = ref(false), detail = ref<any>(null), open = ref(false);
+}>(), page = ref(1), read = reactive(useResource(() => Promise.all([extensions(props.id), runHistory(props.id, page.value)]))), op = reactive(useOperation('plugin-run')), selected = ref<any>(null), confirm = ref(false);
 const pendingInstance = computed(() => {
   try {
     return op.pending ? JSON.parse(op.pending.key).instanceId : '';
@@ -74,7 +73,7 @@ onMounted(load);
 </script>
 <template>
   <section aria-label="插件服务与命令">
-    <h3>服务与命令</h3>
+    <h3>常用操作</h3>
     <p v-if="!running">插件尚未运行；请启用后再执行。</p>
     <ResourceState :stale="read.loaded" :loading="read.loading" :error="safePluginError(read.error)" @reload="load"/>
     <el-alert v-if="op.error" :title="op.pending?'执行请求结果尚未确认，请先核对。':'请求未完成，请重新核对插件状态与权限。'" type="error" :closable="false"/>
@@ -87,14 +86,13 @@ onMounted(load);
       <el-button :disabled="!running||!!op.pending||!!read.error" @click="selected=d;confirm=true">执行 {{ d.name||'未命名服务' }}</el-button>
     </article>
     <h3>执行历史</h3>
-    <ResourceState :empty="!!read.data&&!read.data[1].length"/>
+    <p v-if="read.loaded&&!read.error&&!read.data?.[1].length" class="f5-empty">暂无执行记录</p>
     <article v-for="r in read.data?.[1]||[]" :key="r.id" class="organize-record">
       <p>{{ states[r.state]||'状态待核对' }} · {{ date(r.createdAt) }}</p>
-      <p>{{ r.reason?'请查看运行详情核对原因。':'—' }}</p>
-      <el-button @click="detail=r;open=true">运行详情</el-button>
+      <p>{{ r.reason?'请查看实例日志核对原因。':'—' }}</p>
+      <RouterLink :to="{path:'/ops',query:{tab:'logs',module:'plugins',instance:id}}">查看运行日志</RouterLink>
     </article>
-    <PagePagination v-model:current-page="page" :has-next="(read.data?.[1].length||0)>=50" @current-change="load"/>
+    <PagePagination v-if="read.data?.[1].length||page>1" v-model:current-page="page" :has-next="(read.data?.[1].length||0)>=50" @current-change="load"/>
     <ConfirmAction v-model:visible="confirm" title="执行插件扩展" :description="'将执行 '+(selected?.name||'此扩展')" impact-scope="可能产生插件权限范围内的业务变更；结果未知时先核对，不会自动重试。" confirm-text="确认执行" class="media-dialog" :loading="op.busy" @confirm="run"/>
-    <DetailDrawer v-model:visible="open" title="插件运行详情" :technical-data="detail" class="media-detail"/>
   </section>
 </template>

@@ -259,3 +259,16 @@ func TestRetiredDataBrowseRoutesAreNotRegistered(t *testing.T) {
 		}
 	}
 }
+
+func TestRetiredPluginDebugPanelsHaveNoHTTPEntry(t *testing.T) {
+	h, _ := testHandler(nil)
+	for _, path := range []string{"/api/v1/plugins/owned/tools", "/api/v1/plugins/owned/tools/call", "/api/v1/plugins/owned/auth/status", "/api/v1/plugins/auth/bindings", "/api/v1/plugins/auth/begin", "/api/v1/plugins/owned/state-snapshots"} {
+		for _, method := range []string{"GET", "HEAD", "POST"} {
+			for _, key := range []string{"", cfg().SessionKey} {
+				if w := invoke(h, method, path, "{}", key); w.Code != 404 {
+					t.Fatalf("retired %s %s: %d", method, path, w.Code)
+				}
+			}
+		}
+	}
+}

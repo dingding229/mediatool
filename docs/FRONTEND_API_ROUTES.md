@@ -340,8 +340,6 @@
 | HEAD | `/api/v1/plugins/{id}` | management | 未检出静态使用 |  |
 | POST | `/api/v1/plugins/{id}/api-keys` | management | 未检出静态使用 |  |
 | POST | `/api/v1/plugins/{id}/api-keys/{key}/revoke` | management | 未检出静态使用 |  |
-| GET | `/api/v1/plugins/{id}/auth/status` | management | 前端经适配调用 | `web/src/api/plugins.ts:42` |
-| HEAD | `/api/v1/plugins/{id}/auth/status` | management | 未检出静态使用 |  |
 | GET | `/api/v1/plugins/{id}/capabilities` | management | 仅适配层调用 | `web/src/api/plugins.ts:46` |
 | HEAD | `/api/v1/plugins/{id}/capabilities` | management | 未检出静态使用 |  |
 | POST | `/api/v1/plugins/{id}/events/replay` | management | 未检出静态使用 |  |
@@ -352,18 +350,10 @@
 | POST | `/api/v1/plugins/{id}/run` | management | 前端经适配调用 | `web/src/api/plugins.ts:22` |
 | GET | `/api/v1/plugins/{id}/runs` | management | 前端经适配调用 | `web/src/api/plugins.ts:21` |
 | HEAD | `/api/v1/plugins/{id}/runs` | management | 未检出静态使用 |  |
-| GET | `/api/v1/plugins/{id}/state-snapshots` | management | 前端经适配调用 | `web/src/api/plugins.ts:29` |
-| HEAD | `/api/v1/plugins/{id}/state-snapshots` | management | 未检出静态使用 |  |
-| POST | `/api/v1/plugins/{id}/state-snapshots` | management | 前端经适配调用 | `web/src/api/plugins.ts:30` |
-| GET | `/api/v1/plugins/{id}/tools` | management | 前端经适配调用 | `web/src/api/plugins.ts:32` |
-| HEAD | `/api/v1/plugins/{id}/tools` | management | 未检出静态使用 |  |
-| POST | `/api/v1/plugins/{id}/tools/call` | management | 前端经适配调用 | `web/src/api/plugins.ts:33` |
 | GET | `/api/v1/plugins/{id}/ui/{kind}` | management | 前端经适配调用 | `web/src/api/plugins.ts:25` |
 | HEAD | `/api/v1/plugins/{id}/ui/{kind}` | management | 未检出静态使用 |  |
 | POST | `/api/v1/plugins/agent/chat` | management | 未检出静态使用 |  |
 | POST | `/api/v1/plugins/agent/run` | management | 前端经适配调用 | `web/src/api/plugins.ts:22` |
-| POST | `/api/v1/plugins/auth/begin` | management | 未检出静态使用 |  |
-| POST | `/api/v1/plugins/auth/bindings` | management | 前端经适配调用 | `web/src/api/plugins.ts:43` |
 | GET | `/api/v1/plugins/catalog` | management | 前端经适配调用 | `web/src/api/plugins.ts:11`、`web/src/api/plugins.ts:15` |
 | HEAD | `/api/v1/plugins/catalog` | management | 未检出静态使用 |  |
 | GET | `/api/v1/plugins/events/retention` | management | 未检出静态使用 |  |

@@ -1,15 +1,28 @@
 import {expect,it,vi} from 'vitest'
-import {setupComponent,flush,deferred} from '../test/setup-component'
-import {pluginUI} from '../api/plugins'
+import {setupComponent,flush} from '../test/setup-component'
 import PluginForm from './PluginForm.vue'
-vi.mock('../api/plugins',()=>({pluginUI:vi.fn()}))
-it('disabled forms do not invoke RPC or start a worker and explicitly allow JSON configuration',async()=>{
- const view=setupComponent(PluginForm,{instanceId:'disabled',modelValue:'{}',running:false});await flush()
- expect(pluginUI).not.toHaveBeenCalled();expect(view.state.error).toContain('可直接保存 JSON');expect(view.state.error).toContain('不会自动启用');view.unmount()
+import {staticPluginForm} from '../api/plugins'
+import {validateForm} from './form-validation'
+import inventory from '../../../internal/modules/plugins/v2/library.json'
+import PluginJson from './PluginJson'
+const nodes=(items:any[]):any[]=>items.flatMap(n=>[n,...nodes(n.children||[])])
+it('stopped and running configuration uses same-pin static metadata without HTTP or worker invocation',async()=>{
+ const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher)
+ try{const v=setupComponent(PluginForm,{pluginId:'library-refresh-notify',modelValue:'{"intervalSeconds":61,"preserved":"owned"}'});await flush();expect(v.state.model.intervalSeconds).toBe(61);expect(v.state.error).toBe('');expect(v.state.form).toEqual(staticPluginForm('library-refresh-notify'));expect(fetcher).not.toHaveBeenCalled();v.unmount()}finally{vi.unstubAllGlobals()}
 })
-
-it('running form exposes pending and failure, with an explicit read-only retry',async()=>{
- const d=deferred<any>();vi.mocked(pluginUI).mockReturnValueOnce(d.promise).mockResolvedValueOnce({content:[]})
- const v=setupComponent(PluginForm,{instanceId:'running',modelValue:'{}',running:true})
- try{expect(v.state.loading).toBe(true);expect(v.state.form).toBeUndefined();d.reject(new Error('fixture'));await flush();expect(v.state.loading).toBe(false);expect(v.state.error).toContain('JSON');await v.state.load();expect(v.state.error).toBe('');expect(v.state.form).toEqual({content:[]})}finally{v.unmount()}
+it('every numeric form control accepts both boundaries and off-preset legal values, emits numbers and retains unrelated saved fields',()=>{
+ for(const manifest of inventory.manifests){const form=staticPluginForm(manifest.id)!;expect(form).toBeTruthy();for(const field of nodes(form.content).filter(n=>n.component==='VNumberInput')){
+  const p=field.props;for(const value of [p.min,p.max,p.min+(p.stepStrictly?1:.001)]){
+   const model={...form.defaults,[field.model]:value,unknownSavedKey:'preserved'};expect(validateForm(form.content,model)).toBe('')
+   const emit=vi.fn(),render=(PluginJson as any).setup({nodes:[field],model,readonly:false},{emit}),input=render().children[0].children[1];expect(input.props.min).toBe(p.min);expect(input.props.max).toBe(p.max);expect(input.props.step).toBe(p.step);input.props['onUpdate:modelValue'](value);expect(emit).toHaveBeenCalledWith('update:model',model)
+  }
+  for(const value of [p.min-1,p.max+1,null,NaN,...(p.stepStrictly?[p.min+.5]:[])])expect(validateForm(form.content,{...form.defaults,[field.model]:value})).not.toBe('')
+ }}
+})
+it('a missing static schema is an explicit error, never JSON fallback or automatic enable',async()=>{const v=setupComponent(PluginForm,{pluginId:'not-in-pin',modelValue:'{}'});await flush();expect(v.state.error).toContain('已有配置仍保留');v.unmount()})
+it('static schemas are independent copies and example options are accessible inside disclosure',()=>{const first=staticPluginForm('hello-go')!;first.content.length=0;expect(staticPluginForm('hello-go')!.content.length).toBeGreaterThan(0);const form=staticPluginForm('hello-go')!;expect(form.content.some(n=>n.component==='VDetails')).toBe(true);expect(nodes(form.content).some(n=>n.model==='resourceNoCleanup')).toBe(true)})
+it('every declared boolean, text and enum field is editable, including false/empty values, without dropping unrelated config',()=>{
+ for(const manifest of inventory.manifests)for(const field of nodes(staticPluginForm(manifest.id)!.content).filter(n=>n.model&&n.component!=='VNumberInput')){
+  const values=field.component==='VSwitch'?[false,true]:field.component==='VSelect'?field.props.items:['','owned value'];for(const value of values){const emit=vi.fn(),model={otherSavedKey:'retained'},render=(PluginJson as any).setup({nodes:[field],model,readonly:false},{emit}),input=render().children[0].children[1];expect(input.props.disabled).toBe(false);input.props['onUpdate:modelValue'](value);expect(emit).toHaveBeenCalledWith('update:model',{...model,[field.model]:value})}
+ }
 })

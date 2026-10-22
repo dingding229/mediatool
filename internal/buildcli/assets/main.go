@@ -2,6 +2,7 @@
 package assets
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -16,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/dingding229/mediatool-plugin/registry"
+	"github.com/dingding229/mediatool-plugin/sdk"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
 )
@@ -26,13 +28,14 @@ type resource struct {
 	SHA256 string `json:"sha256"`
 }
 type inventory struct {
-	HostMethods     []b.Method           `json:"hostMethods"`
-	Pin             string               `json:"pin"`
-	ContractVersion int                  `json:"contractVersion"`
-	Manifests       []contracts.Manifest `json:"manifests"`
-	Resources       []resource           `json:"resources"`
-	ContentHashes   map[string]string    `json:"contentHashes"`
-	LegacyContents  map[string]string    `json:"legacyContents"`
+	Forms           map[string]contracts.Form `json:"forms"`
+	HostMethods     []b.Method                `json:"hostMethods"`
+	Pin             string                    `json:"pin"`
+	ContractVersion int                       `json:"contractVersion"`
+	Manifests       []contracts.Manifest      `json:"manifests"`
+	Resources       []resource                `json:"resources"`
+	ContentHashes   map[string]string         `json:"contentHashes"`
+	LegacyContents  map[string]string         `json:"legacyContents"`
 }
 
 func Main() {
@@ -60,7 +63,7 @@ func export(check bool) error {
 		return e
 	}
 	sort.Slice(defs, func(i, j int) bool { return defs[i].Manifest.ID < defs[j].Manifest.ID })
-	out := inventory{HostMethods: b.Methods(), Pin: module.Version, ContractVersion: contracts.ContractVersion, Manifests: []contracts.Manifest{}, Resources: []resource{}, ContentHashes: map[string]string{}}
+	out := inventory{Forms: map[string]contracts.Form{}, HostMethods: b.Methods(), Pin: module.Version, ContractVersion: contracts.ContractVersion, Manifests: []contracts.Manifest{}, Resources: []resource{}, ContentHashes: map[string]string{}}
 	destination := "web/public/plugins"
 	buildSources := "web/plugin-ui"
 	if !check {
@@ -80,6 +83,19 @@ func export(check bool) error {
 	var totalBytes int64
 	for _, d := range defs {
 		out.Manifests = append(out.Manifests, d.Manifest)
+		// Build-only, same exact module pin. Never initialize, enable or execute an
+		// instance to render settings; registry guards require these forms to be pure.
+		if d.Manifest.Extensions.Forms {
+			provider, ok := d.Factory(sdk.Services{}).(sdk.FormProvider)
+			if !ok {
+				return errors.New("declared form provider missing")
+			}
+			form, err := provider.GetForm(context.Background())
+			if err != nil {
+				return errors.New("static plugin form export failed")
+			}
+			out.Forms[d.Manifest.ID] = form
+		}
 		hash, err := sourceDigest(module.Dir, d.Manifest.ID)
 		if err != nil {
 			return err

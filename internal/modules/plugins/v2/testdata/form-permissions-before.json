@@ -1,0 +1,798 @@
+[
+  {
+    "contractVersion": 2,
+    "id": "hello-go",
+    "name": "Hello Go",
+    "version": "1.9.0",
+    "author": "Example Author",
+    "description": "实例隔离与持久计数示例",
+    "level": 1,
+    "icon": "icon.svg",
+    "history": {
+      "1.0.0": "Initial example",
+      "1.1.0": "Typed bindings, authenticated APIs, durable service and transfer event example",
+      "1.1.1": "Demonstrate POST admin API for CSRF contract",
+      "1.1.2": "Declare minimal per-route Host execution scopes",
+      "1.2.0": "Chain/module hooks, DownloadAdded, JSON forms, multi dashboards and bundled ESM",
+      "1.3.0": "Manual F3 read-only host acceptance and denied-scope check",
+      "1.4.0": "Typed acquisition facts and no-op resource policy chains (F4-A)",
+      "1.5.0": "Typed organizing facts and no-op safe transfer/storage policies (F4-B)",
+      "1.6.0": "Typed metadata/coverage and cached source no-op policies (F4-C)",
+      "1.7.0": "F4-D typed system/notification/settings/Telegram facts; pre-effect module declines and /hello ingress example",
+      "1.7.1": "Two-phase pure offer/execute module protocol; only pre-execute declines can fall back",
+      "1.8.0": "F4 bounded workflow and opt-in fake auth broker contracts; no real login provider",
+      "1.8.1": "Declare hello action Host scopes; opt-in no-secret action ceiling probe",
+      "1.9.0": "Bounded manual agent tools (no autonomous loop), readonly echo and own-KV write examples"
+    },
+    "permissions": [
+      {
+        "scope": "plugin.config.read"
+      },
+      {
+        "scope": "plugin.data.read"
+      },
+      {
+        "scope": "plugin.data.write"
+      },
+      {
+        "scope": "plugin.state.read"
+      },
+      {
+        "scope": "ui.json"
+      },
+      {
+        "scope": "api.register"
+      },
+      {
+        "scope": "api.public"
+      },
+      {
+        "scope": "services.register"
+      },
+      {
+        "scope": "commands.register"
+      },
+      {
+        "scope": "actions.register"
+      },
+      {
+        "scope": "events.subscribe.library.organized"
+      },
+      {
+        "scope": "plugin.config.write"
+      },
+      {
+        "scope": "events.chain.name.recognize"
+      },
+      {
+        "scope": "module.metadata.name_recognize"
+      },
+      {
+        "scope": "events.subscribe.download.added"
+      },
+      {
+        "scope": "ui.trusted"
+      },
+      {
+        "scope": "ui.sidebar"
+      },
+      {
+        "scope": "downloads.read"
+      },
+      {
+        "scope": "library.read"
+      },
+      {
+        "scope": "mediaserver.read"
+      },
+      {
+        "scope": "cache.read"
+      },
+      {
+        "scope": "integrations.read"
+      },
+      {
+        "scope": "jobs.read"
+      },
+      {
+        "scope": "maintenance.read"
+      },
+      {
+        "scope": "notifications.read"
+      },
+      {
+        "scope": "settings.read"
+      },
+      {
+        "scope": "system.read"
+      },
+      {
+        "scope": "events.subscribe.site.account.updated"
+      },
+      {
+        "scope": "events.subscribe.site.account.deleted"
+      },
+      {
+        "scope": "events.subscribe.site.metrics.refreshed"
+      },
+      {
+        "scope": "events.subscribe.subscription.created"
+      },
+      {
+        "scope": "events.subscribe.subscription.updated"
+      },
+      {
+        "scope": "events.subscribe.subscription.deleted"
+      },
+      {
+        "scope": "events.chain.resource.selection"
+      },
+      {
+        "scope": "events.chain.resource.download"
+      },
+      {
+        "scope": "events.subscribe.library.organize.failed"
+      },
+      {
+        "scope": "events.subscribe.library.subtitles.copied"
+      },
+      {
+        "scope": "events.subscribe.library.subtitles.failed"
+      },
+      {
+        "scope": "events.subscribe.library.history.hidden"
+      },
+      {
+        "scope": "events.subscribe.download.files.deleted"
+      },
+      {
+        "scope": "events.subscribe.download.task.deleted"
+      },
+      {
+        "scope": "events.chain.transfer.rename"
+      },
+      {
+        "scope": "events.chain.transfer.rename.build"
+      },
+      {
+        "scope": "events.chain.transfer.intercept"
+      },
+      {
+        "scope": "events.chain.transfer.overwrite.check"
+      },
+      {
+        "scope": "events.chain.storage.operation"
+      },
+      {
+        "scope": "events.subscribe.metadata.scraped"
+      },
+      {
+        "scope": "events.subscribe.subscription.coverage.completed"
+      },
+      {
+        "scope": "events.chain.media.recognize.convert"
+      },
+      {
+        "scope": "events.chain.subscribe.episodes.refresh"
+      },
+      {
+        "scope": "events.chain.subscribe.completion.check"
+      },
+      {
+        "scope": "events.chain.discover.source"
+      },
+      {
+        "scope": "events.chain.recommend.source"
+      },
+      {
+        "scope": "events.subscribe.notification.queued"
+      },
+      {
+        "scope": "events.subscribe.system.operation.failed"
+      },
+      {
+        "scope": "events.subscribe.settings.changed"
+      },
+      {
+        "scope": "events.subscribe.plugin.config.changed"
+      },
+      {
+        "scope": "events.subscribe.messaging.inbound"
+      },
+      {
+        "scope": "events.subscribe.messaging.action.received"
+      },
+      {
+        "scope": "module.notifications.channel"
+      },
+      {
+        "scope": "module.mediaserver.refresh"
+      },
+      {
+        "scope": "events.subscribe.workflow.started"
+      },
+      {
+        "scope": "events.chain.workflow.execution"
+      },
+      {
+        "scope": "events.chain.auth.intercept"
+      },
+      {
+        "scope": "auth.provider"
+      },
+      {
+        "scope": "events.chain.auth.verification"
+      },
+      {
+        "scope": "agent.tools"
+      }
+    ],
+    "extensions": {
+      "forms": true,
+      "pages": [
+        "overview"
+      ],
+      "dashboards": [
+        "starts",
+        "events"
+      ],
+      "api": [
+        {
+          "id": "admin",
+          "path": "/admin",
+          "methods": [
+            "GET",
+            "POST"
+          ],
+          "auth": "admin",
+          "executionScopes": [
+            "plugin.data.read",
+            "plugin.data.write"
+          ],
+          "summary": "Hello counter"
+        },
+        {
+          "id": "apikey",
+          "path": "/apikey",
+          "methods": [
+            "GET"
+          ],
+          "auth": "apikey",
+          "executionScopes": [
+            "plugin.data.read"
+          ],
+          "summary": "Hello counter"
+        },
+        {
+          "id": "bearer",
+          "path": "/bearer",
+          "methods": [
+            "GET"
+          ],
+          "auth": "bearer",
+          "executionScopes": [
+            "plugin.data.read"
+          ],
+          "summary": "Hello counter"
+        },
+        {
+          "id": "public",
+          "path": "/public",
+          "methods": [
+            "GET"
+          ],
+          "auth": "public",
+          "executionScopes": [
+            "plugin.data.read"
+          ],
+          "summary": "Hello counter"
+        }
+      ],
+      "services": [
+        "tick"
+      ],
+      "commands": [
+        "hello"
+      ],
+      "events": [
+        "library.organized",
+        "download.added",
+        "site.account.updated",
+        "site.account.deleted",
+        "site.metrics.refreshed",
+        "subscription.created",
+        "subscription.updated",
+        "subscription.deleted",
+        "library.organize.failed",
+        "library.subtitles.copied",
+        "library.subtitles.failed",
+        "library.history.hidden",
+        "download.files.deleted",
+        "download.task.deleted",
+        "metadata.scraped",
+        "subscription.coverage.completed",
+        "notification.queued",
+        "system.operation.failed",
+        "settings.changed",
+        "plugin.config.changed",
+        "messaging.inbound",
+        "messaging.action.received",
+        "workflow.started"
+      ],
+      "chains": [
+        "name.recognize",
+        "resource.selection",
+        "resource.download",
+        "transfer.rename",
+        "transfer.rename.build",
+        "transfer.intercept",
+        "transfer.overwrite.check",
+        "storage.operation",
+        "media.recognize.convert",
+        "subscribe.episodes.refresh",
+        "subscribe.completion.check",
+        "discover.source",
+        "recommend.source",
+        "workflow.execution",
+        "auth.intercept",
+        "auth.verification"
+      ],
+      "modules": [
+        "metadata.name_recognize",
+        "notifications.channel",
+        "mediaserver.refresh"
+      ],
+      "actions": [
+        "hello",
+        "f3-read-check",
+        "f4-check"
+      ],
+      "authProviders": [
+        "fake"
+      ],
+      "agentTools": [
+        "hello.echo",
+        "hello.remember"
+      ]
+    },
+    "ui": {
+      "mode": "vue",
+      "entry": "ui/dist/index.js",
+      "sidebar": [
+        {
+          "page": "overview",
+          "title": "Hello 插件",
+          "icon": "Box"
+        }
+      ]
+    },
+    "resources": {
+      "addressSpaceMiB": 8192,
+      "rssMiB": 256,
+      "cpuQuotaPercent": 100,
+      "processes": 64,
+      "openFiles": 256,
+      "dataMiB": 256,
+      "tmpMiB": 64
+    },
+    "configSchemaVersion": 1,
+    "dataSchemaVersion": 1
+  },
+  {
+    "contractVersion": 2,
+    "id": "library-refresh-notify",
+    "name": "媒体库刷新与入库通知",
+    "version": "1.1.0",
+    "author": "Media Tool Contributors",
+    "description": "提交后入库事件通知与合并刷新；不涉及播放 URL 或媒体内容。",
+    "level": 2,
+    "icon": "icon.svg",
+    "history": {
+      "1.0.0": "F6-α：有界、默认不执行业务、Host 实时授权与幂等收据",
+      "1.1.0": "F6-β：宿主强制七日重投窗口；仅淘汰完成八日且已过重投窗口的记录"
+    },
+    "permissions": [
+      {
+        "scope": "plugin.config.read"
+      },
+      {
+        "scope": "plugin.data.read"
+      },
+      {
+        "scope": "plugin.data.write"
+      },
+      {
+        "scope": "ui.json"
+      },
+      {
+        "scope": "services.register"
+      },
+      {
+        "scope": "events.subscribe.library.organized"
+      },
+      {
+        "scope": "mediaserver.refresh"
+      },
+      {
+        "scope": "notifications.send"
+      }
+    ],
+    "extensions": {
+      "forms": true,
+      "pages": [
+        "status"
+      ],
+      "services": [
+        "flush"
+      ],
+      "events": [
+        "library.organized"
+      ]
+    },
+    "ui": {
+      "mode": "json"
+    },
+    "resources": {
+      "addressSpaceMiB": 8192,
+      "rssMiB": 256,
+      "cpuQuotaPercent": 100,
+      "processes": 64,
+      "openFiles": 256,
+      "dataMiB": 256,
+      "tmpMiB": 64
+    },
+    "configSchemaVersion": 1,
+    "dataSchemaVersion": 1
+  },
+  {
+    "contractVersion": 2,
+    "id": "seeding-cleanup",
+    "name": "自动做种清理",
+    "version": "1.0.0",
+    "author": "Media Tool Contributors",
+    "description": "默认只预览；仅已入库、所有权及 HR 证据完整的种子可请求清理。",
+    "level": 2,
+    "icon": "icon.svg",
+    "history": {
+      "1.0.0": "F6-β：默认停用；有界队列、持久收据、宿主实时授权与危险操作确认"
+    },
+    "permissions": [
+      {
+        "scope": "plugin.config.read"
+      },
+      {
+        "scope": "plugin.data.read"
+      },
+      {
+        "scope": "plugin.data.write"
+      },
+      {
+        "scope": "ui.json"
+      },
+      {
+        "scope": "services.register"
+      },
+      {
+        "scope": "notifications.send"
+      },
+      {
+        "scope": "downloads.read"
+      },
+      {
+        "scope": "downloads.delete"
+      }
+    ],
+    "extensions": {
+      "forms": true,
+      "pages": [
+        "status"
+      ],
+      "services": [
+        "cleanup"
+      ]
+    },
+    "ui": {
+      "mode": "json"
+    },
+    "resources": {
+      "addressSpaceMiB": 8192,
+      "rssMiB": 256,
+      "cpuQuotaPercent": 100,
+      "processes": 64,
+      "openFiles": 256,
+      "dataMiB": 256,
+      "tmpMiB": 64
+    },
+    "configSchemaVersion": 1,
+    "dataSchemaVersion": 1
+  },
+  {
+    "contractVersion": 2,
+    "id": "site-checkin",
+    "name": "站点自动签到",
+    "version": "1.0.0",
+    "author": "Media Tool Contributors",
+    "description": "宿主附认证的有界签到；失败或验证码需人工处理，不绕过验证。",
+    "level": 2,
+    "icon": "icon.svg",
+    "history": {
+      "1.0.0": "F6-α：有界、默认不执行业务、Host 实时授权与幂等收据"
+    },
+    "permissions": [
+      {
+        "scope": "plugin.config.read"
+      },
+      {
+        "scope": "plugin.data.read"
+      },
+      {
+        "scope": "plugin.data.write"
+      },
+      {
+        "scope": "ui.json"
+      },
+      {
+        "scope": "services.register"
+      },
+      {
+        "scope": "sites.request"
+      },
+      {
+        "scope": "notifications.send"
+      }
+    ],
+    "extensions": {
+      "forms": true,
+      "pages": [
+        "status"
+      ],
+      "services": [
+        "checkin"
+      ]
+    },
+    "ui": {
+      "mode": "json"
+    },
+    "resources": {
+      "addressSpaceMiB": 8192,
+      "rssMiB": 256,
+      "cpuQuotaPercent": 100,
+      "processes": 64,
+      "openFiles": 256,
+      "dataMiB": 256,
+      "tmpMiB": 64
+    },
+    "configSchemaVersion": 1,
+    "dataSchemaVersion": 1
+  },
+  {
+    "contractVersion": 2,
+    "id": "torrent-assistant",
+    "name": "下载器助手",
+    "version": "1.0.0",
+    "author": "Media Tool Contributors",
+    "description": "默认只提示；所有标签/分类/限制/校验经宿主所有权、HR、fence 和收据保护。",
+    "level": 2,
+    "icon": "icon.svg",
+    "history": {
+      "1.0.0": "F6-γ：默认停用，合成来源验收，有界输入/队列，危险写操作需管理员确认"
+    },
+    "permissions": [
+      {
+        "scope": "plugin.config.read"
+      },
+      {
+        "scope": "plugin.data.read"
+      },
+      {
+        "scope": "plugin.data.write"
+      },
+      {
+        "scope": "ui.json"
+      },
+      {
+        "scope": "services.register"
+      },
+      {
+        "scope": "notifications.send"
+      },
+      {
+        "scope": "downloads.read"
+      },
+      {
+        "scope": "downloads.control"
+      },
+      {
+        "scope": "actions.register"
+      },
+      {
+        "scope": "commands.register"
+      },
+      {
+        "scope": "api.register"
+      }
+    ],
+    "extensions": {
+      "forms": true,
+      "pages": [
+        "status"
+      ],
+      "dashboards": [
+        "overview"
+      ],
+      "api": [
+        {
+          "id": "status",
+          "path": "/status",
+          "methods": [
+            "GET"
+          ],
+          "auth": "admin",
+          "executionScopes": [
+            "plugin.data.read"
+          ]
+        }
+      ],
+      "services": [
+        "assist"
+      ],
+      "commands": [
+        "downloader-status"
+      ],
+      "actions": [
+        "assist"
+      ]
+    },
+    "ui": {
+      "mode": "json"
+    },
+    "resources": {
+      "addressSpaceMiB": 8192,
+      "rssMiB": 256,
+      "cpuQuotaPercent": 100,
+      "processes": 64,
+      "openFiles": 256,
+      "dataMiB": 256,
+      "tmpMiB": 64
+    },
+    "configSchemaVersion": 1,
+    "dataSchemaVersion": 1
+  },
+  {
+    "contractVersion": 2,
+    "id": "watch-organize",
+    "name": "目录监控实时整理",
+    "version": "1.1.0",
+    "author": "Media Tool Contributors",
+    "description": "已授权根内有界递归；叶文件静默后由宿主预览/确认整理，不改写 STRM。",
+    "level": 2,
+    "icon": "icon.svg",
+    "history": {
+      "1.0.0": "F6-β：默认停用；有界队列、持久收据、宿主实时授权与危险操作确认",
+      "1.1.0": "F6-γ：默认 3 / 最大 5 层、有界递归、叶文件静默和宿主链接证据保护"
+    },
+    "permissions": [
+      {
+        "scope": "plugin.config.read"
+      },
+      {
+        "scope": "plugin.data.read"
+      },
+      {
+        "scope": "plugin.data.write"
+      },
+      {
+        "scope": "ui.json"
+      },
+      {
+        "scope": "services.register"
+      },
+      {
+        "scope": "notifications.send"
+      },
+      {
+        "scope": "fs.media:read"
+      },
+      {
+        "scope": "fs.media:write"
+      }
+    ],
+    "extensions": {
+      "forms": true,
+      "pages": [
+        "status"
+      ],
+      "services": [
+        "scan"
+      ]
+    },
+    "ui": {
+      "mode": "json"
+    },
+    "resources": {
+      "addressSpaceMiB": 8192,
+      "rssMiB": 256,
+      "cpuQuotaPercent": 100,
+      "processes": 64,
+      "openFiles": 256,
+      "dataMiB": 256,
+      "tmpMiB": 64
+    },
+    "configSchemaVersion": 1,
+    "dataSchemaVersion": 1
+  },
+  {
+    "contractVersion": 2,
+    "id": "wishlist-subscribe",
+    "name": "TMDB/豆瓣想看订阅",
+    "version": "1.0.0",
+    "author": "Media Tool Contributors",
+    "description": "公开想看来源；唯一身份才创建停用订阅，模糊候选人工确认，不借用登录态。",
+    "level": 2,
+    "icon": "icon.svg",
+    "history": {
+      "1.0.0": "F6-γ：默认停用，合成来源验收，有界输入/队列，危险写操作需管理员确认"
+    },
+    "permissions": [
+      {
+        "scope": "plugin.config.read"
+      },
+      {
+        "scope": "plugin.data.read"
+      },
+      {
+        "scope": "plugin.data.write"
+      },
+      {
+        "scope": "ui.json"
+      },
+      {
+        "scope": "services.register"
+      },
+      {
+        "scope": "notifications.send"
+      },
+      {
+        "scope": "metadata.read"
+      },
+      {
+        "scope": "subscriptions.read"
+      },
+      {
+        "scope": "subscriptions.write"
+      },
+      {
+        "scope": "library.read"
+      },
+      {
+        "scope": "actions.register"
+      }
+    ],
+    "extensions": {
+      "forms": true,
+      "pages": [
+        "status"
+      ],
+      "services": [
+        "sync"
+      ],
+      "actions": [
+        "resolve"
+      ]
+    },
+    "ui": {
+      "mode": "json"
+    },
+    "resources": {
+      "addressSpaceMiB": 8192,
+      "rssMiB": 256,
+      "cpuQuotaPercent": 100,
+      "processes": 64,
+      "openFiles": 256,
+      "dataMiB": 256,
+      "tmpMiB": 64
+    },
+    "configSchemaVersion": 1,
+    "dataSchemaVersion": 1
+  }
+]

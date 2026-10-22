@@ -57,35 +57,3 @@ func (a *API) pluginWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, out)
 }
-func (a *API) pluginAuthBinding(w http.ResponseWriter, r *http.Request) {
-	var q struct {
-		InstanceID, ProviderID, Subject, AccountID, Fingerprint string
-		Confirm                                                 bool
-	}
-	if !decode(w, r, &q) {
-		return
-	}
-	if !q.Confirm {
-		pluginV2Error(w, pluginv2.ErrInvalid)
-		return
-	}
-	s, e := a.pluginExtensionStore()
-	if e != nil {
-		pluginV2Error(w, e)
-		return
-	}
-	actor, e := a.sessionAccount(r)
-	if e != nil {
-		fail(w, 401, "unauthorized", "请登录管理员")
-		return
-	}
-	e = (pluginv2.Broker{Store: s}).Bind(r.Context(), actor.ID, q.InstanceID, q.ProviderID, q.Subject, q.AccountID, q.Fingerprint)
-	if e != nil {
-		pluginV2Error(w, e)
-		return
-	}
-	write(w, 200, map[string]bool{"bound": true})
-}
-func (a *API) pluginAuthUnsupported(w http.ResponseWriter, r *http.Request) {
-	fail(w, 501, "unsupported", "真实认证 provider UI/会话签发尚未开放；请使用内置密码登录")
-}

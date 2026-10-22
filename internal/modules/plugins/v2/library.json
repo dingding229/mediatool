@@ -1,4 +1,578 @@
 {
+  "forms": {
+    "hello-go": {
+      "content": [
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "问候语"
+          },
+          "model": "greeting"
+        },
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "启用定时服务"
+          },
+          "model": "scheduled"
+        },
+        {
+          "component": "VDetails",
+          "props": {
+            "label": "示例测试选项"
+          },
+          "children": [
+            {
+              "component": "VAlert",
+              "props": {
+                "title": "以下为示例插件测试选项，可能延迟或拒绝处理；生产使用请保持关闭。",
+                "type": "warning"
+              }
+            },
+            {
+              "component": "VSwitch",
+              "props": {
+                "label": "模拟识别延迟"
+              },
+              "model": "chainDelay"
+            },
+            {
+              "component": "VSwitch",
+              "props": {
+                "label": "模拟识别错误"
+              },
+              "model": "chainError"
+            },
+            {
+              "component": "VSwitch",
+              "props": {
+                "label": "模拟发现延迟"
+              },
+              "model": "discoveryDelay"
+            },
+            {
+              "component": "VSwitch",
+              "props": {
+                "label": "拦截识别结果"
+              },
+              "model": "intercept"
+            },
+            {
+              "component": "VSwitch",
+              "props": {
+                "label": "模拟整理延迟"
+              },
+              "model": "organizeDelay"
+            },
+            {
+              "component": "VSwitch",
+              "props": {
+                "label": "拒绝整理"
+              },
+              "model": "organizeReject"
+            },
+            {
+              "component": "VSwitch",
+              "props": {
+                "label": "模拟资源延迟"
+              },
+              "model": "resourceDelay"
+            },
+            {
+              "component": "VSwitch",
+              "props": {
+                "label": "保留下载源文件"
+              },
+              "model": "resourceNoCleanup"
+            },
+            {
+              "component": "VSwitch",
+              "props": {
+                "label": "拒绝资源下载"
+              },
+              "model": "resourceReject"
+            },
+            {
+              "component": "VSwitch",
+              "props": {
+                "label": "反转资源顺序"
+              },
+              "model": "resourceReverse"
+            },
+            {
+              "component": "VTextField",
+              "props": {
+                "label": "示例处理标题"
+              },
+              "model": "moduleTitle"
+            },
+            {
+              "component": "VTextField",
+              "props": {
+                "label": "示例整理目录"
+              },
+              "model": "organizeFolder"
+            },
+            {
+              "component": "VTextField",
+              "props": {
+                "label": "示例识别标题"
+              },
+              "model": "recognizeTitle"
+            }
+          ]
+        }
+      ],
+      "defaults": {
+        "greeting": "Hello",
+        "scheduled": true
+      }
+    },
+    "library-refresh-notify": {
+      "content": [
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "启用入库通知及合并刷新"
+          },
+          "model": "active"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "builtin 或 emby"
+          },
+          "model": "provider"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "刷新间隔（秒）",
+            "max": 3600,
+            "min": 60,
+            "step": 1,
+            "stepStrictly": true
+          },
+          "model": "intervalSeconds"
+        }
+      ],
+      "defaults": {
+        "active": false,
+        "provider": "builtin",
+        "intervalSeconds": "60"
+      }
+    },
+    "seeding-cleanup": {
+      "content": [
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "启用定时预览"
+          },
+          "model": "active"
+        },
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "危险：实际删除任务（默认仅预览）"
+          },
+          "model": "execute"
+        },
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "额外危险：请求删除数据文件"
+          },
+          "model": "deleteFiles"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "最低分享率",
+            "max": 10000,
+            "min": 0,
+            "step": 0.1,
+            "stepStrictly": false
+          },
+          "model": "minRatio"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "最低做种小时",
+            "max": 87600,
+            "min": 1,
+            "step": 0.1,
+            "stepStrictly": false
+          },
+          "model": "minSeedingHours"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "每批上限（1–20）",
+            "max": 20,
+            "min": 1,
+            "step": 1,
+            "stepStrictly": true
+          },
+          "model": "batchSize"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "分类（空表示不限）"
+          },
+          "model": "category"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "标签（空表示不限）"
+          },
+          "model": "tag"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "站点账户 ID（空表示不限）"
+          },
+          "model": "siteId"
+        }
+      ],
+      "defaults": {
+        "active": false,
+        "execute": false,
+        "deleteFiles": false,
+        "minRatio": "2",
+        "minSeedingHours": "168",
+        "batchSize": "10"
+      }
+    },
+    "site-checkin": {
+      "content": [
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "启用定时签到（须先配置）"
+          },
+          "model": "active"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "已配置站点账号 ID"
+          },
+          "model": "accountId"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "精确 Origin（非凭据）"
+          },
+          "model": "origin"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "签到相对路径"
+          },
+          "model": "path"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "可选只读签到状态路径"
+          },
+          "model": "precheckPath"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "GET 或 POST"
+          },
+          "model": "method"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "可选 POST 表单（禁止填凭据）"
+          },
+          "model": "body"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "成功标记（字面量，≤200 字节）"
+          },
+          "model": "successMarker"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "cron（Asia/Shanghai）"
+          },
+          "model": "cron"
+        }
+      ],
+      "defaults": {
+        "active": false,
+        "path": "/attendance.php",
+        "method": "GET",
+        "cron": "0 8 * * *"
+      }
+    },
+    "torrent-assistant": {
+      "content": [
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "启用辅助检查"
+          },
+          "model": "active"
+        },
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "危险：允许设置标签/分类/限制"
+          },
+          "model": "write"
+        },
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "额外危险：允许错误/卡住任务重新校验（非重启进程）"
+          },
+          "model": "recheck"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "附加标签（不移除 owner 标签）"
+          },
+          "model": "tag"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "已有分类（自动管理路径模式拒绝）"
+          },
+          "model": "category"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "下载 KiB/s，0=不修改",
+            "max": 102400,
+            "min": 0,
+            "step": 1,
+            "stepStrictly": false
+          },
+          "model": "downloadKiB"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "上传 KiB/s，0=不修改",
+            "max": 102400,
+            "min": 0,
+            "step": 1,
+            "stepStrictly": false
+          },
+          "model": "uploadKiB"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "做种比例限制，0=不修改；HR 必须明确 false",
+            "max": 1000,
+            "min": 0,
+            "step": 0.1,
+            "stepStrictly": false
+          },
+          "model": "ratio"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "做种小时限制，0=不修改",
+            "max": 87600,
+            "min": 0,
+            "step": 0.1,
+            "stepStrictly": false
+          },
+          "model": "seedHours"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "每轮任务数（1–10）",
+            "max": 10,
+            "min": 1,
+            "step": 1,
+            "stepStrictly": true
+          },
+          "model": "batch"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "进度静默分钟（5–1440）",
+            "max": 1440,
+            "min": 5,
+            "step": 1,
+            "stepStrictly": false
+          },
+          "model": "stallMinutes"
+        }
+      ],
+      "defaults": {
+        "active": false,
+        "write": false,
+        "recheck": false,
+        "batch": "5",
+        "stallMinutes": "30",
+        "downloadKiB": "0",
+        "uploadKiB": "0",
+        "ratio": "0",
+        "seedHours": "0"
+      }
+    },
+    "watch-organize": {
+      "content": [
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "危险：启用宿主预览/确认整理"
+          },
+          "model": "active"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "已授权可写媒体根 ID"
+          },
+          "model": "rootId"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "监控相对目录（递归总计最多 200 项）"
+          },
+          "model": "directory"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "同一根内目标相对目录"
+          },
+          "model": "destination"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "递归深度（默认 3，上限 5）",
+            "max": 5,
+            "min": 1,
+            "step": 1,
+            "stepStrictly": true
+          },
+          "model": "depth"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "大小与 mtime 静默期（30–3600 秒）",
+            "max": 3600,
+            "min": 30,
+            "step": 1,
+            "stepStrictly": true
+          },
+          "model": "quietSeconds"
+        }
+      ],
+      "defaults": {
+        "active": false,
+        "directory": "incoming",
+        "destination": "organized",
+        "quietSeconds": "60",
+        "depth": "3"
+      }
+    },
+    "wishlist-subscribe": {
+      "content": [
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "启用定时拉取"
+          },
+          "model": "active"
+        },
+        {
+          "component": "VSwitch",
+          "props": {
+            "label": "危险：唯一匹配时创建停用订阅（默认只列候选）"
+          },
+          "model": "create"
+        },
+        {
+          "component": "VSelect",
+          "props": {
+            "items": [
+              "tmdb-list",
+              "douban-wish",
+              "douban-subject"
+            ],
+            "label": "公开来源（不含登录态收藏）"
+          },
+          "model": "source"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "列表 ID、豆瓣公开用户 ID 或条目 ID"
+          },
+          "model": "id"
+        },
+        {
+          "component": "VTextField",
+          "props": {
+            "label": "已配置 PT 账户 ID，逗号分隔（不立即搜索/下载）"
+          },
+          "model": "accountIds"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "同步间隔分钟（30–1440）",
+            "max": 1440,
+            "min": 30,
+            "step": 1,
+            "stepStrictly": true
+          },
+          "model": "intervalMinutes"
+        },
+        {
+          "component": "VNumberInput",
+          "props": {
+            "label": "每轮条目（1–20）",
+            "max": 20,
+            "min": 1,
+            "step": 1,
+            "stepStrictly": true
+          },
+          "model": "perRun"
+        }
+      ],
+      "defaults": {
+        "active": false,
+        "create": false,
+        "source": "tmdb-list",
+        "intervalMinutes": "60",
+        "perRun": "10"
+      }
+    }
+  },
   "hostMethods": [
     {
       "name": "workflows.run",
@@ -943,7 +1517,7 @@
       "supported": true
     }
   ],
-  "pin": "v0.0.0-20261021123905-346ece30e2d7",
+  "pin": "v0.0.0-20261022190552-0fb3efbc5530",
   "contractVersion": 2,
   "manifests": [
     {
@@ -1786,19 +2360,21 @@
     }
   ],
   "contentHashes": {
-    "hello-go": "73857c14ca51646e1e3e7d1d1a41e6a85de1e7e63b8d3f0ee0b293e08a244e1a",
-    "library-refresh-notify": "80b3059a68ddd91e5f73e424d565097f3e0c93ff93b211d5c05d2a4087e81c57",
-    "seeding-cleanup": "71781a25df31010617090f37dba935966fb57eedc24758897146be070dc62d7e",
+    "hello-go": "ad8c329b1eb863073ca9d7a9b6f426a70a8bfce2629ba0c2e9ab5b1a335fcb51",
+    "library-refresh-notify": "4acc079d252faa3f52c07cc6677a69b0908d0af5380318a2ec648fa2ceddbd51",
+    "seeding-cleanup": "700c97332c74824c3329bc76ba4e6b1013b270a7a288971b07eb6b74f836bce6",
     "site-checkin": "6fc1a58bf36264b793956bf832ba649f59babec3afdd002199b608e729081d87",
-    "torrent-assistant": "4401dab08af182b9fb5b54044017d7ab579d6103b45a5196d4a3993cd3e0b1b3",
-    "watch-organize": "8239a4e32a94520da13f09b0172116aee2828a44e42ed0dcdc000127d0572c2b",
-    "wishlist-subscribe": "9c65ecbbd648f2b523f67084cf2d8add0db550d5ea55a0dcc55dd9b88ebaa860"
+    "torrent-assistant": "67fad27c010dd88490ca4c095d7c4f9b89486a7f53ca4327ceefa7e94dba7c97",
+    "watch-organize": "d721cf273465c3097e5b6c6014d25e6ef3df78389ae2b23a4844f4a382174aa7",
+    "wishlist-subscribe": "bde7a87b2b5fe9fb40825f1b7faf72ef99af2918b5be8a834db65588ac23aa06"
   },
   "legacyContents": {
     "05212610bc5b081876dabbf4aa065700168a06db38921fcbcd7f797c533e31c7": "content-v1:7fc0d70dd3b22611220e996912f5b4baa0ab81faa684e25fd76246036a52e412",
     "05691555fd80a94b2a388b303656d947f7e932a2f7534a18ff10f2e411a16708": "content-v1:634fa35b1697d44e15e6f705b84bade45422732f0664838fea7914fe73896541",
+    "1f39b91f0d661d8deb93f05e822c6192fadfc1e576d3d71cd562836fa6876abd": "content-v1:51922b8db40e85c11d9e5d899f36e77742442e9b4c0ad88099692524840c00a1",
     "2b48f1fbfd781b7a1bce1a77ba610c286d8720c88fa20a70695916e3d618b77c": "content-v1:f1ff4944dab04154b262abf13f4749dd3e55fa358c8a08d26da3987f019735bf",
     "34031acf337d5d502199a9b71ce88e482b477ae1f00f5a71f306b9e3138767fe": "content-v1:fa824b856c47f3ea7f23d5cf5cc413f28e7798d5fbfd29e9da21bd744e8ed624",
+    "3997635d1320ba09969bc89b5802822c55ab6806ec6c1588046f1eb9f36cc7e2": "content-v1:463eabe679dadbeda4b87ae3f728f245dbc036f3e042ac990b4aa9417e05551b",
     "40118bbe5a13c33164ca4e1c2aae744dd40ba822bfa6af171e5ac1b0443fd78c": "content-v1:eab90e597afb50060045e60e65dbabae1f7aeebd3e7e06e198ba11fe224986d9",
     "4e59003fe503b62cdcb2d3d888f15855d7f11e3d32694704b2ae7f4cfc533fe7": "content-v1:634fa35b1697d44e15e6f705b84bade45422732f0664838fea7914fe73896541",
     "67c83d8188c15b57a90c36ac2ce3855ada37bbfe5de1d0d2728aaf10c8583f06": "content-v1:ebf2f44acf53bc323d7a23b436b013d3bf0d9e5c24ed3d541db077dac0bd897a",
@@ -1806,6 +2382,7 @@
     "68b6962601e3867f49434c7e74f3596087e55f0e015484844a15cae2c7243847": "content-v1:fe3738995eced4b192e5f1d3dbb3bb14ae0d8f1c760425df5fb211c7848f651e",
     "699c695eb6f231238876defedce25591cac566bef65270f7454b2fa6e8a6a82b": "content-v1:0c1d84c7ef1ab0c8b3eb803a7f7c11e90573cd4bf1fe1d7d6a0eef847078baec",
     "6c33c0f3f68baa94df3ce3075095feddc18da8e1031a85e14b6a88cbb5690efe": "content-v1:f1ff4944dab04154b262abf13f4749dd3e55fa358c8a08d26da3987f019735bf",
+    "6e5289ce6973b023c0bbe29725f9199185980eb70f0452c9bee4aba900049d5c": "content-v1:d4b8daaa6d9ef5892e7c4b41147fcb22a6faa268b2cea154baa5c0c1f6a4a4f0",
     "6e6e73307456e3e34d92f226c33b7d08b1431e09a7075765a2dbaa3c9db9c295": "content-v1:3f691bd869143cf27f4eeb768bc14268af955bf51360cfc02eb3e405bac42f89",
     "75a29a9f7173d80f2f58d76cb0b81a43cd6859270efb8cd41d7f9032f5d2a48e": "content-v1:7fc0d70dd3b22611220e996912f5b4baa0ab81faa684e25fd76246036a52e412",
     "7aa460f48621b8171e4a20013f1fb85009d3f306c68e3e31fc829e6fd056ca1b": "content-v1:eab90e597afb50060045e60e65dbabae1f7aeebd3e7e06e198ba11fe224986d9",
@@ -1813,8 +2390,12 @@
     "93acc4d0c5d3393cbe5137fdb0f552b48dc835acccd95d588b84263718f981c2": "content-v1:15306286c802b84762cf74bac46441f8b4f8d69587157402b44f25ca9ab0536b",
     "a2e0beb1df7149824a6dee13606b723a22bc1216eb645394a73252f75ac7ef37": "content-v1:3f691bd869143cf27f4eeb768bc14268af955bf51360cfc02eb3e405bac42f89",
     "ac035be93b69d26b0b3309f6c98bb60439b1ab8d056a9f6d08b6aef5edb77ef7": "content-v1:3eef2468a08688b91fbbb23e6b16ae35e2d5bdf97c323654e0b53f3889b06b5b",
+    "b1864b4d5c9ca7cd24785ca5902abeb939ec81e07674884522678848f67f87fc": "content-v1:0518160b531a0477e475d15d2579f69e8e2628ce74993d2de1754f4127bf1f18",
     "b9ce59a18685b5b96a37af78aa202a289504e001747856000ba8989f2a9ab386": "content-v1:6271b8995f64a0350fb5e04947b70d49f426e9c9fda1cc8ee87ca78c0eefcdbc",
+    "cf62fb8dcbed960c9d036df3b74dc522a43572bbc163647ab1d52844c8700a31": "content-v1:b1c17581458b4daf0aefa3eb27ff43fd8df2ad19c3241d2272028499ffe76212",
     "f23f4c63a5db770c6a8d70e4e5e5dd01e573da0077e2afd7567111990ca5cba4": "content-v1:3a5a825dccd6ccf118f69109ec41e8e14e3ccb9c482302c632956e4fda2eb654",
-    "f8a8d93e1b9a11395176195b1efe8eb3ef87a60fc3733fa0812f46c8c8f2cf9d": "content-v1:d4b8daaa6d9ef5892e7c4b41147fcb22a6faa268b2cea154baa5c0c1f6a4a4f0"
+    "f43361d4e11b585e9a832cbef4a6bcf0c7cff0bf767adf7520d91a9f0ddb8d7e": "content-v1:fd6250278b18f3086377a4232fa995d68e68818d5c3040315ec4cce8270443a8",
+    "f8a8d93e1b9a11395176195b1efe8eb3ef87a60fc3733fa0812f46c8c8f2cf9d": "content-v1:d4b8daaa6d9ef5892e7c4b41147fcb22a6faa268b2cea154baa5c0c1f6a4a4f0",
+    "f977fea4efbbe717dc085e8c9026113490b3c501bd3a53563e1b6a0a187cecb3": "content-v1:c9ced9dd737560c2ddbe7a3795f16490675828b6e1ecda59f45b651468d64790"
   }
 }

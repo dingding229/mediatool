@@ -23,7 +23,7 @@ function requestCategory(raw:string){
  return 'ui_or_asset'
 }
 test.beforeEach(async({page})=>{
- await page.route('**/api/v1/plugins/*?*',async r=>{
+ await page.route('**/api/v1/plugins/*',async r=>{
   const u=new URL(r.request().url());if(!/^\/api\/v1\/plugins\/[a-f0-9-]{36}$/.test(u.pathname))return r.fallback()
   const real=await r.fetch();if(real.ok())return r.fulfill({response:real})
   const id=u.pathname.split('/').pop()!;const fixture=await page.evaluate(async id=>{const list=await(await fetch('/api/v1/plugins?page=1&pageSize=50')).json();const row=list.data?.find((x:any)=>x.id===id);const directory=await(await fetch('/api/v1/plugins/catalog?page=1&pageSize=200')).json();return{row,definition:directory.data?.items?.find((x:any)=>x.manifest.id===row?.pluginId)}},id)
@@ -49,7 +49,7 @@ async function navigate(page:import('@playwright/test').Page,name:string){
  const menu=page.getByRole('navigation',{name:'功能导航'})
  if(!await menu.isVisible())await page.getByRole('button',{name:'打开导航',exact:true}).click()
  await menu.getByRole('link',{name:item.name,exact:true}).click()
- if(target[1]){const tab=page.locator(['organize','files','playback','sites','plugins','ops'].includes(target[0])?'.media-workspace .page-tabs':['search','downloads'].includes(target[0])?'.acquire-workspace .page-tabs':'.settings-workspace > .page-tabs').getByRole('button').filter({hasText:({tasks:'下载任务',uploads:'上传入库',manual:'手动添加',tools:'STRM 工具',strm:'STRM 目录',candidates:'待确认',library:'入库整理',jobs:'任务队列',logs:'日志',settings:'服务设置',accounts:'站点账号',general:'通用与访问'} as Record<string,string>)[target[1]]??''});await expect(tab).toHaveCount(1);await tab.click()}
+ if(target[1]){const tab=page.locator(['organize','files','playback','sites','plugins','ops'].includes(target[0])?'.media-workspace .page-tabs':['search','downloads'].includes(target[0])?'.acquire-workspace .page-tabs':'.settings-workspace > .page-tabs').getByRole('button').filter({hasText:({tasks:'下载任务',uploads:'上传入库',manual:'手动添加',tools:'STRM 工具',strm:'STRM 目录',candidates:'待确认',library:'入库整理',jobs:'任务列表',logs:'日志',settings:'服务设置',accounts:'站点账号',general:'通用与访问'} as Record<string,string>)[target[1]]??''});await expect(tab).toHaveCount(1);await tab.click()}
 }
 async function login(page:import('@playwright/test').Page){
  await page.goto('/login')
@@ -123,9 +123,9 @@ test('STRM preview encodes cloud path and download has one stable URL',async({pa
  await expect(page.getByText('path traversal is not allowed')).toBeVisible()
 })
 test('persistent queue runs system check with live isolated worker',async({page})=>{
- await login(page);await navigate(page,'任务队列')
- const accepted=page.waitForResponse(r=>r.url().endsWith('/api/v1/jobs')&&r.request().method()==='POST');await page.getByRole('button',{name:'运行系统检查'}).click();await page.getByRole('dialog',{name:'运行系统检查',exact:true}).getByRole('button',{name:'确认运行检查',exact:true}).click();expect((await accepted).status()).toBe(201)
- try{await expect(page.locator('.organize-record').filter({hasText:'系统检查'}).getByText(/已完成/).first()).toBeVisible({timeout:15000})}catch(error){
+ await login(page);await page.goto('/ops?tab=attention')
+ const accepted=page.waitForResponse(r=>r.url().endsWith('/api/v1/jobs')&&r.request().method()==='POST');await page.getByRole('button',{name:'运行系统检查'}).click();await page.getByRole('dialog',{name:'运行系统检查',exact:true}).getByRole('button',{name:'确认运行检查',exact:true}).click();expect((await accepted).status()).toBe(201);await page.goto('/ops?tab=jobs')
+ try{await expect.poll(async()=>{await page.getByRole('button',{name:'刷新',exact:true}).click();return await page.locator('.f3-job-row').filter({hasText:'系统检查'}).first().textContent()},{timeout:15000}).toContain('已完成')}catch(error){
   const response=await page.request.get('/api/v1/jobs')
   const payload=response.ok()?await response.json():{data:[]}
   console.info(JSON.stringify({isolatedQueueDiagnostic:true,status:response.status(),jobs:(payload.data??[]).filter((j:{kind:string})=>j.kind==='system.check').map((j:{state:string;attempts:number})=>({state:j.state,attempts:j.attempts})),pageVisibility:await page.evaluate(()=>document.visibilityState)}))
@@ -770,10 +770,8 @@ test('log query failures are visible and do not present stale content as current
  await expect(page.getByText('自有日志读取失败',{exact:true})).toBeVisible();await expect(page.getByText('自有旧快照',{exact:true})).toBeVisible();await expect(page.getByRole('status').filter({hasText:'刷新失败，保留上次数据。'})).toBeVisible()
 })
 
-test('built-in plugins consent, config, enable, instance logs, uninstall (isolated)',async({page})=>{
- await fixtureLogin(page);await page.goto('/plugins?tab=catalog');await expect(page.getByLabel('选择ZIP插件包')).toHaveCount(0)
- const item=page.getByRole('region',{name:'内置插件目录'}).locator('article').filter({has:page.getByRole('heading',{name:'Hello Go',exact:true})});await item.getByRole('button',{name:/安装插件|新增独立实例/}).click();const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await expect(consent).toContainText('plugin.data.write');await expect(consent.getByRole('button',{name:'确认安装插件',exact:true})).toBeDisabled();await consent.getByRole('checkbox').check();await consent.getByRole('button',{name:'确认安装插件',exact:true}).click();await expect(consent).toBeHidden();await page.getByRole('button',{name:'已安装',exact:true}).click();await page.getByRole('link',{name:'管理插件',exact:true}).first().click();const root=page.locator('.u6-workspace');await expect(root).toContainText('已停用');await page.getByLabel('插件配置 JSON',{exact:true}).fill('{"greeting":"Owned fixture"}');await page.getByRole('button',{name:'保存插件配置',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click();await expect(page.getByRole('dialog',{name:'确认插件操作',exact:true})).toBeHidden();for(const name of ['启用插件','停用插件']){await page.getByRole('button',{name,exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click();await expect(page.getByRole('button',{name:name==='启用插件'?'停用插件':'启用插件',exact:true})).toBeVisible()}
- await page.getByRole('button',{name:'实例数据',exact:true}).click();await page.getByRole('button',{name:'查看 KV',exact:true}).click();const kv=page.getByRole('dialog',{name:'实例 KV 数据',exact:true});await expect(kv).toBeVisible();await kv.getByRole('button',{name:'关闭',exact:true}).click();await page.getByRole('link',{name:'实例日志',exact:true}).click();await expect(page).toHaveURL(/instance=/);await expect(page.getByText(/已按插件实例筛选/)).toBeVisible();await page.goto('/plugins');await page.screenshot({path:resolve(screenshots,'builtin-plugins-desktop.png')});const items=(await(await page.request.get('/api/v1/plugins')).json()).data,definitions=(await(await page.request.get('/api/v1/plugins/catalog')).json()).data.items;for(const i of items)expect((await page.request.post('/api/v1/plugins/operations',{headers:{'X-Requested-With':'media-tool'},data:{kind:'remove',operationKey:crypto.randomUUID(),instanceId:i.id,fingerprint:definitions.find((d:any)=>d.manifest.id===i.pluginId).fingerprint,expectedRevision:i.revision,confirm:true,scopes:[]}})).status()).toBe(200)
+test('built-in plugins consent, stopped form configuration, logs and uninstall (isolated)',async({page})=>{
+ await fixtureLogin(page);await page.goto('/plugins?tab=catalog');const item=page.getByRole('region',{name:'内置插件目录'}).locator('article').filter({has:page.getByRole('heading',{name:'Hello Go',exact:true})});await item.getByRole('button',{name:/安装插件|新增独立实例/}).click();const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await expect(consent.getByRole('button',{name:'确认安装插件',exact:true})).toBeDisabled();await consent.getByRole('checkbox').check();await consent.getByRole('button',{name:'确认安装插件',exact:true}).click();await expect(consent).toBeHidden();await page.getByRole('button',{name:'已安装',exact:true}).click();await page.getByRole('link',{name:'管理插件',exact:true}).first().click();await expect(page.getByRole('switch',{name:'启用插件',exact:true})).not.toBeChecked();await page.getByRole('textbox',{name:'问候语',exact:true}).fill('Owned fixture');await page.getByRole('button',{name:'保存插件配置',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click();await expect(page.getByRole('dialog',{name:'确认插件操作',exact:true})).toBeHidden();await expect(page.getByRole('textbox',{name:'插件配置 JSON',exact:true})).toHaveCount(0);const detailURL=page.url();await page.getByRole('link',{name:'查看实例日志',exact:true}).click();await expect(page).toHaveURL(/instance=/);await page.goto(detailURL);await page.getByRole('button',{name:'更多插件操作',exact:true}).click();await page.getByRole('menuitem',{name:'卸载插件',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click();await expect(page.getByRole('dialog',{name:'确认插件操作',exact:true})).toBeHidden()
 })
 
 test('PT metrics show actual coverage, zero and unknown separately, with mobile layout (fixture)',async({page})=>{
@@ -1236,9 +1234,9 @@ test('classification checkbox editor preserves original countries and genre IDs 
 })
 
 test('system operations has real bounded health, paginated tasks and details (isolated)',async({page})=>{
- await fixtureLogin(page);await page.goto('/jobs');await expect(page.getByRole('heading',{name:'运行与队列',exact:true})).toBeVisible();await page.getByText('查看运行计划与连接状态',{exact:true}).click();await expect(page.getByText(/核心协调/)).toBeVisible();await expect(page.locator('.f4-runtime-grid').getByText('可用',{exact:true})).toHaveCount(2)
+ await fixtureLogin(page);await page.goto('/ops?tab=attention');await page.locator('.f5-runtime-checks summary').click();await expect(page.getByText(/核心协调/)).toBeVisible();await expect(page.locator('.f5-runtime-summary')).toContainText('数据库 可用 · 缓存 可用')
  const health=await page.request.get('/api/v1/system/operations');expect(health.status()).toBe(200);expect(health.headers()['cache-control']).toBe('no-store');const snapshot=(await health.json()).data;expect(snapshot.migration).toBe(expectedSchema);expect(snapshot.unavailable).toEqual([]);expect(snapshot.workers.some((w:any)=>w.online)).toBe(true);expect(snapshot.schedules.some((s:any)=>s.id==='core'&&s.cron==='*/15 * * * * *')).toBe(true)
- const response=await page.request.post('/api/v1/jobs',{headers:{'X-Requested-With':'media-tool'},data:{kind:'system.check'}});expect(response.status()).toBe(201);const job=(await response.json()).data;await page.getByLabel('搜索任务',{exact:true}).fill(job.id);await page.getByRole('button',{name:'筛选任务',exact:true}).click();await expect(page.getByRole('button',{name:'任务详情',exact:true})).toHaveCount(1);await expect(page.getByRole('button',{name:'任务详情',exact:true})).toBeVisible();await page.getByRole('button',{name:'任务详情',exact:true}).click();const dialog=page.getByRole('dialog',{name:'任务与运行技术详情',exact:true});await dialog.getByRole('button',{name:/技术细节与原始记录/}).click();await expect(dialog).toContainText(job.id);await expect(page.getByText(/重试先核对原业务状态/)).toBeVisible();await dialog.getByRole('button',{name:'关闭',exact:true}).click();await expect(dialog).not.toBeVisible()
+ const response=await page.request.post('/api/v1/jobs',{headers:{'X-Requested-With':'media-tool'},data:{kind:'system.check'}});expect(response.status()).toBe(201);const job=(await response.json()).data;await page.goto('/ops?tab=jobs');await page.getByLabel('搜索任务',{exact:true}).fill(job.id);await page.getByRole('button',{name:'筛选任务',exact:true}).click();await expect(page.getByRole('button',{name:'任务详情',exact:true})).toHaveCount(1);await expect(page.getByRole('button',{name:'任务详情',exact:true})).toBeVisible();await page.getByRole('button',{name:'任务详情',exact:true}).click();const dialog=page.getByRole('dialog',{name:'任务与运行技术详情',exact:true});await dialog.getByRole('button',{name:/技术细节与原始记录/}).click();await expect(dialog).toContainText(job.id);await expect(page.getByText(/重试先核对原业务状态/)).toBeVisible();await dialog.getByRole('button',{name:'关闭',exact:true}).click();await expect(dialog).not.toBeVisible()
  expect((await page.request.get('/api/v1/jobs/browse?page=0')).status()).toBe(400);expect((await page.request.get('/api/v1/jobs/not-a-uuid')).status()).toBe(400);const empty=await page.request.get(`/api/v1/jobs/browse?page=2&pageSize=25&q=${job.id}`);expect((await empty.json()).data).toEqual({items:[],total:1})
  for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`system-operations-${width}.png`),fullPage:true,animations:'disabled'})}
 })
@@ -1468,31 +1466,31 @@ test('F2 plugin command confirmation shows durable queued and unknown states (UI
  await page.route(`**/api/v1/plugins/${id}/extensions`,route=>route.fulfill({json:{data:fixture.snapshot}}))
  await page.route(`**/api/v1/plugins/${id}/runs?*`,route=>route.fulfill({json:{data:fixture.history}}))
  await page.route(`**/api/v1/plugins/${id}/run`,route=>{submitted.push(route.request().postDataJSON());return route.fulfill({status:202,json:{data:{runId:'owned-run'}}})})
- await fixtureLogin(page);await page.goto('/plugins/'+id);await page.getByRole('button',{name:'服务与命令',exact:true}).click();const dialog=page.getByRole('region',{name:'插件服务与命令',exact:true});await expect(dialog).toContainText('结果未知');expect(submitted).toHaveLength(0)
+ await fixtureLogin(page);await page.goto('/plugins/'+id);const dialog=page.getByRole('region',{name:'插件服务与命令',exact:true});await expect(dialog).toContainText('结果未知');expect(submitted).toHaveLength(0)
  await dialog.getByRole('button',{name:/^执行 /}).click();await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'取消',exact:true}).click();expect(submitted).toHaveLength(0)
  await dialog.getByRole('button',{name:/^执行 /}).click();await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click();await expect(dialog).toContainText('不是执行成功');expect(submitted).toHaveLength(1);expect(submitted[0]).toMatchObject({kind:'command',id:'hello',confirm:true});await page.screenshot({path:resolve(screenshots,'plugin-extensions.png'),animations:'disabled'})
 })
 
-test('F2 plugin JSON form, shared ESM, multi-key dashboards and sidebar (UI contract)',async({page})=>{
+test('F5a static plugin form, shared ESM, multi-key dashboards and sidebar (UI contract)',async({page})=>{
  const id='00000000-0000-4000-8000-000000000123',instance={id,pluginId:'hello-go',desiredState:'enabled',state:'running',revision:2,reason:''},configs:any[]=[]
  const contract=JSON.parse(readFileSync(resolve(root,'internal/platform/httpapi/testdata/contracts/plugin-v2-ui.json'),'utf8'))
  await page.route('**/api/v1/plugins?*',r=>r.fulfill({json:{data:[instance]}}))
  await page.route('**/api/v1/plugins/ui-surfaces',r=>r.fulfill({json:{data:[{instanceId:id,pluginId:'hello-go'}]}}))
- await page.route(`**/api/v1/plugins/${id}?*`,r=>r.fulfill({json:{data:{instance,config:{revision:1,value:{greeting:'Initial',scheduled:true}},entries:[],next:'',fingerprint:'owned-fingerprint'}}}))
+ await page.route(`**/api/v1/plugins/${id}`,r=>r.fulfill({json:{data:{instance,config:{revision:1,value:{greeting:'Initial',scheduled:true}},entries:[],next:'',fingerprint:'owned-fingerprint'}}}))
  await page.route('**/api/v1/plugins/operations',async r=>{configs.push(r.request().postDataJSON());await r.fulfill({json:{data:{...instance,revision:3}}})})
  await page.route(`**/api/v1/plugins/${id}/ui/*`,r=>{const url=new URL(r.request().url()),kind=url.pathname.split('/').pop()!;return r.fulfill({json:{data:kind==='dashboard'?{content:[{component:'Text',props:{text:'Dashboard '+url.searchParams.get('key')}}]}:contract[kind]}})})
  await fixtureLogin(page);await page.goto('/plugins/'+id)
 
  const dialog=page.locator('.u6-workspace')
  // Wait for the initial config read before editing; the form and review load independently.
- await expect(dialog.getByRole('textbox',{name:'插件配置 JSON',exact:true})).toHaveValue(/Initial/)
+ await expect(dialog.getByRole('textbox',{name:'插件配置 JSON',exact:true})).toHaveCount(0)
  await expect(dialog.getByRole('textbox',{name:'问候语',exact:true})).toHaveValue('Initial')
  await dialog.getByRole('textbox',{name:'问候语',exact:true}).fill('Browser Owned')
- await expect(dialog.getByRole('textbox',{name:'插件配置 JSON',exact:true})).toHaveValue(/Browser Owned/)
- await expect(dialog).toContainText('定时服务已开启')
+ await expect(dialog.getByRole('textbox',{name:'问候语',exact:true})).toHaveValue('Browser Owned')
+ await expect(dialog.getByRole('switch',{name:'启用定时服务',exact:true})).toBeChecked()
  await dialog.getByRole('button',{name:'保存插件配置',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click()
  expect(configs.at(-1)?.config).toEqual({greeting:'Browser Owned',scheduled:true})
- await page.locator('.u6-workspace').getByRole('link',{name:/打开插件页面/}).click()
+ await page.locator('.u6-workspace').getByRole('link',{name:/打开插件应用/}).click()
  await expect(page.getByRole('button',{name:'交互 0',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'交互 0',exact:true}).click()
  await expect(page.getByRole('button',{name:'交互 1',exact:true})).toBeVisible()
@@ -1545,12 +1543,12 @@ test('R-F3 HTTP plugin install, enable and execute recover from failures with bo
  await expect.poll(()=>operations.length).toBe(2);expect(operations[0].operationKey).toBe(operations[1].operationKey)
  await page.goto('/plugins/'+contract.response.id);const card=page.locator('.u6-workspace');await expect(card).toContainText('已停用')
  for(const width of [1440,375]){
-  await page.setViewportSize({width,height:1000});await card.getByRole('button',{name:'启用插件',exact:true}).click()
+  await page.setViewportSize({width,height:1000});await card.getByRole('switch',{name:'启用插件',exact:true}).locator('..').click()
   await bounded('确认插件操作',width);await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'确认插件操作',exact:true})).toBeHidden()
  }
- await card.getByRole('button',{name:'启用插件',exact:true}).click()
+ await card.getByRole('switch',{name:'启用插件',exact:true}).locator('..').click()
  await (await bounded('确认插件操作',375)).getByRole('button',{name:'确认操作',exact:true}).click();await expect(card).toContainText(/启动中|运行中/)
- await page.setViewportSize({width:1440,height:1000});await card.getByRole('button',{name:'服务与命令',exact:true}).click()
+ await page.setViewportSize({width:1440,height:1000});await expect(page.getByRole('region',{name:'插件服务与命令',exact:true})).toBeVisible()
  const extensions=page.getByRole('region',{name:'插件服务与命令',exact:true})
  for(const width of [1440,375]){
   await page.setViewportSize({width,height:1000});await extensions.getByRole('button',{name:/^执行 /}).click()
@@ -1567,7 +1565,7 @@ test('R-F3 HTTP plugin install, enable and execute recover from failures with bo
  }
  await expect.poll(()=>runs.length).toBe(2);expect(runs[0].operationKey).toBe(runs[1].operationKey)
  for(const input of [...operations,...runs])expect(input.operationKey).toMatch(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
- await page.getByRole('button',{name:'配置',exact:true}).click();await expect(extensions).toBeHidden()
+ await expect(page.getByRole('heading',{name:'插件配置',exact:true})).toBeVisible()
  expect(errors).toEqual([])
 })
 
@@ -1583,18 +1581,16 @@ test('R-F3 HTTP clicks install, enable, execute and disable the real same-binary
   const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await consent.getByRole('checkbox').check();await consent.getByRole('button',{name:'确认安装插件',exact:true}).click()
   const installed=await installation;expect(installed.status()).toBe(200);id=(await installed.json()).data.id
   await page.goto('/plugins/'+id);const card=page.locator('.u6-workspace')
-  await card.getByRole('button',{name:'启用插件',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click()
-  await expect.poll(async()=>{await page.getByRole('button',{name:'刷新',exact:true}).click();return (await card.getByRole('button',{name:'停用插件',exact:true}).isVisible())&&((await (await page.request.get(`/api/v1/plugins/${id}`)).json()).data.instance.state==='running')},{timeout:20000}).toBe(true)
-  await card.getByRole('button',{name:'服务与命令',exact:true}).click()
+  await card.getByRole('switch',{name:'启用插件',exact:true}).locator('..').click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click()
+  await expect.poll(async()=>{await page.getByRole('button',{name:'刷新',exact:true}).click();return (await card.getByRole('switch',{name:'启用插件',exact:true}).isChecked())&&((await (await page.request.get(`/api/v1/plugins/${id}`)).json()).data.instance.state==='running')},{timeout:20000}).toBe(true)
+  await expect(page.getByRole('region',{name:'插件服务与命令',exact:true})).toBeVisible()
   const dialog=page.getByRole('region',{name:'插件服务与命令',exact:true})
   await dialog.getByRole('button',{name:/^执行 /}).first().click()
   const execution=page.waitForResponse(r=>r.url().endsWith(`/plugins/${id}/run`))
   await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click();expect((await execution).status()).toBe(202)
   await expect.poll(async()=>((await (await page.request.get(`/api/v1/plugins/${id}/runs?page=1&pageSize=50`,{timeout:5000})).json()).data as any[]).some(r=>r.state==='succeeded'),{timeout:20000}).toBe(true)
-  await page.getByRole('button',{name:'实例数据',exact:true}).click()
-  await card.getByRole('button',{name:'查看 KV',exact:true}).click();await expect(page.getByRole('dialog',{name:'实例 KV 数据',exact:true})).toContainText('starts')
-  await page.getByRole('dialog',{name:'实例 KV 数据',exact:true}).getByRole('button',{name:'关闭',exact:true}).click({timeout:5000})
-  await card.getByRole('button',{name:'停用插件',exact:true}).click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click();await expect(card).toContainText('已停用')
+  await expect(page.getByRole('textbox',{name:'插件配置 JSON',exact:true})).toHaveCount(0)
+  await card.getByRole('switch',{name:'启用插件',exact:true}).locator('..').click();await page.getByRole('dialog',{name:'确认插件操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click();await expect(card).toContainText('已停用')
   expect(errors).toEqual([]);completed=true
  }finally{
   if(id){try{
@@ -1612,44 +1608,13 @@ test('F5-alpha built-in metadata, scope upgrade review and missing definition pr
  await page.route('**/api/v1/plugins/catalog?*',r=>r.fulfill({json:{data:{items:missing?[]:[definition],total:missing?0:1}}}))
  await page.route('**/api/v1/plugins?*',r=>r.fulfill({json:{data:[instance]}}))
  await page.route(`**/api/v1/plugins/${instance.id}/review`,r=>r.fulfill({json:{data:{...plan,instance,availability:missing?'missing':'available',baselineKnown:!missing,approvedVersion:missing?'':plan.approvedVersion,needsReview:!approved,added:approved?[]:plan.added,removed:approved?[]:plan.removed,changed:approved?[]:plan.changed}}}))
- await page.route(`**/api/v1/plugins/${instance.id}?*`,r=>r.fulfill({json:{data:{instance,config:{value:{retained:'configuration'},revision:1},entries:[{key:'retained',value:'private-instance-data',revision:1}],next:'',fingerprint:plan.fingerprint}}}))
+ await page.route(`**/api/v1/plugins/${instance.id}`,r=>r.fulfill({json:{data:{instance,config:{value:{retained:'configuration'},revision:1},entries:[{key:'retained',value:'private-instance-data',revision:1}],next:'',fingerprint:plan.fingerprint}}}))
  await page.route('**/api/v1/plugins/operations',async r=>{const input=r.request().postDataJSON();operations.push(input);expect(input.kind).toBe('review');approved=true;instance={...instance,desiredState:'disabled',state:'stopped',reason:'',revision:8};await r.fulfill({json:{data:instance}})})
- await fixtureLogin(page);await page.goto('/plugins?tab=catalog');const directory=page.getByRole('region',{name:'内置插件目录'});await expect(directory).toContainText('Fixture Maintainer');await expect(directory).toContainText('等级 2');await expect(directory).toContainText('已安装 1 个实例');await expect(directory.locator('img')).toHaveAttribute('src','/plugins/hello-go/icon.svg');await directory.locator('summary').click();await expect(directory).toContainText('新增设置权限');await expect(directory).toContainText('settings.write');await page.screenshot({path:resolve(screenshots,'plugin-directory-f5a.png')});await page.goto('/plugins/'+instance.id);const card=page.locator('.u6-workspace');await expect(page.getByRole('button',{name:'启用插件',exact:true})).toBeDisabled();await page.getByRole('button',{name:'重新确认权限',exact:true}).click();const dialog=page.getByRole('dialog',{name:'插件权限确认',exact:true});await expect(dialog).toContainText('legacy.removed');await expect(dialog).toContainText('资源范围变化');await expect(dialog).toContainText('高风险权限');await page.setViewportSize({width:390,height:1000});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await dialog.screenshot({path:resolve(screenshots,'plugin-review-f5a-390.png')});await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'核对结果',exact:true}).click();await expect(dialog.getByRole('checkbox')).not.toBeChecked();await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'确认权限并保持停用',exact:true}).click();await expect(dialog).toBeHidden();await expect(card).toContainText('已停用');expect(operations).toHaveLength(1);expect(operations[0].kind).toBe('review');missing=true;instance={...instance,availability:'missing',reason:'definition_missing'};await page.getByRole('button',{name:'刷新',exact:true}).click();await expect(card).toContainText('Hello Go');await expect(card).toContainText('配置和数据仍保留');await expect(page.getByRole('button',{name:'启用插件',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'创建分身',exact:true})).toBeDisabled();await page.getByRole('button',{name:'查看权限',exact:true}).click();await expect(dialog).toContainText('历史授权范围不完整');await dialog.getByRole('checkbox').check();await expect(dialog.getByRole('button',{name:'确认权限并保持停用',exact:true})).toBeDisabled();await dialog.getByRole('button',{name:'取消',exact:true}).click();await page.getByRole('button',{name:'实例数据',exact:true}).click();await page.getByRole('button',{name:'查看 KV',exact:true}).click();await expect(page.getByRole('dialog',{name:'实例 KV 数据',exact:true})).toContainText('private-instance-data');await page.screenshot({path:resolve(screenshots,'plugin-library-f5a.png'),fullPage:true})
+ await fixtureLogin(page);await page.goto('/plugins?tab=catalog');const directory=page.getByRole('region',{name:'内置插件目录'});await expect(directory).toContainText('Fixture Maintainer');await directory.locator('summary').click();await expect(directory).toContainText('新增设置权限');await expect(directory.locator('code')).toHaveCount(0);await page.goto('/plugins/'+instance.id);await expect(page.getByRole('switch',{name:'启用插件',exact:true})).toBeDisabled();await page.getByRole('button',{name:'确认访问范围变化',exact:true}).click();const dialog=page.getByRole('dialog',{name:'插件权限确认',exact:true});await expect(dialog).toContainText('高风险权限');await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'核对结果',exact:true}).click();await expect(dialog.getByRole('checkbox')).not.toBeChecked();await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'确认权限并保持停用',exact:true}).click();await expect(dialog).toBeHidden();expect(operations).toHaveLength(1);expect(operations[0].kind).toBe('review');missing=true;instance={...instance,availability:'missing',reason:'definition_missing'};await page.getByRole('button',{name:'刷新',exact:true}).click();await expect(page.getByText(/已有配置和数据仍保留/)).toBeVisible();await expect(page.getByRole('switch',{name:'启用插件',exact:true})).toBeDisabled();await expect(page.getByText('实例数据',{exact:true})).toHaveCount(0);await expect(page.getByRole('textbox',{name:'插件配置 JSON',exact:true})).toHaveCount(0)
 })
 
-test('F5-beta real instance snapshot create restore and delete stay disabled',async({page})=>{
- await fixtureLogin(page)
- const d=(await(await page.request.get('/api/v1/plugins/catalog')).json()).data.items[0]
- const op=async(kind:string,extra:any={})=>{const r=await page.request.post('/api/v1/plugins/operations',{headers:{'X-Requested-With':'media-tool'},data:{kind,operationKey:crypto.randomUUID(),pluginId:d.manifest.id,fingerprint:d.fingerprint,expectedRevision:0,confirm:true,scopes:d.manifest.permissions.map((p:any)=>p.scope),config:{snapshotMarker:'original'},...extra}});expect(r.status()).toBe(kind==='configure'?202:200);return(await r.json()).data}
- const instance=await op('install');const inspect=async()=>(await(await page.request.get(`/api/v1/plugins/${instance.id}`)).json()).data
- await page.goto('/plugins/'+instance.id);await page.getByRole('button',{name:'实例数据',exact:true}).click();const card=page.locator('.u6-workspace');await card.getByRole('button',{name:'数据快照',exact:true}).click()
- const dialog=page.getByRole('dialog',{name:'实例数据快照',exact:true})
- const confirm=async()=>{await page.getByRole('dialog',{name:'确认实例快照操作',exact:true}).getByRole('button',{name:'确认操作',exact:true}).click()}
- await dialog.getByRole('button',{name:'创建实例快照',exact:true}).click();await confirm();await expect(dialog).toContainText('ready')
- let info=await inspect();await op('configure',{instanceId:instance.id,expectedRevision:info.instance.revision,config:{snapshotMarker:'changed'}})
- await dialog.getByRole('button',{name:'恢复',exact:true}).click();await confirm();await expect.poll(async()=>(await inspect()).config.value.snapshotMarker).toBe('original');info=await inspect();expect(info.instance.desiredState).toBe('disabled')
- await dialog.getByRole('button',{name:'删除',exact:true}).click();await confirm();await expect(dialog).toContainText('尚无实例快照')
- await dialog.screenshot({path:resolve(screenshots,'plugin-snapshots-f5b.png'),animations:'disabled'})
- info=await inspect();await op('remove',{instanceId:instance.id,expectedRevision:info.instance.revision,scopes:[]})
-})
-
-test('F5-gamma manual tools workflow schema and auth status stay bounded at 390px (UI contract)',async({page})=>{
- await page.addInitScript(()=>Object.defineProperty(window.crypto,'randomUUID',{value:undefined,configurable:true}))
- const fixture=JSON.parse(readFileSync(resolve(root,'internal/platform/httpapi/testdata/contracts/plugin-v2-instances.json'),'utf8'));const instance={...fixture.response,desiredState:'enabled',state:'running'}
- const manifest={id:'hello-go',name:'Hello Go',version:'1.9.0',description:'panels fixture',permissions:[]}
- await page.route('**/api/v1/plugins/catalog?*',r=>r.fulfill({json:{data:{items:[{manifest,fingerprint:'current'}],total:1}}}))
- await page.route('**/api/v1/plugins?*',r=>r.fulfill({json:{data:[instance]}}))
- await page.route(`**/api/v1/plugins/${instance.id}/tools`,r=>r.fulfill({json:{data:[{kind:'tool',id:'hello.remember',name:'hello.remember',description:'Only own KV',inputSchema:{type:'object'},effectKind:'write',requiredScopes:['agent.tools','plugin.data.write']}]}}))
- const calls:any[]=[];await page.route(`**/api/v1/plugins/${instance.id}/tools/call`,async r=>{calls.push(r.request().postDataJSON());await r.fulfill({json:{data:{saved:true}}})})
- await page.route('**/api/v1/plugins/workflows?*',r=>r.fulfill({json:{data:[{id:'owned',revision:1,fingerprint:'new',approved:'old',steps:1}]}}))
- await page.route('**/api/v1/plugins/workflows?workflowId=owned&view=definition',r=>r.fulfill({json:{data:{dag:{id:'owned',steps:[]},revision:1,fingerprint:'new',approved:'old'}}}))
- await page.route('**/api/v1/plugins/workflows?workflowId=owned&view=runs&*',r=>r.fulfill({json:{data:[{id:'run-fixture',workflowId:'owned',state:'unknown',steps:{one:'unknown'},reasons:{one:'worker_lost'}}]}}))
- await page.route(`**/api/v1/plugins/${instance.id}/auth/status`,r=>r.fulfill({json:{data:[{id:'fake',instanceId:instance.id,bound:0,stale:1,state:'unavailable',error:'provider_inactive_or_scope_denied'}]}}))
- await fixtureLogin(page);await page.goto('/plugins/'+instance.id);await page.getByRole('button',{name:'实例数据',exact:true}).click();await page.setViewportSize({width:390,height:1000})
- const card=page.locator('.u6-workspace');await card.getByRole('button',{name:'工具测试',exact:true}).click();let dialog=page.getByRole('dialog',{name:'人工工具测试',exact:true});await expect(dialog).toContainText('仅管理员可手动调用工具');await dialog.getByLabel('输入 JSON',{exact:true}).fill('{"message":"manual"}');await dialog.getByRole('button',{name:'人工调用工具',exact:true}).click();const consent=page.getByRole('dialog',{name:'确认工具调用',exact:true});await expect(consent).toBeVisible();expect(calls).toHaveLength(0);await consent.getByRole('button',{name:'确认调用',exact:true}).click();await expect(dialog).toContainText('"saved": true');expect(calls[0].confirm).toBe(true);expect(calls[0].operationKey).toMatch(/^[a-f0-9-]{36}$/)
- expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await dialog.screenshot({path:resolve(screenshots,'plugin-tools-f5g-390.png'),animations:'disabled'});await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
- await page.getByRole('button',{name:'工作流管理',exact:true}).click();dialog=page.getByRole('dialog',{name:'工作流管理',exact:true});await dialog.getByRole('button',{name:'详情',exact:true}).click();await dialog.locator('details').filter({has:page.locator('pre').filter({hasText:'worker_lost'})}).locator('summary').click();await expect(dialog).toContainText('worker_lost');await expect(dialog.getByRole('button',{name:'手动运行工作流',exact:true})).toBeDisabled();await expect(dialog).toContainText('待重新批准');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
- await card.getByRole('button',{name:'认证状态',exact:true}).click();dialog=page.getByRole('dialog',{name:'认证状态',exact:true});await expect(dialog).toContainText('不支持');await dialog.getByText('技术详情',{exact:true}).click();await expect(dialog).toContainText('provider_inactive_or_scope_denied');await expect(dialog.getByRole('button',{name:'绑定账号',exact:true})).toBeDisabled();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+test('F5 shared workflow manager remains available outside simplified plugin details',async({page})=>{
+ await fixtureLogin(page);await page.route('**/api/v1/plugins/workflows?*',r=>r.fulfill({json:{data:[]}}));await page.goto('/plugins');await page.getByRole('button',{name:'工作流管理',exact:true}).click();const dialog=page.getByRole('dialog',{name:'工作流管理',exact:true});await expect(dialog.getByText('尚无工作流',{exact:true})).toBeVisible();await page.setViewportSize({width:390,height:1000});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
 
 test('R committed install response loss retries the original key against the real host',async({page})=>{

@@ -200,17 +200,15 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 		return response.StatusCode, raw
 	}
 
-	// Real HTTP tool calls use the same release binary and live scope ceiling.
-	toolURL := "/api/v1/plugins/" + in.ID + "/tools/call"
-	toolHeaders := map[string]string{"Origin": c.PublicURL, "X-Requested-With": "media-tool"}
-	if status, b := request("POST", toolURL, true, toolHeaders, `{"name":"hello.echo","input":{"message":"http-worker"},"operationKey":"http-tool-echo"}`); status != 200 || !strings.Contains(string(b), "http-worker") {
-		t.Fatal("real HTTP tool", status, string(b))
+	// Tool RPC remains a compiled SDK service, not a generic management debug UI.
+	if out, e := s.ToolCall(ctx, "test-admin", in.ID, "hello.echo", "http-tool-echo", json.RawMessage(`{"message":"http-worker"}`), false); e != nil || !strings.Contains(string(out), "http-worker") {
+		t.Fatal("real worker tool", e)
 	}
-	if status, _ := request("POST", toolURL, true, toolHeaders, `{"name":"hello.remember","input":{"message":"no"},"operationKey":"http-tool-write","confirm":false}`); status != 403 {
-		t.Fatal("tool effect confirmation", status)
+	if _, e := s.ToolCall(ctx, "test-admin", in.ID, "hello.remember", "http-tool-write", json.RawMessage(`{"message":"no"}`), false); e == nil {
+		t.Fatal("tool effect confirmation")
 	}
-	if status, _ := request("POST", toolURL, true, toolHeaders, `{"name":"hello.echo","input":{"message":7},"operationKey":"http-tool-invalid"}`); status != 400 {
-		t.Fatal("tool schema bypass", status)
+	if _, e := s.ToolCall(ctx, "test-admin", in.ID, "hello.echo", "http-tool-invalid", json.RawMessage(`{"message":7}`), false); e == nil {
+		t.Fatal("tool schema bypass")
 	}
 	// Real admin HTTP recognition runs the typed chain first, then a module override.
 	if status, b := request("POST", "/api/v1/media/recognize-name", true, map[string]string{"Origin": c.PublicURL, "X-Requested-With": "media-tool"}, `{"name":"Owned.2026.mkv"}`); status != 200 || !strings.Contains(string(b), "Module Rewrite") {

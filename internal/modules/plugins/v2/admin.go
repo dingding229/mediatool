@@ -21,6 +21,14 @@ type Inspection struct {
 
 // Inspect is administrator-only and bounded, never invoked by the media port.
 func (s Store) Inspect(ctx context.Context, id, after string) (Inspection, error) {
+	return s.inspect(ctx, id, after, true)
+}
+
+// Configuration never reads/decrypts KV just to render the settings form.
+func (s Store) Configuration(ctx context.Context, id string) (Inspection, error) {
+	return s.inspect(ctx, id, "", false)
+}
+func (s Store) inspect(ctx context.Context, id, after string, includeData bool) (Inspection, error) {
 	out := Inspection{Entries: []DataEntry{}}
 	if !validUUID(id) || len(after) > 128 {
 		return out, ErrInvalid
@@ -44,6 +52,9 @@ func (s Store) Inspect(ctx context.Context, id, after string) (Inspection, error
 	out.Config.Value, e = s.open("config", id, cipher)
 	if e != nil {
 		return out, e
+	}
+	if !includeData {
+		return out, nil
 	}
 	rows, e := tx.Query(ctx, `SELECT id::text,key,ciphertext,revision FROM plugin_v2_kv WHERE instance_id=$1 AND key>$2 ORDER BY key LIMIT 51`, id, after)
 	if e != nil {
