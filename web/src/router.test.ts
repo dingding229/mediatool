@@ -9,7 +9,7 @@ const legacy = [
   ['/media-users','/playback','users'], ['/player-access','/playback','players'], ['/cloudStorage','/organize','assets'],
   ['/organize-history','/organize','history'], ['/classification','/settings','naming'], ['/cloud-connections','/connections','storage'],
   ['/strm','/files','strm'], ['/strm-tools','/files','tools'], ['/maintenance','/ops','maintenance'], ['/jobs','/ops','jobs'],
-  ['/logs','/ops','logs'], ['/data','/ops','data'], ['/notifications','/connections','notifications'], ['/integrations','/connections','storage'],
+  ['/logs','/ops','logs'], ['/data','/ops','jobs'], ['/notifications','/connections','notifications'], ['/integrations','/connections','storage'],
   ['/external-api','/settings','api'], ['/tmdb-cache','/ops','cache'], ['/search-cache','/search','history'], ['/site-templates','/sites','templates'],
 ] as const
 describe('canonical workflow routing', () => {

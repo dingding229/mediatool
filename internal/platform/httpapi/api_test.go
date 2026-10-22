@@ -246,3 +246,16 @@ func TestReadinessRequiresExplicitDevelopmentWithoutDatabase(t *testing.T) {
 		})
 	}
 }
+
+func TestRetiredDataBrowseRoutesAreNotRegistered(t *testing.T) {
+	h, _ := testHandler(nil)
+	for _, method := range []string{"GET", "HEAD"} {
+		for _, path := range []string{"/api/v1/data/postgres/tables", "/api/v1/data/postgres/tables/accounts", "/api/v1/data/redis/keys", "/api/v1/data/redis/value?key=owned"} {
+			for _, key := range []string{"", cfg().SessionKey} {
+				if w := invoke(h, method, path, "", key); w.Code != http.StatusNotFound {
+					t.Fatalf("retired %s %s: %d", method, path, w.Code)
+				}
+			}
+		}
+	}
+}

@@ -8,3 +8,7 @@ test('F5a operations starts with tasks; runtime controls belong to attention onl
  await u6OpsFixture(page);const reads:string[]=[];page.on('request',r=>reads.push(new URL(r.url()).pathname));await page.goto('/ops');await expect(page.getByRole('heading',{name:'任务列表',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'运行系统检查',exact:true})).toHaveCount(0);expect(reads.filter(p=>p.endsWith('/system/operations'))).toHaveLength(0);await shots(page,'tasks')
  await page.goto('/ops?tab=attention');await expect(page.locator('.f5-runtime-summary')).toContainText('执行器在线 1 / 1');await expect(page.getByRole('button',{name:'运行系统检查',exact:true})).toBeVisible();await shots(page,'attention')
 })
+test('F5a removes data navigation and safely redirects old bookmarks without reading data',async({page})=>{
+ await u6OpsFixture(page);const reads:string[]=[];page.on('request',r=>{if(new URL(r.url()).pathname.startsWith('/api/v1/data/'))reads.push(r.url())});await page.goto('/ops?tab=logs');await expect(page.locator('.page-tabs').getByText('数据浏览',{exact:true})).toHaveCount(0);await shots(page,'logs')
+ await page.goto('/data');await expect(page).toHaveURL(/tab=jobs/);await expect(page.getByRole('heading',{name:'任务列表',exact:true})).toBeVisible();expect(reads).toEqual([])
+})

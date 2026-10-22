@@ -285,7 +285,7 @@ X-Requested-With: media-tool
 2. restore/rollback：POST requests/preview →展示保护范围、digest、confirmText →approve →**宿主受控CLI execute** →读取结果 →POST verify →人工复核 →resume。网页没有任意shell/容器执行入口。
 3. flow：preview/approve/execute/verify/complete。approved不是已执行，completed但verifiedAt缺失仍需verify；failed/未知不得自动重复切库。verify是核对receipt/版本/schema/受保护摘要，不重新执行、不自动解除维护。
 4. 使用正式 Docker Hub 不可变 AMD64 镜像执行维护，不随意逆向修改数据库；回滚要完整旧数据库+密钥/STRM+匹配旧镜像备份。
-5. GET `/logs/query`、`/logs/summary`，数据视图 `/data/postgres/tables`、`/{table}`、`/data/redis/keys|value` 只读分页；原始URL/数据是管理员私有原值，不能自动打码造成诊断失真，也不能上传公开Actions。
+5. GET `/logs/query`、`/logs/summary`；原始URL/数据是管理员私有原值，不能自动打码造成诊断失真，也不能上传公开Actions。
 6. 仅允许白名单表/列/固定排序映射；界面不要提供SQL片段/where拼接。日志导出必须显式用户触发并提示私有范围；登录body/Cookie/Authorization不额外收集，恢复口令不入web日志。
 7. ACK容量告警不等于问题解决；blocked恢复要检查GC/订阅ACK/未解决run，禁止清库、截断幂等身份或绕过迟提交保护。
 

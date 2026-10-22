@@ -72,7 +72,7 @@ test('F3 old manual task requires selected identity and explicit approval before
 })
 
 const pages=[
- ['ops','/ops?tab=attention','ops-attention'],['ops','/ops?tab=maintenance','ops-maintenance'],['ops','/ops?tab=cache','ops-cache'],['ops','/ops?tab=data','ops-data'],
+ ['ops','/ops?tab=attention','ops-attention'],['ops','/ops?tab=maintenance','ops-maintenance'],['ops','/ops?tab=cache','ops-cache'],
  ['sites','/sites','sites'],['sites','/sites?tab=templates','site-templates'],['acquisition','/downloads?tab=tasks','downloads'],['acquisition','/downloads?tab=uploads','uploads'],['acquisition','/downloads?tab=manual','manual-downloads'],['acquisition','/search','search'],
  ['base','/subscriptions','subscriptions'],['base','/subscriptions?tab=history&subscription=f3-sub','subscription-history'],['organize','/organize','organize'],['organize','/library','library'],['organize','/files','files'],
  ['playback','/playback?tab=processing','playback-processing'],['playback','/playback?tab=service','playback-service'],['playback','/playback?tab=users','media-users'],['base','/connections?tab=storage','connections'],['base','/connections?tab=notifications','notifications'],

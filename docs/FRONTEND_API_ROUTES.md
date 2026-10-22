@@ -119,14 +119,6 @@
 | GET | `/api/v1/cloudStorage/strm302` | management | 资源/链接使用 | `web/src/files/LinkDiagnostics.vue:80` |
 | HEAD | `/api/v1/cloudStorage/strm302` | management | 未检出静态使用 |  |
 | POST | `/api/v1/cloudStorage/test` | management | 未检出静态使用 |  |
-| GET | `/api/v1/data/postgres/tables` | management | 前端直接调用 | `web/src/operations/DataPanel.vue:9` |
-| HEAD | `/api/v1/data/postgres/tables` | management | 未检出静态使用 |  |
-| GET | `/api/v1/data/postgres/tables/{table}` | management | 前端直接调用 | `web/src/operations/DataPanel.vue:19` |
-| HEAD | `/api/v1/data/postgres/tables/{table}` | management | 未检出静态使用 |  |
-| GET | `/api/v1/data/redis/keys` | management | 前端直接调用 | `web/src/operations/DataPanel.vue:21` |
-| HEAD | `/api/v1/data/redis/keys` | management | 未检出静态使用 |  |
-| GET | `/api/v1/data/redis/value` | management | 前端直接调用 | `web/src/operations/DataPanel.vue:22` |
-| HEAD | `/api/v1/data/redis/value` | management | 未检出静态使用 |  |
 | GET | `/api/v1/diagnostics/playback/preflight` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/diagnostics/playback/preflight` | management | 未检出静态使用 |  |
 | GET | `/api/v1/downloads` | management | 前端直接调用 | `web/src/acquisition/useDelivery.ts:65`、`web/src/acquisition/useDownloads.ts:35` |
@@ -444,7 +436,7 @@
 | HEAD | `/api/v1/subscriptions/{id}/history` | management | 未检出静态使用 |  |
 | GET | `/api/v1/system/modules` | management | 前端直接调用 | `web/src/stores/system.ts:7` |
 | HEAD | `/api/v1/system/modules` | management | 未检出静态使用 |  |
-| GET | `/api/v1/system/operations` | management | 前端直接调用 | `web/src/operations/QueuePanel.vue:18` |
+| GET | `/api/v1/system/operations` | management | 前端直接调用 | `web/src/operations/RuntimeChecks.vue:18` |
 | HEAD | `/api/v1/system/operations` | management | 未检出静态使用 |  |
 | GET | `/api/v1/system/runtime` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5` |
 | HEAD | `/api/v1/system/runtime` | management | 未检出静态使用 |  |

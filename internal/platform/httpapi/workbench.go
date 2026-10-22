@@ -1,9 +1,7 @@
 package httpapi
 
 import (
-	"context"
 	"errors"
-	"media-tool/internal/modules/dataview"
 	"media-tool/internal/modules/releasename"
 	"media-tool/internal/modules/settings"
 	"media-tool/internal/platform/logging"
@@ -172,53 +170,4 @@ func (a *API) setLogLevel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, map[string]string{"level": in.Level, "persistence": "本次运行；默认级别在Compose中修改"})
-}
-func (a *API) dataTables(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	v, err := (dataview.Engine{DB: a.Deps.DB, Redis: a.Deps.Redis}).Tables(ctx)
-	if err != nil {
-		fail(w, 503, "data_unavailable", "表信息不可用")
-		return
-	}
-	write(w, 200, v)
-}
-func (a *API) dataRows(w http.ResponseWriter, r *http.Request) {
-	p, err := pagination(r)
-	if err != nil {
-		fail(w, 400, "invalid_page", "分页无效")
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	v, err := (dataview.Engine{DB: a.Deps.DB}).Rows(ctx, r.PathValue("table"), p.Page, min(p.Limit, 50))
-	if err != nil {
-		fail(w, 400, "data_unavailable", "表不存在、查询超限或数据不可用")
-		return
-	}
-	write(w, 200, v)
-}
-func (a *API) redisKeys(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	cursor := r.URL.Query().Get("cursor")
-	if cursor == "" {
-		cursor = "0"
-	}
-	v, err := (dataview.Engine{Redis: a.Deps.Redis}).RedisKeys(ctx, cursor, r.URL.Query().Get("pattern"))
-	if err != nil {
-		fail(w, 400, "redis_unavailable", "Redis查询不可用，游标或模式无效")
-		return
-	}
-	write(w, 200, v)
-}
-func (a *API) redisValue(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	v, err := (dataview.Engine{Redis: a.Deps.Redis}).RedisValue(ctx, r.URL.Query().Get("key"))
-	if err != nil {
-		fail(w, 400, "redis_unavailable", "键不可用或超出显示上限")
-		return
-	}
-	write(w, 200, v)
 }

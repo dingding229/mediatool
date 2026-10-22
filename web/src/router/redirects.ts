@@ -15,7 +15,7 @@ export const legacyDestinations: Record<string, { path: string; tab: string; que
   '/maintenance': { path: '/ops', tab: 'maintenance' },
   '/jobs': { path: '/ops', tab: 'jobs' },
   '/logs': { path: '/ops', tab: 'logs' },
-  '/data': { path: '/ops', tab: 'data' },
+  '/data': { path: '/ops', tab: 'jobs' },
   '/notifications': { path: '/connections', tab: 'notifications' },
   '/integrations': { path: '/connections', tab: 'storage' },
   '/external-api': { path: '/settings', tab: 'api' },

@@ -171,10 +171,6 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("GET /api/v1/logs", a.protected(a.readLogs))
 	mux.HandleFunc("POST /api/v1/logs/clear", a.protected(a.clearLogs))
 	mux.HandleFunc("POST /api/v1/logs/level", a.protected(a.setLogLevel))
-	mux.HandleFunc("GET /api/v1/data/postgres/tables", a.protected(a.dataTables))
-	mux.HandleFunc("GET /api/v1/data/postgres/tables/{table}", a.protected(a.dataRows))
-	mux.HandleFunc("GET /api/v1/data/redis/keys", a.protected(a.redisKeys))
-	mux.HandleFunc("GET /api/v1/data/redis/value", a.protected(a.redisValue))
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { write(w, 200, map[string]string{"status": "alive"}) })
 	mux.HandleFunc("GET /readyz", a.ready)

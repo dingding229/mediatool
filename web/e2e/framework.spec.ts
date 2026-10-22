@@ -645,9 +645,9 @@ test('connections own external configuration while settings own naming',async({p
  await page.screenshot({path:resolve(screenshots,'workbench-settings-desktop.png'),animations:'disabled',fullPage:true});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-settings-mobile.png'),animations:'disabled',fullPage:false})
 })
 
-test('log viewer has level, sizes and confirmed cleanup; data tools are formatted read-only',async({page})=>{
+test('log viewer has level, sizes and confirmed cleanup',async({page})=>{
  await login(page);await page.goto('/logs');await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible();await page.getByRole('button',{name:'日志设置',exact:true}).click();await expect(page.getByRole('heading',{name:'日志大小',exact:true})).toBeVisible();await page.getByRole('dialog',{name:'日志设置',exact:true}).getByRole('button',{name:'关闭',exact:true}).click();await expect(page.locator('.u6-log').first()).toBeVisible();await page.getByRole('button',{name:'清理日志',exact:true}).click();await page.getByRole('button',{name:'取消',exact:true}).click();await expect(page.locator('.u6-log').first()).toBeVisible();await page.screenshot({path:resolve(screenshots,'workbench-logs-desktop.png'),animations:'disabled'})
- await page.goto('/data');await expect(page.getByRole('heading',{name:'只读数据浏览',exact:true})).toBeVisible();await expect(page.locator('.u6-data-row').first()).toBeVisible();await page.locator('.u6-data-row').first().click();await expect(page.getByRole('dialog',{name:'只读格式化数据'})).toBeVisible();await page.getByRole('button',{name:'关闭',exact:true}).click();await page.screenshot({path:resolve(screenshots,'workbench-data-desktop.png'),animations:'disabled'});await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,'workbench-data-mobile.png'),animations:'disabled'})
+
 })
 
 test('Emby home follows real category/watch/latest structure without exposing keys (fixture)',async({page})=>{
@@ -684,8 +684,8 @@ test('grouped navigation, quick jump and keyboard-only return (UI)',async({page}
  await expect(page).toHaveTitle('首页 · Media Tool')
  await page.getByRole('button',{name:'快速前往',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'快速前往',exact:true}),input=dialog.getByRole('combobox',{name:'搜索功能入口'})
- await expect(input).toBeFocused();await input.fill('Redis');await expect(dialog.getByRole('option')).toHaveCount(1)
- await input.press('Enter');await expect(page.getByRole('heading',{name:'只读数据浏览',exact:true})).toBeVisible();await expect(dialog).toBeHidden()
+ await expect(input).toBeFocused();await input.fill('日志');await expect(dialog.getByRole('option')).toHaveCount(1)
+ await input.press('Enter');await expect(page.getByRole('heading',{name:'程序日志',exact:true})).toBeVisible();await expect(dialog).toBeHidden()
  await page.keyboard.press('Control+k');await expect(input).toBeFocused();await input.fill('not-a-real-feature');await expect(dialog.getByText('没有匹配的功能，请尝试其他关键词。')).toBeVisible()
  await input.press('Enter');await expect(dialog).toBeVisible();await page.keyboard.press('Escape');await expect(dialog).toBeHidden()
  await page.getByRole('button',{name:'快速前往',exact:true}).focus();await page.keyboard.press('Enter');await expect(input).toBeFocused()
@@ -801,7 +801,7 @@ test('PWA registration, public-only cache, headers and generic offline page (loc
  const manifest=await page.request.get('/manifest.webmanifest');expect(manifest.status()).toBe(200);const body=await manifest.json();expect(body).toMatchObject({name:'Media Tool 媒体工作台',start_url:'/dashboard',scope:'/',display:'standalone'});expect(new URL(body.start_url,manifest.url()).origin).toBe(new URL(process.env.E2E_BASE_URL!).origin)
  for(const path of ['/manifest.webmanifest','/sw.js','/offline.html','/pwa/icon-192.png','/pwa/icon-512.png']){const reply=await page.request.get('http://localhost:18087'+path);expect(reply.status()).toBe(404);expect(reply.headers()['content-type']).toContain('application/json');expect(reply.headers()['service-worker-allowed']).toBeUndefined();expect(await reply.json()).toEqual({ResponseStatus:{ErrorCode:'NotFound',Message:'Not Found'}})}
  const keys=await page.evaluate(async()=>{const out:string[]=[];for(const name of await caches.keys()){if(name.startsWith('media-tool-public-'))for(const request of await (await caches.open(name)).keys())out.push(new URL(request.url).pathname)}return out});expect(keys).toContain('/offline.html');expect(keys.every(key=>key.startsWith('/assets/')||key.startsWith('/pwa/')||key==='/offline.html')).toBe(true)
- await context.setOffline(true);await page.goto('/data');await expect(page.getByRole('heading',{name:'当前处于离线状态',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'只读数据浏览',exact:true})).toHaveCount(0);await context.setOffline(false)
+ await context.setOffline(true);await page.goto('/ops?tab=jobs');await expect(page.getByRole('heading',{name:'当前处于离线状态',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'任务列表',exact:true})).toHaveCount(0);await context.setOffline(false)
 })
 
 })
