@@ -1,3 +1,4 @@
+import {beijingTime} from '../presentation/time';
 import { APIError } from '../api/client'
 export interface Media { id: number; mediaType: string; title: string; year?: string }
 export interface Account { id: string; kind: string; name: string; enabled: boolean; secretFields?: string[] }
@@ -39,7 +40,7 @@ export function payloadFor(d: Draft) {
 export const discovery: Record<string, string> = { search: '周期搜索', rss: 'RSS 新条目', both: '搜索 + RSS' }
 export const outcomes: Record<string, string> = { skipped: '跳过', needs_confirmation: '需要人工确认', would_download: '预演通过 · 可下载', download_queued: '已加入下载队列', download_failed: '下载创建失败' }
 export function quality(r: Rules | Draft) { return [r.resolution, ('releaseSource' in r ? r.releaseSource : r.source)?.toUpperCase(), r.codec?.toUpperCase()].filter(Boolean).join(' · ') || '不限画质' }
-export function timestamp(value?: string) { return value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—' }
+export const timestamp=beijingTime
 export function asError(e: unknown) {
   if (e instanceof TypeError && /fetch|network|load/i.test(e.message)) return new Error('暂时无法连接服务器，请检查网络后重新读取。')
   return e instanceof Error ? e : new Error('请求未完成，请重新读取状态')

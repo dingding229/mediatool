@@ -117,8 +117,8 @@ usePageRefresh(refresh,'*');
         </div>
       </template>
       </div>
-    <PagePagination v-model:current-page="page" :total="total" :page-size="25" @current-change="refresh"/>
-      <PagePagination v-if="tab==='history'" v-model:current-page="historyPage" :total="historyTotal" :page-size="25" @current-change="loadHistory"/>
+    <PagePagination label="订阅列表分页" v-model:current-page="page" :total="total" :page-size="25" @current-change="refresh"/>
+      <PagePagination label="订阅运行历史分页" v-if="tab==='history'" v-model:current-page="historyPage" :total="historyTotal" :page-size="25" @current-change="loadHistory"/>
       </section>
     <SubscriptionComposer v-model:visible="editorOpen" v-model:draft="draft" :accounts="accounts" :account-error="accountError" :saving="saving" :error="saveError" :preview-ready="previewReady" :preview-run="previewRun" :preview-error="previewError" :pending="pending" @preview="previewDraft" @reconcile="reconcile" @save="save" @reload="reloadEditor" @retry-accounts="refresh" />
     <ConfirmAction v-model:visible="deleteOpen" class="subscription-confirm" title="归档订阅" :description="`将停止「${deleteTarget?.title || '—'}」的后续自动订阅。`" impact-scope="仅归档此订阅；保留规则、运行记录及下载关联，不删除已有下载、云盘文件或做种源文件。" danger-level="danger" confirm-text="确认归档订阅" :loading="deleting" @confirm="confirmDelete" />

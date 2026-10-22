@@ -1,11 +1,7 @@
+import {beijingTime} from '../presentation/time';
 export interface LogRecord { time?: string; level?: string; msg?: string; source?: string | { file?: string; line?: number }; module?: string; [key: string]: unknown }
-export function formatLogTime(value: unknown): string {
-  if (typeof value !== 'string') return '时间未知'
-  const date = new Date(value.replace(/(\.\d{3})\d+(?=Z|[+-])/, '$1'))
-  if (!Number.isFinite(date.getTime())) return '时间未知'
-  const pad = (n: number) => String(n).padStart(2,'0')
-  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-}
+export const formatLogTime=(value:unknown)=>beijingTime(value,'时间未知')
+
 export function logLevel(value: unknown) {
   const level = String(value ?? '').toLowerCase()
   return level === 'warning' ? 'warn' : ['debug','info','warn','error'].includes(level) ? level : 'unknown'

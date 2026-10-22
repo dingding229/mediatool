@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import StatusBadge from '../components/StatusBadge.vue';
-import StateView from '../ui/StateView.vue';
-import { readinessLabel, readinessReason, stateFor, errorText, type Readiness } from '../workflows/readiness';
+import { readinessLabel, readinessReason, errorText, type Readiness } from '../workflows/readiness';
 defineProps<{
   value: Readiness | null;
   loading: boolean;

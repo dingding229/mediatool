@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {beijingISO} from '../presentation/time';
 import {usePageNumber} from '../ui/page-query';
 import {Refresh,Delete,Setting,CopyDocument,Download,DArrowLeft,ArrowLeft,ArrowRight,DArrowRight} from '@element-plus/icons-vue';
 import {useRevision} from '../settings/revision';
@@ -25,9 +26,9 @@ const route = useRoute(), filter = reactive({ page: usePageNumber(), pageSize: 2
   if (!filter.before)
     q.delete('before');
   if (from.value)
-    q.set('from', new Date(from.value).toISOString());
+    q.set('from', beijingISO(from.value));
   if (to.value)
-    q.set('to', new Date(to.value).toISOString());
+    q.set('to', beijingISO(to.value));
   return request('/logs/query?' + q).then(pageResult);
 })), summary = reactive(useResource<any>(() => request('/logs/summary')));
 const policy=useRevision<Record<string,any>>('/settings/application'), duration=ref(1), debug=ref(false);

@@ -1,3 +1,4 @@
+import {beijingTime} from '../presentation/time';
 import { APIError } from '../api/client';
 export interface Probe {
   state: string;
@@ -20,7 +21,7 @@ export function stateFor(e: unknown) {
   return e instanceof APIError && [401, 403].includes(e.status) ? 'unauthorized' : e instanceof APIError && e.status === 501 ? 'unsupported' : 'error';
 }
 export const errorText = (e: unknown) => e instanceof Error ? e.message : '读取失败，请稍后重新读取';
-export const date = (s?: string) => s && Number.isFinite(Date.parse(s)) ? new Date(s).toLocaleString('zh-CN', { hour12: false }) : '—';
+export const date=beijingTime;
 export { formatBytes as bytes } from '../utils/format-bytes';
 export const guidePreference = 'media-tool:setup-guide-hidden:v1';
 export function readGuideHidden() {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {beijingISO} from '../presentation/time';
 import {cachedTMDBImage} from '../api/images';
 import {usePageNumber} from '../ui/page-query';
 
@@ -26,9 +27,9 @@ let hasLoaded=false;
   try {
     const p = new URLSearchParams({ page: String(page.value), pageSize: '25', kind: kind.value, state: state.value, q: query.value, batchId: batchId.value, origin: origin.value, method: method.value });
     if (from.value)
-      p.set('from', new Date(from.value).toISOString());
+      p.set('from', beijingISO(from.value));
     if (to.value)
-      p.set('to', new Date(to.value).toISOString());
+      p.set('to', beijingISO(to.value));
     const out: any = await request(`/library/activity?${p}`);
     if (version === epoch && !disposed) {
       items.value = rows(out.items);

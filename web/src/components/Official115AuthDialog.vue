@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {beijingTime} from '../presentation/time';
 import {useRefresh} from '../composables/useRefresh'
 import { ref, watch, onUnmounted } from 'vue'
 import { post } from '../api/client'
@@ -47,7 +48,7 @@ onUnmounted(close)
   <div class="authorization-content" v-loading="busy">
    <img v-if="session?.qrCodeImage" :src="session.qrCodeImage" width="256" height="256" alt="115官方扫码授权二维码" class="authorization-qr"/>
    <p role="status" aria-live="polite">{{status}}</p>
-   <p v-if="session" class="field-hint">有效期至 {{new Date(session.expiresAt).toLocaleTimeString()}}。请在115 App中核对应用名称和授权范围后确认。</p>
+   <p v-if="session" class="field-hint">有效期至 {{beijingTime(session.expiresAt)}}。请在115 App中核对应用名称和授权范围后确认。</p>
    <el-alert v-if="error" :title="error" type="error" :closable="false"/>
   </div>
   <template #footer><el-button @click="close">关闭</el-button><el-button type="primary" :loading="busy" @click="start">重新生成二维码</el-button></template>

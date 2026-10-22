@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {beijingTime as date} from '../presentation/time';
 import {usePageRefresh} from '../ui/page-refresh';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { post, request, responseStatus, testExternalToken } from '../api/client';
@@ -20,7 +21,6 @@ interface Key {
 const publicKey = ({ id, name, scopes, createdAt, lastUsedAt, revokedAt, prefix }: Key): Key => ({ id, name, scopes, createdAt, lastUsedAt, revokedAt, prefix });
 const keys = useResource(async () => (await request<Key[]>('/external-api/keys')).map(publicKey), []), calls = useResource(() => request<any[]>('/external-api/calls'), []), op = useOperation('settings-api'), dialog = ref(false), name = ref(''), scopes = ref(['status.read', 'library.read', 'layout.preview', 'tasks.read']), token = ref(''), tokenOpen = ref(false), testToken = ref(''), verification = ref(''), verifying = ref(false), copyNotice = ref(''), revoke = ref<Key>(), notice = ref('');
 const options = [['status.read', '版本与状态只读'], ['library.read', '媒体与播放文件只读'], ['layout.preview', '分类与命名预览'], ['tasks.read', '下载与上传状态只读'], ['search.run', '创建站点搜索与读取结果'], ['downloads.run', '创建真实下载任务（写入）']];
-const date = (s?: string) => s ? new Date(s).toLocaleString('zh-CN') : '—';
 let alive = true;
 async function load() {
   await Promise.all([keys.load(), calls.load()]);

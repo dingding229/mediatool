@@ -6,6 +6,7 @@ import { request, APIError } from '../api/client';
 import { PASSWORD_MAX_LENGTH, EXISTING_PASSWORD_MAX_LENGTH, passwordPolicyError } from '../auth/password-policy';
 import { useAuthStore } from '../stores/auth';
 import AuthShell from '../auth/AuthShell.vue';
+import StateView from '../ui/StateView.vue';
 let alive = true;
 const username = ref(''), password = ref(''), confirmation = ref(''), loading = ref(false), checking = ref(true), error = ref(''), registrationOpen = ref(false), available = ref(false), router = useRouter(), auth = useAuthStore();
 const loginRoute = useRoute();
@@ -87,7 +88,7 @@ onUnmounted(() => {
 });
 </script>
 <template>
-  <AuthShell :title="registrationOpen?'注册管理员账号':'进入管理工作台'" :description="registrationOpen?'创建唯一管理员账号。完成注册后，将自动关闭公开注册。':'使用你的管理员账号和密码登录。'">
+  <AuthShell v-if="available||!checking" :title="registrationOpen?'注册管理员账号':'进入管理工作台'" :description="registrationOpen?'创建唯一管理员账号。完成注册后，将自动关闭公开注册。':'使用你的管理员账号和密码登录。'">
     <p v-if="pendingRestore()||loginRoute.query.restore" role="status">恢复已切换账号与会话，当前登录可能已失效。请使用备份时的管理员账号和密码登录；恢复可能已经完成，登录后在运维页查看持久化结果，不要重复执行。</p>
     <p v-if="loginRoute.query.sessionRevoked==='1'" role="status">当前管理端登录已撤销，请重新登录。</p>
     <el-alert v-if="error" :title="error" type="error" :closable="false"/>
@@ -112,4 +113,7 @@ onUnmounted(() => {
     <el-button v-if="!available&&!checking" @click="loadSetup">重新检查账号状态</el-button>
     <p class="auth-note">{{registrationOpen?'请先在可信环境中完成注册，不要将未初始化的管理端暴露到公网。':'密码不会写入浏览器存储。退出当前账号或修改密码后，需要重新登录。'}}</p>
   </AuthShell>
+  <main v-else class="auth-initial-placeholder"><StateView state="loading" title="正在检查账号状态…"/></main>
 </template>
+
+<style scoped>.auth-initial-placeholder{min-height:100dvh;display:grid;place-items:center;padding:24px;box-sizing:border-box}.auth-initial-placeholder>.state-view{max-width:420px}</style>

@@ -42,7 +42,7 @@ it('maps one log date-time range to both existing API filters and clears them to
  const s=mount(Logs);await flush();
  s.timeRange=['2026-10-22T10:00:00','2026-10-22T11:00:00'];await s.load();
  let q=new URL('https://fixture.invalid'+fetch.mock.calls.filter(([u])=>u.includes('/logs/query?')).at(-1)![0]).searchParams;
- expect(q.get('from')).toBe(new Date('2026-10-22T10:00:00').toISOString());expect(q.get('to')).toBe(new Date('2026-10-22T11:00:00').toISOString());
+ expect(q.get('from')).toBe('2026-10-22T02:00:00.000Z');expect(q.get('to')).toBe('2026-10-22T03:00:00.000Z');
  s.timeRange=null;await s.load();q=new URL('https://fixture.invalid'+fetch.mock.calls.filter(([u])=>u.includes('/logs/query?')).at(-1)![0]).searchParams;
  expect(q.has('from')).toBe(false);expect(q.has('to')).toBe(false);expect(fetch.mock.calls.some(([,o])=>o?.method)).toBe(false);
 })

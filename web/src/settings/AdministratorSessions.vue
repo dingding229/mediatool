@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {beijingTime as date} from '../presentation/time';
 import {usePageNumber} from '../ui/page-query';
 
 import {onMounted,onUnmounted,ref} from 'vue';
@@ -13,7 +14,6 @@ import {messageFor,stateFor} from './revision';
 interface Session {id:string;accountId:string;username:string;createdAt:string;lastActiveAt:string;expiresAt:string;ip:string;userAgent:string;current:boolean}
 const page = usePageNumber(),sessions=useResource(()=>request<{items:Session[];hasNext:boolean}>('/auth/sessions?page='+page.value),{items:[],hasNext:false}),target=ref<Session>(),busy=ref(false),error=ref<unknown>(null),notice=ref(''),router=useRouter(),auth=useAuthStore();
 let alive=true;onUnmounted(()=>{alive=false});
-const date=(value:string)=>value?new Date(value).toLocaleString('zh-CN'):'—';
 async function revoke(){if(!target.value||busy.value)return;busy.value=true;error.value=null;const row=target.value;try{const out=await post<{revoked:boolean;loginRequired:boolean}>(`/auth/sessions/${row.id}/revoke`,{confirm:true});if(!alive)return;target.value=undefined;if(out.loginRequired){auth.forget();await router.replace('/login?sessionRevoked=1');return}notice.value='已撤销指定管理端登录；该会话的下一次请求需要重新登录。';await sessions.load()}catch(e){error.value=e;target.value=undefined;await sessions.load()}finally{busy.value=false}}
 onMounted(sessions.load);usePageRefresh(sessions.load,'security');
 </script>
