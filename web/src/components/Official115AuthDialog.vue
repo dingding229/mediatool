@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import {useRefresh} from '../composables/useRefresh'
 import { ref, watch, onUnmounted } from 'vue'
 import { post } from '../api/client'
 interface Authorization { sessionId:string; state:string; qrCodeImage?:string; expiresAt:string }
 const props=defineProps<{ modelValue:boolean; integrationId:string }>()
 const emit=defineEmits<{ 'update:modelValue':[boolean]; authorized:[] }>()
 const session=ref<Authorization|null>(null), busy=ref(false), error=ref(''), status=ref('')
-let generation=0, timer:ReturnType<typeof setTimeout>|undefined
+let generation=0
 const labels:Record<string,string>={waiting:'等待115 App扫码',scanned:'已扫码，请在115 App中确认授权',exchanging:'已确认，正在加密保存授权结果',authorized:'授权已加密保存并自动验证，请显式启用官方直链',expired:'二维码已过期，请重新生成',cancelled:'已取消授权',failed:'授权未完成，请重新生成二维码'}
 function message(e:unknown){return e instanceof Error?e.message:'115官方授权暂不可用'}
 async function poll(id:string, version:number){
@@ -17,27 +18,27 @@ async function poll(id:string, version:number){
   if(next.state!=='waiting'&&next.state!=='scanned')session.value.qrCodeImage=undefined
   status.value=labels[next.state]??'等待授权'
   if(next.state==='authorized'){emit('authorized');return}
-  if(next.state==='waiting'||next.state==='scanned'||next.state==='exchanging')timer=setTimeout(()=>void poll(id,version),1500)
  }catch(e){if(version===generation){error.value=message(e);status.value='轮询已停止；可重新生成二维码'}}
 }
 async function start(){
- const version=++generation;if(timer)clearTimeout(timer)
+ const version=++generation;
  busy.value=true;error.value='';status.value='正在请求115官方授权二维码';session.value=null
  try{
   const next=await post<Authorization>(`/integrations/${props.integrationId}/115/auth/start`,{})
   if(version!==generation){void cancel(next.sessionId,props.integrationId);return}
-  session.value=next;status.value=labels[next.state]??'等待扫码';void poll(props.integrationId,version)
+  session.value=next;status.value=labels[next.state]??'等待扫码';
  }catch(e){if(version===generation){error.value=message(e);status.value='请求失败'}}
  finally{if(version===generation)busy.value=false}
 }
 async function cancel(sessionId:string,id:string){try{await post(`/integrations/${id}/115/auth/cancel`,{sessionId})}catch{/* Expired/replaced session or logout: local polling must still stop. */}}
 function close(){
- generation++;if(timer)clearTimeout(timer)
+ generation++;
  const old=session.value;session.value=null;busy.value=false;status.value=''
  if(old&&(old.state==='waiting'||old.state==='scanned'||old.state==='exchanging'))void cancel(old.sessionId,props.integrationId)
  emit('update:modelValue',false)
 }
-watch(()=>props.modelValue,open=>{if(open)void start();else{generation++;if(timer)clearTimeout(timer);session.value=null;busy.value=false}})
+watch(()=>props.modelValue,open=>{if(open)void start();else{generation++;;session.value=null;busy.value=false}})
+useRefresh(()=>poll(props.integrationId,generation),{interval:1500,immediate:false,active:()=>props.modelValue&&!busy.value&&!error.value&&!!session.value&&['waiting','scanned','exchanging'].includes(session.value.state)})
 onUnmounted(close)
 </script>
 <template>

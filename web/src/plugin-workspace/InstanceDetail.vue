@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useRefresh} from '../composables/useRefresh';
 import {providePageRefresh,usePageRefresh} from '../ui/page-refresh';
 const ownRefresh=providePageRefresh();
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
@@ -64,15 +65,10 @@ async function apply() {
   await load();
   settle();
 }
-let settleTimer: ReturnType<typeof setTimeout> | undefined;
+let settleLeft=0;
 const transitional = (i?: { state: string; desiredState?: string }) => !!i && (['starting', 'stopping'].includes(i.state) || (i.state === 'stopped' && i.desiredState === 'enabled') || (i.state === 'running' && i.desiredState === 'disabled'));
-function settle(left = 20) {
-  clearTimeout(settleTimer);
-  if (left <= 0 || !transitional(row.value))
-    return;
-  settleTimer = setTimeout(async () => { await data.load(); settle(left - 1); }, 1500);
-}
-onBeforeUnmount(() => clearTimeout(settleTimer));
+function settle(left=20){settleLeft=left;}
+useRefresh(async()=>{settleLeft--;await data.load()},{interval:1500,immediate:false,active:()=>settleLeft>0&&transitional(row.value)});
 async function review() {
   await plan.load();
   confirmed.value = false;
@@ -98,7 +94,7 @@ function dataPage(n:number){if(n>cursorIndex.value){if(!data.data?.next)return;c
       </template>
     </PageHeader>
     <RouterLink to="/plugins?tab=installed">返回已安装插件</RouterLink>
-    <ResourceState :loading="data.loading" :error="safePluginError(data.error)" @reload="load"/>
+    <ResourceState :stale="data.loaded" :loading="data.loading" :error="safePluginError(data.error)" @reload="load"/>
     <el-alert v-if="op.error" :title="op.error" type="error" :closable="false"/>
     <p v-if="op.notice" role="status">{{ op.notice }}</p>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" message="上次插件操作结果未确认，正在核对，不会重复操作。" @refresh="load"/>

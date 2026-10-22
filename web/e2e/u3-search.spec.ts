@@ -12,7 +12,7 @@ test('U3 history is read-only, query-synchronized, and links cache maintenance t
 })
 test('U3 result filters cover the full snapshot and ranking is sent to the server',async({page})=>{
  let sort='';await page.route('**/api/v1/search/run-u3?*',r=>{sort=new URL(r.request().url()).searchParams.get('sort')||'';return r.fulfill({json:{data:u3Run}})})
- await page.goto('/search/results/run-u3');await page.getByRole('button',{name:'促销',exact:true}).click();await expect.poll(()=>sort).toBe('promotion_desc');await page.getByRole('button',{name:'促销',exact:true}).click();await expect.poll(()=>sort).toBe('promotion_asc');await expect(page.locator('.promotion-badge')).toHaveText('免费')
+ await page.goto('/search/results/run-u3');await page.getByRole('columnheader',{name:/促销/}).click();await expect.poll(()=>sort).toBe('promotion_desc');await page.getByRole('columnheader',{name:/促销/}).click();await expect.poll(()=>sort).toBe('promotion_asc');await expect(page.locator('.promotion-badge')).toHaveText('免费')
 })
 test('U3 download 202 remains queued and a second click cannot submit the immutable snapshot again',async({page})=>{
  let posts=0;await page.route('**/api/v1/downloads',r=>{if(r.request().method()==='POST'){posts++;expect(r.request().postDataJSON()).toMatchObject({searchRunId:'run-u3',resourceId:'resource-u3',tmdbId:42,mediaType:'movie'});return r.fulfill({status:202,json:{data:{id:'task-u3'}}})}return r.fulfill({json:{data:[]}})})

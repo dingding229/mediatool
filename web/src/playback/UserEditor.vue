@@ -29,7 +29,7 @@ function open(user: any = null, reset = false) {
 function grant(id: string) {
   let row = form.grants.find((g: any) => g.libraryId === id);
   if (!row) {
-    row = { libraryId: id, canPlay: false, canDownload: false };
+    row = { libraryId: id, canPlay: true, canDownload: false };
     form.grants.push(row);
   }
   return row;
@@ -37,7 +37,7 @@ function grant(id: string) {
 function selectLibrary(id: string, enabled: boolean) {
   form.grants = form.grants.filter((g: any) => g.libraryId !== id);
   if (enabled)
-    form.grants.push({ libraryId: id, canPlay: false, canDownload: false });
+    form.grants.push({ libraryId: id, canPlay: true, canDownload: false });
 }
 async function reread() {
   const rows = await request<any[]>('/media-server/users');
@@ -143,21 +143,23 @@ defineExpose({ open, save, reread, form, op, latest });
         </label>
         <fieldset>
           <legend>媒体库权限</legend>
+          <p class="u5-permission-help">可见只允许浏览；可播放才允许观看。新授权库默认可播放、不可下载；已有权限保持原值。</p>
           <article v-for="library in libraries" :key="library.id" class="u5-grant">
             <strong>{{ library.name }}</strong>
             <label class="u5-check">
               <input type="checkbox" :aria-label="library.name+' 可见'" :checked="form.grants?.some((g:any)=>g.libraryId===library.id)" :disabled="op.busy||!!op.pending" @change="selectLibrary(library.id,($event.target as HTMLInputElement).checked)"/>
-              允许查看
+              可见 · 浏览条目
             </label>
             <template v-if="form.grants?.some((g:any)=>g.libraryId===library.id)">
               <label class="u5-check">
                 <input v-model="grant(library.id).canPlay" type="checkbox" :aria-label="library.name+' 可播放'" :disabled="op.busy||!!op.pending" @change="!grant(library.id).canPlay&&(grant(library.id).canDownload=false)"/>
-                允许播放
+                可播放 · 观看视频
               </label>
               <label class="u5-check">
-                <input v-model="grant(library.id).canDownload" type="checkbox" :aria-label="library.name+' 可下载'" :disabled="op.busy||!grant(library.id).canPlay"/>
-                允许下载
+                <input v-model="grant(library.id).canDownload" type="checkbox" :aria-label="library.name+' 可下载'" :disabled="op.busy||!!op.pending||!grant(library.id).canPlay"/>
+                可下载 · 保存原文件
               </label>
+              <p v-if="!grant(library.id).canPlay" class="u5-permission-help">当前仅可浏览；播放请求将被拒绝。开启“可播放”后才能观看。</p>
             </template>
           </article>
           <p v-if="!libraries.length">暂无可分配的媒体库。</p>

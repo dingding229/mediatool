@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useRefresh } from '../composables/useRefresh';
 import {usePageRefresh} from '../ui/page-refresh';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { post, request } from '../api/client';
@@ -16,9 +17,9 @@ interface Message {
 }
 const items = ref<Message[]>([]), loading = ref(true), error = ref(''), pending = ref(false), target = ref<Message | null>(null), open = ref(false), busy = ref(false), uncertain = ref(false);
 const labels: Record<string, string> = { sent: '已发送', pending: '等待投递', retry: '等待重试', sending: '正在投递', outcome_unknown: '结果未知，需先在接收端核对', failed: '投递失败', not_configured: '仅站内通知' };
-let disposed = false, timer: ReturnType<typeof setInterval> | undefined;
+let disposed = false, ready = false;
 async function load() {
-  loading.value = true;
+  loading.value = !ready;
   try {
     const out = await request<Message[]>('/notifications');
     if (!disposed) {
@@ -28,10 +29,10 @@ async function load() {
     }
   }
   catch {
-    error.value = '投递记录读取失败，不能视为没有通知。';
+    if(!disposed) error.value = '投递记录读取失败，不能视为没有通知。';
   }
   finally {
-    loading.value = false;
+    if(!disposed){loading.value = false; ready = true;}
   }
 }
 async function retry() {
@@ -52,14 +53,9 @@ async function retry() {
     busy.value = false;
   }
 }
-onMounted(() => {
-  void load();
-  timer = setInterval(load, 10000);
-});
+useRefresh(load, {interval:30000});
 onUnmounted(() => {
   disposed = true;
-  if (timer)
-    clearInterval(timer);
 });
 usePageRefresh(load);
 </script>

@@ -39,3 +39,18 @@ it('an older mutation cannot clear a newer operation storage lock',async()=>{con
 it('processing state choices never issue a filter unsupported by the selected task kind',async()=>{const s=mount(Processing);await flush();s.filter.kind='still';s.filter.state='probing';await s.changeFilter();expect(s.filter.state).toBe('failed');expect(fetch.mock.calls.some(([u])=>u.includes('kind=still')&&u.includes('state=probing'))).toBe(false)})
 
 it('the single session owner can revoke idle user logins even without an active playback row',async()=>{testRoute.query={tab:'sessions',userId:'idle-user'};const fallback=fetch.getMockImplementation()!;fetch.mockImplementation(async(url,o)=>url.includes('/native/sessions?')?{ok:true,status:200,json:async()=>({data:{items:[],total:0}})}:url.endsWith('/media-server/users/idle-user')?{ok:true,status:200,json:async()=>({data:{...user,id:'idle-user',activeSessions:1}})}:(fallback as (...args:any[])=>any)(url,o));const s=mount(Sessions);await flush();expect(s.open).toBe(true);expect(s.detail).toMatchObject({userId:'idle-user',account:{activeSessions:1}});expect(s.confirm).toBe(false);expect(fetch.mock.calls.some(([,o])=>o?.method==='POST')).toBe(false)});
+
+it('defaults only newly selected library grants to play, keeps download off and preserves existing browse-only grants',async()=>{
+ const s=mount(Editor,{libraries:[{id:'existing',name:'已有剧集库'},{id:'new',name:'新增电影库'}]});
+ const existing={libraryId:'existing',canPlay:false,canDownload:false};
+ s.open({...user,grants:[existing]});
+ expect(s.form.grants).toEqual([existing]);
+ s.selectLibrary('new',true);
+ expect(s.form.grants).toEqual([existing,{libraryId:'new',canPlay:true,canDownload:false}]);
+ expect(s.grant('existing')).toEqual(existing);
+ expect(s.grant('new').canDownload).toBe(false);
+ s.selectLibrary('new',false);
+ expect(s.form.grants).toEqual([existing]);
+ expect(existing.canPlay).toBe(false);
+ expect(fetch.mock.calls.some(([,o])=>o?.method==='PUT')).toBe(false);
+})

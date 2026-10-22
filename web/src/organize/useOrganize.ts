@@ -1,12 +1,14 @@
+import { useRefresh } from '../composables/useRefresh';
 import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import { request } from '../api/client';
 export function useOrganize() {
   const data = reactive<Record<string, any>>({ candidates: [], assets: [], scans: [], schedules: [], repairs: [] }), errors = reactive<Record<string, unknown>>({}), loading = reactive<Record<string, boolean>>({}), total = reactive({ candidates: 0, assets: 0 }), page = reactive({ candidates: 1, assets: 1 }), filter = ref('needs_confirmation'), assetId = ref(''), selected = reactive<Record<string, any[]>>({ candidates: [], assets: [] }), editing = ref(false);
-  let disposed = false, timer: ReturnType<typeof setInterval> | undefined;
+  let disposed = false;
   const versions: Record<string, number> = {};
+  const ready = new Set<string>();
   async function load(key: string) {
     const version = versions[key] = (versions[key] || 0) + 1;
-    loading[key] = true;
+    loading[key] = !ready.has(key);
     errors[key] = null;
     try {
       let out: any;
@@ -23,13 +25,11 @@ export function useOrganize() {
       if (disposed || version !== versions[key])
         return;
       if (['candidates', 'assets'].includes(key)) {
-        if (selected[key]!.length || editing.value)
-          return;
+        if (selected[key]!.length || editing.value) return;
         data[key] = Array.isArray(out) ? out : out.items || [];
         total[key as 'candidates' | 'assets'] = out.total ?? data[key].length;
-      }
-      else
-        data[key] = out || [];
+      } else data[key] = out || [];
+      ready.add(key);
     }
     catch (e) {
       if (!disposed && version === versions[key])
@@ -53,17 +53,9 @@ export function useOrganize() {
     selected.assets = [];
     void refresh();
   }
-  onMounted(() => {
-    void refresh();
-    timer = setInterval(() => {
-      if (!editing.value && !selected.candidates!.length && !selected.assets!.length)
-        void refresh();
-    }, 10000);
-  });
+  useRefresh(refresh, { interval: 15000, active: () => !editing.value && !selected.candidates!.length && !selected.assets!.length });
   onUnmounted(() => {
     disposed = true;
-    if (timer)
-      clearInterval(timer);
   });
   return { data, errors, loading, total, page, filter, assetId, selected, editing, load, refresh, toggle, changed };
 }

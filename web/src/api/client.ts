@@ -19,12 +19,13 @@ export async function request<T>(path:string,options:RequestInit={}):Promise<T>{
 export const post=<T>(path:string,body:unknown)=>request<T>(path,{method:'POST',body:JSON.stringify(body)})
 
 // Raw transports are kept here so UI code cannot accidentally change auth semantics.
-export function subscribeJobEvents(tick:()=>void):{close:()=>void}|undefined{
+export function subscribeJobEvents(tick:()=>void,state?:(connected:boolean)=>void):{close:()=>void}|undefined{
  if(typeof EventSource==='undefined')return
  const stream=new EventSource('/api/v1/jobs/events',{withCredentials:false})
  stream.addEventListener('tick',tick)
- stream.onerror=()=>stream.close()
- return {close:()=>stream.close()}
+ stream.onopen=()=>state?.(true)
+ stream.onerror=()=>{stream.close();state?.(false)}
+ return {close:()=>{stream.close();state?.(false)}}
 }
 export async function testExternalToken(token:string):Promise<void>{
  const response=await fetch('/api/external/v1/status',{credentials:'omit',headers:{Authorization:`Bearer ${token}`}})

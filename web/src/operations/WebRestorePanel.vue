@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useRefresh } from '../composables/useRefresh';
 import {pendingRestore,rememberRestore,clearRestore} from '../workflows/restore-session';
 import {onMounted,onUnmounted,ref} from 'vue';
 import {request,post} from '../api/client';
@@ -10,14 +11,14 @@ import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 const props=defineProps<{backups:any[];backupError?:unknown;backupsLoading?:boolean}>();
 const records=ref<any[]>([]),loading=ref(true),error=ref<unknown>(),preview=ref<any>(),previewOpen=ref(false),previewLoading=ref(false),previewError=ref<unknown>(),writeError=ref<unknown>(),confirm=ref(false),busy=ref(false),notice=ref('');
-let alive=true,epoch=0,timer:ReturnType<typeof setInterval>;
-async function load(){const version=++epoch;loading.value=true;error.value=undefined;try{const out=await request<any[]>('/ops/restores');if(alive&&version===epoch){records.value=out;const receipt=out.find(r=>r.id===pendingRestore());if(receipt&&['completed','rolled_back','failed'].includes(receipt.state)){notice.value='已读取恢复结果：'+label(receipt.state)+'；'+receipt.message;clearRestore(receipt.id)}}}catch(e){if(alive&&version===epoch)error.value=e}finally{if(alive&&version===epoch)loading.value=false}}
+let alive=true,epoch=0;
+async function load(){const version=++epoch;loading.value=epoch===1;error.value=undefined;try{const out=await request<any[]>('/ops/restores');if(alive&&version===epoch){records.value=out;const receipt=out.find(r=>r.id===pendingRestore());if(receipt&&['completed','rolled_back','failed'].includes(receipt.state)){notice.value='已读取恢复结果：'+label(receipt.state)+'；'+receipt.message;clearRestore(receipt.id)}}}catch(e){if(alive&&version===epoch)error.value=e}finally{if(alive&&version===epoch)loading.value=false}}
 async function inspect(id:string){if(busy.value)return;preview.value=undefined;writeError.value=undefined;previewOpen.value=true;previewLoading.value=true;previewError.value=undefined;try{const out=await post('/ops/restores/preview',{backupId:id});if(alive){preview.value=out;records.value=[(out as any).restore,...records.value.filter(r=>r.id!==(out as any).restore.id)]}}catch(e){if(alive)previewError.value=e}finally{if(alive)previewLoading.value=false}}
 async function execute(){const p=preview.value;if(!p||busy.value)return;busy.value=true;notice.value='';rememberRestore(p.restore.id);try{const out=await post<any>(`/ops/restores/${p.restore.id}/execute`,{digest:p.restore.digest,text:p.confirmText});if(alive){notice.value=['pending','running'].includes(out.state)?'已排队，尚未恢复。请查看执行记录；成功后需要重新登录。':'已核对原请求：'+label(out.state)+'；没有重复执行。';previewOpen.value=false;confirm.value=false;records.value=[out,...records.value.filter(r=>r.id!==out.id)]}}catch(e){if(alive){notice.value=errorText(e);writeError.value=e;confirm.value=false}}finally{if(alive){busy.value=false;await load()}}}
 async function reconcile(id:string){if(busy.value)return;busy.value=true;try{await post(`/ops/restores/${id}/reconcile`,{confirm:true});if(alive)notice.value='已核对原恢复记录，没有再次执行恢复。'}catch(e){if(alive)notice.value=errorText(e)}finally{if(alive){busy.value=false;await load()}}}
 const label=(state:string)=>({preview:'仅预览',pending:'已排队',running:'恢复执行中',unknown:'结果未知，需核对',completed:'恢复成功',rolled_back:'失败后已自动回滚',failed:'未执行恢复'}[state]||state);
-onMounted(()=>{void load();timer=setInterval(()=>{if(!document.hidden&&!busy.value)void load()},3000)});
-onUnmounted(()=>{alive=false;++epoch;clearInterval(timer)});
+useRefresh(load, {interval: 15000, active:()=>!busy.value});
+onUnmounted(()=>{alive=false;++epoch});
 usePageRefresh(()=>load());
 </script>
 <template>

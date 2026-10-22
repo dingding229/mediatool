@@ -11,9 +11,11 @@ import (
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
+	"media-tool/internal/modules/settings"
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +27,8 @@ type Engine struct {
 	Connections *integrations.Manager
 }
 type Task struct {
+	ProcessingState string     `json:"processingState"`
+	ManagedTaskID   string     `json:"managedTaskId,omitempty"`
 	ID              string     `json:"id"`
 	InfoHash        string     `json:"infoHash"`
 	Title           string     `json:"title"`
@@ -45,7 +49,13 @@ type Task struct {
 	CreatedAt       time.Time  `json:"createdAt"`
 }
 
-func (e Engine) Create(ctx context.Context, s Source) (string, error) {
+// Create retains the SDK manual-download-only contract. Administrator UI calls
+// CreateWithImport explicitly; old/plugin tasks are never silently opted in.
+func (e Engine) Create(ctx context.Context, s Source) (string, error) { return e.create(ctx, s, false) }
+func (e Engine) CreateWithImport(ctx context.Context, s Source) (string, error) {
+	return e.create(ctx, s, true)
+}
+func (e Engine) create(ctx context.Context, s Source, auto bool) (string, error) {
 	if e.DB == nil || e.Connections == nil {
 		return "", errors.New("数据库或下载器不可用")
 	}
@@ -62,11 +72,23 @@ func (e Engine) Create(ctx context.Context, s Source) (string, error) {
 		category = "media-tool"
 	}
 	id := jobs.UUID()
-	ctx, _, err = (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).PrepareDownload(ctx, contracts.ResourceDownloadRequest{Kind: "manual", ResourceID: id, DownloaderID: c.Record.ID})
+	cleanup := false
+	if auto {
+		prefs, prefsErr := (settings.Repository{DB: e.DB}).Get(ctx)
+		if prefsErr != nil {
+			return "", prefsErr
+		}
+		cleanup = prefs.Value.CleanupAfterImport
+	}
+	requestKind := "manual"
+	if auto {
+		requestKind = "managed"
+	}
+	ctx, cleanup, err = (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).PrepareDownload(ctx, contracts.ResourceDownloadRequest{Kind: requestKind, ResourceID: id, DownloaderID: c.Record.ID, CleanupAfterImport: cleanup})
 	if err != nil {
 		return "", err
 	}
-	encrypted, err := e.Connections.Repository.Vault.Seal("manual-download:"+id, map[string]string{"torrent": base64.StdEncoding.EncodeToString(s.Torrent), "url": s.URL})
+	encrypted, err := e.Connections.Repository.Vault.Seal("manual-download:"+id, map[string]string{"torrent": base64.StdEncoding.EncodeToString(s.Torrent), "url": s.URL, "autoImport": strconv.FormatBool(auto), "cleanupAfterImport": strconv.FormatBool(cleanup), "localPath": c.String("localPath")})
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +120,7 @@ func (e Engine) Page(ctx context.Context, start, limit int, query, id string, do
 	if start < 0 || start > 200000 || limit < 1 || limit > 200 || len(query) > 800 {
 		return nil, errors.New("invalid page")
 	}
-	rows, err := e.DB.Query(ctx, `SELECT id::text,info_hash,title,source_kind,source_label,endpoint,save_path,category,state,progress,qb_state,download_speed,upload_speed,total_bytes,message,synced_at,created_at,submit_attempted FROM manual_download_tasks WHERE ($3='' OR title ILIKE '%'||$3||'%') AND ($4='' OR id::text=$4) AND(coalesce(cardinality($5::text[]),0)=0 OR integration_id::text=ANY($5)) ORDER BY created_at DESC,id LIMIT $1 OFFSET $2`, limit, start, query, id, downloaderIDs)
+	rows, err := e.DB.Query(ctx, `SELECT id::text,info_hash,title,source_kind,source_label,endpoint,save_path,category,state,progress,qb_state,download_speed,upload_speed,total_bytes,message,synced_at,created_at,submit_attempted,payload_ciphertext,coalesce((SELECT download_state FROM download_tasks d WHERE d.id=manual_download_tasks.id AND d.details->>'manualTaskId'=manual_download_tasks.id::text),''),coalesce((SELECT state FROM jobs j WHERE j.idempotency_key='download.manual.import:'||manual_download_tasks.id::text),'') FROM manual_download_tasks WHERE ($3='' OR title ILIKE '%'||$3||'%') AND ($4='' OR id::text=$4) AND(coalesce(cardinality($5::text[]),0)=0 OR integration_id::text=ANY($5)) ORDER BY created_at DESC,id LIMIT $1 OFFSET $2`, limit, start, query, id, downloaderIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -106,8 +128,25 @@ func (e Engine) Page(ctx context.Context, start, limit int, query, id string, do
 	out := []Task{}
 	for rows.Next() {
 		var t Task
-		if err = rows.Scan(&t.ID, &t.InfoHash, &t.Title, &t.SourceKind, &t.Source, &t.Endpoint, &t.SavePath, &t.Category, &t.State, &t.Progress, &t.QBState, &t.DownloadSpeed, &t.UploadSpeed, &t.TotalBytes, &t.Message, &t.SyncedAt, &t.CreatedAt, &t.SubmitAttempted); err != nil {
+		var managed, importJob string
+		var sourceCipher []byte
+		if err = rows.Scan(&t.ID, &t.InfoHash, &t.Title, &t.SourceKind, &t.Source, &t.Endpoint, &t.SavePath, &t.Category, &t.State, &t.Progress, &t.QBState, &t.DownloadSpeed, &t.UploadSpeed, &t.TotalBytes, &t.Message, &t.SyncedAt, &t.CreatedAt, &t.SubmitAttempted, &sourceCipher, &managed, &importJob); err != nil {
 			return nil, err
+		}
+		t.ProcessingState = "download_only"
+		if managed != "" {
+			t.ProcessingState = managed
+			t.ManagedTaskID = t.ID
+		} else if importJob != "" {
+			t.ProcessingState = "identifying"
+			if importJob == "failed" || importJob == "paused" || importJob == "unknown" || importJob == "cancelled" {
+				t.ProcessingState = "needs_confirmation"
+			}
+		} else if e.Connections != nil {
+			options, err := e.Connections.Repository.Vault.Open("manual-download:"+t.ID, sourceCipher)
+			if err == nil && options["autoImport"] == "true" {
+				t.ProcessingState = "waiting_download"
+			}
 		}
 		out = append(out, t)
 	}
@@ -224,11 +263,14 @@ func (e Engine) observe(ctx context.Context, id string, t downloads.Task, save, 
 	if t.Complete {
 		state = "completed"
 	}
-	_, err := e.DB.Exec(ctx, `UPDATE manual_download_tasks SET state=$2,progress=$3,qb_state=$4,download_speed=$5,upload_speed=$6,total_bytes=$7,synced_at=now(),updated_at=now(),message='仅下载，不自动整理或清理本地文件' WHERE id=$1`, id, state, t.Progress, t.State, t.DownloadSpeed, t.UploadSpeed, t.Size)
+	_, err := e.DB.Exec(ctx, `UPDATE manual_download_tasks SET state=$2,progress=$3,qb_state=$4,download_speed=$5,upload_speed=$6,total_bytes=$7,synced_at=now(),updated_at=now() WHERE id=$1`, id, state, t.Progress, t.State, t.DownloadSpeed, t.UploadSpeed, t.Size)
+	if err == nil {
+		err = e.trackImport(ctx, id, t.Complete)
+	}
 	return err
 }
 func (e Engine) Sync(ctx context.Context) error {
-	rows, err := e.DB.Query(ctx, `SELECT id::text,integration_id::text,info_hash,endpoint,save_path,category FROM manual_download_tasks WHERE state IN('submitting','uncertain','absent_confirmed','downloading','completed') ORDER BY updated_at LIMIT 200`)
+	rows, err := e.DB.Query(ctx, `SELECT id::text,integration_id::text,info_hash,endpoint,save_path,category FROM manual_download_tasks WHERE state IN('submitting','uncertain','absent_confirmed','downloading','completed') AND NOT EXISTS(SELECT 1 FROM download_tasks d WHERE d.id=manual_download_tasks.id AND d.details->>'manualTaskId'=manual_download_tasks.id::text) ORDER BY updated_at LIMIT 200`)
 	if err != nil {
 		return err
 	}

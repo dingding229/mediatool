@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useRefresh } from '../composables/useRefresh';
 import { subscribeJobEvents } from '../api/client';
+import StatusBadge from '../components/StatusBadge.vue';
 import TaskControl from '../workflows/TaskControl.vue';
 import {scheduleLabel} from '../presentation/labels';
 import { pageResult } from './model';
@@ -20,6 +22,9 @@ const route = useRoute();
 const filter = reactive({ state: '', kind: '', queue: '', q: typeof route.query.q === 'string' ? route.query.q : '', page: 1, pageSize: 25 }), jobs = reactive(useResource<any>(() => request('/jobs/browse?' + new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])))).then(pageResult))), health = reactive(useResource<any>(() => request('/system/operations'))), op = reactive(useOperation('system-check')), detail = ref<any>(null), open = ref(false), confirm = ref(false), copied = ref(''), copyText = ref('');
 async function load() {
   await Promise.all([jobs.load(), health.load()]);
+  await settle();
+}
+async function settle() {
   if (op.pending) {
     const p = JSON.parse(op.pending.key);
     if (p.id)
@@ -52,39 +57,38 @@ async function inspect(id: string) {
   }
 }
 function search() {
-  jobs.data = null;
   filter.page = 1;
   void load();
 }
 function changePage() {
-  jobs.data = null;
   void load();
 }
 watch(() => route.query.q, value => {
-  jobs.data = null;
   filter.q = typeof value === 'string' ? value : '';
   filter.page = 1;
   void load();
 });
-let timer: ReturnType<typeof setInterval>, stream: {close:()=>void} | undefined;
-onMounted(() => {
-  stream = subscribeJobEvents(() => {
-    if (!document.hidden && !jobs.loading) void jobs.load();
-  });
-  void load();
-  let ticks = 0;
-  timer = setInterval(() => {
-    if (document.hidden || op.busy)
-      return;
-    void jobs.load();
-    if (++ticks % 3 === 0)
-      void load();
-  }, 5000);
-});
-onUnmounted(() => {
-  clearInterval(timer);
-  stream?.close();
-});
+let stream: {close:()=>void} | undefined, lastTick=0, lastHealth=0;
+const connected=ref(false);
+async function refreshQueue() {
+  lastTick=Date.now();
+  const work=[jobs.load()];
+  if (Date.now()-lastHealth>=30000) { lastHealth=Date.now(); work.push(health.load()); }
+  await Promise.all(work);
+  await settle();
+}
+const events=useRefresh(refreshQueue,{interval:()=>connected.value?0:15000,active:()=>!op.busy && (typeof document==='undefined'||(route?.query?.tab||'jobs')==='jobs')});
+watch(connected,value=>{if(!value&&(route?.query?.tab||'jobs')==='jobs')void events.refresh()});
+// Server SSE currently emits a heartbeat every 3s, not a per-job change event.
+// Coalesce those ticks; do not stack an independent 5s network poll on top.
+function connect() {
+  stream?.close(); stream=undefined;
+  if (typeof document === 'undefined' || document.hidden || (route.query.tab||'jobs')!=='jobs') return;
+  stream=subscribeJobEvents(()=>{if(Date.now()-lastTick>=15000){lastTick=Date.now();void events.refresh();}},state=>connected.value=state);
+}
+onMounted(()=>{connect();globalThis.document?.addEventListener('visibilitychange',connect)});
+watch(()=>route.query.tab,connect);
+onUnmounted(()=>{stream?.close();globalThis.document?.removeEventListener('visibilitychange',connect)});
 defineExpose({ load, create, filter, jobs, health, op });
 </script>
 <template>
@@ -94,7 +98,8 @@ defineExpose({ load, create, filter, jobs, health, op });
         <h2>运行与队列</h2>
         <el-button :disabled="!!op.pending" @click="confirm=true">运行系统检查</el-button>
       </header>
-      <ResourceState :loading="health.loading" :error="health.error" @reload="load"/>
+      <div class="f3-health">
+      <ResourceState :stale="health.loaded" :loading="health.loading" :error="health.error" @reload="load"/>
       <div class="u5-stats">
         <div>
           <span>数据库</span>
@@ -111,19 +116,19 @@ defineExpose({ load, create, filter, jobs, health, op });
         </div>
       </div>
       <div class="u6-card-grid">
-        <article v-for="w in health.error?[]:health.data?.workers||[]" :key="w.owner+':'+w.queue" class="u6-card">
+        <article v-for="w in health.data?.workers||[]" :key="w.owner+':'+w.queue" class="u6-card">
           <h3>{{ w.queue==='default'?'后台任务服务':queueLabel(w.queue)+'服务' }}</h3>
           <p>{{ w.online?'在线':'离线' }} · {{ date(w.lastSeenAt) }}</p>
           <el-button @click="detail=w;open=true">执行器详情</el-button>
         </article>
       </div>
       <p v-if="!health.loading&&!health.error&&health.data&&!health.data.workers?.length">尚未收到后台任务服务的状态。</p>
-      <article v-for="q in health.error?[]:health.data?.queues||[]" :key="q.name+q.state" class="organize-record">
+      <article v-for="q in health.data?.queues||[]" :key="q.name+q.state" class="organize-record">
         <p>{{ queueLabel(q.name) }} · {{ stateLabel(q.state) }} · {{ q.count??'—' }} 项 · 等待重新分配 {{ q.expiredLeases??'—' }}</p>
       </article>
       <details>
         <summary>查看运行计划与连接状态</summary>
-        <article v-for="s in health.error?[]:health.data?.schedules||[]" :key="s.id" class="organize-record">
+        <article v-for="s in health.data?.schedules||[]" :key="s.id" class="organize-record">
           <h3>{{ s.name }}</h3>
           <p>{{ s.enabled?'已启用':'已停用' }} · {{ scheduleLabel(s.cron) }} · 下次 {{ date(s.nextRunAt) }} · 上次 {{ date(s.lastRunAt) }}</p>
           <p v-if="s.error">{{ s.error }}</p>
@@ -131,8 +136,9 @@ defineExpose({ load, create, filter, jobs, health, op });
         </article>
         <el-button @click="detail=health.data;open=true">技术详情</el-button>
       </details>
+      </div>
     </section>
-    <section class="media-surface">
+    <section class="media-surface f3-queue-list">
       <h2>任务列表</h2>
       <form class="u5-filters" @submit.prevent="search">
         <label>
@@ -160,12 +166,14 @@ defineExpose({ load, create, filter, jobs, health, op });
         <el-button native-type="submit">筛选任务</el-button>
       </form>
       <p>取消只停止本程序后续执行；重试先核对原业务状态，不能证明安全时保留未知状态。</p>
-      <ResourceState :loading="jobs.loading" :error="jobs.error" :empty="!!jobs.data&&!jobs.data.items?.length" @reload="load"/>
+      <div class="f3-stable-scroll">
+      <ResourceState :stale="jobs.loaded" :loading="jobs.loading" :error="jobs.error" :empty="!!jobs.data&&!jobs.data.items?.length" @reload="load"/>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" message="系统检查请求尚未核验完成，请先读取队列，不重复提交。" @refresh="load"/>
-      <article v-for="j in jobs.error?[]:jobs.data?.items||[]" :key="j.id" class="organize-record">
+      <article v-for="j in jobs.data?.items||[]" :key="j.id" class="organize-record f3-job-row">
         <h3>{{ kindLabel(j.kind) }}</h3>
-        <p>{{ stateLabel(j.state) }} · {{ queueLabel(j.queue) }} · 尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }}</p>
+        <p><StatusBadge :state="j.state" :label="stateLabel(j.state)"/> · {{ queueLabel(j.queue) }} · 尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }}</p>
+        <p class="f3-job-meta">本次耗时 {{ j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—' }} 秒 <span> · {{ j.state==='succeeded'?'已完成':j.state==='running'?'业务进度见详情':'等待状态核对' }}</span></p>
         <p v-if="j.lastError">{{ j.lastError }}</p>
         <div class="media-actions">
           <el-button @click="inspect(j.id)">任务详情</el-button>
@@ -173,6 +181,7 @@ defineExpose({ load, create, filter, jobs, health, op });
           <RouterLink v-if="taskTarget(j)" :to="taskTarget(j)!">前往业务页核对</RouterLink>
         </div>
       </article>
+      </div>
       <PagePagination v-if="jobs.data?.total>25" v-model:current-page="filter.page" :total="jobs.data.total" :page-size="25" layout="prev,pager,next,total" @current-change="changePage"/>
     </section>
     <ConfirmAction v-model:visible="confirm" title="运行系统检查" description="创建一次新的系统检查任务？" impact-scope="只检查当前服务状态，不重放失败业务或修改媒体文件。" confirm-text="确认运行检查" :loading="op.busy" class="media-dialog" @confirm="create"/>

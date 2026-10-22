@@ -19,13 +19,16 @@ import (
 	"testing"
 	"time"
 
+	"encoding/base64"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	pb "media-tool/internal/adapters/clouddrive2/proto"
+	"media-tool/internal/modules/downloads"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/messaging"
+	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/search"
 	"media-tool/internal/modules/sites"
 	"media-tool/internal/platform/config"
@@ -95,6 +98,12 @@ func (c *pipelineCloud) RemoteReadData(ctx context.Context, r *pb.RemoteReadData
 	return &pb.RemoteReadDataReply{Success: true, BytesReceived: uint64(len(r.Data))}, nil
 }
 func TestPostgresPipelineSearchDownloadUploadSTRMAndNotification(t *testing.T) {
+	runFullPipeline(t, false)
+}
+func TestPostgresManualAdoptionReusesVerifiedUploadSTRMAndImport(t *testing.T) {
+	runFullPipeline(t, true)
+}
+func runFullPipeline(t *testing.T, manual bool) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
 		t.Skip("real PostgreSQL test requires TEST_DATABASE_URL")
@@ -131,6 +140,9 @@ func TestPostgresPipelineSearchDownloadUploadSTRMAndNotification(t *testing.T) {
 		case "/api/v2/app/version":
 			io.WriteString(w, "v5.0.4")
 		case "/api/v2/torrents/add":
+			if manual {
+				t.Error("manual adoption re-added original torrent")
+			}
 			added = true
 			io.WriteString(w, "Ok.")
 		case "/api/v2/torrents/info":
@@ -248,18 +260,47 @@ func TestPostgresPipelineSearchDownloadUploadSTRMAndNotification(t *testing.T) {
 		t.Fatal(err, run)
 	}
 	engine := Engine{DB: db, Connections: manager, Search: searchEngine}
-	taskID, err := engine.Start(ctx, run.Resources[0].ID, "movie", 99)
-	if err != nil {
-		t.Fatal(err)
+	var taskID string
+	if manual {
+		taskID = jobs.UUID()
+		var downloaderID string
+		if err = db.QueryRow(ctx, `SELECT id::text FROM integrations WHERE kind='qbittorrent'`).Scan(&downloaderID); err != nil {
+			t.Fatal(err)
+		}
+		sourceMeta, parseErr := downloads.ParseTorrent(torrent)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		options, sealErr := vault.Seal("manual-download:"+taskID, map[string]string{"autoImport": "true", "cleanupAfterImport": "false", "localPath": local, "torrent": base64.StdEncoding.EncodeToString(torrent), "url": ""})
+		if sealErr != nil {
+			t.Fatal(sealErr)
+		}
+		if _, err = db.Exec(ctx, `INSERT INTO manual_download_tasks(id,integration_id,info_hash,title,source_kind,source_label,payload_ciphertext,endpoint,save_path,category,state,submit_attempted)VALUES($1,$2,$3,'Owned.Film.2026.mkv','file','owned fixture',$4,$5,'/downloads','media-tool','completed',true)`, taskID, downloaderID, sourceMeta.InfoHash, options, qb.URL); err != nil {
+			t.Fatal(err)
+		}
+		qbmu.Lock()
+		added = true
+		qbmu.Unlock()
+		if err = engine.AdoptManual(ctx, taskID, metadata.Item{ID: 99, MediaType: "movie", Title: "Owned Film", Year: "2026"}); err != nil {
+			t.Fatal(err)
+		}
+		if err = engine.AdoptManual(ctx, taskID, metadata.Item{ID: 99, MediaType: "movie", Title: "Owned Film", Year: "2026"}); err != nil {
+			t.Fatal("manual adoption not idempotent", err)
+		}
+	} else {
+		taskID, err = engine.Start(ctx, run.Resources[0].ID, "movie", 99)
+		if err != nil {
+			t.Fatal(err)
+		}
+		job, err = queue.Claim(ctx, "test-control", time.Minute)
+		if err != nil || job == nil {
+			t.Fatal(err)
+		}
+		if err = engine.Add(ctx, *job); err != nil {
+			t.Fatal(err)
+		}
+		queue.Finish(ctx, *job, nil)
 	}
-	job, err = queue.Claim(ctx, "test-control", time.Minute)
-	if err != nil || job == nil {
-		t.Fatal(err)
-	}
-	if err = engine.Add(ctx, *job); err != nil {
-		t.Fatal(err)
-	}
-	queue.Finish(ctx, *job, nil)
 	if err = engine.Reconcile(ctx); err != nil {
 		t.Fatal(err)
 	}

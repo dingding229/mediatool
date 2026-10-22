@@ -7,7 +7,7 @@ function sourceFiles(dir:string):string[]{return readdirSync(dir,{withFileTypes:
 const required=[
  'GET /integrations','GET /search','POST /search','GET /search/media','GET /search/{id}','POST /search/{id}/media','GET /metadata/search','GET /metadata/details','GET /cache/{kind}','GET /cache/{kind}/{id}','DELETE /cache/{kind}/{id}','POST /cache/{kind}/clear',
  'GET /downloads','POST /downloads','POST /downloads/sync','POST /downloads/{id}/cleanup','POST /downloads/{id}/cleanup/reconcile','GET /downloads/{id}/source-preview','POST /downloads/{id}/reconfirm-source',
- 'GET /downloads/manual','POST /downloads/manual','POST /downloads/manual/{id}/inspect','POST /downloads/manual/{id}/retry','GET /transfers','POST /pipeline/{kind}/{id}/retry','POST /transfers/{id}/control','GET /transfers/{id}/sessions','GET /transfers/{id}/output-preview','POST /transfers/{id}/resume-import',
+ 'GET /downloads/manual','POST /downloads/manual','POST /downloads/manual/{id}/inspect','POST /downloads/manual/{id}/retry','POST /downloads/manual/{id}/import','GET /transfers','POST /pipeline/{kind}/{id}/retry','POST /transfers/{id}/control','GET /transfers/{id}/sessions','GET /transfers/{id}/output-preview','POST /transfers/{id}/resume-import',
 ]
 it('keeps every acquisition API invocation in executable frontend source, independent of documentation categories',()=>{
  const observed:Array<{method:string;path:string}>=[]

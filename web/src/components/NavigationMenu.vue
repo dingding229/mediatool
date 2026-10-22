@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useRefresh } from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { uiSurfaces } from '../api/plugins'
@@ -8,7 +9,7 @@ const emit = defineEmits<{ navigate: [] }>()
 const route = useRoute(), current = computed(() => navigationLocation(route.path))
 interface PluginLink { id: string; name: string; pages: { page: string; title: string }[] }
 const plugins = ref<PluginLink[]>([])
-let disposed = false, timer: ReturnType<typeof setInterval> | undefined
+let disposed = false
 async function refreshPlugins() {
   try {
     const surfaces = await uiSurfaces()
@@ -17,10 +18,11 @@ async function refreshPlugins() {
       const manifest = inventory.manifests.find(m => m.id === surface.pluginId)
       return manifest?.permissions.some(p => p.scope === 'ui.sidebar') && manifest.ui?.sidebar?.length ? [{ id: surface.instanceId, name: manifest.name, pages: manifest.ui.sidebar }] : []
     })
-  } catch { if (!disposed) plugins.value = [] }
+  } catch { /* Keep the last successful navigation snapshot. */ }
 }
-onMounted(() => { void refreshPlugins(); timer = setInterval(refreshPlugins, 60000); window.addEventListener('plugins:changed', refreshPlugins) })
-onUnmounted(() => { disposed = true; if (timer) clearInterval(timer); window.removeEventListener('plugins:changed', refreshPlugins) })
+useRefresh(refreshPlugins, {interval:60000})
+onMounted(() => { window.addEventListener('plugins:changed', refreshPlugins) })
+onUnmounted(() => { disposed = true; window.removeEventListener('plugins:changed', refreshPlugins) })
 </script>
 <template>
   <div class="navigation-content">

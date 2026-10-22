@@ -47,7 +47,7 @@ defineExpose({ load, tab, page, data, changeTab, revoke, target, op });
     <el-button :aria-pressed="tab==='devices'" @click="changeTab('devices')">登录设备</el-button>
     <el-button :aria-pressed="tab==='history'" @click="changeTab('history')">观看历史</el-button>
   </nav>
-  <ResourceState :loading="data.loading" :error="data.error" :empty="!data.data?.items.length" @reload="load"/>
+  <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="!data.data?.items.length" @reload="load"/>
   <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
   <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>
   <article v-for="row in data.data?.items||[]" :key="row.id||row.itemId" class="organize-record">

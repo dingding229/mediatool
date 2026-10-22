@@ -167,6 +167,11 @@ HTTP202仅表示已创建评估；轮询run，不能立即显示订阅已下载�
 
 - 首次下载POST `/downloads` 使用searchRunId/resourceId和选定TMDB身份。年份/身份修正要显式confirm，来源过期走 `/{id}/source-preview` → `reconfirm-source`，不是重建任务。
 - 手动torrent POST `/downloads/manual` 支持JSON url（magnet/允许的torrent URL）或multipart字段torrent（.torrent ≤10MiB）。任务inspect后未知提交不能盲目retry；明确acceptDuplicateRisk才允许相应危险重试。
+- 新建管理员手动任务明确进入托管后处理：下载完成后唯一标题/年份/类型识别，复用现有整理→上传校验→STRM/入库链。设置与共享目录冻结在原任务加密选项中；历史任务和 SDK 的仅下载入口不自动回溯或扩权。
+- POST `/downloads/manual/{id}/import`：管理员同源写接口，body 为 `{confirm:true,mediaType:"movie"|"series",tmdbId:正整数}`。明确选择原已完成任务的身份并排队，不重新添加种子；running/已托管状态不可覆盖。202 仅代表排队。季集不明、多媒体身份不一致、源映射变更仍阻止入库。
+- 手动列表 `processingState` / `managedTaskId` 区分仅下载、等待完成、识别中、待人工及托管阶段。新增后台任务种类 `download.manual.import` 是幂等识别/登记；实际上传、入库和清理仍由原流水线承担。
+- 清理不绕过既有校验、完整入库、原路径/hash/标签、共享文件或 H&R 保护；来源 H&R 未知时保留，用户可在现有清理确认流程中核对后明确批准。单纯打开列表或启用设置不会处理历史文件。
+
 - 上传control的action/sessionId与输出恢复的digest/revision不可混用；收到未知提交结果先GET原task和sessions，不自行生成新operation身份。
 - 下载清理需要confirm和HR证据；cleanup/reconcile只核对原操作。删除真实媒体、取消做种和删除业务卷不是普通测试/“修复重试”。
 - STRM原文持有稳定resolver，不存临时CDN URL。preview/批量preview/repairs-preview是预览，approve明确digest+confirm后才执行。保留现有STRM原文，不能批量把临时URL写回。

@@ -67,7 +67,7 @@ usePageRefresh(load,'*');
       <el-button v-if="op.pending&&op.canReconcile" :disabled="op.busy" @click="op.replay(read).then(load)">核对原请求</el-button>
       <el-button v-if="op.technical" @click="tech=true">查看技术详情</el-button>
       <template v-if="tab==='installed'">
-        <ResourceState :loading="list.loading" :error="safePluginError(list.error)" :empty="!shown.length" empty-title="尚未安装匹配的插件" @reload="load"/>
+        <ResourceState :stale="list.loaded" :loading="list.loading" :error="safePluginError(list.error)" :empty="!shown.length" empty-title="尚未安装匹配的插件" @reload="load"/>
         <div v-if="!list.error" class="u6-card-grid">
           <article v-for="i in shown" :key="i.id" class="u6-card">
             <h3>{{ i.metadata?.name||'不可用的插件' }}</h3>
@@ -79,7 +79,7 @@ usePageRefresh(load,'*');
         <PagePagination v-model:current-page="page" :has-next="list.data.length>=50" :disabled="list.loading" @current-change="load"/>
       </template>
       <template v-else>
-        <ResourceState :loading="directory.loading" :error="safePluginError(directory.error)" :empty="!definitions.length" @reload="load"/>
+        <ResourceState :stale="directory.loaded" :loading="directory.loading" :error="safePluginError(directory.error)" :empty="!definitions.length" @reload="load"/>
         <div v-if="!directory.error" class="u6-card-grid" role="region" aria-label="内置插件目录">
           <article v-for="d in definitions" :key="d.manifest.id" class="u6-card">
             <PluginMetadata :metadata="d.manifest"/>

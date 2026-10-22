@@ -25,7 +25,7 @@ function setGuide(show: boolean) {
 }
 function reopen() {
   setGuide(true);
-  void router.push('/dashboard');
+  void router.push('/ops?tab=attention');
 }
 async function logout() {
   busy.value = true;

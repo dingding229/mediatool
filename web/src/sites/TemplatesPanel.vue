@@ -64,7 +64,7 @@ defineExpose({ load, loadSelected, selected, blocked });
       查找模板
       <input v-model="query" aria-label="查找站点模板"/>
     </label>
-    <ResourceState :loading="catalog.loading" :error="catalog.error" :empty="!shown.length" @reload="load"/>
+    <ResourceState :stale="catalog.loaded" :loading="catalog.loading" :error="catalog.error" :empty="!shown.length" @reload="load"/>
     <ResourceState :error="accounts.error" @reload="accounts.load"/>
     <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'模板加载已排队，尚未核验完成。':'正在核对原批次，不重复加载。'" @refresh="load"/>

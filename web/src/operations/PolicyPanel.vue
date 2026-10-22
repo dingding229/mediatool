@@ -51,7 +51,7 @@ usePageRefresh(load,'maintenance');
 <template>
   <section class="media-surface">
     <h2>备份、采样与告警策略</h2>
-    <ResourceState :loading="read.loading" :error="read.error" @reload="load"/>
+    <ResourceState :stale="read.loaded" :loading="read.loading" :error="read.error" @reload="load"/>
     <form v-if="form" class="u5-form" @submit.prevent="save">
       <div class="u6-policy">
         <label class="u5-check">

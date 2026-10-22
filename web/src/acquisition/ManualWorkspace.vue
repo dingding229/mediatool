@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import {usePageRefresh} from '../ui/page-refresh';
-import { ref } from 'vue';
+import {reactive,ref,watch} from 'vue';
+import {post} from '../api/client';
+import {useOperation} from '../workflows/useOperation';
+import MediaContext from './MediaContext.vue';
+import type {Media} from './model';
 import StateView from '../ui/StateView.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
@@ -9,7 +13,13 @@ import { useManual, type ManualTask } from './useManual';
 import { label, progress, size } from './model';
 import { date, errorText, stateFor } from '../workflows/readiness';
 const { tasks, dialog, kind, url, file, busy, loading, error, listError, intent, confirmOpen, target, actionBusy, observed, load, create, submit, reconcile, retry, approveRetry, associate } = useManual();
-const detail = ref<ManualTask | null>(null), detailsOpen = ref(false);
+const detail = ref<ManualTask | null>(null), detailsOpen = ref(false), selectedMedia=ref<Media|null>(null), importConfirm=ref(false), importOp=reactive(useOperation('manual-import'));
+watch(()=>detail.value?.id,()=>selectedMedia.value=null);
+watch(tasks,rows=>{const fresh=rows.find(t=>t.id===detail.value?.id);if(fresh)detail.value=fresh; if(importOp.pending){const id=JSON.parse(importOp.pending.key).id,row=rows.find(t=>t.id===id);if(row?.managedTaskId||row?.processingState==='needs_confirmation')importOp.clear();}});
+const importLabel=(s?:string)=>({download_only:'仅下载（未启用后处理）',waiting_download:'完成后自动识别入库',identifying:'识别入库排队 / 执行中',needs_confirmation:'待人工选择身份，原文件保留'}[s||'']||label(s));
+async function readImport(){await load();if(importOp.pending){const id=JSON.parse(importOp.pending.key).id;const row=tasks.value.find(t=>t.id===id);if(row?.managedTaskId||row?.processingState==='needs_confirmation')importOp.clear();}}
+async function importTask(){if(!detail.value||!selectedMedia.value)return;const id=detail.value.id,media=selectedMedia.value;await importOp.run(JSON.stringify({id}),()=>post(`/downloads/manual/${id}/import`,{confirm:true,mediaType:media.mediaType,tmdbId:media.id}));importConfirm.value=false;await readImport();}
+
 function choose(event: Event) {
   file.value = (event.target as HTMLInputElement).files?.[0];
 }
@@ -20,7 +30,7 @@ usePageRefresh(load,'manual');
     <header class="acquire-section-heading">
       <div>
         <h2>手动种子下载</h2>
-        <p>仅添加到下载器；不自动识别、上传、入库或删除原文件。</p>
+        <p>新建手动任务完成后自动识别、整理、上传 115 并生成 STRM；识别不确定时保留原文件。历史任务不自动回溯。</p>
       </div>
       <div class="acquire-actions">
 
@@ -38,10 +48,13 @@ usePageRefresh(load,'manual');
         <p>{{ label(task.state) }} · {{ progress(task.progress) }} · {{ date(task.syncedAt) }}</p>
         <p v-if="task.progress==null">进度待下载器同步，不以0%代替未知进度。</p>
         <p v-else>下载 {{ task.syncedAt?size(task.downloadSpeed)+'/s':'—' }}</p>
+        <p>后处理：{{importLabel(task.processingState)}}</p>
         <p>{{ task.message||'—' }}</p>
       </div>
       <div class="acquire-actions">
         <el-button @click="detail=task;detailsOpen=true">查看详情</el-button>
+        <RouterLink v-if="task.managedTaskId" to="/downloads?tab=uploads">查看上传入库</RouterLink>
+        <el-button v-else-if="task.state==='completed'" @click="detail=task;detailsOpen=true">选择身份后入库</el-button>
         <el-button :loading="actionBusy===task.id" @click="reconcile(task)">核对下载器</el-button>
         <el-button v-if="['blocked','failed','absent_confirmed'].includes(task.state)&&(!task.submitAttempted||task.state==='absent_confirmed')" @click="retry(task)">确认后重试</el-button>
       </div>
@@ -74,11 +87,19 @@ usePageRefresh(load,'manual');
       <el-button v-else type="primary" native-type="submit" :loading="busy" :disabled="!!intent">确认添加下载</el-button>
     </form>
   </el-dialog>
-  <ConfirmAction v-model:visible="confirmOpen" title="重试手动下载" :description="target?.state==='absent_confirmed'?'已核对未找到，但此前提交可能延迟接收；请确认接受重复风险。':'修复原因后，明确重新提交此任务。'" impact-scope="只重新投递此种子，不上传、不入库，也不删除本地文件。" confirm-text="确认重试" :loading="!!actionBusy" class="acquire-dialog" @confirm="approveRetry"/>
+  <ConfirmAction v-model:visible="confirmOpen" title="重试手动下载" :description="target?.state==='absent_confirmed'?'已核对未找到，但此前提交可能延迟接收；请确认接受重复风险。':'修复原因后，明确重新提交此任务。'" impact-scope="只重试原种子的投递；已明确启用后处理的任务完成后接入原流水线。未完成上传校验与入库不会删除本地文件。" confirm-text="确认重试" :loading="!!actionBusy" class="acquire-dialog" @confirm="approveRetry"/>
   <DetailDrawer v-model:visible="detailsOpen" title="手动下载详情" :technical-data="detail" class="acquire-detail">
     <h3>{{ detail?.title }}</h3>
     <p>{{ label(detail?.state) }} · {{ progress(detail?.progress) }}</p>
     <p>保存路径：{{ detail?.savePath||'—' }}</p>
     <p>{{ detail?.message||'—' }}</p>
+    <template v-if="detail?.state==='completed'&&!detail?.managedTaskId">
+      <p>明确选择此原任务的媒体身份后入库，不重新添加种子；季集不明仍保留待人工处理。</p>
+      <MediaContext :key="detail.id" :keyword="detail.title" :initial="null" :disabled="!!importOp.pending" @selected="selectedMedia=$event"/>
+      <el-button :disabled="!selectedMedia||!!importOp.pending" @click="importConfirm=true">确认所选身份后入库</el-button>
+    </template>
+    <AsyncResultBanner v-if="importOp.phase" :status="importOp.phase" message="原任务后处理已排队或回执待核对，尚未证明入库完成。" @refresh="readImport"/>
+    <el-alert v-if="importOp.error" :title="errorText(importOp.error)" type="error" :closable="false"/>
   </DetailDrawer>
+  <ConfirmAction v-model:visible="importConfirm" title="原任务后处理" description="按已选择的媒体身份整理并上传此任务？" impact-scope="不重新添加下载。上传校验及入库成功后，才按冻结设置与做种/H&amp;R保护决定是否清理本地源文件；未完成或不确定时保留。" confirm-text="确认身份并入库" :loading="importOp.busy" @confirm="importTask"/>
 </template>

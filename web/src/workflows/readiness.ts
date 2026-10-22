@@ -21,7 +21,7 @@ export function stateFor(e: unknown) {
 }
 export const errorText = (e: unknown) => e instanceof Error ? e.message : '读取失败，请稍后重新读取';
 export const date = (s?: string) => s && Number.isFinite(Date.parse(s)) ? new Date(s).toLocaleString('zh-CN', { hour12: false }) : '—';
-export const bytes = (n?: number | null) => n == null || !Number.isFinite(n) ? '—' : n < 1024 ? `${n} B` : `${(n / 1073741824).toFixed(1)} GiB`;
+export { formatBytes as bytes } from '../utils/format-bytes';
 export const guidePreference = 'media-tool:setup-guide-hidden:v1';
 export function readGuideHidden() {
   try {

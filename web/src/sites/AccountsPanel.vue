@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useRefresh } from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
 import 'element-plus/es/components/dropdown/style/css'
@@ -83,15 +84,7 @@ async function sync(id = '') {
     notice.value = `服务回执：尝试 ${out.attempted} 个账号，失败 ${out.failed ?? 0} 个。${out.remainingMayExist ? '本轮最多16站，其余请逐站采集。' : ''}本轮可能跳过正在处理或配置变化的站点，请逐站核对当前结果。`;
   }
 }
-let timer: ReturnType<typeof setInterval> | undefined;
-onMounted(() => {
-  void load();
-  timer = setInterval(() => {
-    if (!document.hidden && !op.busy)
-      void load();
-  }, 30000);
-});
-onUnmounted(() => clearInterval(timer));
+useRefresh(load, { interval: 30000, active: () => !op.busy && (route?.query?.tab || 'accounts') === 'accounts' });
 defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, op, ask, apply });
 </script>
 <template>
@@ -126,12 +119,14 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
         按名称筛选
         <input v-model="query" aria-label="筛选站点账号"/>
       </label>
-      <ResourceState :loading="accounts.loading" :error="accounts.error" :empty="!shown.length" empty-title="暂无匹配的站点账号" @reload="load"/>
+
       <ResourceState :error="metrics.error" @reload="load"/>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <p v-if="notice" role="status">{{ notice }}</p>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'站点操作已排队，尚未核验完成。':'正在核对上次站点操作，不重复提交。'" @refresh="load"/>
-      <article v-for="row in shown" :key="row.id" class="organize-record u5-metric-card">
+      <div class="f3-stable-scroll f3-sites-list">
+      <ResourceState :stale="accounts.loaded" :loading="accounts.loading" :error="accounts.error" :empty="!shown.length" empty-title="暂无匹配的站点账号" @reload="load"/>
+      <article v-for="row in shown" :key="row.id" class="organize-record u5-metric-card f3-site-card">
         <header class="media-section-heading">
           <div class="u5-heading">
             <img v-if="row.metric?.iconUrl?.startsWith('/api/v1/pt/templates/')" :src="row.metric.iconUrl" :alt="row.name+'图标'"/>
@@ -139,8 +134,8 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
           </div>
           <StatusBadge :state="row.connection?row.connection.enabled?'running':'disabled':'unavailable'" :label="row.connection?row.connection.enabled?'已启用':'已停用':'状态未确认'"/>
         </header>
-        <p>登录：{{ siteState(row.connection?.lastCheckState||row.state) }} · {{ date(row.connection?.lastCheckedAt) }} · 订阅地址：{{ row.settings.rssState==='ready'?'已获取':row.settings.rssState==='unavailable'?'尚未获取':'—' }}</p>
-        <div class="u5-stats">
+        <p class="f3-site-status">登录：{{ siteState(row.connection?.lastCheckState||row.state) }} · {{ date(row.connection?.lastCheckedAt) }} · 订阅地址：{{ row.settings.rssState==='ready'?'已获取':row.settings.rssState==='unavailable'?'尚未获取':'—' }}</p>
+        <div class="u5-stats f3-site-metrics">
           <div>
             <span>上传</span>
             <strong>{{ bytes(row.metric?.metrics?.uploaded) }}</strong>
@@ -153,8 +148,10 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
             <span>分享率</span>
             <strong>{{ numberText(row.metric?.metrics?.ratio) }}</strong>
           </div>
+        <div><span>魔力 / 积分</span><strong>{{ numberText(row.metric?.metrics?.bonus) }}</strong></div>
+        <div><span>做种</span><strong>{{ row.metric?.metrics?.seeding??'—' }}</strong><small>{{ bytes(row.metric?.metrics?.seedingBytes) }}</small></div>
         </div>
-        <p>{{ row.metric?siteState(row.metric.state):'尚无采集记录' }} · {{ date(row.metric?.collectedAt) }}{{ row.metric?.stale?' · 快照已过期，请重新采集':'' }}</p>
+        <p class="f3-site-updated">{{ row.metric?siteState(row.metric.state):'尚无采集记录' }} · {{ date(row.metric?.collectedAt) }}{{ row.metric?.stale?' · 快照已过期，请重新采集':'' }}</p>
         <p v-if="row.metric?.message">{{ row.metric.message }}</p>
         <div class="media-actions">
           <el-button @click="detailId=row.id;detailOpen=true">数据与趋势</el-button>
@@ -172,6 +169,7 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
           </el-dropdown>
         </div>
       </article>
+      </div>
     </section>
     <SchedulePanel ref="schedule"/>
   </div>

@@ -142,6 +142,7 @@
 | POST | `/api/v1/downloads/manual` | management | 前端直接调用 | `web/src/acquisition/useManual.ts:95` |
 | POST | `/api/v1/downloads/manual/{id}/inspect` | management | 前端直接调用 | `web/src/acquisition/useManual.ts:119` |
 | POST | `/api/v1/downloads/manual/{id}/retry` | management | 前端直接调用 | `web/src/acquisition/useManual.ts:143` |
+| POST | `/api/v1/downloads/manual/{id}/import` | management | 前端直接调用 | `web/src/acquisition/ManualWorkspace.vue:21` |
 | POST | `/api/v1/downloads/sync` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:74`、`web/src/acquisition/useManual.ts:49` |
 | POST | `/api/v1/emby/check` | management | 未检出静态使用 |  |
 | POST | `/api/v1/emby/test` | management | 前端直接调用 | `web/src/connections/GatewayDiagnostics.vue:21` |

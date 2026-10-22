@@ -9,6 +9,7 @@ import (
 
 type Detail struct {
 	Job
+	StartedAt   *time.Time `json:"startedAt,omitempty"`
 	Queue       string     `json:"queue"`
 	UpdatedAt   time.Time  `json:"updatedAt"`
 	AvailableAt time.Time  `json:"availableAt"`
@@ -24,7 +25,7 @@ type Page struct {
 	Total int      `json:"total"`
 }
 
-const detailColumns = `id::text,kind,state,payload,attempts,max_attempts,coalesce(last_error,'') AS last_error,created_at,queue,updated_at,available_at,lease_until,locked_by`
+const detailColumns = `id::text,kind,state,payload,attempts,max_attempts,coalesce(last_error,'') AS last_error,created_at,queue,updated_at,available_at,lease_until,locked_by,started_at`
 
 func (r Repository) Browse(ctx context.Context, f Filter) (Page, error) {
 	out := Page{Items: []Detail{}}
@@ -50,17 +51,18 @@ func (r Repository) Browse(ctx context.Context, f Filter) (Page, error) {
 		AvailableAt            time.Time  `json:"available_at"`
 		LeaseUntil             *time.Time `json:"lease_until"`
 		LockedBy               *string    `json:"locked_by"`
+		StartedAt              *time.Time `json:"started_at"`
 	}
 	if err = json.Unmarshal(raw, &records); err != nil {
 		return out, err
 	}
 	for _, v := range records {
-		out.Items = append(out.Items, Detail{Job: Job{ID: v.ID, Kind: v.Kind, State: v.State, Payload: v.Payload, Attempts: v.Attempts, MaxAttempts: v.MaxAttempts, LastError: v.LastError, CreatedAt: v.CreatedAt}, Queue: v.Queue, UpdatedAt: v.UpdatedAt, AvailableAt: v.AvailableAt, LeaseUntil: v.LeaseUntil, LockedBy: v.LockedBy})
+		out.Items = append(out.Items, Detail{Job: Job{ID: v.ID, Kind: v.Kind, State: v.State, Payload: v.Payload, Attempts: v.Attempts, MaxAttempts: v.MaxAttempts, LastError: v.LastError, CreatedAt: v.CreatedAt}, Queue: v.Queue, UpdatedAt: v.UpdatedAt, AvailableAt: v.AvailableAt, LeaseUntil: v.LeaseUntil, LockedBy: v.LockedBy, StartedAt: v.StartedAt})
 	}
 	return out, nil
 }
 func (r Repository) Detail(ctx context.Context, id string) (Detail, error) {
 	var d Detail
-	err := r.DB.QueryRow(ctx, `SELECT `+detailColumns+` FROM jobs WHERE id=$1`, id).Scan(&d.ID, &d.Kind, &d.State, &d.Payload, &d.Attempts, &d.MaxAttempts, &d.LastError, &d.CreatedAt, &d.Queue, &d.UpdatedAt, &d.AvailableAt, &d.LeaseUntil, &d.LockedBy)
+	err := r.DB.QueryRow(ctx, `SELECT `+detailColumns+` FROM jobs WHERE id=$1`, id).Scan(&d.ID, &d.Kind, &d.State, &d.Payload, &d.Attempts, &d.MaxAttempts, &d.LastError, &d.CreatedAt, &d.Queue, &d.UpdatedAt, &d.AvailableAt, &d.LeaseUntil, &d.LockedBy, &d.StartedAt)
 	return d, err
 }

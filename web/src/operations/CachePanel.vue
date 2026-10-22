@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useRefresh} from '../composables/useRefresh';
 import { pageResult } from './model';
 import { formatBytes as bytes } from './model';
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
@@ -68,12 +69,8 @@ watch(kind, () => {
   open.value = false;
   void load();
 });
-let timer: ReturnType<typeof setInterval>;
-onMounted(() => {
-  void load();
-  timer = setInterval(() => now.value = Date.now(), 1000);
-});
-onUnmounted(() => clearInterval(timer));
+onMounted(()=>void load());
+useRefresh(()=>{now.value=Date.now()},{interval:1000,immediate:false});
 defineExpose({ load, op, apply, ask, data, kind, inspect });
 </script>
 <template>
@@ -88,13 +85,13 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
         <el-button :aria-pressed="kind==='search'" @click="setKind('search')">搜索缓存</el-button>
       </nav>
       <p>只管理缓存复用；清理搜索缓存会隐藏记录，底层结果、下载证明和媒体保留。</p>
-      <ResourceState :loading="data.loading" :error="data.error" :empty="!!data.data&&!data.data.items?.length" @reload="load"/>
+      <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="!!data.data&&!data.data.items?.length" @reload="load"/>
       <p>当前检索共 {{ data.loading||data.error?'—':data.data?.total??'—' }} 项 · 本页 {{ data.loading||data.error?'—':bytes(data.data?.items.reduce((n:number,r:any)=>n+(r.bytes||0),0)) }}</p>
       <p v-if="notice" role="status">{{ notice }}</p>
       <p v-if="data.data?.truncated">扫描存在上限，当前列表未必覆盖全部缓存；可分批清理并重新读取。</p>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" message="缓存清理结果尚未确认，请先查看当前结果，不重复清理。" @refresh="load"/>
-      <article v-for="row in data.error?[]:data.data?.items||[]" :key="row.id" class="organize-record">
+      <article v-for="row in data.data?.items||[]" :key="row.id" class="organize-record">
         <div class="u6-cache-content">
           <img v-if="tmdbImage(row.posterPath)&&!posterErrors.has(row.id)" :src="tmdbImage(row.posterPath)" :alt="row.query+'海报'" loading="lazy" @error="posterErrors.add(row.id)"/>
           <div>

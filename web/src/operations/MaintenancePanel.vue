@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { useRefresh } from '../composables/useRefresh';
 import { formatBytes as bytes } from './model';
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { request, post } from '../api/client';
 import { useResource } from '../workflows/useResource';
 import { useOperation } from '../workflows/useOperation';
@@ -78,19 +79,8 @@ function inspect(value: any) {
   detail.value = value;
   detailOpen.value = true;
 }
-let timer: ReturnType<typeof setInterval>;
-onMounted(() => {
-  void load();
-  void trends.load();
-  timer = setInterval(() => {
-    if (!document.hidden && !op.busy && !confirm.value && !approval.value) {
-      void load();
-      if (section.value === 'trends')
-        void trends.load();
-    }
-  }, 15000);
-});
-onUnmounted(() => clearInterval(timer));
+useRefresh(load, {interval:30000, active:()=>!op.busy&&!confirm.value&&!approval.value});
+watch(section,value=>{if(value==='trends')void trends.load()});
 defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, section, trends, trendRows, inspect });
 </script>
 <template>
@@ -100,7 +90,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
         <h2>备份与告警</h2>
         <el-button :disabled="!!op.pending||!!data.error||data.loading||!data.data?.toolsReady" @click="ask('backup')">创建系统备份</el-button>
       </header>
-      <ResourceState :loading="data.loading" :error="data.error" @reload="load"/>
+      <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" @reload="load"/>
       <p v-if="data.data&&!data.data.toolsReady">备份工具暂不可用，无法创建备份或演练；已有记录仍可查看。</p>
       <p v-if="data.data">当前备份 {{ bytes(data.data.totalBytes) }} · 下次 {{ date(data.data.policy?.nextBackupAt) }}</p>
       <div v-if="data.data?.mode.paused">
@@ -117,7 +107,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <h2>系统备份</h2>
       <p>保留最近两份成功备份，固定及维护单使用中的备份不参与自动清理；最多显示最近200条。</p>
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.backups?.length" empty-title="尚无系统备份"/>
-      <article v-for="b in data.error?[]:data.data?.backups||[]" :key="b.id" class="organize-record">
+      <article v-for="b in data.data?.backups||[]" :key="b.id" class="organize-record">
         <h3>{{ date(b.createdAt) }} · {{ stateLabel(b.state) }}</h3>
         <p>{{ bytes(b.bytes) }} · {{ b.pinned?'已固定':'未固定' }} · {{ b.message||'—' }}</p>
         <div class="media-actions">
@@ -130,7 +120,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       </article>
       <h2>恢复演练记录</h2>
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.drills?.length" empty-title="暂无恢复演练记录"/>
-      <article v-for="d in data.error?[]:data.data?.drills||[]" :key="d.id" class="organize-record">
+      <article v-for="d in data.data?.drills||[]" :key="d.id" class="organize-record">
         <h3>{{ stateLabel(d.state) }} · {{ date(d.createdAt) }}</h3>
         <p>{{ d.message||'—' }}</p>
         <div class="media-actions">
@@ -164,7 +154,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       </div>
       <el-button @click="inspect({releases:data.data?.releases,register:'media-toolctl --root /root/docker/mediatool register dingding229/mediatool:sha-完整SHA'})">查看登记与版本技术详情</el-button>
       <h3>维护单</h3>
-      <article v-for="r in data.error?[]:data.data?.requests||[]" :key="r.id" class="organize-record">
+      <article v-for="r in data.data?.requests||[]" :key="r.id" class="organize-record">
         <h3>{{ r.kind==='restore'?'备份恢复':'版本回滚' }} · {{ ticketLabel(r) }}</h3>
         <p>有效至 {{ date(r.expiresAt) }} · {{ r.message||'—' }}</p>
         <div class="media-actions">
@@ -178,7 +168,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     <section v-else-if="section==='alerts'" class="media-surface">
       <h2>阈值告警</h2>
       <RouterLink to="/connections?tab=notifications">查看通知投递记录</RouterLink>
-      <article v-for="a in data.error?[]:data.data?.alerts||[]" :key="a.code" class="organize-record">
+      <article v-for="a in data.data?.alerts||[]" :key="a.code" class="organize-record">
         <h3>{{ a.message||a.code }} · {{ stateLabel(a.state) }}</h3>
         <p>当前 {{ a.value??'—' }} · 连续 {{ a.hits??'—' }} 次 · {{ date(a.last_seen_at) }}</p>
         <div class="media-actions">
@@ -197,9 +187,9 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
           <option v-for="h in [1,24,168,720]" :key="h" :value="h">最近 {{ h }} 小时</option>
         </select>
       </label>
-      <ResourceState :loading="trends.loading" :error="trends.error" @reload="trends.load"/>
+      <ResourceState :stale="trends.loaded" :loading="trends.loading" :error="trends.error" @reload="trends.load"/>
       <div class="u6-trends">
-        <TrendChart v-for="[metric,title,unit] in trendFields" :key="metric" :title="title!" :unit="unit!" :metric="metric!" :rows="trends.error?[]:trendRows" :gap-ms="gapMS"/>
+        <TrendChart v-for="[metric,title,unit] in trendFields" :key="metric" :title="title!" :unit="unit!" :metric="metric!" :rows="trendRows" :gap-ms="gapMS"/>
       </div>
       <el-button @click="inspect(trends.data)">查看原始采样记录</el-button>
     </section>

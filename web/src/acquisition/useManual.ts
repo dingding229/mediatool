@@ -1,8 +1,11 @@
+import { useRefresh } from '../composables/useRefresh';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { APIError, post, request } from '../api/client';
 import { list, readIntent, writeIntent, type Intent } from './model';
 export interface ManualTask {
   id: string;
+  processingState?:string;
+  managedTaskId?:string;
   title: string;
   state: string;
   submitAttempted?: boolean;
@@ -18,14 +21,15 @@ export interface ManualTask {
 }
 export function useManual() {
   const tasks = ref<ManualTask[]>([]), dialog = ref(false), kind = ref('file'), url = ref(''), file = ref<File>(), busy = ref(false), loading = ref(true), error = ref<unknown>(null), listError = ref<unknown>(null), intent = ref<Intent | null>(readIntent('manual:create')), confirmOpen = ref(false), target = ref<ManualTask | null>(null), actionBusy = ref(''), observed = ref('');
-  let disposed = false, timer: ReturnType<typeof setInterval> | undefined, epoch = 0;
+  let disposed = false, epoch = 0, ready = false;
   async function load() {
     const version = ++epoch;
-    loading.value = true;
+    loading.value = !ready;
     try {
       const out = await request<ManualTask[]>('/downloads/manual');
       if (!disposed && version === epoch) {
         tasks.value = list(out);
+        ready = true;
         for (const task of tasks.value) {
           const saved = readIntent('manual-retry:' + task.id);
           if (saved?.phase === 'queued' && (['blocked', 'failed'].includes(task.state) && !task.submitAttempted || task.state === 'absent_confirmed'))
@@ -162,15 +166,10 @@ export function useManual() {
       dialog.value = false;
     }
   }
-  onMounted(() => {
-    void load();
-    timer = setInterval(load, 5000);
-  });
+  useRefresh(load, { interval: 15000, active: () => !busy.value });
   onUnmounted(() => {
     disposed = true;
     epoch++;
-    if (timer)
-      clearInterval(timer);
     file.value = undefined;
     url.value = '';
   });

@@ -10,7 +10,8 @@ import {recentSearches,hasResourceCount} from '../dashboard/summaries';
 import {useReadinessTest} from '../dashboard/useReadinessTest';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { useDashboard } from '../dashboard/useDashboard';
-const { slots, groups, steps, complete, guideVisible, refresh, load, hideGuide } = useDashboard();
+const props=withDefaults(defineProps<{attention?:boolean}>(),{attention:false});
+const { slots, groups, steps, complete, guideVisible, refresh, load, hideGuide } = useDashboard({overview:!props.attention});
 const inboxLoading=computed(()=>['jobs','candidates','transfers','manual','batches','alerts','plugins'].some(k=>slots[k]?.loading));
 const visibleGroups=computed(()=>groups.value.filter(g=>g.items.length||g.errors.length));
 const busy = computed(() => Object.values(slots).some(s => s.loading)), runtime = computed(() => slots.runtime?.data);
@@ -21,15 +22,16 @@ usePageRefresh(refresh,'*');
 </script>
 <template>
   <div class="dashboard-workspace">
-    <PageHeader title="首页" description="先看服务是否可用，再处理需要介入的任务。">
+    <PageHeader v-if="!attention" title="首页" description="常用业务概览与最近搜索。">
       <template #actions>
 
       </template>
     </PageHeader>
-    <ServiceReadiness :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" :can-test="probe.available.value" :testing="probe.busy.value" :test-locked="!!probe.phase.value" @test="probe.start" @retry="load('readiness')" />
-    <AsyncResultBanner v-if="probe.phase.value" :status="probe.phase.value" :message="probe.message.value" @refresh="probe.reconcile"/>
-    <p v-else-if="probe.message.value" role="status">{{probe.message.value}}</p>
-    <section class="dashboard-inbox u2-surface" aria-label="待处理收件箱">
+    <h2 v-if="attention">检测与待处理</h2>
+    <ServiceReadiness v-if="attention" :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" :can-test="probe.available.value" :testing="probe.busy.value" :test-locked="!!probe.phase.value" @test="probe.start" @retry="load('readiness')" />
+    <AsyncResultBanner v-if="attention&&probe.phase.value" :status="probe.phase.value" :message="probe.message.value" @refresh="probe.reconcile"/>
+    <p v-if="attention&&probe.message.value&&!probe.phase.value" role="status">{{probe.message.value}}</p>
+    <section v-if="attention" class="dashboard-inbox u2-surface" aria-label="待处理收件箱">
       <header v-if="visibleGroups.length"><h2>待处理</h2></header>
       <StateView v-if="!visibleGroups.length&&inboxLoading" state="loading" title="正在读取待处理事项…"/>
       <p v-else-if="!visibleGroups.length" class="dashboard-empty">暂无待处理事项</p>
@@ -52,7 +54,7 @@ usePageRefresh(refresh,'*');
       </div>
       <small v-if="slots.jobs?.data?.total>100">失败次数按最近 100 条任务记录统计，更多记录请在运维页查看。</small>
     </section>
-    <section v-if="guideVisible" class="setup-guide u2-surface" aria-label="首次使用引导">
+    <section v-if="attention&&guideVisible" class="setup-guide u2-surface" aria-label="首次使用引导">
       <header>
         <div>
           <h2>完成配置，开始自动跟进</h2>
@@ -72,13 +74,13 @@ usePageRefresh(refresh,'*');
       </ol>
       <p v-if="slots.accounts?.error||slots.classification?.error" role="alert">部分配置读取失败，完成度暂不确定；可刷新状态后再核对。</p>
     </section>
-    <section class="dashboard-counters" aria-label="业务规模">
+    <section v-if="!attention" class="dashboard-counters" aria-label="业务规模">
       <RouterLink v-for="counter in counters" :key="counter.key" :to="counter.path">
         <span>{{ counter.label }}</span>
         <strong>{{ runtime?.daily?.[counter.key] ?? '—' }}</strong>
       </RouterLink>
     </section>
-    <section class="u2-surface dashboard-server" aria-label="服务器状态">
+    <section v-if="!attention" class="u2-surface dashboard-server" aria-label="服务器状态">
       <h2>服务器状态</h2>
       <StateView v-if="slots.runtime?.error" :state="stateFor(slots.runtime.error)" title="服务器采样暂不可用" :description="errorText(slots.runtime.error)" @retry="load('runtime')" />
       <dl>
@@ -104,7 +106,7 @@ usePageRefresh(refresh,'*');
         </div>
       </dl>
     </section>
-    <section class="u2-surface dashboard-searches" aria-label="最近搜索">
+    <section v-if="!attention" class="u2-surface dashboard-searches" aria-label="最近搜索">
       <header>
         <h2>最近搜索</h2>
         <RouterLink to="/search?tab=history">查看搜索记录</RouterLink>
@@ -117,7 +119,7 @@ usePageRefresh(refresh,'*');
         <span v-if="hasResourceCount(item.total)">{{ item.total }} 个资源</span>
       </RouterLink>
     </section>
-    <div class="dashboard-plugin-container">
+    <div v-if="!attention" class="dashboard-plugin-container">
       <PluginDashboards />
     </div>
   </div>

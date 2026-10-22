@@ -87,7 +87,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
           <el-button :disabled="!policy.data||!!policy.error||!!op.pending" @click="ask('toggle')">{{ policy.data?.enabled?'关闭 UA 限制':'启用 UA 限制' }}</el-button>
         </div>
       </header>
-      <ResourceState :loading="policy.loading" :error="policy.error" @reload="load"/>
+      <ResourceState :stale="policy.loaded" :loading="policy.loading" :error="policy.error" @reload="load"/>
       <p v-if="policy.data">{{ policy.data.enabled?'仅允许命中白名单的播放器访问。':'当前仅记录访问，不按UA限制现有播放器。' }}</p>
       <el-alert v-if="op.error&&!editing" :title="errorText(op.error)" type="error" :closable="false"/>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>
@@ -122,7 +122,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
         </label>
         <el-button native-type="submit">搜索记录</el-button>
       </form>
-      <ResourceState :loading="records.loading" :error="records.error" :empty="!records.data?.items.length" @reload="records.load"/>
+      <ResourceState :stale="records.loaded" :loading="records.loading" :error="records.error" :empty="!records.data?.items.length" @reload="records.load"/>
       <article v-for="record in records.data?.items||[]" :key="record.id" class="organize-record u5-ua-record">
         <p class="u5-original">{{ record.userAgent||'空 UA' }}</p>
         <p>访问 {{ record.requestCount??'—' }} · 通过 {{ record.allowedCount??'—' }} · 拒绝 {{ record.deniedCount??'—' }} · {{ record.whitelisted?'已在白名单':'未在白名单' }}</p>
@@ -145,7 +145,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
         </select>
       </label>
       <ResourceState :error="embyUsers.error" @reload="embyUsers.load"/>
-      <ResourceState :loading="visits.loading" :error="visits.error" :empty="!visits.data?.items.length" @reload="visits.load"/>
+      <ResourceState :stale="visits.loaded" :loading="visits.loading" :error="visits.error" :empty="!visits.data?.items.length" @reload="visits.load"/>
       <article v-for="visit in visits.data?.items||[]" :key="visit.id" class="organize-record">
         <h3>{{ visit.embyVerified?visit.embyUserName||'已核验用户':'未核验用户' }}</h3>
         <p>{{ visit.allowed?'准入通过':'准入拒绝' }} · HTTP {{ visit.status??'—' }} · {{ reason(visit.reason) }}</p>

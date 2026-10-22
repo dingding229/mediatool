@@ -107,3 +107,9 @@ https://native.synthetic.invalid/Videos/100001/stream.mkv?MediaSourceId=syntheti
 | 非法数值、非法 ID、过多输入、非法布尔/排序方向 | 仍可 400 |
 
 隔离 Emby 对任意未知 SortBy 曾实测为 500；这里按业主批准的更安全语义忽略并回退，不复制该异常。各点位均含表驱动/SQL 集成测试，不依赖 UA 特判。
+
+### F2 本机 SenPlayer 复验与审核补记（2026-10-22）
+
+已在本机实际 SenPlayer 重新进入详情：电影、剧集媒体信息底部均出现无凭证包装链接；电影真实播放成功，服务端实际 SenPlayer UA 请求为302。部署前已打开的旧详情需退出重进，不能拿缓存页面判定新响应缺字段。BaseItem.Path 未改成原 STRM URL，也未为显示功能暴露文件授权。
+
+该集原账号 `f:series` 的 `can_play=false`，真机403与权限一致。业主审核明确此项属于配置而非代码缺陷，F2通过；待业主自行开启播放权限后再复验该集，不阻塞F3。严禁擅自改写原账号 grants。真机截图及只读权限证据仅存私有 `data/private/f2/`。

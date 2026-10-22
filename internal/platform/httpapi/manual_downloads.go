@@ -72,7 +72,7 @@ func (a *API) createManualDownload(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_torrent", err.Error())
 		return
 	}
-	id, err := a.manualDownloads().Create(ctx, source)
+	id, err := a.manualDownloads().CreateWithImport(ctx, source)
 	if err != nil {
 		fail(w, 400, "download_create_failed", err.Error())
 		return
@@ -121,4 +121,29 @@ func (a *API) reconcileManualDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, map[string]string{"state": state})
+}
+
+func (a *API) importManualDownload(w http.ResponseWriter, r *http.Request) {
+	if !a.integrationReady(w) {
+		return
+	}
+	if !isWorkbenchUUID(r.PathValue("id")) {
+		fail(w, 400, "invalid_id", "任务ID无效")
+		return
+	}
+	var in struct {
+		Confirm   bool   `json:"confirm"`
+		MediaType string `json:"mediaType"`
+		TMDBID    int    `json:"tmdbId"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	if err := a.manualDownloads().ConfirmImport(ctx, r.PathValue("id"), in.MediaType, in.TMDBID, in.Confirm); err != nil {
+		fail(w, 409, "manual_import_blocked", err.Error())
+		return
+	}
+	write(w, 202, map[string]bool{"queued": true})
 }

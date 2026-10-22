@@ -100,14 +100,9 @@ func (e Engine) Recognize(ctx context.Context, id string) (Recognition, error) {
 	if err != nil {
 		return out, err
 	}
-	var exact []metadata.Item
-	for _, item := range out.Matches {
-		if item.Year == out.Hint.Year && out.Hint.Year != "" && item.MediaType == out.Hint.MediaType && (titleKey(item.Title) == titleKey(out.Hint.Title) || titleKey(item.OriginalTitle) == titleKey(out.Hint.Title)) {
-			exact = append(exact, item)
-		}
-	}
-	if len(exact) == 1 {
-		out.Selected = &exact[0]
+	selected := metadata.UniqueExact(out.Matches, out.Hint.Title, out.Hint.Year, out.Hint.MediaType)
+	if selected != nil {
+		out.Selected = selected
 		out.Evidence = append(out.Evidence, "唯一标题（或原名）+年份+媒体类型匹配；仍需确认身份和实际季集")
 	} else {
 		out.Evidence = append(out.Evidence, "无唯一精确匹配，请人工选择身份")

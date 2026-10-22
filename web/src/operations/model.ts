@@ -1,6 +1,6 @@
 export const stateLabel = (s?: string) => s ? ({ pending: '等待中', running: '执行中', retry: '等待重试', succeeded: '已完成', failed: '失败', paused: '已暂停', cancelled: '已取消', ready: '备份就绪', verified: '演练通过', interrupted: '已中断', deleted: '已删除', deleting: '删除中', preview: '待审批', approved: '待服务器执行', executing: '服务器执行中', completed: '执行完成（待核验）', expired: '已过期', active: '告警中', normal: '正常', checking: '核对中', unknown: '状态未知', disabled: '已关闭', partial: '部分完成' } as Record<string, string>)[s] || '状态待核对' : '—';
 export const queueLabel = (s: string) => ({ default: '后台任务', library: '媒体入库', transfer: '文件传输', maintenance: '系统维护', probe:'媒体探测',still:'截图采集',notification:'通知投递',plugin:'插件任务',scheduler:'计划调度' } as Record<string, string>)[s] || (s?'其他任务':'—');
-export const kindLabel = (s: string) => ({ 'system.check': '系统检查', 'download.add':'下载提交','download.manual.add':'手动下载提交','download.cleanup':'下载源清理','transfer.upload':'上传入库','library.scan':'云盘扫描','library.strm.repair':'STRM修复','files.batch':'文件整理批次','emby.refresh':'Emby刷新','emby.confirm':'Emby可见性核对', 'native.probe': '媒体探测', 'native.still': '媒体截图', 'ops.backup': '系统备份', 'ops.drill': '恢复演练', 'subscription.run': '订阅检查' } as Record<string, string>)[s] || '其他任务';
+export const kindLabel = (s: string) => ({ 'system.check': '系统检查', 'download.add':'下载提交','download.manual.add':'手动下载提交','download.manual.import':'手动下载识别入库','download.cleanup':'下载源清理','transfer.upload':'上传入库','library.scan':'云盘扫描','library.strm.repair':'STRM修复','files.batch':'文件整理批次','emby.refresh':'Emby刷新','emby.confirm':'Emby可见性核对', 'native.probe': '媒体探测', 'native.still': '媒体截图', 'ops.backup': '系统备份', 'ops.drill': '恢复演练', 'subscription.run': '订阅检查' } as Record<string, string>)[s] || '其他任务';
 export const canDeleteBackup = (state: string) => ['ready', 'failed', 'interrupted'].includes(state);
 export const canPinBackup = (state: string) => state === 'ready';
 export const ticketLabel = (ticket: any) => ticket.flow?.reason === 'approval_expired' ? '审批已过期，请重新预览' : ticket.verifiedAt ? '核验通过（仍须明确解除维护）' : stateLabel(ticket.state);
@@ -39,12 +39,5 @@ export function pageResult(value: any) {
     throw Error('列表回执不完整，请重新读取。');
   return value;
 }
-export function formatBytes(n?: number | null) {
-  if (n == null || !Number.isFinite(n) || n < 0)
-    return '—';
-  if (!n)
-    return '0 B';
-  const i = Math.min(5, Math.max(0, Math.floor(Math.log(n) / Math.log(1024))));
-  return (n / 1024 ** i).toFixed(i ? 2 : 0) + ' ' + ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'][i];
-}
+export { formatBytes } from '../utils/format-bytes';
 export const requestStep = (r: any) => r?.flow?.reason === 'approval_expired' ? 2 : r?.verifiedAt || r?.state === 'completed' ? 4 : ['approved', 'executing'].includes(r?.state) ? 3 : 2;

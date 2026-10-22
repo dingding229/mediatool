@@ -96,7 +96,7 @@ defineExpose({ load, change, source, table, page, cursor, cursorHistory, pattern
       <input v-model="simple" type="checkbox" aria-label="简约模式"/>
       简约模式（点击查看完整记录）
     </label>
-    <ResourceState :loading="data.loading" :error="data.error" :empty="!data.loading&&!data.error&&!!data.data&&!visible.length" empty-title="当前页没有符合条件的数据" @reload="load"/>
+    <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="!data.loading&&!data.error&&!!data.data&&!visible.length" empty-title="当前页没有符合条件的数据" @reload="load"/>
     <p role="status">{{ copied }}</p>
     <div aria-label="数据库内容">
       <button v-for="(row,index) in visible" :key="index" class="u6-data-row" @click="inspect(row)">
@@ -109,7 +109,7 @@ defineExpose({ load, change, source, table, page, cursor, cursorHistory, pattern
     <PagePagination v-if="source==='postgres'&&data.data&&!data.error" v-model:current-page="page" :page-size="25" :total="data.data.total" layout="prev,pager,next" @current-change="load"/>
     <PagePagination v-else-if="source==='redis'" :current-page="cursorHistory.length+1" :has-next="!!data.data&&data.data.cursor!=='0'" :disabled="data.loading||!!data.error" @current-change="(n:number)=>n>cursorHistory.length+1?next():previous()"/>
     <DetailDrawer v-model:visible="open" title="只读格式化数据" class="media-detail">
-      <ResourceState v-if="source==='redis'" :loading="detailState.loading" :error="detailState.error" @reload="detailState.load"/>
+      <ResourceState v-if="source==='redis'" :stale="detailState.loaded" :loading="detailState.loading" :error="detailState.error" @reload="detailState.load"/>
       <pre v-if="source==='postgres'||!detailState.error&&!detailState.loading" class="u6-raw">{{ JSON.stringify(source==='redis'?detailState.data:detail,null,2) }}</pre>
     </DetailDrawer>
     <el-dialog v-model="copyOpen" title="复制原始数据" width="min(740px,94vw)" class="media-dialog u5-dialog">

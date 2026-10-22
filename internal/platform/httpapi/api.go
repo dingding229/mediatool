@@ -260,6 +260,7 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("GET /api/v1/system/runtime", a.protected(a.runtimeSummary))
 	mux.HandleFunc("GET /api/v1/search/{id}", a.protected(a.getSearch))
 	mux.HandleFunc("POST /api/v1/downloads/manual/{id}/retry", a.protected(a.retryManualDownload))
+	mux.HandleFunc("POST /api/v1/downloads/manual/{id}/import", a.protected(a.importManualDownload))
 	mux.HandleFunc("POST /api/v1/downloads/manual/{id}/inspect", a.protected(a.reconcileManualDownload))
 	mux.HandleFunc("GET /api/v1/downloads/manual", a.protected(a.listManualDownloads))
 	mux.HandleFunc("POST /api/v1/downloads/manual", a.protected(a.createManualDownload))

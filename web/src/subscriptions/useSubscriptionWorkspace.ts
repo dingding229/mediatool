@@ -1,3 +1,4 @@
+import { useRefresh } from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -23,12 +24,12 @@ export function useSubscriptionWorkspace() {
   const previewReady = computed(() => !!previewId.value && previewSignature.value === signature.value && !!previewRun.value && !['pending','running','needs_refresh'].includes(previewRun.value.state) && !pending.value && !previewError.value)
   const mutation = ref(''), deleteOpen = ref(false), deleting = ref(false), deleteTarget = ref<Subscription | null>(null)
   const visible = computed(() => records.value.filter(s => (filter.value === 'all' || s.enabled === (filter.value === 'enabled')) && `${s.title} ${s.media.title}`.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase())))
-  let disposed = false, listSeq = 0, historySeq = 0, detailSeq = 0, polling = false, timer: ReturnType<typeof setInterval> | undefined
+  let disposed = false, listSeq = 0, historySeq = 0, detailSeq = 0, polling = false
   watch(pending, p => { try { if (p) sessionStorage.setItem(pendingStorageKey, JSON.stringify(p)); else sessionStorage.removeItem(pendingStorageKey) } catch {} }, { deep: true, flush: 'sync' })
   function location(values: Record<string, string | undefined>) { return router.replace({ query: { ...route.query, ...values } }) }
   function changeScope(value: string) { return location({ view: value, subscription: undefined, run: undefined }) }
   async function refresh() {
-    const seq = ++listSeq; loading.value = true; listError.value = null
+    const seq = ++listSeq; loading.value = records.value.length === 0; listError.value = null
     const [list, sites] = await Promise.allSettled([request<Subscription[]>(`/subscriptions?view=${scope.value}`), request<Account[]>('/integrations')])
     if (disposed || seq !== listSeq) return
     if (list.status === 'fulfilled') records.value = list.value; else listError.value = asError(list.reason)
@@ -170,9 +171,10 @@ export function useSubscriptionWorkspace() {
         await router.replace({ query })
       } catch (e) { listError.value = asError(e) }
     }
-    if (!disposed) timer = setInterval(poll, 3000)
+
   })
-  onUnmounted(() => { disposed = true; if (timer) clearInterval(timer) })
+  useRefresh(poll, {interval:5000, immediate:false})
+  onUnmounted(() => { disposed = true })
   return { tab, scope, records, accounts, loading, listError, accountError, search, filter, visible, selected, detailOpen, inspect,
     history, historyLoading, historyError, historyId, activeRunId, run, runLoading, runError, runDetailOpen, readRun, chooseRun, showHistory, loadHistory,
     pending, evaluate, reconcile, refresh, changeScope, compose, draft, editorOpen, saving, saveError, save, reloadEditor,

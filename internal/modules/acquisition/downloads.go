@@ -32,6 +32,7 @@ type Engine struct {
 	Search      search.Engine
 }
 type taskDetails struct {
+	ManualTaskID          string              `json:"manualTaskId,omitempty"`
 	CleanupAfterImport    bool                `json:"cleanupAfterImport"`
 	Trackers              []downloads.Tracker `json:"trackers"`
 	TrackerError          string              `json:"trackerError"`
@@ -303,7 +304,7 @@ func (e Engine) Page(ctx context.Context, start, limit int, query, id string, do
 	if start < 0 || start > 200000 || limit < 1 || limit > 200 || len(query) > 800 {
 		return nil, errors.New("invalid page")
 	}
-	rows, err := e.DB.Query(ctx, `SELECT d.id::text,d.resource_id::text,r.title,d.download_state,d.seeding_state,coalesce(d.info_hash,''),d.details,d.created_at,d.source_recovery_required,d.source_control_revision,coalesce(c.state,'disabled'),coalesce(c.message,''),coalesce((SELECT state FROM jobs WHERE idempotency_key=`+downloadRetryCase+`),'') FROM download_tasks d JOIN resources r ON r.id=d.resource_id LEFT JOIN download_cleanup_requests c ON c.task_id=d.id WHERE ($3='' OR r.title ILIKE '%'||$3||'%') AND ($4='' OR d.id::text=$4) AND(coalesce(cardinality($5::text[]),0)=0 OR d.integration_id::text=ANY($5)) ORDER BY d.created_at DESC,d.id LIMIT $1 OFFSET $2`, limit, start, query, id, downloaderIDs)
+	rows, err := e.DB.Query(ctx, `SELECT d.id::text,coalesce(d.resource_id::text,''),coalesce(r.title,d.details->'media'->>'title','手动下载'),d.download_state,d.seeding_state,coalesce(d.info_hash,''),d.details,d.created_at,d.source_recovery_required,d.source_control_revision,coalesce(c.state,'disabled'),coalesce(c.message,''),coalesce((SELECT state FROM jobs WHERE idempotency_key=`+downloadRetryCase+`),'') FROM download_tasks d LEFT JOIN resources r ON r.id=d.resource_id LEFT JOIN download_cleanup_requests c ON c.task_id=d.id WHERE ($3='' OR coalesce(r.title,d.details->'media'->>'title','') ILIKE '%'||$3||'%') AND ($4='' OR d.id::text=$4) AND(coalesce(cardinality($5::text[]),0)=0 OR d.integration_id::text=ANY($5)) ORDER BY d.created_at DESC,d.id LIMIT $1 OFFSET $2`, limit, start, query, id, downloaderIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +339,7 @@ func (e Engine) Page(ctx context.Context, start, limit int, query, id string, do
 }
 func (e Engine) load(ctx context.Context, id string) (resourceID, connectionID, hash, state string, details taskDetails, err error) {
 	var raw []byte
-	err = e.DB.QueryRow(ctx, `SELECT resource_id::text,integration_id::text,coalesce(info_hash,''),download_state,details FROM download_tasks WHERE id=$1`, id).Scan(&resourceID, &connectionID, &hash, &state, &raw)
+	err = e.DB.QueryRow(ctx, `SELECT coalesce(resource_id::text,''),integration_id::text,coalesce(info_hash,''),download_state,details FROM download_tasks WHERE id=$1`, id).Scan(&resourceID, &connectionID, &hash, &state, &raw)
 	if err == nil {
 		err = json.Unmarshal(raw, &details)
 	}

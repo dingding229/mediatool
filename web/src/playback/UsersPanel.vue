@@ -44,7 +44,7 @@ defineExpose({ load, create });
   <section class="media-surface">
     <h2>媒体用户</h2>
     <p>为家人或设备分配可看的媒体库；修改权限或密码后，需要重新登录。</p>
-    <ResourceState :loading="users.loading" :error="users.error" :empty="!users.data.length" @reload="load"/>
+    <ResourceState :stale="users.loaded" :loading="users.loading" :error="users.error" :empty="!users.data.length" @reload="load"/>
     <ResourceState :error="libraries.error" @reload="libraries.load"/>
     <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>

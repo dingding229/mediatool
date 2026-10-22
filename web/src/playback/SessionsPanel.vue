@@ -65,7 +65,7 @@ defineExpose({ load, data, page });
   <section class="media-surface">
     <h2>在线会话</h2>
     <p>查看设备正在播放的内容与最近进度。</p>
-    <ResourceState :loading="data.loading" :error="data.error" :empty="!data.data?.items.length" @reload="load"/>
+    <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="!data.data?.items.length" @reload="load"/>
     <p>当前不支持单独结束一条会话。可在详情中明确撤销该用户的全部登录。</p>
     <ResourceState :error="account.error" @reload="accountEntry"/>
     <p v-if="notice" role="status">{{ notice }}</p>

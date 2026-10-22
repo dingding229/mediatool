@@ -4,7 +4,7 @@ import {setupComponent,flush} from '../test/setup-component';
 import Dashboard from '../views/DashboardWorkspaceView.vue';
 vi.mock('../api/client',async original=>({...await original<typeof import('../api/client')>(),request:vi.fn()}));
 let view:ReturnType<typeof setupComponent>;
-beforeEach(()=>{vi.stubGlobal('window',new EventTarget());vi.stubGlobal('localStorage',{getItem:()=>null});vi.mocked(request).mockReset().mockResolvedValue([]);view=setupComponent(Dashboard)});
+beforeEach(()=>{vi.stubGlobal('window',new EventTarget());vi.stubGlobal('localStorage',{getItem:()=>null});vi.mocked(request).mockReset().mockResolvedValue([]);view=setupComponent(Dashboard,{attention:true})});
 afterEach(()=>{view.unmount();vi.unstubAllGlobals()});
 it('empty inbox has no empty categories after all data sources resolve',async()=>{await flush();expect(view.state.inboxLoading).toBe(false);expect(view.state.visibleGroups).toEqual([])});
 it('only real items or failed sources remain visible',async()=>{await flush();view.state.slots.jobs.error=new APIError(403,'unauthorized','无权限');view.state.slots.alerts.data={alerts:[{code:'disk',state:'active',message:'磁盘空间不足'}]};expect(view.state.visibleGroups.map((g:any)=>g.id)).toEqual(['jobs','alerts']);expect(view.state.visibleGroups[0].errors).toEqual(['jobs']);expect(view.state.visibleGroups[1].items[0].title).toBe('磁盘空间不足')});

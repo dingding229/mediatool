@@ -45,7 +45,7 @@ usePageRefresh(refresh,'*');
     <PageTabs :tabs="tabs" default-tab="list" />
     <AsyncResultBanner v-if="pending" :status="pending.status" :can-refresh="pending.status !== 'locked'" :message="pending.status === 'locked' ? '正在提交运行请求，已锁定重复提交；尚未确认排队。' : pending.status === 'queued' ? (pending.preview ? '规则预演已排队，不创建下载。请等待运行结果。' : '运行已排队，尚未完成；只有已启用的订阅才会自动下载。') : '上次运行回执尚未确认。已锁定重复提交，请读取状态或核对运行记录。'" @refresh="reconcile" />
     <FlowHint v-if="pending?.status === 'reconciling'" reason="没有运行编号时不会猜测任务归属，也不会重新发起运行。" next-action="查看运行记录" clickable @action="showHistory(pending.subscriptionId)" />
-    <section class="subscription-workbench" aria-label="订阅工作区">
+    <section class="subscription-list-section subscription-workbench" aria-label="订阅工作区">
       <header class="subscription-commandbar">
         <div><h2>{{ tab === 'list' ? '我的跟进清单' : '跟进记录' }}</h2><p v-if="tab === 'history'">记录不会因订阅归档而丢失。选择一次运行，逐条核对决策。</p></div>
         <label class="subscription-scope">查看范围<el-select :model-value="scope" aria-label="订阅范围" @change="changeScope"><el-option label="当前" value="current" /><el-option label="已归档" value="history" /></el-select></label>

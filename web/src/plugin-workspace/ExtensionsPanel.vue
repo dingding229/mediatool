@@ -76,7 +76,7 @@ onMounted(load);
   <section aria-label="插件服务与命令">
     <h3>服务与命令</h3>
     <p v-if="!running">插件尚未运行；请启用后再执行。</p>
-    <ResourceState :loading="read.loading" :error="safePluginError(read.error)" @reload="load"/>
+    <ResourceState :stale="read.loaded" :loading="read.loading" :error="safePluginError(read.error)" @reload="load"/>
     <el-alert v-if="op.error" :title="op.pending?'执行请求结果尚未确认，请先核对。':'请求未完成，请重新核对插件状态与权限。'" type="error" :closable="false"/>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" message="已提交或结果尚未确认，不是执行成功；请先核对运行记录。" @refresh="load"/>
     <RouterLink v-if="pendingInstance&&pendingInstance!==id" :to="'/plugins/'+encodeURIComponent(pendingInstance)">返回待核对插件</RouterLink>

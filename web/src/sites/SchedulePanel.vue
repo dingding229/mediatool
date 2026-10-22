@@ -44,7 +44,7 @@ defineExpose({ load, open, save, form, data, latest, op });
       <h2>指标采集计划</h2>
       <el-button @click="open">编辑采集计划</el-button>
     </header>
-    <ResourceState :loading="data.loading" :error="data.error" @reload="load"/>
+    <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" @reload="load"/>
     <p v-if="data.data">{{ data.data.enabled?'已启用':'已停用' }} · {{ scheduleLabel(data.data.cron) }} · 下次 {{ date(data.data.nextRunAt) }}</p>
     <p v-if="data.data">最近调度 {{ date(data.data.lastDispatchedAt) }}</p>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'计划变更已排队，尚未核验。':'正在核对当前计划，不重复保存。'" @refresh="load"/>

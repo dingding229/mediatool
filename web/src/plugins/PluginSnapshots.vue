@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {formatBytes} from '../utils/format-bytes'
 import { onMounted,ref } from 'vue'
 import ReadFeedback from './ReadFeedback.vue'
 import {useReadState} from './read-state'
@@ -24,10 +25,10 @@ async function operate(kind:'create'|'restore'|'delete',snapshotId=''){
  }catch(e){error.value=e instanceof Error?e.message:'操作结果未知；请刷新核对，不要更换标识盲目重试'}finally{busy.value=false}}
 </script>
 <template>
- <p>只恢复本实例数据，不回退代码、不撤销业务副作用。创建和恢复前须完全停用。单份文件≤16MiB、data≤64MiB；单实例≤5份/256MiB，全局≤64份/1GiB（含密文）。不收录可执行文件或链接。超时先刷新核对；同一窗口重试沿用原操作标识。</p>
+ <p>只恢复本实例数据，不回退代码、不撤销业务副作用。创建和恢复前须完全停用。单份文件≤{{formatBytes(16*1024**2)}}、data≤{{formatBytes(64*1024**2)}}；单实例≤5份/{{formatBytes(256*1024**2)}}，全局≤64份/{{formatBytes(1024**3)}}（含密文）。不收录可执行文件或链接。超时先刷新核对；同一窗口重试沿用原操作标识。</p>
  <el-alert v-if="error" :title="error" type="error" :closable="false" role="alert"/><el-alert v-if="notice" :title="notice" type="success" :closable="false" role="status"/>
  <ReadFeedback :state="listRead" caption="实例快照" @retry="load"/>
  <el-button :disabled="!listRead.loaded||listRead.loading" :loading="busy" @click="operate('create')">创建实例快照</el-button>
- <el-table v-if="listRead.loaded" :aria-busy="listRead.loading" :data="entries" empty-text="尚无实例快照"><el-table-column prop="createdAt" label="创建时间" min-width="170"/><el-table-column prop="state" label="状态" width="95"/><el-table-column label="数据格式" width="110"><template #default="{row}">{{row.configSchema}} / {{row.dataSchema}}</template></el-table-column><el-table-column prop="bytes" label="字节" width="110"/><el-table-column label="操作" min-width="180"><template #default="{row}"><el-button :disabled="busy||row.state!=='ready'" @click="operate('restore',row.id)">恢复</el-button><el-button type="danger" plain :disabled="busy||row.state!=='ready'" @click="operate('delete',row.id)">删除</el-button></template></el-table-column></el-table>
+ <el-table v-if="listRead.loaded" :aria-busy="listRead.loading" :data="entries" empty-text="尚无实例快照"><el-table-column prop="createdAt" label="创建时间" min-width="170"/><el-table-column prop="state" label="状态" width="95"/><el-table-column label="数据格式" width="110"><template #default="{row}">{{row.configSchema}} / {{row.dataSchema}}</template></el-table-column><el-table-column label="容量" width="130"><template #default="{row}">{{formatBytes(row.bytes)}}</template></el-table-column><el-table-column label="操作" min-width="180"><template #default="{row}"><el-button :disabled="busy||row.state!=='ready'" @click="operate('restore',row.id)">恢复</el-button><el-button type="danger" plain :disabled="busy||row.state!=='ready'" @click="operate('delete',row.id)">删除</el-button></template></el-table-column></el-table>
 </template>
 <style scoped>p{line-height:1.7;overflow-wrap:anywhere}.el-button{min-height:44px}.el-table{margin-top:16px}</style>

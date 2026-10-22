@@ -1,9 +1,11 @@
+import {useRefresh} from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { request } from '../api/client';
 import { guideSteps, inboxGroups, type Slot } from './model';
 import { readGuideHidden, writeGuideHidden } from '../workflows/readiness';
 const endpoints: Record<string, string> = { readiness: '/readiness', runtime: '/system/runtime', recent: '/search', jobs: '/jobs/browse?state=failed&page=1&pageSize=100', candidates: '/library/candidates?state=needs_confirmation&page=1&pageSize=5', transfers: '/transfers', manual: '/downloads/manual', batches: '/library/activity?state=needs_reconcile&page=1&pageSize=5', alerts: '/ops', plugins: '/plugins?page=1&pageSize=200', accounts: '/integrations', classification: '/classification' };
-export function useDashboard() {
+export function useDashboard(options:{overview?:boolean}={}) {
+  const activeKeys=options.overview===true?['runtime','recent']:Object.keys(endpoints);
   const slots = reactive<Record<string, Slot>>(Object.fromEntries(Object.keys(endpoints).map(k => [k, { data: null, loading: true, error: null }])));
   const hidden = ref(readGuideHidden());
   const groups = computed(() => inboxGroups(slots)), steps = computed(() => guideSteps(slots.readiness?.data, slots.accounts?.data, slots.classification?.data));
@@ -13,7 +15,7 @@ export function useDashboard() {
     const slot = slots[key]!;
     if (!slot)
       return;
-    slot.loading = true;
+    slot.loading = slot.data == null;
     slot.error = null;
     try {
       const data = await request(endpoints[key]!);
@@ -22,7 +24,6 @@ export function useDashboard() {
     }
     catch (e) {
       if (!disposed) {
-        slot.data = null;
         slot.error = e;
       }
     }
@@ -32,7 +33,7 @@ export function useDashboard() {
     }
   }
   async function refresh() {
-    await Promise.all(Object.keys(endpoints).map(load));
+    await Promise.all(activeKeys.map(load));
   }
   function hideGuide() {
     if (complete.value) {
@@ -44,8 +45,8 @@ export function useDashboard() {
     hidden.value = false;
     writeGuideHidden(false);
   }
+  useRefresh(refresh,{interval:30000});
   onMounted(() => {
-    void refresh();
     window.addEventListener('media-tool:show-setup', reopen);
   });
   onUnmounted(() => {

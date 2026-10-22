@@ -50,7 +50,7 @@ defineExpose({ load, form, save, status, libraries, op });
   <div class="media-stack">
     <section class="media-surface">
       <h2>服务设置</h2>
-      <ResourceState :loading="status.loading" :error="status.error" @reload="load"/>
+      <ResourceState :stale="status.loaded" :loading="status.loading" :error="status.error" @reload="load"/>
       <p>服务状态：{{ status.data?status.data.enabled?'已启用':'已停用':'—' }}</p>
       <ResourceState :error="providers.error" @reload="providers.load"/>
       <form class="u5-form" @submit.prevent="save">
@@ -100,7 +100,7 @@ defineExpose({ load, form, save, status, libraries, op });
     <section class="media-surface">
       <h2>媒体库目录</h2>
       <p>目录名称来自分类规则；新媒体库默认未授权，请在媒体用户中分配。</p>
-      <ResourceState :loading="libraries.loading" :error="libraries.error" :empty="!libraries.data?.items.length" @reload="libraries.load"/>
+      <ResourceState :stale="libraries.loaded" :loading="libraries.loading" :error="libraries.error" :empty="!libraries.data?.items.length" @reload="libraries.load"/>
       <article v-for="library in libraries.data?.items||[]" :key="library.id" class="organize-record">
         <h3>{{ library.name||'—' }}</h3>
         <p>{{ library.groupName||'—' }} / {{ library.ruleName||'—' }} · {{ library.hidden?'已隐藏':'可见' }} · {{ library.assetCount??'—' }} 项</p>
@@ -108,7 +108,7 @@ defineExpose({ load, form, save, status, libraries, op });
       <PagePagination v-if="libraries.data?.total>50" v-model:current-page="page" :page-size="50" :total="libraries.data.total" layout="prev,pager,next,total" @current-change="libraries.load"/>
     </section>
     <DetailDrawer v-model:visible="technical" title="服务技术详情" :technical-data="{settings:status.data,services:providers.data,libraries:libraries.data}" class="media-detail">
-      <ResourceState :loading="providers.loading" :error="providers.error" @reload="providers.load"/>
+      <ResourceState :stale="providers.loaded" :loading="providers.loading" :error="providers.error" @reload="providers.load"/>
       <p>这里记录服务能力与地址配置；是否能正常观看仍以实际设备测试为准。</p>
     </DetailDrawer>
   </div>

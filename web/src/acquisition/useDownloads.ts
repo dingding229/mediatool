@@ -1,3 +1,5 @@
+import {useRoute} from 'vue-router';
+import { useRefresh } from '../composables/useRefresh';
 import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import { APIError, post, request } from '../api/client';
 import { list, readIntent, writeIntent, type DownloadTask, type Intent } from './model';
@@ -21,16 +23,18 @@ export interface Transfer {
   message?: string;
 }
 export function useDownloads() {
+  const route=useRoute();
   const tasks = ref<DownloadTask[]>([]), transfers = ref<Transfer[]>([]), batches = ref<any[]>([]), loading = reactive({ tasks: true, transfers: true, batches: true }), errors = reactive<Record<string, unknown>>({}), pending = reactive<Record<string, Intent>>({}), notice = ref<Intent | null>(null), message = ref(''), busy = ref(false), confirmOpen = ref(false), confirmation = ref<any>(null), sessions = ref<any[]>([]), sessionBusy = ref(false), sessionError = ref<unknown>(null), binding = ref(false), sessionId = ref(''), sessionTarget = ref<Transfer | null>(null);
-  let disposed = false, timer: ReturnType<typeof setInterval> | undefined;
+  let disposed = false;
   const epochs: Record<string, number> = {};
+  const ready = new Set<string>();
   const key = (kind: string, id: string, action: string) => `${kind}:${id}:${action}`;
   function locked(kind: string, id: string, action: string) {
     return pending[key(kind, id, action)] || readIntent(key(kind, id, action));
   }
   async function load(kind: 'tasks' | 'transfers' | 'batches') {
     const version = epochs[kind] = (epochs[kind] || 0) + 1;
-    loading[kind] = true;
+    loading[kind] = !ready.has(kind);
     try {
       const out: any = kind === 'tasks' ? await request<DownloadTask[]>('/downloads') : kind === 'transfers' ? await request<Transfer[]>('/transfers') : await request('/library/activity?state=needs_reconcile&page=1&pageSize=25');
       if (disposed || version !== epochs[kind])
@@ -43,6 +47,7 @@ export function useDownloads() {
       else
         batches.value = rows;
       errors[kind] = null;
+      ready.add(kind);
       for (const row of rows)
         for (const action of ['pause', 'resume', 'cancel', 'bind', 'reconcile', 'retry', 'cleanup']) {
           const scope = key(kind, row.id, action), saved = readIntent(scope);
@@ -198,14 +203,10 @@ export function useDownloads() {
     if (sessionTarget.value && sessions.value.some(s => s.id === sessionId.value))
       ask(sessionTarget.value, 'transfers', 'bind');
   }
-  onMounted(() => {
-    void refresh();
-    timer = setInterval(() => void refresh(), 5000);
-  });
+  useRefresh(async()=>{const tab=route?.query?.tab||'tasks';if(tab==='uploads')await Promise.all([load('transfers'),load('batches')]);else await load('tasks')}, { interval:15000, immediate:false, active:()=>!busy.value&&route?.query?.tab!=='manual' });
+  onMounted(()=>void refresh());
   onUnmounted(() => {
     disposed = true;
-    if (timer)
-      clearInterval(timer);
   });
   return { tasks, transfers, batches, loading, errors, pending, notice, message, busy, confirmOpen, confirmation, sessions, sessionBusy, sessionError, binding, sessionId, load, refresh, locked, ask, execute, inspectTransfer, reconcileCleanup, bind, askBinding };
 }

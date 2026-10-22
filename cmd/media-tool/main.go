@@ -390,6 +390,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		}
 		w.Handlers["library.emby.confirm"] = libraryEngine.CheckEmby
 		downloader := acquisition.Engine{DB: db, Connections: manager, Search: engine}
+		w.Handlers["download.manual.import"] = (manualdownloads.Engine{DB: db, Connections: manager}).ProcessImport
 		w.Handlers["download.manual.add"] = (manualdownloads.Engine{DB: db, Connections: manager}).Process
 		w.Handlers["download.add"] = downloader.Add
 		w.Handlers["download.cleanup"] = downloader.Cleanup

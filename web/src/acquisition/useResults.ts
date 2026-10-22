@@ -1,3 +1,4 @@
+import { useRefresh } from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { APIError, post, request } from '../api/client';
@@ -7,14 +8,14 @@ export function useResults() {
   const route = useRoute(), router = useRouter(), run = ref<Run | null>(null), loading = ref(true), error = ref<unknown>(null), accounts = ref<Account[]>([]), mediaSaving = ref(false), mediaReady = ref(true), page = ref(1), busy = ref(false), searchIntent = ref(readIntent('search-again:' + route.params.id)), delivery = reactive(useDelivery());
   const filters = reactive({ resolution: [] as string[], source: [] as string[], codec: [] as string[], accountId: [] as string[], keyword: '', sort: 'seeders_desc' });
   const activeMedia = computed(() => run.value?.media || null);
-  let epoch = 0, controller: AbortController | undefined, timer: ReturnType<typeof setInterval> | undefined, filterTimer: ReturnType<typeof setTimeout> | undefined, disposed = false;
+  let epoch = 0, controller: AbortController | undefined, filterTimer: ReturnType<typeof setTimeout> | undefined, disposed = false;
   async function refresh(id = String(route.params.id), afterSave = false) {
     if (mediaSaving.value && !afterSave && run.value?.id === id)
       return;
     const version = ++epoch;
     controller?.abort();
     controller = new AbortController();
-    loading.value = true;
+    loading.value = !run.value;
     error.value = null;
     const p = new URLSearchParams({ page: String(page.value), limit: '50' });
     for (const [key, value] of Object.entries(filters)) {
@@ -110,11 +111,9 @@ export function useResults() {
     void refresh();
     void request<Account[]>('/integrations').then(v => accounts.value = list(v)).catch(() => {
     });
-    timer = setInterval(() => {
-      if (!loading.value && !mediaSaving.value && ['pending', 'running'].includes(run.value?.state || ''))
-        void refresh();
-    }, 2000);
+
   });
+  useRefresh(() => refresh(), {interval:5000, immediate:false, active:()=>!mediaSaving.value && ['pending','running'].includes(run.value?.state || '')});
   watch(() => route.params.id, () => {
     epoch++;
     controller?.abort();
@@ -130,8 +129,6 @@ export function useResults() {
     epoch++;
     controller?.abort();
     clearTimeout(filterTimer);
-    if (timer)
-      clearInterval(timer);
   });
   return { run, loading, error, accounts, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter, queueFilter, sort, persistMedia, openDownload, searchAgain };
 }

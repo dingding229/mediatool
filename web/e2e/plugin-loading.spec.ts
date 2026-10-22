@@ -64,7 +64,7 @@ test('filtered log count is unknown during loading/error and retry keeps module 
  await page.route('**/api/v1/logs/summary',r=>r.fulfill({json:{data:{totalBytes:0,limitBytes:1024,level:'info',files:[]}}}))
  await page.route('**/api/v1/logs/query?*',async r=>{urls.push(r.request().url());if(phase==='slow')await pending.promise;await r.fulfill(phase==='empty'?{json:{data:{items:[],total:0,page:1,pageSize:200,modules:['plugins'],before:'',truncated:false}}}:{status:503,json:{error:{code:'plugins_unavailable',message:'synthetic unavailable'}}})})
  await page.goto(base+'/logs?module=plugins&instance=owned')
- try{await expect(page.getByText('日志数量加载中…',{exact:true})).toBeVisible();await expect(page.getByText('没有符合筛选条件的日志',{exact:true})).toHaveCount(0);await expect(page.getByText('当前检索窗口共 0 条',{exact:true})).toHaveCount(0)}finally{pending.release()}
+ try{await expect(page.getByText('读取中，数量未知',{exact:true})).toBeVisible();await expect(page.getByText('没有符合筛选条件的日志',{exact:true})).toHaveCount(0);await expect(page.getByText('0 – 0，共 0 条',{exact:true})).toHaveCount(0)}finally{pending.release()}
  await expect(page.getByText('读取失败，数量未知',{exact:true})).toBeVisible();await expect(page.getByText('没有符合筛选条件的日志',{exact:true})).toHaveCount(0)
- phase='empty';await page.getByRole('button',{name:'刷新',exact:true}).click();await expect(page.getByText('当前检索窗口共 0 条',{exact:true})).toBeVisible();expect(urls).toHaveLength(2);expect(urls.every(u=>new URL(u).searchParams.get('module')==='plugins'&&new URL(u).searchParams.get('instance')==='owned')).toBe(true)
+ phase='empty';await page.getByRole('button',{name:'刷新',exact:true}).click();await expect(page.getByText('0 – 0，共 0 条',{exact:true})).toBeVisible();expect(urls).toHaveLength(2);expect(urls.every(u=>new URL(u).searchParams.get('module')==='plugins'&&new URL(u).searchParams.get('instance')==='owned')).toBe(true)
 })
