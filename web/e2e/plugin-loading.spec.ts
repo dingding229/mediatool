@@ -1,11 +1,9 @@
 import {test,expect,type Page} from '@playwright/test'
+import {compiledStaticFixture} from './compiled-static-fixture'
 if(process.env.E2E_ISOLATED!=='1')throw Error('isolated test stack required')
 const base=process.env.R_INSTALL_UI_ORIGIN??'http://mediatool-insecure.test:18084'
-// Drain forwarded lazy assets before the browser context disposes APIResponse
-// bodies. This is a completion signal, not a sleep or an assertion relaxation.
-test.afterEach(async({page})=>{await page.unrouteAll({behavior:'wait'})})
 async function fixture(page:Page){
- await page.route(base+'/**',async r=>{const u=new URL(r.request().url());await r.fulfill({response:await r.fetch({url:'http://127.0.0.1:'+u.port+u.pathname+u.search})})})
+ await compiledStaticFixture(page,base)
  await page.route('**/api/v1/**',r=>r.fulfill({json:{data:[]}}))
  await page.route('**/api/v1/auth/session',r=>r.fulfill({json:{data:{authenticated:true,account:{id:'loading-fixture',username:'fixture'}}}}))
  await page.route('**/api/v1/system/status',r=>r.fulfill({json:{data:{version:'0.27.0',dependencies:[]}}}))
@@ -16,7 +14,7 @@ test('initial slow plugin lists never claim zero or no instances, including inse
  await page.route('**/api/v1/plugins/operations',r=>{writes++;return r.abort()})
  await page.route('**/api/v1/plugins/catalog?*',async r=>{await pending.promise;await r.fulfill({json:{data:{items:[],total:0}}})})
  await page.route('**/api/v1/plugins?*',async r=>{await pending.promise;await r.fulfill({json:{data:[]}})})
- await page.goto(base+'/plugins');expect(await page.evaluate(()=>isSecureContext)).toBe(false)
+ await page.goto(base+'/plugins');expect(new URL(page.url()).hostname).toBe(new URL(base).hostname);expect(await page.evaluate(()=>isSecureContext)).toBe(false)
  try{
   await expect(page.locator('.state-view.state-loading')).toBeVisible()
   await expect(page.getByText('共 0 项',{exact:false})).toHaveCount(0)

@@ -2,14 +2,15 @@ import {test,expect} from '@playwright/test'
 import type {Page} from '@playwright/test'
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
+import {compiledStaticFixture} from './compiled-static-fixture'
 if(process.env.E2E_ISOLATED!=='1')throw Error('isolated test stack required')
 // A non-loopback HTTP origin genuinely disables secure-context APIs. Route
-// only static transport to loopback so DNS/system proxy settings are irrelevant;
+// only same-build static responses so DNS/system proxy settings are irrelevant;
 // the browser document origin remains HTTP .test (not a spoofed isSecureContext).
 const base=process.env.R_INSTALL_UI_ORIGIN??'http://mediatool-insecure.test:18084'
 const contract=JSON.parse(readFileSync(resolve(import.meta.dirname,'../../internal/platform/httpapi/testdata/contracts/plugin-v2-instances.json'),'utf8'))
 async function fixture(page:Page){
- await page.route(base+'/**',async route=>{const url=new URL(route.request().url());const response=await route.fetch({url:'http://127.0.0.1:'+url.port+url.pathname+url.search});await route.fulfill({response})})
+ await compiledStaticFixture(page,base)
  await page.route('**/api/**',route=>route.fulfill({json:{data:[]}}))
  await page.route('**/api/v1/auth/session',r=>r.fulfill({json:{data:{authenticated:true,account:{id:'r-ui-fixture',username:'fixture'}}}}))
  await page.route('**/api/v1/system/status',r=>r.fulfill({json:{data:{version:'R UI fixture',dependencies:[]}}}))
@@ -22,7 +23,7 @@ test('R actual insecure HTTP: confirmation, rejected requestId and committed/lis
  await page.route('**/api/v1/plugins/catalog?*',async r=>{if(failList){failList=false;await r.fulfill({status:503,json:{error:{code:'plugins_unavailable',message:'private-list-sentinel'}}});return}await r.fulfill({json:{data:{items:[{...definition,installedCount:instance?1:0}],total:1}}})})
  await page.route('**/api/v1/plugins?*',r=>r.fulfill({json:{data:instance?[instance]:[]}}))
  await page.route('**/api/v1/plugins/operations',async r=>{calls.push(r.request().postDataJSON());if(reject){reject=false;await r.fulfill({status:409,headers:{'X-Request-ID':'abcdef0123456789abcdef01'},json:{error:{code:'plugin_conflict',message:'private-response-sentinel'}}});return}instance=contract.response;failList=true;await r.fulfill({json:{data:instance}})})
- await page.goto(base+'/plugins?tab=catalog');expect(await page.evaluate(()=>isSecureContext)).toBe(false);expect(await page.evaluate(()=>typeof crypto.randomUUID)).toBe('undefined')
+ await page.goto(base+'/plugins?tab=catalog');expect(new URL(page.url()).hostname).toBe(new URL(base).hostname);expect(await page.evaluate(()=>isSecureContext)).toBe(false);expect(await page.evaluate(()=>typeof crypto.randomUUID)).toBe('undefined')
  await page.getByRole('button',{name:'安装插件',exact:true}).click();const dialog=page.getByRole('dialog',{name:'插件权限确认',exact:true})
  await expect(dialog).toContainText('尚未提交');await expect(dialog.getByRole('button',{name:'确认安装插件',exact:true})).toBeDisabled();expect(calls).toHaveLength(0)
  await confirm(page);await dialog.getByText('技术详情',{exact:true}).click();await expect(dialog).toContainText('plugin_conflict');await expect(dialog).toContainText('abcdef0123456789abcdef01');await expect(dialog).not.toContainText('private-response-sentinel')
