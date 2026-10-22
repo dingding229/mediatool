@@ -17,8 +17,9 @@ import AccountEditor from './AccountEditor.vue';
 import SchedulePanel from './SchedulePanel.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import { bytes, date, errorText } from '../workflows/readiness';
+import {formatCompactNumber,formatRatio} from '../presentation/numbers';
 import { publicAccount, numberText, addSamples, chartPoints } from './accountModel';
-const route=useRoute();
+const route=useRoute(), iconErrors=ref(new Set<string>());
 const accounts = reactive(useResource<any>(() => request<any[]>('/integrations').then(rows => rows.filter(r => r.kind === 'ptsite').map(publicAccount)), [])), connections = accounts, metrics = reactive(useResource<any>(() => request('/sites/metrics'), [])), op = reactive(useOperation('site-actions')), query = ref(''), editor = ref<InstanceType<typeof AccountEditor>>(), detailId = ref(''), detailOpen = ref(false), schedule = ref<InstanceType<typeof SchedulePanel>>(), confirm = ref(false), action = ref<any>(null), notice = ref(''), samples = reactive<Record<string, any[]>>({});
 const rows = computed(() => accounts.data.map((a: any) => ({ ...a, connection: connections.data.find((r: any) => r.id === a.id), metric: metrics.data.find((m: any) => m.accountId === a.id) }))), shown = computed(() => rows.value.filter((r: any) => (!route.query.accountId||r.id===route.query.accountId)&&r.name.toLowerCase().includes(query.value.toLowerCase()))), detail = computed(() => rows.value.find((r: any) => r.id === detailId.value)), series = computed(() => samples[detailId.value] || []);
 const siteState = (s: string) => ({ ready: '检测通过', partial: '部分数据', unchecked: '尚未检测', failed: '失败', running: '采集中', succeeded: '已采集', not_synced: '尚未采集', skipped: '已跳过', unavailable: '暂不可用' } as Record<string, string>)[s] || '状态待核对';
@@ -124,43 +125,28 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <p v-if="notice" role="status">{{ notice }}</p>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'站点操作已排队，尚未核验完成。':'正在核对上次站点操作，不重复提交。'" @refresh="load"/>
-      <p class="f4-list-count">共 {{shown.length}} 个站点</p>
+      <p class="f4-list-count">{{!accounts.loaded?accounts.error?'数量暂不可用':'正在读取站点…':'共 '+shown.length+' 个站点'}}</p>
       <div class="f4-sites-list">
       <ResourceState :stale="accounts.loaded" :loading="accounts.loading" :error="accounts.error" :empty="!shown.length" empty-title="暂无匹配的站点账号" @reload="load"/>
-      <article v-for="row in shown" :key="row.id" class="organize-record u5-metric-card f3-site-card">
-        <header class="media-section-heading">
-          <div class="u5-heading">
-            <img v-if="row.metric?.iconUrl?.startsWith('/api/v1/pt/templates/')" :src="row.metric.iconUrl" :alt="row.name+'图标'"/>
-            <h3>{{ row.name }}</h3>
-          </div>
-          <StatusBadge :state="row.connection?row.connection.enabled?'running':'disabled':'unavailable'" :label="row.connection?row.connection.enabled?'已启用':'已停用':'状态未确认'"/>
-        </header>
-        <p class="f3-site-status">登录：{{ siteState(row.connection?.lastCheckState||row.state) }} · {{ date(row.connection?.lastCheckedAt) }} · 订阅地址：{{ row.settings.rssState==='ready'?'已获取':row.settings.rssState==='unavailable'?'尚未获取':'—' }}</p>
-        <div class="u5-stats f3-site-metrics">
-          <div>
-            <span>上传</span>
-            <strong>{{ bytes(row.metric?.metrics?.uploaded) }}</strong>
-          </div>
-          <div>
-            <span>下载</span>
-            <strong>{{ bytes(row.metric?.metrics?.downloaded) }}</strong>
-          </div>
-          <div>
-            <span>分享率</span>
-            <strong>{{ numberText(row.metric?.metrics?.ratio) }}</strong>
-          </div>
-        <div><span>魔力 / 积分</span><strong>{{ numberText(row.metric?.metrics?.bonus) }}</strong></div>
-        <div><span>做种</span><strong>{{ row.metric?.metrics?.seeding??'—' }}</strong><small>做种体积 {{ bytes(row.metric?.metrics?.seedingBytes) }}</small></div>
-        </div>
-        <p class="f3-site-updated">{{ row.metric?siteState(row.metric.state):'尚无采集记录' }} · {{ date(row.metric?.collectedAt) }}{{ row.metric?.stale?' · 快照已过期，请重新采集':'' }}</p>
-        <p v-if="row.metric?.message">{{ row.metric.message }}</p>
-        <div class="media-actions">
-          <el-button @click="detailId=row.id;detailOpen=true">数据与趋势</el-button>
-          <el-button @click="editor?.open(row.id)">编辑账号</el-button>
+      <article v-for="row in shown" :key="row.id" class="organize-record u5-metric-card f5-site-row">
+       <div class="f5-site-identity">
+        <img v-if="row.metric?.iconUrl?.startsWith('/api/v1/pt/templates/')&&!iconErrors.has(row.id)" :src="row.metric.iconUrl" alt="" width="32" height="32" loading="lazy" @error="iconErrors.add(row.id)"/>
+        <span v-else class="f5-site-icon" aria-hidden="true">{{Array.from(row.name)[0]}}</span>
+        <div><h3><button class="f5-site-name" @click="detailId=row.id;detailOpen=true">{{row.name}}</button></h3><StatusBadge :state="row.connection?row.connection.enabled?'running':'disabled':'unavailable'" :label="row.connection?row.connection.enabled?'已启用':'已停用':'状态未确认'"/></div>
+       </div>
+       <dl class="f5-site-metrics">
+        <div><dt>分享率</dt><dd>{{formatRatio(row.metric?.metrics?.ratio)}}</dd><dt>魔力 / 积分</dt><dd>{{formatCompactNumber(row.metric?.metrics?.bonus)}}</dd></div>
+        <div><dt>上传</dt><dd>{{bytes(row.metric?.metrics?.uploaded)}}</dd><dt>下载</dt><dd>{{bytes(row.metric?.metrics?.downloaded)}}</dd></div>
+        <div><dt>做种数</dt><dd>{{formatCompactNumber(row.metric?.metrics?.seeding)}}</dd><dt>做种体积</dt><dd>{{bytes(row.metric?.metrics?.seedingBytes)}}</dd></div>
+       </dl>
+       <div class="f5-site-updated"><span>更新 {{date(row.metric?.collectedAt)}}</span><small>{{row.metric?siteState(row.metric.state):'尚无采集记录'}}{{row.metric?.stale?' · 快照已过期':''}}</small></div>
+       <div class="media-actions f5-site-actions">
           <el-dropdown trigger="click" popper-class="media-dropdown">
             <el-button aria-label="更多站点操作">更多</el-button>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item @click="detailId=row.id;detailOpen=true">数据与趋势</el-dropdown-item>
+                <el-dropdown-item @click="editor?.open(row.id)">编辑账号</el-dropdown-item>
                 <el-dropdown-item :disabled="!row.connection||!!connections.error||!!op.pending" @click="test(row)">测试已保存账号</el-dropdown-item>
                 <el-dropdown-item :disabled="!!op.pending||!!metrics.error" @click="sync(row.id)">采集此站点</el-dropdown-item>
                 <el-dropdown-item :disabled="!row.connection||!!connections.error||!!op.pending" @click="ask('toggle',row)">{{ row.connection?.enabled?'停用账号':'启用账号' }}</el-dropdown-item>
@@ -178,6 +164,9 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
   <ConfirmAction v-model:visible="confirm" :title="action?.kind==='delete'?'删除站点账号':action?.row.connection?.enabled?'停用站点账号':'启用站点账号'" :description="`将处理 ${action?.row.name||'此站点'}。`" :impact-scope="action?.kind==='delete'?'移除登录信息及关联站点指标，不删除媒体文件；相关订阅需要重新核对站点。':'保留凭据与记录，修改是否参与搜索、订阅及采集。现有服务在停用前也会验证登录；验证失败时不改开关，不清空凭据绕过。'" :confirm-text="action?.kind==='delete'?'确认删除账号':'确认修改开关'" :loading="op.busy" :danger-level="action?.kind==='delete'?'danger':'warning'" class="media-dialog" @confirm="apply"/>
   <DetailDrawer v-model:visible="detailOpen" title="站点数据与趋势" :technical-data="detail?.metric" class="media-detail">
     <h3>{{ detail?.name||'—' }}</h3>
+    <p>登录：{{siteState(detail?.connection?.lastCheckState||detail?.state)}} · {{date(detail?.connection?.lastCheckedAt)}}</p>
+    <p>订阅地址：{{detail?.settings.rssState==='ready'?'已获取':detail?.settings.rssState==='unavailable'?'尚未获取':'—'}}</p>
+    <p v-if="detail?.metric?.message">{{detail.metric.message}}</p>
     <dl class="u5-detail-list">
       <div v-for="(text,key) in {username:'站内用户名',level:'等级',bonus:'积分',seeding:'做种数'}" :key="key">
         <dt>{{ text }}</dt>
@@ -206,3 +195,11 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
     </article>
   </DetailDrawer>
 </template>
+
+<style scoped>
+.f5-site-row{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(0,3fr) auto 50px;align-items:center;gap:24px;padding:16px 0!important;border-bottom:1px solid var(--mt-border-color);margin:0;min-height:94px;box-sizing:border-box}
+.f5-site-identity{display:flex;align-items:center;gap:12px;min-width:0}.f5-site-identity img,.f5-site-icon{flex:none;width:32px;height:32px;object-fit:contain}.f5-site-icon{display:grid;place-items:center;background:var(--mt-bg-canvas);border-radius:6px;font-size:15px}.f5-site-identity h3{margin:0 0 4px}.f5-site-name{min-height:32px;border:0;background:none;color:var(--mt-text-primary);font:inherit;font-weight:600;padding:0;text-align:left;overflow-wrap:anywhere;cursor:pointer}.f5-site-name:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:4px}
+.f5-site-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0;font-size:12px;font-variant-numeric:tabular-nums}.f5-site-metrics>div{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px 10px;align-items:baseline}.f5-site-metrics dt{color:var(--mt-text-muted);white-space:nowrap}.f5-site-metrics dd{margin:0;font-weight:600;white-space:nowrap;text-align:right}.f5-site-updated{display:grid;gap:10px;text-align:right;font-size:11px;color:var(--mt-text-muted);font-variant-numeric:tabular-nums}.f5-site-updated small{font-size:11px}.f5-site-actions{margin:0!important}
+@media(max-width:1100px){.f5-site-row{grid-template-columns:minmax(125px,1fr) minmax(0,3fr) 44px;gap:16px}.f5-site-updated{grid-column:2;grid-row:2;display:flex;flex-wrap:wrap;justify-content:flex-end}.f5-site-actions{grid-column:3;grid-row:1}.f5-site-metrics{gap:12px}}
+@media(max-width:700px){.f5-site-row{grid-template-columns:minmax(0,1fr) 50px;gap:12px;min-height:0}.f5-site-identity{grid-column:1}.f5-site-actions{grid-column:2;grid-row:1}.f5-site-metrics{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.f5-site-metrics>div{grid-template-columns:1fr;gap:4px}.f5-site-metrics dd{text-align:left;margin-bottom:4px;font-size:12px}.f5-site-updated{grid-column:1/-1;grid-row:3;justify-content:space-between;font-size:11px}}
+</style>

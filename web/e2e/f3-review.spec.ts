@@ -51,7 +51,7 @@ test('F3 review forty sites stay compact with failures first and all sortable he
 for(const count of [1,10])test(`F3 review ${count} site accounts keep density, volume labels and narrow alignment`,async({page})=>{
  await u5SitesFixture(page);const rows=Array.from({length:count},(_,i)=>({...siteAccount,id:'site-review-'+i,name:'家庭站点 '+String(i+1).padStart(2,'0')}))
  await page.route('**/api/v1/integrations',r=>r.fulfill({json:{data:rows}}));await page.route('**/api/v1/sites/metrics',r=>r.fulfill({json:{data:rows.map((a,i)=>({accountId:a.id,name:a.name,enabled:true,state:'succeeded',stale:false,collectedAt:'2026-10-22T00:00:00Z',metrics:{uploaded:(50+i)*1024**3,downloaded:10*1024**3,ratio:5,bonus:1200,seeding:25+i,seedingBytes:80*1024**3}}))}}))
- await page.goto('/sites');await expect(page.locator('.f3-site-card')).toHaveCount(count);await expect(page.locator('.f4-list-count')).toContainText(`共 ${count} 个站点`);await expect(page.locator('.f3-site-card').first()).toContainText('做种体积 80.00 GiB')
+ await page.goto('/sites');await expect(page.locator('.f5-site-row')).toHaveCount(count);await expect(page.locator('.f4-list-count')).toContainText(`共 ${count} 个站点`);await expect(page.locator('.f5-site-row').first()).toContainText(/做种体积\s*80\.00 GiB/)
  expect(await page.locator('.f4-sites-list').evaluate(e=>getComputedStyle(e).overflowY)).toBe('visible');await shots(page,count===1?'sites':'sites-ten')
 })
 
