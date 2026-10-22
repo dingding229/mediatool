@@ -105,6 +105,31 @@ func TestNativeDiscoveryHTTPHierarchyLatestSearchFacetsSimilar(t *testing.T) {
 		}
 		return out
 	}
+
+	// F2: all-unknown includes must stay empty even when specialized routes
+	// supply their own default types; unknown media kinds are zero-match unions.
+	for _, route := range []string{"/Items?Recursive=true", "/Users/" + login.User.Id + "/Items/Resume?MediaTypes=Video", "/Shows/NextUp?SeriesId=" + seriesID, "/Shows/" + seriesID + "/Seasons?", "/Shows/" + seriesID + "/Episodes?", "/Items/" + movieID + "/Similar?"} {
+		separator := "&"
+		if !strings.Contains(route, "?") {
+			separator = "?"
+		}
+		result := list(route + separator + "IncludeItemTypes=BoxSet,Trailer,Audio,Person,Playlist&ExcludeItemTypes=Unknown&SortBy=SQL%3BDROP&Limit=500")
+		if len(result.Items) != 0 || result.TotalRecordCount != 0 {
+			t.Fatal("unknown-only widened", route, result)
+		}
+	}
+	for _, route := range []string{"/Items?Recursive=true&IncludeItemTypes=Movie,BoxSet", "/Shows/" + seriesID + "/Seasons?", "/Shows/" + seriesID + "/Episodes?", "/Items/" + movieID + "/Similar?"} {
+		result := list(route + "&ExcludeItemTypes=Person,Playlist&SortBy=Unknown,DateCreated&SortOrder=Ascending,Descending,Descending&Limit=500")
+		if len(result.Items) == 0 {
+			t.Fatal("tolerant query lost known types", route)
+		}
+	}
+	result := list("/Users/" + login.User.Id + "/Items/Resume?MediaTypes=Unknown,Audio&Limit=500")
+	if len(result.Items) != 0 {
+		t.Fatal("unknown MediaTypes widened")
+	}
+	call("GET", "/Items/Latest?Limit=500&IncludeItemTypes=BoxSet", "", 200)
+	call("GET", "/Search/Hints?SearchTerm=synthetic&Limit=500", "", 200)
 	seasons := list("/emby/Shows/" + seriesID + "/Seasons?uSeRiD=" + login.User.Id + "&IsMissing=true")
 	if seasons.TotalRecordCount != 3 || len(seasons.Items) != 3 || *seasons.Items[0].IndexNumber != 0 {
 		t.Fatal("cross-library seasons", seasons)
@@ -221,7 +246,7 @@ func TestNativeDiscoveryHTTPHierarchyLatestSearchFacetsSimilar(t *testing.T) {
 		t.Fatal("no similar data not empty", none)
 	}
 	call("GET", "/Items/"+id("movie", "tmdb:988011")+"/Similar", "", 404)
-	for _, path := range []string{"/Search/Hints", "/Search/Hints?SearchTerm=abc&Limit=101", "/Items/Latest?Limit=101", "/Items/" + movieID + "/Similar?Limit=21", "/Shows/" + seriesID + "/Episodes?Season=-1", "/Shows/" + seriesID + "/Seasons?IsSpecialSeason=bad"} {
+	for _, path := range []string{"/Search/Hints", "/Shows/" + seriesID + "/Episodes?Season=-1", "/Shows/" + seriesID + "/Seasons?IsSpecialSeason=bad"} {
 		call("GET", path, "", 400)
 	}
 	call("HEAD", "/emby/Shows/"+seriesID+"/Episodes", "", 200)
@@ -264,7 +289,7 @@ func TestNativeDiscoveryCandidateLimitIsExplicitAndScoped(t *testing.T) {
 	if err != nil || scoped.Hints.TotalRecordCount != 0 {
 		t.Fatal("scope was applied after candidate bound", scoped, err)
 	}
-	for _, q := range []nativelibrary.DiscoveryQuery{{Mode: nativelibrary.Hints, Items: nativelibrary.ItemQuery{Limit: 20}}, {Mode: nativelibrary.Hints, Items: nativelibrary.ItemQuery{SearchTerm: strings.Repeat("x", 257), Limit: 20}}, {Mode: nativelibrary.Latest, Items: nativelibrary.ItemQuery{Limit: 101}}} {
+	for _, q := range []nativelibrary.DiscoveryQuery{{Mode: nativelibrary.Hints, Items: nativelibrary.ItemQuery{Limit: 20}}, {Mode: nativelibrary.Hints, Items: nativelibrary.ItemQuery{SearchTerm: strings.Repeat("x", 257), Limit: 20}}} {
 		if _, err := f.repo.Discover(f.ctx, f.user, f.permissions(), q); !errors.Is(err, nativelibrary.ErrInvalidQuery) {
 			t.Fatal("unbounded discovery input", err)
 		}

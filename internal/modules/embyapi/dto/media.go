@@ -51,7 +51,8 @@ func (b *BaseItemDto) UnmarshalJSON(raw []byte) error {
 
 // Immutable capabilities: no writable Protocol/SupportsTranscoding/etc. fields.
 // Even a zero value cannot advertise relay/transcoding. Path is an absolute
-// user-scoped native stream URL, never a cloud path or global STRM resolver URL.
+// credential-free native stream URL requiring media-user authentication, never
+// a cloud path, file bearer grant or global STRM resolver URL.
 type MediaSourceInfo struct {
 	Width                      *int               `json:"Width,omitempty"`
 	Height                     *int               `json:"Height,omitempty"`
@@ -87,6 +88,7 @@ func (MediaSourceInfo) RequiresClosing() bool      { return false }
 type sourceFields MediaSourceInfo
 type sourceWire struct {
 	sourceFields
+	Type                 string `json:"Type"`
 	Protocol             string `json:"Protocol"`
 	IsRemote             bool   `json:"IsRemote"`
 	SupportsDirectPlay   bool   `json:"SupportsDirectPlay"`
@@ -103,7 +105,7 @@ func (s MediaSourceInfo) MarshalJSON() ([]byte, error) {
 	if err := safeMetadata(s); err != nil {
 		return nil, err
 	}
-	return json.Marshal(sourceWire{sourceFields(s), s.Protocol(), s.IsRemote(), s.SupportsDirectPlay(), s.SupportsDirectStream(), s.SupportsTranscoding(), s.RequiresOpening(), s.RequiresClosing()})
+	return json.Marshal(sourceWire{sourceFields(s), "Default", s.Protocol(), s.IsRemote(), s.SupportsDirectPlay(), s.SupportsDirectStream(), s.SupportsTranscoding(), s.RequiresOpening(), s.RequiresClosing()})
 }
 func (s *MediaSourceInfo) UnmarshalJSON(raw []byte) error {
 	var decoded sourceFields

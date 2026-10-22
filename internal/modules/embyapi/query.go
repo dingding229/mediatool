@@ -6,7 +6,8 @@ import (
 	"strings"
 )
 
-// Query contains canonical allowlisted names, never a raw SQL/order fragment.
+// Sort names are canonical allowlisted tokens, never raw SQL. Unsupported type
+// filters survive as bound zero-match predicates, not an unfiltered query.
 type Query struct {
 	StartIndex                                                         int64
 	Limit                                                              int
@@ -35,10 +36,10 @@ func ParseQuery(v Values) (Query, error) {
 	}
 	if limit != "" {
 		n, err := strconv.ParseInt(limit, 10, 64)
-		if err != nil || n < 0 || n > 200 {
+		if err != nil || n < 0 {
 			return Query{}, ErrInvalid
 		}
-		q.Limit = int(n)
+		q.Limit = int(min(n, 200))
 	}
 	sorts := strings.Fields("Name SortName DateCreated DateLastContentAdded PremiereDate ProductionYear CommunityRating Random DatePlayed PlayCount Runtime IndexNumber ParentIndexNumber IsFolder OfficialRating")
 	// Standard Emby type filters can include kinds this catalog does not store.
@@ -52,10 +53,10 @@ func ParseQuery(v Values) (Query, error) {
 		allowed []string
 		ignore  bool
 	}{
-		{"SortBy", &q.SortBy, sorts, false}, {"SortOrder", &q.SortOrder, []string{"Ascending", "Descending"}, false},
+		{"SortBy", &q.SortBy, sorts, true}, {"SortOrder", &q.SortOrder, []string{"Ascending", "Descending"}, false},
 		{"Fields", &q.Fields, fields, true}, {"IncludeItemTypes", &q.IncludeItemTypes, types, false}, {"ExcludeItemTypes", &q.ExcludeItemTypes, types, false},
 	} {
-		list, err := v.list(spec.key, 64)
+		list, err := v.listParts(spec.key, 64, spec.key == "SortBy" || spec.key == "SortOrder")
 		if err != nil {
 			return Query{}, err
 		}
@@ -71,21 +72,45 @@ func ParseQuery(v Values) (Query, error) {
 					break
 				}
 			}
-			if found == "" {
-				if spec.ignore {
-					continue
-				}
-				return Query{}, ErrInvalid
+			if found == "" && spec.key == "SortOrder" && item == "" {
+				found = "Ascending"
 			}
-			if !slices.Contains(selected, found) {
+			if found == "" {
+				if spec.key == "IncludeItemTypes" || spec.key == "ExcludeItemTypes" {
+					found = item // Bound values only; unknown includes must retain zero-match semantics.
+				} else if spec.ignore {
+					// Keep sort positions until directions have been paired below.
+					if spec.key == "SortBy" {
+						selected = append(selected, "")
+					}
+					continue
+				} else {
+					return Query{}, ErrInvalid
+				}
+			}
+			if spec.key == "SortOrder" || spec.key == "SortBy" || !slices.Contains(selected, found) {
 				selected = append(selected, found)
 			}
 		}
 		*spec.target = selected
 	}
-	if len(q.SortOrder) > 1 && len(q.SortOrder) != len(q.SortBy) {
-		return Query{}, ErrInvalid
+	sortNames, directions := []string{}, []string{}
+	for i, name := range q.SortBy {
+		if name == "" {
+			continue
+		}
+		direction := "Ascending"
+		if len(q.SortOrder) == 1 {
+			direction = q.SortOrder[0]
+		} else if i < len(q.SortOrder) {
+			direction = q.SortOrder[i]
+		}
+		sortNames, directions = append(sortNames, name), append(directions, direction)
 	}
+	if len(sortNames) == 0 {
+		sortNames, directions = []string{"SortName"}, []string{"Ascending"}
+	}
+	q.SortBy, q.SortOrder = sortNames, directions
 	q.IDs, err = v.list("Ids", 200)
 	if err != nil {
 		return Query{}, err

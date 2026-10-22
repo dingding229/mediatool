@@ -2,11 +2,12 @@
   "MediaSources": [
     {
       "Id": "aaaaaaaa-0000-4000-8000-000000000032",
-      "Name": "版本 1",
-      "Path": "https://native.synthetic.invalid/Videos/100031/stream.mkv?MediaSourceId=aaaaaaaa-0000-4000-8000-000000000032\u0026Static=true\u0026api_key=synthetic-user-token",
+      "Name": "Synthetic Movie",
+      "Path": "https://native.synthetic.invalid/Videos/100031/stream.mkv?MediaSourceId=aaaaaaaa-0000-4000-8000-000000000032\u0026Static=true",
       "DirectStreamUrl": "/Videos/100031/stream.mkv?MediaSourceId=aaaaaaaa-0000-4000-8000-000000000032\u0026Static=true\u0026api_key=synthetic-user-token",
       "MediaStreams": [],
       "Chapters": [],
+      "Type": "Default",
       "Protocol": "Http",
       "IsRemote": true,
       "SupportsDirectPlay": true,

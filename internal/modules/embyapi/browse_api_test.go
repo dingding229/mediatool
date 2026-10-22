@@ -122,7 +122,7 @@ func TestBrowseHTTPAliasesErrorsAndParameters(t *testing.T) {
 			t.Fatal(w.Code, stub.seen)
 		}
 	}
-	for _, path := range []string{"/Items?Limit=201", "/Items?Years=bad", "/Items?EnableImages=bad"} {
+	for _, path := range []string{"/Items?Limit=-1", "/Items?Years=bad", "/Items?EnableImages=bad"} {
 		if w := browseUnitCall(s, "GET", path); w.Code != 400 {
 			t.Fatal(path, w.Code)
 		}
@@ -301,6 +301,41 @@ func checkBrowseHTTPShape(t *testing.T, value any, key string) {
 	case []any:
 		for _, x := range v {
 			checkBrowseHTTPShape(t, x, "")
+		}
+	}
+}
+
+func TestF2PathsUseConfiguredOriginNeverHostHeaders(t *testing.T) {
+	movie, e := dto.NewBaseItemDto("100001", "Synthetic Film", dto.Movie)
+	movie.MediaSources = dto.Array[dto.MediaSourceInfo]{{Id: "source-id", Name: movie.Name, Container: "mkv"}}
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, configured := range []bool{true, false} {
+		s := browseUnitServer(t, &browseStub{items: []dto.BaseItemDto{movie}})
+		settings := settingsFixture()
+		settings.PublicURL = ""
+		if configured {
+			settings.PublicURL = "https://configured.synthetic.invalid"
+		}
+		s.options.Settings = nativeSettingsFunc(func(context.Context) (nativelibrary.ServerSettings, error) { return settings, nil })
+		s.options.PublicURL = ""
+		s.options.RequestOrigin = func(*http.Request) (string, error) { t.Fatal("request origin must not generate Path"); return "", nil }
+		r := httptest.NewRequest("GET", "http://evil.invalid/Items/100001", nil)
+		r.Header.Set("X-Forwarded-Host", "injected.invalid")
+		r.Header.Set("X-Forwarded-Proto", "https")
+		r.Header.Set("X-Emby-Token", "valid-token")
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		if !configured {
+			if w.Code != 503 {
+				t.Fatal("missing config did not fail closed", w.Code)
+			}
+			continue
+		}
+		var item dto.BaseItemDto
+		if e := json.Unmarshal(w.Body.Bytes(), &item); e != nil || w.Code != 200 || !strings.HasPrefix(item.MediaSources[0].Path, "https://configured.synthetic.invalid/Videos/") {
+			t.Fatal(w.Code, w.Body.String(), e)
 		}
 	}
 }

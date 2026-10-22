@@ -19952,6 +19952,7 @@
             ]
           },
           "DirectStreamUrl": {
+            "description": "同一native播放路由的相对URL，可携带当前媒体用户令牌；始终检查条目可见性与播放权限。",
             "type": "string"
           },
           "Height": {
@@ -19968,6 +19969,10 @@
           "Id": {
             "type": "string"
           },
+          "IsRemote": {
+            "const": true,
+            "type": "boolean"
+          },
           "MediaStreams": {
             "$ref": "#/components/schemas/modules_embyapi_dto_Array_dto.MediaStream"
           },
@@ -19975,7 +19980,20 @@
             "type": "string"
           },
           "Path": {
+            "description": "配置媒体服务地址生成的无凭证稳定URL；客户端须提供媒体用户鉴权。不是STRM文件bearer或115临时URL。",
             "type": "string"
+          },
+          "Protocol": {
+            "const": "Http",
+            "type": "string"
+          },
+          "RequiresClosing": {
+            "const": false,
+            "type": "boolean"
+          },
+          "RequiresOpening": {
+            "const": false,
+            "type": "boolean"
           },
           "RunTimeTicks": {
             "anyOf": [
@@ -19999,6 +20017,22 @@
               }
             ]
           },
+          "SupportsDirectPlay": {
+            "const": true,
+            "type": "boolean"
+          },
+          "SupportsDirectStream": {
+            "const": true,
+            "type": "boolean"
+          },
+          "SupportsTranscoding": {
+            "const": false,
+            "type": "boolean"
+          },
+          "Type": {
+            "const": "Default",
+            "type": "string"
+          },
           "Width": {
             "anyOf": [
               {
@@ -20013,7 +20047,15 @@
         },
         "required": [
           "Chapters",
-          "MediaStreams"
+          "IsRemote",
+          "MediaStreams",
+          "Protocol",
+          "RequiresClosing",
+          "RequiresOpening",
+          "SupportsDirectPlay",
+          "SupportsDirectStream",
+          "SupportsTranscoding",
+          "Type"
         ],
         "type": "object",
         "x-go-type": "media-tool/internal/modules/embyapi/dto.MediaSourceInfo"

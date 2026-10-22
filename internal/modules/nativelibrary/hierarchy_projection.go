@@ -181,7 +181,7 @@ func EpisodeDTO(in EpisodeProjection) (dto.BaseItemDto, error) {
 		item.PremiereDate = date
 	}
 	item.Path = SyntheticFilename(in.Name, firstContainer(in.Sources))
-	item.MediaSources = append(dto.Array[dto.MediaSourceInfo]{}, mediaSources(in.Sources)...)
+	item.MediaSources = append(dto.Array[dto.MediaSourceInfo]{}, mediaSources(in.Sources, item.Name)...)
 	applyProbeItem(&item, in.Sources)
 	if in.VersionOverflow && len(item.MediaSources) > 0 {
 		item.MediaSources[0].Name += "（仅展示最新100个版本）"
@@ -242,12 +242,12 @@ func addPeople(item *dto.BaseItemDto, d *TMDBDetails) {
 		item.People = append(item.People, x)
 	}
 }
-func mediaSources(sources []MovieSource) []dto.MediaSourceInfo {
+func mediaSources(sources []MovieSource, name string) []dto.MediaSourceInfo {
 	out := make([]dto.MediaSourceInfo, 0, len(sources))
-	for i, s := range sources {
+	for _, s := range sources {
 		x, _ := dto.NewMediaSourceInfo("")
 		x.Id = s.ID
-		x.Name = "版本 " + strconv.Itoa(i+1)
+		x.Name = name
 		x.Container = strings.ToLower(s.Container)
 		x.RunTimeTicks = s.RunTimeTicks
 		applyProbeSource(&x, s.Probe)

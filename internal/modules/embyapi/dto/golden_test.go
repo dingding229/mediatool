@@ -36,7 +36,7 @@ func fixtures(t *testing.T) []fixture {
 	person := dto.BaseItemPerson{NameIdPair: pair, Type: "Actor", Role: "Synthetic lead", PrimaryImageTag: "synthetic-person-tag"}
 	stream := dto.MediaStream{Type: "Video", Codec: "h264", Language: "eng", DisplayTitle: "Synthetic 1080p", Index: ptr(0), BitRate: ptr(int64(0)), Width: ptr(1920), Height: ptr(1080), Channels: ptr(2), SampleRate: ptr(48000), BitDepth: ptr(8), AverageFrameRate: ptr(float32(24)), IsDefault: true, IsForced: true, IsExternal: true}
 	chapter := dto.ChapterInfo{StartPositionTicks: 0, Name: "Synthetic opening", ImageTag: "synthetic-chapter-tag"}
-	source, err := dto.NewMediaSourceInfo("https://media.synthetic.invalid/Videos/100005/stream.mkv?Static=true&MediaSourceId=source-0001&api_key=synthetic-user-token")
+	source, err := dto.NewMediaSourceInfo("https://media.synthetic.invalid/Videos/100005/stream.mkv?Static=true&MediaSourceId=source-0001")
 	if err != nil {
 		t.Fatal(err)
 	}

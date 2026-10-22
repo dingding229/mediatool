@@ -164,12 +164,12 @@ func TestNativeBrowseHTTPRealAuthenticationCompleteChain(t *testing.T) {
 		call("GET", "/Items?ParentId="+id, "", 404)
 		call("GET", "/Items/"+id, "", 404)
 	}
-	call("GET", "/Items?Limit=201", "", 400)
+	call("GET", "/Items?Limit=201", "", 200)
 	call("GET", "/emby/Items?Years=bad", "", 400)
 
 	f.probeSnapshot(t, httpMovieAsset, 615000000, 1920)
 	probed := decodeList(call("GET", "/emby/Items?ParentId="+f.parents["g:test-a"], "", 200))
-	assertSourceProbe(t, probed.Items, httpMovieAsset.asset, 1920)
+	assertSourceProbe(t, probed.Items, httpMovieAsset.asset, 1920, true)
 	assertProbeHTTPGolden(t, probed)
 	f.exec(t, `UPDATE native_libraries SET hidden=true WHERE id='g:http-tv'`)
 	call("GET", "/Items?ParentId="+tv, "", 404)

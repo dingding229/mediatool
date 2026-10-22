@@ -3,7 +3,6 @@ package nativeplayback
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"media-tool/internal/modules/embyapi/dto"
 	"os"
 	"os/exec"
@@ -39,7 +38,7 @@ func TestPlaybackInfoGoldensAndURLInvariant(t *testing.T) {
 					t.Fatal(err)
 				}
 				media.Id = source
-				media.Name = fmt.Sprintf("版本 %d", i+1)
+				media.Name = "Synthetic Movie"
 				media.Container = container
 				media.DirectStreamUrl = relative
 				if name != "no-snapshot" {

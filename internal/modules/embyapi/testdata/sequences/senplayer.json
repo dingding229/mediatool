@@ -58,7 +58,7 @@
   },
   "detail": {
     "status": 200,
-    "bytes": 1869,
+    "bytes": 2031,
     "body": {
       "BackdropImageTags": [],
       "Bitrate": 100000,
@@ -104,7 +104,8 @@
               "Type": "Subtitle"
             }
           ],
-          "Name": "版本 1",
+          "Name": "Synthetic Episode 1",
+          "Path": "http://native.synthetic.invalid/Videos/100001/stream.mp4?MediaSourceId=eeeeeeee-0000-4000-8000-000000000036\u0026Static=true",
           "Protocol": "Http",
           "RequiresClosing": false,
           "RequiresOpening": false,
@@ -113,6 +114,7 @@
           "SupportsDirectPlay": true,
           "SupportsDirectStream": true,
           "SupportsTranscoding": false,
+          "Type": "Default",
           "Width": 1920
         }
       ],
@@ -169,7 +171,7 @@
   },
   "episodes": {
     "status": 200,
-    "bytes": 3043,
+    "bytes": 3367,
     "body": {
       "Items": [
         {
@@ -217,7 +219,8 @@
                   "Type": "Subtitle"
                 }
               ],
-              "Name": "版本 1",
+              "Name": "Synthetic Episode 1",
+              "Path": "http://native.synthetic.invalid/Videos/100001/stream.mp4?MediaSourceId=eeeeeeee-0000-4000-8000-000000000036\u0026Static=true",
               "Protocol": "Http",
               "RequiresClosing": false,
               "RequiresOpening": false,
@@ -226,6 +229,7 @@
               "SupportsDirectPlay": true,
               "SupportsDirectStream": true,
               "SupportsTranscoding": false,
+              "Type": "Default",
               "Width": 1920
             }
           ],
@@ -298,14 +302,16 @@
               "Id": "ffffffff-0000-4000-8000-000000000036",
               "IsRemote": true,
               "MediaStreams": [],
-              "Name": "版本 1",
+              "Name": "Synthetic Episode 2",
+              "Path": "http://native.synthetic.invalid/Videos/100002/stream.mkv?MediaSourceId=ffffffff-0000-4000-8000-000000000036\u0026Static=true",
               "Protocol": "Http",
               "RequiresClosing": false,
               "RequiresOpening": false,
               "RunTimeTicks": 14400000000,
               "SupportsDirectPlay": true,
               "SupportsDirectStream": true,
-              "SupportsTranscoding": false
+              "SupportsTranscoding": false,
+              "Type": "Default"
             }
           ],
           "MediaStreams": [],
@@ -366,7 +372,7 @@
   },
   "items": {
     "status": 200,
-    "bytes": 1241,
+    "bytes": 1573,
     "body": {
       "Items": [
         {
@@ -384,13 +390,15 @@
               "Id": "eeeeeeee-0000-4000-8000-000000000032",
               "IsRemote": true,
               "MediaStreams": [],
-              "Name": "版本 1",
+              "Name": "Synthetic Playback Film",
+              "Path": "http://native.synthetic.invalid/Videos/100008/stream.mp4?MediaSourceId=eeeeeeee-0000-4000-8000-000000000032\u0026Static=true",
               "Protocol": "Http",
               "RequiresClosing": false,
               "RequiresOpening": false,
               "SupportsDirectPlay": true,
               "SupportsDirectStream": true,
-              "SupportsTranscoding": false
+              "SupportsTranscoding": false,
+              "Type": "Default"
             },
             {
               "Chapters": [],
@@ -398,13 +406,15 @@
               "Id": "eeeeeeee-0000-4000-8000-000000000031",
               "IsRemote": true,
               "MediaStreams": [],
-              "Name": "版本 2",
+              "Name": "Synthetic Playback Film",
+              "Path": "http://native.synthetic.invalid/Videos/100008/stream.mkv?MediaSourceId=eeeeeeee-0000-4000-8000-000000000031\u0026Static=true",
               "Protocol": "Http",
               "RequiresClosing": false,
               "RequiresOpening": false,
               "SupportsDirectPlay": true,
               "SupportsDirectStream": true,
-              "SupportsTranscoding": false
+              "SupportsTranscoding": false,
+              "Type": "Default"
             }
           ],
           "MediaStreams": [],
@@ -438,7 +448,7 @@
   },
   "latest": {
     "status": 200,
-    "bytes": 2750,
+    "bytes": 3245,
     "body": [
       {
         "BackdropImageTags": [],
@@ -455,13 +465,15 @@
             "Id": "eeeeeeee-0000-4000-8000-000000000033",
             "IsRemote": true,
             "MediaStreams": [],
-            "Name": "版本 1",
+            "Name": "Other Synthetic Film",
+            "Path": "http://native.synthetic.invalid/Videos/100009/stream.mkv?MediaSourceId=eeeeeeee-0000-4000-8000-000000000033\u0026Static=true",
             "Protocol": "Http",
             "RequiresClosing": false,
             "RequiresOpening": false,
             "SupportsDirectPlay": true,
             "SupportsDirectStream": true,
-            "SupportsTranscoding": false
+            "SupportsTranscoding": false,
+            "Type": "Default"
           }
         ],
         "MediaStreams": [],
@@ -502,13 +514,15 @@
             "Id": "eeeeeeee-0000-4000-8000-000000000032",
             "IsRemote": true,
             "MediaStreams": [],
-            "Name": "版本 1",
+            "Name": "Synthetic Playback Film",
+            "Path": "http://native.synthetic.invalid/Videos/100008/stream.mp4?MediaSourceId=eeeeeeee-0000-4000-8000-000000000032\u0026Static=true",
             "Protocol": "Http",
             "RequiresClosing": false,
             "RequiresOpening": false,
             "SupportsDirectPlay": true,
             "SupportsDirectStream": true,
-            "SupportsTranscoding": false
+            "SupportsTranscoding": false,
+            "Type": "Default"
           },
           {
             "Chapters": [],
@@ -516,13 +530,15 @@
             "Id": "eeeeeeee-0000-4000-8000-000000000031",
             "IsRemote": true,
             "MediaStreams": [],
-            "Name": "版本 2",
+            "Name": "Synthetic Playback Film",
+            "Path": "http://native.synthetic.invalid/Videos/100008/stream.mkv?MediaSourceId=eeeeeeee-0000-4000-8000-000000000031\u0026Static=true",
             "Protocol": "Http",
             "RequiresClosing": false,
             "RequiresOpening": false,
             "SupportsDirectPlay": true,
             "SupportsDirectStream": true,
-            "SupportsTranscoding": false
+            "SupportsTranscoding": false,
+            "Type": "Default"
           }
         ],
         "MediaStreams": [],
@@ -611,7 +627,7 @@
   },
   "next-progress": {
     "status": 200,
-    "bytes": 1975,
+    "bytes": 2137,
     "body": {
       "Items": [
         {
@@ -659,7 +675,8 @@
                   "Type": "Subtitle"
                 }
               ],
-              "Name": "版本 1",
+              "Name": "Synthetic Episode 1",
+              "Path": "http://native.synthetic.invalid/Videos/100001/stream.mp4?MediaSourceId=eeeeeeee-0000-4000-8000-000000000036\u0026Static=true",
               "Protocol": "Http",
               "RequiresClosing": false,
               "RequiresOpening": false,
@@ -668,6 +685,7 @@
               "SupportsDirectPlay": true,
               "SupportsDirectStream": true,
               "SupportsTranscoding": false,
+              "Type": "Default",
               "Width": 1920
             }
           ],
@@ -729,7 +747,7 @@
   },
   "next-stopped": {
     "status": 200,
-    "bytes": 1173,
+    "bytes": 1335,
     "body": {
       "Items": [
         {
@@ -751,14 +769,16 @@
               "Id": "ffffffff-0000-4000-8000-000000000036",
               "IsRemote": true,
               "MediaStreams": [],
-              "Name": "版本 1",
+              "Name": "Synthetic Episode 2",
+              "Path": "http://native.synthetic.invalid/Videos/100002/stream.mkv?MediaSourceId=ffffffff-0000-4000-8000-000000000036\u0026Static=true",
               "Protocol": "Http",
               "RequiresClosing": false,
               "RequiresOpening": false,
               "RunTimeTicks": 14400000000,
               "SupportsDirectPlay": true,
               "SupportsDirectStream": true,
-              "SupportsTranscoding": false
+              "SupportsTranscoding": false,
+              "Type": "Default"
             }
           ],
           "MediaStreams": [],
@@ -799,7 +819,7 @@
   },
   "playback-info": {
     "status": 200,
-    "bytes": 1057,
+    "bytes": 1051,
     "body": {
       "MediaSources": [
         {
@@ -832,8 +852,8 @@
               "Type": "Subtitle"
             }
           ],
-          "Name": "版本 1",
-          "Path": "http://native.synthetic.invalid/Videos/100001/stream.mp4?MediaSourceId=eeeeeeee-0000-4000-8000-000000000036\u0026Static=true\u0026api_key=synthetic-user-token",
+          "Name": "Synthetic Episode 1",
+          "Path": "http://native.synthetic.invalid/Videos/100001/stream.mp4?MediaSourceId=eeeeeeee-0000-4000-8000-000000000036\u0026Static=true",
           "Protocol": "Http",
           "RequiresClosing": false,
           "RequiresOpening": false,
@@ -842,6 +862,7 @@
           "SupportsDirectPlay": true,
           "SupportsDirectStream": true,
           "SupportsTranscoding": false,
+          "Type": "Default",
           "Width": 1920
         }
       ],
@@ -904,7 +925,7 @@
   },
   "resume-progress": {
     "status": 200,
-    "bytes": 1975,
+    "bytes": 2137,
     "body": {
       "Items": [
         {
@@ -952,7 +973,8 @@
                   "Type": "Subtitle"
                 }
               ],
-              "Name": "版本 1",
+              "Name": "Synthetic Episode 1",
+              "Path": "http://native.synthetic.invalid/Videos/100001/stream.mp4?MediaSourceId=eeeeeeee-0000-4000-8000-000000000036\u0026Static=true",
               "Protocol": "Http",
               "RequiresClosing": false,
               "RequiresOpening": false,
@@ -961,6 +983,7 @@
               "SupportsDirectPlay": true,
               "SupportsDirectStream": true,
               "SupportsTranscoding": false,
+              "Type": "Default",
               "Width": 1920
             }
           ],

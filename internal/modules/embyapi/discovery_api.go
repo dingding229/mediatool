@@ -2,9 +2,7 @@ package embyapi
 
 import (
 	"net/http"
-	"slices"
 	"strconv"
-	"strings"
 
 	"media-tool/internal/modules/embyapi/dto"
 	"media-tool/internal/modules/nativelibrary"
@@ -29,12 +27,6 @@ func (s *Server) discover(w http.ResponseWriter, r *http.Request, info RequestCo
 			s.router.fail(w, 400)
 			return
 		}
-		for _, t := range media {
-			if !slices.Contains([]string{"video", "audio", "photo", "book", "movie", "episode"}, strings.ToLower(t)) {
-				s.router.fail(w, 400)
-				return
-			}
-		}
 		in.MediaTypes = media
 
 	case nextUpResponse:
@@ -56,7 +48,7 @@ func (s *Server) discover(w http.ResponseWriter, r *http.Request, info RequestCo
 		in.Mode = nativelibrary.Similar
 	}
 	if kind == seasonsResponse || kind == episodesResponse {
- in.Items.SeriesID,in.Items.SeasonID="",""
+		in.Items.SeriesID, in.Items.SeasonID = "", ""
 		if q.SeriesID != "" && q.SeriesID != in.ItemID {
 			s.router.fail(w, 400)
 			return
@@ -74,10 +66,7 @@ func (s *Server) discover(w http.ResponseWriter, r *http.Request, info RequestCo
 		if kind == similarResponse {
 			maxLimit = 20
 		}
-		if in.Items.Limit > maxLimit {
-			s.router.fail(w, 400)
-			return
-		}
+		in.Items.Limit = min(in.Items.Limit, maxLimit)
 	}
 	if in.GroupItems, err = info.Parameters.Boolean("GroupItems"); err != nil {
 		s.router.fail(w, 400)
@@ -131,6 +120,10 @@ func (s *Server) discover(w http.ResponseWriter, r *http.Request, info RequestCo
 	result, err := s.options.Discovery.Discover(r.Context(), *info.User, info.Permissions, in)
 	if err != nil {
 		s.browseError(w, err)
+		return
+	}
+	if err := s.sourcePaths(r, result.Items); err != nil {
+		s.router.fail(w, 503)
 		return
 	}
 	switch kind {

@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"media-tool/internal/modules/embyapi/dto"
 	"media-tool/internal/modules/mediaprobe/probeinfo"
@@ -154,7 +153,7 @@ func MovieDTO(movie Movie) (dto.BaseItemDto, error) {
 			return dto.BaseItemDto{}, ErrInvalidProjection
 		}
 		media.Id = source.ID
-		media.Name = fmt.Sprintf("版本 %d", index+1)
+		media.Name = item.Name
 		if source.Container != "" {
 			if !containerPattern.MatchString(source.Container) {
 				return dto.BaseItemDto{}, ErrInvalidProjection

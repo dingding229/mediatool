@@ -45,12 +45,12 @@ var ErrInvalid = errors.New("invalid native playback request")
 var digits = regexp.MustCompile(`^[1-9][0-9]{0,18}$`)
 var sourceID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,512}$`)
 
-// StreamURLs is the only media delivery URL constructor. Unknown containers use
+// StreamPath is the credential-free native media URL constructor. Unknown containers use
 // mkv: a neutral original-container hint, never a request to remux/transcode.
-func StreamURLs(origin, item, source, container, token string) (string, string, error) {
+func StreamPath(origin, item, source, container string) (string, error) {
 	u, err := url.Parse(origin)
-	if err != nil || u.User != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.Path != "" && u.Path != "/" || u.RawQuery != "" || u.Fragment != "" || !digits.MatchString(item) || !sourceID.MatchString(source) || !sourceID.MatchString(token) {
-		return "", "", ErrInvalid
+	if err != nil || u.User != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.Path != "" && u.Path != "/" || u.RawQuery != "" || u.Fragment != "" || !digits.MatchString(item) || !sourceID.MatchString(source) {
+		return "", ErrInvalid
 	}
 	ext := strings.ToLower(container)
 	switch ext {
@@ -58,13 +58,30 @@ func StreamURLs(origin, item, source, container, token string) (string, string, 
 	default:
 		ext = "mkv"
 	}
-	q := url.Values{"Static": {"true"}, "MediaSourceId": {source}, "api_key": {token}}
+	q := url.Values{"Static": {"true"}, "MediaSourceId": {source}}
 	relative := "/Videos/" + item + "/stream." + ext + "?" + q.Encode()
 	absolute := u.Scheme + "://" + u.Host + relative
 	if _, err = dto.NewMediaSourceInfo(absolute); err != nil {
+		return "", ErrInvalid
+	}
+	return absolute, nil
+}
+
+// StreamURLs separates the credential-free display Path from the existing
+// user-scoped DirectStreamUrl. Neither URL contains a per-file bearer grant.
+func StreamURLs(origin, item, source, container, token string) (string, string, error) {
+	if !sourceID.MatchString(token) {
 		return "", "", ErrInvalid
 	}
-	return absolute, relative, nil
+	absolute, err := StreamPath(origin, item, source, container)
+	if err != nil {
+		return "", "", err
+	}
+	direct, _ := url.Parse(absolute)
+	q := direct.Query()
+	q.Set("api_key", token)
+	direct.RawQuery = q.Encode()
+	return absolute, direct.RequestURI(), nil
 }
 
 // Subtitle URLs expose only an authenticated native endpoint, never the cloud path.
@@ -77,6 +94,7 @@ func SubtitleURL(origin, item, source, token, id string, index int, ext string) 
 	u.Path = "/Videos/" + item + "/" + source + "/Subtitles/" + strconv.Itoa(index) + "/Stream." + ext
 	q := u.Query()
 	q.Set("SubtitleId", id)
+	q.Set("api_key", token)
 	u.RawQuery = q.Encode()
 	return u.String(), nil
 }

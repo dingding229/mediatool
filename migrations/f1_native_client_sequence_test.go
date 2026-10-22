@@ -164,13 +164,13 @@ func TestF1NativeSenPlayerBrowseSequence(t *testing.T) {
 			})
 		}
 	}
-	for _, q := range []string{"IncludeItemTypes=Video", "IncludeItemTypes=MusicVideo,MusicAlbum"} {
+	for _, q := range []string{"IncludeItemTypes=Video", "IncludeItemTypes=MusicVideo,MusicAlbum", "IncludeItemTypes=library", "IncludeItemTypes=BoxSet,Trailer,Person,Playlist"} {
 		var r dto.QueryResult[dto.BaseItemDto]
 		if err := json.Unmarshal(call(t, "GET", expand("/Items?UserId={user}&ParentId={movieLibrary}&Recursive=true&"+q), "", fixture.UserAgent, 200), &r); err != nil || r.TotalRecordCount != 0 || len(r.Items) != 0 {
 			t.Fatal("unsupported-only filter broadened", r, err)
 		}
 	}
-	for _, q := range []string{"IncludeItemTypes=Movie,Video&ExcludeItemTypes=Video", "includeitemtypes=movie,video&sortby=datelastcontentadded,datecreated,sortname&sortorder=descending&enableUserData=false"} {
+	for _, q := range []string{"IncludeItemTypes=Movie,Video&ExcludeItemTypes=Video", "IncludeItemTypes=Movie,BoxSet&ExcludeItemTypes=library,Unknown", "includeitemtypes=movie,video&sortby=datelastcontentadded,datecreated,sortname&sortorder=descending&enableUserData=false"} {
 		var r dto.QueryResult[dto.BaseItemDto]
 		if err := json.Unmarshal(call(t, "GET", expand("/Items?UserId={user}&ParentId={movieLibrary}&Recursive=true&"+q), "", fixture.UserAgent, 200), &r); err != nil || r.TotalRecordCount != 1 || len(r.Items) != 1 {
 			t.Fatal("standard union lost movie", r, err)
@@ -180,8 +180,8 @@ func TestF1NativeSenPlayerBrowseSequence(t *testing.T) {
 	if err := json.Unmarshal(call(t, "GET", expand("/Items?UserId={user}&ParentId={movieLibrary}&IncludeItemTypes=Movie,Video&Recursive=true&StartIndex=1&Limit=30"), "", fixture.UserAgent, 200), &page); err != nil || page.TotalRecordCount != 1 || len(page.Items) != 0 || page.StartIndex == nil || *page.StartIndex != 1 {
 		t.Fatal("pagination lost total/start", page, err)
 	}
-	call(t, "GET", expand("/Items?UserId={user}&IncludeItemTypes=Movie,Unknown&Recursive=true"), "", fixture.UserAgent, 400)
-	call(t, "GET", expand("/Items?UserId={user}&Limit=201"), "", fixture.UserAgent, 400)
+	call(t, "GET", expand("/Items?UserId={user}&IncludeItemTypes=Movie,Unknown&Recursive=true"), "", fixture.UserAgent, 200)
+	call(t, "GET", expand("/Items?UserId={user}&Limit=201"), "", fixture.UserAgent, 200)
 	// Permission revocation and hiding still fail closed with mixed type filters.
 	f.exec(t, `DELETE FROM media_user_library_grants WHERE user_id=$1 AND library_id='g:f1-tv'`, f.user.ID)
 	call(t, "GET", expand("/Items?UserId={user}&ParentId={tvLibrary}&Recursive=true&IncludeItemTypes=Series,Movie,Video"), "", fixture.UserAgent, 404)

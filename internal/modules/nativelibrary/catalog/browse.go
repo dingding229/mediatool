@@ -404,14 +404,18 @@ func itemKind(value string) string {
 	switch strings.ToLower(value) {
 	case "collectionfolder", "folder":
 		return "library"
-	default:
+	case "movie", "series", "season", "episode", "video", "musicvideo", "musicalbum":
 		return strings.ToLower(value)
+	default:
+		// Never let unknown wire names accidentally alias an internal row kind.
+		return "__unsupported__"
 	}
 }
 func validateBrowseQuery(q *nativelibrary.ItemQuery) error {
-	if q.Limit < 0 || q.Limit > 200 || q.StartIndex < 0 || q.StartIndex > 1000000 {
+	if q.Limit < 0 || q.StartIndex < 0 || q.StartIndex > 1000000 {
 		return nativelibrary.ErrInvalidQuery
 	}
+	q.Limit = min(q.Limit, 200)
 	if len(q.ParentID) > 64 {
 		return nativelibrary.ErrInvalidQuery
 	}
@@ -431,11 +435,11 @@ func validateBrowseQuery(q *nativelibrary.ItemQuery) error {
 			return nativelibrary.ErrInvalidQuery
 		}
 	}
-	if len(q.IDs) > 200 || len(q.Genres) > 64 || len(q.Years) > 100 || len(q.Fields) > 64 || len(q.SortBy) > 64 || len(q.SortOrder) > 64 || len(q.SearchTerm) > 256 {
+	if len(q.IDs) > 200 || len(q.Genres) > 64 || len(q.Years) > 100 || len(q.Fields) > 64 || len(q.SortBy) > 64 || len(q.SortOrder) > 64 || len(q.IncludeItemTypes) > 64 || len(q.ExcludeItemTypes) > 64 || len(q.SearchTerm) > 256 {
 		return nativelibrary.ErrInvalidQuery
 	}
 	for _, k := range append(slices.Clone(q.IncludeItemTypes), q.ExcludeItemTypes...) {
-		if !slices.Contains([]string{"movie", "series", "season", "episode", "library", "video", "musicvideo", "musicalbum"}, itemKind(k)) {
+		if len(k) > 128 {
 			return nativelibrary.ErrInvalidQuery
 		}
 	}
@@ -444,21 +448,31 @@ func validateBrowseQuery(q *nativelibrary.ItemQuery) error {
 			return nativelibrary.ErrInvalidQuery
 		}
 	}
-	if len(q.SortOrder) > 1 && len(q.SortOrder) != len(q.SortBy) {
-		return nativelibrary.ErrInvalidQuery
-	}
+
 	sorts, orders := []string{}, []string{}
 	for i, name := range q.SortBy {
 		if strings.EqualFold(name, "Random") {
 			continue
 		}
-		if _, ok := browseSorts[name]; !ok {
-			return nativelibrary.ErrInvalidQuery
+		canonical := ""
+		for allowed := range browseSorts {
+			if strings.EqualFold(name, allowed) {
+				canonical = allowed
+				break
+			}
 		}
+		if canonical == "" {
+			continue
+		}
+		name = canonical
 		sorts = append(sorts, name)
-		if len(q.SortOrder) > 0 {
-			orders = append(orders, q.SortOrder[min(i, len(q.SortOrder)-1)])
+		direction := "Ascending"
+		if len(q.SortOrder) == 1 {
+			direction = q.SortOrder[0]
+		} else if i < len(q.SortOrder) {
+			direction = q.SortOrder[i]
 		}
+		orders = append(orders, direction)
 	}
 	q.SortBy, q.SortOrder = sorts, orders
 	return nil

@@ -215,7 +215,7 @@ func (s *Server) playback(w http.ResponseWriter, r *http.Request, info RequestCo
 		return
 	}
 	settings, _ := r.Context().Value(serverSettingsKey{}).(nativelibrary.ServerSettings)
-	actor.Origin, err = s.publicOrigin(r, settings)
+	actor.Origin, err = s.configuredMediaOrigin(settings)
 	if err != nil {
 		s.router.fail(w, 503)
 		return
@@ -272,7 +272,8 @@ func (s *Server) playbackError(w http.ResponseWriter, err error) {
 	s.router.fail(w, status)
 }
 
-// Both Public Info and PlaybackInfo use the same configured/trusted origin.
+// Public discovery retains its existing origin fallback. MediaSource URLs
+// instead require configuredMediaOrigin and never inherit request headers.
 func (s *Server) publicOrigin(r *http.Request, value nativelibrary.ServerSettings) (string, error) {
 	origin := value.PublicURL
 	if origin == "" {
@@ -295,6 +296,18 @@ func (s *Server) publicOrigin(r *http.Request, value nativelibrary.ServerSetting
 			}
 			origin = scheme + "://" + r.Host
 		}
+	}
+	if !validOrigin(origin) {
+		return "", ErrInvalid
+	}
+	return origin, nil
+}
+
+// Media URLs must never inherit request Host / X-Forwarded-* values.
+func (s *Server) configuredMediaOrigin(settings nativelibrary.ServerSettings) (string, error) {
+	origin := settings.PublicURL
+	if origin == "" {
+		origin = s.options.PublicURL
 	}
 	if !validOrigin(origin) {
 		return "", ErrInvalid

@@ -3,7 +3,7 @@
     {
       "Id": "source-0001",
       "Name": "Synthetic edition",
-      "Path": "https://media.synthetic.invalid/Videos/100005/stream.mkv?Static=true\u0026MediaSourceId=source-0001\u0026api_key=synthetic-user-token",
+      "Path": "https://media.synthetic.invalid/Videos/100005/stream.mkv?Static=true\u0026MediaSourceId=source-0001",
       "Container": "mkv",
       "RunTimeTicks": 72000000000,
       "Size": 0,
@@ -36,6 +36,7 @@
           "ImageTag": "synthetic-chapter-tag"
         }
       ],
+      "Type": "Default",
       "Protocol": "Http",
       "IsRemote": true,
       "SupportsDirectPlay": true,

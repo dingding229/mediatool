@@ -15,6 +15,7 @@ import (
 	"media-tool/internal/modules/mediaprobe/probequeue"
 	"media-tool/internal/modules/nativelibrary"
 	"media-tool/internal/modules/nativelibrary/catalog"
+	"media-tool/internal/modules/nativeplayback"
 )
 
 func (f browseFixture) probeSnapshot(t *testing.T, a movieAsset, duration int64, width int) {
@@ -26,12 +27,24 @@ func (f browseFixture) probeSnapshot(t *testing.T, a movieAsset, duration int64,
 	f.exec(t, `INSERT INTO media_probe_results(cloud_file_id,file_fingerprint,result_fingerprint,state,result,probed_at)
  SELECT f.id,native_probe_fingerprint(f.size_bytes,f.provider_file_id,f.metadata),native_probe_fingerprint(f.size_bytes,f.provider_file_id,f.metadata),'ready',$2,now() FROM cloud_files f WHERE f.id=$1`, a.file, raw)
 }
-func assertSourceProbe(t *testing.T, items []dto.BaseItemDto, id string, width int) {
+func assertSourceProbe(t *testing.T, items []dto.BaseItemDto, id string, width int, nativePath ...bool) {
 	t.Helper()
 	for _, item := range items {
 		for _, s := range item.MediaSources {
 			if s.Id == id {
-				if len(s.MediaStreams) != 2 || s.Width == nil || *s.Width != width || s.MediaStreams[1].Index == nil || *s.MediaStreams[1].Index != 5 || s.Path != "" || s.SupportsTranscoding() {
+				expected := ""
+				if len(nativePath) > 0 && nativePath[0] {
+					var e error
+					expected, e = nativeplayback.StreamPath("https://native.synthetic.invalid", item.Id, s.Id, s.Container)
+					if e != nil {
+						t.Fatal(e)
+					}
+				}
+				if s.Path != expected {
+					t.Fatal("source Path projection boundary", s.Path, expected)
+				}
+
+				if len(s.MediaStreams) != 2 || s.Width == nil || *s.Width != width || s.MediaStreams[1].Index == nil || *s.MediaStreams[1].Index != 5 || s.SupportsTranscoding() {
 					t.Fatal("wrong per-asset probe projection", s)
 				}
 				return
@@ -231,6 +244,14 @@ func assertProbeHTTPGolden(t *testing.T, response dto.QueryResult[dto.BaseItemDt
 	item.MediaSources = append(dto.Array[dto.MediaSourceInfo]{}, item.MediaSources...)
 	for i := range item.MediaSources {
 		item.MediaSources[i].Id = "synthetic-source"
+		if item.MediaSources[i].Path != "" {
+			var e error
+			item.MediaSources[i].Path, e = nativeplayback.StreamPath("https://native.synthetic.invalid", item.Id, "synthetic-source", item.MediaSources[i].Container)
+			if e != nil {
+				t.Fatal(e)
+			}
+		}
+
 	}
 	response.Items = dto.Array[dto.BaseItemDto]{item}
 	raw, err := json.MarshalIndent(response, "", "  ")

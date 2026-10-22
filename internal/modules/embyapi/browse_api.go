@@ -3,6 +3,7 @@ package embyapi
 import (
 	"errors"
 	"media-tool/internal/modules/nativelibrary"
+	"media-tool/internal/modules/nativeplayback"
 	"net/http"
 
 	"media-tool/internal/modules/embyapi/dto"
@@ -53,6 +54,10 @@ func (s *Server) browse(w http.ResponseWriter, r *http.Request, info RequestCont
 		s.browseError(w, err)
 		return
 	}
+	if err := s.sourcePaths(r, items); err != nil {
+		s.router.fail(w, 503)
+		return
+	}
 	if kind == detailResponse {
 		if len(items) != 1 {
 			s.router.fail(w, 404)
@@ -74,4 +79,24 @@ func (s *Server) browseError(w http.ResponseWriter, err error) {
 		status = 503
 	}
 	s.router.fail(w, status)
+}
+
+// Called only after the browse repository has applied user visibility/parental
+// grants. The native stream handler independently checks play permission.
+func (s *Server) sourcePaths(r *http.Request, items []dto.BaseItemDto) error {
+	for i := range items {
+		for j := range items[i].MediaSources {
+			settings, _ := r.Context().Value(serverSettingsKey{}).(nativelibrary.ServerSettings)
+			origin, err := s.configuredMediaOrigin(settings)
+			if err != nil {
+				return err
+			}
+			source := &items[i].MediaSources[j]
+			source.Path, err = nativeplayback.StreamPath(origin, items[i].Id, source.Id, source.Container)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

@@ -34,7 +34,8 @@
           "Width": 1920,
           "Height": 1080,
           "Id": "synthetic-source",
-          "Name": "版本 1",
+          "Name": "Synthetic HTTP Movie",
+          "Path": "https://native.synthetic.invalid/Videos/100101/stream.mp4?MediaSourceId=synthetic-source\u0026Static=true",
           "Container": "mp4",
           "RunTimeTicks": 615000000,
           "Size": 1234,
@@ -62,6 +63,7 @@
             }
           ],
           "Chapters": [],
+          "Type": "Default",
           "Protocol": "Http",
           "IsRemote": true,
           "SupportsDirectPlay": true,

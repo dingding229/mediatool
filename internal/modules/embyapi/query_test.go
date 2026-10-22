@@ -19,7 +19,7 @@ func TestQueryDefaultsBoundsAndCaseInsensitiveAllowLists(t *testing.T) {
 	}
 }
 func TestQueryRejectsInvalidLimitsSortsTypesIdsAndBooleans(t *testing.T) {
-	for _, raw := range []string{"Limit=201", "StartIndex=-1", "SortBy=SqlColumn", "SortOrder=Sideways", "IncludeItemTypes=Unknown", "ExcludeItemTypes=Unknown", "Ids=" + repeatComma(201), "ParentId=bad/id", "Recursive=yes"} {
+	for _, raw := range []string{"Limit=-1", "Limit=oops", "Limit=9223372036854775808", "StartIndex=-1", "SortOrder=Sideways", "Ids=" + repeatComma(201), "ParentId=bad/id", "Recursive=yes"} {
 		if _, err := ParseQuery(values(t, raw)); err == nil {
 			t.Fatalf("accepted %s", raw)
 		}
@@ -72,7 +72,7 @@ func TestValuesScalarAmbiguityRawBoundsAndDecodeOnce(t *testing.T) {
 	}
 }
 func TestQueryPaginationAndAllBounds(t *testing.T) {
-	for _, raw := range []string{"StartIndex=1000001", "StartIndex=9223372036854775808", "Limit=-1", "Limit=9223372036854775808", "Ids=" + strings.Repeat("x", 65), "Ids=%27or%271%27%3D%271", "ParentId=" + strings.Repeat("x", 65), "Fields=" + repeatComma(65), "SortBy=Name&SortOrder=Ascending,Descending"} {
+	for _, raw := range []string{"StartIndex=1000001", "StartIndex=9223372036854775808", "Limit=-1", "Limit=9223372036854775808", "Ids=" + strings.Repeat("x", 65), "Ids=%27or%271%27%3D%271", "ParentId=" + strings.Repeat("x", 65), "Fields=" + repeatComma(65)} {
 		if _, err := ParseQuery(values(t, raw)); err == nil {
 			t.Fatalf("accepted out of bounds query %.100q", raw)
 		}
@@ -108,5 +108,30 @@ func TestQueryStandardMixedTypesAndLastContentAdded(t *testing.T) {
 		if err != nil || len(q.IncludeItemTypes) != 1 || q.IncludeItemTypes[0] != kind || len(q.ExcludeItemTypes) != 1 || q.ExcludeItemTypes[0] != kind {
 			t.Fatalf("standard type %s: %+v %v", kind, q, err)
 		}
+	}
+}
+
+func TestF2TolerantQuerySortPositionsAndTypes(t *testing.T) {
+	for _, tc := range []struct {
+		raw, sorts, orders, include, exclude string
+		limit                                int
+	}{
+		{"IncludeItemTypes=BoxSet,Trailer,Audio,Person,Playlist&ExcludeItemTypes=Unknown&Limit=500", "SortName", "Ascending", "BoxSet,Trailer,Audio,Person,Playlist", "Unknown", 200},
+		{"SortBy=Unknown&SortOrder=Descending", "SortName", "Ascending", "", "", 100},
+		{"SortBy=Name,Unknown,DateCreated&SortOrder=Descending,Ascending,Descending", "Name,DateCreated", "Descending,Descending", "", "", 100},
+		{"SortBy=Name,DateCreated,ProductionYear&SortOrder=Descending,Descending", "Name,DateCreated,ProductionYear", "Descending,Descending,Ascending", "", "", 100},
+		{"SortBy=Name,DateCreated&SortOrder=Descending", "Name,DateCreated", "Descending,Descending", "", "", 100},
+		{"SortBy=Name,,DateCreated&SortOrder=Descending,,Descending", "Name,DateCreated", "Descending,Descending", "", "", 100},
+		{"SortBy=Name,DateCreated,ProductionYear&SortOrder=Descending,,Descending", "Name,DateCreated,ProductionYear", "Descending,Ascending,Descending", "", "", 100},
+		{"SortBy=Name&SortOrder=", "Name", "Ascending", "", "", 100},
+		{"SortBy=Name&SortOrder=Ascending,Descending", "Name", "Ascending", "", "", 100},
+		{"SortBy=Name%3BDROP%20TABLE%20items&IncludeItemTypes=Movie,BoxSet&Limit=0", "SortName", "Ascending", "Movie,BoxSet", "", 0},
+	} {
+		t.Run(tc.raw, func(t *testing.T) {
+			q, e := ParseQuery(values(t, tc.raw))
+			if e != nil || strings.Join(q.SortBy, ",") != tc.sorts || strings.Join(q.SortOrder, ",") != tc.orders || strings.Join(q.IncludeItemTypes, ",") != tc.include || strings.Join(q.ExcludeItemTypes, ",") != tc.exclude || q.Limit != tc.limit {
+				t.Fatalf("%+v %v", q, e)
+			}
+		})
 	}
 }

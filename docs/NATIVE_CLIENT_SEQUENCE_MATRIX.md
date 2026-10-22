@@ -35,7 +35,7 @@
 
 - 保留多类型过滤中的每一项；本目录不存储的标准类型仅匹配零行。**不能**删除未知类型后退化为未过滤的全库查询，也不能把 Video 偷换成 Movie。
 - DateLastContentAdded 使用当前可见库内物理成员的最大 created_at；DateCreated 仍使用最早 created_at。`TestF1LastContentAddedUsesLatestVisibleMember` 验证二者顺序不同，其他库的新版本不污染当前 ParentId 排序。
-- 参数名、类型值、排序名大小写不敏感；逗号分隔多值、分页、enableUserData=false 均可解析。任意未允许类型/SQL 排序片段仍拒绝。
+- 参数名、类型值、排序名大小写不敏感；逗号分隔多值、分页、enableUserData=false 均可解析。F2 后未知类型保留零匹配语义，未知排序忽略；SQL 只来自固定映射。
 - 测试覆盖仅 Video / MusicVideo,MusicAlbum 的空结果、Movie,Video 的非空结果、排除未存储类型不隐藏 Movie、授权撤销和 hidden 库拒绝访问。
 - 不修改 STRM、PlaybackInfo、播放器 UA 取链、302、115 CDN 或播放上报实现。原有客户端播放序列继续验证直链边界。
 
@@ -53,3 +53,57 @@
 - 发布后，用原 SenPlayer UA 重放经过 ID 替换的真实查询，分别检查电影、剧集、季、集的条数；补查 Latest/NextUp/MediaFolders 和权限边界。
 - 单独核对原媒体用户实际 grants。无授权库的空结果不能归因于协议，测试账号的扩展授权也不是更改原用户授权的理由。
 - 真实播放验收只请求一次原始播放 302，不跟随/中转媒体正文。最后删除明确命名的临时媒体用户。
+
+## F2：STRM 媒体源与宽容查询（2026-10-22）
+
+### 取证、审批和字段契约
+
+隔离的官方 Emby 4.8.11.0、人工合成 STRM 的实测结果：详情和 PlaybackInfo 都把 STRM 内容 URL 放入 `MediaSources[].Path`。本程序修复前详情省略 Path；PlaybackInfo 的 Path 则带媒体用户令牌。仅服务端差异已证实，**未把客户端 UI 对某字段的依赖推测当作真机结论**。
+
+生产 STRM 原文包含可独立播放的每文件 bearer grant；直接返回原文会绕过媒体用户授权生命周期。业主批准改用以下无凭证包装 URL，不再要求逐字等于 STRM 原文：
+
+```text
+https://native.synthetic.invalid/Videos/100001/stream.mkv?MediaSourceId=synthetic-source&Static=true
+```
+
+| 字段 | Emby 4.8.11 详情 / PlaybackInfo | 修复前本程序 | F2 本程序详情 / PlaybackInfo |
+|---|---|---|---|
+| Path | STRM 原文稳定 URL / 同左 | 详情缺失 / 带媒体用户令牌的 native URL | 配置媒体地址生成的无凭证稳定 native 包装 URL / 同左 |
+| Protocol / IsRemote | Http / true | Http / true | 不变 |
+| Type | Default | 缺失 | Default（固定能力） |
+| Name | 条目名 | 版本 N | 条目名；版本用各自 Source Id 区分 |
+| Container | strm / 探测出的 mkv | mkv / mkv | 保留原始媒体容器与探测结果，不改成 strm |
+| SupportsDirectPlay / DirectStream | true / true | true / true | 不变 |
+| SupportsTranscoding | true | false | **false，不引入转码** |
+| DirectStreamUrl | 对照样本缺失 | 用户令牌的 native 相对 URL | 保留原有用户令牌的 native 相对 URL；Path 本身无令牌 |
+
+保留详情 Container 为原媒体容器的取舍：它表达可 DirectPlay 的真实格式，与 PlaybackInfo 一致，避免客户端把 `strm` 当作不支持的播放格式；不改变 STRM 正文或原始媒体。无公网地址配置时媒体源响应失败关闭，不从 Host、X-Forwarded-* 或请求来源回退生成 Path。
+
+### 服务端客户端序列回归
+
+`TestF2ClientPathPlaybackAuthenticationSequence` 串行使用测试数据库、原始 STRM、真实 HTTP 鉴权和目录权限、合成官方取链响应，分别用 SenPlayer/6.2.1、Infuse/8、通用 UA：
+
+1. 已授权详情 → PlaybackInfo；Path 同一稳定、无凭证地址，Type=Default，Name=条目名。
+2. 客户端直接使用 Path：X-Emby-Token、X-Emby-Authorization、api_key、Authorization: MediaBrowser 四种正常媒体用户鉴权均为 302，响应无媒体正文；官方取链边界收到实际 UA。
+3. 同一 Path 不带鉴权为 401；只有浏览权限时为 403；隐藏条目详情为 404。
+4. 原 STRM 文件前后 SHA256 相同。无 relay、HLS、转码及临时 115 URL 写入 DTO。
+5. Host/X-Forwarded 注入测试、DTO/golden 和播放序列同时覆盖此契约。
+
+这些是协议序列测试，并不宣称控制了 SenPlayer/Infuse 真机。业主需在真机刷新该条目详情，查看**媒体信息底部播放链接**，再播放电影和一集剧集，确认正常；如客户端自行无鉴权请求 Path，应停止并报告，不能改回暴露凭据。
+
+### 查询宽容与边界
+
+| 请求条件 | 预期 |
+|---|---|
+| IncludeItemTypes=BoxSet,Trailer,Audio,Person,Playlist | 200 空集；不会退化为全部条目 |
+| IncludeItemTypes=Movie,BoxSet | 只返回有权看到的 Movie |
+| ExcludeItemTypes=Unknown | 忽略未知项，不改变已知项排除 |
+| SortBy=Unknown,DateCreated | 忽略未知排序；DateCreated 使用原位置对应的 SortOrder |
+| SortBy 全未知或未实现项 | 回退默认 SortName 升序，原输入不进入 SQL |
+| SortOrder 单值 / 多值不足 / 多余 | 单值应用全部；缺位置默认 Ascending；多余位置忽略；**不去重** |
+| Limit=500 | Items/Resume 上限 200，Latest/Hints 100，Similar 20，返回 200 |
+| Resume 未知 MediaTypes | 未知项零匹配；与 IncludeItemTypes 求交集 |
+| NextUp/Seasons/Episodes/Similar + 全未知 IncludeItemTypes | 保持空集，不被专用路由默认类型扩大 |
+| 非法数值、非法 ID、过多输入、非法布尔/排序方向 | 仍可 400 |
+
+隔离 Emby 对任意未知 SortBy 曾实测为 500；这里按业主批准的更安全语义忽略并回退，不复制该异常。各点位均含表驱动/SQL 集成测试，不依赖 UA 特判。

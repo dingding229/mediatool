@@ -72,6 +72,10 @@ func (v Values) Boolean(key string) (*bool, error) {
 	return &value, nil
 }
 func (v Values) list(key string, max int) ([]string, error) {
+	return v.listParts(key, max, false)
+}
+
+func (v Values) listParts(key string, max int, keepEmpty bool) ([]string, error) {
 	var out []string
 	count := 0
 	for _, raw := range v.entries[foldKey(key)] {
@@ -80,7 +84,7 @@ func (v Values) list(key string, max int) ([]string, error) {
 			if count > max {
 				return nil, ErrInvalid
 			}
-			if part = strings.TrimSpace(part); part != "" {
+			if part = strings.TrimSpace(part); part != "" || keepEmpty {
 				out = append(out, part)
 			}
 		}

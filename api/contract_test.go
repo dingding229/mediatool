@@ -742,7 +742,7 @@ func (s *source) collect(fn *ast.FuncDecl, method string, o *operation, visited 
 					}
 				}
 				return
-			case "Scalar", "Boolean", "list", "Get", "Has":
+			case "Scalar", "Boolean", "list", "listParts", "Get", "Has":
 				if len(c.Args) >= 1 {
 					for _, key := range s.queryNames(c.Args[0], fn) {
 						if key != "" {
@@ -753,11 +753,11 @@ func (s *source) collect(fn *ast.FuncDecl, method string, o *operation, visited 
 									if name == "Boolean" {
 										schema["type"] = "boolean"
 									}
-									if name == "list" {
+									if name == "list" || name == "listParts" {
 										schema = object{"type": "array", "items": object{"type": "string"}}
 									}
 									o.params[key] = object{"name": key, "in": "query", "required": false, "schema": schema}
-									if name == "list" {
+									if name == "list" || name == "listParts" {
 										o.params[key]["style"] = "form"
 										o.params[key]["explode"] = false
 									}
@@ -1196,6 +1196,36 @@ func generatedContract(t *testing.T) (*source, object) {
 	native := loadPackage(t, "media-tool/internal/modules/embyapi")
 	native.schemas = s.schemas
 	native.addNative(t, want)
+	for _, schema := range s.schemas {
+		m, ok := schema.(object)
+		if !ok || m["x-go-type"] != "media-tool/internal/modules/embyapi/dto.MediaSourceInfo" {
+			continue
+		}
+		props := m["properties"].(object)
+		// Immutable MarshalJSON capabilities are not reflected struct fields.
+		props["Type"] = object{"type": "string", "const": "Default"}
+		props["Protocol"] = object{"type": "string", "const": "Http"}
+		for _, k := range []string{"IsRemote", "SupportsDirectPlay", "SupportsDirectStream"} {
+			props[k] = object{"type": "boolean", "const": true}
+		}
+		for _, k := range []string{"SupportsTranscoding", "RequiresOpening", "RequiresClosing"} {
+			props[k] = object{"type": "boolean", "const": false}
+		}
+		required, _ := m["required"].([]string)
+		unique := map[string]bool{}
+		for _, k := range append(required, "Type", "Protocol", "IsRemote", "SupportsDirectPlay", "SupportsDirectStream", "SupportsTranscoding", "RequiresOpening", "RequiresClosing") {
+			unique[k] = true
+		}
+		required = []string{}
+		for k := range unique {
+			required = append(required, k)
+		}
+		sort.Strings(required)
+		m["required"] = required
+		props["Path"].(object)["description"] = "配置媒体服务地址生成的无凭证稳定URL；客户端须提供媒体用户鉴权。不是STRM文件bearer或115临时URL。"
+		props["DirectStreamUrl"].(object)["description"] = "同一native播放路由的相对URL，可携带当前媒体用户令牌；始终检查条目可见性与播放权限。"
+
+	}
 	annotateStateContracts(s.schemas)
 	compactResponses(want)
 	return s, want

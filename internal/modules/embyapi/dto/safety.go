@@ -29,9 +29,8 @@ func safeFilename(value string) bool {
 	return dot < len(value)-1 && len(value) <= 512 && utf8.ValidString(value) && !strings.ContainsAny(value, "/\\:?&=#%") && !strings.Contains(value, "..") && !strings.ContainsFunc(value, unicode.IsControl)
 }
 
-// Only a user-scoped absolute native stream URL is permitted here. T31's sole
-// builder must bind its origin to the configured public endpoint and its token
-// to the authenticated user; DTO validation checks shape, not origin ownership.
+// Only a credential-free absolute native stream URL is permitted as Path.
+// Its builder binds the origin to configuration, never request headers.
 func safeStreamURL(value string) bool {
 	if value == "" {
 		return true
@@ -61,10 +60,10 @@ func safeStreamURL(value string) bool {
 		return false
 	}
 	q, err := url.ParseQuery(u.RawQuery)
-	if err != nil || len(q) != 3 || len(q["Static"]) != 1 || q.Get("Static") != "true" {
+	if err != nil || len(q) != 2 || len(q["Static"]) != 1 || q.Get("Static") != "true" {
 		return false
 	}
-	for _, key := range []string{"MediaSourceId", "api_key"} {
+	for _, key := range []string{"MediaSourceId"} {
 		if len(q[key]) != 1 || q.Get(key) == "" || len(q.Get(key)) > 512 {
 			return false
 		}
@@ -77,13 +76,33 @@ func safeStreamURL(value string) bool {
 	return true
 }
 
-// A relative direct URL must be exactly the absolute Path's request URI.
+// DirectStreamUrl is the same native route and source, plus a media-user token.
+// Path itself never carries credentials; authentication is supplied by the client.
 func safeDirectURL(absolute, relative string) bool {
 	if relative == "" {
 		return true
 	}
 	u, err := url.Parse(absolute)
-	return err == nil && absolute != "" && strings.HasPrefix(relative, "/Videos/") && u.RequestURI() == relative && safeStreamURL("https://native.invalid"+relative)
+	direct, e := url.Parse(relative)
+	if err != nil || e != nil || absolute == "" || !safeStreamURL(absolute) || direct.IsAbs() || direct.Host != "" || direct.Fragment != "" {
+		return false
+	}
+	q, e := url.ParseQuery(direct.RawQuery)
+	if e != nil || len(q["api_key"]) != 1 || q.Get("api_key") == "" {
+		return false
+	}
+	for _, ch := range q.Get("api_key") {
+		if !(ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '-' || ch == '_') {
+			return false
+		}
+	}
+	if len(q.Get("api_key")) > 512 {
+		return false
+	}
+	q.Del("api_key")
+	direct.RawQuery = q.Encode()
+	u.RawQuery = u.Query().Encode()
+	return direct.RequestURI() == u.RequestURI()
 }
 
 // No arbitrary metadata blobs: restrict provider/image maps to known keys. Free
@@ -165,6 +184,11 @@ func safeMetadata(value any) error {
 func validateCapabilities(flags map[string]json.RawMessage) error {
 	for key, raw := range flags {
 		switch strings.ToLower(key) {
+		case "type":
+			var text string
+			if json.Unmarshal(raw, &text) != nil || text != "Default" {
+				return ErrInvalid
+			}
 		case "protocol":
 			var text string
 			if json.Unmarshal(raw, &text) != nil || text != "Http" {
@@ -218,6 +242,10 @@ func safeSubtitleURL(value string) bool {
 		}
 	}
 	q.Del("SubtitleId")
+	u.Path = "/Videos/" + parts[2] + "/stream.mkv"
 	u.RawQuery = q.Encode()
-	return safeStreamURL(u.String())
+	direct := u.RequestURI()
+	q.Del("api_key")
+	u.RawQuery = q.Encode()
+	return safeDirectURL(u.String(), direct)
 }

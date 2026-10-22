@@ -41,8 +41,8 @@ func TestProbedProjectionGoldens(t *testing.T) {
 			if video.Index == nil || *video.Index != 0 || video.VideoRange != "HDR" || video.VideoRangeType != "DOVIWithHDR10" || video.DisplayTitle != "1080p HEVC Dolby Vision" {
 				t.Fatal(video)
 			}
-			for i, s := range item.MediaSources {
-				if s.Name != "版本 "+string(rune('1'+i)) || s.Path != "" || s.SupportsTranscoding() {
+			for _, s := range item.MediaSources {
+				if s.Name != item.Name || s.Path != "" || s.SupportsTranscoding() {
 					t.Fatal("version or URL capabilities changed")
 				}
 			}

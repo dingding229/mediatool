@@ -35,11 +35,12 @@
   "MediaSources": [
     {
       "Id": "asset-101",
-      "Name": "版本 1",
+      "Name": "Synthetic Film",
       "Container": "mkv",
       "RunTimeTicks": 72000000000,
       "MediaStreams": [],
       "Chapters": [],
+      "Type": "Default",
       "Protocol": "Http",
       "IsRemote": true,
       "SupportsDirectPlay": true,
@@ -50,10 +51,11 @@
     },
     {
       "Id": "asset-102",
-      "Name": "版本 2",
+      "Name": "Synthetic Film",
       "Container": "mp4",
       "MediaStreams": [],
       "Chapters": [],
+      "Type": "Default",
       "Protocol": "Http",
       "IsRemote": true,
       "SupportsDirectPlay": true,

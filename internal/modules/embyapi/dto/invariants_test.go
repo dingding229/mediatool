@@ -261,7 +261,7 @@ func TestKnownSensitivePrefixesDoNotAppearInGoldenMediaObjects(t *testing.T) {
 }
 
 func TestMediaSourcePathAcceptsOnlyNativeAbsolutePlaybackURL(t *testing.T) {
-	const valid = "https://media.synthetic.invalid:25018/Videos/100005/stream.mkv?Static=true&MediaSourceId=100005&api_key=synthetic-user-token"
+	const valid = "https://media.synthetic.invalid:25018/Videos/100005/stream.mkv?Static=true&MediaSourceId=100005"
 	for _, path := range []string{"", valid, strings.Replace(valid, "https:", "http:", 1)} {
 		source, err := dto.NewMediaSourceInfo(path)
 		if err != nil {
@@ -296,13 +296,13 @@ func TestMediaSourcePathAcceptsOnlyNativeAbsolutePlaybackURL(t *testing.T) {
 		strings.Replace(valid, "https:", "file:", 1), strings.Replace(valid, "media.synthetic.invalid", "user:password@media.synthetic.invalid", 1),
 		strings.Replace(valid, "media.synthetic.invalid", "cdnfhnfile.115cdn.net", 1), valid + "#private", valid + "&pickcode=synthetic", valid + "&api_key=other",
 		strings.Replace(valid, "/Videos/", "/Videos/../115/", 1), strings.Replace(valid, "/Videos/", "/Videos/%252f115/", 1),
-		strings.Replace(valid, "synthetic-user-token", "pickcode", 1), strings.Replace(valid, "Static=true", "Static=false", 1),
-		strings.Replace(valid, "MediaSourceId=100005", "MediaSourceId=", 1), strings.Replace(valid, "api_key=synthetic-user-token", "api_key=", 1),
+		strings.Replace(valid, "Static=true", "Static=false", 1),
+		strings.Replace(valid, "MediaSourceId=100005", "MediaSourceId=", 1),
 		strings.Replace(valid, "media.synthetic.invalid:25018", "", 1), valid + "%ZZ", strings.Repeat("x", 4097),
 		strings.Replace(valid, "/Videos/", "/Other/", 1), strings.Replace(valid, "/Videos/", "/Videos//", 1),
 		strings.Replace(valid, "media.synthetic.invalid", "proapi.115.com", 1),
-		strings.Replace(valid, "synthetic-user-token", "bad token", 1), strings.Replace(valid, "synthetic-user-token", "bad%2Ftoken", 1),
-		strings.Replace(valid, "synthetic-user-token", "token;path=private", 1), strings.Replace(valid, "synthetic-user-token", strings.Repeat("x", 513), 1),
+		valid + "&Token=secret", valid + "&cookie=secret",
+		valid + "&apiKey=file-grant", valid + "&api_key=media-user",
 		valid + "\n", strings.Replace(valid, "/Videos/", "/Videos/\\private", 1),
 	}
 	for _, path := range invalid {

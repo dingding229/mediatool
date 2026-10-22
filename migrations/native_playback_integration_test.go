@@ -238,7 +238,7 @@ func TestNativePlaybackFullSequenceAndSlots(t *testing.T) {
 	}
 	for _, m := range data.MediaSources {
 		u, err := url.Parse(m.Path)
-		if err != nil || u.Host != "native.synthetic.invalid" || u.Query().Get("api_key") != f.token || u.RequestURI() != m.DirectStreamUrl || m.SupportsTranscoding() {
+		if err != nil || u.Host != "native.synthetic.invalid" || u.RawQuery == "" || u.Query().Get("api_key") != "" || !strings.Contains(m.DirectStreamUrl, "api_key="+f.token) || m.SupportsTranscoding() {
 			t.Fatal("unsafe media source")
 		}
 	}

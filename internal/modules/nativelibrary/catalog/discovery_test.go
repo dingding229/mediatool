@@ -13,9 +13,6 @@ import (
 func TestDiscoveryRejectsInvalidRequestsAndGenreIDsAreStable(t *testing.T) {
 	for _, q := range []nativelibrary.DiscoveryQuery{
 		{Mode: nativelibrary.Hints}, {Mode: nativelibrary.Hints, Items: nativelibrary.ItemQuery{SearchTerm: "   ", Limit: 20}},
-		{Mode: nativelibrary.Hints, Items: nativelibrary.ItemQuery{SearchTerm: "a", Limit: 101}},
-		{Mode: nativelibrary.Latest, Items: nativelibrary.ItemQuery{Limit: 101}},
-		{Mode: nativelibrary.Similar, Items: nativelibrary.ItemQuery{Limit: 21}},
 		{Mode: "injection;drop"}, {Mode: nativelibrary.Episodes, ItemID: strings.Repeat("1", 65)},
 	} {
 		_, err := (BrowseRepository{}).Discover(context.Background(), contracts.User{}, nil, q)

@@ -104,7 +104,7 @@ func TestDiscoveryHTTPParameterContractsAndEmptyArrays(t *testing.T) {
 	if w.Code != 200 || stub.seen.Items.Limit != 5 || stub.seen.Items.StartIndex != 2 || stub.seen.Season == nil || *stub.seen.Season != 0 || stub.seen.SeasonID != "100003" || stub.seen.StartItemID != "100004" {
 		t.Fatal(w.Code, stub.seen)
 	}
-	for _, path := range []string{"/Shows/1/Episodes?Season=-1", "/Shows/1/Episodes?Season=10001", "/Shows/1/Episodes?IsMissing=x", "/Shows/1/Episodes?StartItemId=%2Fetc", "/Items/Latest?GroupItems=x", "/Items/Latest?Limit=101", "/Search/Hints?Limit=101&SearchTerm=a", "/Items/1/Similar?Limit=21"} {
+	for _, path := range []string{"/Shows/1/Episodes?Season=-1", "/Shows/1/Episodes?Season=10001", "/Shows/1/Episodes?IsMissing=x", "/Shows/1/Episodes?StartItemId=%2Fetc", "/Items/Latest?GroupItems=x"} {
 		if w := browseUnitCall(s, "GET", path); w.Code != 400 {
 			t.Fatal(path, w.Code)
 		}
@@ -119,5 +119,20 @@ func TestDiscoveryHTTPParameterContractsAndEmptyArrays(t *testing.T) {
 	w = browseUnitCall(s, "GET", "/Search/Hints?SearchTerm=a")
 	if w.Code != 400 || strings.Contains(w.Body.String(), "candidate limit") {
 		t.Fatal("cap error mapping", w.Code, w.Body.String())
+	}
+}
+
+func TestF2DiscoveryCapsAndUnknownMediaTypes(t *testing.T) {
+	stub := &discoveryStub{}
+	s := browseUnitServer(t, &browseStub{})
+	s.options.Discovery = stub
+	for _, tc := range []struct {
+		path string
+		cap  int
+	}{{"/Items/Latest?Limit=500", 100}, {"/Search/Hints?SearchTerm=x&Limit=500", 100}, {"/Items/1/Similar?Limit=500", 20}, {"/Users/" + strings.Repeat("a", 32) + "/Items/Resume?MediaTypes=Unknown&Limit=500", 200}} {
+		w := browseUnitCall(s, "GET", tc.path)
+		if w.Code != 200 || stub.seen.Items.Limit != tc.cap {
+			t.Fatal(tc, w.Code, stub.seen)
+		}
 	}
 }

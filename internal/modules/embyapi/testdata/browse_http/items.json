@@ -17,13 +17,15 @@
           "Id": "synthetic-source",
           "IsRemote": true,
           "MediaStreams": [],
-          "Name": "版本 1",
+          "Name": "Synthetic Movie",
+          "Path": "https://native.fixture.invalid/Videos/100001/stream.mkv?MediaSourceId=synthetic-source\u0026Static=true",
           "Protocol": "Http",
           "RequiresClosing": false,
           "RequiresOpening": false,
           "SupportsDirectPlay": true,
           "SupportsDirectStream": true,
-          "SupportsTranscoding": false
+          "SupportsTranscoding": false,
+          "Type": "Default"
         }
       ],
       "MediaStreams": [],

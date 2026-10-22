@@ -38,6 +38,25 @@ func (r BrowseRepository) Discover(ctx context.Context, u contracts.User, p cont
 		return out, err
 	}
 	options := browseOptions{}
+	restrict := func(types ...string) {
+		if len(q.IncludeItemTypes) == 0 {
+			q.IncludeItemTypes = types
+			return
+		}
+		matches := []string{}
+		for _, input := range q.IncludeItemTypes {
+			for _, kind := range types {
+				if strings.EqualFold(input, kind) {
+					matches = append(matches, kind)
+					break
+				}
+			}
+		}
+		if len(matches) == 0 {
+			matches = []string{"__unsupported__"}
+		}
+		q.IncludeItemTypes = matches
+	}
 	switch in.Mode {
 	case nativelibrary.Resume:
 		if len(q.IncludeItemTypes) == 0 {
@@ -56,15 +75,13 @@ func (r BrowseRepository) Discover(ctx context.Context, u contracts.User, p cont
 					types = append(types, "Movie")
 				case "episode":
 					types = append(types, "Episode")
-				case "audio", "photo", "book":
-				default:
-					return out, nativelibrary.ErrInvalidQuery
+				default: // Unknown media kinds contribute no matches, just like unsupported standard kinds.
 				}
 			}
 			if len(types) == 0 {
 				options.extra = func(w string, a []any) (string, []any) { return w + " AND false", a }
 			} else {
-				q.IncludeItemTypes = types
+				restrict(types...)
 			}
 		}
 		q.IsResumable = &value
@@ -76,8 +93,16 @@ func (r BrowseRepository) Discover(ctx context.Context, u contracts.User, p cont
 		q.Years = nil
 		q.SearchTerm = ""
 		q.IsFolder = nil
+		restrict("Episode")
+		if len(q.IncludeItemTypes) != 1 || q.IncludeItemTypes[0] != "Episode" {
+			return out, nil
+		}
+		for _, kind := range q.ExcludeItemTypes {
+			if strings.EqualFold(kind, "Episode") {
+				return out, nil
+			}
+		}
 		q.ExcludeItemTypes = nil
-		q.IncludeItemTypes = []string{"Episode"}
 		q.IsPlayed = nil
 		q.IsResumable = nil
 		q.IsFavorite = nil
@@ -92,7 +117,7 @@ func (r BrowseRepository) Discover(ctx context.Context, u contracts.User, p cont
 		}
 		q.ParentID = show.Id
 		if in.Mode == nativelibrary.Seasons {
-			q.IncludeItemTypes = []string{"Season"}
+			restrict("Season")
 			options.order = []string{"s ASC"}
 			if in.Special != nil {
 				options.extra = func(w string, a []any) (string, []any) {
@@ -103,7 +128,7 @@ func (r BrowseRepository) Discover(ctx context.Context, u contracts.User, p cont
 				}
 			}
 		} else {
-			q.IncludeItemTypes = []string{"Episode"}
+			restrict("Episode")
 			options.order = []string{"s ASC", "e ASC"}
 			options.startID = in.StartItemID
 			season := in.Season
@@ -125,9 +150,7 @@ func (r BrowseRepository) Discover(ctx context.Context, u contracts.User, p cont
 			}
 		}
 	case nativelibrary.Latest:
-		if q.Limit > 100 {
-			return out, nativelibrary.ErrInvalidQuery
-		}
+		q.Limit = min(q.Limit, 100)
 		if q.ParentID != "" {
 			if _, err := r.single(ctx, u, p, q.ParentID, dto.CollectionFolder); err != nil {
 				return out, err
@@ -151,7 +174,8 @@ func (r BrowseRepository) Discover(ctx context.Context, u contracts.User, p cont
 		options.order = []string{"latest_created DESC"}
 	case nativelibrary.Hints:
 		term := strings.TrimSpace(q.SearchTerm)
-		if term == "" || !utf8.ValidString(term) || q.Limit > 100 {
+		q.Limit = min(q.Limit, 100)
+		if term == "" || !utf8.ValidString(term) {
 			return out, nativelibrary.ErrInvalidQuery
 		}
 		if len(q.IncludeItemTypes) == 0 {
@@ -163,9 +187,7 @@ func (r BrowseRepository) Discover(ctx context.Context, u contracts.User, p cont
 	case nativelibrary.Genres, nativelibrary.Filters:
 		return r.facets(ctx, u, p, q)
 	case nativelibrary.Similar:
-		if q.Limit > 20 {
-			return out, nativelibrary.ErrInvalidQuery
-		}
+		q.Limit = min(q.Limit, 20)
 		item, err := r.single(ctx, u, p, in.ItemID, "")
 		if err != nil {
 			return out, err
@@ -173,7 +195,7 @@ func (r BrowseRepository) Discover(ctx context.Context, u contracts.User, p cont
 		if len(item.Genres) == 0 {
 			return out, nil
 		}
-		q.IncludeItemTypes = []string{string(item.Type)}
+		restrict(string(item.Type))
 		q.Genres = item.Genres
 		q.SortBy = []string{"CommunityRating", "SortName"}
 		q.SortOrder = []string{"Descending", "Ascending"}

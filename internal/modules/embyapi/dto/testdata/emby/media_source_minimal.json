@@ -1,6 +1,7 @@
 {
   "MediaStreams": [],
   "Chapters": [],
+  "Type": "Default",
   "Protocol": "Http",
   "IsRemote": true,
   "SupportsDirectPlay": true,
