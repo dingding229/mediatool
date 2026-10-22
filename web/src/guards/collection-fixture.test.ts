@@ -1,0 +1,3 @@
+import {expect,it} from 'vitest';
+import {collectionFixture} from '../../e2e/collection-fixture';
+it('models SQL page bounds without changing writes, errors or legacy arrays',()=>{const rows=[1,2,3];expect(collectionFixture('http://fixture/api/v1/downloads?page=2&pageSize=2','GET',rows)).toEqual({items:[3],total:3,page:2,pageSize:2});expect(collectionFixture('http://fixture/api/v1/downloads','GET',rows)).toBe(rows);expect(collectionFixture('http://fixture/api/v1/downloads?page=2','POST',rows)).toBe(rows);const invalid={wrong:'malformed'};expect(collectionFixture('http://fixture/api/v1/downloads?page=1','GET',invalid)).toBe(invalid)});

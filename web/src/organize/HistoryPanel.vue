@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {cachedTMDBImage} from '../api/images';
 import {usePageNumber} from '../ui/page-query';
 
 import TaskControl from '../workflows/TaskControl.vue';
@@ -13,6 +14,7 @@ import { kindLabels, stepState } from '../files/workbench';
 import { date, errorText } from '../workflows/readiness';
 import { sourceState } from '../media/model';
 import { label, removable, rows } from './model';
+const brokenPosters=ref(new Set<string>());
 const route = useRoute(), items = ref<any[]>([]), total = ref(0), page = usePageNumber(), kind = ref(String(route.query.kind || '')), state = ref(''), query = ref(String(route.query.q || '')), batchId = ref(String(route.query.batchId || '')), origin = ref(''), method = ref(''), from = ref(''), to = ref(''), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), selected = ref<any[]>([]), removeOpen = ref(false), busy = ref(false), uncertain = ref(false);
 let epoch = 0, disposed = false;
 const summary = computed(() => ({ active: items.value.filter(r => ['pending', 'running', 'paused'].includes(r.state)).length, attention: items.value.filter(r => ['needs_reconcile', 'conflict', 'failed', 'partial'].includes(r.state)).length, done: items.value.filter(r => ['succeeded', 'imported', 'visible', 'applied', 'verified'].includes(r.state)).length }));
@@ -170,24 +172,12 @@ usePageRefresh(load, 'history');
     <StateView v-else-if="error&&!hasLoaded" :state="sourceState(error)" title="历史读取或核对失败" :description="errorText(error)" @retry="load"/>
     <p v-if="uncertain">移除回执未知，请先重新读取，不重复提交。</p>
     <el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button>
-    <article v-for="item in items" :key="item.kind+item.id" class="organize-record">
-      <label v-if="removable(item)" class="media-consent">
-        <input type="checkbox" :checked="selected.some(r=>r.id===item.id&&r.kind===item.kind)" :disabled="uncertain" @change="toggle(item,($event.target as HTMLInputElement).checked)"/>
-        选择此历史
-      </label>
-      <h3>{{ item.media?.title?item.media.title+(item.media.year?' ('+item.media.year+')':''):item.source?.split('/').pop()||kindLabels[item.kind]||'业务记录' }}</h3>
-      <p>
-        {{ kindLabels[item.kind]||'业务记录' }}
-        ·
-        {{ label(item.state) }}
-        ·
-        <time>{{ date(item.updatedAt||item.createdAt) }}</time>
-      </p>
-      <p>原位置：{{ item.source||'—' }}</p>
-      <p>目标位置：{{ item.destination||'—' }}</p>
-      <p>{{ item.category||'—' }} · {{ item.message||'—' }}</p>
-      <el-button @click="detail=item;open=true">查看步骤详情</el-button>
-      <TaskControl v-if="item.kind==='batch'" kind="organize" :id="item.batchId||item.id" :state="item.state" @changed="load"/>
+    <article v-for="item in items" :key="item.kind+item.id" class="organize-record f5-history-row">
+      <label v-if="removable(item)" class="media-consent f5-history-check"><input type="checkbox" :checked="selected.some(r=>r.id===item.id&&r.kind===item.kind)" :disabled="uncertain" @change="toggle(item,($event.target as HTMLInputElement).checked)"/><span class="sr-only">选择此历史</span></label>
+      <span v-else class="f5-history-check"/>
+      <span class="f5-history-cover"><img v-if="cachedTMDBImage(item.poster||item.media?.posterPath)&&!brokenPosters.has(item.id)" :src="cachedTMDBImage(item.poster||item.media?.posterPath)" alt="作品海报" width="44" height="66" loading="lazy" @error="brokenPosters.add(item.id)"/><span v-else aria-label="暂无海报">暂无海报</span></span>
+      <div class="f5-row-summary"><h3>{{item.media?.title||item.source?.split('/').pop()||kindLabels[item.kind]||'业务记录'}}</h3><p>{{kindLabels[item.kind]||'业务记录'}} · {{label(item.state)}} · <time>{{date(item.updatedAt||item.createdAt)}}</time></p><p class="f5-row-result" :title="item.message">{{item.category||item.message||item.destination?.split('/').pop()||'结果见详情'}}</p></div>
+      <div class="media-actions"><el-button @click="detail=item;open=true">查看步骤详情</el-button><TaskControl v-if="item.kind==='batch'" kind="organize" :id="item.batchId||item.id" :state="item.state" @changed="load"/></div>
     </article>
     <StateView v-if="!loading&&!error&&!items.length" state="empty" title="暂无符合条件的历史"/>
     <PagePagination v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next,total" @current-change="load"/>
@@ -195,7 +185,7 @@ usePageRefresh(load, 'history');
   <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" :technical-data="detail" class="media-detail">
     <h3>{{ detail?.media?.title||kindLabels[detail?.kind]||'业务记录' }}</h3>
     <p>{{ label(detail?.state) }} · {{ detail?.message||'—' }}</p>
-    <p>{{ detail?.source||'—' }} → {{ detail?.destination||'—' }}</p>
+    <p>原位置：{{detail?.source||'—'}}</p><p>目标位置：{{detail?.destination||'—'}}</p><p>目录分类：{{detail?.category||'—'}}</p>
     <article v-for="(step,index) in detail?.details?.plan?.steps||[]" :key="index">
       <strong>{{ step.action==='mkdir'?'创建目录':'移动或改名' }} · {{ label(stepState(detail.state,detail.details.completedSteps||0,Number(index))) }}</strong>
       <p>{{ step.source?.path||'—' }} → {{ step.target||'—' }}</p>

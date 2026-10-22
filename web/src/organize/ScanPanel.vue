@@ -255,11 +255,11 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <StateView v-if="scanError" :state="sourceState(scanError)" title="扫描记录读取失败" @retry="emit('changed')"/>
     <p v-else-if="loading&&!scans.length">正在读取扫描记录…</p>
     <p v-else-if="!scans.length">尚无扫描记录</p>
-    <article v-for="scan in scans" :key="scan.id" class="organize-record">
-      <h3>{{ scan.root }}</h3>
-      <p>{{ label(scan.state) }} · {{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</p>
-      <el-progress v-if="scan.directories>0" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/>
-      <p>{{ scan.currentDirectory||'—' }} · {{ scan.message||'—' }}</p>
+    <article v-for="scan in scans" :key="scan.id" class="organize-record f5-scan-row">
+      <div class="f5-row-summary"><h3 :title="scan.root">{{scan.root}}</h3>
+      <p>{{ label(scan.state) }} · {{date(scan.updatedAt||scan.createdAt)}} · {{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</p>
+      <el-progress :show-text="false" :stroke-width="4" v-if="scan.directories>0" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/>
+      </div>
       <div class="media-actions">
         <el-button @click="inspect(scan)">查看目录记录</el-button>
         <el-button v-if="['pending','running'].includes(scan.state)" :disabled="!!scanError||busy" @click="askControl(scan,'pause')">暂停扫描</el-button>
@@ -287,8 +287,8 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     </article>
   </section>
   <DetailDrawer v-model:visible="detailOpen" title="扫描目录覆盖" :technical-data="detail" class="media-detail">
-    <p>{{ detail?.scan?.root }} · {{ label(detail?.scan?.state) }}</p>
-    <p v-for="directory in detail?.directories||[]" :key="directory.path">{{ directory.path }} · {{ label(directory.state) }}</p>
+    <p>{{ detail?.scan?.root }} · {{ label(detail?.scan?.state) }}</p><p>当前目录：{{detail?.scan?.currentDirectory||'—'}}</p><p>{{detail?.scan?.message||'—'}}</p>
+    <details v-for="directory in detail?.directories||[]" :key="directory.path" class="f5-directory-row"><summary><strong>{{directory.path.split('/').filter(Boolean).pop()||'根目录'}}</strong><span>{{label(directory.state)}}</span><time>{{date(directory.updatedAt)}}</time></summary><p>完整路径：{{directory.path}}</p><p>{{directory.lastError||directory.message||'—'}}</p><pre>{{JSON.stringify(directory,null,2)}}</pre></details>
     <PagePagination v-if="detail" v-model:current-page="cursorPage" :page-size="25" :total="detail.scan.directories||0" layout="prev,pager,next" @current-change="inspect(detail.scan,false)"/>
   </DetailDrawer>
   <ConfirmAction v-model:visible="approveOpen" title="开始目录扫描" :description="`将扫描「${preview?.root||'服务端默认目录'}」。`" impact-scope="更新索引、候选与缺失对账状态，不移动媒体或做种源；未完成覆盖不作为缺失证据。" confirm-text="确认开始扫描" :loading="busy" class="media-dialog" @confirm="create"/>

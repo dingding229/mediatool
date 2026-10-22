@@ -1,21 +1,22 @@
+import {fixtureFulfill} from './collection-fixture'
 import { test, expect, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 const sample = { id: 'trial-sub', title: '葬送的芙莉莲', media: { id: 209867, mediaType: 'series', title: '葬送的芙莉莲', year: '2023' }, enabled: true, source: 'both', revision: 3,
   rules: { accountIds: ['trial-site'], keyword: 'Frieren', regexKeywords: true, include: ['1080p'], exclude: [], minSize: 2, maxSize: 20, minSeeders: 3, freeOnly: true, rejectHR: true, season: 1, episodes: [], includeHistory: false, resolution: '1080p', source: 'web-dl', codec: 'h265' }, lastState: 'succeeded', lastMessage: '已覆盖的季集不会重复下载', nextRunAt: '2026-10-21T02:30:00Z' }
 const matches = [{ id: 42, mediaType: 'movie', title: '星际穿越', year: '2014' }]
 async function fixture(page: Page) {
-  await page.route('**/api/v1/**', r => r.fulfill({ json: { data: [] } }))
-  await page.route('**/api/v1/auth/session', r => r.fulfill({ json: { data: { authenticated: true, account: { id: 'trial-admin', username: '试做管理员' } } } }))
-  await page.route('**/api/v1/system/status', r => r.fulfill({ json: { data: { version: '试做环境', dependencies: [] } } }))
-  await page.route('**/api/v1/integrations', r => r.fulfill({ json: { data: [{ id: 'trial-site', name: '测试站点', kind: 'ptsite', enabled: true, secretFields: [] }] } }))
-  await page.route('**/api/v1/subscriptions?*', r => r.fulfill({ json: { data: [sample, { ...sample, id: 'trial-paused', title: '星际穿越', media: matches[0], enabled: false, source: 'search', lastState: '', nextRunAt: '' }] } }))
-  await page.route('**/api/v1/subscriptions/*/history', r => r.fulfill({ json: { data: [{ id: 'trial-run', state: 'succeeded', preview: true, createdAt: '2026-10-20T12:00:00Z' }] } }))
-  await page.route('**/api/v1/subscription-runs/trial-run', r => r.fulfill({ json: { data: { id: 'trial-run', subscriptionId: 'trial-sub', state: 'succeeded', preview: true, decisions: [{ id: 'decision', title: '测试资源 1080p WEB-DL', action: 'would_download', reasons: ['符合订阅规则'], episodes: [1], checks: [{ key: 'resolution', label: '分辨率', state: 'matched', actual: '1080p', expected: '1080p', message: '分辨率符合要求' }] }] } } }))
-  await page.route('**/api/v1/subscriptions', r => { const input = r.request().postDataJSON(); return r.fulfill({ status: 201, json: { data: { ...sample, ...input, id: 'draft-sub', title: '星际穿越', media: matches[0], revision: 1 } } }) })
-  await page.route('**/api/v1/subscriptions/draft-sub', r => r.fulfill({ json: { data: { ...sample, id: 'draft-sub', revision: 2 } } }))
-  await page.route('**/api/v1/subscriptions/draft-sub/evaluate', r => r.fulfill({ status: 202, json: { data: { id: 'draft-run' } } }))
-  await page.route('**/api/v1/subscription-runs/draft-run', r => r.fulfill({ json: { data: { id: 'draft-run', state: 'succeeded', preview: true, decisions: [] } } }))
-  await page.route('**/api/v1/search/media?*', r => r.fulfill({ json: { data: { items: matches, cached: false, cacheSeconds: 3600 } } }))
+  await page.route('**/api/v1/**', r => fixtureFulfill(r,{ json: { data: [] } }))
+  await page.route('**/api/v1/auth/session', r => fixtureFulfill(r,{ json: { data: { authenticated: true, account: { id: 'trial-admin', username: '试做管理员' } } } }))
+  await page.route('**/api/v1/system/status', r => fixtureFulfill(r,{ json: { data: { version: '试做环境', dependencies: [] } } }))
+  await page.route('**/api/v1/integrations', r => fixtureFulfill(r,{ json: { data: [{ id: 'trial-site', name: '测试站点', kind: 'ptsite', enabled: true, secretFields: [] }] } }))
+  await page.route('**/api/v1/subscriptions?*', r => fixtureFulfill(r,{ json: { data: [sample, { ...sample, id: 'trial-paused', title: '星际穿越', media: matches[0], enabled: false, source: 'search', lastState: '', nextRunAt: '' }] } }))
+  await page.route('**/api/v1/subscriptions/*/history{,?*}', r => fixtureFulfill(r,{ json: { data: [{ id: 'trial-run', state: 'succeeded', preview: true, createdAt: '2026-10-20T12:00:00Z' }] } }))
+  await page.route('**/api/v1/subscription-runs/trial-run', r => fixtureFulfill(r,{ json: { data: { id: 'trial-run', subscriptionId: 'trial-sub', state: 'succeeded', preview: true, decisions: [{ id: 'decision', title: '测试资源 1080p WEB-DL', action: 'would_download', reasons: ['符合订阅规则'], episodes: [1], checks: [{ key: 'resolution', label: '分辨率', state: 'matched', actual: '1080p', expected: '1080p', message: '分辨率符合要求' }] }] } } }))
+  await page.route('**/api/v1/subscriptions{,?*}', r => { const input = r.request().postDataJSON(); return fixtureFulfill(r,{ status: 201, json: { data: { ...sample, ...input, id: 'draft-sub', title: '星际穿越', media: matches[0], revision: 1 } } }) })
+  await page.route('**/api/v1/subscriptions/draft-sub', r => fixtureFulfill(r,{ json: { data: { ...sample, id: 'draft-sub', revision: 2 } } }))
+  await page.route('**/api/v1/subscriptions/draft-sub/evaluate', r => fixtureFulfill(r,{ status: 202, json: { data: { id: 'draft-run' } } }))
+  await page.route('**/api/v1/subscription-runs/draft-run', r => fixtureFulfill(r,{ json: { data: { id: 'draft-run', state: 'succeeded', preview: true, decisions: [] } } }))
+  await page.route('**/api/v1/search/media?*', r => fixtureFulfill(r,{ json: { data: { items: matches, cached: false, cacheSeconds: 3600 } } }))
 }
 const tabs = (page: Page) => page.locator('.mt-subscriptions .page-tabs')
 async function chooseMedia(page: Page) {
@@ -27,9 +28,9 @@ async function chooseMedia(page: Page) {
 test.beforeEach(async ({ page }) => { await fixture(page) })
 test('four-step composer saves a paused draft, runs real preview, then saves the returned revision', async ({ page }) => {
   const writes: any[] = []; let previews = 0
-  await page.route('**/api/v1/subscriptions', r => { const input = r.request().postDataJSON(); writes.push(input); return r.fulfill({ status: 201, json: { data: { ...sample, ...input, id: 'draft-sub', title: '星际穿越', media: matches[0], revision: 1 } } }) })
-  await page.route('**/api/v1/subscriptions/draft-sub', r => { writes.push(r.request().postDataJSON()); return r.fulfill({ json: { data: { ...sample, id: 'draft-sub', revision: 2 } } }) })
-  await page.route('**/api/v1/subscriptions/draft-sub/evaluate', r => { previews++; return r.fulfill({ status: 202, json: { data: { id: 'draft-run' } } }) })
+  await page.route('**/api/v1/subscriptions{,?*}', r => { const input = r.request().postDataJSON(); writes.push(input); return fixtureFulfill(r,{ status: 201, json: { data: { ...sample, ...input, id: 'draft-sub', title: '星际穿越', media: matches[0], revision: 1 } } }) })
+  await page.route('**/api/v1/subscriptions/draft-sub', r => { writes.push(r.request().postDataJSON()); return fixtureFulfill(r,{ json: { data: { ...sample, id: 'draft-sub', revision: 2 } } }) })
+  await page.route('**/api/v1/subscriptions/draft-sub/evaluate', r => { previews++; return fixtureFulfill(r,{ status: 202, json: { data: { id: 'draft-run' } } }) })
   await page.goto('/subscriptions'); await page.getByRole('button', { name: '新建订阅', exact: true }).click()
   await expect(page.getByRole('button', { name: '选择站点与规则' })).toBeDisabled(); const dialog = await chooseMedia(page)
   await dialog.getByLabel('订阅包含关键词', { exact: true }).fill('WEB[-.]DL\n1080p'); await expect(dialog.getByRole('checkbox', { name: '拒绝下载H&R资源', exact: true })).toBeChecked()
@@ -40,7 +41,7 @@ test('four-step composer saves a paused draft, runs real preview, then saves the
   await dialog.getByRole('button', { name: '保存订阅', exact: true }).click(); await expect(dialog).toBeHidden(); expect(writes[1]).toMatchObject({ revision: 1, enabled: false })
 })
 test('verified metadata prefill opens directly into rules and defaults to paused', async ({ page }) => {
-  await page.route('**/api/v1/metadata/details?*', r => r.fulfill({ json: { data: { item: matches[0] } } }))
+  await page.route('**/api/v1/metadata/details?*', r => fixtureFulfill(r,{ json: { data: { item: matches[0] } } }))
   await page.goto('/subscriptions?create=1&mediaType=movie&tmdbId=42&tab=list')
   const dialog = page.getByRole('dialog', { name: '新建订阅', exact: true })
   await expect(dialog.locator('.composer-target')).toContainText('星际穿越'); await expect(dialog.getByLabel('订阅包含关键词', { exact: true })).toBeVisible()
@@ -59,8 +60,8 @@ test('direct run URL opens inline decision review; raw JSON stays in a separate 
 test('202 stays queued, navigates to the accepted run and failed readback never repeats execution', async ({ page }) => {
   let posts = 0, reads = 0, fail = false
   let accept!: () => void; const acceptance = new Promise<void>(resolve => { accept = resolve })
-  await page.route('**/api/v1/subscriptions/*/evaluate', async r => { posts++; await acceptance; return r.fulfill({ status: 202, json: { data: { id: 'accepted' } } }) })
-  await page.route('**/api/v1/subscription-runs/accepted', r => { reads++; return r.fulfill(fail ? { status: 503, json: { error: { code: 'unavailable', message: '读取暂不可用' } } } : { json: { data: { id: 'accepted', state: 'pending', preview: false, decisions: [] } } }) })
+  await page.route('**/api/v1/subscriptions/*/evaluate', async r => { posts++; await acceptance; return fixtureFulfill(r,{ status: 202, json: { data: { id: 'accepted' } } }) })
+  await page.route('**/api/v1/subscription-runs/accepted', r => { reads++; return fixtureFulfill(r,fail ? { status: 503, json: { error: { code: 'unavailable', message: '读取暂不可用' } } } : { json: { data: { id: 'accepted', state: 'pending', preview: false, decisions: [] } } }) })
   await page.goto('/subscriptions'); await page.getByRole('button', { name: '立即运行', exact: true }).first().click()
   try { await expect(page.locator('.async-result-banner')).toContainText('尚未确认排队') } finally { accept() }
   await expect(page).toHaveURL(/run=accepted/); await expect(page.locator('.async-result-banner')).toContainText('运行已排队，尚未完成'); await expect(page.locator('.el-message--success')).toHaveCount(0)
@@ -70,27 +71,27 @@ test('202 stays queued, navigates to the accepted run and failed readback never 
 test('lost response persists across reload and reads history without reposting', async ({ page }) => {
   let posts = 0, histories = 0
   await page.route('**/api/v1/subscriptions/*/evaluate', r => { posts++; return r.abort('failed') })
-  await page.route('**/api/v1/subscriptions/*/history', r => { histories++; return r.fulfill({ json: { data: [] } }) })
+  await page.route('**/api/v1/subscriptions/*/history{,?*}', r => { histories++; return fixtureFulfill(r,{ json: { data: [] } }) })
   await page.goto('/subscriptions'); await page.getByRole('button', { name: '立即运行', exact: true }).first().click(); await expect(page.locator('.async-result-banner')).toContainText('回执尚未确认'); await expect.poll(() => histories).toBeGreaterThanOrEqual(1)
   await page.reload(); await expect(page.locator('.async-result-banner')).toContainText('回执尚未确认'); await tabs(page).getByRole('button', { name: '订阅列表', exact: true }).click(); await expect(page.getByRole('button', { name: '立即运行', exact: true }).first()).toBeDisabled(); expect(posts).toBe(1); await expect.poll(() => histories).toBeGreaterThanOrEqual(2)
 })
 test('edit uses a review step and stale revision is not silently overwritten', async ({ page }) => {
   let puts = 0
-  await page.route('**/api/v1/subscriptions/trial-sub', r => { puts++; return r.fulfill({ status: 400, json: { error: { code: 'invalid_subscription', message: 'subscription changed; reload before saving' } } }) })
+  await page.route('**/api/v1/subscriptions/trial-sub', r => { puts++; return fixtureFulfill(r,{ status: 400, json: { error: { code: 'invalid_subscription', message: 'subscription changed; reload before saving' } } }) })
   await page.goto('/subscriptions'); await page.getByRole('button', { name: '葬送的芙莉莲', exact: true }).click(); await page.getByRole('button', { name: '编辑规则', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: '编辑订阅', exact: true }); await expect(dialog).toContainText('媒体身份已绑定'); await dialog.getByRole('button', { name: '进入预演', exact: true }).click(); await dialog.getByRole('button', { name: '保存停用草稿并预演', exact: true }).click(); await expect(dialog).toContainText('刷新列表后重新编辑'); await expect(dialog.getByRole('button', { name: '保存停用草稿并预演', exact: true })).toBeDisabled(); expect(puts).toBe(1)
 })
 test('delete is managed from subscription detail and requires a scoped second confirmation', async ({ page }) => {
   let deletes = 0
-  await page.route('**/api/v1/subscriptions/trial-sub', r => { deletes++; return r.fulfill({ json: { data: { archived: true } } }) })
+  await page.route('**/api/v1/subscriptions/trial-sub', r => { deletes++; return fixtureFulfill(r,{ json: { data: { archived: true } } }) })
   await page.goto('/subscriptions'); await page.getByRole('button', { name: '葬送的芙莉莲', exact: true }).click(); await page.getByRole('button', { name: '归档订阅', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: '归档订阅', exact: true }); await expect(dialog).toContainText('不删除已有下载、云盘文件或做种源文件'); expect(deletes).toBe(0)
   await dialog.getByRole('button', { name: '取消', exact: true }).click(); await page.getByRole('button', { name: '归档订阅', exact: true }).click(); await dialog.getByRole('button', { name: '确认归档订阅', exact: true }).click(); await expect(dialog).toBeHidden(); expect(deletes).toBe(1)
 })
 for (const [status, code, state] of [[503, 'unavailable', 'error'], [403, 'forbidden', 'unauthorized'], [501, 'not_supported', 'unsupported']] as const) {
-  test(`subscription ${state} is distinct from empty`, async ({ page }) => { await page.route('**/api/v1/subscriptions?*', r => r.fulfill({ status, json: { error: { code, message: '测试服务暂不可用' } } })); await page.goto('/subscriptions'); await expect(page.locator(`.state-view.state-${state}`)).toBeVisible(); await expect(page.locator('.state-view.state-empty')).toHaveCount(0) })
+  test(`subscription ${state} is distinct from empty`, async ({ page }) => { await page.route('**/api/v1/subscriptions?*', r => fixtureFulfill(r,{ status, json: { error: { code, message: '测试服务暂不可用' } } })); await page.goto('/subscriptions'); await expect(page.locator(`.state-view.state-${state}`)).toBeVisible(); await expect(page.locator('.state-view.state-empty')).toHaveCount(0) })
 }
-test('empty state has one creation entry, not a recycled long form', async ({ page }) => { await page.route('**/api/v1/subscriptions?*', r => r.fulfill({ json: { data: [] } })); await page.goto('/subscriptions'); await expect(page.locator('.state-view.state-empty')).toContainText('还没有订阅'); await expect(page.getByRole('button', { name: '新建订阅', exact: true })).toHaveCount(1); await page.getByRole('button', { name: '新建订阅', exact: true }).click(); await expect(page.getByRole('navigation', { name: '创建订阅步骤' })).toBeVisible(); await expect(page.getByLabel('订阅包含关键词', { exact: true })).toHaveCount(0) })
+test('empty state has one creation entry, not a recycled long form', async ({ page }) => { await page.route('**/api/v1/subscriptions?*', r => fixtureFulfill(r,{ json: { data: [] } })); await page.goto('/subscriptions'); await expect(page.locator('.state-view.state-empty')).toContainText('还没有订阅'); await expect(page.getByRole('button', { name: '新建订阅', exact: true })).toHaveCount(1); await page.getByRole('button', { name: '新建订阅', exact: true }).click(); await expect(page.getByRole('navigation', { name: '创建订阅步骤' })).toBeVisible(); await expect(page.getByLabel('订阅包含关键词', { exact: true })).toHaveCount(0) })
 test('four review screenshots and all creation steps fit 375px and 1440px in both themes', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message)); const directory = '/tmp/mt-trial-shots/sol'; mkdirSync(directory, { recursive: true })
   for (const width of [375, 1440]) for (const theme of ['light', 'dark']) {
