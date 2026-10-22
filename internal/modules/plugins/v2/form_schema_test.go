@@ -2,14 +2,19 @@ package v2
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
-	"os"
 	"strings"
 	"testing"
 )
 
+//go:embed testdata/form-permissions-before.json
+var formPermissionBaseline []byte
+
 func TestStaticFormInventoryUsesSamePinWithoutNewPermissions(t *testing.T) {
+	// Standalone non-root kernel tests do not run from this package directory.
+	t.Chdir(t.TempDir())
 	var data struct {
 		Pin   string                    `json:"pin"`
 		Forms map[string]contracts.Form `json:"forms"`
@@ -21,12 +26,8 @@ func TestStaticFormInventoryUsesSamePinWithoutNewPermissions(t *testing.T) {
 	if e != nil || len(data.Forms) != len(defs) {
 		t.Fatal(e, "missing builtin forms")
 	}
-	raw, e := os.ReadFile("testdata/form-permissions-before.json")
-	if e != nil {
-		t.Fatal(e)
-	}
 	var before []contracts.Manifest
-	if json.Unmarshal(raw, &before) != nil {
+	if json.Unmarshal(formPermissionBaseline, &before) != nil {
 		t.Fatal("invalid permission baseline")
 	}
 	old := map[string]contracts.Manifest{}
