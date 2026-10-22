@@ -84,7 +84,7 @@ func (f movieFixture) lifecycle(t *testing.T) {
 func TestNativeMovieProjectionAggregatesOnlyExposableVersionsAndLibraryParent(t *testing.T) {
 	f := newMovieFixture(t)
 	stamp := time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC)
-	media := f.media(t, 900001, "Synthetic Film", "2026", `{"originalTitle":"Synthetic Original","overview":"Synthetic overview","posterPath":"/synthetic/poster.jpg","backdropPath":"/synthetic/backdrop.jpg","genres":["Drama"],"premiereDate":"2026-01-02","communityRating":8.5,"officialRating":"PG","imdbId":"tt900001"}`)
+	media := f.media(t, 900001, "Synthetic Film", "2026", `{"originalTitle":"Synthetic Original","overview":"Synthetic overview","posterPath":"/synthetic-poster.jpg","backdropPath":"/synthetic-backdrop.jpg","genres":["Drama"],"premiereDate":"2026-01-02","communityRating":8.5,"officialRating":"PG","imdbId":"tt900001"}`)
 	a := f.asset(t, media, "g:test-a", stamp.Add(time.Hour), "mkv")
 	b := f.asset(t, media, "g:test-a", stamp, "mp4")
 	other := f.asset(t, media, "g:test-b", stamp.Add(2*time.Hour), "mkv")
@@ -103,7 +103,7 @@ func TestNativeMovieProjectionAggregatesOnlyExposableVersionsAndLibraryParent(t 
 	if item.Type != dto.Movie || item.IsFolder || item.ParentId != f.parents["g:test-a"] || item.DateCreated == nil || !item.DateCreated.Time().Equal(stamp) || item.UserData == nil {
 		t.Fatalf("bad movie projection: %+v", item)
 	}
-	if item.OriginalTitle != "Synthetic Original" || item.ProviderIds["Tmdb"] != "900001" || item.ProviderIds["Imdb"] != "tt900001" || item.OfficialRating != "PG" || item.ImageTags["Primary"] != nativelibrary.ImageTag("/synthetic/poster.jpg") {
+	if item.OriginalTitle != "Synthetic Original" || item.ProviderIds["Tmdb"] != "900001" || item.ProviderIds["Imdb"] != "tt900001" || item.OfficialRating != "PG" || item.ImageTags["Primary"] != nativelibrary.ImageTag("/synthetic-poster.jpg") {
 		t.Fatal(item)
 	}
 	f.exec(t, `INSERT INTO native_tmdb_details(tmdb_type,tmdb_id,language,payload,state,fetched_at) VALUES('movie',900001,'zh-CN',$1,'ready',now())`, json.RawMessage(`{"premiereDate":"2026-02-03","communityRating":9.1,"officialRating":"R","imdbId":"tt900001","runtimeMinutes":123,"people":[{"id":10,"name":"TMDB Actor","type":"Actor","role":"Lead","imagePath":"/actor.jpg"}]}`))

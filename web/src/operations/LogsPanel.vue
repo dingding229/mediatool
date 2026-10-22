@@ -77,6 +77,7 @@ watch(() => filter.keyword, () => {
 });
 onMounted(load);
 onUnmounted(() => clearTimeout(timer));
+const timeRange=computed({get:():[string,string]|null=>from.value&&to.value?[from.value,to.value]:null,set:(value:[string,string]|null)=>{from.value=value?.[0]||'';to.value=value?.[1]||''}});
 const pageCount=computed(()=>Math.max(1,Math.ceil((data.data?.total||0)/filter.pageSize)));
 function fields(row:any) { return Object.entries(row).filter(([key])=>!['time','level','msg','source','module','traceId','trace_id','trace','spanId','span_id','span'].includes(key)).map(([key,value])=>key+'='+(typeof value==='string'?value:JSON.stringify(value))).join('  '); }
 function trace(row:any) { return [row.traceId||row.trace_id||row.trace, row.spanId||row.span_id||row.span].filter(Boolean).join(' / '); }
@@ -87,22 +88,21 @@ defineExpose({ load, refresh, filter, data, summary, from, to, clear, change, op
     <header class="media-section-heading">
       <h2>程序日志</h2>
       <div class="media-actions f3-log-tools">
-        <label><input v-model="clean" type="checkbox" aria-label="清爽模式"/> 清爽模式</label>
-        <el-button :icon="Refresh" aria-label="刷新日志" title="刷新日志" @click="load"/>
-        <el-button :icon="Delete" :disabled="!!op.pending" aria-label="清理日志" title="清理日志" @click="confirm=true"/>
-        <el-button :icon="Setting" aria-label="日志设置" title="日志设置" @click="settings=true;logLevel=summary.data?.level||'info'"/>
-        <el-button :icon="CopyDocument" aria-label="复制当前页日志" title="复制当前页日志" :disabled="!data.data?.items.length" @click="copy(logText(data.data.items,false))"/>
-        <el-button :icon="Download" aria-label="下载原始日志" title="下载原始日志" :disabled="!data.data?.items.length" @click="download"/>
+        <el-switch v-model="clean" aria-label="清爽模式" active-text="清爽模式"/>
+        <ElTooltip content="刷新日志" placement="top"><el-button :icon="Refresh" aria-label="刷新日志" title="刷新日志" @click="load"/></ElTooltip>
+        <ElTooltip content="清理日志" placement="top"><el-button :icon="Delete" :disabled="!!op.pending" aria-label="清理日志" title="清理日志" @click="confirm=true"/></ElTooltip>
+        <ElTooltip content="日志设置" placement="top"><el-button :icon="Setting" aria-label="日志设置" title="日志设置" @click="settings=true;logLevel=summary.data?.level||'info'"/></ElTooltip>
+        <ElTooltip content="复制当前页日志" placement="top"><el-button :icon="CopyDocument" aria-label="复制当前页日志" title="复制当前页日志" :disabled="!data.data?.items.length" @click="copy(logText(data.data.items,false))"/></ElTooltip>
+        <ElTooltip content="下载原始日志" placement="top"><el-button :icon="Download" aria-label="下载原始日志" title="下载原始日志" :disabled="!data.data?.items.length" @click="download"/></ElTooltip>
       </div>
     </header>
     <p class="f3-log-privacy">仅管理员可读：保留原始字段与完整请求、跳转地址，请勿公开分享。</p>
     <p v-if="filter.instance">已按插件实例筛选。<el-button @click="filter.instance='';refresh()">清除实例筛选</el-button></p>
     <form class="f3-log-filters" @submit.prevent="refresh">
       <label>关键词<input v-model="filter.keyword" aria-label="搜索日志" placeholder="搜索日志"/></label>
-      <label>级别<select v-model="filter.level" aria-label="筛选日志等级" @change="refresh"><option value="">全部等级</option><option v-for="v in ['debug','info','warn','error']" :key="v" :value="v">{{v.toUpperCase()}}</option></select></label>
-      <label>模块<select v-model="filter.module" aria-label="筛选日志模块" @change="refresh"><option value="">全部模块</option><option v-for="m in data.data?.modules||[]" :key="m" :value="m">{{moduleLabel(m)}}</option></select></label>
-      <label>开始时间<input v-model="from" type="datetime-local" step="1" aria-label="日志开始时间" placeholder="开始时间" @change="refresh"/></label>
-      <label>结束时间<input v-model="to" type="datetime-local" step="1" aria-label="日志结束时间" placeholder="结束时间" @change="refresh"/></label>
+      <label>级别<el-select v-model="filter.level" aria-label="筛选日志等级" placeholder="全部等级" @change="refresh"><el-option value="" label="全部等级"/><el-option v-for="v in ['debug','info','warn','error']" :key="v" :value="v" :label="v.toUpperCase()"/></el-select></label>
+      <label>模块<el-select v-model="filter.module" aria-label="筛选日志模块" placeholder="全部模块" @change="refresh"><el-option value="" label="全部模块"/><el-option v-for="m in data.data?.modules||[]" :key="m" :value="m" :label="moduleLabel(m)"/></el-select></label>
+      <div class="f4-log-time-range" role="group" aria-label="日志时间范围"><span>时间范围</span><label for="log-range-start" class="f3-visually-hidden">日志开始时间</label><label for="log-range-end" class="f3-visually-hidden">日志结束时间</label><ElDatePicker :id="['log-range-start','log-range-end']" v-model="timeRange" type="datetimerange" popper-class="f4-log-date-panel" format="YYYY-MM-DD HH:mm" value-format="YYYY-MM-DDTHH:mm:ss" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" @change="refresh"/></div>
       <button class="f3-visually-hidden" type="submit">筛选日志</button>
     </form>
     <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
@@ -113,17 +113,23 @@ defineExpose({ load, refresh, filter, data, summary, from, to, clear, change, op
       <article v-for="(row,index) in data.data?.items||[]" :key="row.time+':'+index" class="u6-log f3-log-row" role="row">
         <time role="cell">{{formatLogTime(row.time)}}</time>
         <span role="cell" class="f3-log-level" :data-level="String(row.level).toLowerCase()">{{String(row.level||'—').toLowerCase()}}</span>
-        <div class="f3-log-message" role="cell"><span>{{row.msg||'—'}}</span><small v-if="trace(row)">trace / span: {{trace(row)}}</small><pre v-if="!clean" class="u6-raw">{{fields(row)}}</pre></div>
+        <div class="f3-log-message" role="cell"><span>{{row.msg||'—'}}</span>{{!clean&&fields(row)?' ':''}}<pre v-if="!clean&&fields(row)" class="u6-raw">{{fields(row)}}</pre><small v-if="trace(row)">trace / span: {{trace(row)}}</small></div>
         <div role="cell"><button class="f3-log-source" :aria-label="row.url||row.location?'查看完整链接':'完整原始记录'" @click="detail=row;open=true">{{logSource(row)||moduleLabel(row.module)||'—'}}</button></div>
       </article>
     </div>
     <footer class="f3-log-footer">
-      <label>每页行数 <select v-model.number="filter.pageSize" aria-label="每页日志数" @change="refresh"><option v-for="n in [50,100,200,500]" :key="n" :value="n">{{n}}</option></select></label>
+      <label>每页行数 <el-select v-model="filter.pageSize" aria-label="每页日志数" @change="refresh"><el-option v-for="n in [50,100,200,500]" :key="n" :value="n" :label="String(n)"/></el-select></label>
       <span v-if="data.loading&&!data.loaded">读取中，数量未知</span>
       <span v-else-if="data.error&&!data.loaded">读取失败，数量未知</span>
       <span v-else>{{data.data?.total?((filter.page-1)*filter.pageSize+1):0}} – {{Math.min(filter.page*filter.pageSize,data.data?.total||0)}}，共 {{data.data?.total??'—'}} 条</span>
       <span v-if="data.data?.truncated">检索窗口已达上限，请缩小范围。</span>
-      <div class="media-actions"><el-button :icon="DArrowLeft" aria-label="日志首页" :disabled="filter.page<=1" @click="filter.page=1;load()"/><el-button :icon="ArrowLeft" aria-label="上一页日志" :disabled="filter.page<=1" @click="filter.page--;load()"/><span>{{filter.page}} / {{pageCount}}</span><el-button :icon="ArrowRight" aria-label="下一页日志" :disabled="filter.page>=pageCount" @click="filter.page++;load()"/><el-button :icon="DArrowRight" aria-label="日志末页" :disabled="filter.page>=pageCount" @click="filter.page=pageCount;load()"/></div>
+      <div class="media-actions">
+        <ElTooltip content="首页" placement="top"><el-button :icon="DArrowLeft" aria-label="日志首页" :disabled="filter.page<=1" @click="filter.page=1;load()"/></ElTooltip>
+        <ElTooltip content="上一页" placement="top"><el-button :icon="ArrowLeft" aria-label="上一页日志" :disabled="filter.page<=1" @click="filter.page--;load()"/></ElTooltip>
+        <span>{{filter.page}} / {{pageCount}}</span>
+        <ElTooltip content="下一页" placement="top"><el-button :icon="ArrowRight" aria-label="下一页日志" :disabled="filter.page>=pageCount" @click="filter.page++;load()"/></ElTooltip>
+        <ElTooltip content="末页" placement="top"><el-button :icon="DArrowRight" aria-label="日志末页" :disabled="filter.page>=pageCount" @click="filter.page=pageCount;load()"/></ElTooltip>
+      </div>
       <span role="status">{{copied}}</span>
     </footer>
     <ConfirmAction v-model:visible="confirm" title="清理日志" description="清理全部程序文件日志？" impact-scope="不删除数据库审计或启动控制台日志，也不修改媒体；现有文件日志将不可恢复。" confirm-text="确认清理" danger-level="danger" :loading="op.busy" class="media-dialog" @confirm="clear"/>

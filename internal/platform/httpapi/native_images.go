@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -52,9 +51,24 @@ func (r *NativeImageResolver) ResolveImage(ctx context.Context, req embyapi.Imag
 	if r.DB == nil {
 		return embyapi.ImageResult{}, embyapi.ErrImageUnavailable
 	}
-	id, err := strconv.ParseInt(req.ItemID, 10, 64)
-	if err != nil || id < 100000 {
+	if req.User == nil || req.Permissions == nil {
 		return embyapi.ImageResult{}, embyapi.ErrImageNotFound
+	}
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	id, idErr := strconv.ParseInt(req.ItemID, 10, 64)
+	person, isPerson := nativelibrary.ParsePersonID(req.ItemID)
+	if !isPerson && (idErr != nil || id < 100000 || strconv.FormatInt(id, 10) != req.ItemID) {
+		return embyapi.ImageResult{}, embyapi.ErrImageNotFound
+	}
+	if !isPerson {
+		visible, err := (catalog.BrowseRepository{DB: r.DB}).ImageVisible(ctx, *req.User, req.Permissions, req.ItemID)
+		if err != nil {
+			return embyapi.ImageResult{}, embyapi.ErrImageUnavailable
+		}
+		if !visible {
+			return embyapi.ImageResult{}, embyapi.ErrImageNotFound
+		}
 	}
 	kind := strings.ToLower(req.Type)
 	if kind != "primary" && kind != "backdrop" && kind != "thumb" && kind != "logo" && kind != "banner" {
@@ -63,7 +77,16 @@ func (r *NativeImageResolver) ResolveImage(ctx context.Context, req embyapi.Imag
 	if req.Index > 0 && kind != "backdrop" {
 		return embyapi.ImageResult{}, embyapi.ErrImageNotFound
 	}
-	meta, err := r.lookup(ctx, id, kind, req.Index)
+	var meta imageMeta
+	var err error
+	if isPerson {
+		if kind != "primary" || req.Index > 0 {
+			return embyapi.ImageResult{}, embyapi.ErrImageNotFound
+		}
+		meta, err = r.lookupPerson(ctx, person, req)
+	} else {
+		meta, err = r.lookup(ctx, id, kind, req.Index)
+	}
 	if err != nil {
 		return embyapi.ImageResult{}, err
 	}
@@ -103,7 +126,7 @@ func (r *NativeImageResolver) lookupMovieSeries(ctx context.Context, id int64, e
 		mediaType = "series"
 	}
 	var metadataRaw, detailsRaw []byte
-	err := r.DB.QueryRow(ctx, `WITH eligible AS (`+catalog.ExposableAssetsSQL+`) SELECT m.metadata,coalesce(d.payload,'{}'::jsonb) FROM native_item_ids n JOIN media_items m ON m.media_type=$2 AND n.entity_type=$1 AND n.internal_key='tmdb:'||m.tmdb_id LEFT JOIN native_tmdb_details d ON d.tmdb_type=$2 AND d.tmdb_id=m.tmdb_id AND d.fetched_at IS NOT NULL WHERE n.id=$3 AND EXISTS(SELECT 1 FROM eligible e JOIN native_asset_libraries al ON al.asset_id=e.asset_id JOIN native_libraries l ON l.id=al.library_id WHERE e.media_id=m.id AND NOT l.hidden) ORDER BY d.fetched_at DESC NULLS LAST LIMIT 1`, entity, mediaType, id).Scan(&metadataRaw, &detailsRaw)
+	err := r.DB.QueryRow(ctx, `WITH eligible AS (`+catalog.ExposableAssetsSQL+`) SELECT m.metadata,coalesce(d.payload,'{}'::jsonb) FROM native_item_ids n JOIN media_items m ON m.media_type=$2 AND n.entity_type=$1 AND n.internal_key='tmdb:'||m.tmdb_id LEFT JOIN native_tmdb_details d ON d.tmdb_type=$2 AND d.tmdb_id=m.tmdb_id AND d.fetched_at IS NOT NULL AND d.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') WHERE n.id=$3 AND EXISTS(SELECT 1 FROM eligible e JOIN native_asset_libraries al ON al.asset_id=e.asset_id JOIN native_libraries l ON l.id=al.library_id WHERE e.media_id=m.id AND NOT l.hidden) ORDER BY d.fetched_at DESC NULLS LAST LIMIT 1`, entity, mediaType, id).Scan(&metadataRaw, &detailsRaw)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return imageMeta{}, embyapi.ErrImageNotFound
 	}
@@ -123,7 +146,7 @@ func (r *NativeImageResolver) lookupSeason(ctx context.Context, id int64, intern
 		return imageMeta{}, embyapi.ErrImageNotFound
 	}
 	var seasonRaw, seriesRaw []byte
-	err := r.DB.QueryRow(ctx, `WITH eligible AS (`+catalog.ExposableAssetsSQL+`) SELECT coalesce(sd.payload,'{}'::jsonb),coalesce(ss.payload,'{}'::jsonb) FROM native_item_ids n LEFT JOIN native_tmdb_details sd ON sd.tmdb_type='season' AND sd.tmdb_id=$1 AND sd.season_number=$2 AND sd.fetched_at IS NOT NULL AND sd.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') LEFT JOIN native_tmdb_details ss ON ss.tmdb_type='series' AND ss.tmdb_id=$1 AND ss.fetched_at IS NOT NULL WHERE n.id=$3 AND n.entity_type='season' AND EXISTS(SELECT 1 FROM eligible e JOIN native_asset_libraries al ON al.asset_id=e.asset_id JOIN native_libraries l ON l.id=al.library_id WHERE e.media_type='series' AND e.tmdb_id=$1 AND e.season=$2 AND NOT l.hidden) ORDER BY sd.fetched_at DESC NULLS LAST LIMIT 1`, series, season, id).Scan(&seasonRaw, &seriesRaw)
+	err := r.DB.QueryRow(ctx, `WITH eligible AS (`+catalog.ExposableAssetsSQL+`) SELECT coalesce(sd.payload,'{}'::jsonb),coalesce(ss.payload,'{}'::jsonb) FROM native_item_ids n LEFT JOIN native_tmdb_details sd ON sd.tmdb_type='season' AND sd.tmdb_id=$1 AND sd.season_number=$2 AND sd.fetched_at IS NOT NULL AND sd.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') LEFT JOIN native_tmdb_details ss ON ss.tmdb_type='series' AND ss.tmdb_id=$1 AND ss.fetched_at IS NOT NULL AND ss.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') WHERE n.id=$3 AND n.entity_type='season' AND EXISTS(SELECT 1 FROM eligible e JOIN native_asset_libraries al ON al.asset_id=e.asset_id JOIN native_libraries l ON l.id=al.library_id WHERE e.media_type='series' AND e.tmdb_id=$1 AND e.season=$2 AND NOT l.hidden) ORDER BY sd.fetched_at DESC NULLS LAST LIMIT 1`, series, season, id).Scan(&seasonRaw, &seriesRaw)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return imageMeta{}, embyapi.ErrImageNotFound
 	}
@@ -141,7 +164,7 @@ func (r *NativeImageResolver) lookupEpisode(ctx context.Context, id int64, inter
 	if !ok {
 		return imageMeta{}, embyapi.ErrImageNotFound
 	}
-	rows, err := r.DB.Query(ctx, `WITH eligible AS (`+catalog.ExposableAssetsSQL+`) SELECT e.asset_identity,jsonb_build_object('posterPath',sd.payload->>'posterPath','episodes',coalesce((SELECT jsonb_agg(ep) FROM jsonb_array_elements(CASE WHEN jsonb_typeof(sd.payload->'episodes')='array' THEN sd.payload->'episodes' ELSE '[]'::jsonb END) ep WHERE ep->>'number'=$3::int::text),'[]'::jsonb)),jsonb_build_object('posterPath',coalesce(nullif(ss.payload->>'posterPath',''),m.metadata->>'posterPath'),'backdropPath',coalesce(nullif(ss.payload->>'backdropPath',''),m.metadata->>'backdropPath'),'logoPath',ss.payload->>'logoPath'),coalesce(ed.payload->>'stillPath','') FROM eligible e JOIN media_asset_bindings b ON b.asset_id=e.asset_id JOIN media_items m ON m.id=e.media_id LEFT JOIN native_tmdb_details sd ON sd.tmdb_type='season' AND sd.tmdb_id=$1 AND sd.season_number=$2 AND sd.fetched_at IS NOT NULL AND sd.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') LEFT JOIN native_tmdb_details ss ON ss.tmdb_type='series' AND ss.tmdb_id=$1 AND ss.fetched_at IS NOT NULL AND ss.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') LEFT JOIN native_tmdb_details ed ON ed.tmdb_type='episode' AND ed.tmdb_id=$1 AND ed.season_number=$2 AND ed.episode_number=$3 AND ed.fetched_at IS NOT NULL AND ed.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') WHERE e.media_type='series' AND e.tmdb_id=$1 AND b.season=$2 AND coalesce((SELECT min(v::int) FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(b.episodes)='array' THEN b.episodes ELSE '[]'::jsonb END) v WHERE v~'^[0-9]{1,9}$'),b.episode)=$3 AND EXISTS(SELECT 1 FROM native_asset_libraries al JOIN native_libraries l ON l.id=al.library_id WHERE al.asset_id=e.asset_id AND NOT l.hidden) AND EXISTS(SELECT 1 FROM native_item_ids n WHERE n.id=$4 AND n.entity_type='episode') ORDER BY e.created_at DESC,e.asset_id LIMIT 100`, series, season, episode, id)
+	rows, err := r.DB.Query(ctx, `WITH eligible AS (`+catalog.ExposableAssetsSQL+`) SELECT e.asset_identity,jsonb_build_object('posterPath',sd.payload->>'posterPath','episodes',coalesce((SELECT jsonb_agg(ep) FROM jsonb_array_elements(CASE WHEN jsonb_typeof(sd.payload->'episodes')='array' THEN sd.payload->'episodes' ELSE '[]'::jsonb END) ep WHERE ep->>'number'=$3::int::text),'[]'::jsonb)),jsonb_build_object('posterPath',coalesce(nullif(ss.payload->>'posterPath',''),m.metadata->>'posterPath'),'backdropPath',coalesce(nullif(ss.payload->>'backdropPath',''),m.metadata->>'backdropPath'),'logoPath',ss.payload->>'logoPath','backdrops',ss.payload->'backdrops','logos',ss.payload->'logos'),coalesce(ed.payload->>'stillPath','') FROM eligible e JOIN media_asset_bindings b ON b.asset_id=e.asset_id JOIN media_items m ON m.id=e.media_id LEFT JOIN native_tmdb_details sd ON sd.tmdb_type='season' AND sd.tmdb_id=$1 AND sd.season_number=$2 AND sd.fetched_at IS NOT NULL AND sd.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') LEFT JOIN native_tmdb_details ss ON ss.tmdb_type='series' AND ss.tmdb_id=$1 AND ss.fetched_at IS NOT NULL AND ss.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') LEFT JOIN native_tmdb_details ed ON ed.tmdb_type='episode' AND ed.tmdb_id=$1 AND ed.season_number=$2 AND ed.episode_number=$3 AND ed.fetched_at IS NOT NULL AND ed.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') WHERE e.media_type='series' AND e.tmdb_id=$1 AND b.season=$2 AND coalesce((SELECT min(v::int) FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(b.episodes)='array' THEN b.episodes ELSE '[]'::jsonb END) v WHERE v~'^[0-9]{1,9}$'),b.episode)=$3 AND EXISTS(SELECT 1 FROM native_asset_libraries al JOIN native_libraries l ON l.id=al.library_id WHERE al.asset_id=e.asset_id AND NOT l.hidden) AND EXISTS(SELECT 1 FROM native_item_ids n WHERE n.id=$4 AND n.entity_type='episode') ORDER BY e.created_at DESC,e.asset_id LIMIT 100`, series, season, episode, id)
 	if err != nil {
 		return imageMeta{}, embyapi.ErrImageUnavailable
 	}
@@ -264,22 +287,31 @@ func imageContentType(raw []byte) string {
 	return ""
 }
 func selectImage(kind string, index int, m imageMeta) string {
+	if index < 0 {
+		index = 0
+	}
 	switch kind {
 	case "primary":
-		return first(m.still, m.poster)
-	case "backdrop", "thumb", "banner":
-		if index >= 0 && index < len(m.backdrops) {
-			return m.backdrops[index]
+		for _, p := range []string{m.still, m.poster} {
+			if p = nativelibrary.ImagePath(p); p != "" {
+				return p
+			}
 		}
-		if index == 0 {
-			return m.backdrop
+	case "backdrop":
+		paths := nativelibrary.ImagePaths(m.backdrop, m.backdrops)
+		if index < len(paths) {
+			return paths[index]
 		}
 	case "logo":
-		if index >= 0 && index < len(m.logos) {
-			return m.logos[index]
+		paths := nativelibrary.ImagePaths(m.logo, m.logos)
+		if index == 0 && len(paths) > 0 {
+			return paths[0]
 		}
+	// Thumb is available only when there is an actual episode still. Do not
+	// advertise an invented Banner/Art/Thumb by treating any backdrop as one.
+	case "thumb":
 		if index == 0 {
-			return m.logo
+			return nativelibrary.ImagePath(m.still)
 		}
 	}
 	return ""
@@ -295,19 +327,7 @@ func imageSize(width int) string {
 	}
 	return "w500"
 }
-func validTMDBImagePath(p string) bool {
-	if p == "" || len(p) > 2048 || !strings.HasPrefix(p, "/") || strings.ContainsAny(p, "\\?#%\x00\r\n") || strings.Contains(p, "..") {
-		return false
-	}
-	if !validTMDBImagePathExt(p) {
-		return false
-	}
-	u, err := url.Parse(p)
-	return err == nil && u.Path == p
-}
-func validTMDBImagePathExt(p string) bool {
-	return strings.HasSuffix(strings.ToLower(p), ".jpg") || strings.HasSuffix(strings.ToLower(p), ".png") || strings.HasSuffix(strings.ToLower(p), ".webp")
-}
+func validTMDBImagePath(p string) bool { return p != "" && nativelibrary.ImagePath(p) == p }
 func parseSeasonKey(raw string) (int64, int, bool) {
 	parts := strings.Split(raw, ":")
 	if len(parts) != 3 || parts[0] != "tmdb" || !strings.HasPrefix(parts[2], "s") {

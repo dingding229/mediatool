@@ -23,8 +23,8 @@ func projectionFixtures(t *testing.T) map[string]dto.BaseItemDto {
 	runtime := int64(72000000000)
 	fullMovie, err := MovieDTO(Movie{
 		ID: "100101", ServerID: strings.Repeat("a", 32), ParentID: "100001", Name: "Synthetic Film", Year: "2026", TMDBID: 900101,
-		Metadata:  StoredMovieMetadata{OriginalTitle: "Synthetic Original", SortName: "Synthetic Film, The", Overview: "Synthetic overview", Genres: []string{"Drama", "Science Fiction"}, PosterPath: "/synthetic/poster.jpg", BackdropPath: "/synthetic/backdrop.jpg", PremiereDate: "2026-01-02", CommunityRating: &rating, OfficialRating: "PG-13", ImdbID: "tt900101"},
-		CreatedAt: stamp, Sources: []MovieSource{{ID: "asset-101", Container: "mkv", RunTimeTicks: &runtime}, {ID: "asset-102", Container: "mp4"}},
+		Metadata: StoredMovieMetadata{OriginalTitle: "Synthetic Original", SortName: "Synthetic Film, The", Overview: "Synthetic overview", Genres: []string{"Drama", "Science Fiction"}, PosterPath: "/synthetic-poster.jpg", BackdropPath: "/synthetic-backdrop.jpg", PremiereDate: "2026-01-02", CommunityRating: &rating, OfficialRating: "PG-13", ImdbID: "tt900101"},
+		Details:  &TMDBDetails{LogoPath: "/film-logo.png", Backdrops: []string{"/synthetic-backdrop.jpg", "/second-bg.jpg"}}, CreatedAt: stamp, Sources: []MovieSource{{ID: "asset-101", Container: "mkv", RunTimeTicks: &runtime}, {ID: "asset-102", Container: "mp4"}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -145,8 +145,8 @@ func TestMovieProjectionRejectsUnsafeOrIncompleteValues(t *testing.T) {
 func TestProjectionKeepsZeroValuesAndOnlySyntheticLeafPaths(t *testing.T) {
 	movie := validProjectionMovie()
 	movie.Name = "Synthetic / Part\\One .. : ? & # % = Title"
-	movie.Metadata.PosterPath = "/synthetic/raw-poster.jpg"
-	movie.Metadata.BackdropPath = "/synthetic/raw-backdrop.jpg"
+	movie.Metadata.PosterPath = "/synthetic-raw-poster.jpg"
+	movie.Metadata.BackdropPath = "/synthetic-raw-backdrop.jpg"
 	zero := int64(0)
 	rating := float32(0)
 	movie.RunTimeTicks = &zero

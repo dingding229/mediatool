@@ -143,7 +143,7 @@ func TestVerifiedContextAndCrossUserGate(t *testing.T) {
 		}
 	}
 }
-func TestAnonymousImagesLimitAndVersionedCachePolicy(t *testing.T) {
+func TestImagesRequireAuthenticationBeforeVersionedCache(t *testing.T) {
 	user := contracts.User{ID: strings.Repeat("a", 32), Name: "synthetic.member", Enabled: true}
 	accounts := &fakeAccountService{user: user}
 	tag := nativelibrary.ImageTag("/synthetic.jpg")
@@ -162,43 +162,22 @@ func TestAnonymousImagesLimitAndVersionedCachePolicy(t *testing.T) {
 		s.ServeHTTP(w, r)
 		return w
 	}
-	for _, tc := range []struct {
-		query string
-		want  string
-	}{{"", "public, max-age=3600"}, {"?tag=old", "public, max-age=3600"}, {"?TaG=" + tag, "public, max-age=31536000, immutable"}} {
-		w := call("93.184.216.34", tc.query, "")
+	for _, tc := range []struct{ query, want string }{
+		{"", "private, max-age=3600"}, {"?tag=old", "private, max-age=3600"}, {"?TaG=" + tag, "private, max-age=31536000, immutable"},
+	} {
+		w := call("93.184.216.34", tc.query, "valid-token")
 		if w.Code != 200 || w.Header().Get("Cache-Control") != tc.want {
-			t.Fatal(w.Code, w.Header().Get("Cache-Control"))
-		}
-	}
-	for i := 3; i < 600; i++ {
-		if call("93.184.216.34", "", "").Code != 200 {
-			t.Fatal("limited before 600")
+			t.Fatal(w.Code, w.Header())
 		}
 	}
 	before := calls
-	w := call("93.184.216.34", "", "")
-	if w.Code != 429 || w.Header().Get("Retry-After") == "" || calls != before {
-		t.Fatal("anonymous quota not enforced before resolver")
-	}
-	spoof := httptest.NewRequest("GET", "/Items/100000/Images/Primary", nil)
-	spoof.RemoteAddr = "93.184.216.34:1234"
-	spoof.Header.Set("X-Forwarded-For", "1.1.1.1")
-	spoofed := httptest.NewRecorder()
-	s.ServeHTTP(spoofed, spoof)
-	if spoofed.Code != 429 {
-		t.Fatal("untrusted forwarded IP bypassed the quota")
-	}
-	if call("93.184.216.34", "", "invalid-token").Code != 429 {
-		t.Fatal("unverified token bypassed quota")
-	}
-	if call("93.184.216.34", "", "valid-token").Code != 200 {
-		t.Fatal("valid token should bypass anonymous quota")
-	}
-	if call("8.8.8.8", "", "").Code != 200 {
-		t.Fatal("per-IP counters were shared")
+	for _, token := range []string{"", "invalid-token"} {
+		if w := call("93.184.216.34", "?tag="+tag, token); w.Code != 401 || calls != before {
+			t.Fatal("image auth gate", w.Code, calls, before)
+		}
 	}
 }
+
 func TestImageLimiterIsBoundedConcurrentAndRecoversWindow(t *testing.T) {
 	var limiter imageLimiter
 	now := time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC)

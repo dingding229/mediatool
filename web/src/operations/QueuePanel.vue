@@ -100,34 +100,23 @@ defineExpose({ load, create, filter, jobs, health, op });
       </header>
       <div class="f3-health">
       <ResourceState :stale="health.loaded" :loading="health.loading" :error="health.error" @reload="load"/>
-      <div class="u5-stats">
-        <div>
-          <span>数据库</span>
-          <strong>{{ health.error?'—':health.data?.postgres?.state==='ready'?'可用':health.data?.postgres?.state?'不可用':'—' }}</strong>
-          <small>{{ health.data?.postgres?.latencyMs??'—' }} ms</small>
-        </div>
-        <div>
-          <span>缓存服务</span>
-          <strong>{{ health.error?'—':health.data?.redis?.state==='ready'?'可用':health.data?.redis?.state?'不可用':'—' }}</strong>
-        </div>
-        <div>
-          <span>数据库体积</span>
-          <strong>{{ health.error?'—':bytes(health.data?.databaseBytes) }}</strong>
-        </div>
-      </div>
-      <div class="u6-card-grid">
-        <article v-for="w in health.data?.workers||[]" :key="w.owner+':'+w.queue" class="u6-card">
+      <div class="f4-runtime-grid">
+        <article class="f4-runtime-card"><h3>数据库</h3><strong>{{ health.data?.postgres?.state==='ready'?'可用':health.data?.postgres?.state?'不可用':'—' }}</strong><small>{{ health.data?.postgres?.latencyMs??'—' }} ms</small></article>
+        <article class="f4-runtime-card"><h3>缓存服务</h3><strong>{{ health.data?.redis?.state==='ready'?'可用':health.data?.redis?.state?'不可用':'—' }}</strong></article>
+        <article class="f4-runtime-card"><h3>数据库体积</h3><strong>{{ bytes(health.data?.databaseBytes) }}</strong></article>
+        <article v-for="w in health.data?.workers||[]" :key="w.owner+':'+w.queue" class="f4-runtime-card">
           <h3>{{ w.queue==='default'?'后台任务服务':queueLabel(w.queue)+'服务' }}</h3>
           <p>{{ w.online?'在线':'离线' }} · {{ date(w.lastSeenAt) }}</p>
           <el-button @click="detail=w;open=true">执行器详情</el-button>
         </article>
       </div>
       <p v-if="!health.loading&&!health.error&&health.data&&!health.data.workers?.length">尚未收到后台任务服务的状态。</p>
+      <details>
+        <summary>查看运行计划与连接状态</summary>
       <article v-for="q in health.data?.queues||[]" :key="q.name+q.state" class="organize-record">
         <p>{{ queueLabel(q.name) }} · {{ stateLabel(q.state) }} · {{ q.count??'—' }} 项 · 等待重新分配 {{ q.expiredLeases??'—' }}</p>
       </article>
-      <details>
-        <summary>查看运行计划与连接状态</summary>
+
         <article v-for="s in health.data?.schedules||[]" :key="s.id" class="organize-record">
           <h3>{{ s.name }}</h3>
           <p>{{ s.enabled?'已启用':'已停用' }} · {{ scheduleLabel(s.cron) }} · 下次 {{ date(s.nextRunAt) }} · 上次 {{ date(s.lastRunAt) }}</p>
@@ -143,38 +132,36 @@ defineExpose({ load, create, filter, jobs, health, op });
       <form class="u5-filters" @submit.prevent="search">
         <label>
           任务状态
-          <el-select v-model="filter.state" aria-label="任务状态">
+          <el-select v-model="filter.state" aria-label="任务状态" placeholder="全部状态">
             <el-option value="" label="全部状态"/>
             <el-option v-for="v in ['pending','running','retry','succeeded','failed','paused','cancelled','unknown','checking']" :key="v" :value="v" :label="stateLabel(v)"/>
           </el-select>
         </label>
         <label>
           队列
-          <el-select v-model="filter.queue" aria-label="任务队列">
+          <el-select v-model="filter.queue" aria-label="任务队列" placeholder="全部队列">
             <el-option value="" label="全部队列"/>
             <el-option v-for="v in ['default','library','transfer','maintenance']" :key="v" :value="v" :label="queueLabel(v)"/>
           </el-select>
         </label>
         <label>
           任务类别
-          <input v-model="filter.kind" aria-label="任务类别"/>
+          <input v-model="filter.kind" aria-label="任务类别" placeholder="按任务类别筛选"/>
         </label>
         <label>
           搜索任务
-          <input v-model="filter.q" aria-label="搜索任务"/>
+          <input v-model="filter.q" aria-label="搜索任务" placeholder="搜索任务或错误内容"/>
         </label>
         <el-button native-type="submit">筛选任务</el-button>
       </form>
       <p>取消只停止本程序后续执行；重试先核对原业务状态，不能证明安全时保留未知状态。</p>
-      <div class="f3-stable-scroll">
+      <div class="f4-queue-rows">
       <ResourceState :stale="jobs.loaded" :loading="jobs.loading" :error="jobs.error" :empty="!!jobs.data&&!jobs.data.items?.length" @reload="load"/>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" message="系统检查请求尚未核验完成，请先读取队列，不重复提交。" @refresh="load"/>
       <article v-for="j in jobs.data?.items||[]" :key="j.id" class="organize-record f3-job-row">
-        <h3>{{ kindLabel(j.kind) }}</h3>
-        <p><StatusBadge :state="j.state" :label="stateLabel(j.state)"/> · {{ queueLabel(j.queue) }} · 尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }}</p>
-        <p class="f3-job-meta">本次耗时 {{ j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—' }} 秒 <span> · {{ j.state==='succeeded'?'已完成':j.state==='running'?'业务进度见详情':'等待状态核对' }}</span></p>
-        <p v-if="j.lastError">{{ j.lastError }}</p>
+        <div class="f4-job-summary"><h3>{{ kindLabel(j.kind) }}</h3><StatusBadge :state="j.state" :label="stateLabel(j.state)" :title="j.lastError||undefined"/><span class="f4-job-queue">{{ queueLabel(j.queue) }}</span></div>
+        <p class="f3-job-meta">尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }} · 耗时 {{ j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—' }} 秒 <span> · {{ j.state==='succeeded'?'已完成':j.state==='running'?'业务进度见详情':'等待状态核对' }}</span></p>
         <div class="media-actions">
           <el-button @click="inspect(j.id)">任务详情</el-button>
           <TaskControl kind="jobs" :id="j.id" :state="j.state" @changed="jobs.load"/>

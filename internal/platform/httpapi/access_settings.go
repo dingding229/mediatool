@@ -65,7 +65,7 @@ func (a *API) accessSettings(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400, "invalid_domain", err.Error())
 			return
 		}
-		if a.Config.Environment == "production" {
+		if !a.Config.Development() {
 			for _, v := range []string{in.Value.ManagementURL, in.Value.PlaybackURL, in.Value.MemberURL, in.Value.EmbyURL} {
 				if v != "" && !strings.HasPrefix(v, "https://") {
 					fail(w, 400, "https_required", "生产环境域名必须使用HTTPS")

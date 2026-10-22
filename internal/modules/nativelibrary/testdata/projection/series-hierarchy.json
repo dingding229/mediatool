@@ -26,15 +26,17 @@
   "People": [
     {
       "Name": "Lead",
-      "Id": "1",
+      "Id": "706572736f6e00000000000000000001",
       "Type": "Actor",
       "PrimaryImageTag": "ebd961876f411026659fb6aa39f494707790c9ea8da4d5f19202223197c5d21e"
     }
   ],
   "BackdropImageTags": [
-    "462587510b10b5b98fc2d5669d4e88e077d9df77542bbc49ff4de2613c221b40"
+    "462587510b10b5b98fc2d5669d4e88e077d9df77542bbc49ff4de2613c221b40",
+    "c5835a13b1800cb30d7012932a0083b37fc2be452b5baa2bd689ee6b436b8ccb"
   ],
   "ImageTags": {
+    "Logo": "65dbe01595dfe4e27e3af205c1e838d5885d41d248dd0bfcab0608cd4091f3f2",
     "Primary": "97e1faac194de8e33142c748930d81bf16d68b52eed89e215732d11190996374"
   },
   "ProviderIds": {

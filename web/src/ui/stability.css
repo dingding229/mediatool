@@ -28,7 +28,7 @@
 .f3-log-privacy{font-size:12px;color:var(--mt-text-muted)}
 .f3-log-filters{display:grid;grid-template-columns:minmax(160px,1.3fr) minmax(100px,.6fr) minmax(100px,.8fr) repeat(2,minmax(170px,1fr));gap:12px;margin-block:18px}
 .f3-log-filters label{display:grid;gap:6px;font-size:12px;min-width:0}
-.f3-log-filters input,.f3-log-filters select{box-sizing:border-box;min-width:0;width:100%;height:40px;border:1px solid var(--mt-border-color);border-radius:7px;background:var(--mt-bg-surface);color:var(--mt-text-primary);padding:8px;font:inherit}
+.f3-log-filters>label>input{box-sizing:border-box;min-width:0;width:100%;height:40px;border:1px solid var(--mt-border-color);border-radius:7px;background:var(--mt-bg-surface);color:var(--mt-text-primary);padding:8px;font:inherit}
 .f3-log-table{position:relative;block-size:clamp(25rem,62vh,42rem);overflow:auto;scrollbar-gutter:stable;background:#121820;color:#e3e9f1;border:1px solid #334052;border-radius:8px;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
 .f3-log-table .f3-log-row{display:grid;grid-template-columns:150px 50px minmax(0,1fr) minmax(100px,190px);gap:10px;align-items:start;padding:6px 12px;margin:0;border:0;border-bottom:1px solid #2a3544;background:none;border-radius:0;color:inherit}
 .f3-log-table .f3-log-head{position:sticky;top:0;z-index:1;background:#1c2735;color:#b9c7d8}
@@ -58,3 +58,34 @@ footer.f3-log-footer{display:flex!important}.f3-log-footer>.media-actions{margin
 @media(max-width:1100px){.u5-sites .f3-site-card .u5-stats.f3-site-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.u5-sites .f3-site-card .u5-stats.f3-site-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.f3-log-footer>.media-actions{margin-inline-start:0!important}.u6-workspace .organize-record.f3-job-row .media-actions{grid-row:auto}}
 .u5-grant .u5-permission-help{grid-column:1 / -1;margin:4px 0;font-size:13px;line-height:1.6;color:var(--mt-text-muted);overflow-wrap:anywhere}
+/* Review: natural pagination, aligned runtime cards and compact shared controls. */
+.f3-health{block-size:auto;overflow:visible;min-block-size:160px}
+.f4-runtime-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-block:18px}
+.f4-runtime-card{min-width:0;border:1px solid var(--mt-border-color);border-radius:8px;padding:12px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.f4-runtime-card h3,.f4-runtime-card p{margin:0;font-size:13px;line-height:1.5}.f4-runtime-card strong{font-size:20px;font-variant-numeric:tabular-nums}.f4-runtime-card small,.f4-runtime-card p{color:var(--mt-text-muted)}
+.f4-runtime-card .el-button{margin-top:auto}.f3-health details{padding-top:12px;border-top:1px solid var(--mt-border-color)}.f3-health summary{min-height:32px;line-height:32px;cursor:pointer}
+.f4-queue-rows,.f4-sites-list{position:relative;min-block-size:220px;overflow:visible;border-block:1px solid var(--mt-border-color)}
+.u6-workspace .organize-record.f3-job-row{padding:9px 0;row-gap:3px}.f4-job-summary{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;min-width:0}.f4-job-summary h3{font-size:14px}.f4-job-summary>.f4-job-queue{font-size:12px;color:var(--mt-text-muted)}
+.u6-workspace .organize-record.f3-job-row>.media-actions{grid-row:1 / span 2}.f3-job-meta{font-size:12px;line-height:1.5}.f4-job-error{font-size:12px;color:var(--mt-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.f3-log-filters{grid-template-columns:minmax(160px,1fr) minmax(120px,.6fr) minmax(140px,.7fr) minmax(300px,1.6fr)}
+.f3-log-filters .el-select{width:100%;min-width:0}.f3-log-filters .el-select__wrapper{min-height:40px}.f4-log-time-range{display:grid;gap:6px;font-size:12px;min-width:0;min-height:62px}
+.f4-log-time-range .el-date-editor.el-range-editor{width:100%;max-width:100%;min-width:0;min-height:40px;box-sizing:border-box}.f4-log-time-range .el-range-input{font:inherit;min-width:0}
+.f3-log-tools .el-switch{margin-inline-end:4px}.f3-log-footer .el-select{width:88px}
+.f3-log-table{font-size:12px;line-height:1.45}.f3-log-table .f3-log-row{padding:4px 10px;gap:6px;grid-template-columns:150px 44px minmax(0,1fr) minmax(100px,180px)}.f3-log-source{min-height:18px;line-height:1.45}
+.f3-log-message>span{margin-inline-end:0}.f3-log-table .f3-log-message .u6-raw{display:inline;margin:0;font:inherit}.f3-log-message small{margin-top:2px;font-size:11px;line-height:1.4}
+.f3-site-details.f4-site-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;max-height:240px;box-sizing:border-box;padding:10px 0;align-items:start}
+.f3-site-details.f4-site-grid article{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:6px;padding:5px 8px;min-height:32px;box-sizing:border-box;background:var(--mt-bg-canvas);border:0;border-radius:4px;font-size:12px;line-height:1.5}
+.f4-site-grid strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.f4-site-grid article>span{white-space:nowrap}.f4-site-icon,.f4-sort-icon{width:14px;height:14px;flex:none}.f4-site-icon.is-failed{color:var(--el-color-danger)}.f4-site-icon.is-success{color:var(--el-color-success)}
+.resource-columns>[role=columnheader]{justify-content:flex-end;gap:4px;text-align:right}.resource-columns>[aria-sort=ascending],.resource-columns>[aria-sort=descending]{color:var(--mt-color-primary)}.resource-entry>:nth-child(2),.resource-entry>:nth-child(3),.resource-entry>:nth-child(4){justify-self:end;text-align:right}
+.f4-list-count{font-size:12px;color:var(--mt-text-muted)}.f4-sites-list .f3-site-card{padding-block:14px}.f4-sites-list .f3-site-metrics{margin-block:12px}.f4-sites-list .f3-site-metrics small{font-size:12px;line-height:1.5}
+@media(max-width:1100px){.f4-runtime-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.f3-log-filters{grid-template-columns:repeat(3,minmax(0,1fr))}.f4-log-time-range{grid-column:1 / -1}.f3-site-details.f4-site-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){
+ .f3-log-table .f3-log-row{grid-template-columns:142px 44px minmax(0,1fr);gap:3px 8px}.f3-log-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.f4-runtime-grid{grid-template-columns:1fr}.resource-columns>[role=columnheader]{display:inline-flex}.f3-site-details.f4-site-grid{grid-template-columns:1fr}.u6-workspace .organize-record.f3-job-row>.media-actions{grid-row:auto;justify-content:flex-start}.f4-job-error{white-space:normal}
+ /* The pinned picker uses table cells on desktop; stack both calendars and time fields. */
+ .f4-log-date-panel{max-width:calc(100vw - 24px);box-sizing:border-box}.f4-log-date-panel .el-picker-panel.el-date-range-picker,.f4-log-date-panel.el-date-range-picker{width:100%;max-width:100%;min-width:0}
+ .f4-log-date-panel .el-date-range-picker .el-picker-panel__body,.f4-log-date-panel.el-date-range-picker .el-picker-panel__body{display:block;min-width:0}
+ .f4-log-date-panel .el-picker-panel__body-wrapper{max-height:calc(100dvh - 180px);overflow:auto}
+ .f4-log-date-panel .el-date-range-picker__content.is-left,.f4-log-date-panel .el-date-range-picker__content.is-right{display:block;width:100%;float:none;border-inline:0}
+ .f4-log-date-panel .el-date-range-picker__time-header{display:flex;flex-direction:column;gap:6px}.f4-log-date-panel .el-date-range-picker__time-header .el-date-range-picker__editors-wrap{display:flex;width:100%;float:none;gap:6px}
+ .f4-log-date-panel .el-date-range-picker__time-header .el-date-range-picker__time-picker-wrap{flex:1;min-width:0;width:calc(50% - 3px)}.f4-log-date-panel .el-date-range-picker__time-header>span:not(.el-date-range-picker__editors-wrap){display:none}
+}

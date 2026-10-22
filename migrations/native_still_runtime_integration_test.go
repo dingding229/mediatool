@@ -18,6 +18,8 @@ import (
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/mediaprobe/stillrunner"
+	"media-tool/internal/modules/mediausers/contracts"
+	"media-tool/internal/modules/mediausers/nativeauth"
 	"media-tool/internal/modules/nativelibrary"
 	"media-tool/internal/modules/nativelibrary/catalog"
 	"media-tool/internal/modules/settings"
@@ -151,14 +153,21 @@ func TestNativeStillRuntimeImagesProjectionFallbackAndCooldown(t *testing.T) {
 	resolver := httpapi.NewNativeImageResolver(f.pool, nil, nil)
 	resolver.ImageBaseURL = tmdb.URL
 	resolver.Stills = service
-	server, err := embyapi.NewServer(embyapi.ServerOptions{Settings: settings.NewNativeServerRepository(f.pool), Images: resolver})
+	accounts := &nativeauth.Store{DB: f.pool, Secret: "synthetic-image-key"}
+	login, err := accounts.Login(f.ctx, "browse.member", "Browse123", contracts.DeviceInfo{DeviceID: "image-device"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := embyapi.NewServer(embyapi.ServerOptions{Settings: settings.NewNativeServerRepository(f.pool), Images: resolver, Auth: accounts, Permissions: func() contracts.PermissionChecker { return f.permissions() }})
 	if err != nil {
 		t.Fatal(err)
 	}
 	call := func(method, tag string) *httptest.ResponseRecorder {
 		t.Helper()
 		w := httptest.NewRecorder()
-		server.ServeHTTP(w, httptest.NewRequest(method, "/emby/Items/"+id+"/Images/Primary?tag="+tag, nil))
+		req := httptest.NewRequest(method, "/emby/Items/"+id+"/Images/Primary?tag="+tag, nil)
+		req.Header.Set("X-Emby-Token", login.AccessToken)
+		server.ServeHTTP(w, req)
 		return w
 	}
 	w := call("GET", expected)
@@ -276,7 +285,7 @@ func TestNativeStillRuntimeStartupBudgetAndDisabledLazyFiles(t *testing.T) {
 	}
 }
 
-// Public images are global per episode ID even when the current user can only
+// Authorized artwork is global per logical episode ID even when the current user can only
 // browse an older version. Never derive its tag from a per-library asset alone.
 func TestNativeStillRuntimeAssetImageTagAcrossLibraries(t *testing.T) {
 	f := newStillFixture(t)
@@ -310,7 +319,7 @@ func TestNativeStillRuntimeAssetImageTagAcrossLibraries(t *testing.T) {
 		if err != nil || total != 1 || len(episodes) != 1 || episodes[0].ImageTags["Primary"] != expected {
 			t.Fatal("cross-library hierarchy tag mismatch", path, total, err)
 		}
-		image, err := resolver.ResolveImage(f.ctx, embyapi.ImageRequest{ItemID: id, Type: "Primary"})
+		image, err := resolver.ResolveImage(f.ctx, embyapi.ImageRequest{ItemID: id, Type: "Primary", User: &f.user, Permissions: f.permissions()})
 		if err != nil || image.Tag != expected {
 			t.Fatal("cross-library endpoint tag mismatch", path, err)
 		}

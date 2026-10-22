@@ -31,6 +31,8 @@ export const elementComponents={ElAlert,ElButton,ElInput,ElSkeleton,ElProgress,E
  ElInputNumber:lazy(()=>import('element-plus/es/components/input-number/index').then(m=>m.ElInputNumber),()=>import('element-plus/es/components/input-number/style/css')),
  ElForm:lazy(()=>import('element-plus/es/components/form/index').then(m=>m.ElForm),()=>import('element-plus/es/components/form/style/css')),
  ElFormItem:lazy(()=>import('element-plus/es/components/form/index').then(m=>m.ElFormItem),()=>import('element-plus/es/components/form-item/style/css')),
+ ElDatePicker:lazy(()=>import('element-plus/es/components/date-picker/index').then(m=>m.ElDatePicker),()=>import('element-plus/es/components/date-picker/style/css')),
+ ElTooltip:lazy(()=>import('element-plus/es/components/tooltip/index').then(m=>m.ElTooltip),()=>import('element-plus/es/components/tooltip/style/css')),
  ElSwitch:lazy(()=>import('element-plus/es/components/switch/index').then(m=>m.ElSwitch),()=>import('element-plus/es/components/switch/style/css')),
  ElRadio:lazy(()=>import('element-plus/es/components/radio/index').then(m=>m.ElRadio),()=>import('element-plus/es/components/radio/style/css')),
  ElRadioGroup:lazy(()=>import('element-plus/es/components/radio/index').then(m=>m.ElRadioGroup),()=>import('element-plus/es/components/radio-group/style/css')),

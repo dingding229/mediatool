@@ -19614,6 +19614,12 @@
               }
             ]
           },
+          "ParentLogoImageTag": {
+            "type": "string"
+          },
+          "ParentLogoItemId": {
+            "type": "string"
+          },
           "ParentThumbImageTag": {
             "type": "string"
           },
@@ -33175,7 +33181,7 @@
     },
     "/Items/{id}/Images/{type}": {
       "get": {
-        "description": "仅native/media listener；允许/emby与/mediabrowser前缀及大小写兼容，不提供管理路由。GET同时支持HEAD，已知path的OPTIONS为204静态Allow。/socket为501，不支持WebSocket；嵌入字幕为404。",
+        "description": "仅native/media listener；允许/emby与/mediabrowser前缀及大小写兼容，不提供管理路由。GET同时支持HEAD，已知path的OPTIONS为204静态Allow。/socket为501，不支持WebSocket；嵌入字幕为404。 图片须媒体用户鉴权；读取缓存或返回304前检查条目/演员的库与分级可见性；省略index等同0，图片使用private缓存。",
         "operationId": "native_get_Items_id_Images_type_5be4452e",
         "parameters": [
           {
@@ -33281,7 +33287,6 @@
           }
         },
         "security": [
-          {},
           {
             "EmbyToken": []
           }
@@ -33307,7 +33312,7 @@
         "x-source": "endpoints.go:95"
       },
       "head": {
-        "description": "仅native/media listener；允许/emby与/mediabrowser前缀及大小写兼容，不提供管理路由。GET同时支持HEAD，已知path的OPTIONS为204静态Allow。/socket为501，不支持WebSocket；嵌入字幕为404。",
+        "description": "仅native/media listener；允许/emby与/mediabrowser前缀及大小写兼容，不提供管理路由。GET同时支持HEAD，已知path的OPTIONS为204静态Allow。/socket为501，不支持WebSocket；嵌入字幕为404。 图片须媒体用户鉴权；读取缓存或返回304前检查条目/演员的库与分级可见性；省略index等同0，图片使用private缓存。",
         "operationId": "native_head_Items_id_Images_type_5be4452e",
         "parameters": [
           {
@@ -33413,7 +33418,6 @@
           }
         },
         "security": [
-          {},
           {
             "EmbyToken": []
           }
@@ -33478,7 +33482,7 @@
     },
     "/Items/{id}/Images/{type}/{index}": {
       "get": {
-        "description": "仅native/media listener；允许/emby与/mediabrowser前缀及大小写兼容，不提供管理路由。GET同时支持HEAD，已知path的OPTIONS为204静态Allow。/socket为501，不支持WebSocket；嵌入字幕为404。",
+        "description": "仅native/media listener；允许/emby与/mediabrowser前缀及大小写兼容，不提供管理路由。GET同时支持HEAD，已知path的OPTIONS为204静态Allow。/socket为501，不支持WebSocket；嵌入字幕为404。 图片须媒体用户鉴权；读取缓存或返回304前检查条目/演员的库与分级可见性；省略index等同0，图片使用private缓存。",
         "operationId": "native_get_Items_id_Images_type_index_df5d2f9f",
         "parameters": [
           {
@@ -33592,7 +33596,6 @@
           }
         },
         "security": [
-          {},
           {
             "EmbyToken": []
           }
@@ -33618,7 +33621,7 @@
         "x-source": "endpoints.go:96"
       },
       "head": {
-        "description": "仅native/media listener；允许/emby与/mediabrowser前缀及大小写兼容，不提供管理路由。GET同时支持HEAD，已知path的OPTIONS为204静态Allow。/socket为501，不支持WebSocket；嵌入字幕为404。",
+        "description": "仅native/media listener；允许/emby与/mediabrowser前缀及大小写兼容，不提供管理路由。GET同时支持HEAD，已知path的OPTIONS为204静态Allow。/socket为501，不支持WebSocket；嵌入字幕为404。 图片须媒体用户鉴权；读取缓存或返回304前检查条目/演员的库与分级可见性；省略index等同0，图片使用private缓存。",
         "operationId": "native_head_Items_id_Images_type_index_df5d2f9f",
         "parameters": [
           {
@@ -33732,7 +33735,6 @@
           }
         },
         "security": [
-          {},
           {
             "EmbyToken": []
           }

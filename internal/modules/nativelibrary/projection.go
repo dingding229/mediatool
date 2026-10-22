@@ -89,18 +89,7 @@ func MovieDTO(movie Movie) (dto.BaseItemDto, error) {
 	if item.SortName == "" {
 		item.SortName = movie.Name
 	}
-	if movie.Details != nil {
-		if movie.Details.LogoPath != "" {
-			item.ImageTags = map[string]string{"Logo": ImageTag(movie.Details.LogoPath)}
-		}
-		for _, person := range movie.Details.People[:min(len(movie.Details.People), 60)] {
-			p := dto.BaseItemPerson{NameIdPair: dto.NameIdPair{Id: strconv.FormatInt(person.ID, 10), Name: person.Name}, Type: person.Type, Role: person.Role}
-			if person.ImagePath != "" {
-				p.PrimaryImageTag = ImageTag(person.ImagePath)
-			}
-			item.People = append(item.People, p)
-		}
-	}
+	addPeople(&item, movie.Details)
 	item.Overview = movie.Metadata.Overview
 	item.Genres = append(dto.Array[string]{}, movie.Metadata.Genres...)
 	item.OfficialRating = movie.Metadata.OfficialRating
@@ -134,15 +123,7 @@ func MovieDTO(movie Movie) (dto.BaseItemDto, error) {
 		}
 		item.ProviderIds["Imdb"] = movie.Metadata.ImdbID
 	}
-	if movie.Metadata.PosterPath != "" {
-		if item.ImageTags == nil {
-			item.ImageTags = map[string]string{}
-		}
-		item.ImageTags["Primary"] = ImageTag(movie.Metadata.PosterPath)
-	}
-	if movie.Metadata.BackdropPath != "" {
-		item.BackdropImageTags = dto.Array[string]{ImageTag(movie.Metadata.BackdropPath)}
-	}
+	applyImageTags(&item, movie.Metadata.PosterPath, movie.Metadata.BackdropPath, movie.Details)
 	extension := "mkv"
 	for index, source := range movie.Sources {
 		media, err := dto.NewMediaSourceInfo("")

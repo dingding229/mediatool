@@ -113,3 +113,42 @@ https://native.synthetic.invalid/Videos/100001/stream.mkv?MediaSourceId=syntheti
 已在本机实际 SenPlayer 重新进入详情：电影、剧集媒体信息底部均出现无凭证包装链接；电影真实播放成功，服务端实际 SenPlayer UA 请求为302。部署前已打开的旧详情需退出重进，不能拿缓存页面判定新响应缺字段。BaseItem.Path 未改成原 STRM URL，也未为显示功能暴露文件授权。
 
 该集原账号 `f:series` 的 `can_play=false`，真机403与权限一致。业主审核明确此项属于配置而非代码缺陷，F2通过；待业主自行开启播放权限后再复验该集，不阻塞F3。严禁擅自改写原账号 grants。真机截图及只读权限证据仅存私有 `data/private/f2/`。
+
+### F2 原账号 S01E04 真机补验完成（2026-10-22）
+
+只读确认原账号 `f:series can_play=true` 后，在本机 SenPlayer 重新进入《地狱大状》S01E04：底部稳定包装链接可见，真实画面持续播放，停止后显示进度 00:02:23。服务端关联到本轮 SenPlayer/6.2.1 的四次该集 stream.ts 请求，均302到115 CDN、响应正文0字节。未更改原账号授权，也未使用临时用户代替原账号真机验收。截图和完整原始记录只留私有 `data/private/f2/`。
+
+## F4 artwork compatibility (2026-10-22)
+
+Evidence: real SenPlayer 6.2.1 movie-detail/image traffic used authenticated
+`X-Emby-Authorization` requests to `/Items/{id}/Images/Logo?tag=…` and
+`/Items/{id}/Images/Backdrop?maxWidth=2000&tag=…&quality=90`, without an image
+index. Person requests used `/Items/{People.Id}/Images/Primary?maxWidth=320&tag=…&quality=90`.
+An isolated Emby **4.8.11.0** with the same TMDB identities and copied provider
+artwork confirmed omitted index means **0**, multiple backdrop tags, native
+person IDs and parent Logo/Backdrop references. Reference requests used curl
+with the SenPlayer UA; they are not represented as true-device validation.
+Private captures, original URLs and screenshots are not committed.
+
+| Sequence / invariant | Automated coverage |
+| --- | --- |
+| Views → movie library → movie detail → Primary/Logo/Backdrop[0,1]/People images | `TestF4NativeClientImagesMovieSeriesSeasonEpisodePeople` (isolated PostgreSQL) |
+| Views → series library → series → season → episode, ParentBackdrop/ParentLogo/SeriesPrimary | same integration sequence; projection goldens |
+| No index = index 0; out-of-range, missing Art/Banner and unknown person return 404 | integration sequence and image endpoint tests |
+| SenPlayer / Infuse / generic UA; header token, Emby authorization, MediaBrowser authorization and api_key; GET/HEAD | `TestF4ImageAuthenticationTransportsAndClientSequence` |
+| Missing/invalid credentials → 401 before cache/304; revoked/hidden/parental-denied title or person → 404 before provider | endpoint + integration tests |
+| Source change changes ImageTag; stale tag gets current ETag without immutable cache | integration + fixed-path table tests |
+| Single TMDB filename only, no user-provided origin/URL, no redirects, bounded image bytes, no forwarding credentials | image resolver tests; fixed-path table tests |
+
+Person IDs use a deterministic 32-hex protocol namespace distinct from decimal
+catalog IDs; every read still requires association with a currently visible,
+parental-allowed title. No database migration or extension is required. SVG
+logo references use TMDB's PNG rendition through the existing image cache.
+No fabricated Banner/Art tags are emitted. Episode stills retain the existing
+local-still cache, retirement and fallback behavior. Background TMDB enrichment
+continues using the existing bounded scan, metadata queue, retry/backoff and
+30-day refresh; startup does not fetch artwork synchronously. Existing stored
+backdrops/logos/credits are immediately exposed without rewriting STRM files.
+F4 true-device movie/series image acceptance must be recorded separately from
+these HTTP replays. Playback remains the original authenticated wrapper →
+unchanged STRM resolver → actual-player-UA 115 resolution → 302.

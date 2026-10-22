@@ -38,3 +38,12 @@ it('native failed jobs link to the actual preprocessing scope rather than treati
 it('malformed page replies are errors rather than fabricated empty states',async()=>{fetch.mockImplementation(async()=>({ok:true,status:200,json:async()=>({data:[]})}));const s=mount(Logs);await flush();expect(s.data.error?.message).toContain('回执不完整');expect(s.data.data).toBeNull()})
 it.each([408,499])('keeps HTTP %i write timeouts locked until readback instead of treating them as a definite rejection',async status=>{const s=mount(Maintenance);await flush();s.ask('backup');fetch.mockImplementation(async(u,o)=>o?.method?{ok:false,status,json:async()=>({error:{code:'request_failed',message:'timeout'}})}:{ok:true,status:200,json:async()=>({data:u.endsWith('/ops')?snapshot:[]})});await s.apply();await s.apply();expect(writes('/ops/backups')).toHaveLength(1);expect(s.op.pending).toBeTruthy();expect(s.op.phase).toBe('reconciling')})
 it('does not clear a write intent when an intermediary returns malformed JSON with a 4xx status',async()=>{const s=mount(Maintenance);await flush();s.ask('backup');fetch.mockImplementation(async(u,o)=>o?.method?{ok:false,status:400,json:async()=>{throw Error('not-json')}}:{ok:true,status:200,json:async()=>({data:u.endsWith('/ops')?snapshot:[]})});await s.apply();await s.apply();expect(writes('/ops/backups')).toHaveLength(1);expect(s.op.pending).toBeTruthy()})
+
+it('maps one log date-time range to both existing API filters and clears them together',async()=>{
+ const s=mount(Logs);await flush();
+ s.timeRange=['2026-10-22T10:00:00','2026-10-22T11:00:00'];await s.load();
+ let q=new URL('https://fixture.invalid'+fetch.mock.calls.filter(([u])=>u.includes('/logs/query?')).at(-1)![0]).searchParams;
+ expect(q.get('from')).toBe(new Date('2026-10-22T10:00:00').toISOString());expect(q.get('to')).toBe(new Date('2026-10-22T11:00:00').toISOString());
+ s.timeRange=null;await s.load();q=new URL('https://fixture.invalid'+fetch.mock.calls.filter(([u])=>u.includes('/logs/query?')).at(-1)![0]).searchParams;
+ expect(q.has('from')).toBe(false);expect(q.has('to')).toBe(false);expect(fetch.mock.calls.some(([,o])=>o?.method)).toBe(false);
+})

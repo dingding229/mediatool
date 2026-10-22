@@ -149,6 +149,9 @@ func (s *source) addNative(t *testing.T, doc object) {
 				params = append(params, object{"name": "User-Agent", "in": "header", "required": true, "schema": object{"type": "string"}})
 			}
 			op := object{"operationId": "native_" + operationID(method, path), "tags": []string{"原生Emby协议"}, "summary": r.kind, "description": "仅native/media listener；允许/emby与/mediabrowser前缀及大小写兼容，不提供管理路由。GET同时支持HEAD，已知path的OPTIONS为204静态Allow。/socket为501，不支持WebSocket；嵌入字幕为404。", "security": security, "servers": []any{object{"url": "{nativeOrigin}", "variables": object{"nativeOrigin": object{"default": "http://localhost:8092", "description": "替换为MEMBER_PUBLIC_URL/原生MEMBER_ADDR对应地址，示例为默认内部8092，非管理端口或外部Emby8096。"}}}}, "x-listener": "native-media", "x-go-registration": r.method + " " + r.path, "x-go-handler": "handle:" + r.kind, "x-source": r.location, "responses": responses}
+			if r.kind == "imageResponse" {
+				op["description"] = op["description"].(string) + " 图片须媒体用户鉴权；读取缓存或返回304前检查条目/演员的库与分级可见性；省略index等同0，图片使用private缓存。"
+			}
 			if len(params) > 0 {
 				op["parameters"] = params
 			}

@@ -107,12 +107,7 @@ func SeriesDTO(in SeriesProjection) (dto.BaseItemDto, error) {
 		}
 		item.ProviderIds["Imdb"] = meta.ImdbID
 	}
-	if meta.PosterPath != "" {
-		item.ImageTags = map[string]string{"Primary": ImageTag(meta.PosterPath)}
-	}
-	if meta.BackdropPath != "" {
-		item.BackdropImageTags = dto.Array[string]{ImageTag(meta.BackdropPath)}
-	}
+	applyImageTags(&item, meta.PosterPath, meta.BackdropPath, in.Details)
 	addPeople(&item, in.Details)
 	item.ChildCount = ptr(in.SeasonCount)
 	item.RecursiveItemCount = ptr(in.EpisodeCount)
@@ -135,9 +130,7 @@ func SeasonDTO(in SeasonProjection) (dto.BaseItemDto, error) {
 	item.ServerId, item.ParentId, item.SeriesId, item.SeriesName = in.ServerID, in.ParentID, in.SeriesID, in.SeriesName
 	item.IndexNumber = ptr(in.Number)
 	item.ProductionYear = parseYear(in.Year)
-	if in.SeriesDetails != nil && in.SeriesDetails.PosterPath != "" {
-		item.SeriesPrimaryImageTag = ImageTag(in.SeriesDetails.PosterPath)
-	}
+	applyParentImageTags(&item, in.SeriesID, in.SeriesDetails)
 	item.DateCreated = utcPtr(in.CreatedAt)
 	item.ChildCount = ptr(in.EpisodeCount)
 	unplayed := in.EpisodeCount
@@ -149,8 +142,8 @@ func SeasonDTO(in SeasonProjection) (dto.BaseItemDto, error) {
 		if date := parseUTCDate(in.Details.PremiereDate); date != nil {
 			item.PremiereDate = date
 		}
-		if in.Details.PosterPath != "" {
-			item.ImageTags = map[string]string{"Primary": ImageTag(in.Details.PosterPath)}
+		if p := ImagePath(in.Details.PosterPath); p != "" {
+			item.ImageTags = map[string]string{"Primary": ImageTag(p)}
 		}
 	}
 	completeProjectionUserData(&item)
@@ -186,21 +179,13 @@ func EpisodeDTO(in EpisodeProjection) (dto.BaseItemDto, error) {
 	if in.VersionOverflow && len(item.MediaSources) > 0 {
 		item.MediaSources[0].Name += "（仅展示最新100个版本）"
 	}
-	if in.SeriesDetails != nil {
-		if in.SeriesDetails.PosterPath != "" {
-			item.SeriesPrimaryImageTag = ImageTag(in.SeriesDetails.PosterPath)
-		}
-		if in.SeriesDetails.BackdropPath != "" {
-			item.ParentBackdropImageTags = dto.Array[string]{ImageTag(in.SeriesDetails.BackdropPath)}
-		}
-	}
-	item.ParentBackdropItemId = in.SeriesID
-	if in.StillPath != "" {
-		item.ImageTags = map[string]string{"Primary": ImageTag(in.StillPath)}
+	applyParentImageTags(&item, in.SeriesID, in.SeriesDetails)
+	if p := ImagePath(in.StillPath); p != "" {
+		item.ImageTags = map[string]string{"Primary": ImageTag(p)}
 	} else if in.LocalStillTag != "" {
 		item.ImageTags = map[string]string{"Primary": in.LocalStillTag}
-	} else if in.FallbackPoster != "" {
-		item.ImageTags = map[string]string{"Primary": ImageTag(in.FallbackPoster)}
+	} else if p := ImagePath(in.FallbackPoster); p != "" {
+		item.ImageTags = map[string]string{"Primary": ImageTag(p)}
 	}
 	completeProjectionUserData(&item)
 	if _, err = json.Marshal(item); err != nil {
@@ -235,9 +220,9 @@ func addPeople(item *dto.BaseItemDto, d *TMDBDetails) {
 		if p.ID < 1 || p.Name == "" {
 			continue
 		}
-		x := dto.BaseItemPerson{NameIdPair: dto.NameIdPair{Id: strconv.FormatInt(p.ID, 10), Name: p.Name}, Type: p.Type, Role: p.Role}
-		if p.ImagePath != "" {
-			x.PrimaryImageTag = ImageTag(p.ImagePath)
+		x := dto.BaseItemPerson{NameIdPair: dto.NameIdPair{Id: PersonID(p.ID), Name: p.Name}, Type: p.Type, Role: p.Role}
+		if path := ImagePath(p.ImagePath); path != "" {
+			x.PrimaryImageTag = ImageTag(path)
 		}
 		item.People = append(item.People, x)
 	}

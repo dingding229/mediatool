@@ -3,9 +3,12 @@ package embyapi
 import (
 	"context"
 	"errors"
+	"media-tool/internal/modules/mediausers/contracts"
 )
 
 type ImageRequest struct {
+	User           *contracts.User
+	Permissions    contracts.PermissionChecker
 	ItemID         string
 	Type           string
 	Index          int

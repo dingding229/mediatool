@@ -37,7 +37,6 @@ type Server struct {
 	router          *Router
 	options         ServerOptions
 	fallbackWarning sync.Once
-	imageLimits     imageLimiter
 	startupLimits   imageLimiter
 	requests        chan struct{}
 	browsePaths     map[string]bool
@@ -154,7 +153,7 @@ func (s *Server) handle(e endpoint) http.HandlerFunc {
 			s.router.fail(w, 429)
 			return
 		}
-		if !e.public || e.kind == imageResponse && info.Auth.Token != "" {
+		if !e.public {
 			if s.options.Auth != nil && info.Auth.Token != "" {
 				user, device, token, err := s.options.Auth.Authenticate(r.Context(), info.Auth.Token, deviceInfo(info))
 				if err == nil {
@@ -250,16 +249,15 @@ func (s *Server) handle(e endpoint) http.HandlerFunc {
 // Used only after the route's authentication gate; future tasks replace these.
 func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 	info, _ := RequestInfo(r.Context())
-	if info.User == nil && !s.imageLimits.allow(info.Address.ClientIP, time.Now()) {
-		w.Header().Set("Retry-After", "60")
-		writeAuthError(w, 429, "图片请求过于频繁，请稍后重试")
+	if info.User == nil {
+		s.router.fail(w, http.StatusUnauthorized)
 		return
 	}
 	if s.options.Images == nil {
 		s.router.fail(w, http.StatusNotFound)
 		return
 	}
-	index := -1
+	index := 0
 	if raw := r.PathValue("index"); raw != "" {
 		n, err := strconv.Atoi(raw)
 		if err != nil || n < 0 || n > 100 {
@@ -268,7 +266,7 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		}
 		index = n
 	}
-	request := ImageRequest{ItemID: r.PathValue("id"), Type: r.PathValue("type"), Index: index, Tag: queryValue(r, "tag"), Format: queryValue(r, "format"), RequestedWidth: queryWidth(r)}
+	request := ImageRequest{User: info.User, Permissions: info.Permissions, ItemID: r.PathValue("id"), Type: r.PathValue("type"), Index: index, Tag: queryValue(r, "tag"), Format: queryValue(r, "format"), RequestedWidth: queryWidth(r)}
 	result, err := s.options.Images.ResolveImage(r.Context(), request)
 	if errors.Is(err, ErrImageNotFound) {
 		s.router.fail(w, http.StatusNotFound)
@@ -285,10 +283,11 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", result.ContentType)
 	if request.Tag == result.Tag {
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	} else {
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Cache-Control", "private, max-age=3600")
 	}
+	w.Header().Set("Vary", "X-Emby-Token, X-Emby-Authorization, Authorization")
 	w.Header().Set("ETag", `"`+result.Tag+`"`)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	if strings.TrimSpace(r.Header.Get("If-None-Match")) == `"`+result.Tag+`"` || strings.TrimSpace(r.Header.Get("If-None-Match")) == result.Tag {

@@ -42,7 +42,7 @@ func (a *API) admitPlayer(w http.ResponseWriter, r *http.Request) bool {
 	if checker == nil {
 		// Pure development/unit-test mode has no durable policy. Real deployment
 		// never treats an unavailable configured database as a disabled restriction.
-		if a.Deps.DB == nil && a.Config.Environment == "development" {
+		if a.Deps.DB == nil && a.Config.Development() {
 			return true
 		}
 		checker = a.playerAccessRepo()

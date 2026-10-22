@@ -78,7 +78,7 @@ func (r BrowseRepository) hydrate(ctx context.Context, records []browseRow, fiel
  SELECT w.kind,w.tmdb,w.s,jsonb_build_object('name',d.payload->'name','originalTitle',d.payload->'originalTitle','sortName',d.payload->'sortName',
  'overview',CASE WHEN $3 THEN left(d.payload->>'overview',16384) ELSE '' END,'genres',d.payload->'genres','posterPath',d.payload->'posterPath','backdropPath',d.payload->'backdropPath',
  'premiereDate',d.payload->'premiereDate','communityRating',d.payload->'communityRating','officialRating',d.payload->'officialRating','imdbId',d.payload->'imdbId',
- 'runtimeMinutes',d.payload->'runtimeMinutes','logoPath',d.payload->'logoPath','status',d.payload->'status','endDate',d.payload->'endDate',
+ 'backdrops',d.payload->'backdrops','logos',d.payload->'logos','runtimeMinutes',d.payload->'runtimeMinutes','logoPath',d.payload->'logoPath','status',d.payload->'status','endDate',d.payload->'endDate',
  'people',CASE WHEN $4 THEN coalesce((SELECT jsonb_agg(v) FROM(SELECT v FROM jsonb_array_elements(coalesce(d.payload->'people','[]')) v LIMIT 60) a),'[]') ELSE '[]'::jsonb END,
  'episodes',coalesce((SELECT jsonb_agg(ep) FROM jsonb_array_elements(coalesce(d.payload->'episodes','[]')) ep WHERE EXISTS(
  SELECT 1 FROM jsonb_to_recordset($2) p(tmdb bigint,"S" int,"E" int) WHERE p.tmdb=w.tmdb AND p."S"=w.s AND p."E"::text=ep->>'number')),'[]'))
@@ -172,6 +172,9 @@ func (r BrowseRepository) hydrate(ctx context.Context, records []browseRow, fiel
 		d := details[detailKey{root, x.TMDB, -1}]
 		if d.PosterPath == "" {
 			d.PosterPath = x.Meta.PosterPath
+		}
+		if d.BackdropPath == "" {
+			d.BackdropPath = x.Meta.BackdropPath
 		}
 		sd := details[detailKey{"season", x.TMDB, x.S}]
 		id := keyID(x.Kind, x.Key)

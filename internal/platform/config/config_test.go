@@ -10,7 +10,7 @@ func lookup(env map[string]string) func(string) (string, bool) {
 	return func(k string) (string, bool) { v, ok := env[k]; return v, ok }
 }
 func validEnv() map[string]string {
-	return map[string]string{"SESSION_SECRET_KEY": strings.Repeat("a", 64), "STRM_API_KEY": strings.Repeat("b", 64)}
+	return map[string]string{"APP_PUBLIC_URL": "https://media.example.test", "SESSION_SECRET_KEY": strings.Repeat("a", 64), "STRM_API_KEY": strings.Repeat("b", 64)}
 }
 func TestDefaults(t *testing.T) {
 	c, err := FromLookup(lookup(validEnv()))
@@ -35,6 +35,7 @@ func TestRejectUnsafeConfig(t *testing.T) {
 func TestProductionRequiresHTTPS(t *testing.T) {
 	env := validEnv()
 	env["APP_ENV"] = "production"
+	env["APP_PUBLIC_URL"] = "http://localhost:8080"
 	if _, err := FromLookup(lookup(env)); err == nil {
 		t.Fatal("http accepted")
 	}
@@ -162,6 +163,41 @@ func TestRemovedProxyFlagsCannotEnableMediaRelay(t *testing.T) {
 		c, e := FromLookup(lookup(env))
 		if e != nil || c.STRMForceProxy || c.STRMProxyFallback {
 			t.Fatal(key, c, e)
+		}
+	}
+}
+
+func TestDevelopmentRequiresExplicitDeclaration(t *testing.T) {
+	for _, tc := range []struct {
+		name, value  string
+		present, dev bool
+	}{
+		{"unset", "", false, false}, {"blank", " ", true, false},
+		{"production", "production", true, false}, {"explicit-development", "development", true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := validEnv()
+			if tc.present {
+				env["APP_ENV"] = tc.value
+			}
+			c, err := FromLookup(lookup(env))
+			if err != nil || c.Development() != tc.dev {
+				t.Fatalf("mode=%q dev=%v error=%v", c.Environment, c.Development(), err)
+			}
+			if !tc.dev && c.RuntimeEnvironment() != "production" {
+				t.Fatal("implicit development")
+			}
+		})
+	}
+	if (Config{}).Development() || (Config{}).RuntimeEnvironment() != "production" {
+		t.Fatal("zero config is not production-safe")
+	}
+	for _, envValue := range []string{"", "production"} {
+		env := validEnv()
+		env["APP_ENV"] = envValue
+		env["APP_PUBLIC_URL"] = "http://insecure.fixture.invalid"
+		if _, err := FromLookup(lookup(env)); err == nil {
+			t.Fatal("relaxed production HTTPS policy")
 		}
 	}
 }

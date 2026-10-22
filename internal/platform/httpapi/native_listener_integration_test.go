@@ -194,9 +194,7 @@ func TestNativeListenerDatabaseSmoke(t *testing.T) {
 							expected = 401
 						}
 					}
-					if on && strings.Contains(e.path, "/Images/") {
-						expected = 404
-					}
+					// Native artwork is authenticated; anonymous probes remain 401 even for a missing image.
 					if status != expected {
 						t.Fatalf("enabled=%v %s %s: got %d want %d", on, method, path, status, expected)
 					}

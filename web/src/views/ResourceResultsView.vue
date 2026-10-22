@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed,ref} from 'vue';
+import {Sort,Top,Bottom,CircleCheck,CircleClose,Loading} from '@element-plus/icons-vue';
 import {providePageRefresh,usePageRefresh} from '../ui/page-refresh';
 const ownRefresh=providePageRefresh();
 import PageHeader from '../ui/PageHeader.vue';
@@ -17,7 +18,9 @@ const { run, loading, error, mediaSaving, mediaReady, page, filters, activeMedia
 const sitesOpen=ref(false);
 const siteCounts=computed(()=>({success:run.value?.sites.filter(s=>s.state==='succeeded').length||0,failed:run.value?.sites.filter(s=>['failed','partial'].includes(s.state)).length||0,running:run.value?.sites.filter(s=>['pending','running'].includes(s.state)).length||0}));
 const direction=(key:string)=>filters.sort.startsWith(key+'_')?(filters.sort.endsWith('_asc')?'ascending':'descending'):'none';
-const arrow=(key:string)=>direction(key)==='ascending'?' ↑':direction(key)==='descending'?' ↓':'';
+const sortIcon=(key:string)=>direction(key)==='ascending'?Top:direction(key)==='descending'?Bottom:Sort;
+const failedSite=(state:string)=>['failed','partial'].includes(state);
+const sortedSites=computed(()=>[...(run.value?.sites||[])].sort((a,b)=>Number(failedSite(b.state))-Number(failedSite(a.state))));
 ownRefresh.register(()=>refresh(),()=>true);
 </script>
 <template>
@@ -36,7 +39,14 @@ ownRefresh.register(()=>refresh(),()=>true);
       <MediaContext :key="run.id" :keyword="run.keyword" :initial="activeMedia" :disabled="mediaSaving||!mediaReady" @selected="persistMedia"/>
       <section class="acquire-surface f3-site-summary">
         <button class="f3-summary-toggle" :aria-expanded="sitesOpen" @click="sitesOpen=!sitesOpen">站点查询状态 · 成功 {{siteCounts.success}} / 失败 {{siteCounts.failed}} / 进行中 {{siteCounts.running}} <span>{{sitesOpen?'收起':'查看各站点'}} {{sitesOpen?'▴':'▾'}}</span></button>
-        <div v-show="sitesOpen" class="acquire-site-status f3-site-details"><article v-for="site in run.sites" :key="site.accountId"><strong>{{site.name}}</strong><span>{{label(site.state)}} · {{site.count??'—'}}</span><p v-if="site.message">{{site.message}}</p></article></div>
+        <div v-show="sitesOpen" class="acquire-site-status f3-site-details f4-site-grid" role="list" aria-label="各站点查询结果">
+          <ElTooltip v-for="site in sortedSites" :key="site.accountId" :content="site.message" :disabled="!site.message" placement="top">
+            <article role="listitem" tabindex="0" :data-state="site.state" :aria-label="site.name+' · '+label(site.state)+' · '+(site.count??'—')">
+              <CircleClose v-if="failedSite(site.state)" class="f4-site-icon is-failed" aria-hidden="true"/><CircleCheck v-else-if="site.state==='succeeded'" class="f4-site-icon is-success" aria-hidden="true"/><Loading v-else class="f4-site-icon" aria-hidden="true"/>
+              <strong>{{site.name}}</strong><span>{{label(site.state)}} · {{site.count??'—'}}</span>
+            </article>
+          </ElTooltip>
+        </div>
         <p v-if="run.state==='partial'">已取得部分结果；失败站点不代表没有资源。</p>
       </section>
       <section class="acquire-surface">
@@ -83,9 +93,9 @@ ownRefresh.register(()=>refresh(),()=>true);
         <div class="f3-stable-scroll">
         <div class="resource-columns">
           <span>资源与站点</span>
-          <span role="columnheader" tabindex="0" :aria-sort="direction('size')" aria-label="按文件大小排序" @click="sort('size')" @keydown.enter="sort('size')" @keydown.space.prevent="sort('size')">大小{{arrow('size')}}</span>
-          <span role="columnheader" tabindex="0" :aria-sort="direction('seeders')" aria-label="按做种人数排序" @click="sort('seeders')" @keydown.enter="sort('seeders')" @keydown.space.prevent="sort('seeders')">做种人数{{arrow('seeders')}}</span>
-          <span role="columnheader" tabindex="0" :aria-sort="direction('promotion')" @click="sort('promotion')" @keydown.enter="sort('promotion')" @keydown.space.prevent="sort('promotion')">促销{{arrow('promotion')}}</span>
+          <span role="columnheader" tabindex="0" :aria-sort="direction('size')" aria-label="按文件大小排序" @click="sort('size')" @keydown.enter="sort('size')" @keydown.space.prevent="sort('size')">大小<component :is="sortIcon('size')" class="f4-sort-icon" aria-hidden="true"/></span>
+          <span role="columnheader" tabindex="0" :aria-sort="direction('seeders')" aria-label="按做种人数排序" @click="sort('seeders')" @keydown.enter="sort('seeders')" @keydown.space.prevent="sort('seeders')">做种人数<component :is="sortIcon('seeders')" class="f4-sort-icon" aria-hidden="true"/></span>
+          <span role="columnheader" tabindex="0" :aria-sort="direction('promotion')" aria-label="按促销排序" @click="sort('promotion')" @keydown.enter="sort('promotion')" @keydown.space.prevent="sort('promotion')">促销<component :is="sortIcon('promotion')" class="f4-sort-icon" aria-hidden="true"/></span>
           <span>操作</span>
         </div>
         <article v-for="item in run.resources" :key="item.id" class="resource-entry">

@@ -55,6 +55,16 @@ type Config struct {
 	WorkerPollInterval, WorkerLease                          time.Duration
 }
 
+// Development is an explicit opt-in. Zero-value/programmatic configurations fail
+// closed rather than inheriting development-only behavior.
+func (c Config) Development() bool { return c.Environment == "development" }
+func (c Config) RuntimeEnvironment() string {
+	if c.Development() {
+		return "development"
+	}
+	return "production"
+}
+
 func Load() (Config, error) { return FromLookup(os.LookupEnv) }
 func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	get := func(key, fallback string) string {
@@ -72,7 +82,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		LogLevel:       get("LOG_LEVEL", "info"),
 		HostProcDir:    get("HOST_PROC_DIR", "/proc"),
 		MaintenanceDir: get("OPS_DATA_DIR", "/data/maintenance"),
-		EmbyPublicURL:  get("EMBY_PUBLIC_URL", ""), EmbyGatewayAddress: get("EMBY_GATEWAY_ADDR", "127.0.0.1:8091"), Environment: get("APP_ENV", "development"), Address: get("APP_ADDR", "127.0.0.1:8080"),
+		EmbyPublicURL:  get("EMBY_PUBLIC_URL", ""), EmbyGatewayAddress: get("EMBY_GATEWAY_ADDR", "127.0.0.1:8091"), Environment: get("APP_ENV", "production"), Address: get("APP_ADDR", "127.0.0.1:8080"),
 		PublicURL: get("APP_PUBLIC_URL", "http://localhost:8080"), SessionKey: secret("SESSION_SECRET_KEY"), STRMKey: get("STRM_API_KEY", ""),
 		SecretKey: secret("APP_SECRET_KEY"), DatabaseURL: get("DATABASE_URL", ""), RedisURL: get("REDIS_URL", ""), STRMOutputDir: get("STRM_OUTPUT_DIR", "./data/strm"),
 		CloudDriveEndpoint: get("CLOUDDRIVE_ENDPOINT", ""), CloudDriveToken: get("CLOUDDRIVE_TOKEN", ""), EmbyUpstream: get("EMBY_UPSTREAM_URL", ""),
@@ -81,6 +91,9 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	}
 	if _, err := logging.ParseLevel(c.LogLevel); err != nil {
 		return c, err
+	}
+	if c.Environment == "" {
+		c.Environment = "production"
 	}
 	if c.Environment != "development" && c.Environment != "production" {
 		return c, errors.New("APP_ENV must be development or production")
@@ -125,7 +138,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	if u.Path != "" && u.Path != "/" {
 		return c, errors.New("APP_PUBLIC_URL must be an origin without a path")
 	}
-	if c.Environment == "production" && u.Scheme != "https" {
+	if !c.Development() && u.Scheme != "https" {
 		return c, errors.New("production APP_PUBLIC_URL requires https")
 	}
 	c.PublicURL = strings.TrimRight(c.PublicURL, "/")
@@ -163,7 +176,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		if u.Path != "" && u.Path != "/" {
 			return c, errors.New("EMBY_PUBLIC_URL must be an origin")
 		}
-		if c.Environment == "production" && u.Scheme != "https" {
+		if !c.Development() && u.Scheme != "https" {
 			return c, errors.New("production EMBY_PUBLIC_URL requires HTTPS")
 		}
 		c.EmbyPublicURL = strings.TrimRight(c.EmbyPublicURL, "/")

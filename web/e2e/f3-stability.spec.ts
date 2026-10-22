@@ -6,7 +6,7 @@ import {u5SitesFixture,u5PlaybackFixture} from './u5-fixture'
 import {u3Fixture,u3Run} from './u3-fixture'
 import {u4Fixture,organizeFixture} from './u4-fixture'
 
-const out=resolve(import.meta.dirname,'../../data/private/f3/screenshots')
+const out=process.env.F3_SCREENSHOT_DIR||resolve(import.meta.dirname,'../../data/private/f3/screenshots')
 mkdirSync(out,{recursive:true})
 async function metrics(page:Page){await page.addInitScript(()=>{(window as any).__f3CLS=0;new PerformanceObserver(list=>{for(const e of list.getEntries() as any)if(!e.hadRecentInput)(window as any).__f3CLS+=e.value}).observe({type:'layout-shift',buffered:true})})}
 async function sse(page:Page){await page.addInitScript(()=>{(window as any).EventSource=class{onopen:any;onerror:any;listeners=new Map<string,()=>void>();timer:any;constructor(){setTimeout(()=>this.onopen?.({}),0);this.timer=setInterval(()=>this.listeners.get('tick')?.(),3000)}addEventListener(name:string,cb:()=>void){this.listeners.set(name,cb)}close(){clearInterval(this.timer)}}})}
@@ -20,20 +20,20 @@ async function shot(page:Page,name:string){await page.waitForLoadState('networki
 test('F3 queue SSE has no stacked poll and preserves container, filters, details and scrolling',async({page})=>{
  await metrics(page);await sse(page);await page.clock.install();await fixture(page,'ops')
  let jobs=0,health=0
- await page.route('**/api/v1/jobs/browse?*',r=>{jobs++;return r.fulfill({json:{data:{items:Array.from({length:30},(_,i)=>({id:`aaaaaaaa-0000-4000-8000-${String(i).padStart(12,'0')}`,kind:'system.check',queue:'default',state:'succeeded',attempts:1,maxAttempts:3,startedAt:'2026-10-22T00:00:00Z',updatedAt:'2026-10-22T00:00:03Z',createdAt:'2026-10-22T00:00:00Z'})),total:30}}})})
+ await page.route('**/api/v1/jobs/browse?*',r=>{jobs++;return r.fulfill({json:{data:{items:Array.from({length:25},(_,i)=>({id:`aaaaaaaa-0000-4000-8000-${String(i).padStart(12,'0')}`,kind:'system.check',queue:'default',state:'succeeded',attempts:1,maxAttempts:3,startedAt:'2026-10-22T00:00:00Z',updatedAt:'2026-10-22T00:00:03Z',createdAt:'2026-10-22T00:00:00Z'})),total:60}}})})
  page.on('request',r=>{if(r.url().endsWith('/system/operations'))health++})
- await page.goto('/ops?tab=jobs');await expect(page.locator('.f3-job-row')).toHaveCount(30)
- await page.getByLabel('搜索任务',{exact:true}).fill('保留筛选')
+ await page.goto('/ops?tab=jobs');await expect(page.locator('.f3-job-row')).toHaveCount(25)
+ await page.getByLabel('搜索任务',{exact:true}).fill('系统检查')
  await page.locator('.f3-health details summary').click()
- const area=page.locator('.f3-queue-list'),scroll=area.locator('.f3-stable-scroll');await scroll.evaluate(e=>e.scrollTop=120)
- const before=await area.boundingBox(),scrollBefore=await scroll.evaluate(e=>e.scrollTop)
+ const area=page.locator('.f3-queue-list');await expect(area.locator('.f3-stable-scroll')).toHaveCount(0);await page.evaluate(()=>window.scrollTo(0,120))
+ const before=await area.boundingBox(),scrollBefore=await page.evaluate(()=>window.scrollY)
  for(let i=0;i<8;i++){const n=jobs;await page.clock.runFor(15050);await expect.poll(()=>jobs).toBeGreaterThan(n);await expect(area.locator('.state-loading')).toHaveCount(0)}
- expect(await area.boundingBox()).toEqual(before);expect(await scroll.evaluate(e=>e.scrollTop)).toBe(scrollBefore)
- await expect(page.getByLabel('搜索任务',{exact:true})).toHaveValue('保留筛选');await expect(page.locator('.f3-health details')).toHaveAttribute('open','')
+ expect(await area.boundingBox()).toEqual(before);expect(await page.evaluate(()=>window.scrollY)).toBe(scrollBefore)
+ await expect(page.getByLabel('搜索任务',{exact:true})).toHaveValue('系统检查');await expect(page.locator('.f3-health details')).toHaveAttribute('open','')
  expect(jobs).toBeLessThanOrEqual(10);expect(health).toBeLessThanOrEqual(6)
  const cls=await page.evaluate(()=>(window as any).__f3CLS);expect(cls).toBeLessThan(.1)
- writeFileSync(resolve(out,'queue-stability.json'),JSON.stringify({virtualSeconds:120,jobs,health,CLS:cls,before,after:await area.boundingBox(),scrollBefore,scrollAfter:await scroll.evaluate(e=>e.scrollTop)},null,2))
- await scroll.evaluate(e=>e.scrollTop=0);await page.locator('.f3-health').evaluate(e=>e.scrollTop=0);
+ writeFileSync(resolve(out,'queue-stability.json'),JSON.stringify({virtualSeconds:120,jobs,health,CLS:cls,before,after:await area.boundingBox(),scrollBefore,scrollAfter:await page.evaluate(()=>window.scrollY)},null,2))
+ await page.getByLabel('搜索任务',{exact:true}).fill('');await page.evaluate(()=>window.scrollTo(0,0));
  await shot(page,'queue-desktop');await page.setViewportSize({width:390,height:844});await shot(page,'queue-narrow');
  const n=jobs,h=health;await page.locator('.media-workspace>.page-tabs').getByRole('button',{name:'日志',exact:true}).click();await page.clock.runFor(45000);expect(jobs).toBe(n);expect(health).toBe(h)
 })

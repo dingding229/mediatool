@@ -124,7 +124,8 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <p v-if="notice" role="status">{{ notice }}</p>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'站点操作已排队，尚未核验完成。':'正在核对上次站点操作，不重复提交。'" @refresh="load"/>
-      <div class="f3-stable-scroll f3-sites-list">
+      <p class="f4-list-count">共 {{shown.length}} 个站点</p>
+      <div class="f4-sites-list">
       <ResourceState :stale="accounts.loaded" :loading="accounts.loading" :error="accounts.error" :empty="!shown.length" empty-title="暂无匹配的站点账号" @reload="load"/>
       <article v-for="row in shown" :key="row.id" class="organize-record u5-metric-card f3-site-card">
         <header class="media-section-heading">
@@ -149,7 +150,7 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
             <strong>{{ numberText(row.metric?.metrics?.ratio) }}</strong>
           </div>
         <div><span>魔力 / 积分</span><strong>{{ numberText(row.metric?.metrics?.bonus) }}</strong></div>
-        <div><span>做种</span><strong>{{ row.metric?.metrics?.seeding??'—' }}</strong><small>{{ bytes(row.metric?.metrics?.seedingBytes) }}</small></div>
+        <div><span>做种</span><strong>{{ row.metric?.metrics?.seeding??'—' }}</strong><small>做种体积 {{ bytes(row.metric?.metrics?.seedingBytes) }}</small></div>
         </div>
         <p class="f3-site-updated">{{ row.metric?siteState(row.metric.state):'尚无采集记录' }} · {{ date(row.metric?.collectedAt) }}{{ row.metric?.stale?' · 快照已过期，请重新采集':'' }}</p>
         <p v-if="row.metric?.message">{{ row.metric.message }}</p>

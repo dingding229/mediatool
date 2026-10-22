@@ -96,7 +96,7 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	if d.Logger == nil {
 		d.Logger = slog.Default()
 	}
-	a := &API{Config: c, Deps: d, Auth: auth.Auth{Key: c.SessionKey, Origin: c.PublicURL, AllowedOrigins: c.AuthAllowedOrigins, Secure: c.Environment == "production"}, Builder: strm.Builder{BaseURL: c.PublicURL, APIKey: c.STRMKey, AllowedRoots: c.STRMAllowedRoots}}
+	a := &API{Config: c, Deps: d, Auth: auth.Auth{Key: c.SessionKey, Origin: c.PublicURL, AllowedOrigins: c.AuthAllowedOrigins, Secure: !c.Development()}, Builder: strm.Builder{BaseURL: c.PublicURL, APIKey: c.STRMKey, AllowedRoots: c.STRMAllowedRoots}}
 	a.EmbyIdentities = emby.NewMemoryIdentityStore()
 	if d.Redis != nil {
 		a.EmbyIdentities = &emby.RedisIdentityStore{Redis: d.Redis}
@@ -615,7 +615,7 @@ func (a *API) dependencies(ctx context.Context) []DependencyStatus {
 }
 func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 	deps := a.dependencies(r.Context())
-	ready := deps[0].State == "ready" || (a.Config.Environment == "development" && a.Deps.DB == nil)
+	ready := deps[0].State == "ready" || (a.Config.Development() && a.Deps.DB == nil)
 	// Redis is cache, not the durable queue: report degradation but do not block.
 	if !ready {
 		fail(w, 503, "not_ready", "主数据库未就绪")
@@ -625,7 +625,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
-		"name": "Media Tool", "version": buildinfo.Version, "environment": a.Config.Environment, "dependencies": a.dependencies(r.Context()), "publicUrl": a.access(r.Context()).ManagementURL, "memberUrl": a.access(r.Context()).MemberURL, "playbackUrl": a.access(r.Context()).PlaybackURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
+		"name": "Media Tool", "version": buildinfo.Version, "environment": a.Config.RuntimeEnvironment(), "dependencies": a.dependencies(r.Context()), "publicUrl": a.access(r.Context()).ManagementURL, "memberUrl": a.access(r.Context()).MemberURL, "playbackUrl": a.access(r.Context()).PlaybackURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
 		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": false, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": false, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
 	})
 }

@@ -58,7 +58,7 @@
   },
   "detail": {
     "status": 200,
-    "bytes": 2031,
+    "bytes": 1999,
     "body": {
       "BackdropImageTags": [],
       "Bitrate": 100000,
@@ -144,7 +144,6 @@
       "Name": "Synthetic Episode 1",
       "OfficialRating": "G",
       "ParentBackdropImageTags": [],
-      "ParentBackdropItemId": "100011",
       "ParentId": "100010",
       "ParentIndexNumber": 1,
       "Path": "Synthetic Episode 1.mkv",
@@ -171,7 +170,7 @@
   },
   "episodes": {
     "status": 200,
-    "bytes": 3367,
+    "bytes": 3303,
     "body": {
       "Items": [
         {
@@ -259,7 +258,6 @@
           "Name": "Synthetic Episode 1",
           "OfficialRating": "G",
           "ParentBackdropImageTags": [],
-          "ParentBackdropItemId": "100011",
           "ParentId": "100010",
           "ParentIndexNumber": 1,
           "Path": "Synthetic Episode 1.mkv",
@@ -319,7 +317,6 @@
           "Name": "Synthetic Episode 2",
           "OfficialRating": "G",
           "ParentBackdropImageTags": [],
-          "ParentBackdropItemId": "100011",
           "ParentId": "100010",
           "ParentIndexNumber": 1,
           "Path": "Synthetic Episode 2.mkv",
@@ -615,7 +612,7 @@
   },
   "next-progress": {
     "status": 200,
-    "bytes": 2137,
+    "bytes": 2105,
     "body": {
       "Items": [
         {
@@ -703,7 +700,6 @@
           "Name": "Synthetic Episode 1",
           "OfficialRating": "G",
           "ParentBackdropImageTags": [],
-          "ParentBackdropItemId": "100011",
           "ParentId": "100010",
           "ParentIndexNumber": 1,
           "Path": "Synthetic Episode 1.mkv",
@@ -735,7 +731,7 @@
   },
   "next-stopped": {
     "status": 200,
-    "bytes": 1335,
+    "bytes": 1303,
     "body": {
       "Items": [
         {
@@ -774,7 +770,6 @@
           "Name": "Synthetic Episode 2",
           "OfficialRating": "G",
           "ParentBackdropImageTags": [],
-          "ParentBackdropItemId": "100011",
           "ParentId": "100010",
           "ParentIndexNumber": 1,
           "Path": "Synthetic Episode 2.mkv",
@@ -913,7 +908,7 @@
   },
   "resume-progress": {
     "status": 200,
-    "bytes": 2137,
+    "bytes": 2105,
     "body": {
       "Items": [
         {
@@ -1001,7 +996,6 @@
           "Name": "Synthetic Episode 1",
           "OfficialRating": "G",
           "ParentBackdropImageTags": [],
-          "ParentBackdropItemId": "100011",
           "ParentId": "100010",
           "ParentIndexNumber": 1,
           "Path": "Synthetic Episode 1.mkv",

@@ -223,3 +223,26 @@ func TestOfficial115AuthorizationEndpointsRequireAccountAndCSRF(t *testing.T) {
 		}
 	}
 }
+
+func TestReadinessRequiresExplicitDevelopmentWithoutDatabase(t *testing.T) {
+	for _, tc := range []struct {
+		name, env string
+		want      int
+	}{
+		{"zero", "", http.StatusServiceUnavailable},
+		{"production", "production", http.StatusServiceUnavailable},
+		{"unknown-is-not-development", "staging", http.StatusServiceUnavailable},
+		{"explicit-development", "development", http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := cfg()
+			c.Environment = tc.env
+			h := New(c, Dependencies{})
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, httptest.NewRequest("GET", "/readyz", nil))
+			if w.Code != tc.want {
+				t.Fatalf("mode %q: status %d, body %s", tc.env, w.Code, w.Body.String())
+			}
+		})
+	}
+}

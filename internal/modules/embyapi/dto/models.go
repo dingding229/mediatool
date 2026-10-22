@@ -105,6 +105,8 @@ type BaseItemDto struct {
 	EndDate                 *UTCDateTime           `json:"EndDate,omitempty"`
 	Status                  string                 `json:"Status,omitempty"`
 	SeriesPrimaryImageTag   string                 `json:"SeriesPrimaryImageTag,omitempty"`
+	ParentLogoItemId        string                 `json:"ParentLogoItemId,omitempty"`
+	ParentLogoImageTag      string                 `json:"ParentLogoImageTag,omitempty"`
 	ParentThumbItemId       string                 `json:"ParentThumbItemId,omitempty"`
 	ParentThumbImageTag     string                 `json:"ParentThumbImageTag,omitempty"`
 	ParentBackdropItemId    string                 `json:"ParentBackdropItemId,omitempty"`

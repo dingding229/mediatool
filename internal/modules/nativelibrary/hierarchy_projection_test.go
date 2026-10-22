@@ -15,7 +15,7 @@ func hierarchyFixtures(t *testing.T) map[string]dto.BaseItemDto {
 	t.Helper()
 	stamp := time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC)
 	rating := float32(8.7)
-	seriesDetails := &TMDBDetails{StoredMovieMetadata: StoredMovieMetadata{OriginalTitle: "Synthetic Series Original", SortName: "Synthetic Series", Overview: "series overview", Genres: []string{"Drama"}, PosterPath: "/series.jpg", BackdropPath: "/backdrop.jpg", PremiereDate: "2025-01-02", CommunityRating: &rating, OfficialRating: "TV-14", ImdbID: "tt123456"}, Status: "Ended", EndDate: "2026-03-01", People: []TMDBPerson{{ID: 1, Name: "Lead", Type: "Actor", ImagePath: "/lead.jpg"}}}
+	seriesDetails := &TMDBDetails{StoredMovieMetadata: StoredMovieMetadata{OriginalTitle: "Synthetic Series Original", SortName: "Synthetic Series", Overview: "series overview", Genres: []string{"Drama"}, PosterPath: "/series.jpg", BackdropPath: "/backdrop.jpg", PremiereDate: "2025-01-02", CommunityRating: &rating, OfficialRating: "TV-14", ImdbID: "tt123456"}, LogoPath: "/series-logo.svg", Backdrops: []string{"/backdrop.jpg", "/second-bg.jpg"}, Status: "Ended", EndDate: "2026-03-01", People: []TMDBPerson{{ID: 1, Name: "Lead", Type: "Actor", ImagePath: "/lead.jpg"}}}
 	series, err := SeriesDTO(SeriesProjection{ID: "100201", ServerID: strings.Repeat("b", 32), ParentID: "100001", Name: "Synthetic Series", Year: "2025", TMDBID: 90201, Details: seriesDetails, SeasonCount: 2, EpisodeCount: 3, CreatedAt: stamp})
 	if err != nil {
 		t.Fatal(err)
@@ -79,7 +79,7 @@ func TestHierarchyProjectionSpecialAndMultiEpisodeRules(t *testing.T) {
 	if ep.IndexNumberEnd == nil || *ep.IndexNumberEnd != 3 || len(ep.MediaSources) != 2 || ep.ParentIndexNumber == nil || *ep.ParentIndexNumber != 0 {
 		t.Fatal(ep)
 	}
-	if ep.SeriesPrimaryImageTag == "" || len(ep.ParentBackdropImageTags) != 1 || ep.ParentBackdropItemId != "100201" {
+	if ep.SeriesPrimaryImageTag == "" || len(ep.ParentBackdropImageTags) != 2 || ep.ParentLogoItemId != "100201" || ep.ParentLogoImageTag == "" || ep.ParentBackdropItemId != "100201" {
 		t.Fatal(ep)
 	}
 	if ep.Path != "Synthetic Episode.mkv" {
