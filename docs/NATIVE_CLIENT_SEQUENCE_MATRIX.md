@@ -137,6 +137,7 @@ Private captures, original URLs and screenshots are not committed.
 | No index = index 0; out-of-range, missing Art/Banner and unknown person return 404 | integration sequence and image endpoint tests |
 | SenPlayer / Infuse / generic UA; header token, Emby authorization, MediaBrowser authorization and api_key; GET/HEAD | `TestF4ImageAuthenticationTransportsAndClientSequence` |
 | Missing/invalid credentials → 401 before cache/304; revoked/hidden/parental-denied title or person → 404 before provider | endpoint + integration tests |
+| Missing/NULL/unsafe person portrait source has no advertised tag and returns 404 (not a SQL NULL/503); source filtering precedes the candidate bound | isolated integration sequence |
 | Source change changes ImageTag; stale tag gets current ETag without immutable cache | integration + fixed-path table tests |
 | Single TMDB filename only, no user-provided origin/URL, no redirects, bounded image bytes, no forwarding credentials | image resolver tests; fixed-path table tests |
 

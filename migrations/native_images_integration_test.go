@@ -37,7 +37,7 @@ func TestF4NativeClientImagesMovieSeriesSeasonEpisodePeople(t *testing.T) {
 		season  any
 		payload string
 	}{
-		{"movie", 940001, nil, `{"officialRating":"G","posterPath":"/movie.jpg","backdropPath":"/movie-bg.jpg","backdrops":["/movie-bg.jpg","/movie-bg2.jpg"],"logoPath":"/movie-logo.png","people":[{"id":1392137,"name":"Movie Actor","type":"Actor","imagePath":"/movie-person.jpg"}]}`},
+		{"movie", 940001, nil, `{"officialRating":"G","posterPath":"/movie.jpg","backdropPath":"/movie-bg.jpg","backdrops":["/movie-bg.jpg","/movie-bg2.jpg"],"logoPath":"/movie-logo.png","people":[{"id":1392137,"name":"Movie Actor","type":"Actor","imagePath":"/movie-person.jpg"},{"id":1392138,"name":"No portrait","type":"Actor"},{"id":1392139,"name":"Null portrait","type":"Actor","imagePath":null},{"id":1392140,"name":"Unsafe portrait","type":"Actor","imagePath":"https://evil.invalid/private.png"}]}`},
 		{"series", 940002, nil, `{"officialRating":"G","posterPath":"/series.jpg","backdropPath":"/series-bg.jpg","backdrops":["/series-bg.jpg","/series-bg2.jpg"],"logoPath":"/series-logo.svg","people":[{"id":2229,"name":"Series Actor","type":"Actor","imagePath":"/series-person.jpg"}]}`},
 		{"season", 940002, 1, `{"posterPath":"/season.jpg","episodes":[{"number":4,"stillPath":"/still.jpg"}]}`},
 	} {
@@ -153,6 +153,9 @@ func TestF4NativeClientImagesMovieSeriesSeasonEpisodePeople(t *testing.T) {
 	}
 	for _, path := range []string{"/Items/" + film.Id + "/Images/Backdrop/2", "/Items/" + film.Id + "/Images/Logo/1", "/Items/" + film.Id + "/Images/Banner", "/Items/" + film.Id + "/Images/Art", "/Items/1392137/Images/Primary", "/Items/" + nativelibrary.PersonID(999) + "/Images/Primary"} {
 		call("GET", path, true, "", 404)
+	}
+	for _, id := range []int64{1392138, 1392139, 1392140} {
+		call("GET", "/Items/"+nativelibrary.PersonID(id)+"/Images/Primary", true, "", 404)
 	}
 	old := nativelibrary.ImageTag("/movie.jpg")
 	f.exec(t, `UPDATE native_tmdb_details SET payload=jsonb_set(payload,'{posterPath}','"/movie-new.jpg"') WHERE tmdb_id=940001`)

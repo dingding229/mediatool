@@ -9,7 +9,10 @@ import (
 	"media-tool/internal/modules/embyapi/dto"
 )
 
-var tmdbImagePath = regexp.MustCompile(`^/[A-Za-z0-9_-]{1,200}\.(jpg|jpeg|png|webp)$`)
+// TMDBImageSourcePattern is shared with bounded SQL candidate filtering.
+const TMDBImageSourcePattern = `^/[A-Za-z0-9_-]{1,200}\.(jpg|jpeg|png|webp|svg)$`
+
+var tmdbImagePath = regexp.MustCompile(TMDBImageSourcePattern)
 
 // ImagePath accepts only a single TMDB image filename, never a URL or a path
 // traversal. TMDB supplies PNG renderings of SVG logos at the same basename.
