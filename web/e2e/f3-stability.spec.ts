@@ -24,13 +24,12 @@ test('F3 queue SSE has no stacked poll and preserves container, filters, details
  page.on('request',r=>{if(r.url().endsWith('/system/operations'))health++})
  await page.goto('/ops?tab=jobs');await expect(page.locator('.f3-job-row')).toHaveCount(25)
  await page.getByLabel('搜索任务',{exact:true}).fill('系统检查')
- await page.locator('.f3-health details summary').click()
  const area=page.locator('.f3-queue-list');await expect(area.locator('.f3-stable-scroll')).toHaveCount(0);await page.evaluate(()=>window.scrollTo(0,120))
  const before=await area.boundingBox(),scrollBefore=await page.evaluate(()=>window.scrollY)
  for(let i=0;i<8;i++){const n=jobs;await page.clock.runFor(15050);await expect.poll(()=>jobs).toBeGreaterThan(n);await expect(area.locator('.state-loading')).toHaveCount(0)}
  expect(await area.boundingBox()).toEqual(before);expect(await page.evaluate(()=>window.scrollY)).toBe(scrollBefore)
- await expect(page.getByLabel('搜索任务',{exact:true})).toHaveValue('系统检查');await expect(page.locator('.f3-health details')).toHaveAttribute('open','')
- expect(jobs).toBeLessThanOrEqual(10);expect(health).toBeLessThanOrEqual(6)
+ await expect(page.getByLabel('搜索任务',{exact:true})).toHaveValue('系统检查');await expect(page.locator('.f3-health')).toHaveCount(0)
+ expect(jobs).toBeLessThanOrEqual(10);expect(health).toBe(0)
  const cls=await page.evaluate(()=>(window as any).__f3CLS);expect(cls).toBeLessThan(.1)
  writeFileSync(resolve(out,'queue-stability.json'),JSON.stringify({virtualSeconds:120,jobs,health,CLS:cls,before,after:await area.boundingBox(),scrollBefore,scrollAfter:await page.evaluate(()=>window.scrollY)},null,2))
  await page.getByLabel('搜索任务',{exact:true}).fill('');await page.evaluate(()=>window.scrollTo(0,0));

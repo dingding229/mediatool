@@ -1,8 +1,7 @@
 /* Stable, bounded work areas: refresh replaces rows, never the surrounding page. */
 .media-surface,.acquire-surface,.u2-surface{position:relative;min-width:0}
 .f3-stable-scroll{block-size:clamp(24rem,58vh,38rem);overflow:auto;scrollbar-gutter:stable;overscroll-behavior:contain;position:relative}
-.f3-health{block-size:clamp(18rem,38vh,25rem);overflow:auto;scrollbar-gutter:stable;position:relative}
-.f3-stable-scroll>.state-loading,.f3-health>.state-loading{position:absolute;inset:0;z-index:1;background:var(--mt-bg-surface,#fff);padding:24px;box-sizing:border-box}
+.f3-stable-scroll>.state-loading{position:absolute;inset:0;z-index:1;background:var(--mt-bg-surface,#fff);padding:24px;box-sizing:border-box}
 .f3-job-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 20px;align-items:center}
 .f3-job-row h3,.f3-job-row p{margin:0;min-width:0;overflow-wrap:anywhere}
 .f3-job-row .media-actions{grid-column:2;grid-row:1 / span 4;justify-content:flex-end}
@@ -59,12 +58,6 @@ footer.f3-log-footer{display:flex!important}.f3-log-footer>.media-actions{margin
 @media(max-width:700px){.u5-sites .f3-site-card .u5-stats.f3-site-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.f3-log-footer>.media-actions{margin-inline-start:0!important}.u6-workspace .organize-record.f3-job-row .media-actions{grid-row:auto}}
 .u5-grant .u5-permission-help{grid-column:1 / -1;margin:4px 0;font-size:13px;line-height:1.6;color:var(--mt-text-muted);overflow-wrap:anywhere}
 /* Review: natural pagination, aligned runtime cards and compact shared controls. */
-.f3-health{position:relative;block-size:auto;overflow:visible;min-block-size:160px}
-.f4-runtime-state{position:absolute;inset:0 8px auto auto;z-index:2;font-size:11px;color:var(--mt-text-muted)}
-.f4-runtime-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-block:18px}
-.f4-runtime-card{min-width:0;border:1px solid var(--mt-border-color);border-radius:8px;padding:12px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
-.f4-runtime-card h3,.f4-runtime-card p{margin:0;font-size:13px;line-height:1.5}.f4-runtime-card strong{font-size:20px;font-variant-numeric:tabular-nums}.f4-runtime-card small,.f4-runtime-card p{color:var(--mt-text-muted)}
-.f4-runtime-card .el-button{margin-top:auto}.f3-health details{padding-top:12px;border-top:1px solid var(--mt-border-color)}.f3-health summary{min-height:32px;line-height:32px;cursor:pointer}
 .f4-queue-rows,.f4-sites-list{position:relative;min-block-size:220px;overflow:visible;border-block:1px solid var(--mt-border-color)}
 .u6-workspace .organize-record.f3-job-row{padding:9px 0;row-gap:3px}.f4-job-summary{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;min-width:0}.f4-job-summary h3{font-size:14px}.f4-job-summary>.f4-job-queue{font-size:12px;color:var(--mt-text-muted)}
 .u6-workspace .organize-record.f3-job-row>.media-actions{grid-row:1 / span 2}.f3-job-meta{font-size:12px;line-height:1.5}.f4-job-error{font-size:12px;color:var(--mt-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -79,9 +72,9 @@ footer.f3-log-footer{display:flex!important}.f3-log-footer>.media-actions{margin
 .f4-site-grid strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.f4-site-grid article>span{white-space:nowrap}.f4-site-icon,.f4-sort-icon{width:14px;height:14px;flex:none}.f4-site-icon.is-failed{color:var(--el-color-danger)}.f4-site-icon.is-success{color:var(--el-color-success)}
 .resource-columns>[role=columnheader]{justify-content:flex-end;gap:4px;text-align:right}.resource-columns>[aria-sort=ascending],.resource-columns>[aria-sort=descending]{color:var(--mt-color-primary)}.resource-entry>:nth-child(2),.resource-entry>:nth-child(3),.resource-entry>:nth-child(4){justify-self:end;text-align:right}
 .f4-list-count{font-size:12px;color:var(--mt-text-muted)}.f4-sites-list .f3-site-card{padding-block:14px}.f4-sites-list .f3-site-metrics{margin-block:12px}.f4-sites-list .f3-site-metrics small{font-size:12px;line-height:1.5}
-@media(max-width:1100px){.f4-runtime-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.f3-log-filters{grid-template-columns:repeat(3,minmax(0,1fr))}.f4-log-time-range{grid-column:1 / -1}.f3-site-details.f4-site-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1100px){.f3-log-filters{grid-template-columns:repeat(3,minmax(0,1fr))}.f4-log-time-range{grid-column:1 / -1}.f3-site-details.f4-site-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){
- .f3-log-table .f3-log-row{grid-template-columns:142px 44px minmax(0,1fr);gap:3px 8px}.f3-log-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.f4-runtime-grid{grid-template-columns:1fr}.resource-columns>[role=columnheader]{display:inline-flex}.f3-site-details.f4-site-grid{grid-template-columns:1fr}.u6-workspace .organize-record.f3-job-row>.media-actions{grid-row:auto;justify-content:flex-start}.f4-job-error{white-space:normal}
+ .f3-log-table .f3-log-row{grid-template-columns:142px 44px minmax(0,1fr);gap:3px 8px}.f3-log-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.resource-columns>[role=columnheader]{display:inline-flex}.f3-site-details.f4-site-grid{grid-template-columns:1fr}.u6-workspace .organize-record.f3-job-row>.media-actions{grid-row:auto;justify-content:flex-start}.f4-job-error{white-space:normal}
  /* The pinned picker uses table cells on desktop; stack both calendars and time fields. */
  .f4-log-date-panel{max-width:calc(100vw - 24px);box-sizing:border-box}.f4-log-date-panel .el-picker-panel.el-date-range-picker,.f4-log-date-panel.el-date-range-picker{width:100%;max-width:100%;min-width:0}
  .f4-log-date-panel .el-date-range-picker .el-picker-panel__body,.f4-log-date-panel.el-date-range-picker .el-picker-panel__body{display:block;min-width:0}

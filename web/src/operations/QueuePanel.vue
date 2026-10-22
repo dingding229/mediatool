@@ -3,58 +3,25 @@ import { useRefresh } from '../composables/useRefresh';
 import { subscribeJobEvents } from '../api/client';
 import StatusBadge from '../components/StatusBadge.vue';
 import TaskControl from '../workflows/TaskControl.vue';
-import {scheduleLabel} from '../presentation/labels';
 import { pageResult } from './model';
-import { formatBytes as bytes } from './model';
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { request, post } from '../api/client';
+import { request } from '../api/client';
 import { useResource } from '../workflows/useResource';
-import { useOperation } from '../workflows/useOperation';
-import { savePrivate } from '../organize/model';
 import { date, errorText } from '../workflows/readiness';
 import { stateLabel, queueLabel, kindLabel, taskTarget, copyOriginal } from './model';
 import ResourceState from '../workflows/ResourceState.vue';
-import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 const route = useRoute();
-const filter = reactive({ state: '', kind: '', queue: '', q: typeof route.query.q === 'string' ? route.query.q : '', page: 1, pageSize: 25 }), jobs = reactive(useResource<any>(() => request('/jobs/browse?' + new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])))).then(pageResult))), health = reactive(useResource<any>(() => request('/system/operations'))), op = reactive(useOperation('system-check')), detail = ref<any>(null), open = ref(false), confirm = ref(false), copied = ref(''), copyText = ref('');
-const workers=computed<any[]>(()=>Array.isArray(health.data?.workers)?health.data.workers:[]), onlineWorkers=computed(()=>workers.value.filter(w=>w.online).length);
-async function load() {
-  await Promise.all([jobs.load(), health.load()]);
-  await settle();
-}
-async function settle() {
-  if (op.pending) {
-    const p = JSON.parse(op.pending.key);
-    if (p.id)
-      try {
-        const current: any = await request(`/jobs/${encodeURIComponent(p.id)}`);
-        if (['succeeded', 'failed', 'cancelled'].includes(current.state))
-          op.clear();
-      }
-      catch (e) {
-        op.error = e;
-      }
-  }
-}
-async function create() {
-  const out = await op.run('{}', () => post('/jobs', { kind: 'system.check' }));
-  confirm.value = false;
-  if (out?.id && op.pending) {
-    op.pending.key = JSON.stringify({ id: out.id });
-    savePrivate('media-tool:u5:system-check', op.pending);
-  }
-  await load();
-}
+const filter = reactive({ state: '', kind: '', queue: '', q: typeof route.query.q === 'string' ? route.query.q : '', page: 1, pageSize: 25 }), jobs = reactive(useResource<any>(() => request('/jobs/browse?' + new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])))).then(pageResult))), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), copied = ref(''), copyText = ref('');
+async function load() { await jobs.load(); }
 async function inspect(id: string) {
   try {
     detail.value = await request(`/jobs/${encodeURIComponent(id)}`);
     open.value = true;
   }
   catch (e) {
-    op.error = e;
+    error.value = e;
   }
 }
 function search() {
@@ -69,16 +36,13 @@ watch(() => route.query.q, value => {
   filter.page = 1;
   void load();
 });
-let stream: {close:()=>void} | undefined, lastTick=0, lastHealth=0;
+let stream: {close:()=>void} | undefined, lastTick=0;
 const connected=ref(false);
 async function refreshQueue() {
   lastTick=Date.now();
-  const work=[jobs.load()];
-  if (Date.now()-lastHealth>=30000) { lastHealth=Date.now(); work.push(health.load()); }
-  await Promise.all(work);
-  await settle();
+  await jobs.load();
 }
-const events=useRefresh(refreshQueue,{interval:()=>connected.value?0:15000,active:()=>!op.busy && (typeof document==='undefined'||(route?.query?.tab||'jobs')==='jobs')});
+const events=useRefresh(refreshQueue,{interval:()=>connected.value?0:15000,active:()=>(typeof document==='undefined'||(route?.query?.tab||'jobs')==='jobs')});
 watch(connected,value=>{if(!value&&(route?.query?.tab||'jobs')==='jobs')void events.refresh()});
 // Server SSE currently emits a heartbeat every 3s, not a per-job change event.
 // Coalesce those ticks; do not stack an independent 5s network poll on top.
@@ -90,47 +54,10 @@ function connect() {
 onMounted(()=>{connect();globalThis.document?.addEventListener('visibilitychange',connect)});
 watch(()=>route.query.tab,connect);
 onUnmounted(()=>{stream?.close();globalThis.document?.removeEventListener('visibilitychange',connect)});
-defineExpose({ load, create, filter, jobs, health, op });
+defineExpose({ load, filter, jobs });
 </script>
 <template>
   <div class="media-stack">
-    <section class="media-surface">
-      <header class="media-section-heading">
-        <h2>运行与队列</h2>
-        <el-button :disabled="!!op.pending" @click="confirm=true">运行系统检查</el-button>
-      </header>
-      <div class="f3-health">
-      <div class="f4-runtime-state"><ResourceState v-if="health.error" :stale="health.loaded" :error="health.error" @reload="load"/><small v-else-if="health.loading||health.refreshing" role="status">正在读取运行状态…</small></div>
-      <div class="f4-runtime-grid">
-        <article class="f4-runtime-card"><h3>数据库</h3><strong>{{ health.data?.postgres?.state==='ready'?'可用':health.data?.postgres?.state?'不可用':'—' }}</strong><small>{{ health.data?.postgres?.latencyMs??'—' }} ms</small></article>
-        <article class="f4-runtime-card"><h3>缓存服务</h3><strong>{{ health.data?.redis?.state==='ready'?'可用':health.data?.redis?.state?'不可用':'—' }}</strong></article>
-        <article class="f4-runtime-card"><h3>数据库体积</h3><strong>{{ bytes(health.data?.databaseBytes) }}</strong></article>
-        <article class="f4-runtime-card">
-          <h3>后台任务服务</h3><strong>{{ health.data?.workers ? `${onlineWorkers} / ${workers.length}` : '—' }}</strong>
-          <small>{{ !health.data?.workers?'正在读取执行器状态':workers.length?`在线 / 总数 · 离线 ${workers.length-onlineWorkers}`:'尚未收到执行器状态' }}</small>
-          <el-button :disabled="!health.data" @click="detail={workers:health.data?.workers||[]};open=true">执行器详情</el-button>
-        </article>
-      </div>
-      <details>
-        <summary>查看运行计划与连接状态</summary>
-        <article v-for="w in workers" :key="w.owner+':'+w.queue" class="organize-record">
-          <h3>{{ w.queue==='default'?'后台任务服务':queueLabel(w.queue)+'服务' }}</h3><p>{{ w.online?'在线':'离线' }} · {{ date(w.lastSeenAt) }}</p>
-          <el-button @click="detail=w;open=true">执行器详情</el-button>
-        </article>
-      <article v-for="q in health.data?.queues||[]" :key="q.name+q.state" class="organize-record">
-        <p>{{ queueLabel(q.name) }} · {{ stateLabel(q.state) }} · {{ q.count??'—' }} 项 · 等待重新分配 {{ q.expiredLeases??'—' }}</p>
-      </article>
-
-        <article v-for="s in health.data?.schedules||[]" :key="s.id" class="organize-record">
-          <h3>{{ s.name }}</h3>
-          <p>{{ s.enabled?'已启用':'已停用' }} · {{ scheduleLabel(s.cron) }} · 下次 {{ date(s.nextRunAt) }} · 上次 {{ date(s.lastRunAt) }}</p>
-          <p v-if="s.error">{{ s.error }}</p>
-          <RouterLink v-if="s.link?.startsWith('/')" :to="s.link">管理此计划</RouterLink>
-        </article>
-        <el-button @click="detail=health.data;open=true">技术详情</el-button>
-      </details>
-      </div>
-    </section>
     <section class="media-surface f3-queue-list">
       <h2>任务列表</h2>
       <form class="u5-filters" @submit.prevent="search">
@@ -161,8 +88,7 @@ defineExpose({ load, create, filter, jobs, health, op });
       <p>取消只停止本程序后续执行；重试先核对原业务状态，不能证明安全时保留未知状态。</p>
       <div class="f4-queue-rows">
       <ResourceState :stale="jobs.loaded" :loading="jobs.loading" :error="jobs.error" :empty="!!jobs.data&&!jobs.data.items?.length" @reload="load"/>
-      <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
-      <AsyncResultBanner v-if="op.phase" :status="op.phase" message="系统检查请求尚未核验完成，请先读取队列，不重复提交。" @refresh="load"/>
+      <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
       <article v-for="j in jobs.data?.items||[]" :key="j.id" class="organize-record f3-job-row">
         <div class="f4-job-summary"><h3>{{ kindLabel(j.kind) }}</h3><StatusBadge :state="j.state" :label="stateLabel(j.state)" :title="j.lastError||undefined"/><span class="f4-job-queue">{{ queueLabel(j.queue) }}</span></div>
         <p class="f3-job-meta">尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }} · 耗时 {{ j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—' }} 秒 <span> · {{ j.state==='succeeded'?'已完成':j.state==='running'?'业务进度见详情':'等待状态核对' }}</span></p>
@@ -175,7 +101,6 @@ defineExpose({ load, create, filter, jobs, health, op });
       </div>
       <PagePagination v-if="jobs.data?.total>25" v-model:current-page="filter.page" :total="jobs.data.total" :page-size="25" layout="prev,pager,next,total" @current-change="changePage"/>
     </section>
-    <ConfirmAction v-model:visible="confirm" title="运行系统检查" description="创建一次新的系统检查任务？" impact-scope="只检查当前服务状态，不重放失败业务或修改媒体文件。" confirm-text="确认运行检查" :loading="op.busy" class="media-dialog" @confirm="create"/>
     <DetailDrawer v-model:visible="open" title="任务与运行技术详情" :technical-data="detail" class="media-detail">
       <el-button @click="copyOriginal(JSON.stringify(detail,null,2),s=>copyText=s).then(s=>copied=s)">复制原始记录</el-button>
       <p>{{ copied }}</p>

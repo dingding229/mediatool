@@ -17,9 +17,8 @@ test('F3 review queue has aligned cards, unambiguous empty filters and complete 
  await page.route('**/api/v1/jobs/browse?*',r=>{pageNumber=new URL(r.request().url()).searchParams.get('page')||'1';return r.fulfill({json:{data:{items:rows.map((j,i)=>({...j,lastError:withError&&i===0?'上一轮重试的原始错误':''})),total:50}}})})
  await page.goto('/ops?tab=jobs');await expect(page.locator('.f3-job-row')).toHaveCount(25)
  await expect(page.getByLabel('搜索任务',{exact:true})).toHaveValue('');await expect(page.getByLabel('搜索任务',{exact:true})).toHaveAttribute('placeholder','搜索任务或错误内容');await expect(page.getByLabel('任务类别',{exact:true})).toHaveAttribute('placeholder','按任务类别筛选')
- const cards=await page.locator('.f4-runtime-card').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return {y:r.y,height:r.height}}));expect(cards).toHaveLength(4);expect(new Set(cards.map(e=>e.y)).size).toBe(1);expect(new Set(cards.map(e=>e.height)).size).toBe(1)
- expect(await page.locator('.f3-health').evaluate(e=>getComputedStyle(e).overflowY)).toBe('visible');expect(await page.locator('.f4-queue-rows').evaluate(e=>getComputedStyle(e).overflowY)).toBe('visible')
- await page.locator('.f3-health summary').click();await expect(page.getByText(/等待中 · 2 项/)).toBeVisible();await expect(page.locator('.f3-job-row').last()).toContainText('耗时 3 秒')
+ await expect(page.locator('.f4-runtime-card')).toHaveCount(0);expect(await page.locator('.f4-queue-rows').evaluate(e=>getComputedStyle(e).overflowY)).toBe('visible')
+ await expect(page.locator('.f3-job-row').last()).toContainText('耗时 3 秒')
  const first=await page.locator('.f3-job-row').first().boundingBox();expect(first!.height).toBeLessThan(100)
  withError=true;await page.getByRole('button',{name:'筛选任务',exact:true}).click();await expect(page.locator('.f3-job-row').first().locator('.status-badge')).toHaveAttribute('title','上一轮重试的原始错误');expect((await page.locator('.f3-job-row').first().boundingBox())!.height).toBe(first!.height)
  await page.getByRole('button',{name:'下一页',exact:true}).click();await expect.poll(()=>pageNumber).toBe('2');await page.getByRole('button',{name:'上一页',exact:true}).click();await expect.poll(()=>pageNumber).toBe('1')
@@ -60,12 +59,9 @@ for(const [environment,label]of [['development','开发环境'],['production','�
  await u6OpsFixture(page);await page.route('**/api/v1/system/status',r=>r.fulfill({json:{data:{version:'UI mock',environment,dependencies:[]}}}));await page.goto('/ops?tab=jobs');await expect(page.locator('.workbench-environment')).toHaveText(label);await expect(page.locator('.workbench-version')).toContainText('UI mock');
 })
 
-for(const width of [1440,390])test(`F3 review delayed multi-worker health keeps task list stationary at ${width}px`,async({page})=>{
- await page.setViewportSize({width,height:1000});await u6OpsFixture(page)
- let release!:()=>void;const gate=new Promise<void>(r=>release=r)
- await page.route('**/api/v1/system/operations',async r=>{await gate;await r.fulfill({json:{data:{postgres:{state:'ready',latencyMs:2},redis:{state:'ready'},databaseBytes:8388608,workers:Array.from({length:11},(_,i)=>({owner:'owned-worker-'+i,queue:'default',online:i<8,lastSeenAt:'2026-10-22T00:00:00Z'})),queues:[],schedules:[]}}})})
- await page.goto('/ops?tab=jobs');await expect(page.locator('.f4-runtime-grid')).toBeVisible();await expect(page.locator('.f3-queue-list')).toBeVisible()
- const before=await page.locator('.f3-queue-list').boundingBox();release();await expect(page.locator('.f4-runtime-card').nth(2)).toContainText('8.00 MiB')
- const after=await page.locator('.f3-queue-list').boundingBox();expect(after!.y).toBeCloseTo(before!.y,1)
- await expect(page.locator('.f4-runtime-card')).toHaveCount(4)
+for(const width of [1440,390])test(`F5a delayed runtime reads do not affect the task list at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:1000});await u6OpsFixture(page);let reads=0;
+ await page.route('**/api/v1/system/operations',r=>{reads++;return r.fulfill({json:{data:{postgres:{state:'ready'},workers:Array.from({length:11},(_,i)=>({owner:'worker-'+i,queue:'default',online:true})),queues:[],schedules:[]}}})})
+ await page.goto('/ops?tab=jobs');await expect(page.locator('.f3-job-row')).toHaveCount(1);const before=await page.locator('.f3-queue-list').boundingBox();await page.getByRole('button',{name:'筛选任务',exact:true}).click();expect(await page.locator('.f3-queue-list').boundingBox()).toEqual(before);expect(reads).toBe(0)
+ await page.goto('/ops?tab=attention');await expect(page.locator('.f5-runtime-summary')).toContainText('11 / 11');await expect(page.getByRole('button',{name:'运行系统检查',exact:true})).toBeVisible()
 })
