@@ -34,6 +34,12 @@ func TestRealComposeThroughAllowlist(t *testing.T) {
 	root := t.TempDir()
 	file := filepath.Join(root, "docker-compose.yml")
 	source := "name: " + project + "\nservices:\n  app:\n    image: " + image + "\n    platform: linux/amd64\n    entrypoint: ['/bin/sh']\n    command: ['-c', 'sleep 3600']\n    user: '65532:65532'\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: ['no-new-privileges:true']\n    healthcheck:\n      test: ['CMD', 'true']\n      interval: 1s\n      timeout: 1s\n      retries: 5\n"
+	source = strings.Replace(source, "  app:\n", "  app:\n    depends_on: [postgres, redis]\n", 1)
+	sibling := func(name string) string {
+		return "  " + name + ":\n    image: " + image + "\n    platform: linux/amd64\n    entrypoint: ['/bin/sh']\n    command: ['-c', 'sleep 3600']\n    user: '65532:65532'\n    read_only: true\n    cap_drop: [ALL]\n"
+	}
+	core := source + sibling("postgres") + sibling("redis")
+	source = core + sibling("emby") + sibling("clouddrive2")
 	if e = os.WriteFile(file, []byte(source), 0600); e != nil {
 		t.Fatal(e)
 	}
@@ -46,13 +52,21 @@ func TestRealComposeThroughAllowlist(t *testing.T) {
 		}
 		return b
 	}
-	cli("up", "-d", "--no-deps", "--pull", "never", "--wait", "app")
+	cli("up", "-d", "--pull", "never", "--wait")
 	defer func() {
+		_ = os.WriteFile(file, []byte(source), 0600)
 		c := exec.Command("docker", "compose", "-f", file, "down")
 		if b, e := c.CombinedOutput(); e != nil {
 			t.Error(e, string(b))
 		}
 	}()
+	beforeSiblings := map[string]string{}
+	for _, service := range []string{"postgres", "redis", "emby", "clouddrive2"} {
+		beforeSiblings[service] = strings.TrimSpace(string(cli("ps", "-q", service)))
+	}
+	if e = os.WriteFile(file, []byte(core), 0600); e != nil {
+		t.Fatal(e)
+	}
 	cid := strings.TrimSpace(string(cli("ps", "-q", "app")))
 	b, e := exec.CommandContext(ctx, "docker", "inspect", cid).Output()
 	if e != nil {
@@ -105,6 +119,12 @@ func TestRealComposeThroughAllowlist(t *testing.T) {
 		t.Fatal("guarded Compose", e, string(out))
 	}
 	current := strings.TrimSpace(string(cli("ps", "-q", "app")))
+	for service, id := range beforeSiblings {
+		out, e := exec.CommandContext(ctx, "docker", "inspect", "--format", "{{.Id}} {{.State.Running}}", id).Output()
+		if e != nil || strings.TrimSpace(string(out)) != id+" true" {
+			t.Fatal("sibling changed", service, e, string(out))
+		}
+	}
 	if current == cid {
 		t.Fatal("app not recreated")
 	}

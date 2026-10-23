@@ -312,15 +312,27 @@ func (r *runner) Rollback(ctx context.Context, j Job) error {
 	if readErr != nil || expectedErr != nil || (!bytes.Equal(live, before) && !bytes.Equal(live, expected)) {
 		return ErrUnsafe
 	}
+	// Unknown Docker state is not "app stopped". Never restore a live database
+	// after a lost inspect response, nor overwrite a concurrent operator image.
+	c, inspectErr := r.d.inspect(ctx, r.d.appName())
+	if inspectErr != nil && !notFound(inspectErr) {
+		return inspectErr
+	}
+	if inspectErr == nil {
+		image := fmtString(c.Config["Image"])
+		if image != j.FromImage && image != updatecheck.Repository+"@"+j.Target.Digest {
+			return ErrUnsafe
+		}
+		if c.State.Running {
+			if _, e = r.d.request(ctx, "POST", "/containers/"+r.d.appName()+"/stop?t=30", nil); e != nil {
+				return e
+			}
+		}
+	}
 	if e = atomicFile(filepath.Join(r.work(), "docker-compose.yml"), before); e != nil {
 		return e
 	}
-	// Stop only the app before DB restoration; DB/Redis containers are never stopped.
-	if c, e := r.d.inspect(ctx, r.d.appName()); e == nil && c.State.Running {
-		if _, e = r.d.request(ctx, "POST", "/containers/"+r.d.appName()+"/stop?t=30", nil); e != nil {
-			return e
-		}
-	}
+
 	if e = r.restoreDatabase(ctx, dir, j); e != nil {
 		return e
 	}
@@ -331,7 +343,7 @@ func (r *runner) Rollback(ctx context.Context, j Job) error {
 	if e != nil {
 		return e
 	}
-	c, e := r.d.inspect(ctx, r.d.appName())
+	c, e = r.d.inspect(ctx, r.d.appName())
 	if e != nil || c.State.Health.Status != "healthy" || fmtString(c.Config["Image"]) != j.FromImage {
 		return ErrUnsafe
 	}

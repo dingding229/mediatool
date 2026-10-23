@@ -35,3 +35,5 @@ F8a 的 v0.28.0 不含更新执行器，不能在不覆盖已发布 tag/digest �
 本地只跑定向 -race、相关 Vitest/guards/build/E2E；全量由 Actions 运行。模拟 Docker API/流程覆盖拉取失败、健康/迁移失败回滚与数据库恢复、app 被杀恢复、非法 API 与不可变 digest。生产不故意制造失败。没有 socket/权限不足时仅禁用执行，保留公开检查。
 
 CI 通过固定 v0.28.0 镜像 digest 提取并缓存已有 ffmpeg/ffprobe 和 musl 依赖，不启动 app、不读取业务卷、不使用凭据；官方 actions/cache v5 固定 commit。只删除带 CI 专用 label 的临时提取容器，失败才走原 apt 后备。测试与预算不变。
+
+断连恢复：inspect/start 响应丢失不是“容器不存在/启动失败”。按固定任务名重新核对已有 helper，不复制执行器，不覆盖它已写入的阶段。只有明确失败且复核为未运行的本任务容器才删除；Docker 状态不明时禁止恢复数据库，转为待运维处理。

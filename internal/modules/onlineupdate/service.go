@@ -6,9 +6,11 @@ import (
 	"errors"
 	"media-tool/internal/modules/updatecheck"
 	"media-tool/internal/platform/buildinfo"
+	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -233,33 +235,85 @@ func (s *Service) launch(id string) {
 	d.self = p.Self
 	d.target = p.TargetImage
 	d.task = id
-	// An existing task is never duplicated, including after app death between create/start.
-	if c, e := d.inspect(ctx, d.helperName()); e == nil {
-		if labels(c)[label] != id {
+	s.launchDocker(ctx, d, id)
+}
+func notFound(e error) bool { var v dockerError; return errors.As(e, &v) && v.code == 404 }
+func (s *Service) failQueued(ctx context.Context, id, reason string) {
+	j, e := load(s.Root, id)
+	if e != nil || j.Phase != "queued" {
+		return
+	}
+	j.Failure = reason
+	if e = advance(s.Root, &j, "failed"); e != nil {
+		deferutil.Report(e, "persist online update failure")
+		return
+	}
+	auditCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	deferutil.Report(audit(auditCtx, s.DB, j.Actor, "online_update.failed", j), "audit online update failure")
+}
+func (s *Service) startHelper(ctx context.Context, d *docker, id, ref string) {
+	_, e := d.request(ctx, "POST", "/containers/"+ref+"/start", nil)
+	if e == nil {
+		return
+	}
+	// An EOF/timeout after start may mean the helper is already replacing app.
+	// Never overwrite its persisted phase or delete it on an unknown outcome.
+	var httpErr dockerError
+	if !errors.Is(e, ErrUnsafe) && (!errors.As(e, &httpErr) || httpErr.code >= 500) {
+		return
+	}
+	c, inspectErr := d.inspect(ctx, d.helperName())
+	if inspectErr != nil || c.State.Running || labels(c)[label] != id || labels(c)["io.mediatool.project"] != d.project() {
+		return
+	}
+	// A definite failure plus a fresh stopped-state observation permits cleanup
+	// of this task only. No volumes are deleted; uncertain removals are retried.
+	if _, e = d.request(ctx, "DELETE", "/containers/"+d.helperName()+"?force=true", nil); e != nil {
+		return
+	}
+	s.failQueued(ctx, id, "updater_start_failed")
+}
+func (s *Service) launchDocker(ctx context.Context, d *docker, id string) {
+	j, e := load(s.Root, id)
+	if e != nil || j.Done() {
+		return
+	}
+	c, e := d.inspect(ctx, d.helperName())
+	if e == nil {
+		if labels(c)[label] != id || labels(c)["io.mediatool.project"] != d.project() {
+			s.failQueued(ctx, id, "updater_identity_mismatch")
 			return
 		}
 		if !c.State.Running {
-			_, _ = d.request(ctx, "POST", "/containers/"+d.helperName()+"/start", nil)
+			s.startHelper(ctx, d, id, d.helperName())
 		}
 		return
 	}
-	if _, e = d.request(ctx, "POST", "/images/create?fromImage="+urlQuery(d.target)+"&platform=linux%2Famd64", nil); e != nil {
-		_ = advance(s.Root, &j, "failed")
-		_ = audit(ctx, s.DB, j.Actor, "online_update.failed", j)
+	// Unavailable is not absent. Reconcile after restart, never duplicate a helper
+	// based on a lost inspect response.
+	if !notFound(e) {
 		return
 	}
-	// Verify image provenance before executing its updater binary.
+	j, e = load(s.Root, id)
+	if e != nil || j.Done() {
+		return
+	}
+	if _, e = d.request(ctx, "POST", "/images/create?fromImage="+urlQuery(d.target)+"&platform=linux%2Famd64", nil); e != nil {
+		s.failQueued(ctx, id, "image_pull_failed")
+		return
+	}
 	b, e := d.request(ctx, "GET", "/images/"+d.target+"/json", nil)
 	if e != nil {
-		_ = advance(s.Root, &j, "failed")
+		s.failQueued(ctx, id, "image_inspect_failed")
 		return
 	}
 	var image struct {
 		Architecture, Os string
 		Config           struct{ Labels map[string]string }
 	}
-	if json.Unmarshal(b, &image) != nil || image.Architecture != "amd64" || image.Os != "linux" || image.Config.Labels["org.opencontainers.image.revision"] != j.Target.Commit || image.Config.Labels["org.opencontainers.image.version"] != j.Target.Version {
-		_ = advance(s.Root, &j, "failed")
+	if json.Unmarshal(b, &image) != nil || image.Architecture != "amd64" || image.Os != "linux" || image.Config.Labels["org.opencontainers.image.revision"] != j.Target.Commit || image.Config.Labels["org.opencontainers.image.version"] != j.Target.Version || image.Config.Labels["org.opencontainers.image.schema"] != strconv.FormatInt(j.Target.Schema, 10) || image.Config.Labels["org.opencontainers.image.source"] != "https://github.com/"+updatecheck.Repository {
+		s.failQueued(ctx, id, "image_provenance_failed")
 		return
 	}
 	body, e := json.Marshal(d.helperConfig())
@@ -267,20 +321,22 @@ func (s *Service) launch(id string) {
 		return
 	}
 	b, e = d.request(ctx, "POST", "/containers/create?name="+d.helperName(), body)
-	if e == nil {
-		var c struct {
-			ID string `json:"Id"`
-		}
-		e = json.Unmarshal(b, &c)
-		if e == nil {
-			_, e = d.request(ctx, "POST", "/containers/"+c.ID+"/start", nil)
-		}
-	}
 	if e != nil {
-		_ = advance(s.Root, &j, "failed")
-		_ = audit(ctx, s.DB, j.Actor, "online_update.failed", j)
+		var v dockerError
+		if errors.Is(e, ErrUnsafe) || (errors.As(e, &v) && v.code >= 400 && v.code < 500 && v.code != 409) {
+			s.failQueued(ctx, id, "updater_create_failed")
+		}
+		return
 	}
+	var created struct {
+		ID string `json:"Id"`
+	}
+	if json.Unmarshal(b, &created) != nil || !containerID.MatchString(created.ID) {
+		return
+	}
+	s.startHelper(ctx, d, id, created.ID)
 }
+
 func (s *Service) Run(ctx context.Context) {
 	tick := time.NewTicker(time.Minute)
 	defer tick.Stop()

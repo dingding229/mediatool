@@ -12,7 +12,7 @@ const running=computed(()=>Boolean(status.value?.job&&!updateDone(status.value.j
 const ready=computed(()=>status.value?.available&&status.value.policyVerified&&!running.value&&status.value.job?.phase!=='manual_recovery'&&target.value&&newerStable(updates.build?.version||'',target.value.version));
 async function load(){try{status.value=await getOnlineUpdate();error.value=''}catch(e){error.value=errorText(e)}}
 const refresh=useRefresh(load,{interval:()=>running.value?3000:0});usePageRefresh(refresh.refresh,'about');
-function prepare(){password.value='';confirmed.value=false;open.value=true}
+function prepare(){error.value='';password.value='';confirmed.value=false;open.value=true}
 async function execute(){if(!ready.value||!target.value||!confirmed.value||!password.value)return;busy.value=true;error.value='';const secret=password.value;password.value='';try{const job=await executeOnlineUpdate(target.value.version,target.value.digest,secret,true);if(status.value)status.value.job=job;open.value=false;await refresh.refresh()}catch(e){await refresh.refresh();error.value=errorText(e)}finally{busy.value=false}}
 </script>
 <template>
@@ -23,12 +23,12 @@ async function execute(){if(!ready.value||!target.value||!confirmed.value||!pass
   <p v-if="status&&!status.available">{{status.reason}}</p>
   </div><div class="media-actions"><el-button :disabled="!ready" @click="prepare">一键更新</el-button><el-button @click="refresh.refresh">读取更新状态</el-button></div>
   <p class="f8-job-status" role="status">{{status?.job?updatePhases[status.job.phase]||'等待核对状态':status?'尚无在线更新记录':'读取更新状态中'}}<br/>{{status?.policyVerified?'Docker API 白名单校验已通过':''}}</p>
-  <p v-if="error" role="alert">{{error}}</p>
+  <p v-if="error&&!open" role="alert">{{error}}</p>
   <div class="f8-record" aria-label="最近更新记录"><template v-if="status?.job"><p v-if="status.job.failure" role="alert">{{updateFailures[status.job.failure]||'更新未完成，请检查阶段记录'}}</p><dl class="f8-job"><div><dt>执行管理员</dt><dd>{{status.job.actor}}</dd></div><div><dt>版本</dt><dd>{{status.job.fromVersion}} → {{status.job.target.version}}</dd></div><div><dt>最近状态</dt><dd>{{date(status.job.updatedAt)}}</dd></div><div><dt>备份目录</dt><dd>{{status.job.backup||'尚未生成'}}</dd></div></dl><ol class="f8-events" aria-label="更新阶段日志"><li v-for="(event,index) in status.job.events" :key="index"><time>{{date(event.at)}}</time> {{updatePhases[event.phase]||'状态待核对'}}</li></ol></template><p v-else class="f8-no-record">执行后将在这里显示管理员、版本、备份目录与阶段记录。</p></div>
   <el-dialog v-model="open" title="确认更新" width="min(560px, 94vw)" :close-on-click-modal="false" @closed="password='';confirmed=false">
-   <p>{{updates.build?.version}} → {{target?.version}}</p><pre class="f8-update-notes">{{target?.notes}}</pre>
+   <p>{{updates.build?.version}} → {{target?.version}}</p><p v-if="error" role="alert">{{error}}</p><pre class="f8-update-notes">{{target?.notes}}</pre>
    <p role="alert">更新会短暂中断播放。执行前会备份数据库；失败时恢复旧镜像和数据库。不可逆迁移也必须恢复数据库，备份后产生的业务变更可能丢失。</p>
-   <label for="online-update-password">当前管理员密码</label><el-input id="online-update-password" v-model="password" type="password" autocomplete="current-password" :disabled="busy"/>
+   <label for="online-update-password">当前管理员密码</label><el-input id="online-update-password" v-model="password" type="password" autocomplete="current-password" :disabled="busy" @input="error=''"/>
    <el-checkbox v-model="confirmed">我已了解播放中断及数据库恢复风险，确认更新</el-checkbox>
    <template #footer><el-button :disabled="busy" @click="open=false">取消</el-button><el-button type="primary" :disabled="!confirmed||!password||!ready" :loading="busy" @click="execute">确认并执行更新</el-button></template>
   </el-dialog>
