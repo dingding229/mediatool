@@ -236,8 +236,13 @@ func (r Repository) Get(ctx context.Context) (Record, error) {
 // Render is the one source of truth for cloud and STRM paths. The original
 // downloader name is evidence only, never renamed or deleted here.
 func Render(p Policy, i metadata.Item, source, movieTemplate, seriesTemplate, extension string, season int, episodes []int) (string, Match, error) {
+	return RenderWithHint(p, i, source, movieTemplate, seriesTemplate, extension, season, episodes, releasename.Parse(path.Base(source)))
+}
+
+// RenderWithHint keeps the same layout rules while permitting an explicitly
+// corrected release hint, e.g. a manually corrected video resolution.
+func RenderWithHint(p Policy, i metadata.Item, source, movieTemplate, seriesTemplate, extension string, season int, episodes []int, h releasename.Hint) (string, Match, error) {
 	m := p.Match(i)
-	h := releasename.Parse(path.Base(source))
 	h.Title, h.Year, h.MediaType = strings.TrimSpace(strings.Map(func(r rune) rune {
 		if r < 32 || strings.ContainsRune(`/\:*?"<>|`, r) {
 			return ' '
@@ -264,4 +269,39 @@ func Render(p Policy, i metadata.Item, source, movieTemplate, seriesTemplate, ex
 		return "", m, err
 	}
 	return path.Join(m.Directory, rendered), m, nil
+}
+
+// Choices exposes precisely the enabled classification destinations, plus the
+// same type fallback used by Match. A manual selection is never arbitrary text.
+func (p Policy) Choices(kind string) []Match {
+	out := []Match{}
+	seen := map[string]bool{}
+	add := func(m Match) {
+		if !seen[m.Directory] {
+			seen[m.Directory] = true
+			out = append(out, m)
+		}
+	}
+	for _, g := range p.Groups {
+		if !g.Enabled || g.MediaType != kind {
+			continue
+		}
+		rules := 0
+		for _, r := range g.Rules {
+			if r.Enabled {
+				rules++
+				add(Match{GroupID: g.ID, RuleID: r.ID, Name: g.Name + " / " + r.Name, Directory: path.Join(g.Directory, r.Directory)})
+			}
+		}
+		if rules == 0 {
+			add(Match{GroupID: g.ID, Name: g.Name, Directory: g.Directory})
+		}
+	}
+	if kind == "movie" {
+		add(Match{Name: "电影（类型兜底）", Directory: "电影"})
+	}
+	if kind == "series" {
+		add(Match{Name: "电视剧（类型兜底）", Directory: "电视剧"})
+	}
+	return out
 }

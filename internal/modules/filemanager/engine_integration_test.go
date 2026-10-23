@@ -234,7 +234,7 @@ func TestPostgresCloudRelocationPreservesAssetGrantAndRepairsIndex(t *testing.T)
 		t.Fatal(out.State, err)
 	}
 	var actual, id, key string
-	if err = e.DB.QueryRow(ctx, `SELECT f.full_path,a.id::text,s.key_reference FROM cloud_files f JOIN media_assets a ON a.cloud_file_id=f.id JOIN strm_entries s ON s.asset_id=a.id WHERE f.id=$1`, file).Scan(&actual, &id, &key); err != nil || actual != "/115/Owned/电影/Movie/Custom.mkv" || id != asset || key != "unchanged-file-key" {
+	if err = e.DB.QueryRow(ctx, `SELECT f.full_path,a.id::text,s.key_reference FROM cloud_files f JOIN media_assets a ON a.cloud_file_id=f.id JOIN strm_entries s ON s.asset_id=a.id WHERE f.id=$1`, file).Scan(&actual, &id, &key); err != nil || actual != "/115/Owned/电影/其他电影/Movie/Custom.mkv" || id != asset || key != "unchanged-file-key" {
 		t.Fatal("asset path/identity protection failed", actual, err)
 	}
 	provider.files["replacement.mkv"] = File{ID: "new-provider", Name: "replacement.mkv", Path: "replacement.mkv", Size: 5}

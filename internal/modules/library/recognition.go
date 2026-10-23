@@ -76,9 +76,6 @@ func (e Engine) Recognize(ctx context.Context, id string) (Recognition, error) {
 	if err != nil {
 		return out, err
 	}
-	if e.Connections != nil {
-		out.Hint = (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).RecognizeName(ctx, c.Name)
-	}
 	actual, err := e.observe(ctx, connection, c.Path)
 	if err != nil {
 		return out, err
@@ -88,6 +85,19 @@ func (e Engine) Recognize(ctx context.Context, id string) (Recognition, error) {
 	}
 	out.FileDigest = evidenceDigest(indexed)
 	out.Evidence = append(out.Evidence, "当前文件ID、路径和大小与索引相符")
+	matched, err := e.RecognizeName(ctx, c.Name)
+	matched.Candidate, matched.FileDigest = out.Candidate, out.FileDigest
+	matched.Evidence = append(out.Evidence, matched.Evidence...)
+	return matched, err
+}
+
+// RecognizeName is the shared, non-mutating filename/TMDB matching path. File
+// browsing does not fabricate library candidates or confirm an asset identity.
+func (e Engine) RecognizeName(ctx context.Context, name string) (Recognition, error) {
+	out := Recognition{Hint: e.NameHint(ctx, name), Matches: []metadata.Item{}, Evidence: []string{}, NeedsConfirmation: true}
+	if e.Connections == nil {
+		return out, errors.New("TMDB connection unavailable")
+	}
 	provider, err := e.Connections.TMDB(ctx)
 	if err != nil {
 		return out, err
@@ -112,4 +122,11 @@ func (e Engine) Recognize(ctx context.Context, id string) (Recognition, error) {
 	}
 	out.Selected = e.convertMedia(ctx, out.Matches, out.Selected)
 	return out, nil
+}
+
+func (e Engine) NameHint(ctx context.Context, name string) releasename.Hint {
+	if e.Connections == nil {
+		return releasename.Parse(name)
+	}
+	return (pluginv2.Store{DB: e.DB, Vault: e.Connections.Repository.Vault}).RecognizeName(ctx, name)
 }

@@ -38,7 +38,9 @@ var separators = regexp.MustCompile(`[._]+`)
 func Parse(filename string) Hint {
 	n := path.Base(strings.ReplaceAll(filename, "\\", "/"))
 	ext := path.Ext(n)
-	if len(ext) > 8 {
+	// Directory/release titles may end in .2026, .S03E07 or .1080p.
+	// Those are recognition evidence, not a filename extension.
+	if len(ext) > 8 || year.FindString(ext) == strings.TrimPrefix(ext, ".") || seasonEpisode.MatchString(ext) || xEpisode.MatchString(ext) || resolution.MatchString(ext) {
 		ext = ""
 	}
 	stem := strings.TrimSuffix(n, ext)

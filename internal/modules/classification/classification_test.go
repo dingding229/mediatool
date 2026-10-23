@@ -97,3 +97,14 @@ func TestDecodeRecordOmittedNestedFieldsMatchOnlineLegacySemantics(t *testing.T)
 		t.Fatalf("legacy nested inheritance changed: %+v", group)
 	}
 }
+
+func TestChoicesContainOnlyEnabledDestinationsAndMatchFallback(t *testing.T) {
+	p := Policy{Groups: []Group{{ID: "enabled", Name: "电影", Directory: "Movies", MediaType: "movie", Enabled: true, Rules: []Rule{{ID: "yes", Name: "启用", Directory: "yes", Enabled: true}, {ID: "no", Name: "停用", Directory: "no", Enabled: false}}}, {ID: "off", Name: "关闭", Directory: "off", MediaType: "movie", Enabled: false}}}
+	choices := p.Choices("movie")
+	if len(choices) != 2 || choices[0].Directory != "Movies/yes" || choices[1].Directory != (Policy{}).Match(metadata.Item{MediaType: "movie"}).Directory {
+		t.Fatal(choices)
+	}
+	if len(p.Choices("unknown")) != 0 {
+		t.Fatal("unknown media type got categories")
+	}
+}

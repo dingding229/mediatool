@@ -39,3 +39,12 @@ func TestTemplateOptionalFieldsAndTraversal(t *testing.T) {
 		t.Fatal(h)
 	}
 }
+
+func TestDirectoryReleaseTokensAreNotRemovedAsExtensions(t *testing.T) {
+	for _, name := range []string{"Owned.Film.2026", "Owned.Show.2026.S03E07", "Owned.Film.2026.1080p", "剧集.2026.S00E02"} {
+		got, want := Parse(name), Parse(name+".mkv")
+		if got.Title != want.Title || got.Year != want.Year || got.MediaType != want.MediaType || got.Season != want.Season || got.Episode != want.Episode || got.Resolution != want.Resolution || got.Extension != "" {
+			t.Fatalf("directory=%+v filename=%+v", got, want)
+		}
+	}
+}

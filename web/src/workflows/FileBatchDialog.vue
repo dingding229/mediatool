@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue';
+import { ref, onUnmounted, watch } from 'vue';
+import FileIdentityFields from '../files/FileIdentityFields.vue';
+import {createFileIdentity,filePayload,validateFileIdentity} from '../files/identity';
 import { post, request } from '../api/client';
 import PreviewApprove from '../ui/PreviewApprove.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
@@ -17,8 +19,15 @@ const emit = defineEmits<{
 }>(), visible = ref(false), root = ref<any>(null), files = ref<any[]>([]), items = ref<any[]>([]), operation = ref('organize'), destination = ref('.'), nameMode = ref('default'), templates = ref<any>({}), batch = ref<any>(null), busy = ref(false), error = ref<unknown>(null), approveOpen = ref(false), phase = ref<'queued' | 'reconciling' | null>(null);
 const verified = ref(false);
 let generation = 0, disposed = false;
+function cancelIdentification(){for(const row of items.value)row.identity?.dispose();}
+watch(visible,v=>{if(!v)cancelIdentification();});
+async function identifyRows(current:number){
+ let index=0;
+ const worker=async()=>{while(index<items.value.length){const row=items.value[index++];if(current!==generation||disposed)return;row.identity=createFileIdentity(row,files.value.find(f=>f.path===row.source)?.name||row.source.split('/').pop());await row.identity.recognize();}};
+ await Promise.all([worker(),worker()]);
+}
 onUnmounted(() => {
-  disposed = true;
+  disposed = true; cancelIdentification();
   generation++;
 });
 async function open(kind: 'candidates' | 'assets', selected: any[]) {
@@ -47,9 +56,11 @@ async function open(kind: 'candidates' | 'assets', selected: any[]) {
       return;
     root.value = out.root;
     files.value = out.files;
-    items.value = out.rows.map((r: any) => ({ ...r, name: r.name || '', warnings: r.warnings || [] }));
+    cancelIdentification();
+    items.value = out.rows.map((r: any) => ({ ...r, category:r.destination||'', name: r.name || '', warnings: r.warnings || [] }));
     const settings: any = await request('/settings/application');
     templates.value = settings.value || {};
+    await identifyRows(current);
   }
   catch (e) {
     error.value = e;
@@ -77,6 +88,7 @@ async function openFiles(chosenRoot: any, chosenFiles: any[]) {
   phase.value = null;
   root.value = { ...chosenRoot };
   files.value = chosenFiles.map(f => ({ ...f }));
+  cancelIdentification();
   items.value = [];
   operation.value = 'organize';
   destination.value = '.';
@@ -86,13 +98,9 @@ async function openFiles(chosenRoot: any, chosenFiles: any[]) {
     if (current !== generation || disposed)
       return;
     templates.value = settings.value || {};
-    for (const file of chosenFiles) {
-      const parsed: any = await post('/media/recognize-name', { name: file.name });
-      if (current !== generation || disposed)
-        return;
-      const h = parsed.hint;
-      items.value.push({ title: h.title, year: h.year, mediaType: h.mediaType, season: h.season, episode: h.episode, episodes: h.episodes, resolution: h.resolution, source: file.path, name: '', warnings: h.warnings || [] });
-    }
+    cancelIdentification();
+    items.value=chosenFiles.map(file=>({title:file.name,year:'',mediaType:'unknown',category:'',source:file.path,name:'',warnings:[]}));
+    await identifyRows(current);
   }
   catch (e) {
     error.value = e;
@@ -102,18 +110,19 @@ async function openFiles(chosenRoot: any, chosenFiles: any[]) {
   }
 }
 async function preview() {
-  if (busy.value || phase.value)
+  if (busy.value || phase.value || items.value.some(row=>row.identity?.loading))
     return;
-  const current = ++generation, draft = JSON.stringify([items.value, operation.value, destination.value, nameMode.value]);
+  const current = ++generation, draft = JSON.stringify([items.value.map(filePayload), operation.value, destination.value, nameMode.value]);
   busy.value = true;
   error.value = null;
   try {
+    if(operation.value==='organize'){for(const row of items.value){const message=validateFileIdentity(row);if(message)throw Error(message);}}
     if (operation.value === 'organize' && nameMode.value !== 'direct' && items.value.some(r => (r.episodes?.length || 0) > 1))
       throw Error('多集文件请使用逐项自定义完整名称，不套用单集模板。');
-    const next: any = await post('/files/batches/preview', { items: items.value.map(({ warnings, tmdbId, episodes, confirmed, ...row }) => ({ ...row, expectedFileId: files.value.find(f => f.path === row.source)?.id, expectedSize: files.value.find(f => f.path === row.source)?.size, connectionId: root.value.id, operation: operation.value, destination: destination.value === '.' && operation.value === 'organize' && row.destination ? row.destination : destination.value, includeSidecars: true, name: nameMode.value === 'direct' ? row.name : '' })) });
+    const next: any = await post('/files/batches/preview', { items: items.value.map(row => ({ ...filePayload(row), expectedFileId: files.value.find(f => f.path === row.source)?.id, expectedSize: files.value.find(f => f.path === row.source)?.size, connectionId: root.value.id, operation: operation.value, destination: destination.value, includeSidecars: true, name: nameMode.value === 'direct' ? row.name : '' })) });
     if (disposed || current !== generation)
       return;
-    if (draft !== JSON.stringify([items.value, operation.value, destination.value, nameMode.value]))
+    if (draft !== JSON.stringify([items.value.map(filePayload), operation.value, destination.value, nameMode.value]))
       throw Error('输入已变化，请重新预览后再核对。');
     batch.value = next;
     verified.value = false;
@@ -197,7 +206,7 @@ defineExpose({ open, openFiles });
             </el-select>
           </label>
           <label>
-            目标相对目录
+            目标相对目录（. 使用分类目录）
             <el-input v-model="destination" aria-label="批次目标目录"/>
           </label>
           <label>
@@ -218,52 +227,21 @@ defineExpose({ open, openFiles });
           </p>
           <article v-for="row in items" :key="row.source" class="organize-record">
             <h3>{{ row.source }}</h3>
-            <p v-if="row.confirmed">已确认 TMDB {{ row.tmdbId }} · 季 {{ row.season }} / 集 {{ row.episodes?.join(',')||row.episode||'—' }}</p>
-            <p v-if="row.destination">目录分类：{{ row.destination }}</p>
-            <p>{{ row.warnings.join('；') }}</p>
-            <label>
-              标题
-              <el-input v-model="row.title" aria-label="批次文件标题"/>
-            </label>
-            <label>
-              类型
-              <el-select v-model="row.mediaType" aria-label="批次媒体类型">
-                <el-option value="unknown" label="未识别（需纠正）"/>
-                <el-option value="movie" label="电影"/>
-                <el-option value="series" label="剧集"/>
-              </el-select>
-            </label>
-            <label>
-              年份
-              <el-input v-model="row.year" aria-label="批次年份"/>
-            </label>
-            <label>
-              分辨率
-              <el-input v-model="row.resolution" aria-label="批次分辨率"/>
-            </label>
-            <template v-if="row.mediaType==='series'">
-              <label>
-                季
-                <el-input-number v-model="row.season" aria-label="批次季号" :min="0" :max="999"/>
-              </label>
-              <label>
-                集
-                <el-input-number v-model="row.episode" aria-label="批次集号" :min="1" :max="9999"/>
-              </label>
-            </template>
+            <FileIdentityFields v-if="row.identity" :identity="row.identity" :draft="row" :disabled="busy" batch/>
             <label v-if="nameMode==='direct'">
               完整文件名
               <el-input v-model="row.name" aria-label="批次自定义文件名"/>
             </label>
           </article>
-          <el-button type="primary" :loading="busy" @click="preview">预览全部变更</el-button>
+          <el-button type="primary" :loading="busy" :disabled="items.some(row=>row.identity?.loading)" @click="preview">预览全部变更</el-button>
         </template>
         <template v-else>
           <p>{{ phase&&!verified?(phase==='queued'?'已排队，待核验':'正在核对上次结果'):label(batch.state) }} · 预览截止 {{ date(batch.expiresAt) }}</p>
           <article v-for="row in batch.items" :key="row.ordinal" class="organize-record">
             <h3>{{ row.source }}</h3>
             <p>{{ phase&&!verified?'等待核验':label(row.state) }} · {{ !phase||verified?row.message||'—':'以重新读取的记录为准' }}</p>
-            <p v-for="(item,index) in row.result?.plan?.items||[]" :key="index">{{ item.source?.path }} → {{ item.target }}</p>
+            <p>目录分类：{{row.result?.plan?.category||'—'}}</p>
+            <p v-for="(item,index) in row.result?.plan?.items||[]" :key="index">最终路径：{{row.result.plan.root}}/{{item.target}} · 命名结果：{{item.target.split('/').pop()}}</p>
           </article>
           <AsyncResultBanner v-if="phase" :can-refresh="false" :status="phase" message="批准不等于文件整理完成，先读取或只读核对，不重放写入。" @refresh="readback(false)"/>
           <div class="media-actions">

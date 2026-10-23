@@ -1,3 +1,4 @@
+// F6 removes only the homepage dashboard aggregator; per-instance dashboards reuse PluginSurface.
 import {expect,it} from 'vitest'
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
@@ -21,7 +22,6 @@ const baseline={
   "PluginAutomation.vue": "cc29b80a6c3e9932b1326f5d09d3609cfa007b27ee6c635099866e0115585467",
   "read-state.ts": "a1511228125ef4f2336b760f18fa336c32a8fc48169da58277d2ebab44fe5067",
   "PluginForm.vue": "892cac8b813919b3edab73193021a93b7ef99ca06afef4c447639309ccca1309",
-  "PluginDashboards.vue": "eb4366cd83ac074bd391252e15b65da572278a320e25013826f3c463046dba48",
   "build-guard.ts": "69e99482dec6ff8726b58a8829856fb8104626db71d86a560a276f0d55fb34e9",
   "esm.ts": "307cc67d6b2298a199668d90fbe0c052c6380d6846058fb56386815af1c97b6e"
 }

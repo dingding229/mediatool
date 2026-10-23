@@ -111,7 +111,7 @@ defineExpose({ refresh: browser.refresh });
               <el-dropdown-item v-if="file.directory" :disabled="!!file.unsupported" @click="browser.navigate(file.path)">进入目录</el-dropdown-item>
               <el-dropdown-item :disabled="!allowed('rename',file,browser.capability)" @click="act('rename',file)">重命名</el-dropdown-item>
               <el-dropdown-item :disabled="!allowed('move',file,browser.capability)" @click="act('move',file)">移动</el-dropdown-item>
-              <el-dropdown-item :disabled="file.directory||!allowed('organize',file,browser.capability)" @click="act('organize',file)">影视整理</el-dropdown-item>
+              <el-dropdown-item :disabled="!allowed('organize',file,browser.capability)" @click="act('organize',file)">影视整理</el-dropdown-item>
               <el-dropdown-item divided :disabled="!allowed('trash',file,browser.capability)" @click="act('trash',file)">删除（可恢复）</el-dropdown-item>
             </el-dropdown-menu>
           </template>

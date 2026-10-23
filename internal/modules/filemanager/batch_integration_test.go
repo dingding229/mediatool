@@ -141,7 +141,7 @@ func TestFolderTemplateAndDirectoryRenameRecycleArePreviewed(t *testing.T) {
 	}()
 	os.WriteFile(filepath.Join(root.Path, "Owned.Movie.2026.1080p.mkv"), []byte("owned"), 0600)
 	p, err := e.Preview(ctx, Input{ConnectionID: root.ID, Operation: "organize", Source: "Owned.Movie.2026.1080p.mkv"})
-	if err != nil || p.Items[0].Target != "电影/Owned Movie (2026)/Owned Movie (2026) - 1080p.mkv" {
+	if err != nil || p.Items[0].Target != "电影/其他电影/Owned Movie (2026)/Owned Movie (2026) - 1080p.mkv" {
 		t.Fatal(p, err)
 	}
 	os.Mkdir(filepath.Join(root.Path, "OwnedFolder"), 0755)

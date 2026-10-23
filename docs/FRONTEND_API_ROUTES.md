@@ -1,6 +1,6 @@
 # 前端接口使用清单
 
-与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。完整291 paths / 621 operations；HEAD/OPTIONS/prefix展开计入，不是621个独立业务功能。
+与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。完整292 paths / 622 operations；HEAD/OPTIONS/prefix展开计入，不是622个独立业务功能。
 
 ## 统计与方法
 
@@ -9,7 +9,7 @@
 | 未检出静态使用 | 432 |
 | 前端直接调用 | 163 |
 | 资源/链接使用 | 4 |
-| 前端经适配调用 | 23 |
+| 前端经适配调用 | 24 |
 | 仅适配层调用 | 3 |
 
 使用TypeScript AST扫描当前web/src的request/post/fetch调用，按实际第二参数中的method（含常量三元分支）识别，不跨越下一次调用猜method；模板参数按路径形状匹配。识别当前api适配函数被导入并调用的痕迹，同时补充href/资源URL字面量。排除测试和通用transport。
@@ -155,6 +155,7 @@
 | HEAD | `/api/v1/files/operations` | management | 未检出静态使用 |  |
 | POST | `/api/v1/files/operations/{id}/execute` | management | 前端直接调用 | `web/src/files/FileActionDialog.vue:95` |
 | POST | `/api/v1/files/operations/{id}/reconcile` | management | 前端直接调用 | `web/src/files/FileActionDialog.vue:145`、`web/src/organize/HistoryPanel.vue:78` |
+| POST | `/api/v1/files/identify` | management | 前端经适配调用 | `web/src/api/fileIdentity.ts:4` |
 | POST | `/api/v1/files/preview` | management | 前端直接调用 | `web/src/files/FileActionDialog.vue:73` |
 | GET | `/api/v1/files/roots` | management | 前端直接调用 | `web/src/files/useBrowser.ts:41`、`web/src/organize/ScanPanel.vue:38` |
 | HEAD | `/api/v1/files/roots` | management | 未检出静态使用 |  |
@@ -666,3 +667,11 @@ F5b：日志 `/logs/query` 默认 200 条，page/pageSize 与 before 时间快�
 F5b 分页：管理端 `/downloads`、`/downloads/manual`、`/transfers`、`/subscriptions`（view/q/status）、`/subscriptions/{id}/history`、`/notifications`、`/media-server/users`、`/library/scans` 带 page/pageSize 时返回 `{items,total,page,pageSize}`，SQL 限定当前页；不带参数的后台/插件调用保留数组契约。所有 count/排序/表名均为代码常量。每页 1–100 条；日志独立上限 200。页码按列表写入 URL，翻页不清除筛选。
 
 F5b 图标：新增 `GET /pt/templates/{id}/favicon`，管理员会话保护，固定 pin 内站点 favicon 地址；复用 DNS 固定的网络代理客户端，Redis 缓存 24 小时（缺图 5 分钟），返回图片二进制与内容 ETag，不接受请求 URL、Host 推导地址或凭据。旧静态 `/icon` 保留其模板标识用途，不再用于站点账号行。
+
+## F6 文件整理识别
+
+`POST /api/v1/files/identify` 仅识别文件名或目录名，不创建候选资产或移动文件；自动识别复用入库的文件名解析、插件识别钩子和 TMDB 唯一精确匹配，分类使用 TMDB 详情的类型、题材、地区和语言。未识别仍返回已启用分类选项，供管理员手动填写。批次与单文件共用 `web/src/files/FileIdentityFields.vue`；预览保留 TMDB ID，服务端重新核对详情。
+
+默认目标 `.` 使用所选分类与自动入库同一命名渲染器；显式目标目录仍为人工覆盖，不擅自追加分类。电影不提交季集，服务端清零并拒绝电影模板的季集变量。剧集未知季集需人工核对，不固定为 1。目录操作保留目录及子文件原名，不递归猜测子文件身份。预览展示最终路径、分类及命名结果；执行仍需单独确认与文件证据核验。
+
+首页不再渲染任何插件仪表盘。插件详情只读取当前运行实例、且在同 pin manifest 中声明的仪表盘；停用实例不启动、不读取。`ui-surfaces` 仍用于全局导航，插件 UI API 仍用于详情，不删除这些共享 API。

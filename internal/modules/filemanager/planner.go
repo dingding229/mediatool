@@ -12,7 +12,10 @@ import (
 var sidecarTypes = map[string]bool{".srt": true, ".ass": true, ".ssa": true, ".vtt": true, ".idx": true, ".sub": true, ".sup": true, ".smi": true, ".ttml": true, ".nfo": true}
 
 func BuildPlan(ctx context.Context, b Backend, root Root, in Input, id string) (Plan, error) {
-	p := Plan{Media: metadata.Item{Title: in.Title, Year: in.Year, MediaType: in.MediaType}, Category: in.Category, ID: id, ConnectionID: root.ID, Revision: root.Revision, Root: root.Path, OriginFingerprint: root.Origin, BackendKind: root.Kind, Operation: in.Operation, Items: []Item{}, Steps: []Step{}, ExpiresAt: time.Now().UTC().Add(10 * time.Minute)}
+	p := Plan{Media: metadata.Item{ID: in.TMDBID, Title: in.Title, Year: in.Year, MediaType: in.MediaType}, Category: in.Category, ID: id, ConnectionID: root.ID, Revision: root.Revision, Root: root.Path, OriginFingerprint: root.Origin, BackendKind: root.Kind, Operation: in.Operation, Items: []Item{}, Steps: []Step{}, ExpiresAt: time.Now().UTC().Add(10 * time.Minute)}
+	if in.media != nil {
+		p.Media = *in.media
+	}
 	source, err := Relative(in.Source)
 	if err != nil {
 		return p, err
@@ -65,9 +68,6 @@ func BuildPlan(ctx context.Context, b Backend, root Root, in Input, id string) (
 			destination = path.Join(TrashDirectory, id)
 			name = file.Name
 		case "organize":
-			if file.Directory {
-				return p, ErrInvalid
-			}
 			if in.MediaType != "movie" && in.MediaType != "series" {
 				return p, ErrInvalid
 			}

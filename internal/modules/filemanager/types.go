@@ -50,6 +50,8 @@ type Backend interface {
 	Close() error
 }
 type Input struct {
+	TMDBID           int `json:"tmdbId,omitempty"`
+	media            *metadata.Item
 	ExpectedModified *int64 `json:"expectedModified,omitempty"`
 	ExpectedFileID   string `json:"expectedFileId"`
 	ExpectedSize     *int64 `json:"expectedSize"`
@@ -160,6 +162,9 @@ func FileName(in Input, source File) (string, error) {
 		hint := releasename.Parse(source.Name)
 		vars := map[string]string{"source": hint.Source, "codec": hint.Codec, "group": hint.Group, "original": original, "title": in.Title, "year": in.Year, "ext": extension, "resolution": in.Resolution}
 		if in.Season < 0 || in.Season > 999 || in.Episode < 0 || in.Episode > 9999 {
+			return "", ErrInvalid
+		}
+		if in.MediaType == "movie" && (strings.Contains(in.Template, "{season}") || strings.Contains(in.Template, "{episode}") || strings.Contains(in.Template, "{season_episode}")) {
 			return "", ErrInvalid
 		}
 		vars["videoFormat"] = in.Resolution

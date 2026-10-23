@@ -158,6 +158,7 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("PUT /api/v1/settings/access", a.protected(a.accessSettings))
 	mux.HandleFunc("GET /api/v1/settings/application", a.protected(a.getApplicationSettings))
 	mux.HandleFunc("PUT /api/v1/settings/application", a.protected(a.saveApplicationSettings))
+	mux.HandleFunc("POST /api/v1/files/identify", a.protected(a.identifyFile))
 	mux.HandleFunc("POST /api/v1/media/recognize-name", a.protected(a.parseReleaseName))
 	mux.HandleFunc("GET /api/v1/logs/summary", a.protected(a.logsSummary))
 	mux.HandleFunc("GET /api/v1/logs/query", a.protected(a.queryLogs))

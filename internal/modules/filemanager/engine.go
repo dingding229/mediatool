@@ -224,6 +224,19 @@ func (e Engine) Preview(ctx context.Context, in Input) (Plan, error) {
 			return Plan{}, ErrChanged
 		}
 	}
+	if in.MediaType == "movie" {
+		in.Season, in.Episode = 0, 0
+	}
+	if in.Operation == "organize" {
+		source, err := b.Find(ctx, in.Source)
+		if err != nil {
+			return Plan{}, err
+		}
+		in, err = e.organizeLayout(ctx, in, source)
+		if err != nil {
+			return Plan{}, err
+		}
+	}
 	if (in.Operation == "organize" || in.Operation == "rename") && in.Name == "" && in.Template == "" {
 		source, findErr := b.Find(ctx, in.Source)
 		if findErr != nil {

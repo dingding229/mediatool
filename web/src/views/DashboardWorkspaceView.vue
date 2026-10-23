@@ -3,7 +3,6 @@ import {usePageRefresh} from '../ui/page-refresh';
 import { computed } from 'vue';
 import PageHeader from '../ui/PageHeader.vue';
 import StateView from '../ui/StateView.vue';
-import PluginDashboards from '../plugins/PluginDashboards.vue';
 import ServiceReadiness from '../workflows/ServiceReadiness.vue';
 import { bytes, date, errorText, stateFor } from '../workflows/readiness';
 import {recentSearches,hasResourceCount} from '../dashboard/summaries';
@@ -119,9 +118,6 @@ usePageRefresh(refresh,'*');
         <span v-if="hasResourceCount(item.total)">{{ item.total }} 个资源</span>
       </RouterLink>
     </section>
-    <div v-if="!attention" class="dashboard-plugin-container">
-      <PluginDashboards />
-    </div>
   </div>
 </template>
 <style scoped>
@@ -263,15 +259,6 @@ header>span,small,.setup-guide p,.dashboard-empty {
   align-items:center;
   color:var(--mt-color-primary);
   font-size:13px
-}
-.dashboard-plugin-container {
-  min-width:0
-}
-.dashboard-plugin-container :deep(.plugin-dashboards>article) {
-  border:1px solid var(--mt-border-color);
-  background:var(--mt-bg-surface);
-  border-radius:12px;
-  padding:20px
 }
 @media(max-width:1100px) {
   .inbox-grid,.setup-guide ol,.dashboard-server dl {
