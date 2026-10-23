@@ -73,9 +73,11 @@ usePageRefresh(load);
       <el-button type="danger" plain @click="askRemove(row)">删除</el-button>
     </div>
   </article>
-<PagePagination label="服务连接分页" v-model:current-page="connectionPage" :page-size="10" :status="loading?'loading':loadError&&!visible.length?'error':''" :total="!loading&&(!loadError||visible.length)?visible.length:undefined"/>
+
 
 </div>
+<PagePagination label="服务连接分页" v-model:current-page="connectionPage" :page-size="10" :status="loading?'loading':loadError&&!visible.length?'error':''" :total="!loading&&(!loadError||visible.length)?visible.length:undefined"/>
+
   <el-dialog v-model="editing" :title="form.id?'编辑连接':'添加连接'" width="min(760px,94vw)" :close-on-click-modal="false" class="u2-connection-dialog" :show-close="!saving" :close-on-press-escape="!saving">
     <form class="connection-editor" @submit.prevent="save()">
       <p>{{ kinds[form.kind]?.name }} · 密钥留空保留；填写新值才替换。关闭窗口会清空未提交的密钥。</p>

@@ -150,9 +150,11 @@ usePageRefresh(load, 'api');
         <p>权限：{{key.scopes.map(s=>options.find(o=>o[0]===s)?.[1]||s).join('、')}}</p>
         <small>创建时间 {{date(key.createdAt)}} · 已保存，明文不再显示</small>
       </article>
-<PagePagination label="API 凭据分页" v-model:current-page="keysPage" :page-size="10" :total="keys.loaded.value?keys.data.value?.length:undefined"/>
+
 
 </div>
+<PagePagination label="API 凭据分页" v-model:current-page="keysPage" :page-size="10" :total="keys.loaded.value?keys.data.value?.length:undefined"/>
+
       <details>
         <summary>接入说明</summary>
         <p>通过 HTTPS 发送 Authorization: Bearer 凭据；每个凭据每分钟最多 120 次。不能用地址参数或后台登录状态代替。</p>

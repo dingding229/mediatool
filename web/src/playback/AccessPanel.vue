@@ -89,6 +89,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
           <el-button :disabled="!policy.data||!!policy.error||!!op.pending" @click="ask('toggle')">{{ policy.data?.enabled?'关闭 UA 限制':'启用 UA 限制' }}</el-button>
         </div>
       </header>
+<div class="f5-player-policy-rows">
       <ResourceState :stale="policy.loaded" :loading="policy.loading" :error="policy.error" @reload="load"/>
       <p v-if="policy.data">{{ policy.data.enabled?'仅允许命中白名单的播放器访问。':'当前仅记录访问，不按UA限制现有播放器。' }}</p>
       <el-alert v-if="op.error&&!editing" :title="errorText(op.error)" type="error" :closable="false"/>
@@ -103,6 +104,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
         </div>
       </article>
       <p v-if="policy.data&&!policy.data.rules.length">尚无 UA 规则。</p>
+</div>
     </section>
     <section class="media-surface">
       <header class="media-section-heading">

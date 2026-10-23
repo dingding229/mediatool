@@ -122,3 +122,5 @@ footer.f3-log-footer{display:flex!important}.f3-log-footer>.media-actions{margin
 .u5-workspace .el-input-number.is-controls-right .el-input-number__increase,.u5-workspace .el-input-number.is-controls-right .el-input-number__decrease{min-height:0;height:calc(50% - 1px);line-height:normal}.el-input-number .el-input__inner{text-align:left!important}.plugin-json-hint{font-size:12px;line-height:1.5;color:var(--mt-text-muted);overflow-wrap:anywhere}
 
 .f5-connection-rows,.f5-key-rows{min-height:300px;position:relative}
+
+.f5-player-policy-rows{min-height:300px;position:relative}

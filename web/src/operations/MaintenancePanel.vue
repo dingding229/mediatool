@@ -124,9 +124,11 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
           <el-button v-if="canDeleteBackup(b.state)" :disabled="!!op.pending||b.pinned" @click="ask('delete',b)">删除备份</el-button>
         </div>
       </article>
-<PagePagination label="系统备份分页" v-model:current-page="recordPages.backups" :page-size="25" :total="data.data?.backups?.length"/>
 
-      </div><h2>恢复演练记录</h2>
+
+      </div>
+<PagePagination label="系统备份分页" v-model:current-page="recordPages.backups" :page-size="25" :total="data.data?.backups?.length"/>
+<h2>恢复演练记录</h2>
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.drills?.length" empty-title="暂无恢复演练记录"/>
       <article v-for="d in recordRows('drills')" :key="d.id" class="organize-record">
         <h3>{{ stateLabel(d.state) }} · {{ date(d.createdAt) }}</h3>
