@@ -53,6 +53,7 @@ usePageRefresh(load);
   <el-alert v-if="notice" :title="notice" type="info" :closable="false" />
   <el-alert v-if="error&&!editing&&!loadError" :title="error" type="error" :closable="false" />
   <AsyncResultBanner v-if="testState" :status="testState" :message="notice" @refresh="reconcile" />
+<div class="f5-connection-rows">
   <StateView v-if="loading" state="loading" title="正在读取已保存连接…" />
   <StateView v-else-if="loadError" :state="stateFor(loadError)" title="连接列表暂不可用" :description="errorText(loadError)" @retry="load" />
   <StateView v-else-if="!visible.length&&!error" state="empty" title="尚未配置服务连接" description="先添加配置，完成检测和授权后再明确启用。" />
@@ -71,6 +72,7 @@ usePageRefresh(load);
       <el-button type="danger" plain @click="askRemove(row)">删除</el-button>
     </div>
   </article>
+</div>
   <el-dialog v-model="editing" :title="form.id?'编辑连接':'添加连接'" width="min(760px,94vw)" :close-on-click-modal="false" class="u2-connection-dialog" :show-close="!saving" :close-on-press-escape="!saving">
     <form class="connection-editor" @submit.prevent="save()">
       <p>{{ kinds[form.kind]?.name }} · 密钥留空保留；填写新值才替换。关闭窗口会清空未提交的密钥。</p>

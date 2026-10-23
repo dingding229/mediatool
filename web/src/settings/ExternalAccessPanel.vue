@@ -133,6 +133,7 @@ usePageRefresh(load, 'api');
       <StateView v-if="op.error.value" :state="stateFor(op.error.value)" :description="messageFor(op.error.value)" retry-text="核对凭据列表" @retry="load"/>
       <p v-if="notice" role="status">{{notice}}</p>
       <el-button v-if="op.pending.value" :disabled="op.busy.value||!!keys.error.value||keys.loading.value||!keys.data.value" @click="acknowledge">我已核对列表，结束本次操作</el-button>
+<div class="f5-key-rows">
       <StateView v-if="keys.loading.value" state="loading"/>
       <StateView v-else-if="keys.error.value" :state="stateFor(keys.error.value)" :description="messageFor(keys.error.value)" @retry="keys.load"/>
       <StateView v-else-if="!keys.data.value?.length" state="empty" title="尚未创建外部 API 凭据" description="创建后只显示一次明文，请保存在安全的位置。"/>
@@ -147,6 +148,7 @@ usePageRefresh(load, 'api');
         <p>权限：{{key.scopes.map(s=>options.find(o=>o[0]===s)?.[1]||s).join('、')}}</p>
         <small>创建时间 {{date(key.createdAt)}} · 已保存，明文不再显示</small>
       </article>
+</div>
       <details>
         <summary>接入说明</summary>
         <p>通过 HTTPS 发送 Authorization: Bearer 凭据；每个凭据每分钟最多 120 次。不能用地址参数或后台登录状态代替。</p>

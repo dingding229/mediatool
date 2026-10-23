@@ -5,6 +5,7 @@ import { Warning, CircleClose, InfoFilled, Lock } from '@element-plus/icons-vue'
 export type StateKind = 'loading' | 'empty' | 'error' | 'unsupported' | 'unauthorized'
 
 const props = withDefaults(defineProps<{
+  compact?: boolean
   state: StateKind
   title?: string
   description?: string
@@ -29,8 +30,9 @@ const displayTitle = computed(() => props.title || defaultTitles[props.state])
 </script>
 
 <template>
-  <div class="state-view" :class="`state-${state}`" role="region" aria-live="polite">
-    <div v-if="state === 'loading'" class="state-loading">
+  <div class="state-view" :class="[`state-${state}`,{'is-compact':compact}]" role="region" aria-live="polite">
+    <div v-if="compact&&state!=='loading'&&state!=='empty'" class="state-inline-error"><span><strong>{{displayTitle}}</strong>{{description?'：'+description:''}}</span><el-button @click="emit('retry')">{{retryText}}</el-button></div>
+    <div v-else-if="state === 'loading'" class="state-loading">
       <el-skeleton :rows="4" />
       <p class="state-hint">{{ displayTitle }}</p>
     </div>
@@ -92,6 +94,7 @@ const displayTitle = computed(() => props.title || defaultTitles[props.state])
   width: 100%;
 }
 .state-empty :deep(.el-empty){padding:16px 0}
+.state-view.is-compact{min-height:0;padding:0}.state-inline-error{display:flex;align-items:center;gap:8px;font-size:12px;min-height:44px}.state-inline-error>span{flex:1;min-width:0;overflow-wrap:anywhere}.state-inline-error strong{color:var(--el-color-danger)}
 .state-hint {
   margin-top: 12px;
   font-size: 13px;
