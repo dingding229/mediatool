@@ -57,6 +57,21 @@ func Open(dir, level string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A killed process can leave its exclusive rewrite output behind. The source
+	// logs have not been renamed yet; remove only this reserved, bounded 0600 file.
+	if info, e := root.Lstat("retention.tmp"); e == nil {
+		if !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || info.Size() > MaxLogFileBytes {
+			deferutil.Close(root, "Unsafe retention recovery")
+			return nil, errors.New("unsafe interrupted log retention output")
+		}
+		if e = root.Remove("retention.tmp"); e != nil {
+			deferutil.Close(root, "Retention recovery failed")
+			return nil, e
+		}
+	} else if !errors.Is(e, os.ErrNotExist) {
+		deferutil.Close(root, "Retention metadata unavailable")
+		return nil, e
+	}
 	s := &Store{root: root, policy: DefaultPolicy()}
 	v, err := ParseLevel(level)
 	if err != nil {

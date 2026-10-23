@@ -193,3 +193,34 @@ func TestLogSnapshotPreservesStringSourceFromProductionShape(t *testing.T) {
 		t.Fatal(out, e)
 	}
 }
+
+func TestRestartRecoversOnlyOwnedBoundedRetentionOutput(t *testing.T) {
+	for _, mode := range []os.FileMode{0600, 0644} {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "retention.tmp")
+		if e := os.WriteFile(path, []byte("partial internal output"), mode); e != nil {
+			t.Fatal(e)
+		}
+		if e := os.Chmod(path, mode); e != nil {
+			t.Fatal(e)
+		}
+		s, e := Open(dir, "info")
+		if mode == 0600 {
+			if e != nil {
+				t.Fatal(e)
+			}
+			s.Close()
+			if _, e = os.Stat(path); !os.IsNotExist(e) {
+				t.Fatal("owned orphan retained", e)
+			}
+		} else {
+			if e == nil {
+				s.Close()
+				t.Fatal("unexpected file silently removed")
+			}
+			if _, e = os.Stat(path); e != nil {
+				t.Fatal("unrecognized output removed", e)
+			}
+		}
+	}
+}
