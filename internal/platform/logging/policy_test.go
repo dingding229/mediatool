@@ -2,6 +2,7 @@ package logging
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -222,5 +223,77 @@ func TestRestartRecoversOnlyOwnedBoundedRetentionOutput(t *testing.T) {
 				t.Fatal("unrecognized output removed", e)
 			}
 		}
+	}
+}
+
+func TestUnreadablePolicyClosesDebugWithoutShorteningRetentionOrDeleting(t *testing.T) {
+	s, e := Open(t.TempDir(), "info")
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer s.Close()
+	now := time.Now()
+	p := DefaultPolicy()
+	p.RetentionDays = 90
+	p.DebugUntil = now.Add(time.Hour)
+	s.ApplyPolicy(p, now)
+	writeQueryRecord(t, s, now.AddDate(0, 0, -8), "INFO", "retained", "app")
+	ctx, cancel := context.WithCancel(context.Background())
+	done, entered := make(chan struct{}), make(chan struct{})
+	defer func() { cancel(); <-done }()
+	go func() {
+		defer close(done)
+		s.Maintain(ctx, func(context.Context) (Policy, error) { close(entered); return Policy{}, errors.New("unavailable") }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	}()
+	<-entered
+	time.Sleep(20 * time.Millisecond)
+	summary, _ := s.Stats()
+	out, e := s.Query(ctx, Query{Page: 1, PageSize: 200})
+	if e != nil || out.Total != 1 || summary.Policy.RetentionDays != 90 || summary.DebugActive {
+		t.Fatal(summary, out.Total, e)
+	}
+}
+func TestStalePolicyReadCannotOverwriteAcknowledgedSave(t *testing.T) {
+	s, e := Open(t.TempDir(), "info")
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer s.Close()
+	now := time.Now()
+	writeQueryRecord(t, s, now.AddDate(0, 0, -8), "INFO", "retained", "app")
+	ctx, cancel := context.WithCancel(context.Background())
+	done, entered, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	defer func() { cancel(); <-done }()
+	go func() {
+		defer close(done)
+		s.Maintain(ctx, func(context.Context) (Policy, error) { close(entered); <-release; return DefaultPolicy(), nil }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	}()
+	<-entered
+	p := DefaultPolicy()
+	p.RetentionDays = 90
+	s.ApplyPolicy(p, now)
+	close(release)
+	time.Sleep(20 * time.Millisecond)
+	summary, _ := s.Stats()
+	out, e := s.Query(ctx, Query{Page: 1, PageSize: 200})
+	if e != nil || out.Total != 1 || summary.Policy.RetentionDays != 90 {
+		t.Fatal(summary, out.Total, e)
+	}
+}
+func TestEachRetentionBatchUsesLatestAcknowledgedDays(t *testing.T) {
+	s, e := Open(t.TempDir(), "info")
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer s.Close()
+	now := time.Now()
+	writeQueryRecord(t, s, now.AddDate(0, 0, -8), "INFO", "retained", "app")
+	s.ApplyPolicy(DefaultPolicy(), now)
+	p := DefaultPolicy()
+	p.RetentionDays = 90
+	s.ApplyPolicy(p, now)
+	n, e := s.pruneRetained(context.Background(), now, 1000)
+	if e != nil || n != 0 {
+		t.Fatal(n, e)
 	}
 }

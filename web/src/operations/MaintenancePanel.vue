@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { formatBytes as bytes } from './model';
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
@@ -17,6 +18,8 @@ import TrendChart from './TrendChart.vue';
 import {useRoute} from 'vue-router';
 import WebRestorePanel from './WebRestorePanel.vue';
 import PolicyPanel from './PolicyPanel.vue';
+const recordPages=reactive({backups:usePageNumber('backupsPage'),drills:usePageNumber('drillsPage'),requests:usePageNumber('maintenanceRequestsPage'),alerts:usePageNumber('alertsPage')});
+function recordRows(kind:keyof typeof recordPages){return (data.data?.[kind]||[]).slice((recordPages[kind]-1)*25,recordPages[kind]*25)}
 const data = reactive(useResource<any>(() => request('/ops'))), hours = ref(24), trends = reactive(useResource<any[]>(() => request('/ops/trends?hours=' + hours.value), [])), op = reactive(useOperation('maintenance')), section = ref(useRoute().query.restore?'recovery':'backups'), confirm = ref(false), action = ref<any>(null), detail = ref<any>(null), detailOpen = ref(false), restoreID = ref(''), rollbackID = ref(''), preview = ref<any>(null), previewLoading = ref(false), previewError = ref<unknown>(null), previewDialog = ref(false), approval = ref(false), copied = ref(''), commandCopy = ref('');
 const gapMS = computed(() => Math.max(1, Math.ceil(hours.value * 60 / 500)) * 60000), trendRows = computed(() => trends.data.map(r => ({ ...r, processMiB: typeof r.processBytes === 'number' ? r.processBytes / 1048576 : null, successRate: typeof r.succeededJobs10m === 'number' && typeof r.failedJobs10m === 'number' && r.succeededJobs10m + r.failedJobs10m > 0 ? r.succeededJobs10m / (r.succeededJobs10m + r.failedJobs10m) * 100 : null })));
 const trendFields = [['memoryPercent', '内存使用率', '%'], ['diskFreeGB', '剩余空间', 'GiB'], ['load1', '系统负载', '1min'], ['loadPerCPU', '每CPU负载', ''], ['jobSeconds', '任务执行耗时', '秒'], ['pendingJobs', '待处理任务', '条'], ['processMiB', '应用堆内存', 'MiB'], ['failedJobs10m', '十分钟失败任务', '条'], ['successRate', '十分钟任务成功率', '%']];
@@ -110,7 +113,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <p>保留最近两份成功备份，固定及维护单使用中的备份不参与自动清理；最多显示最近200条。</p>
       <div class="f5-backups-region">
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.backups?.length" empty-title="尚无系统备份"/>
-      <article v-for="b in data.data?.backups||[]" :key="b.id" class="organize-record">
+      <article v-for="b in recordRows('backups')" :key="b.id" class="organize-record">
         <h3>{{ date(b.createdAt) }} · {{ stateLabel(b.state) }}</h3>
         <p>{{ bytes(b.bytes) }} · {{ b.pinned?'已固定':'未固定' }} · {{ b.message||'—' }}</p>
         <div class="media-actions">
@@ -121,9 +124,11 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
           <el-button v-if="canDeleteBackup(b.state)" :disabled="!!op.pending||b.pinned" @click="ask('delete',b)">删除备份</el-button>
         </div>
       </article>
+<PagePagination label="系统备份分页" v-model:current-page="recordPages.backups" :page-size="25" :total="data.data?.backups?.length"/>
+
       </div><h2>恢复演练记录</h2>
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.drills?.length" empty-title="暂无恢复演练记录"/>
-      <article v-for="d in data.data?.drills||[]" :key="d.id" class="organize-record">
+      <article v-for="d in recordRows('drills')" :key="d.id" class="organize-record">
         <h3>{{ stateLabel(d.state) }} · {{ date(d.createdAt) }}</h3>
         <p>{{ d.message||'—' }}</p>
         <div class="media-actions">
@@ -131,6 +136,8 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
           <el-button v-if="['failed','interrupted'].includes(d.state)" :disabled="!!op.pending" @click="ask('cleanup',d)">清理临时库</el-button>
         </div>
       </article>
+<PagePagination label="恢复演练分页" v-model:current-page="recordPages.drills" :page-size="25" :total="data.data?.drills?.length"/>
+
     </section>
     <section v-else-if="section==='recovery'" class="media-surface">
       <h2>受控恢复与回滚</h2>
@@ -157,7 +164,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       </div>
       <el-button @click="inspect({releases:data.data?.releases,register:'media-toolctl --root /root/docker/mediatool register dingding229/mediatool:sha-完整SHA'})">查看登记与版本技术详情</el-button>
       <h3>维护单</h3>
-      <article v-for="r in data.data?.requests||[]" :key="r.id" class="organize-record">
+      <article v-for="r in recordRows('requests')" :key="r.id" class="organize-record">
         <h3>{{ r.kind==='restore'?'备份恢复':'版本回滚' }} · {{ ticketLabel(r) }}</h3>
         <p>有效至 {{ date(r.expiresAt) }} · {{ r.message||'—' }}</p>
         <div class="media-actions">
@@ -166,12 +173,14 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
           <el-button v-if="r.state==='completed'&&!r.verifiedAt" :disabled="!!op.pending" @click="ask('verify',r)">执行后核验</el-button>
         </div>
       </article>
+<PagePagination label="维护单分页" v-model:current-page="recordPages.requests" :page-size="25" :total="data.data?.requests?.length"/>
+
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.requests?.length" empty-title="暂无维护单"/>
     </section>
     <section v-else-if="section==='alerts'" class="media-surface">
       <h2>阈值告警</h2>
       <RouterLink to="/connections?tab=notifications">查看通知投递记录</RouterLink>
-      <article v-for="a in data.data?.alerts||[]" :key="a.code" class="organize-record">
+      <article v-for="a in recordRows('alerts')" :key="a.code" class="organize-record">
         <h3>{{ a.message||a.code }} · {{ stateLabel(a.state) }}</h3>
         <p>当前 {{ a.value??'—' }} · 连续 {{ a.hits??'—' }} 次 · {{ date(a.last_seen_at) }}</p>
         <div class="media-actions">
@@ -180,6 +189,8 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
           <span>确认告警不等于问题已解决</span>
         </div>
       </article>
+<PagePagination label="告警记录分页" v-model:current-page="recordPages.alerts" :page-size="25" :total="data.data?.alerts?.length"/>
+
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.alerts?.length" empty-title="暂无告警记录"/>
     </section>
     <section v-else-if="section==='trends'" class="media-surface">

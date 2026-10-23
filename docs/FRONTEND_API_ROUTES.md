@@ -1,6 +1,6 @@
 # 前端接口使用清单
 
-与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。完整291 paths / 621 operations；HEAD/OPTIONS/prefix展开计入，不是625个独立业务功能。
+与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。完整291 paths / 621 operations；HEAD/OPTIONS/prefix展开计入，不是621个独立业务功能。
 
 ## 统计与方法
 

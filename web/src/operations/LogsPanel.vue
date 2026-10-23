@@ -31,9 +31,9 @@ const route = useRoute(), filter = reactive({ page: usePageNumber(), pageSize: 2
     q.set('to', beijingISO(to.value));
   return request('/logs/query?' + q).then(pageResult);
 })), summary = reactive(useResource<any>(() => request('/logs/summary')));
-const policy=useRevision<Record<string,any>>('/settings/application'), duration=ref(1), debug=ref(false);
-watch(settings,async value=>{if(value){await policy.load();debug.value=Boolean(policy.draft.value?.logging?.debugUntil&&new Date(policy.draft.value.logging.debugUntil).getTime()>Date.now());}});
-async function savePolicy(){if(!policy.draft.value)return;policy.draft.value.logging.debugUntil=debug.value?new Date(Date.now()+duration.value*3600000).toISOString():'0001-01-01T00:00:00Z';await policy.save(['logging']);await load();}
+const policy=useRevision<Record<string,any>>('/settings/application'), duration=ref(1), durationTouched=ref(false),debug=ref(false);
+watch(settings,async value=>{if(value){await policy.load();durationTouched.value=false;debug.value=Boolean(policy.draft.value?.logging?.debugUntil&&new Date(policy.draft.value.logging.debugUntil).getTime()>Date.now());}});
+async function savePolicy(){if(!policy.draft.value)return;const original=policy.baseline.value?.value.logging?.debugUntil;const existingActive=original&&Date.parse(original)>Date.now();policy.draft.value.logging.debugUntil=!debug.value?'0001-01-01T00:00:00Z':existingActive&&!durationTouched.value?original:new Date(Date.now()+duration.value*3600000).toISOString();await policy.save(['logging']);await load();}
 async function load() {
   await Promise.all([data.load(), summary.load()]);
   if (data.data && !data.error)
@@ -152,9 +152,10 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
       <p>{{ bytes(summary.data?.totalBytes) }} · 上限 {{ bytes(summary.data?.limitBytes) }}</p>
       <RevisionFeedback :form="policy"/>
       <template v-if="policy.draft.value?.logging">
-        <label class="u5-field">日志保留天数 <el-input-number v-model="policy.draft.value.logging.retentionDays" :min="1" :max="90" :step="1" aria-label="日志保留天数"/></label>
+        <label class="u5-field">日志保留天数 <el-input-number v-model="policy.draft.value.logging.retentionDays" :min="1" :max="90" :step="1" step-strictly aria-label="日志保留天数"/></label>
         <label class="u5-field">Debug 日志 <ElSwitch v-model="debug" aria-label="Debug 日志"/></label>
-        <label v-if="debug" class="u5-field">自动关闭 <el-select v-model="duration" aria-label="Debug 自动关闭时长"><el-option :value="1" label="1 小时"/><el-option :value="24" label="24 小时"/></el-select></label>
+        <label v-if="debug" class="u5-field">自动关闭 <el-select v-model="duration" aria-label="Debug 自动关闭时长" @change="durationTouched=true"><el-option :value="1" label="1 小时"/><el-option :value="24" label="24 小时"/></el-select></label>
+        <p v-if="debug&&policy.baseline.value?.value.logging?.debugUntil" role="status">当前关闭时间：{{formatLogTime(policy.baseline.value.value.logging.debugUntil)}}。修改时长才会重新计时。</p>
         <p role="note">Debug 会增加日志量、磁盘与数据库压力，可能降低性能；详细请求原值属于敏感数据，请及时关闭。不采集登录请求体。</p>
         <el-button :loading="policy.busy.value" :disabled="policy.conflict.value" @click="savePolicy" type="primary">保存日志设置</el-button>
       </template>

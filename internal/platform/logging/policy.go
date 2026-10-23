@@ -28,7 +28,11 @@ func (p Policy) DebugActive(now time.Time) bool { return p.DebugUntil.After(now)
 func (s *Store) ApplyPolicy(p Policy, now time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.setPolicyLocked(p, now)
+}
+func (s *Store) setPolicyLocked(p Policy, now time.Time) {
 	s.policy = p
+	s.policyVersion++
 	s.Level.Set(slog.LevelInfo)
 	if p.DebugActive(now) {
 		s.Level.Set(slog.LevelDebug)
@@ -41,6 +45,17 @@ func (s *Store) ApplyPolicy(p Policy, now time.Time) {
 func (s *Store) Prune(ctx context.Context, cutoff time.Time, batch int) (removed int, result error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.pruneLocked(ctx, cutoff, batch)
+}
+func (s *Store) pruneRetained(ctx context.Context, now time.Time, batch int) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.policy.Validate(); err != nil {
+		return 0, err
+	}
+	return s.pruneLocked(ctx, now.AddDate(0, 0, -s.policy.RetentionDays), batch)
+}
+func (s *Store) pruneLocked(ctx context.Context, cutoff time.Time, batch int) (int, error) {
 	if s.closed || batch < 1 {
 		return 0, errors.New("invalid log retention operation")
 	}
@@ -144,17 +159,31 @@ func (s *Store) Maintain(ctx context.Context, load func(context.Context) (Policy
 	nextPolicy := time.Time{}
 	day := ""
 	sweeping := false
-	p := DefaultPolicy()
+	policyAvailable := false
 	for {
 		now := time.Now()
 		if !now.Before(nextPolicy) {
+			s.mu.Lock()
+			version := s.policyVersion
+			s.mu.Unlock()
 			v, err := load(ctx)
-			if err != nil {
-				v = DefaultPolicy()
-				logger.Warn("日志设置读取失败，Debug 已关闭", "module", "logging")
+			if err == nil {
+				err = v.Validate()
 			}
-			p = v
-			s.ApplyPolicy(p, now)
+			s.mu.Lock()
+			policyAvailable = err == nil
+			if err != nil {
+				closed := s.policy
+				closed.DebugUntil = time.Time{}
+				s.setPolicyLocked(closed, now)
+			} else if s.policyVersion == version {
+				s.setPolicyLocked(v, now)
+			}
+			s.mu.Unlock()
+			if err != nil {
+				logger.Warn("日志设置读取失败，Debug 已关闭，保留清理暂停", "module", "logging")
+			}
+
 			nextPolicy = now.Add(time.Minute)
 		}
 		s.mu.Lock()
@@ -166,8 +195,8 @@ func (s *Store) Maintain(ctx context.Context, load func(context.Context) (Policy
 			day = today
 			sweeping = true
 		}
-		if sweeping {
-			n, err := s.Prune(ctx, now.AddDate(0, 0, -p.RetentionDays), 1000)
+		if sweeping && policyAvailable {
+			n, err := s.pruneRetained(ctx, now, 1000)
 			if err != nil {
 				logger.Warn("日志保留清理暂缓", "module", "logging")
 				sweeping = false

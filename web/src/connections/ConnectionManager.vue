@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
 import {beijingTime} from '../presentation/time';
 import {usePageRefresh} from '../ui/page-refresh';
 import './connections.css';
@@ -24,6 +25,7 @@ const props = defineProps<{
 const { rows, loading, loadError, error, editing, saving, notice, conflict, saved, blocked, form, load, create, edit, save, useRevision, test, testState, testing, reconcile, authorize, authOpen, authId, askRemove, removeOpen, removeTarget, removing, remove } = useConnections();
 const reveal = useSecretReveal(() => ({ id: form.id, revision: form.revision }));
 watch(() => [editing.value, form.id, form.revision, saving.value], () => reveal.hideAll());
+const connectionPage=usePageNumber('connectionPage');
 const selectedKind = ref(props.allowedKinds[0] ?? 'emby'), visible = computed(() => rows.value.filter(r => props.allowedKinds.includes(r.kind)));
 async function approveRevision() {
   try {
@@ -57,7 +59,7 @@ usePageRefresh(load);
   <StateView v-if="loading" state="loading" title="正在读取已保存连接…" />
   <StateView v-else-if="loadError" :state="stateFor(loadError)" title="连接列表暂不可用" :description="errorText(loadError)" @retry="load" />
   <StateView v-else-if="!visible.length&&!error" state="empty" title="尚未配置服务连接" description="先添加配置，完成检测和授权后再明确启用。" />
-  <article v-for="row in visible" :key="row.id" class="saved-connection">
+  <article v-for="row in visible.slice((connectionPage-1)*10,connectionPage*10)" :key="row.id" class="saved-connection">
     <div>
       <h3>{{ row.name }}</h3>
       <p>{{ kinds[row.kind]?.name }} · {{ row.enabled?'已启用':'未启用' }}</p>
@@ -72,6 +74,8 @@ usePageRefresh(load);
       <el-button type="danger" plain @click="askRemove(row)">删除</el-button>
     </div>
   </article>
+<PagePagination label="服务连接分页" v-model:current-page="connectionPage" :page-size="10" :total="!loading?visible.length:undefined"/>
+
 </div>
   <el-dialog v-model="editing" :title="form.id?'编辑连接':'添加连接'" width="min(760px,94vw)" :close-on-click-modal="false" class="u2-connection-dialog" :show-close="!saving" :close-on-press-escape="!saving">
     <form class="connection-editor" @submit.prevent="save()">

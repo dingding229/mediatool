@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageNumber} from '../ui/page-query';
 import {beijingTime as date} from '../presentation/time';
 import {usePageRefresh} from '../ui/page-refresh';
 import { onMounted, onUnmounted, ref } from 'vue';
@@ -9,6 +10,7 @@ import ConfirmAction from '../ui/ConfirmAction.vue';
 import StateView from '../ui/StateView.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { stateFor, messageFor } from './revision';
+const keysPage=usePageNumber('apiKeysPage'),callsPage=usePageNumber('apiCallsPage');
 interface Key {
   id: string;
   name: string;
@@ -137,7 +139,7 @@ usePageRefresh(load, 'api');
       <StateView v-if="keys.loading.value" state="loading"/>
       <StateView v-else-if="keys.error.value" :state="stateFor(keys.error.value)" :description="messageFor(keys.error.value)" @retry="keys.load"/>
       <StateView v-else-if="!keys.data.value?.length" state="empty" title="尚未创建外部 API 凭据" description="创建后只显示一次明文，请保存在安全的位置。"/>
-      <article v-for="key in keys.data.value" :key="key.id" class="settings-key">
+      <article v-for="key in keys.data.value?.slice((keysPage-1)*10,keysPage*10)" :key="key.id" class="settings-key">
         <header>
           <div>
             <h3>{{key.name}}</h3>
@@ -148,6 +150,8 @@ usePageRefresh(load, 'api');
         <p>权限：{{key.scopes.map(s=>options.find(o=>o[0]===s)?.[1]||s).join('、')}}</p>
         <small>创建时间 {{date(key.createdAt)}} · 已保存，明文不再显示</small>
       </article>
+<PagePagination label="API 凭据分页" v-model:current-page="keysPage" :page-size="10" :total="keys.loaded.value?keys.data.value?.length:undefined"/>
+
 </div>
       <details>
         <summary>接入说明</summary>
@@ -174,12 +178,14 @@ usePageRefresh(load, 'api');
       <StateView v-else-if="calls.loading.value" state="loading"/>
       <StateView v-else-if="!calls.data.value?.length" state="empty" title="暂无外部 API 调用"/>
       <ol class="settings-calls">
-        <li v-for="(call,i) in calls.data.value" :key="i">
+        <li v-for="(call,i) in calls.data.value?.slice((callsPage-1)*25,callsPage*25)" :key="i">
           <strong>{{call.name||'—'}} · {{call.status??'—'}}</strong>
           <code>{{call.method}} {{call.path}}</code>
           <time>{{date(call.createdAt)}}</time>
         </li>
       </ol>
+<PagePagination label="API 调用记录分页" v-model:current-page="callsPage" :page-size="25" :total="calls.loaded.value?calls.data.value?.length:undefined"/>
+
     </section>
     <el-dialog class="settings-dialog" v-model="dialog" title="创建独立 API 凭据" width="min(560px,94vw)">
       <form class="settings-stack" @submit.prevent="create">

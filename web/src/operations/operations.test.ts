@@ -52,3 +52,4 @@ it('log policy loads only on opening settings and bounded debug preserves unrela
  s.settings=true;await flush();s.debug=true;s.duration=24;s.policy.draft.value.logging.retentionDays=90;await s.savePolicy();
  const call=writes('/settings/application')[0];const body=JSON.parse(call[1].body);expect(body.revision).toBe(1);expect(body.value.access.private).toBe('preserved');expect(body.value.logging.retentionDays).toBe(90);expect(Date.parse(body.value.logging.debugUntil)-Date.now()).toBe(24*3600000);
 });
+it('changing retention cannot silently extend an already active sensitive debug session',async()=>{const until=new Date(Date.now()+10*60000).toISOString();settings.value.logging.debugUntil=until;const s=mount(Logs);await flush();s.settings=true;await flush();expect(s.debug).toBe(true);s.policy.draft.value.logging.retentionDays=8;await s.savePolicy();const put=writes('/settings/application')[0];expect(JSON.parse(put[1].body).value.logging.debugUntil).toBe(until)});

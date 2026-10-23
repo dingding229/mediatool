@@ -23,13 +23,14 @@ type Store struct {
 	queryCache *querySnapshot
 	queryEpoch atomic.Uint64
 
-	mu     sync.Mutex
-	root   *os.Root
-	file   *os.File
-	size   int64
-	closed bool
-	Level  slog.LevelVar
-	policy Policy
+	mu            sync.Mutex
+	root          *os.Root
+	file          *os.File
+	size          int64
+	closed        bool
+	Level         slog.LevelVar
+	policy        Policy
+	policyVersion uint64
 }
 type FileInfo struct {
 	Name     string    `json:"name"`
