@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed,watch} from 'vue';
 defineOptions({inheritAttrs:false});
-const props=withDefaults(defineProps<{currentPage?:number;pageSize?:number;total?:number;hasNext?:boolean;disabled?:boolean;label?:string;pageSizes?:number[]}>(),{currentPage:1,pageSize:25,label:'分页',hasNext:undefined});
+const props=withDefaults(defineProps<{currentPage?:number;pageSize?:number;total?:number;hasNext?:boolean;disabled?:boolean;label?:string;pageSizes?:number[];status?:'loading'|'error'|''}>(),{currentPage:1,pageSize:25,label:'分页',hasNext:undefined});
 const emit=defineEmits<{'update:currentPage':[number];'current-change':[number];'update:pageSize':[number];'size-change':[number]}>();
 const pages=computed(()=>props.total==null?undefined:Math.max(1,Math.ceil(props.total/props.pageSize)));
 const canNext=computed(()=>props.hasNext??(pages.value!=null&&props.currentPage<pages.value));
@@ -14,7 +14,7 @@ function resize(value:number){requested=1;emit('update:pageSize',value);emit('si
 <template>
  <nav class="mt-pagination" :aria-label="label">
   <label>每页 <el-select v-if="pageSizes?.length" :model-value="pageSize" :aria-label="label+'每页条数'" :disabled="disabled" @change="resize"><el-option v-for="n in pageSizes" :key="n" :value="n" :label="String(n)"/></el-select><span v-else>{{pageSize}}</span> 条</label>
-  <span class="mt-page-count" aria-live="polite">{{range}} / {{total??'总数未提供'}}</span>
+  <span class="mt-page-count" aria-live="polite">{{status==='loading'?'读取中，数量未知':status==='error'&&total==null?'读取失败，数量未知':range+' / '+(total??'总数未提供')}}</span>
   <div class="mt-page-actions"><button type="button" :disabled="disabled||currentPage<=1" @click="go(1)">首页</button><button type="button" :disabled="disabled||currentPage<=1" @click="go(currentPage-1)">上一页</button><span>第 {{currentPage}} 页{{pages?' / '+pages:''}}</span><button type="button" :disabled="disabled||!canNext" @click="go(currentPage+1)">下一页</button><button type="button" :disabled="disabled||!pages||currentPage>=pages" @click="pages&&go(pages)">末页</button></div>
  </nav>
 </template>

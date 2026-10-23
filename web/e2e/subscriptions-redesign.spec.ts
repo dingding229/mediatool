@@ -12,7 +12,7 @@ async function fixture(page: Page) {
   await page.route('**/api/v1/subscriptions?*', r => fixtureFulfill(r,{ json: { data: [sample, { ...sample, id: 'trial-paused', title: '星际穿越', media: matches[0], enabled: false, source: 'search', lastState: '', nextRunAt: '' }] } }))
   await page.route('**/api/v1/subscriptions/*/history{,?*}', r => fixtureFulfill(r,{ json: { data: [{ id: 'trial-run', state: 'succeeded', preview: true, createdAt: '2026-10-20T12:00:00Z' }] } }))
   await page.route('**/api/v1/subscription-runs/trial-run', r => fixtureFulfill(r,{ json: { data: { id: 'trial-run', subscriptionId: 'trial-sub', state: 'succeeded', preview: true, decisions: [{ id: 'decision', title: '测试资源 1080p WEB-DL', action: 'would_download', reasons: ['符合订阅规则'], episodes: [1], checks: [{ key: 'resolution', label: '分辨率', state: 'matched', actual: '1080p', expected: '1080p', message: '分辨率符合要求' }] }] } } }))
-  await page.route('**/api/v1/subscriptions{,?*}', r => { const input = r.request().postDataJSON(); return fixtureFulfill(r,{ status: 201, json: { data: { ...sample, ...input, id: 'draft-sub', title: '星际穿越', media: matches[0], revision: 1 } } }) })
+  await page.route('**/api/v1/subscriptions', r => { const input = r.request().postDataJSON(); return fixtureFulfill(r,{ status: 201, json: { data: { ...sample, ...input, id: 'draft-sub', title: '星际穿越', media: matches[0], revision: 1 } } }) })
   await page.route('**/api/v1/subscriptions/draft-sub', r => fixtureFulfill(r,{ json: { data: { ...sample, id: 'draft-sub', revision: 2 } } }))
   await page.route('**/api/v1/subscriptions/draft-sub/evaluate', r => fixtureFulfill(r,{ status: 202, json: { data: { id: 'draft-run' } } }))
   await page.route('**/api/v1/subscription-runs/draft-run', r => fixtureFulfill(r,{ json: { data: { id: 'draft-run', state: 'succeeded', preview: true, decisions: [] } } }))
@@ -28,7 +28,7 @@ async function chooseMedia(page: Page) {
 test.beforeEach(async ({ page }) => { await fixture(page) })
 test('four-step composer saves a paused draft, runs real preview, then saves the returned revision', async ({ page }) => {
   const writes: any[] = []; let previews = 0
-  await page.route('**/api/v1/subscriptions{,?*}', r => { const input = r.request().postDataJSON(); writes.push(input); return fixtureFulfill(r,{ status: 201, json: { data: { ...sample, ...input, id: 'draft-sub', title: '星际穿越', media: matches[0], revision: 1 } } }) })
+  await page.route('**/api/v1/subscriptions', r => { const input = r.request().postDataJSON(); writes.push(input); return fixtureFulfill(r,{ status: 201, json: { data: { ...sample, ...input, id: 'draft-sub', title: '星际穿越', media: matches[0], revision: 1 } } }) })
   await page.route('**/api/v1/subscriptions/draft-sub', r => { writes.push(r.request().postDataJSON()); return fixtureFulfill(r,{ json: { data: { ...sample, id: 'draft-sub', revision: 2 } } }) })
   await page.route('**/api/v1/subscriptions/draft-sub/evaluate', r => { previews++; return fixtureFulfill(r,{ status: 202, json: { data: { id: 'draft-run' } } }) })
   await page.goto('/subscriptions'); await page.getByRole('button', { name: '新建订阅', exact: true }).click()
