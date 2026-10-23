@@ -282,3 +282,11 @@ func TestFixturePasswordIsNotAnApplicationKeyAndKeepsProductPolicy(t *testing.T)
 		t.Fatal("application keys were shortened")
 	}
 }
+
+func TestCIMediaToolBundleIncludesNestedPulseDependency(t *testing.T) {
+	s := source(t, "scripts/prepare-ci-media-tools.sh")
+	has(t, s, "dingding229/mediatool@sha256:", "$root/usr/lib:$root/usr/lib/pulseaudio:$root/lib", `"$root/bin/ffmpeg" -version`, `"$root/bin/ffprobe" -version`)
+	if strings.Contains(s, "mediatool:latest") {
+		t.Fatal("CI tool bundle must be immutable")
+	}
+}

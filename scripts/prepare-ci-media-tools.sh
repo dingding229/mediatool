@@ -26,7 +26,7 @@ if [[ ! -f "$root/.complete" ]]; then
     docker cp "$cid:/usr/bin/$tool" "$root/usr/bin/$tool"
     cat > "$root/bin/$tool" <<WRAPPER
 #!/usr/bin/env bash
-exec "$root/lib/ld-musl-x86_64.so.1" --library-path "$root/usr/lib:$root/lib" "$root/usr/bin/$tool" "\$@"
+exec "$root/lib/ld-musl-x86_64.so.1" --library-path "$root/usr/lib:$root/usr/lib/pulseaudio:$root/lib" "$root/usr/bin/$tool" "\$@"
 WRAPPER
   done
   find "$root" -type d -exec chmod 755 {} +
