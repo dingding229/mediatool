@@ -9,8 +9,10 @@ import (
 	"media-tool/internal/modules/nativelibrary"
 	"media-tool/internal/modules/nativelibrary/catalog"
 	"media-tool/internal/modules/nativeplayback"
+	"media-tool/internal/modules/playbackstats"
 	"media-tool/internal/modules/playeraccess"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,6 +20,7 @@ type Links interface {
 	Resolve(context.Context, string, string, string) (nativeplayback.RedirectTarget, error)
 }
 type Service struct {
+	Stats  playbackstats.Sink
 	DB     *pgxpool.Pool
 	Browse nativelibrary.BrowseService
 	Links  Links
@@ -25,6 +28,7 @@ type Service struct {
 type source struct {
 	dto.MediaSourceInfo
 	play, download bool
+	item           dto.BaseItemDto
 }
 
 func (s *Service) sources(ctx context.Context, a nativeplayback.Actor, q nativeplayback.Request) ([]source, error) {
@@ -118,7 +122,7 @@ func (s *Service) sources(ctx context.Context, a nativeplayback.Actor, q nativep
 		if q.MediaSourceID == v.Id && (!g[0] || q.Download && !g[1]) {
 			return nil, nativeplayback.ErrForbidden
 		}
-		out = append(out, source{v, g[0], g[1]})
+		out = append(out, source{MediaSourceInfo: v, play: g[0], download: g[1], item: items[0]})
 		anyAllowed = anyAllowed || g[0] && (!q.Download || g[1])
 	}
 	if len(out) == 0 {
@@ -213,7 +217,25 @@ func (s *Service) Stream(ctx context.Context, a nativeplayback.Actor, q nativepl
 		}
 		return nativeplayback.RedirectTarget{}, err
 	}
+	if a.Method != "HEAD" {
+		s.record(a, chosen, slot.ID, "playing", 0, true)
+	}
 	return target, nil
 }
 
 var _ nativeplayback.Service = (*Service)(nil)
+
+func (s *Service) record(a nativeplayback.Actor, v source, id, state string, position int64, redirect bool) {
+	if s.Stats == nil {
+		return
+	}
+	item := v.item
+	kind, name, title := "movie", item.Name, ""
+	if item.Type == dto.Episode {
+		kind, name, title = "episode", item.SeriesName, item.Name
+		if item.IndexNumber != nil && strings.ReplaceAll(title, " ", "") == "第"+strconv.Itoa(*item.IndexNumber)+"集" {
+			title = ""
+		}
+	}
+	s.Stats.Submit(playbackstats.Snapshot{ID: id, UserID: a.User.ID, DeviceID: a.Device.ID, ItemID: item.Id, SeriesID: item.SeriesId, SeasonID: item.SeasonId, Type: kind, Name: name, EpisodeTitle: title, Season: item.ParentIndexNumber, Episode: item.IndexNumber, UserAgent: a.UserAgent, IP: a.Address.ClientIP, State: state, At: time.Now(), Position: position, Redirect: redirect})
+}

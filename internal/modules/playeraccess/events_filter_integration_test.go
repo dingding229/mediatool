@@ -41,7 +41,7 @@ func TestEventExactUserFilterAndAddressEcho(t *testing.T) {
 			t.Fatal(out, err)
 		}
 		e := out.Items[0]
-		if e.ClientIP != "8.8.8.8" || e.ConnectionIP != "10.0.0.2" || !e.IPPublic || e.IPSource != "trusted_proxy" {
+		if e.ClientIP != "8.8.8.8" || e.ConnectionIP != "" || !e.IPPublic || e.IPSource != "trusted_proxy" {
 			t.Fatal(e)
 		}
 	}

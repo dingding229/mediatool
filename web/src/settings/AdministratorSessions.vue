@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import IpAddress from '../ui/IpAddress.vue';
+import IpAttribution from '../ui/IpAttribution.vue';
 import {beijingTime as date} from '../presentation/time';
 import {usePageNumber} from '../ui/page-query';
 
@@ -28,11 +30,11 @@ onMounted(sessions.load);usePageRefresh(sessions.load,'security');
 <article v-else v-for="row in sessions.data.value.items" :key="row.id" class="organize-record">
 <h3>{{row.username}}<span v-if="row.current"> · 当前会话</span></h3>
 <p>创建 {{date(row.createdAt)}} · 最后活动 {{date(row.lastActiveAt)}} · 到期 {{date(row.expiresAt)}}</p>
-<p class="admin-session-raw">IP：{{row.ip||'—'}}</p><p class="admin-session-raw">UA：{{row.userAgent||'—'}}</p>
+<p class="admin-session-raw">IP：<IpAddress :ip="row.ip"/></p><p class="admin-session-raw">UA：{{row.userAgent||'—'}}</p>
 <el-button :disabled="busy" @click="target=row">{{row.current?'撤销当前登录':'撤销此登录'}}</el-button>
 </article>
 <PagePagination v-model:current-page="page" :has-next="sessions.data.value.hasNext" :disabled="sessions.loading.value" @current-change="sessions.load"/>
 <ConfirmAction :visible="!!target" @update:visible="v=>{if(!v)target=undefined}" :title="target?.current?'撤销当前管理端登录':'撤销指定管理端登录'" :description="target?.current?'确认后将退出当前管理端并跳转到登录页。':'仅撤销所选登录，不影响其他管理端登录。'" impact-scope="不会撤销媒体服务器用户登录，也不会修改账号密码。撤销立即对下一次请求生效。" confirm-text="确认撤销登录" :loading="busy" @confirm="revoke"/>
 </section>
-</template>
+<IpAttribution/></template>
 <style scoped>.admin-session-raw{white-space:pre-wrap;overflow-wrap:anywhere}</style>

@@ -198,7 +198,10 @@ func (s *Service) Report(parent context.Context, a nativeplayback.Actor, q nativ
 	if e != nil {
 		return nativeplayback.ErrUpstream
 	}
-	return commitReport(ctx, tx)
+	if err = commitReport(ctx, tx); err == nil && q.Kind != nativeplayback.ReportPing && (q.Kind != nativeplayback.ReportStopped || found && v.state != mediausers.PlaybackStopped || position > 0) {
+		s.record(a, chosen, v.id, string(state), position, false)
+	}
+	return err
 }
 func boolInt(b bool) int {
 	if b {

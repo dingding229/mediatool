@@ -74,5 +74,5 @@ defineExpose({ load, create });
   <DetailDrawer v-model:visible="activityOpen" :title="(activity?.username||'媒体用户')+' · 设备与历史'" class="media-detail">
     <UserActivityPanel v-if="activity&&activityOpen" :user-id="activity.id" :user-name="activity.username"/>
   </DetailDrawer>
-  <ConfirmAction v-model:visible="confirm" title="删除媒体用户" :description="`将处理 ${target?.username||'此用户'} 的账号或登录权限。`" impact-scope="删除账号、权限和登录，不删除媒体文件或其他用户。" confirm-text="确认删除用户" :loading="op.busy" class="media-dialog" @confirm="apply"/>
+  <ConfirmAction v-model:visible="confirm" title="删除媒体用户" :description="`将处理 ${target?.username||'此用户'} 的账号或登录权限。`" impact-scope="删除账号、权限、登录及该用户的播放事件和 IP 统计；不删除媒体文件或其他用户的数据。" confirm-text="确认删除用户" :loading="op.busy" class="media-dialog" @confirm="apply"/>
 </template>

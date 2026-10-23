@@ -42,6 +42,10 @@ func ViewingProgress(position, duration int64) (resume int64, completed bool) {
 }
 
 type ActiveSession struct {
+	Type           string    `json:"type,omitempty"`
+	Season         *int      `json:"season,omitempty"`
+	Episode        *int      `json:"episode,omitempty"`
+	EpisodeTitle   string    `json:"episodeTitle,omitempty"`
 	ID             string    `json:"id"`
 	UserID         string    `json:"userId"`
 	UserName       string    `json:"userName"`

@@ -7,8 +7,8 @@ import (
 	"crypto/tls"
 	"errors"
 	deferutil "media-tool/internal/platform/cleanup"
+	"media-tool/internal/platform/clientip"
 	"media-tool/internal/platform/httpjson"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -152,10 +152,7 @@ func (e *Engine) serve(w http.ResponseWriter, r *http.Request, ref storage.FileR
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	ref.UserAgent = r.UserAgent()
-	host, _, splitErr := net.SplitHostPort(r.RemoteAddr)
-	if splitErr == nil {
-		ref.ClientIP = host
-	}
+	ref.ClientIP = clientip.Observed(r).ClientIP
 	link, err := e.resolve(r.Context(), ref)
 	if err != nil {
 		if errors.Is(err, context.Canceled) && r.Context().Err() != nil {

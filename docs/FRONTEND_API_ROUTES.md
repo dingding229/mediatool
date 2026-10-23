@@ -1,6 +1,6 @@
 # 前端接口使用清单
 
-与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。完整292 paths / 622 operations；HEAD/OPTIONS/prefix展开计入，不是622个独立业务功能。
+与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。完整298 paths / 635 operations；HEAD/OPTIONS/prefix展开计入，不是635个独立业务功能。
 
 ## 统计与方法
 
@@ -675,3 +675,17 @@ F5b 图标：新增 `GET /pt/templates/{id}/favicon`，管理员会话保护，�
 默认目标 `.` 使用所选分类与自动入库同一命名渲染器；显式目标目录仍为人工覆盖，不擅自追加分类。电影不提交季集，服务端清零并拒绝电影模板的季集变量。剧集未知季集需人工核对，不固定为 1。目录操作保留目录及子文件原名，不递归猜测子文件身份。预览展示最终路径、分类及命名结果；执行仍需单独确认与文件证据核验。
 
 首页不再渲染任何插件仪表盘。插件详情只读取当前运行实例、且在同 pin manifest 中声明的仪表盘；停用实例不启动、不读取。`ui-surfaces` 仍用于全局导航，插件 UI API 仍用于详情，不删除这些共享 API。
+
+## F7 播放统计与公网 IP
+
+| method | path | listener | 当前前端使用 | 证据（源码行） |
+|---|---|---|---|---|
+| GET | `/api/v1/media-server/playback-statistics` | management | 前端经适配调用 | `web/src/api/playback-statistics.ts:10` |
+| GET | `/api/v1/media-server/playback-events` | management | 前端经适配调用 | `web/src/api/playback-statistics.ts:11` |
+| GET | `/api/v1/media-server/playback-ips` | management | 前端经适配调用 | `web/src/api/playback-statistics.ts:12` |
+| GET | `/api/v1/ip-geolocation` | management | 前端经适配调用 | `web/src/api/ip-geolocation.ts:14` |
+| GET | `/api/v1/ip-geolocation/settings` | management | 前端经适配调用 | `web/src/api/ip-geolocation.ts:5` |
+| PUT | `/api/v1/ip-geolocation/settings` | management | 前端经适配调用 | `web/src/api/ip-geolocation.ts:6` |
+
+以上均经过管理员认证。`days=7/30/90/0`（0 为全部），`startIndex/limit` 有界分页，按开始时间倒序。IP 汇总 `group=ip/country/province`，用户/设备过滤使用服务器 UUID。归属地在本地查询，库不存在时保留公网 IP，历史私网地址在显示层隐藏。密钥只通过 PUT body 加密保存，不在 GET、日志、原生媒体 API 返回。
+| GET | `/api/v1/media-server/device-ips` | management | 前端经适配调用 | `web/src/api/playback-statistics.ts:14` |

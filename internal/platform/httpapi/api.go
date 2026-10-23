@@ -11,17 +11,21 @@ import (
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/emby"
 	"media-tool/internal/modules/integrations"
+	"media-tool/internal/modules/ipgeo"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/linkcache"
 	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/modules/nativeplayback"
 	"media-tool/internal/modules/playback"
+	"media-tool/internal/modules/playbackstats"
+	"media-tool/internal/modules/playeraccess"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
 	"media-tool/internal/modules/system"
 	"media-tool/internal/platform/auth"
 	"media-tool/internal/platform/buildinfo"
 	deferutil "media-tool/internal/platform/cleanup"
+	"media-tool/internal/platform/clientip"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/flow"
 	"media-tool/internal/platform/httpjson"
@@ -44,6 +48,8 @@ type SessionReader interface {
 	Session(context.Context, []byte) (accounts.Account, error)
 }
 type Dependencies struct {
+	IPGeo             *ipgeo.Service
+	PlaybackStats     playbackstats.Sink
 	PluginInstances   PluginInstances
 	NativeSessions    NativeSessionReader
 	NativePlayback    nativeplayback.Service
@@ -178,6 +184,9 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("PUT /api/v1/classification", a.protected(a.saveClassification))
 	mux.HandleFunc("POST /api/v1/classification/preview", a.protected(a.previewClassification))
 	mux.HandleFunc("GET /api/v1/system/status", a.protected(a.status))
+	mux.HandleFunc("GET /api/v1/ip-geolocation", a.protected(a.ipLocations))
+	mux.HandleFunc("GET /api/v1/ip-geolocation/settings", a.protected(a.ipGeoSettings))
+	mux.HandleFunc("PUT /api/v1/ip-geolocation/settings", a.protected(a.saveIPGeoSettings))
 	mux.HandleFunc("GET /api/v1/system/modules", a.protected(func(w http.ResponseWriter, r *http.Request) { write(w, 200, system.Modules()) }))
 	mux.HandleFunc("GET /api/v1/integrations", a.protected(a.listIntegrations))
 	mux.HandleFunc("POST /api/v1/integrations", a.protected(a.saveIntegration))
@@ -381,6 +390,9 @@ var maintenanceWriteSlots = make(chan struct{}, 3)
 
 func (a *API) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") || playeraccess.Entry(r.URL.Path) != "" {
+			r = clientip.WithAddress(r, a.observedAddress(r))
+		}
 		allowedRestore := strings.HasPrefix(r.URL.Path, "/api/v1/ops/restores/") && (strings.HasSuffix(r.URL.Path, "/execute") || strings.HasSuffix(r.URL.Path, "/reconcile"))
 		if r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS" && !allowedRestore {
 			check, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -480,7 +492,7 @@ func (a *API) middleware(next http.Handler) http.Handler {
 			}
 		}
 
-		fields := []any{"module", module, "url", requestURL.String(), "userAgent", r.UserAgent(), "range", r.Header.Get("Range"), "location", w.Header().Get("Location"), "method", r.Method, "path", r.URL.Path, "status", metrics.Code, "responseBytes", metrics.Written, "durationMs", metrics.Duration.Milliseconds(), "requestId", id}
+		fields := []any{"module", module, "clientIp", clientip.Observed(r).ClientIP, "url", requestURL.String(), "userAgent", r.UserAgent(), "range", r.Header.Get("Range"), "location", w.Header().Get("Location"), "method", r.Method, "path", r.URL.Path, "status", metrics.Code, "responseBytes", metrics.Written, "durationMs", metrics.Duration.Milliseconds(), "requestId", id}
 		// These headers are fixed server enums. No provider URLs, raw queries,
 		// client credentials or client-supplied UA enter access logs.
 		for _, key := range []string{"X-Media-Gateway", "X-Media-Gateway-Reason", "X-Media-Delivery", "X-Media-Delivery-Reason"} {

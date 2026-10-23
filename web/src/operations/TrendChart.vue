@@ -26,3 +26,8 @@ function display(value?:number){if(value==null)return '—';if(props.unit==='MiB
     </template>
   </article>
 </template>
+<style scoped>
+/* Own the drawing styles so reuse outside the lazily loaded operations page
+   still renders a visible chart. */
+.u6-trend svg{display:block;width:100%;height:130px}.u6-trend polyline{fill:none;stroke:var(--mt-color-primary);stroke-width:2}.u6-trend circle{fill:var(--mt-color-primary)}
+</style>

@@ -14,6 +14,7 @@ import (
 	sourcecatalog "media-tool/internal/modules/catalog"
 	"media-tool/internal/modules/filemanager"
 	"media-tool/internal/modules/integrations"
+	"media-tool/internal/modules/ipgeo"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/library"
 	"media-tool/internal/modules/maintenance"
@@ -26,6 +27,7 @@ import (
 	playbackruntime "media-tool/internal/modules/nativeplayback/runtime"
 	"media-tool/internal/modules/nativetmdb"
 	"media-tool/internal/modules/networkproxy"
+	"media-tool/internal/modules/playbackstats"
 	pluginbusiness "media-tool/internal/modules/plugins/business"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"media-tool/internal/modules/plugins/v2/sandbox"
@@ -53,6 +55,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -529,6 +532,18 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 }
 
 func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis.Client, manager *integrations.Manager, logger *slog.Logger, logStore *logging.Store, native ...*stillrunner.Service) error {
+	stats := playbackstats.New(db, logger)
+	statsCtx, statsCancel := context.WithCancel(ctx)
+	statsDone := make(chan struct{})
+	go func() {
+		defer close(statsDone)
+		stats.Run(statsCtx, func(ctx context.Context) (int, error) {
+			v, e := (settings.Repository{DB: db}).Get(ctx)
+			return v.Value.PlaybackRetentionDays, e
+		})
+	}()
+	defer func() { statsCancel(); <-statsDone }()
+
 	if db != nil {
 		if err := (catalog.Repository{DB: db}).SyncCurrent(ctx); err != nil {
 			return fmt.Errorf("native library startup sync failed: %w", err)
@@ -550,7 +565,16 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 		defer deferutil.Close(adapter, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 		resolver = adapter
 	}
-	managementDeps := httpapi.Dependencies{Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
+	var geoVault *secrets.Vault
+	if manager != nil {
+		geoVault = manager.Repository.Vault
+	}
+	geo := ipgeo.New(db, geoVault, filepath.Join(filepath.Dir(c.PluginDataRoot), "ipgeo"))
+	geoCtx, geoCancel := context.WithCancel(ctx)
+	geoDone := make(chan struct{})
+	go func() { defer close(geoDone); geo.Run(geoCtx, logger) }()
+	defer func() { geoCancel(); <-geoDone }()
+	managementDeps := httpapi.Dependencies{IPGeo: geo, Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
 	if db != nil && manager != nil {
 		store := pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot, Logger: logger}
 		businessHost := pluginbusiness.AcquisitionHost{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc, Network: networkproxy.NewHostClient(networkproxy.Repository{DB: db, Vault: manager.Repository.Vault})}
@@ -597,7 +621,7 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	done := make(chan error, 3)
 	var memberServer *http.Server
 	if c.MemberAddress != "" {
-		deps := httpapi.Dependencies{DB: db, Logger: logger, Integrations: manager, Redis: rc}
+		deps := httpapi.Dependencies{DB: db, Logger: logger, Integrations: manager, Redis: rc, PlaybackStats: stats}
 		if len(native) > 0 {
 			deps.NativeStills = native[0]
 		}

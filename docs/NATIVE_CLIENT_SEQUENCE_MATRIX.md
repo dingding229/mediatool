@@ -153,3 +153,14 @@ backdrops/logos/credits are immediately exposed without rewriting STRM files.
 F4 true-device movie/series image acceptance must be recorded separately from
 these HTTP replays. Playback remains the original authenticated wrapper →
 unchanged STRM resolver → actual-player-UA 115 resolution → 302.
+
+## F7 · 播放事件与公网 IP（2026-10-23）
+
+- SenPlayer、Infuse、通用 UA：PlaybackInfo → 带媒体用户鉴权的 Path/DirectStreamUrl → 302；Playing → Progress（重试/节流）→ Stopped 合并同一个服务器会话，多个 302 仅增加该会话的 redirectCount。
+- 302 返回前仅无阻塞投递统计快照（无 Token/Cookie/URL），统计表写入故障不能改变 302。HEAD 预检不创建播放统计。
+- 无 Stopped：5 分钟无有效进度收敛 stopped；已停止会话不能被迟到 Progress 重新激活。
+- 管理员端按 7/30/90 天/全部查询次数、时长、Top、趋势、分页事件与 IP；媒体用户令牌不能访问管理统计或归属地 API。
+- 公网 IP：默认 TCP 对端；只信任已配置精确代理链，从右向左止于首个不可信节点；若该节点非公网，不跨过它寻找可伪造的左侧地址。缺少公网证据则为空，历史私网仅隐藏显示。
+- 新统计不反推旧 per-item 历史：旧 play_count 是完成次数，F7 管理历史/统计按新事件会话计，未看完也计 1 次；时长仅累计有效观测增量，非最后播放位置。
+- 删除媒体用户：播放事件、每事件 IP、设备按外键事务级级联删除；停用/撤销库授权不删除统计。
+- 设备 IP 历史单列已鉴权请求次数（含登录/浏览），与按会话计的播放 IP 次数分开；异步写入，同样按统计保留期清理。

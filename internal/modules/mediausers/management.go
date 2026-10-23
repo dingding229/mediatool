@@ -4,14 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"media-tool/internal/platform/clientip"
 	dbutil "media-tool/internal/platform/database"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 )
 
-// Management DTOs intentionally exclude device keys, IP/UA, tokens and source paths.
+// Management DTOs exclude device keys, UA, tokens and source paths. Only
+// administrator routes return sanitized public IP evidence.
 type Device struct {
+	LastIP       string    `json:"lastIp"`
 	ID           string    `json:"id"`
 	Name         string    `json:"name"`
 	Client       string    `json:"client"`
@@ -21,13 +24,17 @@ type Device struct {
 	ActiveTokens int       `json:"activeTokens"`
 }
 type HistoryItem struct {
-	ItemID        string    `json:"itemId"`
-	Name          string    `json:"name"`
-	Type          string    `json:"type"`
-	PositionTicks int64     `json:"positionTicks"`
-	PlayCount     int       `json:"playCount"`
-	Played        bool      `json:"played"`
-	LastPlayedAt  time.Time `json:"lastPlayedAt"`
+	Season          *int      `json:"season"`
+	Episode         *int      `json:"episode"`
+	EpisodeTitle    string    `json:"episodeTitle"`
+	DurationSeconds float64   `json:"durationSeconds"`
+	ItemID          string    `json:"itemId"`
+	Name            string    `json:"name"`
+	Type            string    `json:"type"`
+	PositionTicks   int64     `json:"positionTicks"`
+	PlayCount       int       `json:"playCount"`
+	Played          bool      `json:"played"`
+	LastPlayedAt    time.Time `json:"lastPlayedAt"`
 }
 type ManagementPage[T any] struct {
 	Items      []T `json:"items"`
@@ -61,8 +68,8 @@ func (r Repository) Devices(parent context.Context, id string, start, limit int)
 	}
 	// Count is independent of OFFSET, including empty last pages. Only page devices
 	// visit the token index; no digest is read into the application.
-	rows, err := r.DB.Query(ctx, `WITH page AS (SELECT id,name,client,app_version,last_seen_at,created_at FROM media_user_devices WHERE user_id=$1 ORDER BY last_seen_at DESC,id LIMIT $2 OFFSET $3)
- SELECT (SELECT count(*) FROM media_user_devices WHERE user_id=$1),p.id::text,p.name,p.client,p.app_version,p.last_seen_at,p.created_at,
+	rows, err := r.DB.Query(ctx, `WITH page AS (SELECT id,name,client,app_version,last_seen_at,created_at,last_ip FROM media_user_devices WHERE user_id=$1 ORDER BY last_seen_at DESC,id LIMIT $2 OFFSET $3)
+ SELECT (SELECT count(*) FROM media_user_devices WHERE user_id=$1),p.id::text,p.name,p.client,p.app_version,p.last_seen_at,p.created_at,coalesce(host(p.last_ip),''),
  (SELECT count(*) FROM media_user_tokens t JOIN media_users u ON u.id=t.user_id WHERE t.user_id=$1 AND t.device_id=p.id AND t.revoked_at IS NULL AND t.expires_at>statement_timestamp() AND t.credential_version=u.credential_version AND u.enabled AND NOT u.must_change_password AND (u.expires_at IS NULL OR u.expires_at>statement_timestamp()))
  FROM (SELECT 1) x LEFT JOIN page p ON true ORDER BY p.last_seen_at DESC,p.id`, id, limit, start)
 	if err != nil {
@@ -74,7 +81,7 @@ func (r Repository) Devices(parent context.Context, id string, start, limit int)
 		var key *string
 		var name, client, version *string
 		var seen, created *time.Time
-		if err = rows.Scan(&out.Total, &key, &name, &client, &version, &seen, &created, &v.ActiveTokens); err != nil {
+		if err = rows.Scan(&out.Total, &key, &name, &client, &version, &seen, &created, &v.LastIP, &v.ActiveTokens); err != nil {
 			return out, ErrUnavailable
 		}
 		if key != nil {
@@ -84,6 +91,7 @@ func (r Repository) Devices(parent context.Context, id string, start, limit int)
 			v.AppVersion = ManagementLabel(*version)
 			v.LastSeenAt = *seen
 			v.CreatedAt = *created
+			v.LastIP = clientip.Sanitize(v.LastIP)
 			out.Items = append(out.Items, v)
 		}
 	}
@@ -168,9 +176,10 @@ func (r Repository) History(parent context.Context, id string, start, limit int)
 	}
 	rows, err := r.DB.Query(ctx, `WITH page AS MATERIALIZED(SELECT item_id,position_ticks,play_count,played,last_played_at FROM media_user_item_data WHERE user_id=$1 AND last_played_at IS NOT NULL ORDER BY last_played_at DESC,item_id LIMIT $2 OFFSET $3)
  SELECT (SELECT count(*) FROM media_user_item_data WHERE user_id=$1 AND last_played_at IS NOT NULL),p.item_id::text,
- coalesce(m.title,'已移除条目')||CASE WHEN i.entity_type='episode' THEN ' '||split_part(i.internal_key,':',3) ELSE '' END,i.entity_type,p.position_ticks,p.play_count,p.played,p.last_played_at
+ coalesce(m.title,'已移除条目'),i.entity_type,p.position_ticks,(SELECT count(*) FROM media_playback_events WHERE user_id=$1 AND item_id=p.item_id)::int,p.played,p.last_played_at,
+ b.season,b.episode,coalesce(b.episode_title,''),(SELECT coalesce(sum(duration_seconds),0) FROM media_playback_events WHERE user_id=$1 AND item_id=p.item_id)
  FROM (SELECT 1)x LEFT JOIN page p ON true LEFT JOIN native_item_ids i ON i.id=p.item_id
- LEFT JOIN LATERAL(SELECT title FROM media_items WHERE tmdb_id=substring(i.internal_key from '^tmdb:([0-9]+)')::bigint AND media_type=CASE WHEN i.entity_type='movie' THEN 'movie' ELSE 'series' END ORDER BY id LIMIT 1)m ON true ORDER BY p.last_played_at DESC,p.item_id`, id, limit, start)
+`+ItemMetadataJoins+` ORDER BY p.last_played_at DESC,p.item_id`, id, limit, start)
 	if err != nil {
 		return out, ErrUnavailable
 	}
@@ -182,11 +191,17 @@ func (r Repository) History(parent context.Context, id string, start, limit int)
 		var count *int
 		var played *bool
 		var at *time.Time
-		if err = rows.Scan(&out.Total, &key, &name, &kind, &pos, &count, &played, &at); err != nil {
+		if err = rows.Scan(&out.Total, &key, &name, &kind, &pos, &count, &played, &at, &v.Season, &v.Episode, &v.EpisodeTitle, &v.DurationSeconds); err != nil {
 			return out, ErrUnavailable
 		}
 		if key != nil {
-			v = HistoryItem{ItemID: *key, Name: ManagementLabel(*name), Type: *kind, PositionTicks: *pos, PlayCount: *count, Played: *played, LastPlayedAt: *at}
+			v.ItemID = *key
+			v.Name = ManagementLabel(*name)
+			v.Type = *kind
+			v.PositionTicks = *pos
+			v.PlayCount = *count
+			v.Played = *played
+			v.LastPlayedAt = *at
 			out.Items = append(out.Items, v)
 		}
 	}

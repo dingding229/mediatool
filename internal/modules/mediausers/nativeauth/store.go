@@ -7,7 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"net/netip"
+	"media-tool/internal/platform/clientip"
 	"strings"
 	"time"
 	"unicode"
@@ -27,9 +27,11 @@ const TouchInterval = 10 * time.Minute
 
 var passwordSlots = make(chan struct{}, 2)
 
+type DeviceObserver interface{ ObserveDevice(user, device, ip string) }
 type Store struct {
-	DB     *pgxpool.Pool
-	Secret string
+	Observer DeviceObserver
+	DB       *pgxpool.Pool
+	Secret   string
 }
 
 var _ contracts.AccountService = (*Store)(nil)
@@ -48,11 +50,11 @@ func validInfo(d contracts.DeviceInfo, login bool) bool {
 	return (!login || d.DeviceID != "") && safeText(d.DeviceID, 256) && safeText(d.Name, 256) && safeText(d.Client, 128) && safeText(d.Version, 64) && safeText(d.UserAgent, 2048)
 }
 func ipValue(raw string) any {
-	ip, err := netip.ParseAddr(raw)
-	if err != nil || ip.Zone() != "" {
+	ip := clientip.Sanitize(raw)
+	if ip == "" {
 		return nil
 	}
-	return ip.Unmap().String()
+	return ip
 }
 func passwordPermit() (func(), error) {
 	select {
@@ -152,6 +154,9 @@ func (s *Store) Login(ctx context.Context, username, password string, info contr
 		return contracts.LoginResult{}, contracts.ErrUnavailable
 	}
 	out.Device = contracts.Device{ID: deviceID, UserID: out.User.ID, DeviceKey: info.DeviceID}
+	if s.Observer != nil {
+		s.Observer.ObserveDevice(out.User.ID, out.Device.ID, info.ClientIP)
+	}
 	return out, nil
 }
 
@@ -191,10 +196,13 @@ func (s *Store) Authenticate(ctx context.Context, raw string, info contracts.Dev
 			return u, d, t, contracts.ErrUnavailable
 		}
 		if touchErr == nil {
-			if _, err = s.DB.Exec(ctx, `UPDATE media_user_devices SET last_seen_at=now(),last_ip=coalesce($2::inet,last_ip),last_user_agent=coalesce(nullif($3,''),last_user_agent),name=coalesce(nullif($4,''),name),client=coalesce(nullif($5,''),client),app_version=coalesce(nullif($6,''),app_version) WHERE id=$1::uuid`, renewedDevice, ipValue(info.ClientIP), info.UserAgent, info.Name, info.Client, info.Version); err != nil {
+			if _, err = s.DB.Exec(ctx, `UPDATE media_user_devices SET last_seen_at=now(),last_ip=$2::inet,last_user_agent=coalesce(nullif($3,''),last_user_agent),name=coalesce(nullif($4,''),name),client=coalesce(nullif($5,''),client),app_version=coalesce(nullif($6,''),app_version) WHERE id=$1::uuid`, renewedDevice, ipValue(info.ClientIP), info.UserAgent, info.Name, info.Client, info.Version); err != nil {
 				return u, d, t, contracts.ErrUnavailable
 			}
 		}
+	}
+	if s.Observer != nil {
+		s.Observer.ObserveDevice(u.ID, d.ID, info.ClientIP)
 	}
 	return u, d, t, nil
 }

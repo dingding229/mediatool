@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import IpAddress from '../ui/IpAddress.vue';
+import IpAttribution from '../ui/IpAttribution.vue';
 import {usePageNumber} from '../ui/page-query';
 
 import { onMounted, reactive, ref } from 'vue';
@@ -130,7 +132,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <article v-for="record in records.data?.items||[]" :key="record.id" class="organize-record u5-ua-record">
         <p class="u5-original">{{ record.userAgent||'空 UA' }}</p>
         <p>访问 {{ record.requestCount??'—' }} · 通过 {{ record.allowedCount??'—' }} · 拒绝 {{ record.deniedCount??'—' }} · {{ record.whitelisted?'已在白名单':'未在白名单' }}</p>
-        <p>{{ record.lastClientIp||'—' }} · {{ date(record.lastSeenAt) }} · {{ reason(record.lastReason) }}</p>
+        <p><IpAddress :ip="record.lastClientIp"/> · {{ date(record.lastSeenAt) }} · {{ reason(record.lastReason) }}</p>
         <div class="media-actions">
           <el-button @click="details=record;copyNotice='';detailOpen=true">查看完整 UA</el-button>
           <el-button :disabled="!record.userAgent||record.whitelisted||!!op.pending||!policy.data" @click="edit(null,record)">加入白名单</el-button>
@@ -153,8 +155,8 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <article v-for="visit in visits.data?.items||[]" :key="visit.id" class="organize-record">
         <h3>{{ visit.embyVerified?visit.embyUserName||'已核验用户':'未核验用户' }}</h3>
         <p>{{ visit.allowed?'准入通过':'准入拒绝' }} · HTTP {{ visit.status??'—' }} · {{ reason(visit.reason) }}</p>
-        <p>访客地址 {{ visit.clientIp||'—' }} · {{ ipSource(visit.ipSource) }} · {{ visit.ipPublic?'公网地址':'非公网或未核验' }}</p>
-        <p>连接地址 {{ visit.connectionIp||'—' }} · {{ visit.method||'—' }} · {{ date(visit.createdAt) }}</p>
+        <p>访客地址 <IpAddress :ip="visit.clientIp"/> · {{ ipSource(visit.ipSource) }} · {{ visit.ipPublic?'公网地址':'非公网或未核验' }}</p>
+        <p>连接地址 <IpAddress :ip="visit.connectionIp"/> · {{ visit.method||'—' }} · {{ date(visit.createdAt) }}</p>
         <p class="u5-original">{{ visit.userAgent||'空 UA' }}</p>
         <el-button @click="details=visit;copyNotice='';detailOpen=true">访问详情</el-button>
       </article>
@@ -204,8 +206,9 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
     </label>
     <el-button @click="copyUA">复制完整 UA</el-button>
     <p role="status">{{ copyNotice }}</p>
-    <p>访客地址 {{ details?.clientIp||details?.lastClientIp||'—' }} · 连接地址 {{ details?.connectionIp||'—' }}</p>
+    <p>访客地址 <IpAddress :ip="details?.clientIp||details?.lastClientIp"/> · 连接地址 <IpAddress :ip="details?.connectionIp"/></p>
     <el-button v-if="details?.requestCount!=null&&!details?.whitelisted&&details?.userAgent" :disabled="!policy.data||!!op.pending" @click="detailOpen=false;edit(null,details)">从此记录加入白名单</el-button>
   </DetailDrawer>
   <ConfirmAction v-model:visible="confirm" :title="action?.kind==='remove'?'删除 UA 白名单规则':action?.kind==='clear'?'清理 UA 访问记录':action?.policy.enabled?'关闭播放器限制':'启用播放器白名单'" :description="action?.kind==='remove'?'删除后，依赖此规则的播放器可能无法访问。':action?.kind==='clear'?'只清理 UA 聚合记录，新的访问会重新记录。':'启用后，未匹配的播放器和空 UA 会被拒绝；关闭后仍检查媒体授权。'" impact-scope="不删除媒体、不删除程序日志；聚合记录清理不移除白名单，也不清理访问明细。" :confirm-text="action?.kind==='remove'?'删除规则':action?.kind==='clear'?'清理记录':action?.policy.enabled?'关闭限制':'启用限制'" :loading="op.busy" class="media-dialog" @confirm="apply"/>
+<IpAttribution/>
 </template>

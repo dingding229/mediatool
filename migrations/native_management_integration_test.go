@@ -27,10 +27,10 @@ import (
 func TestNativeManagementDevicesHistorySettingsRealHTTP(t *testing.T) {
 	f := newBrowseFixture(t)
 	// These assertions execute the current runtime, not the historical DTOs.
-	if _, err := f.provider.UpTo(f.ctx, 73); err != nil {
+	if _, err := f.provider.UpTo(f.ctx, 79); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.provider.UpTo(f.ctx, 61); err != nil {
+	if _, err := f.provider.UpTo(f.ctx, 79); err != nil {
 		t.Fatal(err)
 	}
 	repo := mediausers.Repository{DB: f.pool}
@@ -210,7 +210,7 @@ func TestNativeManagementDevicesHistorySettingsRealHTTP(t *testing.T) {
 
 func TestNativeManagementPageSQLBoundsAndCrossUserDeviceIsolation(t *testing.T) {
 	f := newBrowseFixture(t)
-	if _, err := f.provider.UpTo(f.ctx, 61); err != nil {
+	if _, err := f.provider.UpTo(f.ctx, 79); err != nil {
 		t.Fatal(err)
 	}
 	repo := mediausers.Repository{DB: f.pool}

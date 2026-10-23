@@ -28,7 +28,7 @@ import (
 func serverFixture(t *testing.T) (AcquisitionHost, context.Context) {
 	t.Helper()
 	h, ctx := mediaFixture(t)
-	for _, table := range []string{"media_users", "media_user_devices", "media_user_tokens", "media_user_sessions", "media_user_item_data", "native_playback_sessions", "media_probe_results", "media_stills", "player_access_events"} {
+	for _, table := range []string{"media_users", "media_user_devices", "media_user_tokens", "media_user_sessions", "media_user_item_data", "native_playback_sessions", "media_playback_events", "media_playback_ips", "media_probe_results", "media_stills", "player_access_events"} {
 		if _, e := h.DB.Exec(ctx, `CREATE TABLE `+pgx.Identifier{table}.Sanitize()+`(LIKE public.`+pgx.Identifier{table}.Sanitize()+` INCLUDING ALL)`); e != nil {
 			t.Fatal(e)
 		}

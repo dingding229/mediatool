@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import IpAddress from '../ui/IpAddress.vue';
+import IpAttribution from '../ui/IpAttribution.vue';
 import {beijingISO} from '../presentation/time';
 import {usePageNumber} from '../ui/page-query';
 import {Refresh,Delete,Setting,CopyDocument,Download,DArrowLeft,ArrowLeft,ArrowRight,DArrowRight} from '@element-plus/icons-vue';
@@ -33,7 +35,7 @@ const route = useRoute(), filter = reactive({ page: usePageNumber(), pageSize: 2
 })), summary = reactive(useResource<any>(() => request('/logs/summary')));
 const policy=useRevision<Record<string,any>>('/settings/application'), duration=ref(1), durationTouched=ref(false),debug=ref(false);
 watch(settings,async value=>{if(value){await policy.load();durationTouched.value=false;debug.value=Boolean(policy.draft.value?.logging?.debugUntil&&new Date(policy.draft.value.logging.debugUntil).getTime()>Date.now());}});
-async function savePolicy(){if(!policy.draft.value)return;const original=policy.baseline.value?.value.logging?.debugUntil;const existingActive=original&&Date.parse(original)>Date.now();policy.draft.value.logging.debugUntil=!debug.value?'0001-01-01T00:00:00Z':existingActive&&!durationTouched.value?original:new Date(Date.now()+duration.value*3600000).toISOString();await policy.save(['logging']);await load();}
+async function savePolicy(){if(!policy.draft.value)return;const original=policy.baseline.value?.value.logging?.debugUntil;const existingActive=original&&Date.parse(original)>Date.now();policy.draft.value.logging.debugUntil=!debug.value?'0001-01-01T00:00:00Z':existingActive&&!durationTouched.value?original:new Date(Date.now()+duration.value*3600000).toISOString();await policy.save(['logging','playbackRetentionDays']);await load();}
 async function load() {
   await Promise.all([data.load(), summary.load()]);
   if (data.data && !data.error)
@@ -86,7 +88,7 @@ onMounted(load);
 onUnmounted(() => clearTimeout(timer));
 const timeRange=computed({get:():[string,string]|null=>from.value&&to.value?[from.value,to.value]:null,set:(value:[string,string]|null)=>{from.value=value?.[0]||'';to.value=value?.[1]||''}});
 const pageCount=computed(()=>Math.max(1,Math.ceil((data.data?.total||0)/filter.pageSize)));
-function fields(row:any) { return Object.entries(row).filter(([key])=>!['time','level','msg','source','module','traceId','trace_id','trace','spanId','span_id','span'].includes(key)).map(([key,value])=>key+'='+(typeof value==='string'?value:JSON.stringify(value))).join('  '); }
+function fields(row:any) { return Object.entries(row).filter(([key])=>!['time','level','msg','source','module','traceId','trace_id','trace','spanId','span_id','span','clientIp','connectionIp'].includes(key)).map(([key,value])=>key+'='+(typeof value==='string'?value:JSON.stringify(value))).join('  '); }
 function trace(row:any) { return [row.traceId||row.trace_id||row.trace, row.spanId||row.span_id||row.span].filter(Boolean).join(' / '); }
 defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, data, summary, from, to, clear, change, op, copy });
 </script>
@@ -121,7 +123,7 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
       <article v-for="(row,index) in data.data?.items||[]" :key="row.time+':'+index" class="u6-log f3-log-row" role="row">
         <time role="cell">{{formatLogTime(row.time)}}</time>
         <span role="cell" class="f3-log-level" :data-level="String(row.level).toLowerCase()">{{String(row.level||'—').toLowerCase()}}</span>
-        <div class="f3-log-message" role="cell"><span>{{row.msg||'—'}}</span>{{!clean&&fields(row)?' ':''}}<pre v-if="!clean&&fields(row)" class="u6-raw">{{fields(row)}}</pre><small v-if="trace(row)">trace / span: {{trace(row)}}</small></div>
+        <div class="f3-log-message" role="cell"><span>{{row.msg||'—'}}</span>{{!clean&&fields(row)?' ':''}}<pre v-if="!clean&&fields(row)" class="u6-raw">{{fields(row)}}</pre><small v-if="row.clientIp!==undefined">IP <IpAddress :ip="String(row.clientIp)"/></small><small v-if="trace(row)">trace / span: {{trace(row)}}</small></div>
         <div role="cell"><button class="f3-log-source" :aria-label="row.url||row.location?'查看完整链接':'完整原始记录'" @click="detail=row;open=true">{{logSource(row)||moduleLabel(row.module)||'—'}}</button></div>
       </article>
     </div>
@@ -140,8 +142,10 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
           <textarea :value="detail.location" readonly rows="4" aria-label="完整302目标URL"/>
         </label>
         <el-button v-if="detail.location" @click="copy(String(detail.location))">复制跳转地址</el-button>
+        <p v-if="detail.connectionIp!==undefined">连接 IP：<IpAddress :ip="String(detail.connectionIp)"/></p>
+        <p v-if="detail.clientIp!==undefined">访问 IP：<IpAddress :ip="String(detail.clientIp)"/></p>
         <p v-if="friendly">{{ friendlyMessage(detail) }} {{ logAdvice(detail) }}</p>
-        <pre class="u6-raw">{{ JSON.stringify(detail,null,2) }}</pre>
+        <pre class="u6-raw">{{ JSON.stringify(Object.fromEntries(Object.entries(detail).filter(([key])=>!['clientIp','connectionIp'].includes(key))),null,2) }}</pre>
         <el-button @click="copy(JSON.stringify(detail,null,2))">复制原始记录</el-button>
       </template>
     </DetailDrawer>
@@ -152,6 +156,7 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
       <p>{{ bytes(summary.data?.totalBytes) }} · 上限 {{ bytes(summary.data?.limitBytes) }}</p>
       <RevisionFeedback :form="policy"/>
       <template v-if="policy.draft.value?.logging">
+        <label class="u5-field">播放统计保留天数 <el-input-number v-model="policy.draft.value.playbackRetentionDays" :min="1" :max="730" :step="1" step-strictly aria-label="播放统计保留天数"/></label>
         <label class="u5-field">日志保留天数 <el-input-number v-model="policy.draft.value.logging.retentionDays" :min="1" :max="90" :step="1" step-strictly aria-label="日志保留天数"/></label>
         <label class="u5-field">Debug 日志 <ElSwitch v-model="debug" aria-label="Debug 日志"/></label>
         <label v-if="debug" class="u5-field">自动关闭 <el-select v-model="duration" aria-label="Debug 自动关闭时长" @change="durationTouched=true"><el-option :value="1" label="1 小时"/><el-option :value="24" label="24 小时"/></el-select></label>
@@ -172,4 +177,5 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
       </template>
     </el-dialog>
   </section>
+<IpAttribution/>
 </template>

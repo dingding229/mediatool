@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/jobs"
 	deferutil "media-tool/internal/platform/cleanup"
+	"media-tool/internal/platform/clientip"
 )
 
 type Repository struct{ DB *pgxpool.Pool }
@@ -142,6 +143,8 @@ func playbackPolicySnapshot(ctx context.Context, q policySnapshotReader) (Policy
 }
 
 func (r Repository) Check(ctx context.Context, in Request) (Decision, error) {
+	in.ClientIP = clientip.Sanitize(in.ClientIP)
+	in.ConnectionIP = clientip.Sanitize(in.ConnectionIP)
 	if !ValidUA(in.UserAgent) || len(in.Entry) > 16 || len(in.Method) > 16 || len(in.ClientIP) > 100 {
 		return Decision{}, ErrInvalid
 	}
@@ -249,6 +252,7 @@ func (r Repository) Observations(ctx context.Context, q, filter string, page, si
 		}
 		o.MatchedRuleID = Match(p.Rules, o.UserAgent)
 		o.Whitelisted = o.MatchedRuleID != ""
+		o.LastClientIP = clientip.Sanitize(o.LastClientIP)
 		out.Items = append(out.Items, o)
 	}
 	err = rows.Err()

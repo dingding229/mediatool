@@ -45,7 +45,7 @@ func ListActive(parent context.Context, db *pgxpool.Pool, start, limit int) (nat
 	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
 	defer cancel()
 	// Count + page in one statement also returns total for an empty last page.
-	rows, err := db.Query(ctx, `WITH active AS MATERIALIZED(SELECT s.id,s.user_id,s.device_id,s.item_id,s.state,s.position_ticks,s.last_progress_at FROM native_playback_sessions s WHERE s.state<>'stopped' AND s.last_progress_at>=statement_timestamp()-interval '5 minutes'), page AS(SELECT * FROM active ORDER BY last_progress_at DESC,id LIMIT $1 OFFSET $2) SELECT (SELECT count(*) FROM active),p.id::text,u.id::text,u.username,d.id::text,d.name,p.item_id::text,coalesce(m.title,'')||CASE WHEN i.entity_type='episode' THEN ' '||split_part(i.internal_key,':',3) ELSE '' END,p.state,p.position_ticks,p.last_progress_at FROM (SELECT 1) x LEFT JOIN page p ON true LEFT JOIN media_users u ON u.id=p.user_id LEFT JOIN media_user_devices d ON d.id=p.device_id LEFT JOIN native_item_ids i ON i.id=p.item_id LEFT JOIN LATERAL(SELECT title FROM media_items WHERE tmdb_id=substring(i.internal_key from '^tmdb:([0-9]+)')::bigint AND media_type=CASE WHEN i.entity_type='movie' THEN 'movie' ELSE 'series' END LIMIT 1)m ON true ORDER BY p.last_progress_at DESC,p.id`, limit, start)
+	rows, err := db.Query(ctx, `WITH active AS MATERIALIZED(SELECT s.id,s.user_id,s.device_id,s.item_id,s.state,s.position_ticks,s.last_progress_at FROM native_playback_sessions s WHERE s.state<>'stopped' AND s.last_progress_at>=statement_timestamp()-interval '5 minutes'), page AS(SELECT * FROM active ORDER BY last_progress_at DESC,id LIMIT $1 OFFSET $2) SELECT (SELECT count(*) FROM active),p.id::text,u.id::text,u.username,d.id::text,d.name,p.item_id::text,coalesce(m.title,''),p.state,p.position_ticks,p.last_progress_at,coalesce(i.entity_type,''),b.season,b.episode,coalesce(b.episode_title,'') FROM (SELECT 1) x LEFT JOIN page p ON true LEFT JOIN media_users u ON u.id=p.user_id LEFT JOIN media_user_devices d ON d.id=p.device_id LEFT JOIN native_item_ids i ON i.id=p.item_id `+mediausers.ItemMetadataJoins+` ORDER BY p.last_progress_at DESC,p.id`, limit, start)
 	if err != nil {
 		return out, nativeplayback.ErrUpstream
 	}
@@ -56,11 +56,11 @@ func ListActive(parent context.Context, db *pgxpool.Pool, start, limit int) (nat
 		var user, name, device, deviceName, item, itemName, state *string
 		var pos *int64
 		var at *time.Time
-		if err = rows.Scan(&out.Total, &id, &user, &name, &device, &deviceName, &item, &itemName, &state, &pos, &at); err != nil {
+		if err = rows.Scan(&out.Total, &id, &user, &name, &device, &deviceName, &item, &itemName, &state, &pos, &at, &v.Type, &v.Season, &v.Episode, &v.EpisodeTitle); err != nil {
 			return out, nativeplayback.ErrUpstream
 		}
 		if id != nil {
-			v = nativeplayback.ActiveSession{ID: *id, UserID: *user, UserName: *name, DeviceID: *device, DeviceName: mediausers.ManagementLabel(*deviceName), ItemID: *item, ItemName: mediausers.ManagementLabel(*itemName), State: *state, PositionTicks: *pos, LastProgressAt: *at}
+			v = nativeplayback.ActiveSession{ID: *id, UserID: *user, UserName: *name, DeviceID: *device, DeviceName: mediausers.ManagementLabel(*deviceName), ItemID: *item, ItemName: mediausers.ManagementLabel(*itemName), State: *state, PositionTicks: *pos, LastProgressAt: *at, Type: v.Type, Season: v.Season, Episode: v.Episode, EpisodeTitle: v.EpisodeTitle}
 			out.Items = append(out.Items, v)
 		}
 	}

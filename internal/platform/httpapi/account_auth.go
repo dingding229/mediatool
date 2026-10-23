@@ -5,7 +5,7 @@ import (
 	"errors"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/auth"
-	"net"
+	"media-tool/internal/platform/clientip"
 	"net/http"
 	"time"
 )
@@ -34,10 +34,7 @@ func (a *API) checkAuthRequest(w http.ResponseWriter, r *http.Request) bool {
 		fail(w, 503, "auth_unavailable", "账号登录需要PostgreSQL和已执行的数据库迁移")
 		return false
 	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
+	host := clientip.Observed(r).ClientIP
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 	globalAllowed, globalErr := a.accountRepository().TakeAttempt(ctx, a.Config.SessionKey, "global", 120)

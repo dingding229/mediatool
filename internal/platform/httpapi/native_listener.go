@@ -23,7 +23,13 @@ func NativeMediaHandler(c config.Config, d Dependencies) (http.Handler, error) {
 	browse := catalog.NewCachedBrowse(catalog.NewBrowseRepository(d.DB, d.Logger), d.Redis)
 	playback := d.NativePlayback
 	if playback == nil {
-		playback = runtime.New(d.DB, c, d.Integrations, d.Redis, d.Storage, d.Logger)
+		svc := runtime.New(d.DB, c, d.Integrations, d.Redis, d.Storage, d.Logger)
+		svc.Stats = d.PlaybackStats
+		playback = svc
+	}
+	var observer nativeauth.DeviceObserver
+	if o, ok := d.PlaybackStats.(nativeauth.DeviceObserver); ok {
+		observer = o
 	}
 	return embyapi.NewServer(embyapi.ServerOptions{Playback: playback, RequestOrigin: func(r *http.Request) (string, error) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -33,7 +39,7 @@ func NativeMediaHandler(c config.Config, d Dependencies) (http.Handler, error) {
 			return "", err
 		}
 		return clientinfo.RequestOrigin(r, prefs.Value.TrustedProxyCIDRs), nil
-	}, Settings: settings.NewNativeServerRepository(d.DB), PublicURL: c.MemberPublicURL, Logger: d.Logger, Images: images, Browse: browse, Discovery: browse, Auth: nativeAccounts{AccountService: &nativeauth.Store{DB: d.DB, Secret: c.SessionKey}, global: c.STRMKey}, Permissions: func() contracts.PermissionChecker { return nativepermissions.New(d.DB) }, ClientAddress: func(r *http.Request) (clientinfo.Address, error) {
+	}, Settings: settings.NewNativeServerRepository(d.DB), PublicURL: c.MemberPublicURL, Logger: d.Logger, Images: images, Browse: browse, Discovery: browse, Auth: nativeAccounts{AccountService: &nativeauth.Store{DB: d.DB, Secret: c.SessionKey, Observer: observer}, global: c.STRMKey}, Permissions: func() contracts.PermissionChecker { return nativepermissions.New(d.DB) }, ClientAddress: func(r *http.Request) (clientinfo.Address, error) {
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 		defer cancel()
 		prefs, err := (settings.Repository{DB: d.DB}).Get(ctx)

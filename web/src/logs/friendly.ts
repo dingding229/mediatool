@@ -160,6 +160,6 @@ export function friendlyFields(row: LogRecord): string {
   if (row.responseBytes != null) parts.push(`响应 ${row.responseBytes} 字节`);
   if (row.stage != null) parts.push(stageLabel(row.stage));
   if (row.count != null) parts.push(`${row.count} 项`);
-  if (row.clientIp) parts.push(`IP ${row.clientIp}`);
+
   return parts.join(" · ");
 }

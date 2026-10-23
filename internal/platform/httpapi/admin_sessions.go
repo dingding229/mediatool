@@ -4,18 +4,13 @@ import (
 	"crypto/sha256"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/auth"
-	"net"
+	"media-tool/internal/platform/clientip"
 	"net/http"
 	"strconv"
 )
 
 func adminSessionMetadata(r *http.Request) accounts.SessionMetadata {
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		ip = r.RemoteAddr
-	}
-	// Deliberately use the connection IP; never trust arbitrary forwarded headers.
-	return accounts.SessionMetadata{IP: ip, UserAgent: r.UserAgent()}
+	return accounts.SessionMetadata{IP: clientip.Observed(r).ClientIP, UserAgent: r.UserAgent()}
 }
 func sessionDigest(r *http.Request) []byte {
 	c, err := r.Cookie(auth.CookieName)

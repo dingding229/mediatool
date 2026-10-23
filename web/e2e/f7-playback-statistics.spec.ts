@@ -1,0 +1,36 @@
+import {test,expect} from '@playwright/test';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {u5PlaybackFixture,mediaUser} from './u5-fixture';
+import {fixtureFulfill} from './collection-fixture';
+const dir=resolve(import.meta.dirname,'../../data/private/f7/screenshots');mkdirSync(dir,{recursive:true});
+const event={id:'event-1',itemId:'100023',type:'episode',name:'地狱大状',season:1,episode:4,episodeTitle:'法庭',userName:'家庭成员',deviceName:'客厅平板',ip:'8.8.8.8',startedAt:'2026-10-23T09:00:00Z',durationSeconds:40,redirectCount:2,state:'stopped'};
+for(const width of [1440,390])test(`F7 admin statistics and IP pagination ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:950});await u5PlaybackFixture(page);
+ const calls:string[]=[];await page.route('**/api/v1/media-server/playback-*',async r=>{calls.push(r.request().url());await new Promise(done=>setTimeout(done,100));const u=new URL(r.request().url());const start=Number(u.searchParams.get('startIndex'));const rows=u.pathname.endsWith('playback-ips')?[{ip:'8.8.8.8',users:1,devices:1,count:2,firstSeenAt:event.startedAt,lastSeenAt:event.startedAt}]:[{...event,id:'event-'+start}];await fixtureFulfill(r,{json:{data:u.pathname.endsWith('playback-statistics')?{count:2,seconds:40,movies:0,series:1,episodes:1,top:[{...event,count:2,seconds:40}],trend:[{date:'2026-10-22',count:1},{date:'2026-10-23',count:1}]}:{items:rows,total:51,startIndex:start,limit:25}}})});
+ await page.route('**/api/v1/ip-geolocation?*',r=>fixtureFulfill(r,{json:{data:[{ip:'8.8.8.8',label:'中国 广东 深圳 电信'}]}}));
+ await page.route('**/api/v1/media-server/device-ips?*',r=>fixtureFulfill(r,{json:{data:{items:[{ip:'8.8.8.8',count:5,users:1,devices:1,firstSeenAt:event.startedAt,lastSeenAt:event.startedAt}],total:1}}}));
+ await page.route('**/api/v1/media-server/users/*/history?*',r=>fixtureFulfill(r,{json:{data:{items:[{...event,playCount:2,lastPlayedAt:event.startedAt,played:false}],total:1}}}));
+ await page.route('**/api/v1/media-server/users/*/devices?*',r=>fixtureFulfill(r,{json:{data:{items:[{id:'device',name:'客厅平板',client:'SenPlayer',lastIp:'8.8.8.8'}],total:1}}}));
+ await page.goto('/playback?tab=users');await page.getByRole('button',{name:'设备与历史',exact:true}).click();await page.getByRole('button',{name:'播放统计 / IP',exact:true}).click();await expect(page.getByRole('heading',{name:'地狱大状 · 第1季 第4集 · 法庭',exact:true})).toBeVisible();await expect(page.getByText('8.8.8.8 · 中国 广东 深圳 电信',{exact:true})).toBeVisible();
+ const panel=page.locator('.f7-statistics');await expect(panel.locator('polyline').first()).toHaveCSS('fill','none');await expect(panel.locator('.u6-trend svg').first()).toHaveCSS('height','130px');await page.screenshot({path:resolve(dir,`user-statistics-overview-${width}.png`),fullPage:true,animations:'disabled'});
+ const initial=await panel.boundingBox();
+ await panel.getByRole('button',{name:'下一页',exact:true}).click();const before=await panel.boundingBox();await expect.poll(()=>calls.some(u=>u.includes('startIndex=25'))).toBe(true);await expect(page).toHaveURL(/activityStatsPage=2/);await page.waitForTimeout(250);const after=await panel.boundingBox();for(const key of ['y','width','height'] as const)expect(Math.abs((after?.[key]||0)-(before?.[key]||0))).toBeLessThanOrEqual(1);expect(after?.height).toBe(initial?.height);
+ await page.screenshot({path:resolve(dir,`user-statistics-${width}.png`),fullPage:true,animations:'disabled'});
+ await panel.getByRole('button',{name:'IP 统计',exact:true}).click();await expect(panel.getByText('1 用户 · 1 设备 · 2 次播放',{exact:true})).toBeVisible();await page.screenshot({path:resolve(dir,`user-ip-statistics-${width}.png`),fullPage:true,animations:'disabled'});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.locator('.el-select').filter({has:page.getByRole('combobox',{name:'统计设备',exact:true})}).click();await page.getByRole('option',{name:'客厅平板',exact:true}).click();await panel.getByRole('button',{name:'设备 IP 历史',exact:true}).click();await expect(panel.getByText('5 次已鉴权请求',{exact:true})).toBeVisible();await page.screenshot({path:resolve(dir,`device-ip-history-${width}.png`),fullPage:true,animations:'disabled'});
+ await page.getByRole('button',{name:'登录设备',exact:true}).click();await expect(page.getByText('此设备 IP 与播放历史',{exact:true})).toBeVisible();await page.screenshot({path:resolve(dir,`devices-${width}.png`),fullPage:true,animations:'disabled'});await page.getByRole('button',{name:'观看历史',exact:true}).click();await page.screenshot({path:resolve(dir,`watch-history-${width}.png`),fullPage:true,animations:'disabled'});
+ await page.goto('/playback?tab=ips');await expect(page.getByRole('heading',{name:'播放 IP 统计',exact:true})).toBeVisible();await expect(page.getByText('1 用户 · 1 设备 · 2 次播放',{exact:true})).toBeVisible();await page.screenshot({path:resolve(dir,`ip-statistics-${width}.png`),fullPage:true,animations:'disabled'});
+ writeFileSync(resolve(dir,`statistics-${width}.json`),JSON.stringify({before,after,calls},null,2));
+});
+for(const width of [1440,390])test(`F7 public IP settings and log display ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:950});await u5PlaybackFixture(page);
+ await page.route('**/api/v1/ip-geolocation/settings',r=>fixtureFulfill(r,{json:{data:{configured:false,ipv4:false,ipv6:false,updatedAt:null,sha256:'',attribution:'IP地址位置数据由纯真CZ88提供支持'}}}));
+ await page.route('**/api/v1/ip-geolocation?*',r=>fixtureFulfill(r,{json:{data:[{ip:'8.8.8.8',label:'中国 广东 深圳 电信'}]}}));
+ await page.goto('/settings?tab=general');await expect(page.getByRole('heading',{name:'关于 · IP 归属地',exact:true})).toBeVisible();await page.screenshot({path:resolve(dir,`geo-settings-${width}.png`),fullPage:true,animations:'disabled'});
+ await page.goto('/playback?tab=players');await expect(page.getByRole('heading',{name:'播放器准入',exact:true})).toBeVisible();await page.screenshot({path:resolve(dir,`player-access-${width}.png`),fullPage:true,animations:'disabled'});
+ await page.route('**/api/v1/logs/query?*',r=>fixtureFulfill(r,{json:{data:{items:[{time:'2026-10-23T09:00:00Z',level:'info',msg:'播放成功',module:'playback',clientIp:'8.8.8.8'}],total:1,page:1,pageSize:200}}}));
+ await page.goto('/ops?tab=logs');await expect(page.getByText('播放成功',{exact:true})).toBeVisible();await expect(page.getByText('8.8.8.8 · 中国 广东 深圳 电信',{exact:true})).toBeVisible();await page.screenshot({path:resolve(dir,`logs-ip-${width}.png`),fullPage:true,animations:'disabled'});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

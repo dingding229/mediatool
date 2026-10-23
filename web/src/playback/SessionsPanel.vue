@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {mediaTitle} from '../utils/media-title';
 import {usePageNumber} from '../ui/page-query';
 
 import { useRoute } from 'vue-router';
@@ -74,7 +75,7 @@ defineExpose({ load, data, page });
     <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>
     <article v-for="session in data.data?.items||[]" :key="session.id" class="organize-record" :class="{highlighted:route.query.userId===session.userId}">
-      <h3>{{ session.itemName||'—' }}</h3>
+      <h3>{{mediaTitle({...session,name:session.itemName})}}</h3>
       <p>{{ session.userName||'—' }} · {{ session.deviceName||'—' }} · {{ session.state==='playing'?'播放中':session.state==='paused'?'已暂停':'状态待核对' }}</p>
       <p>最近进度 {{ date(session.lastProgressAt) }}</p>
       <el-button @click="detail=session;open=true">会话详情</el-button>
@@ -82,7 +83,7 @@ defineExpose({ load, data, page });
     <PagePagination v-model:current-page="page" :page-size="50" :total="data.data.total" layout="prev,pager,next,total" @current-change="load"/>
   </section>
   <DetailDrawer v-model:visible="open" title="在线会话详情" :technical-data="detail" class="media-detail">
-    <h3>{{ detail?.itemName||'—' }}</h3>
+    <h3>{{mediaTitle({...detail,name:detail?.itemName})}}</h3>
     <p>{{ detail?.userName||'—' }} · {{ detail?.deviceName||'—' }}</p>
     <p v-if="detail?.account">有效登录 {{detail.account.activeSessions??'—'}} · {{detail.account.enabled?'账号已启用':'账号已停用'}}</p>
     <p v-else>已播放 {{ detail?.positionTicks==null?'—':Math.floor(detail.positionTicks/600000000)+' 分钟' }}</p>

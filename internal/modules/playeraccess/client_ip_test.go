@@ -15,15 +15,15 @@ func TestClientAddressTrustBoundaries(t *testing.T) {
 		public     bool
 	}{
 		{"direct", "8.8.8.8:42", []string{"1.1.1.1"}, nil, "8.8.8.8", "direct", true},
-		{"untrusted private cannot spoof", "10.0.0.2:42", []string{"8.8.8.8"}, nil, "10.0.0.2", "direct", false},
+		{"untrusted private cannot spoof", "10.0.0.2:42", []string{"8.8.8.8"}, nil, "", "direct", false},
 		{"trusted append ignores spoofed first", "10.0.0.2:42", []string{"1.1.1.1, 8.8.8.8"}, []string{"10.0.0.2/32"}, "8.8.8.8", "trusted_proxy", true},
 		{"multiple headers multi hop", "10.0.0.2:42", []string{"1.1.1.1, 8.8.8.8", "10.0.0.3"}, []string{"10.0.0.2/32", "10.0.0.3/32"}, "8.8.8.8", "trusted_proxy", true},
-		{"stop at untrusted private", "10.0.0.2:42", []string{"8.8.8.8, 192.168.0.2"}, []string{"10.0.0.2/32"}, "192.168.0.2", "trusted_proxy", false},
-		{"malformed cannot hunt public IP", "10.0.0.2:42", []string{"evil, 8.8.8.8"}, []string{"10.0.0.2/32"}, "10.0.0.2", "invalid_forwarded_chain", false},
-		{"missing header", "10.0.0.2:42", nil, []string{"10.0.0.2/32"}, "10.0.0.2", "proxy_without_header", false},
+		{"stop at untrusted private", "10.0.0.2:42", []string{"8.8.8.8, 192.168.0.2"}, []string{"10.0.0.2/32"}, "", "trusted_proxy", false},
+		{"malformed cannot hunt public IP", "10.0.0.2:42", []string{"evil, 8.8.8.8"}, []string{"10.0.0.2/32"}, "", "invalid_forwarded_chain", false},
+		{"missing header", "10.0.0.2:42", nil, []string{"10.0.0.2/32"}, "", "proxy_without_header", false},
 		{"IPv6", "[2001:4860:4860::8888]:42", nil, nil, "2001:4860:4860::8888", "direct", true},
 		{"mapped IPv4", "[::ffff:8.8.8.8]:42", nil, nil, "8.8.8.8", "direct", true},
-		{"invalid peer", "invalid", nil, nil, "unknown", "unknown", false},
+		{"invalid peer", "invalid", nil, nil, "", "unknown", false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

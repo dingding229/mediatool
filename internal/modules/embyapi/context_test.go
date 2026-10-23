@@ -43,11 +43,11 @@ func TestRequestContextUsesExistingProxyTrustRules(t *testing.T) {
 	r.Header.Set("X-Forwarded-For", "8.8.8.8")
 	r.Header.Set("X-Real-IP", "1.1.1.1")
 	info, err := NewRequestContext(r, nil)
-	if err != nil || info.Address.ClientIP != "10.0.0.2" || info.Address.Source != "direct" || info.Address.Public {
+	if err != nil || info.Address.ClientIP != "" || info.Address.Source != "direct" || info.Address.Public {
 		t.Fatal("untrusted forwarded IP accepted", info.Address, err)
 	}
 	info, err = NewRequestContext(r, []string{"10.0.0.0/24"})
-	if err != nil || info.Address.ClientIP != "8.8.8.8" || info.Address.ConnectionIP != "10.0.0.2" || info.Address.Source != "trusted_proxy" || !info.Address.Public || info.UserAgent != "Actual-Player-UA" {
+	if err != nil || info.Address.ClientIP != "8.8.8.8" || info.Address.ConnectionIP != "" || info.Address.Source != "trusted_proxy" || !info.Address.Public || info.UserAgent != "Actual-Player-UA" {
 		t.Fatal(info.Address, err)
 	}
 	if info.Auth.UserID != "forged-user" || info.User != nil || info.Device != nil || info.Token != nil {

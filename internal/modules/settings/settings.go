@@ -21,6 +21,7 @@ var ErrInvalid = errors.New("invalid application settings")
 var ErrRevision = errors.New("settings changed; refresh first")
 
 type Value struct {
+	PlaybackRetentionDays       int                   `json:"playbackRetentionDays"`
 	Logging                     logging.Policy        `json:"logging"`
 	Access                      Access                `json:"access"`
 	CleanupAfterImport          bool                  `json:"cleanupAfterImport"`
@@ -41,10 +42,13 @@ type Record struct {
 type Repository struct{ DB *pgxpool.Pool }
 
 func Defaults() Value {
-	return Value{Logging: logging.DefaultPolicy(), Scraping: metadata.DefaultScrapePolicy(), MovieTemplate: "{title} ({year})/{title} ({year}) - {videoFormat}", SeriesTemplate: "{title} ({year})/Season {season}/{title} - {season_episode} - 第{episode}集", SearchCacheSeconds: 900, TMDBCacheSeconds: 86400, SubscriptionIntervalMinutes: 30, SubscriptionCron: "*/30 * * * *"}
+	return Value{PlaybackRetentionDays: 180, Logging: logging.DefaultPolicy(), Scraping: metadata.DefaultScrapePolicy(), MovieTemplate: "{title} ({year})/{title} ({year}) - {videoFormat}", SeriesTemplate: "{title} ({year})/Season {season}/{title} - {season_episode} - 第{episode}集", SearchCacheSeconds: 900, TMDBCacheSeconds: 86400, SubscriptionIntervalMinutes: 30, SubscriptionCron: "*/30 * * * *"}
 }
 
 func Validate(v Value) error {
+	if v.PlaybackRetentionDays < 1 || v.PlaybackRetentionDays > 730 {
+		return ErrInvalid
+	}
 	if err := v.Logging.Validate(); err != nil {
 		return err
 	}

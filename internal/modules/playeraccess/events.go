@@ -4,6 +4,7 @@ import (
 	"context"
 	"media-tool/internal/modules/jobs"
 	deferutil "media-tool/internal/platform/cleanup"
+	"media-tool/internal/platform/clientip"
 	"time"
 )
 
@@ -35,6 +36,8 @@ type EventPage struct {
 }
 
 func (r Repository) RecordEvent(ctx context.Context, in Request, d Decision) (string, error) {
+	in.ClientIP = clientip.Sanitize(in.ClientIP)
+	in.ConnectionIP = clientip.Sanitize(in.ConnectionIP)
 	if r.DB == nil {
 		return "", ErrUnavailable
 	}
@@ -91,6 +94,8 @@ func (r Repository) FilteredEvents(ctx context.Context, q, observation, user str
 		if err = rows.Scan(&e.ID, &e.ObservationID, &e.UserAgent, &e.ClientIP, &e.Entry, &e.Method, &e.Allowed, &e.Reason, &e.PolicyRevision, &e.EmbyUserID, &e.EmbyUserName, &e.EmbyVerified, &e.Status, &e.CreatedAt, &e.ConnectionIP, &e.IPSource, &e.IPPublic); err != nil {
 			return out, ErrUnavailable
 		}
+		e.ClientIP = clientip.Sanitize(e.ClientIP)
+		e.ConnectionIP = clientip.Sanitize(e.ConnectionIP)
 		out.Items = append(out.Items, e)
 	}
 	return out, rows.Err()

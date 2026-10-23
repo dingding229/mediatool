@@ -102,7 +102,7 @@ type Manifest struct {
 	Protected      map[string]string             `json:"protected"`
 }
 
-var protectedTables = []string{"manual_download_tasks", "administrator_accounts", "application_settings", "directory_classification", "integrations", "open115_authorizations", "storage_connections", "media_users", "media_user_library_grants", "player_ua_policy", "player_ua_rules", "playback_grants", "external_api_keys", "cloud_files", "media_assets", "media_items", "media_asset_bindings", "strm_entries", "managed_media_artifacts"}
+var protectedTables = []string{"ip_geo_settings","manual_download_tasks", "administrator_accounts", "application_settings", "directory_classification", "integrations", "open115_authorizations", "storage_connections", "media_users", "media_user_library_grants", "player_ua_policy", "player_ua_rules", "playback_grants", "external_api_keys", "cloud_files", "media_assets", "media_items", "media_asset_bindings", "strm_entries", "managed_media_artifacts"}
 
 func Protected(ctx context.Context, db interface {
 	QueryRow(context.Context, string, ...any) pgx.Row

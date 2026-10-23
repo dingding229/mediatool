@@ -31,9 +31,9 @@ export const retryProcessing = (input: ProcessingRetry) => post<ProcessingRetrie
 export const collectProcessing = () => request<ProcessingGC>(processing + '/gc', { method: 'POST' })
 
 export interface ManagementPage<T> { items: T[]; total: number; startIndex: number; limit: number }
-export interface MediaDevice { id: string; name: string; client: string; appVersion: string; activeTokens: number; lastSeenAt: string; createdAt: string }
-export interface MediaHistory { itemId: string; name: string; type: string; positionTicks: number; playCount: number; played: boolean; lastPlayedAt: string }
-export interface NativeSession { id: string; userId: string; userName: string; deviceId: string; deviceName: string; itemId: string; itemName: string; state: string; positionTicks: number; lastProgressAt: string }
+export interface MediaDevice { lastIp?:string; id: string; name: string; client: string; appVersion: string; activeTokens: number; lastSeenAt: string; createdAt: string }
+export interface MediaHistory {season?:number|null;episode?:number|null;episodeTitle?:string;durationSeconds?:number; itemId: string; name: string; type: string; positionTicks: number; playCount: number; played: boolean; lastPlayedAt: string }
+export interface NativeSession {type?:string;season?:number|null;episode?:number|null;episodeTitle?:string; id: string; userId: string; userName: string; deviceId: string; deviceName: string; itemId: string; itemName: string; state: string; positionTicks: number; lastProgressAt: string }
 const userPath = (id: string) => '/media-server/users/' + encodeURIComponent(id)
 const pageQuery = (startIndex: number, limit: number) => '?' + new URLSearchParams({ startIndex: String(startIndex), limit: String(limit) })
 export const listMediaDevices = (id: string, startIndex = 0, limit = 50) => request<ManagementPage<MediaDevice>>(userPath(id) + '/devices' + pageQuery(startIndex, limit))

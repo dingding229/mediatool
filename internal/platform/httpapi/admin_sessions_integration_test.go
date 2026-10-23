@@ -18,18 +18,18 @@ func TestAdminSessionEnumerationAndSingleRevoke(t *testing.T) {
 	c := cfg()
 	// Real auth repository, not a SessionReader stub; every request must consult PG.
 	accountToken, _ := (auth.Auth{Key: c.SessionKey}).Issue(time.Now())
-	account, err := repo.Register(ctx, "b2_admin", "owned-password", accountToken, accounts.SessionMetadata{IP: "192.0.2.5", UserAgent: "Original <UA> 原值"})
+	account, err := repo.Register(ctx, "b2_admin", "owned-password", accountToken, accounts.SessionMetadata{IP: "8.8.8.8", UserAgent: "Original <UA> 原值"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	second, _ := (auth.Auth{Key: c.SessionKey}).Issue(time.Now())
-	if err = repo.CreateSession(ctx, account, second, accounts.SessionMetadata{IP: "192.0.2.6", UserAgent: "Second/1.0"}); err != nil {
+	if err = repo.CreateSession(ctx, account, second, accounts.SessionMetadata{IP: "1.1.1.1", UserAgent: "Second/1.0"}); err != nil {
 		t.Fatal(err)
 	}
 	h := New(c, Dependencies{DB: s.DB})
 	call := func(method, path, body, token string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, path, strings.NewReader(body))
-		r.RemoteAddr = "192.0.2.5:1234"
+		r.RemoteAddr = "8.8.8.8:1234"
 		r.Header.Set("User-Agent", "Original <UA> 原值")
 		r.Header.Set("X-Requested-With", "media-tool")
 		if token != "" {
@@ -56,7 +56,7 @@ func TestAdminSessionEnumerationAndSingleRevoke(t *testing.T) {
 	for _, row := range out.Data.Items {
 		if row.Current {
 			current = row.ID
-			if row.UserAgent != "Original <UA> 原值" || row.IP != "192.0.2.5" {
+			if row.UserAgent != "Original <UA> 原值" || row.IP != "8.8.8.8" {
 				t.Fatal("raw values changed", row)
 			}
 		} else {
@@ -100,7 +100,7 @@ func TestAdminSessionEnumerationAndSingleRevoke(t *testing.T) {
 	}
 	// Changed IP forces the UPDATE branch without waiting.
 	r := httptest.NewRequest("GET", "/api/v1/auth/session", nil)
-	r.RemoteAddr = "192.0.2.88:1234"
+	r.RemoteAddr = "9.9.9.9:1234"
 	r.AddCookie(&http.Cookie{Name: auth.CookieName, Value: accountToken})
 	wr := httptest.NewRecorder()
 	h.ServeHTTP(wr, r)

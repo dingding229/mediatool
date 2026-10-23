@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5"
 	deferutil "media-tool/internal/platform/cleanup"
+	"media-tool/internal/platform/clientip"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -15,6 +16,7 @@ type SessionMetadata struct{ IP, UserAgent string }
 func sessionMetadata(values []SessionMetadata) SessionMetadata {
 	if len(values) > 0 {
 		v := values[0]
+		v.IP = clientip.Sanitize(v.IP)
 		v.UserAgent = boundedUserAgent(v.UserAgent)
 		return v
 	}
@@ -54,6 +56,7 @@ type SessionPage struct {
 // Touch only a still-valid session; authentication itself always reads PG, never
 // an authority cache. Record raw UA/IP, bounded UA/IP, never cookies, hashes or login bodies.
 func (r Repository) TouchSession(ctx context.Context, digest []byte, metadata SessionMetadata) error {
+	metadata.IP = clientip.Sanitize(metadata.IP)
 	metadata.UserAgent = boundedUserAgent(metadata.UserAgent)
 	_, err := r.DB.Exec(ctx, `UPDATE administrator_sessions s SET last_active_at=clock_timestamp(),ip=$2,user_agent=$3 FROM administrator_accounts a WHERE s.token_digest=$1 AND s.account_id=a.id AND s.credential_version=a.credential_version AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND (s.last_active_at < clock_timestamp()-interval '60 seconds' OR s.ip<>$2 OR s.user_agent<>$3)`, digest, metadata.IP, metadata.UserAgent)
 	return err
@@ -70,6 +73,7 @@ func (r Repository) Sessions(ctx context.Context, digest []byte, page int) (Sess
 		if err = rows.Scan(&v.ID, &v.AccountID, &v.Username, &v.CreatedAt, &v.LastActiveAt, &v.ExpiresAt, &v.IP, &v.UserAgent, &v.Current); err != nil {
 			return SessionPage{}, err
 		}
+		v.IP = clientip.Sanitize(v.IP)
 		out = append(out, v)
 	}
 	hasNext := len(out) > 50
