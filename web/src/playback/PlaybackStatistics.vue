@@ -27,6 +27,7 @@ defineExpose({load});
 <template>
  <section class="f7-statistics">
   <div class="media-actions">
+   <el-button :loading="current.loading" @click="load">刷新统计</el-button>
    <label>时间范围 <el-select v-model="days" aria-label="播放统计时间范围" style="width:130px"><el-option v-for="n in [7,30,90,0]" :key="n" :value="n" :label="n?n+' 天':'全部'"/></el-select></label>
    <label v-if="!userId">媒体用户 <el-select v-model="user" clearable aria-label="IP 统计用户" style="width:150px"><el-option v-for="u in users" :key="u.id" :value="u.id" :label="u.displayName||u.username"/></el-select></label>
    <label>设备 <el-select v-model="device" clearable aria-label="统计设备" style="width:150px"><el-option v-for="d in devices" :key="d.id" :value="d.id" :label="d.name||d.client||'未命名设备'"/></el-select></label>

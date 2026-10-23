@@ -12,7 +12,7 @@ import PlaybackStatistics from '../playback/PlaybackStatistics.vue';
 import ProcessingPanel from '../playback/ProcessingPanel.vue';
 import '../media/media.css';
 import '../workflows/u5.css';
-const route = useRoute(), tabs = [{ id: 'settings', label: '服务设置' }, { id: 'users', label: '媒体用户' }, { id: 'players', label: '播放器准入' }, { id: 'sessions', label: '在线会话' }, { id: 'processing', label: '预处理' }, {id:'ips',label:'IP 统计'}], tab = computed(() => String(route.query.tab || 'settings')), visited = ref(new Set([tab.value])), service = ref<InstanceType<typeof ServicePanel>>(), users = ref<InstanceType<typeof UsersPanel>>(), access = ref<InstanceType<typeof AccessPanel>>(), sessions = ref<InstanceType<typeof SessionsPanel>>(), processing = ref<InstanceType<typeof ProcessingPanel>>();
+const route = useRoute(), tabs = [{ id: 'settings', label: '服务设置' }, { id: 'users', label: '媒体用户' }, { id: 'players', label: '播放器准入' }, { id: 'sessions', label: '在线会话' }, { id: 'processing', label: '预处理' }, {id:'ips',label:'IP 统计'}], tab = computed(() => String(route.query.tab || 'settings')), visited = ref(new Set([tab.value])), service = ref<InstanceType<typeof ServicePanel>>(), users = ref<InstanceType<typeof UsersPanel>>(), access = ref<InstanceType<typeof AccessPanel>>(), sessions = ref<InstanceType<typeof SessionsPanel>>(), processing = ref<InstanceType<typeof ProcessingPanel>>(), ipStats=ref<InstanceType<typeof PlaybackStatistics>>();
 watch(tab, async (v) => {
   const existed = visited.value.has(v);
   visited.value = new Set([...visited.value, v]);
@@ -33,6 +33,7 @@ function act() {
     return sessions.value?.load();
   else if (tab.value === 'processing')
     return processing.value?.load();
+  else if(tab.value==='ips')return ipStats.value?.load();
   else
     return service.value?.load();
 }
@@ -61,6 +62,6 @@ usePageRefresh(()=>tab.value==='users'?users.value?.load():act(),'*');
     <div v-if="visited.has('processing')" v-show="tab==='processing'">
       <ProcessingPanel ref="processing" :initial-kind="String(route.query.kind||'')" :job-id="String(route.query.jobId||'')"/>
     </div>
-    <section v-if="visited.has('ips')" v-show="tab==='ips'" class="media-surface"><h2>播放 IP 统计</h2><PlaybackStatistics only-IPs/></section>
+    <section v-if="visited.has('ips')" v-show="tab==='ips'" class="media-surface"><h2>播放 IP 统计</h2><PlaybackStatistics ref="ipStats" only-IPs/></section>
   </div>
 </template>
