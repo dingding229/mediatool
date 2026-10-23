@@ -153,3 +153,43 @@ func TestMaintenanceDoesNotOverwriteJustSavedPolicyWithStaleCopy(t *testing.T) {
 		t.Fatal("maintenance reverted current saved settings")
 	}
 }
+
+func TestClearCannotPublishInvalidationBeforeObtainingStoreLock(t *testing.T) {
+	s, e := Open(t.TempDir(), "info")
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer s.Close()
+	s.mu.Lock()
+	epoch := s.queryEpoch.Load()
+	entered, done := make(chan struct{}), make(chan error, 1)
+	go func() { close(entered); done <- s.Clear() }()
+	<-entered
+	time.Sleep(20 * time.Millisecond)
+	early := s.queryEpoch.Load() != epoch
+	s.mu.Unlock()
+	if e = <-done; e != nil {
+		t.Fatal(e)
+	}
+	if early {
+		t.Fatal("cache invalidation was observable before clearing could acquire the mutation lock")
+	}
+	if s.queryEpoch.Load() == epoch {
+		t.Fatal("completed clear did not invalidate snapshots")
+	}
+}
+func TestLogSnapshotPreservesStringSourceFromProductionShape(t *testing.T) {
+	s, e := Open(t.TempDir(), "info")
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer s.Close()
+	raw := []byte(`{"time":"2026-10-23T00:00:00Z","level":"INFO","source":"owned_source.go:7","msg":"source-string","url":"https://owned.invalid/?original=value"}` + "\n")
+	if _, e = s.Write(raw); e != nil {
+		t.Fatal(e)
+	}
+	out, e := s.Query(context.Background(), Query{Page: 1, PageSize: 200})
+	if e != nil || out.Total != 1 || out.Items[0]["source"] != "owned_source.go:7" || out.Items[0]["url"] != "https://owned.invalid/?original=value" {
+		t.Fatal(out, e)
+	}
+}

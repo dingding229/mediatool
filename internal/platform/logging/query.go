@@ -102,7 +102,7 @@ func parseQueryRecord(raw []byte) (queryRecord, bool) {
 		Queue     string
 		Instance  string
 		Msg       any
-		Source    struct{ File string }
+		Source    any
 	}
 	if json.Unmarshal(raw, &v) != nil {
 		return queryRecord{}, false
@@ -111,7 +111,7 @@ func parseQueryRecord(raw []byte) (queryRecord, bool) {
 	if err != nil {
 		return queryRecord{}, false
 	}
-	module := logModule(map[string]any{"module": v.Module, "component": v.Component, "provider": v.Provider, "queue": v.Queue, "msg": v.Msg, "source": map[string]any{"file": v.Source.File}})
+	module := logModule(map[string]any{"module": v.Module, "component": v.Component, "provider": v.Provider, "queue": v.Queue, "msg": v.Msg, "source": v.Source})
 	return queryRecord{append(json.RawMessage(nil), raw...), at, v.Level, module, v.Instance}, true
 }
 

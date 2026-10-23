@@ -247,8 +247,8 @@ func (s *Store) Read(level string, limit int) ([]map[string]any, error) {
 	return out, nil
 }
 func (s *Store) Clear() (result error) {
-	s.queryEpoch.Add(1)
 	s.mu.Lock()
+	s.queryEpoch.Add(1)
 	defer s.mu.Unlock()
 	if s.closed {
 		return errors.New("log closed")
