@@ -10,6 +10,7 @@ import 'element-plus/es/components/dropdown/style/css'
 import 'element-plus/es/components/dropdown-menu/style/css'
 import 'element-plus/es/components/dropdown-item/style/css'
 import StateView from '../ui/StateView.vue';
+import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import StatusBadge from '../components/StatusBadge.vue';
@@ -56,9 +57,7 @@ usePageRefresh(load);
   <el-alert v-if="error&&!editing&&!loadError" :title="error" type="error" :closable="false" />
   <AsyncResultBanner v-if="testState" :status="testState" :message="notice" @refresh="reconcile" />
 <div class="f5-connection-rows">
-  <StateView v-if="loading" state="loading" title="正在读取已保存连接…" />
-  <StateView v-else-if="loadError" :state="stateFor(loadError)" title="连接列表暂不可用" :description="errorText(loadError)" @retry="load" />
-  <StateView v-else-if="!visible.length&&!error" state="empty" title="尚未配置服务连接" description="先添加配置，完成检测和授权后再明确启用。" />
+  <ResourceState :stale="visible.length>0" :loading="loading" :error="loadError" :empty="!visible.length&&!error" empty-title="尚未配置服务连接" @reload="load"/>
   <article v-for="row in visible.slice((connectionPage-1)*10,connectionPage*10)" :key="row.id" class="saved-connection">
     <div>
       <h3>{{ row.name }}</h3>
@@ -74,7 +73,7 @@ usePageRefresh(load);
       <el-button type="danger" plain @click="askRemove(row)">删除</el-button>
     </div>
   </article>
-<PagePagination label="服务连接分页" v-model:current-page="connectionPage" :page-size="10" :total="!loading?visible.length:undefined"/>
+<PagePagination label="服务连接分页" v-model:current-page="connectionPage" :page-size="10" :status="loading?'loading':loadError&&!visible.length?'error':''" :total="!loading&&(!loadError||visible.length)?visible.length:undefined"/>
 
 </div>
   <el-dialog v-model="editing" :title="form.id?'编辑连接':'添加连接'" width="min(760px,94vw)" :close-on-click-modal="false" class="u2-connection-dialog" :show-close="!saving" :close-on-press-escape="!saving">

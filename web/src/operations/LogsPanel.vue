@@ -155,7 +155,7 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
         <label class="u5-field">日志保留天数 <el-input-number v-model="policy.draft.value.logging.retentionDays" :min="1" :max="90" :step="1" step-strictly aria-label="日志保留天数"/></label>
         <label class="u5-field">Debug 日志 <ElSwitch v-model="debug" aria-label="Debug 日志"/></label>
         <label v-if="debug" class="u5-field">自动关闭 <el-select v-model="duration" aria-label="Debug 自动关闭时长" @change="durationTouched=true"><el-option :value="1" label="1 小时"/><el-option :value="24" label="24 小时"/></el-select></label>
-        <p v-if="debug&&policy.baseline.value?.value.logging?.debugUntil" role="status">当前关闭时间：{{formatLogTime(policy.baseline.value.value.logging.debugUntil)}}。修改时长才会重新计时。</p>
+        <p v-if="debug&&Date.parse(policy.baseline.value?.value.logging?.debugUntil||'')>Date.now()" role="status">当前关闭时间：{{formatLogTime(policy.baseline.value?.value.logging?.debugUntil)}}。修改时长才会重新计时。</p>
         <p role="note">Debug 会增加日志量、磁盘与数据库压力，可能降低性能；详细请求原值属于敏感数据，请及时关闭。不采集登录请求体。</p>
         <el-button :loading="policy.busy.value" :disabled="policy.conflict.value" @click="savePolicy" type="primary">保存日志设置</el-button>
       </template>

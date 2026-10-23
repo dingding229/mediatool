@@ -32,6 +32,7 @@ export default defineComponent({name:'PluginJson',props:{nodes:{type:Array as Pr
   if(!component)return h('p',{key,role:'status',class:'plugin-json-placeholder'},`不支持的组件：${text(n.component,64)}`)
   const field=n.model??'',valid=safeKey(field),label=text(p.title??p.label,120)
   const input:Record<string,unknown>={modelValue:valid?props.model[field]:undefined,disabled:props.readonly||p.disabled===true||!valid,'aria-label':label||field,'onUpdate:modelValue':(v:unknown)=>{if(valid&&!props.readonly&&(typeof v==='string'||typeof v==='boolean'||typeof v==='number'||v===undefined||v===null))emit('update:model',{...props.model,[field]:typeof v==='string'?v:v})}}
+  if(n.component==='VSelect')input.emptyValues=[undefined,null]
   if(n.component==='VNumberInput'){input.modelValue=props.model[field]==null?null:Number(props.model[field]);for(const k of ['min','max','step'])if(typeof p[k]==='number'&&Number.isFinite(p[k]))input[k]=p[k];input.stepStrictly=p.stepStrictly===true;input.controlsPosition='right'}
   if(n.component==='VTextField'||n.component==='VTextarea'){input.type=n.component==='VTextarea'?'textarea':'text';input.placeholder=text(p.placeholder,120);if(Number.isFinite(p.maxlength))input.maxlength=Math.max(1,Number(p.maxlength));input.readonly=p.readonly===true}
   const hint=[text(p.hint,600),n.component==='VNumberInput'&&typeof p.min==='number'&&typeof p.max==='number'?`范围 ${p.min}–${p.max}，调整步长 ${p.step??1}`:''].filter(Boolean).join(' · ')
