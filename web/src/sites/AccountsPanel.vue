@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {siteFavicon} from '../api/sites';
 import { useRefresh } from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
@@ -19,7 +20,7 @@ import StatusBadge from '../components/StatusBadge.vue';
 import { bytes, date, errorText } from '../workflows/readiness';
 import {formatCompactNumber,formatRatio} from '../presentation/numbers';
 import { publicAccount, numberText, addSamples, chartPoints } from './accountModel';
-const route=useRoute(), iconErrors=ref(new Set<string>());
+const route=useRoute(), iconErrors=ref(new Map<string,number>());
 const accounts = reactive(useResource<any>(() => request<any[]>('/integrations').then(rows => rows.filter(r => r.kind === 'ptsite').map(publicAccount)), [])), connections = accounts, metrics = reactive(useResource<any>(() => request('/sites/metrics'), [])), op = reactive(useOperation('site-actions')), query = ref(''), editor = ref<InstanceType<typeof AccountEditor>>(), detailId = ref(''), detailOpen = ref(false), schedule = ref<InstanceType<typeof SchedulePanel>>(), confirm = ref(false), action = ref<any>(null), notice = ref(''), samples = reactive<Record<string, any[]>>({});
 const rows = computed(() => accounts.data.map((a: any) => ({ ...a, connection: connections.data.find((r: any) => r.id === a.id), metric: metrics.data.find((m: any) => m.accountId === a.id) }))), shown = computed(() => rows.value.filter((r: any) => (!route.query.accountId||r.id===route.query.accountId)&&r.name.toLowerCase().includes(query.value.toLowerCase()))), detail = computed(() => rows.value.find((r: any) => r.id === detailId.value)), series = computed(() => samples[detailId.value] || []);
 const siteState = (s: string) => ({ ready: '检测通过', partial: '部分数据', unchecked: '尚未检测', failed: '失败', running: '采集中', succeeded: '已采集', not_synced: '尚未采集', skipped: '已跳过', unavailable: '暂不可用' } as Record<string, string>)[s] || '状态待核对';
@@ -130,13 +131,13 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
       <ResourceState :stale="accounts.loaded" :loading="accounts.loading" :error="accounts.error" :empty="!shown.length" empty-title="暂无匹配的站点账号" @reload="load"/>
       <article v-for="row in shown" :key="row.id" class="organize-record u5-metric-card f5-site-row">
        <div class="f5-site-identity">
-        <img v-if="row.metric?.iconUrl?.startsWith('/api/v1/pt/templates/')&&!iconErrors.has(row.id)" :src="row.metric.iconUrl" alt="" width="32" height="32" loading="lazy" @error="iconErrors.add(row.id)"/>
+        <img v-if="siteFavicon(row.metric?.iconUrl)&&(!iconErrors.has(row.id)||Date.now()-(iconErrors.get(row.id)||0)>300000)" :src="siteFavicon(row.metric.iconUrl)" alt="" width="32" height="32" loading="lazy" @error="iconErrors.set(row.id,Date.now())"/>
         <span v-else class="f5-site-icon" aria-hidden="true">{{Array.from(row.name)[0]}}</span>
         <div><h3><button class="f5-site-name" @click="detailId=row.id;detailOpen=true">{{row.name}}</button></h3><StatusBadge :state="row.connection?row.connection.enabled?'running':'disabled':'unavailable'" :label="row.connection?row.connection.enabled?'已启用':'已停用':'状态未确认'"/></div>
        </div>
        <dl class="f5-site-metrics">
-        <div><dt>分享率</dt><dd>{{formatRatio(row.metric?.metrics?.ratio)}}</dd><dt>魔力 / 积分</dt><dd>{{formatCompactNumber(row.metric?.metrics?.bonus)}}</dd></div>
-        <div><dt>上传</dt><dd>{{bytes(row.metric?.metrics?.uploaded)}}</dd><dt>下载</dt><dd>{{bytes(row.metric?.metrics?.downloaded)}}</dd></div>
+        <div><dt>分享率</dt><dd class="f5-positive">{{formatRatio(row.metric?.metrics?.ratio)}}</dd><dt>魔力 / 积分</dt><dd class="f5-bonus">{{formatCompactNumber(row.metric?.metrics?.bonus)}}</dd></div>
+        <div><dt>上传</dt><dd><span class="f5-positive" aria-hidden="true">↑ </span>{{bytes(row.metric?.metrics?.uploaded)}}</dd><dt>下载</dt><dd><span class="f5-negative" aria-hidden="true">↓ </span>{{bytes(row.metric?.metrics?.downloaded)}}</dd></div>
         <div><dt>做种数</dt><dd>{{formatCompactNumber(row.metric?.metrics?.seeding)}}</dd><dt>做种体积</dt><dd>{{bytes(row.metric?.metrics?.seedingBytes)}}</dd></div>
        </dl>
        <div class="f5-site-updated"><span>更新 {{date(row.metric?.collectedAt)}}</span><small>{{row.metric?siteState(row.metric.state):'尚无采集记录'}}{{row.metric?.stale?' · 快照已过期':''}}</small></div>
@@ -197,9 +198,10 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
 </template>
 
 <style scoped>
-.f5-site-row{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(0,3fr) auto 50px;align-items:center;gap:24px;padding:16px 0!important;border-bottom:1px solid var(--mt-border-color);margin:0;min-height:94px;box-sizing:border-box}
+.f5-site-row{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(0,3fr) auto 50px;align-items:center;gap:16px;padding:10px 0!important;border-bottom:1px solid var(--mt-border-color);margin:0;min-height:76px;box-sizing:border-box}
 .f5-site-identity{display:flex;align-items:center;gap:12px;min-width:0}.f5-site-identity img,.f5-site-icon{flex:none;width:32px;height:32px;object-fit:contain}.f5-site-icon{display:grid;place-items:center;background:var(--mt-bg-canvas);border-radius:6px;font-size:15px}.f5-site-identity h3{margin:0 0 4px}.f5-site-name{min-height:32px;border:0;background:none;color:var(--mt-text-primary);font:inherit;font-weight:600;padding:0;text-align:left;overflow-wrap:anywhere;cursor:pointer}.f5-site-name:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:4px}
-.f5-site-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0;font-size:12px;font-variant-numeric:tabular-nums}.f5-site-metrics>div{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px 10px;align-items:baseline}.f5-site-metrics dt{color:var(--mt-text-muted);white-space:nowrap}.f5-site-metrics dd{margin:0;font-weight:600;white-space:nowrap;text-align:right}.f5-site-updated{display:grid;gap:10px;text-align:right;font-size:11px;color:var(--mt-text-muted);font-variant-numeric:tabular-nums}.f5-site-updated small{font-size:11px}.f5-site-actions{margin:0!important}
+.f5-site-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0;font-size:12px;font-variant-numeric:tabular-nums}.f5-site-metrics>div{display:grid;grid-template-columns:max-content max-content;justify-content:start;gap:6px 8px;align-items:baseline}.f5-site-metrics dt{color:var(--mt-text-muted);white-space:nowrap}.f5-site-metrics dd{margin:0;font-weight:600;white-space:nowrap;text-align:left}.f5-site-updated{display:grid;gap:10px;text-align:right;font-size:11px;color:var(--mt-text-muted);font-variant-numeric:tabular-nums}.f5-site-updated small{font-size:11px}.f5-site-actions{margin:0!important}
 @media(max-width:1100px){.f5-site-row{grid-template-columns:minmax(125px,1fr) minmax(0,3fr) 44px;gap:16px}.f5-site-updated{grid-column:2;grid-row:2;display:flex;flex-wrap:wrap;justify-content:flex-end}.f5-site-actions{grid-column:3;grid-row:1}.f5-site-metrics{gap:12px}}
-@media(max-width:700px){.f5-site-row{grid-template-columns:minmax(0,1fr) 50px;gap:12px;min-height:0}.f5-site-identity{grid-column:1}.f5-site-actions{grid-column:2;grid-row:1}.f5-site-metrics{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.f5-site-metrics>div{grid-template-columns:1fr;gap:4px}.f5-site-metrics dd{text-align:left;margin-bottom:4px;font-size:12px}.f5-site-updated{grid-column:1/-1;grid-row:3;justify-content:space-between;font-size:11px}}
+@media(max-width:700px){.f5-site-row{grid-template-columns:minmax(0,1fr) 50px;gap:12px;min-height:0}.f5-site-identity{grid-column:1}.f5-site-actions{grid-column:2;grid-row:1}.f5-site-metrics{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.f5-site-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.f5-site-metrics>div{grid-template-columns:max-content max-content;gap:4px 6px}.f5-site-metrics>div:last-child{grid-column:1/-1;grid-template-columns:repeat(4,max-content);gap:4px 10px}.f5-site-metrics dd{text-align:left;margin-bottom:4px;font-size:12px}.f5-site-updated{grid-column:1/-1;grid-row:3;justify-content:space-between;font-size:11px}}
+.f5-positive{color:#15803d}.f5-bonus{color:#b45309}.f5-negative{color:#be123c}:global(html.dark) .f5-positive{color:#4ade80}:global(html.dark) .f5-bonus{color:#fdba74}:global(html.dark) .f5-negative{color:#fda4af}
 </style>

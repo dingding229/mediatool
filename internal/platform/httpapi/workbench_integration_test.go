@@ -113,6 +113,9 @@ func TestPostgresWorkbenchMandatoryResetAndReadOnlyTools(t *testing.T) {
 			t.Fatal("invalid log query", query, w.Code)
 		}
 	}
+	if w := call("GET", "/api/v1/pt/templates/hdsky/favicon", "", nil); w.Code != 401 {
+		t.Fatal("favicon auth", w.Code)
+	}
 	if w := call("GET", "/api/v1/logs/query", "", nil); w.Code != 401 {
 		t.Fatal("anonymous query", w.Code)
 	}

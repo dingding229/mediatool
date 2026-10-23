@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"media-tool/internal/modules/playback"
 	"media-tool/internal/platform/secrets"
 	"net/http"
 	"net/url"
@@ -115,4 +116,22 @@ func (r Repository) Revision(ctx context.Context) (int64, error) {
 	var n int64
 	err := r.DB.QueryRow(ctx, `SELECT revision FROM network_proxy_settings WHERE id='main'`).Scan(&n)
 	return n, err
+}
+
+// PublicClient reuses the existing DNS-pinned direct/proxy transport. A proxy
+// must not perform a second target lookup that could resolve a private address.
+func PublicClient(r Record, scope string, policy playback.Policy) (*http.Client, error) {
+	client, err := Client(r, scope)
+	if err != nil {
+		return nil, err
+	}
+	transport := client.Transport.(*http.Transport)
+	raw := ""
+	if transport.Proxy != nil {
+		raw = r.URL
+	}
+	if err = pinHostTransport(transport, policy, raw); err != nil {
+		return nil, err
+	}
+	return client, nil
 }

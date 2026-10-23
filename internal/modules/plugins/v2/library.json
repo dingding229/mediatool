@@ -5,14 +5,16 @@
         {
           "component": "VTextField",
           "props": {
-            "label": "问候语"
+            "label": "问候语",
+            "title": "问候语"
           },
           "model": "greeting"
         },
         {
           "component": "VSwitch",
           "props": {
-            "label": "启用定时服务"
+            "label": "启用定时服务",
+            "title": "启用定时服务"
           },
           "model": "scheduled"
         },
@@ -32,91 +34,104 @@
             {
               "component": "VSwitch",
               "props": {
-                "label": "模拟识别延迟"
+                "label": "模拟识别延迟",
+                "title": "模拟识别延迟"
               },
               "model": "chainDelay"
             },
             {
               "component": "VSwitch",
               "props": {
-                "label": "模拟识别错误"
+                "label": "模拟识别错误",
+                "title": "模拟识别错误"
               },
               "model": "chainError"
             },
             {
               "component": "VSwitch",
               "props": {
-                "label": "模拟发现延迟"
+                "label": "模拟发现延迟",
+                "title": "模拟发现延迟"
               },
               "model": "discoveryDelay"
             },
             {
               "component": "VSwitch",
               "props": {
-                "label": "拦截识别结果"
+                "label": "拦截识别结果",
+                "title": "拦截识别结果"
               },
               "model": "intercept"
             },
             {
               "component": "VSwitch",
               "props": {
-                "label": "模拟整理延迟"
+                "label": "模拟整理延迟",
+                "title": "模拟整理延迟"
               },
               "model": "organizeDelay"
             },
             {
               "component": "VSwitch",
               "props": {
-                "label": "拒绝整理"
+                "label": "拒绝整理",
+                "title": "拒绝整理"
               },
               "model": "organizeReject"
             },
             {
               "component": "VSwitch",
               "props": {
-                "label": "模拟资源延迟"
+                "label": "模拟资源延迟",
+                "title": "模拟资源延迟"
               },
               "model": "resourceDelay"
             },
             {
               "component": "VSwitch",
               "props": {
-                "label": "保留下载源文件"
+                "label": "保留下载源文件",
+                "title": "保留下载源文件"
               },
               "model": "resourceNoCleanup"
             },
             {
               "component": "VSwitch",
               "props": {
-                "label": "拒绝资源下载"
+                "label": "拒绝资源下载",
+                "title": "拒绝资源下载"
               },
               "model": "resourceReject"
             },
             {
               "component": "VSwitch",
               "props": {
-                "label": "反转资源顺序"
+                "label": "反转资源顺序",
+                "title": "反转资源顺序"
               },
               "model": "resourceReverse"
             },
             {
               "component": "VTextField",
               "props": {
-                "label": "示例处理标题"
+                "label": "示例处理标题",
+                "title": "示例处理标题"
               },
               "model": "moduleTitle"
             },
             {
               "component": "VTextField",
               "props": {
-                "label": "示例整理目录"
+                "label": "示例整理目录",
+                "title": "示例整理目录"
               },
               "model": "organizeFolder"
             },
             {
               "component": "VTextField",
               "props": {
-                "label": "示例识别标题"
+                "label": "示例识别标题",
+                "title": "示例识别标题"
               },
               "model": "recognizeTitle"
             }
@@ -133,14 +148,31 @@
         {
           "component": "VSwitch",
           "props": {
-            "label": "启用入库通知及合并刷新"
+            "label": "启用入库通知及合并刷新",
+            "title": "启用入库通知及合并刷新"
           },
           "model": "active"
         },
         {
-          "component": "VTextField",
+          "component": "VSelect",
           "props": {
-            "label": "builtin 或 emby"
+            "enum": [
+              "",
+              "builtin",
+              "emby"
+            ],
+            "itemLabels": {
+              "": "使用默认（内置媒体库）",
+              "builtin": "内置媒体库",
+              "emby": "Emby"
+            },
+            "items": [
+              "",
+              "builtin",
+              "emby"
+            ],
+            "label": "媒体服务器",
+            "title": "媒体服务器"
           },
           "model": "provider"
         },
@@ -151,7 +183,8 @@
             "max": 3600,
             "min": 60,
             "step": 1,
-            "stepStrictly": true
+            "stepStrictly": true,
+            "title": "刷新间隔（秒）"
           },
           "model": "intervalSeconds"
         }
@@ -167,21 +200,26 @@
         {
           "component": "VSwitch",
           "props": {
-            "label": "启用定时预览"
+            "label": "启用定时预览",
+            "title": "启用定时预览"
           },
           "model": "active"
         },
         {
           "component": "VSwitch",
           "props": {
-            "label": "危险：实际删除任务（默认仅预览）"
+            "hint": "危险：实际删除任务（默认仅预览）",
+            "label": "删除下载任务",
+            "title": "删除下载任务"
           },
           "model": "execute"
         },
         {
           "component": "VSwitch",
           "props": {
-            "label": "额外危险：请求删除数据文件"
+            "hint": "额外危险：请求删除数据文件",
+            "label": "同时删除文件",
+            "title": "同时删除文件"
           },
           "model": "deleteFiles"
         },
@@ -192,50 +230,61 @@
             "max": 10000,
             "min": 0,
             "step": 0.1,
-            "stepStrictly": false
+            "stepStrictly": false,
+            "title": "最低分享率"
           },
           "model": "minRatio"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "最低做种小时",
+            "hint": "最低做种小时",
+            "label": "最低做种时长（小时）",
             "max": 87600,
             "min": 1,
             "step": 0.1,
-            "stepStrictly": false
+            "stepStrictly": false,
+            "title": "最低做种时长（小时）"
           },
           "model": "minSeedingHours"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "每批上限（1–20）",
+            "hint": "每批上限（1–20）",
+            "label": "每批任务上限",
             "max": 20,
             "min": 1,
             "step": 1,
-            "stepStrictly": true
+            "stepStrictly": true,
+            "title": "每批任务上限"
           },
           "model": "batchSize"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "分类（空表示不限）"
+            "hint": "分类（空表示不限）",
+            "label": "任务分类",
+            "title": "任务分类"
           },
           "model": "category"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "标签（空表示不限）"
+            "hint": "标签（空表示不限）",
+            "label": "任务标签",
+            "title": "任务标签"
           },
           "model": "tag"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "站点账户 ID（空表示不限）"
+            "hint": "站点账户 ID（空表示不限）",
+            "label": "站点账号",
+            "title": "站点账号"
           },
           "model": "siteId"
         }
@@ -254,63 +303,95 @@
         {
           "component": "VSwitch",
           "props": {
-            "label": "启用定时签到（须先配置）"
+            "hint": "启用定时签到（须先配置）",
+            "label": "定时签到",
+            "title": "定时签到"
           },
           "model": "active"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "已配置站点账号 ID"
+            "hint": "已配置站点账号 ID",
+            "label": "站点账号",
+            "title": "站点账号"
           },
           "model": "accountId"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "精确 Origin（非凭据）"
+            "hint": "精确 Origin（非凭据）",
+            "label": "站点地址",
+            "title": "站点地址"
           },
           "model": "origin"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "签到相对路径"
+            "hint": "签到相对路径",
+            "label": "签到页面",
+            "title": "签到页面"
           },
           "model": "path"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "可选只读签到状态路径"
+            "hint": "可选只读签到状态路径",
+            "label": "状态检查页面",
+            "title": "状态检查页面"
           },
           "model": "precheckPath"
         },
         {
-          "component": "VTextField",
+          "component": "VSelect",
           "props": {
-            "label": "GET 或 POST"
+            "enum": [
+              "",
+              "GET",
+              "POST"
+            ],
+            "itemLabels": {
+              "": "使用默认（GET）",
+              "GET": "GET",
+              "POST": "POST"
+            },
+            "items": [
+              "",
+              "GET",
+              "POST"
+            ],
+            "label": "请求方式",
+            "title": "请求方式"
           },
           "model": "method"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "可选 POST 表单（禁止填凭据）"
+            "hint": "可选 POST 表单（禁止填凭据）",
+            "label": "提交内容",
+            "title": "提交内容"
           },
           "model": "body"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "成功标记（字面量，≤200 字节）"
+            "hint": "成功标记（字面量，≤200 字节）",
+            "label": "成功标记",
+            "title": "成功标记"
           },
           "model": "successMarker"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "cron（Asia/Shanghai）"
+            "hint": "cron（Asia/Shanghai）",
+            "label": "签到计划",
+            "title": "签到计划"
           },
           "model": "cron"
         }
@@ -327,101 +408,122 @@
         {
           "component": "VSwitch",
           "props": {
-            "label": "启用辅助检查"
+            "label": "启用辅助检查",
+            "title": "启用辅助检查"
           },
           "model": "active"
         },
         {
           "component": "VSwitch",
           "props": {
-            "label": "危险：允许设置标签/分类/限制"
+            "hint": "危险：允许设置标签/分类/限制",
+            "label": "调整下载设置",
+            "title": "调整下载设置"
           },
           "model": "write"
         },
         {
           "component": "VSwitch",
           "props": {
-            "label": "额外危险：允许错误/卡住任务重新校验（非重启进程）"
+            "hint": "额外危险：允许错误/卡住任务重新校验（非重启进程）",
+            "label": "重新校验",
+            "title": "重新校验"
           },
           "model": "recheck"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "附加标签（不移除 owner 标签）"
+            "hint": "附加标签（不移除 owner 标签）",
+            "label": "附加标签",
+            "title": "附加标签"
           },
           "model": "tag"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "已有分类（自动管理路径模式拒绝）"
+            "hint": "已有分类（自动管理路径模式拒绝）",
+            "label": "目标分类",
+            "title": "目标分类"
           },
           "model": "category"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "下载 KiB/s，0=不修改",
+            "hint": "下载 KiB/s，0=不修改",
+            "label": "下载限速（KiB/s）",
             "max": 102400,
             "min": 0,
             "step": 1,
-            "stepStrictly": false
+            "stepStrictly": false,
+            "title": "下载限速（KiB/s）"
           },
           "model": "downloadKiB"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "上传 KiB/s，0=不修改",
+            "hint": "上传 KiB/s，0=不修改",
+            "label": "上传限速（KiB/s）",
             "max": 102400,
             "min": 0,
             "step": 1,
-            "stepStrictly": false
+            "stepStrictly": false,
+            "title": "上传限速（KiB/s）"
           },
           "model": "uploadKiB"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "做种比例限制，0=不修改；HR 必须明确 false",
+            "hint": "做种比例限制，0=不修改；HR 必须明确 false",
+            "label": "分享率上限",
             "max": 1000,
             "min": 0,
             "step": 0.1,
-            "stepStrictly": false
+            "stepStrictly": false,
+            "title": "分享率上限"
           },
           "model": "ratio"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "做种小时限制，0=不修改",
+            "hint": "做种小时限制，0=不修改",
+            "label": "做种时长上限（小时）",
             "max": 87600,
             "min": 0,
             "step": 0.1,
-            "stepStrictly": false
+            "stepStrictly": false,
+            "title": "做种时长上限（小时）"
           },
           "model": "seedHours"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "每轮任务数（1–10）",
+            "hint": "每轮任务数（1–10）",
+            "label": "每轮任务上限",
             "max": 10,
             "min": 1,
             "step": 1,
-            "stepStrictly": true
+            "stepStrictly": true,
+            "title": "每轮任务上限"
           },
           "model": "batch"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "进度静默分钟（5–1440）",
+            "hint": "进度静默分钟（5–1440）",
+            "label": "停滞阈值（分钟）",
             "max": 1440,
             "min": 5,
             "step": 1,
-            "stepStrictly": false
+            "stepStrictly": false,
+            "title": "停滞阈值（分钟）"
           },
           "model": "stallMinutes"
         }
@@ -443,50 +545,62 @@
         {
           "component": "VSwitch",
           "props": {
-            "label": "危险：启用宿主预览/确认整理"
+            "hint": "危险：启用宿主预览/确认整理",
+            "label": "自动整理",
+            "title": "自动整理"
           },
           "model": "active"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "已授权可写媒体根 ID"
+            "hint": "已授权可写媒体根 ID",
+            "label": "媒体根目录",
+            "title": "媒体根目录"
           },
           "model": "rootId"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "监控相对目录（递归总计最多 200 项）"
+            "hint": "监控相对目录（递归总计最多 200 项）",
+            "label": "监控目录",
+            "title": "监控目录"
           },
           "model": "directory"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "同一根内目标相对目录"
+            "hint": "同一根内目标相对目录",
+            "label": "目标目录",
+            "title": "目标目录"
           },
           "model": "destination"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "递归深度（默认 3，上限 5）",
+            "hint": "递归深度（默认 3，上限 5）",
+            "label": "递归深度",
             "max": 5,
             "min": 1,
             "step": 1,
-            "stepStrictly": true
+            "stepStrictly": true,
+            "title": "递归深度"
           },
           "model": "depth"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "大小与 mtime 静默期（30–3600 秒）",
+            "hint": "大小与 mtime 静默期（30–3600 秒）",
+            "label": "文件静默期（秒）",
             "max": 3600,
             "min": 30,
             "step": 1,
-            "stepStrictly": true
+            "stepStrictly": true,
+            "title": "文件静默期（秒）"
           },
           "model": "quietSeconds"
         }
@@ -504,62 +618,85 @@
         {
           "component": "VSwitch",
           "props": {
-            "label": "启用定时拉取"
+            "label": "启用定时拉取",
+            "title": "启用定时拉取"
           },
           "model": "active"
         },
         {
           "component": "VSwitch",
           "props": {
-            "label": "危险：唯一匹配时创建停用订阅（默认只列候选）"
+            "hint": "危险：唯一匹配时创建停用订阅（默认只列候选）",
+            "label": "创建订阅",
+            "title": "创建订阅"
           },
           "model": "create"
         },
         {
           "component": "VSelect",
           "props": {
+            "enum": [
+              "tmdb-list",
+              "douban-wish",
+              "douban-subject"
+            ],
+            "hint": "不读取登录态收藏",
+            "itemLabels": {
+              "douban-subject": "豆瓣公开条目",
+              "douban-wish": "豆瓣公开想看",
+              "tmdb-list": "TMDB 列表"
+            },
             "items": [
               "tmdb-list",
               "douban-wish",
               "douban-subject"
             ],
-            "label": "公开来源（不含登录态收藏）"
+            "label": "公开来源",
+            "title": "公开来源"
           },
           "model": "source"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "列表 ID、豆瓣公开用户 ID 或条目 ID"
+            "hint": "列表 ID、豆瓣公开用户 ID 或条目 ID",
+            "label": "来源标识",
+            "title": "来源标识"
           },
           "model": "id"
         },
         {
           "component": "VTextField",
           "props": {
-            "label": "已配置 PT 账户 ID，逗号分隔（不立即搜索/下载）"
+            "hint": "已配置 PT 账户 ID，逗号分隔（不立即搜索/下载）",
+            "label": "站点账号",
+            "title": "站点账号"
           },
           "model": "accountIds"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "同步间隔分钟（30–1440）",
+            "hint": "同步间隔分钟（30–1440）",
+            "label": "同步间隔（分钟）",
             "max": 1440,
             "min": 30,
             "step": 1,
-            "stepStrictly": true
+            "stepStrictly": true,
+            "title": "同步间隔（分钟）"
           },
           "model": "intervalMinutes"
         },
         {
           "component": "VNumberInput",
           "props": {
-            "label": "每轮条目（1–20）",
+            "hint": "每轮条目（1–20）",
+            "label": "每轮条目上限",
             "max": 20,
             "min": 1,
             "step": 1,
-            "stepStrictly": true
+            "stepStrictly": true,
+            "title": "每轮条目上限"
           },
           "model": "perRun"
         }
@@ -1517,7 +1654,7 @@
       "supported": true
     }
   ],
-  "pin": "v0.0.0-20261022190552-0fb3efbc5530",
+  "pin": "v0.0.0-20261022235138-e816bd75620d",
   "contractVersion": 2,
   "manifests": [
     {
@@ -2361,22 +2498,27 @@
   ],
   "contentHashes": {
     "hello-go": "ad8c329b1eb863073ca9d7a9b6f426a70a8bfce2629ba0c2e9ab5b1a335fcb51",
-    "library-refresh-notify": "4acc079d252faa3f52c07cc6677a69b0908d0af5380318a2ec648fa2ceddbd51",
-    "seeding-cleanup": "700c97332c74824c3329bc76ba4e6b1013b270a7a288971b07eb6b74f836bce6",
-    "site-checkin": "6fc1a58bf36264b793956bf832ba649f59babec3afdd002199b608e729081d87",
-    "torrent-assistant": "67fad27c010dd88490ca4c095d7c4f9b89486a7f53ca4327ceefa7e94dba7c97",
-    "watch-organize": "d721cf273465c3097e5b6c6014d25e6ef3df78389ae2b23a4844f4a382174aa7",
-    "wishlist-subscribe": "bde7a87b2b5fe9fb40825f1b7faf72ef99af2918b5be8a834db65588ac23aa06"
+    "library-refresh-notify": "f43910f9b63320f708a5421dbe9a7fa1a49fdf370e1705f590d1e86e13ec4f66",
+    "seeding-cleanup": "4bdf7fb3613d92566419716e41d881f028f4ea62d89eb9ceb62ce835ebb5d0e8",
+    "site-checkin": "5e396503fd401d88cf98f0a4e7db87037146b6d06f4bf3d5e5263c09b7d2140c",
+    "torrent-assistant": "179a12c3fa942c1f63428089c4d5f0b62e362119ec16c455c2613ecb9dd437de",
+    "watch-organize": "efcd9d8602aeeacde231a9df970eaf1551a5f24b67310899fa26f4fd09c4ae69",
+    "wishlist-subscribe": "4bb2284c28b699ce51b771ab198ade3d365974a44e1a3cd61a71a8b475f1cc5f"
   },
   "legacyContents": {
     "05212610bc5b081876dabbf4aa065700168a06db38921fcbcd7f797c533e31c7": "content-v1:7fc0d70dd3b22611220e996912f5b4baa0ab81faa684e25fd76246036a52e412",
     "05691555fd80a94b2a388b303656d947f7e932a2f7534a18ff10f2e411a16708": "content-v1:634fa35b1697d44e15e6f705b84bade45422732f0664838fea7914fe73896541",
+    "075cca7af21653ed301a068b15f6ba9457444afa6ee01152ac575dfaf3e23efd": "content-v1:611ba4fd8a3acc3325943627083ec96e8f4b4ad6427cea9338636a3f6bf9f112",
+    "0e8d9ee6b2fabbf430e75f6c1cb74d1a2ef0edac98448a2a51b705bbe811d758": "content-v1:0d5adbc4e3e94d6ff7783d84db835dadb70f3834784f48e4d5fded4caf373705",
     "1f39b91f0d661d8deb93f05e822c6192fadfc1e576d3d71cd562836fa6876abd": "content-v1:51922b8db40e85c11d9e5d899f36e77742442e9b4c0ad88099692524840c00a1",
     "2b48f1fbfd781b7a1bce1a77ba610c286d8720c88fa20a70695916e3d618b77c": "content-v1:f1ff4944dab04154b262abf13f4749dd3e55fa358c8a08d26da3987f019735bf",
     "34031acf337d5d502199a9b71ce88e482b477ae1f00f5a71f306b9e3138767fe": "content-v1:fa824b856c47f3ea7f23d5cf5cc413f28e7798d5fbfd29e9da21bd744e8ed624",
     "3997635d1320ba09969bc89b5802822c55ab6806ec6c1588046f1eb9f36cc7e2": "content-v1:463eabe679dadbeda4b87ae3f728f245dbc036f3e042ac990b4aa9417e05551b",
     "40118bbe5a13c33164ca4e1c2aae744dd40ba822bfa6af171e5ac1b0443fd78c": "content-v1:eab90e597afb50060045e60e65dbabae1f7aeebd3e7e06e198ba11fe224986d9",
     "4e59003fe503b62cdcb2d3d888f15855d7f11e3d32694704b2ae7f4cfc533fe7": "content-v1:634fa35b1697d44e15e6f705b84bade45422732f0664838fea7914fe73896541",
+    "5336689349471059772f53fc06e8f50bcb39df5cac9d5873a0aecd029341361b": "content-v1:51922b8db40e85c11d9e5d899f36e77742442e9b4c0ad88099692524840c00a1",
+    "54a1d98b158c24aae330dd228fd4c8a5806da97889a52da0c07cc5f6aa81c768": "content-v1:28f272b6aa2a9d034b8754812ba469ee78c3d80599c105f44ad2d36a4f69763d",
+    "5f7c37c62733fc5eecab1e8dbd6129aa41b07c77a7bf20f0c2dd92a5c31ae7cd": "content-v1:6ac43707888ad050ee9adc4ba0f78811d03f07fa5c3feae0daf4588da829725d",
     "67c83d8188c15b57a90c36ac2ce3855ada37bbfe5de1d0d2728aaf10c8583f06": "content-v1:ebf2f44acf53bc323d7a23b436b013d3bf0d9e5c24ed3d541db077dac0bd897a",
     "67dbdf1e28a9d17f5fd2e07e111e7ff79d1c24f634cc38fcb942b5999a858828": "content-v1:0c1d84c7ef1ab0c8b3eb803a7f7c11e90573cd4bf1fe1d7d6a0eef847078baec",
     "68b6962601e3867f49434c7e74f3596087e55f0e015484844a15cae2c7243847": "content-v1:fe3738995eced4b192e5f1d3dbb3bb14ae0d8f1c760425df5fb211c7848f651e",
@@ -2389,8 +2531,10 @@
     "8ecad540a81a758eb8345bc81abc6c0bacb5e763b8a0fc38a14b67a070f9d758": "content-v1:fe3738995eced4b192e5f1d3dbb3bb14ae0d8f1c760425df5fb211c7848f651e",
     "93acc4d0c5d3393cbe5137fdb0f552b48dc835acccd95d588b84263718f981c2": "content-v1:15306286c802b84762cf74bac46441f8b4f8d69587157402b44f25ca9ab0536b",
     "a2e0beb1df7149824a6dee13606b723a22bc1216eb645394a73252f75ac7ef37": "content-v1:3f691bd869143cf27f4eeb768bc14268af955bf51360cfc02eb3e405bac42f89",
+    "a95eee7058e014d3cc1f01347c1548a82a1b7054818f52b0b7bd49746edc8746": "content-v1:68be89d46846d0540628796d60a2d8e33c886782ee87ec18cf083b71b9c71b7f",
     "ac035be93b69d26b0b3309f6c98bb60439b1ab8d056a9f6d08b6aef5edb77ef7": "content-v1:3eef2468a08688b91fbbb23e6b16ae35e2d5bdf97c323654e0b53f3889b06b5b",
     "b1864b4d5c9ca7cd24785ca5902abeb939ec81e07674884522678848f67f87fc": "content-v1:0518160b531a0477e475d15d2579f69e8e2628ce74993d2de1754f4127bf1f18",
+    "b2ca07a3f744a1a2b832edd3e3a3ee83df0ce9d74780eb833e0c7dde8e7b948c": "content-v1:b7c82b115d64238f2fec01d013c40d53fc1f2cc143a05d21e8161e584a1221f8",
     "b9ce59a18685b5b96a37af78aa202a289504e001747856000ba8989f2a9ab386": "content-v1:6271b8995f64a0350fb5e04947b70d49f426e9c9fda1cc8ee87ca78c0eefcdbc",
     "cf62fb8dcbed960c9d036df3b74dc522a43572bbc163647ab1d52844c8700a31": "content-v1:b1c17581458b4daf0aefa3eb27ff43fd8df2ad19c3241d2272028499ffe76212",
     "f23f4c63a5db770c6a8d70e4e5e5dd01e573da0077e2afd7567111990ca5cba4": "content-v1:3a5a825dccd6ccf118f69109ec41e8e14e3ccb9c482302c632956e4fda2eb654",

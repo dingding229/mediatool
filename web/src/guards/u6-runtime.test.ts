@@ -13,7 +13,7 @@ import {createHash} from 'node:crypto'
 const baseline={
   "PluginMetadata.vue": "122730e4c54c9b2b76b2246841912fe0e08a1f75c59cde36f0058a5cab0496a2",
   "operation-error.ts": "e9420bd2615fa8326d33a0b558fd8a90c538f788fb45b648de2e34665464d6dd",
-  "PluginJson.ts": "6a50ff74f989985fb60fe865e9d3b82cf24431fc270ebce0d147e910505ecc39",
+  "PluginJson.ts": "8e7b6ecd4a88cebe8f90a2dd2e0472323edfbfefadd220b58e8105344dde6b89",
   "PluginSurface.vue": "b4abeb837918d1e8257cce61cd898a8137933f454c4d087da58672866bda0be3",
   "ui-runtime.ts": "3a5fc7b65458ca877eacdc862f27251c2ba7bc61a99830c12b1f8f4d68b1adb2",
   "install-intent.ts": "fa056b05a6532fa495fa8cad9679d447c2738ca4a163ad73e12badf8f17facc2",

@@ -26,3 +26,8 @@ it('every declared boolean, text and enum field is editable, including false/emp
   const values=field.component==='VSwitch'?[false,true]:field.component==='VSelect'?field.props.items:['','owned value'];for(const value of values){const emit=vi.fn(),model={otherSavedKey:'retained'},render=(PluginJson as any).setup({nodes:[field],model,readonly:false},{emit}),input=render().children[0].children[1];expect(input.props.disabled).toBe(false);input.props['onUpdate:modelValue'](value);expect(emit).toHaveBeenCalledWith('update:model',{...model,[field.model]:value})}
  }
 })
+
+it('uses formal titles and complete enum controls from the same static pin',()=>{
+ for(const manifest of inventory.manifests)for(const field of nodes(staticPluginForm(manifest.id)!.content).filter(n=>n.model)){expect(field.props.title).toBe(field.props.label);if(field.props.enum){expect(field.component).toBe('VSelect');expect(field.props.items).toEqual(field.props.enum)}}
+ const provider=nodes(staticPluginForm('library-refresh-notify')!.content).find(n=>n.model==='provider')!;expect(provider.props.title).toBe('媒体服务器');expect(provider.props.items).toEqual(['','builtin','emby']);expect(provider.props.itemLabels.builtin).toBe('内置媒体库')
+});

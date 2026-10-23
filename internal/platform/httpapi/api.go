@@ -231,6 +231,7 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("GET /api/v1/sites/metrics/schedule", a.protected(a.getSiteMetricSchedule))
 	mux.HandleFunc("PUT /api/v1/sites/metrics/schedule", a.protected(a.saveSiteMetricSchedule))
 	mux.HandleFunc("GET /api/v1/pt/templates/{id}/icon", a.ptTemplateIcon)
+	mux.HandleFunc("GET /api/v1/pt/templates/{id}/favicon", a.protected(a.ptTemplateFavicon))
 	mux.HandleFunc("GET /api/v1/sites/metrics", a.protected(a.siteMetrics))
 	mux.HandleFunc("POST /api/v1/sites/metrics/sync", a.protected(a.syncSiteMetrics))
 	mux.HandleFunc("GET /api/v1/pt/templates", a.protected(a.ptTemplates))

@@ -23,7 +23,7 @@ export function usePluginOperation() {
     const p = pending.value;
     if (p?.input.kind === 'install')
       completeInstallIntent(p.input.pluginId, p.input.fingerprint);
-    notice.value = p?.input.kind === 'install' ? '已安装，默认停用；请核对权限和配置后再启用。' : p?.input.kind === 'review' ? '权限已确认，插件仍保持停用。' : '已读取操作回执，请以当前实例状态为准。';
+    notice.value = p?.input.kind === 'install' ? '已安装，默认停用；请核对权限和配置后再启用。' : p?.input.kind === 'review' ? '权限已确认，插件仍保持停用。' : ({configure:'插件配置已保存。',enable:'已请求启用插件。',disable:'已请求停用插件。',restart:'已请求重启插件。',clone:'已创建独立插件实例。',remove:'已请求卸载插件。'} as Record<string,string>)[p?.input.kind]||'设置已更新。';
     clear();
     if (typeof window !== 'undefined')
       window.dispatchEvent(new Event('plugins:changed'));

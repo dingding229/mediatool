@@ -1,6 +1,6 @@
 # 前端接口使用清单
 
-与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。完整291 paths / 625 operations；HEAD/OPTIONS/prefix展开计入，不是625个独立业务功能。
+与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。完整291 paths / 621 operations；HEAD/OPTIONS/prefix展开计入，不是625个独立业务功能。
 
 ## 统计与方法
 
@@ -664,3 +664,5 @@ B4b（schema77）：上述恢复路径不变；preview新增warnings与restore.t
 F5b：日志 `/logs/query` 默认 200 条，page/pageSize 与 before 时间快照分页；`/settings/application` 的 logging 保存 1–90 天保留策略和最多 24 小时 Debug 截止时间。文件日志保留 JSONL 实现，不写入日志 SQL 表；每日清理按 1000 条小批执行。
 
 F5b 分页：管理端 `/downloads`、`/downloads/manual`、`/transfers`、`/subscriptions`（view/q/status）、`/subscriptions/{id}/history`、`/notifications`、`/media-server/users`、`/library/scans` 带 page/pageSize 时返回 `{items,total,page,pageSize}`，SQL 限定当前页；不带参数的后台/插件调用保留数组契约。所有 count/排序/表名均为代码常量。每页 1–100 条；日志独立上限 200。页码按列表写入 URL，翻页不清除筛选。
+
+F5b 图标：新增 `GET /pt/templates/{id}/favicon`，管理员会话保护，固定 pin 内站点 favicon 地址；复用 DNS 固定的网络代理客户端，Redis 缓存 24 小时（缺图 5 分钟），返回图片二进制与内容 ETag，不接受请求 URL、Host 推导地址或凭据。旧静态 `/icon` 保留其模板标识用途，不再用于站点账号行。

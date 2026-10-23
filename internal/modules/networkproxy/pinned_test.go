@@ -205,3 +205,23 @@ func TestProxyHandshakeIsBoundedAndHonorsCancellation(t *testing.T) {
 		})
 	}
 }
+
+func TestFaviconPublicClientPinsDirectAndProxyTargetDNS(t *testing.T) {
+	for _, config := range []Record{{}, {URL: "http://127.0.0.1:9", Sites: true}} {
+		p := playback.Policy{AllowHTTP: true, Lookup: func(context.Context, string) ([]net.IPAddr, error) {
+			return []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}, nil
+		}}
+		client, e := PublicClient(config, "ptsite", p)
+		if e != nil {
+			t.Fatal(e)
+		}
+		defer client.CloseIdleConnections()
+		if client.Transport.(*http.Transport).Proxy != nil {
+			t.Fatal("unpinned proxy lookup")
+		}
+		if response, e := client.Get("http://tracker.example/favicon.ico"); e == nil {
+			response.Body.Close()
+			t.Fatal("private target permitted")
+		}
+	}
+}

@@ -50,6 +50,11 @@ func TestPostgresSiteMetricsKeepLastSuccessAndRejectChangedOrOlderCollectors(t *
 	if e != nil {
 		t.Fatal(e)
 	}
+	unsynced := httptest.NewRecorder()
+	api.siteMetrics(unsynced, httptest.NewRequest("GET", "/", nil))
+	if unsynced.Code != 200 || !strings.Contains(unsynced.Body.String(), `"metrics":null`) || !strings.Contains(unsynced.Body.String(), `"state":"not_synced"`) {
+		t.Fatal("unsynced account must not break all metrics", unsynced.Code, unsynced.Body.String())
+	}
 	fp := sites.DefinitionFingerprint(definition.RawJSON, definition.CommonJSON, definition.SourceCommit)
 	uploaded := int64(100)
 	metric := sites.Metrics{Uploaded: &uploaded, Partial: true, Notes: []string{}}

@@ -33,14 +33,14 @@ func (a *API) siteMetrics(w http.ResponseWriter, r *http.Request) {
 		}
 		iconURL := ""
 		var m any
-		if checkedErr := json.Unmarshal(raw, &m); checkedErr != nil {
+		if len(raw) > 0 && json.Unmarshal(raw, &m) != nil {
 			fail(w, 503, "operation_failed", "读取或写入失败，请稍后重试")
 			return
 		}
 		if cfg, e := sites.DecodeStored(definition, common); e == nil {
 			if t, ok := sites.GoTemplate(cfg.ID); ok {
 				name = t.Name
-				iconURL = "/api/v1/pt/templates/" + t.ID + "/icon?v=" + t.Version
+				iconURL = "/api/v1/pt/templates/" + t.ID + "/favicon?v=" + t.Version
 			}
 		}
 		out = append(out, map[string]any{"accountId": id, "name": name, "iconUrl": iconURL, "enabled": enabled, "metrics": m, "collectedAt": collected, "attemptedAt": attempted, "state": state, "message": message, "stale": collected != nil && (rev != saved || state == "failed" || fingerprint != sites.DefinitionFingerprint(definition, common, sourceCommit))})

@@ -1069,11 +1069,13 @@ func (s *source) build(t *testing.T) object {
 				op["requestBody"].(object)["content"].(object)["multipart/form-data"] = object{"schema": object{"type": "object", "required": []string{"torrent"}, "properties": object{"torrent": object{"type": "string", "format": "binary", "description": ".torrent，最大10MiB"}}, "additionalProperties": false}}
 			}
 			switch r.handler {
-			case "assetSTRM", "opsDownload", "catalogImage", "tmdbPoster", "tmdbImage", "ptTemplateIcon":
+			case "assetSTRM", "opsDownload", "catalogImage", "tmdbPoster", "tmdbImage", "ptTemplateIcon", "ptTemplateFavicon":
 				mime := []string{"application/octet-stream"}
 				switch r.handler {
 				case "opsDownload":
 					mime = []string{"application/x-tar"}
+				case "ptTemplateFavicon":
+					mime = []string{"image/png", "image/jpeg", "image/gif", "image/webp", "image/x-icon", "image/vnd.microsoft.icon"}
 				case "ptTemplateIcon":
 					mime = []string{"image/x-icon"}
 				case "catalogImage", "tmdbPoster", "tmdbImage":
@@ -1084,10 +1086,13 @@ func (s *source) build(t *testing.T) object {
 					content[m] = object{"schema": object{"type": "string", "format": "binary"}}
 				}
 				responses["200"] = object{"description": "真实文件/图片响应，不包JSON Envelope；备份与STRM含私有数据，不可放公开产物。", "content": content}
-				if r.handler == "ptTemplateIcon" || r.handler == "tmdbImage" {
+				if r.handler == "ptTemplateIcon" || r.handler == "ptTemplateFavicon" || r.handler == "tmdbImage" {
 					responses["304"] = object{"description": "ETag匹配，无正文"}
 					params = append(params, object{"name": "If-None-Match", "in": "header", "schema": object{"type": "string"}})
 					op["parameters"] = params
+				}
+				if r.handler == "ptTemplateFavicon" {
+					responses["206"] = object{"description": "图片字节范围，非Envelope", "content": content}
 				}
 				if r.handler == "tmdbImage" {
 					responses["502"] = object{"description": "固定图片获取错误，非Envelope", "content": object{"text/plain": object{"schema": object{"type": "string"}}}}
