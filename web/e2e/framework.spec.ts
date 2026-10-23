@@ -1477,7 +1477,7 @@ test('F2 plugin command confirmation shows durable queued and unknown states (UI
  await dialog.getByRole('button',{name:/^执行 /}).click();await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click();await expect(dialog).toContainText('不是执行成功');expect(submitted).toHaveLength(1);expect(submitted[0]).toMatchObject({kind:'command',id:'hello',confirm:true});await page.screenshot({path:resolve(screenshots,'plugin-extensions.png'),animations:'disabled'})
 })
 
-test('F5a static plugin form, shared ESM, multi-key dashboards and sidebar (UI contract)',async({page})=>{
+test('F6 static plugin form, shared ESM, multi-key detail dashboards and sidebar (UI contract)',async({page})=>{
  const id='00000000-0000-4000-8000-000000000123',instance={id,pluginId:'hello-go',desiredState:'enabled',state:'running',revision:2,reason:''},configs:any[]=[]
  const contract=JSON.parse(readFileSync(resolve(root,'internal/platform/httpapi/testdata/contracts/plugin-v2-ui.json'),'utf8'))
  await page.route('**/api/v1/plugins?*',r=>fixtureFulfill(r,{json:{data:[instance]}}))
@@ -1502,10 +1502,18 @@ test('F5a static plugin form, shared ESM, multi-key dashboards and sidebar (UI c
  await expect(page.getByRole('button',{name:'交互 1',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'查看 JSON 页面',exact:true}).click()
  await expect(page.getByText('不支持的组件：Unknown',{exact:true})).toBeVisible()
+ // F6 relocates, not removes, both declared dashboards. Keep ESM/sidebar
+ // coverage and verify the new detail-only location plus homepage exclusion.
+ await page.goto('/plugins/'+id)
+ const overview=page.getByRole('region',{name:'插件概览',exact:true})
+ await expect(overview.getByRole('heading',{name:'启动次数',exact:true})).toBeVisible()
+ await expect(overview.getByText('Dashboard starts',{exact:true})).toBeVisible()
+ await expect(overview.getByText('Dashboard events',{exact:true})).toBeVisible()
  await page.goto('/dashboard')
- await expect(page.getByRole('heading',{name:'启动次数',exact:true})).toBeVisible()
- await expect(page.getByText('Dashboard starts',{exact:true})).toBeVisible()
- await expect(page.getByText('Dashboard events',{exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'首页',exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'启动次数',exact:true})).toHaveCount(0)
+ await expect(page.getByText('Dashboard starts',{exact:true})).toHaveCount(0)
+ await expect(page.getByText('Dashboard events',{exact:true})).toHaveCount(0)
  await expect(page.getByRole('navigation',{name:'插件应用',exact:true})).toBeVisible()
  await expect(page.getByRole('link',{name:'Hello Go · Hello 插件',exact:true})).toBeVisible()
 })
