@@ -27,6 +27,7 @@ import (
 	playbackruntime "media-tool/internal/modules/nativeplayback/runtime"
 	"media-tool/internal/modules/nativetmdb"
 	"media-tool/internal/modules/networkproxy"
+	"media-tool/internal/modules/onlineupdate"
 	"media-tool/internal/modules/playbackstats"
 	pluginbusiness "media-tool/internal/modules/plugins/business"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
@@ -580,7 +581,9 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	updatesDone := make(chan struct{})
 	go func() { defer close(updatesDone); updates.Run(updateCtx) }()
 	defer func() { stopUpdates(); <-updatesDone }()
-	managementDeps := httpapi.Dependencies{UpdateChecker: updates, IPGeo: geo, Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
+	updater := onlineupdate.New(db, updates)
+	go updater.Run(ctx)
+	managementDeps := httpapi.Dependencies{OnlineUpdater: updater, UpdateChecker: updates, IPGeo: geo, Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
 	if db != nil && manager != nil {
 		store := pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot, Logger: logger}
 		businessHost := pluginbusiness.AcquisitionHost{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc, Network: networkproxy.NewHostClient(networkproxy.Repository{DB: db, Vault: manager.Repository.Vault})}

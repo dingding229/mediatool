@@ -39,3 +39,5 @@
 - [OpenAPI](../api/openapi.yaml) · [前端界面规范](FRONTEND_DESIGN_MASTER.md)
 
 - [版本号与只读更新检查](VERSIONING.md) · [中文更新日志](../CHANGELOG.md)
+
+- [在线更新设计与风险](ONLINE_UPDATE.md)

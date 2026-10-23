@@ -32,7 +32,7 @@ RUN test -n "$SOURCE_VERSION" && test -n "$SOURCE_REVISION" && test -n "$SOURCE_
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X media-tool/internal/platform/buildinfo.Version=${SOURCE_VERSION} -X media-tool/internal/platform/buildinfo.Commit=${SOURCE_REVISION} -X media-tool/internal/platform/buildinfo.BuildTime=${SOURCE_BUILD_TIME}" -o /out/media-toolctl ./cmd/media-toolctl
 
 FROM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 AS runtime
-RUN apk add --no-cache ca-certificates postgresql18-client ffmpeg && addgroup -S -g 65532 app && adduser -S -u 65532 -G app app && mkdir -p /data/plugins && mkdir -p /data/strm /data/downloads /data/files /data/native-media/stills && chown -R app:app /data
+RUN apk add --no-cache ca-certificates postgresql18-client ffmpeg docker-cli docker-cli-compose && addgroup -S -g 65532 app && adduser -S -u 65532 -G app app && mkdir -p /data/plugins && mkdir -p /data/strm /data/downloads /data/files /data/native-media/stills && chown -R app:app /data
 LABEL org.opencontainers.image.schema="79"
 WORKDIR /app
 COPY --from=backend /out/media-tool /app/media-tool

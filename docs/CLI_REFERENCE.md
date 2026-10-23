@@ -84,3 +84,8 @@ go run ./cmd/media-tool-dev plugins matrix --check
 ### 数据恢复（app内，与网页共用）
 
 `media-tool ops restore-preview -id <备份UUID>` 返回逐表行数、固定风险与精确确认短语；`restore-execute -id <预览UUID> -digest <预览摘要> -confirm-text '恢复 <备份UUID>'`等待相同状态机执行；`restore-status -id <预览UUID>`查持久化结果；`restore-reconcile -id <预览UUID>`只核对不重放。正式部署请通过私有根Compose的 `docker compose exec -T app /app/media-tool ops ...` 执行。旧 `media-toolctl execute` 已批准的数据恢复也转交同一执行器，不停app或改名数据库。镜像回滚命令不变。
+
+### 在线更新内部入口
+
+- `media-tool updater <admitted-task-id>`：仅临时更新容器使用，读取持久化的已批准任务；不接受镜像/URL/命令/路径参数，不替代管理员密码确认。
+- `media-tool update-policy-check`：operator 本地只读诊断；核验当前 app 的 Compose 身份，并用不可联网的 transport 证明危险 API 在到达 daemon 前被拒绝，不执行更新或 Docker 写入。

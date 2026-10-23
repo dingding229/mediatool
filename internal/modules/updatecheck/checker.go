@@ -11,6 +11,7 @@ import (
 	"media-tool/internal/platform/buildinfo"
 	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -68,7 +69,7 @@ func (s *Service) Get(ctx context.Context) (State, error) {
 	out.IntervalHours = 12
 	out.HasUpdate = false
 	if out.Result.Status == "verified" && out.Result.Latest != nil {
-		if n, ok := buildinfo.Compare(out.Current.Version, out.Result.Latest.Version); ok && n < 0 {
+		if n, ok := buildinfo.Compare(strings.Split(out.Current.Version, "-dev+")[0], out.Result.Latest.Version); ok && n < 0 {
 			out.HasUpdate = true
 		}
 	}
@@ -218,6 +219,10 @@ func (s *Service) getJSON(ctx context.Context, address string, target any) error
 	}
 	return nil
 }
+
+// VerifyFresh never uses the periodic cache; execution must call this again.
+func (s *Service) VerifyFresh(ctx context.Context) (Release, error) { return s.fetch(ctx) }
+
 func (s *Service) fetch(ctx context.Context) (Release, error) {
 	var github struct {
 		Tag         string    `json:"tag_name"`

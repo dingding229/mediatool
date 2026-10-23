@@ -57,6 +57,10 @@ func Worker(args []string) (failure error) {
 	if e = sandbox.Limits(); e != nil {
 		return ErrUnavailable
 	}
+	phase = "socket-isolation"
+	if e = sandbox.DenyUnixSockets(); e != nil {
+		return ErrUnavailable
+	}
 	phase = "landlock"
 	ok, e := sandbox.Landlock(filepath.Join(cwd, "data"), filepath.Join(cwd, "tmp"), nil)
 	if e != nil {

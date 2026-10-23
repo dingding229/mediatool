@@ -127,3 +127,17 @@ func TestCheckCadenceAndCrossProcessLock(t *testing.T) {
 		t.Fatal("parallel check must not use network", e)
 	}
 }
+
+func TestBootstrapNeverOffersItsPreviousStableRelease(t *testing.T) {
+	s := isolatedService(t)
+	s.Current = func() buildinfo.Info { return buildinfo.Info{Version: "0.28.0-dev+abcdef123456", Schema: 79} }
+	v, e := s.Check(t.Context())
+	if e != nil || v.HasUpdate {
+		t.Fatal(e, v)
+	}
+	s.Current = func() buildinfo.Info { return buildinfo.Info{Version: "0.27.9-dev+abcdef123456", Schema: 79} }
+	v, e = s.Get(t.Context())
+	if e != nil || !v.HasUpdate {
+		t.Fatal(e, v)
+	}
+}

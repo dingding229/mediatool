@@ -1,6 +1,6 @@
 # 前端接口使用清单
 
-与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。完整303 paths / 642 operations；HEAD/OPTIONS/prefix展开计入，不是642个独立业务功能。
+与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。路由总量以生成的 OpenAPI 为准；本文记录静态前端使用与客户端协议用途，HEAD/OPTIONS/prefix 展开不等于独立业务功能。
 
 ## 统计与方法
 
@@ -701,3 +701,14 @@ F5b 图标：新增 `GET /pt/templates/{id}/favicon`，管理员会话保护，�
 | POST | `/api/v1/system/updates/notice` | management | 前端经适配调用 | `web/src/api/updates.ts:9` |
 
 以上全部为管理员端接口，媒体用户令牌不可使用；没有部署/拉取镜像或 Docker API。GET 只读取缓存。手动检查最多每分钟一次网络检查，后台默认每 12 小时，可关闭。notice 对每个可信新版本原子认领一次。公开 API 固定 GitHub/Docker Hub 仓库，响应不可信或 digest 不匹配不提示更新；不接受自定义 URL。
+
+## F8b 在线更新执行与状态
+
+| method | path | listener | 当前前端使用 | 证据（源码行） |
+|---|---|---|---|---|
+| GET | `/api/v1/system/online-update` | management | 前端经适配调用 | `web/src/api/updates.ts:14` |
+| POST | `/api/v1/system/online-update` | management | 前端经适配调用 | `web/src/api/updates.ts:15` |
+
+| HEAD | `/api/v1/system/online-update` | management | 未检出静态使用 | GET 自动派生，仅管理员 |
+
+POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹配重新核验的最新 Release，不能指定镜像/URL/命令。GET 只返回可公开给管理员的状态、阶段与备份路径，不返回 Docker inspect、Compose 内容或私有执行计划。详见 [在线更新设计](ONLINE_UPDATE.md)。

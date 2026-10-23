@@ -57,3 +57,12 @@
   ciphertext validation with the current separately held master key, atomic
   import and failure compensation. This does not authorize deleting/overwriting
   disk media/STRM bodies, changing the master key, or touching Emby/CD2 volumes.
+
+- Owner-approved F8b exception: a labelled, auto-removed temporary updater container
+  may run the same published immutable app image's updater subcommand. It is not a
+  persistent Compose service. app stays non-root; the operator may explicitly mount
+  docker.sock and add the exact host docker GID (994 on the owned server). Never
+  change socket ownership/mode. This grants host-root-equivalent power; the scoped
+  Docker API allowlist is not a security boundary against a compromised app.
+  Preserve all non-app services; updater rollback may restore only its verified
+  pre-update database dump after a failed update, never media/STRM disk contents.

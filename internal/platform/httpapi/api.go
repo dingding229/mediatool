@@ -16,6 +16,7 @@ import (
 	"media-tool/internal/modules/linkcache"
 	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/modules/nativeplayback"
+	"media-tool/internal/modules/onlineupdate"
 	"media-tool/internal/modules/playback"
 	"media-tool/internal/modules/playbackstats"
 	"media-tool/internal/modules/playeraccess"
@@ -49,6 +50,7 @@ type SessionReader interface {
 	Session(context.Context, []byte) (accounts.Account, error)
 }
 type Dependencies struct {
+	OnlineUpdater     *onlineupdate.Service
 	UpdateChecker     *updatecheck.Service
 	IPGeo             *ipgeo.Service
 	PlaybackStats     playbackstats.Sink
@@ -186,6 +188,8 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("PUT /api/v1/classification", a.protected(a.saveClassification))
 	mux.HandleFunc("POST /api/v1/classification/preview", a.protected(a.previewClassification))
 	mux.HandleFunc("GET /api/v1/system/status", a.protected(a.status))
+	mux.HandleFunc("GET /api/v1/system/online-update", a.protected(a.onlineUpdateStatus))
+	mux.HandleFunc("POST /api/v1/system/online-update", a.protected(a.executeOnlineUpdate))
 	mux.HandleFunc("GET /api/v1/system/version", a.protected(a.versionInfo))
 	mux.HandleFunc("GET /api/v1/system/updates", a.protected(a.updateState))
 	mux.HandleFunc("PUT /api/v1/system/updates/settings", a.protected(a.saveUpdateSettings))

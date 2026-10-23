@@ -25,6 +25,40 @@ func TestMain(m *testing.M) {
 	if os.Getenv("PLUGIN_SANDBOX_HELPER") == "1" {
 		mode := os.Args[1]
 		switch mode {
+		case "socket":
+			if e := DenyUnixSockets(); e != nil {
+				fmt.Fprintln(os.Stderr, e)
+				os.Exit(21)
+			}
+			var workers sync.WaitGroup
+			for i := 0; i < 16; i++ {
+				workers.Add(1)
+				go func() {
+					defer workers.Done()
+					for _, kind := range []int{unix.SOCK_STREAM, unix.SOCK_DGRAM} {
+						fd, e := unix.Socket(unix.AF_UNIX, kind, 0)
+						if e == nil {
+							_ = unix.Close(fd)
+							os.Exit(22)
+						}
+						if !errors.Is(e, unix.EPERM) {
+							os.Exit(23)
+						}
+					}
+				}()
+			}
+			workers.Wait()
+			if fds, e := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM, 0); e == nil {
+				_ = unix.Close(fds[0])
+				_ = unix.Close(fds[1])
+				os.Exit(24)
+			}
+			fd, e := unix.Socket(unix.AF_INET, unix.SOCK_STREAM, 0)
+			if e != nil {
+				os.Exit(25)
+			}
+			_ = unix.Close(fd)
+			os.Exit(0)
 		case "proc":
 			p := os.Args[2]
 			for _, suffix := range []string{"environ", "mem"} {
@@ -378,5 +412,13 @@ func TestSnapshotCountsThreadsAndToleratesExits(t *testing.T) {
 	}
 	if all, e := snapshotAt(root); e != nil || len(all) != 0 {
 		t.Fatal("partial/exited process must be skipped", all, e)
+	}
+}
+
+func TestWorkerCannotConnectUnixSocketsAcrossThreads(t *testing.T) {
+	cmd := exec.Command(os.Args[0], "socket")
+	cmd.Env = append(os.Environ(), "PLUGIN_SANDBOX_HELPER=1")
+	if out, e := cmd.CombinedOutput(); e != nil {
+		t.Fatalf("worker Unix isolation %v %s", e, out)
 	}
 }

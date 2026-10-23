@@ -1,0 +1,5 @@
+export const updatePhases:Record<string,string>={queued:'等待拉取已校验镜像',verifying:'重新核验发布来源',backing_up:'备份数据库与 Compose',applying:'替换 app 镜像',checking:'核对健康、版本与 schema',rolling_back:'恢复数据库与旧镜像',succeeded:'更新成功',rolled_back:'更新失败，已回滚',failed:'更新已拒绝或未执行',manual_recovery:'自动恢复未完成，需要运维处理'};
+export const updateDone=(phase:string)=>['succeeded','rolled_back','failed','manual_recovery'].includes(phase);
+export function newerStable(current:string,target:string){const a=current.split('-')[0].split('.').map(Number),b=target.split('.').map(Number);if(a.length!==3||b.length!==3||![...a,...b].every(Number.isSafeInteger))return false;for(let i=0;i<3;i++){if(a[i]!==b[i])return b[i]>a[i]}return false}
+
+export const updateFailures:Record<string,string>={release_hub_mismatch_or_unavailable:"Release 与 Hub 再次校验未通过，已拒绝更新",backup_failed:"备份未完成，未替换镜像",apply_failed:"app 替换失败",health_or_schema_failed:"健康或 schema 校验失败"};

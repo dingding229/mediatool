@@ -42,3 +42,6 @@ func PrepareFDs() error { return nil }
 func Tagged(string, []Process) []Process { return nil }
 
 func ReapOwned([]Process) error { return nil }
+
+// Docker-backed production is Linux; developer workers never receive its socket.
+func DenyUnixSockets() error { return nil }
