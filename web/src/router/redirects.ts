@@ -35,7 +35,7 @@ export function normalizePageLocation(to: Pick<RouteLocationNormalized, 'path' |
   if (!page?.tabs[0]?.id) return
   const query = { ...to.query }, tab = typeof query.tab === 'string' ? query.tab : ''
   if (page.id === 'settings') {
-    const old: Record<string,string> = { access:'general', library:'naming', classification:'naming', automation:'automation', account:'security', security:'security', mobile:'mobile', api:'api', general:'general', naming:'naming' };
+    const old: Record<string,string> = { access:'general', library:'naming', classification:'naming', automation:'automation', account:'security', security:'security', mobile:'mobile', api:'api', general:'general', naming:'naming', about:'about' };
     const section = typeof query.section === 'string' ? query.section : '';
     query.tab = old[(!tab || tab === 'general') && old[section] ? section : tab] || 'general';
     if (old[section]) delete query.section;

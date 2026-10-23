@@ -88,7 +88,7 @@ test('U1 each outer page tab writes its exact URL tab and quick jump opens opera
   const expected: Record<string, string[]> = {
     search: ['query','history','discover'], downloads: ['tasks','uploads','manual'], organize: ['candidates','scans','assets','history','recovery'], files: ['browser','strm','tools'],
     playback: ['settings','users','players','sessions','processing','ips'], connections: ['storage','emby','downloader','notifications','aux'],
-    sites: ['accounts','templates'], ops: ['jobs','attention','maintenance','logs','cache'], settings: ['general','naming','automation','api','mobile','security'],
+    sites: ['accounts','templates'], ops: ['jobs','attention','maintenance','logs','cache'], settings: ['general','naming','automation','api','mobile','security','about'],
   }
   for (const [path, ids] of Object.entries(expected)) {
     await page.goto(`/${path}?keep=owned`)

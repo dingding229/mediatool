@@ -38,6 +38,7 @@ import (
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
 	"media-tool/internal/modules/subscriptions"
+	"media-tool/internal/modules/updatecheck"
 	"media-tool/internal/platform/buildinfo"
 	"media-tool/internal/platform/cache"
 	deferutil "media-tool/internal/platform/cleanup"
@@ -574,7 +575,12 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	geoDone := make(chan struct{})
 	go func() { defer close(geoDone); geo.Run(geoCtx, logger) }()
 	defer func() { geoCancel(); <-geoDone }()
-	managementDeps := httpapi.Dependencies{IPGeo: geo, Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
+	updates := updatecheck.New(db, logger)
+	updateCtx, stopUpdates := context.WithCancel(ctx)
+	updatesDone := make(chan struct{})
+	go func() { defer close(updatesDone); updates.Run(updateCtx) }()
+	defer func() { stopUpdates(); <-updatesDone }()
+	managementDeps := httpapi.Dependencies{UpdateChecker: updates, IPGeo: geo, Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
 	if db != nil && manager != nil {
 		store := pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot, Logger: logger}
 		businessHost := pluginbusiness.AcquisitionHost{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc, Network: networkproxy.NewHostClient(networkproxy.Repository{DB: db, Vault: manager.Repository.Vault})}

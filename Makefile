@@ -8,8 +8,8 @@ build-web:
 	bash scripts/build-web.sh
 build: build-web
 	mkdir -p bin
-	CGO_ENABLED=0 go build -trimpath -o bin/media-tool ./cmd/media-tool
-	CGO_ENABLED=0 go build -trimpath -o bin/media-toolctl ./cmd/media-toolctl
+	eval "$$(go run ./cmd/media-tool-dev build-meta env)"; CGO_ENABLED=0 go build -trimpath -ldflags="$$MEDIA_TOOL_LDFLAGS" -o bin/media-tool ./cmd/media-tool
+	CGO_ENABLED=0 go build -trimpath -ldflags="$$(go run ./cmd/media-tool-dev build-meta ldflags)" -o bin/media-toolctl ./cmd/media-toolctl
 	CGO_ENABLED=0 go build -trimpath -o bin/media-tool-dev ./cmd/media-tool-dev
 test: build-web
 	bash scripts/test-go.sh

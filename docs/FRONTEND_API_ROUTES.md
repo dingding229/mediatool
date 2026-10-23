@@ -1,6 +1,6 @@
 # 前端接口使用清单
 
-与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。完整298 paths / 635 operations；HEAD/OPTIONS/prefix展开计入，不是635个独立业务功能。
+与[流程说明](FRONTEND_API.md)及[OpenAPI](../api/openapi.yaml)配套。管理端/原生媒体端分列listener。完整303 paths / 642 operations；HEAD/OPTIONS/prefix展开计入，不是642个独立业务功能。
 
 ## 统计与方法
 
@@ -689,3 +689,15 @@ F5b 图标：新增 `GET /pt/templates/{id}/favicon`，管理员会话保护，�
 
 以上均经过管理员认证。`days=7/30/90/0`（0 为全部），`startIndex/limit` 有界分页，按开始时间倒序。IP 汇总 `group=ip/country/province`，用户/设备过滤使用服务器 UUID。归属地在本地查询，库不存在时保留公网 IP，历史私网地址在显示层隐藏。密钥只通过 PUT body 加密保存，不在 GET、日志、原生媒体 API 返回。
 | GET | `/api/v1/media-server/device-ips` | management | 前端经适配调用 | `web/src/api/playback-statistics.ts:14` |
+
+## F8a 构建版本与只读更新检查
+
+| method | path | listener | 当前前端使用 | 证据（源码行） |
+|---|---|---|---|---|
+| GET | `/api/v1/system/version` | management | 前端经适配调用 | `web/src/api/updates.ts:5` |
+| GET | `/api/v1/system/updates` | management | 前端经适配调用 | `web/src/api/updates.ts:6` |
+| PUT | `/api/v1/system/updates/settings` | management | 前端经适配调用 | `web/src/api/updates.ts:8` |
+| POST | `/api/v1/system/updates/check` | management | 前端经适配调用 | `web/src/api/updates.ts:7` |
+| POST | `/api/v1/system/updates/notice` | management | 前端经适配调用 | `web/src/api/updates.ts:9` |
+
+以上全部为管理员端接口，媒体用户令牌不可使用；没有部署/拉取镜像或 Docker API。GET 只读取缓存。手动检查最多每分钟一次网络检查，后台默认每 12 小时，可关闭。notice 对每个可信新版本原子认领一次。公开 API 固定 GitHub/Docker Hub 仓库，响应不可信或 digest 不匹配不提示更新；不接受自定义 URL。

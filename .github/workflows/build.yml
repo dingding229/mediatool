@@ -38,10 +38,14 @@ jobs:
       MEDIA_TOOL_TEST_PLUGIN_UID: "65532"
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with: {fetch-depth: 0}
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with: {go-version: '1.26.9', cache: true}
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with: {node-version: '22', cache: npm, cache-dependency-path: web/package-lock.json}
+      - name: Resolve Git build metadata
+        id: meta
+        run: go run ./cmd/media-tool-dev build-meta github >> "$GITHUB_OUTPUT"
       - name: Create isolated test configuration (no production secrets)
         run: |
           go run ./cmd/media-tool-dev ci-config
@@ -64,7 +68,8 @@ jobs:
         run: |
           dir="$RUNNER_TEMP/mediatool-test-app"
           mkdir -p "$dir"
-          CGO_ENABLED=0 go build -trimpath -o "$dir/media-tool" ./cmd/media-tool
+          eval "$(go run ./cmd/media-tool-dev build-meta env)"
+          CGO_ENABLED=0 go build -trimpath -ldflags="$MEDIA_TOOL_LDFLAGS" -o "$dir/media-tool" ./cmd/media-tool
           go build -trimpath -o "$dir/media-tool-dev" ./cmd/media-tool-dev
           printf '%s\n' "$GITHUB_SHA" > "$dir/media-tool.sha"
           echo "MEDIA_TOOL_STATIC_TEST_BINARY=$dir/media-tool" >> "$GITHUB_ENV"
@@ -95,17 +100,38 @@ jobs:
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
     env:
       HUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
       HUB_REPOSITORY: ${{ vars.DOCKERHUB_REPOSITORY }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with: {fetch-depth: 0}
       - name: Validate Docker Hub configuration
         env:
           HUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           test -n "$HUB_USERNAME" && test -n "$HUB_TOKEN" && test -n "$HUB_REPOSITORY" || { echo 'Configure Docker Hub Actions variables and secret first.'; exit 1; }
           [[ "$HUB_REPOSITORY" =~ ^[a-z0-9_-]+/[a-z0-9_-]+$ ]] || exit 1
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with: {go-version: '1.26.9', cache: true}
+      - name: Resolve Git build metadata
+        id: meta
+        run: go run ./cmd/media-tool-dev build-meta github >> "$GITHUB_OUTPUT"
+      - name: Refuse overwriting an existing stable release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing="$RUNNER_TEMP/existing-release.txt"
+          if gh api --include "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" > "$existing"; then
+            echo "Stable Release already exists; use its immutable digest instead of republishing." >&2
+            exit 1
+          elif ! grep -Eq '^HTTP/[0-9.]+ 404' "$existing"; then
+            echo "Cannot establish that the stable Release is absent; publishing stopped." >&2
+            exit 1
+          fi
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
@@ -117,15 +143,18 @@ jobs:
         with:
           context: .
           file: deploy/Dockerfile
-          build-args: SOURCE_REVISION=${{ github.sha }}
+          build-args: |
+            SOURCE_REVISION=${{ steps.meta.outputs.commit }}
+            SOURCE_VERSION=${{ steps.meta.outputs.version }}
+            SOURCE_BUILD_TIME=${{ steps.meta.outputs.build_time }}
           platforms: linux/amd64
           push: true
-          tags: |
-            ${{ vars.DOCKERHUB_REPOSITORY }}:sha-${{ github.sha }}
-            ${{ vars.DOCKERHUB_REPOSITORY }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
           labels: |
             org.opencontainers.image.source=https://github.com/dingding229/mediatool
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ steps.meta.outputs.commit }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.created=${{ steps.meta.outputs.build_time }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: mode=min
@@ -137,3 +166,20 @@ jobs:
           echo "Image: \`$HUB_REPOSITORY@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
           echo "Source: \`$GITHUB_SHA\`; platform: \`linux/amd64\`" >> "$GITHUB_STEP_SUMMARY"
           echo 'Deploy using scripts/update-server.sh, never upload a locally built image.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create stable GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.meta.outputs.version }}
+          RELEASE_COMMIT: ${{ steps.meta.outputs.commit }}
+          RELEASE_SCHEMA: ${{ steps.meta.outputs.schema }}
+          RELEASE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          notes="$RUNNER_TEMP/mediatool-release.md"
+          go run ./cmd/media-tool-dev release-notes "$RELEASE_VERSION" "$RELEASE_DIGEST" "$RELEASE_COMMIT" "$RELEASE_SCHEMA" > "$notes"
+          if gh release view "v$RELEASE_VERSION" --json body --jq .body > "$notes.existing" 2>/dev/null; then
+            diff -u "$notes" "$notes.existing"
+          else
+            gh release create "v$RELEASE_VERSION" --verify-tag --title "v$RELEASE_VERSION" --notes-file "$notes" --latest
+          fi

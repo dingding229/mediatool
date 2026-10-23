@@ -7,7 +7,8 @@ const root=resolve(import.meta.dirname,'../..')
 const schemaMatch=readFileSync(resolve(root,'internal/platform/buildinfo/buildinfo.go'),'utf8').match(/^const Schema int64 = (\d+)$/m)
 if(!schemaMatch)throw new Error('Build schema declaration is missing')
 const expectedSchema=Number(schemaMatch[1])
-const expectedVersion=readFileSync(resolve(root,'internal/platform/buildinfo/buildinfo.go'),'utf8').match(/^const Version = "([^"]+)"$/m)![1]
+const expectedVersion=process.env.E2E_BUILD_VERSION!
+if(!expectedVersion)throw new Error('Build metadata required from scripts/test-e2e.sh')
 if(process.env.E2E_ISOLATED!=='1'||process.env.E2E_BASE_URL!=='http://localhost:18084')throw new Error('Use bash scripts/test-e2e.sh; account tests must not register an administrator in the business database.')
 const username=process.env.E2E_ADMIN_USERNAME!,password=process.env.E2E_ADMIN_PASSWORD!
 if(!username||!password)throw new Error('Isolated account credentials required')

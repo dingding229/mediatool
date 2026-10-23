@@ -1,0 +1,21 @@
+import {test,expect} from '@playwright/test';
+import {mkdirSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {u5PlaybackFixture} from './u5-fixture';
+const dir=resolve(import.meta.dirname,'../../data/private/f8a/screenshots');mkdirSync(dir,{recursive:true});
+const current={version:'0.28.0',commit:'a'.repeat(40),buildTime:'2026-10-23T10:00:00Z',schema:79,minimumSchema:79,pluginPin:'v0.0.0-20261022235138-e816bd75620d'};
+const latest={...current,version:'0.29.0',tag:'v0.29.0',digest:'sha256:'+'b'.repeat(64),repository:'dingding229/mediatool',platform:'linux/amd64',notes:'新增：更新检查。\n<script>不执行</script>',publishedAt:'2026-10-23T11:00:00Z',url:'https://github.com/dingding229/mediatool/releases/tag/v0.29.0'};
+for(const width of [1440,390])test(`F8a metadata trusted notice and disabled checks ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:950});await u5PlaybackFixture(page);let enabled=true,claimed=false,checks=0,untrusted=false;
+ const state=()=>({enabled,current,hasUpdate:!untrusted,intervalHours:12,result:{checkedAt:'2026-10-23T12:00:00Z',status:untrusted?'untrusted':'verified',latest:untrusted?null:latest}});
+ await page.route('**/api/v1/system/version',r=>r.fulfill({json:{data:current}}));
+ await page.route('**/api/v1/system/updates',r=>r.fulfill({json:{data:state()}}));
+ await page.route('**/api/v1/system/updates/notice',r=>{const release=claimed?null:latest;claimed=true;return r.fulfill({json:{data:{release}}})});
+ await page.route('**/api/v1/system/updates/settings',r=>{enabled=r.request().postDataJSON().enabled;return r.fulfill({json:{data:state()}})});
+ await page.route('**/api/v1/system/updates/check',r=>{checks++;untrusted=true;return r.fulfill({json:{data:state()}})});
+ await page.goto('/dashboard');await expect(page.getByRole('link',{name:'发现新版本 v0.29.0',exact:true})).toBeVisible();await page.getByRole('link',{name:'发现新版本 v0.29.0',exact:true}).click();await expect(page).toHaveURL(/tab=about/);
+ await expect(page.getByRole('heading',{name:'关于 Media Tool',exact:true})).toBeVisible();await expect(page.locator('.f8-build').first()).toContainText('0.28.0');await expect(page.locator('.f8-build').first()).toContainText(current.commit);await expect(page.locator('.f8-build').first()).toContainText(current.pluginPin);await expect(page.locator('.f8-notes')).toContainText('<script>不执行</script>');expect(await page.locator('.f8-notes script').count()).toBe(0);await expect(page.getByRole('button',{name:'立即更新',exact:true})).toHaveCount(0);
+ await page.locator('.el-switch').filter({has:page.getByRole('switch',{name:'自动检查更新',exact:true})}).click();await expect.poll(()=>enabled).toBe(false);await page.screenshot({path:resolve(dir,`about-${width}.png`),fullPage:true,animations:'disabled'});
+ await page.reload();await expect(page.getByRole('heading',{name:'关于 Media Tool',exact:true})).toBeVisible();await expect(page.getByRole('link',{name:'发现新版本 v0.29.0',exact:true})).toHaveCount(0);await expect(page.getByRole('switch',{name:'自动检查更新',exact:true})).not.toBeChecked();
+ const box=await page.locator('.f8-about').boundingBox();await page.getByRole('button',{name:'检查更新',exact:true}).click();await expect.poll(()=>checks).toBe(1);await expect(page.getByText(/发布信息与 Docker Hub 镜像不一致/)).toBeVisible();await expect(page.getByRole('link',{name:'发现新版本 v0.29.0',exact:true})).toHaveCount(0);await page.screenshot({path:resolve(dir,`untrusted-${width}.png`),fullPage:true,animations:'disabled'});const after=await page.locator('.f8-about').boundingBox();expect(after?.width).toBe(box?.width);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

@@ -37,3 +37,5 @@ it.each([['access','general'],['library','naming'],['automation','automation'],[
 it('moves the former library plugin source into discovery without dropping other filters or hash',async()=>{const r=getRouter();await r.push('/library?source=plugins&keep=yes#owned');expect(r.currentRoute.value.path).toBe('/search');expect(r.currentRoute.value.query).toMatchObject({tab:'discover',kind:'discover.source',keep:'yes'});expect(r.currentRoute.value.query.source).toBeUndefined();expect(r.currentRoute.value.hash).toBe('#owned')});
 
 it('redirects the removed overview to storage without dropping other query or hash',async()=>{const r=getRouter();await r.push('/connections?tab=overview&keep=yes#form');expect(r.currentRoute.value.path).toBe('/connections');expect(r.currentRoute.value.query).toEqual({tab:'storage',keep:'yes'});expect(r.currentRoute.value.hash).toBe('#form')});
+
+it("keeps the build/update about tab",async()=>{const r=getRouter();await r.push("/settings?tab=about&keep=yes");expect(r.currentRoute.value.query).toEqual({tab:"about",keep:"yes"})});

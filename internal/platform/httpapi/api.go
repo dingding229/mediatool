@@ -22,6 +22,7 @@ import (
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
 	"media-tool/internal/modules/system"
+	"media-tool/internal/modules/updatecheck"
 	"media-tool/internal/platform/auth"
 	"media-tool/internal/platform/buildinfo"
 	deferutil "media-tool/internal/platform/cleanup"
@@ -48,6 +49,7 @@ type SessionReader interface {
 	Session(context.Context, []byte) (accounts.Account, error)
 }
 type Dependencies struct {
+	UpdateChecker     *updatecheck.Service
 	IPGeo             *ipgeo.Service
 	PlaybackStats     playbackstats.Sink
 	PluginInstances   PluginInstances
@@ -184,6 +186,11 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("PUT /api/v1/classification", a.protected(a.saveClassification))
 	mux.HandleFunc("POST /api/v1/classification/preview", a.protected(a.previewClassification))
 	mux.HandleFunc("GET /api/v1/system/status", a.protected(a.status))
+	mux.HandleFunc("GET /api/v1/system/version", a.protected(a.versionInfo))
+	mux.HandleFunc("GET /api/v1/system/updates", a.protected(a.updateState))
+	mux.HandleFunc("PUT /api/v1/system/updates/settings", a.protected(a.saveUpdateSettings))
+	mux.HandleFunc("POST /api/v1/system/updates/check", a.protected(a.checkUpdates))
+	mux.HandleFunc("POST /api/v1/system/updates/notice", a.protected(a.updateNotice))
 	mux.HandleFunc("GET /api/v1/ip-geolocation", a.protected(a.ipLocations))
 	mux.HandleFunc("GET /api/v1/ip-geolocation/settings", a.protected(a.ipGeoSettings))
 	mux.HandleFunc("PUT /api/v1/ip-geolocation/settings", a.protected(a.saveIPGeoSettings))

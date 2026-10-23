@@ -21,6 +21,8 @@ test_db_exec "INSERT INTO directory_classification(singleton,value,revision)VALU
 test_db_exec "INSERT INTO native_server_settings(server_id)VALUES(replace(gen_random_uuid()::text,'-','')) ON CONFLICT(singleton)DO NOTHING"
 test_db_exec "UPDATE native_server_settings SET enabled=false,probe_enabled=true,stills_enabled=true,revision=revision+1 WHERE singleton"
 test_db_exec "UPDATE player_ua_policy SET enabled=false,revision=1 WHERE id='main'"
+# Background checks are read-only but fixture suites must not call public networks.
+test_db_exec "INSERT INTO app_settings(key,value)VALUES('system.update-check','{\"enabled\":false}') ON CONFLICT(key)DO UPDATE SET value='{\"enabled\":false}'"
 test_db_exec 'TRUNCATE player_ua_rules,player_ua_observations,player_access_events'
 
 test_db_exec "INSERT INTO site_metric_schedule(singleton,enabled,cron_expression,revision,next_run_at) VALUES(true,false,'0 * * * *',1,now()+interval '1 hour') ON CONFLICT(singleton) DO UPDATE SET enabled=false,cron_expression='0 * * * *',revision=1,next_run_at=now()+interval '1 hour',last_dispatched_at=NULL"
@@ -47,10 +49,12 @@ export CLOUDDRIVE_ENDPOINT='' CLOUDDRIVE_TOKEN='' CLOUDDRIVE_USERNAME='' CLOUDDR
 if [[ -n "${MEDIA_TOOL_DEV_BIN:-}" ]];then cp "$MEDIA_TOOL_DEV_BIN" "$private/media-tool-dev";else go build -o "$private/media-tool-dev" ./cmd/media-tool-dev;fi
 export E2E_EMBY_ENDPOINT=http://127.0.0.1:18086
 "$private/media-tool-dev" fixture-emby >"$private/provider.log" 2>&1 & pids+=("$!")
+eval "$(devtool build-meta env)"
+export E2E_BUILD_VERSION="$MEDIA_TOOL_BUILD_VERSION"
 export E2E_ISOLATED=1 E2E_BASE_URL=http://localhost:18084 E2E_ADMIN_USERNAME=e2e_admin
 export E2E_ADMIN_PASSWORD="$(devtool fixture-password)"
 go run ./cmd/media-tool migrate -test-only >/dev/null
-if [[ -n "${MEDIA_TOOL_STATIC_TEST_BINARY:-}" ]];then copy_test_app "$private/media-tool";else go build -o "$private/media-tool" ./cmd/media-tool;fi
+if [[ -n "${MEDIA_TOOL_STATIC_TEST_BINARY:-}" ]];then copy_test_app "$private/media-tool";else go build -ldflags="$MEDIA_TOOL_LDFLAGS" -o "$private/media-tool" ./cmd/media-tool;fi
 "$private/media-tool" -role all >"$private/server.log" 2>&1 & pids+=("$!")
 
 for ((i=0;i<60;i++));do if curl -fsS --max-time 2 "$E2E_BASE_URL/readyz" >/dev/null 2>&1;then break;fi;sleep .5;done

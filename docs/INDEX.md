@@ -37,3 +37,5 @@
 - [媒体协议接口](NATIVE_EMBY_SERVER.md)
 - [前端 API 与业务流程](FRONTEND_API.md) · [接口使用清单](FRONTEND_API_ROUTES.md)
 - [OpenAPI](../api/openapi.yaml) · [前端界面规范](FRONTEND_DESIGN_MASTER.md)
+
+- [版本号与只读更新检查](VERSIONING.md) · [中文更新日志](../CHANGELOG.md)

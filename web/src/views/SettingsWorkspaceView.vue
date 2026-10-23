@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import PageHeader from '../ui/PageHeader.vue';
 import PageTabs from '../ui/PageTabs.vue';
+import AboutPanel from '../settings/AboutPanel.vue';
 import IPGeoSettings from '../settings/IPGeoSettings.vue';
 import ConfigPanel from '../settings/ConfigPanel.vue';
 import ClassificationPanel from '../settings/ClassificationPanel.vue';
@@ -31,5 +32,6 @@ watch(tab, value => {
     <ExternalAccessPanel v-if="tab==='api'"/>
     <MobilePanel v-if="tab==='mobile'"/>
     <AccountPanel v-if="tab==='security'"/>
+    <AboutPanel v-if="tab==='about'"/>
   </div>
 </template>

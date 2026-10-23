@@ -1,0 +1,10 @@
+import {beforeEach,expect,it,vi} from 'vitest';
+import {createPinia,setActivePinia} from 'pinia';
+import {useUpdateStore} from './updates';
+import {getBuildInfo,getUpdateState,takeUpdateNotice} from '../api/updates';
+vi.mock('../api/updates',()=>({getBuildInfo:vi.fn(),getUpdateState:vi.fn(),takeUpdateNotice:vi.fn()}));
+const build={version:'0.28.0',commit:'a'.repeat(40),buildTime:'2026-10-23T00:00:00Z',schema:79,minimumSchema:79,pluginPin:'synthetic-pin'};
+const release={...build,version:'0.29.0',tag:'v0.29.0',notes:'<script>inert</script>',digest:'sha256:'+'b'.repeat(64),repository:'dingding229/mediatool',platform:'linux/amd64',publishedAt:'2026-10-23T00:00:00Z',url:'https://github.com/dingding229/mediatool/releases/tag/v0.29.0'};
+beforeEach(()=>{setActivePinia(createPinia());vi.resetAllMocks();vi.mocked(getBuildInfo).mockResolvedValue(build);vi.mocked(getUpdateState).mockResolvedValue({enabled:true,current:build,hasUpdate:true,intervalHours:12,result:{checkedAt:'2026-10-23T00:00:00Z',status:'verified',latest:release}});vi.mocked(takeUpdateNotice).mockResolvedValueOnce({release}).mockResolvedValue({release:null})});
+it('claims one notice, dismisses it and never re-notifies an already claimed version',async()=>{const s=useUpdateStore();await s.refresh();expect(s.notice?.tag).toBe('v0.29.0');expect(s.build?.schema).toBe(79);s.dismiss();await s.refresh();expect(s.notice).toBeUndefined();expect(takeUpdateNotice).toHaveBeenCalledTimes(2)});
+it('keeps old data during refresh and suppresses notices after a trust failure',async()=>{const s=useUpdateStore();await s.refresh();s.accept({...s.state!,hasUpdate:false,result:{checkedAt:'',status:'untrusted',latest:null}});expect(s.notice).toBeUndefined();expect(s.build?.version).toBe('0.28.0')});

@@ -48,6 +48,10 @@ func Run(args []string) error {
 		return e
 	}
 	switch args[0] {
+	case "build-meta":
+		return buildMetaCommand(root, args[1:])
+	case "release-notes":
+		return releaseNotesCommand(root, args[1:])
 	case "test-lock":
 		return locked(root, args[1:])
 	case "test-env":
