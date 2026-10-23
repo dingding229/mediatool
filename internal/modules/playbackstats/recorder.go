@@ -8,6 +8,7 @@ import (
 	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/clientip"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,16 +25,17 @@ type Snapshot struct {
 }
 type Sink interface{ Submit(Snapshot) }
 type Recorder struct {
-	queue chan Snapshot
-	db    *pgxpool.Pool
-	log   *slog.Logger
+	dropped atomic.Uint64
+	queue   chan Snapshot
+	db      *pgxpool.Pool
+	log     *slog.Logger
 }
 
 func New(db *pgxpool.Pool, log *slog.Logger) *Recorder {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Recorder{make(chan Snapshot, 1024), db, log}
+	return &Recorder{queue: make(chan Snapshot, 1024), db: db, log: log}
 }
 
 // Bounded, nonblocking admission: analytics cannot delay or fail a 302.
@@ -47,7 +49,7 @@ func (r *Recorder) Submit(v Snapshot) {
 	select {
 	case r.queue <- v:
 	default:
-		r.log.Warn("播放统计队列已满，本次统计未写入", "module", "playbackstats")
+		r.dropped.Add(1)
 	}
 }
 
@@ -79,6 +81,9 @@ func (r *Recorder) Run(ctx context.Context, retention func(context.Context) (int
 				r.log.Warn("播放统计写入失败，不影响播放", "module", "playbackstats")
 			}
 		case now := <-tick.C:
+			if n := r.dropped.Swap(0); n > 0 {
+				r.log.Warn("播放统计队列已满，部分统计未写入", "module", "playbackstats", "dropped", n)
+			}
 			c, cancel := context.WithTimeout(ctx, 5*time.Second)
 			days, e := retention(c)
 			if e == nil {
