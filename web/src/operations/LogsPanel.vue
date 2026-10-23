@@ -72,7 +72,7 @@ function download() {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-watch(() => [route.query.module, route.query.instance], ([m, i]) => {
+watch([() => route.query.module, () => route.query.instance], ([m, i]) => {
   filter.module = typeof m === 'string' ? m : '';
   filter.instance = typeof i === 'string' ? i : '';
   refresh();
