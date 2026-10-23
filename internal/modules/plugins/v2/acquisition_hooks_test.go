@@ -48,6 +48,17 @@ func readyPolicyReply(s Store, raw json.RawMessage, fail bool, start func(contex
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
+		// A fake peer must provide the same completion hints as the real pump.
+		// Without a registered lane a committed reply waits for the 30ms fallback
+		// poll and can miss the unchanged 200ms policy deadline under CI load.
+		lanes := map[mailboxKey]*mailboxLane{}
+		cleanup := func() {
+			for key, lane := range lanes {
+				lane.completed()
+				mailboxLanes.CompareAndDelete(key, lane)
+			}
+		}
+		finish := func(e error) { cleanup(); done <- e }
 		announced := false
 		announce := func() {
 			if !announced {
@@ -58,27 +69,49 @@ func readyPolicyReply(s Store, raw json.RawMessage, fail bool, start func(contex
 		defer announce()
 		if start != nil {
 			if e := start(ctx); e != nil {
-				done <- e
+				finish(e)
 				return
 			}
 		}
 		conn, e := s.DB.Acquire(ctx)
 		if e != nil {
-			done <- e
+			finish(e)
 			return
 		}
 		defer conn.Release()
+		rows, e := conn.Query(ctx, `SELECT id::text FROM plugin_v2_instances WHERE desired_state='enabled' AND runtime_state='running'`)
+		if e != nil {
+			finish(e)
+			return
+		}
+		for rows.Next() {
+			var instance string
+			if e = rows.Scan(&instance); e != nil {
+				rows.Close()
+				finish(e)
+				return
+			}
+			key := mailboxKey{s.DB, instance}
+			lane := &mailboxLane{wake: make(chan struct{}, 1), changed: make(chan struct{})}
+			mailboxLanes.Store(key, lane)
+			lanes[key] = lane
+		}
+		rows.Close()
+		if e = rows.Err(); e != nil {
+			finish(e)
+			return
+		}
 		var preexisting []string
 		var submittedAfter time.Time
 		if e = conn.QueryRow(ctx, `SELECT clock_timestamp(),coalesce(array_agg(id::text),ARRAY[]::text[]) FROM plugin_v2_runs WHERE kind='chain' AND state='pending'`).Scan(&submittedAfter, &preexisting); e != nil {
-			done <- e
+			finish(e)
 			return
 		}
 		// Exclude earlier transactions which are not yet visible to this snapshot
 		// but can commit after readiness; IDs alone cannot fence those calls.
 		// Cold AEAD/DB initialization belongs to fake peer setup, not handler latency.
 		if _, e = s.seal("call-result", jobs.UUID(), raw); e != nil {
-			done <- e
+			finish(e)
 			return
 		}
 		for ctx.Err() == nil {
@@ -90,7 +123,7 @@ func readyPolicyReply(s Store, raw json.RawMessage, fail bool, start func(contex
 				continue
 			}
 			if e != nil {
-				done <- e
+				finish(e)
 				return
 			}
 			state := RunSucceeded
@@ -100,7 +133,7 @@ func readyPolicyReply(s Store, raw json.RawMessage, fail bool, start func(contex
 			} else {
 				cipher, e = s.seal("call-result", id, raw)
 				if e != nil {
-					done <- e
+					finish(e)
 					return
 				}
 			}
@@ -108,10 +141,10 @@ func readyPolicyReply(s Store, raw json.RawMessage, fail bool, start func(contex
 			if updateErr == nil && tag.RowsAffected() != 1 {
 				updateErr = errors.New("fake policy reply target no longer eligible")
 			}
-			done <- updateErr
+			finish(updateErr)
 			return
 		}
-		done <- ctx.Err()
+		finish(ctx.Err())
 	}()
 	<-ready
 	return done

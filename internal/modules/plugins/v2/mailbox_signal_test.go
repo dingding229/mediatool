@@ -198,3 +198,36 @@ func TestMailboxRestartReplacesOldLaneBeforeDeferredCleanup(t *testing.T) {
 		t.Fatal("replacement observers stranded on exit")
 	}
 }
+
+func TestScriptedPolicyPeerPublishesCommittedCompletion(t *testing.T) {
+	s, l := policyFixture(t)
+	done := policyReply(s, json.RawMessage(`{"ids":[]}`), false)
+	lane := s.mailbox(l.ID)
+	if lane == nil {
+		t.Fatal("fake peer readiness omitted real pump lane")
+	}
+	changed := lane.observed()
+	snap, d, e := s.Descriptor(t.Context(), l.ID, "chain", "resource.selection")
+	if e != nil {
+		t.Fatal(e)
+	}
+	id, e := s.Submit(t.Context(), snap, d, json.RawMessage(`{}`), "fake-signal:"+jobs.UUID(), "", nil, time.Now().Add(time.Second))
+	if e != nil {
+		t.Fatal(e)
+	}
+	select {
+	case <-changed:
+	case <-time.After(time.Second):
+		t.Fatal("committed fake reply did not notify waiter")
+	}
+	if e = <-done; e != nil {
+		t.Fatal(e)
+	}
+	var state RunState
+	if e = s.DB.QueryRow(t.Context(), `SELECT state FROM plugin_v2_runs WHERE id=$1`, id).Scan(&state); e != nil || state != RunSucceeded {
+		t.Fatal("wake before durable reply", state, e)
+	}
+	if s.mailbox(l.ID) != nil {
+		t.Fatal("finished fake peer lane retained")
+	}
+}
