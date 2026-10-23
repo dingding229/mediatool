@@ -102,6 +102,7 @@ usePageRefresh(()=>load(true));
     </div>
 
   </header>
+  <div class="f5-proxy-form">
   <form v-if="saved" class="connection-editor" @submit.prevent="save">
     <p>{{ saved.url?'代理地址已设置（默认隐藏）':'尚未设置代理地址' }}</p>
     <label>
@@ -122,5 +123,6 @@ usePageRefresh(()=>load(true));
     <p v-if="notice" role="status">{{ notice }}</p>
   </form>
   <el-alert v-if="error" :title="error" type="warning" :closable="false" />
+  </div>
 </section>
 </template>
