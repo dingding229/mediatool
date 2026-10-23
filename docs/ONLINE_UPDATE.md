@@ -37,3 +37,5 @@ F8a 的 v0.28.0 不含更新执行器，不能在不覆盖已发布 tag/digest �
 CI 通过固定 v0.28.0 镜像 digest 提取并缓存已有 ffmpeg/ffprobe 和 musl 依赖，不启动 app、不读取业务卷、不使用凭据；官方 actions/cache v5 固定 commit。只删除带 CI 专用 label 的临时提取容器，失败才走原 apt 后备。测试与预算不变。
 
 断连恢复：inspect/start 响应丢失不是“容器不存在/启动失败”。按固定任务名重新核对已有 helper，不复制执行器，不覆盖它已写入的阶段。只有明确失败且复核为未运行的本任务容器才删除；Docker 状态不明时禁止恢复数据库，转为待运维处理。
+
+凭据隔离：`/data/online-update/*.plan` 仅存容器身份、配置指纹及启动 helper 必需的非敏感挂载/网络标识，不存 Env、命令或自定义 label。初次执行从白名单 inspect 获取原配置；替换前完整快照以 0600 写入宿主机 private/0700，恢复时核对配置指纹。该目录不挂入常驻 app/worker，不能因 Landlock 不可用而把 master key/数据库凭据暴露到共享数据目录。

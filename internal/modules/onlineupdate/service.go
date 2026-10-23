@@ -30,9 +30,10 @@ type Status struct {
 	Job            *Job   `json:"job"`
 }
 type plan struct {
-	Self        Container
-	TargetImage string
-	JobID       string
+	Self               Container
+	TargetImage        string
+	JobID              string
+	ConfigurationProof string
 }
 
 func New(db *pgxpool.Pool, checker *updatecheck.Service) *Service { return &Service{db, checker, Root} }
@@ -176,7 +177,7 @@ func (s *Service) Start(ctx context.Context, actor, version, digest string) (Job
 		return j, e
 	}
 	j = Job{ID: id, Actor: actor, FromVersion: buildinfo.Version, FromImage: fmtString(d.self.Config["Image"]), Target: r, CreatedAt: time.Now().UTC()}
-	p := plan{d.self, updatecheck.Repository + "@" + r.Digest, id}
+	p := newPlan(d.self, updatecheck.Repository+"@"+r.Digest, id)
 	b, e := json.Marshal(p)
 	if e != nil {
 		return j, e
@@ -210,7 +211,7 @@ func readPlan(root, id string) (plan, error) {
 		return p, e
 	}
 	e = json.Unmarshal(b, &p)
-	if e != nil || p.JobID != id || !validImage(p.TargetImage) || len(p.Self.ID) != 64 || !containerID.MatchString(p.Self.ID) || labels(p.Self)["com.docker.compose.project"] == "" || labels(p.Self)["com.docker.compose.service"] != "app" {
+	if e != nil || p.JobID != id || !validImage(p.TargetImage) || len(p.ConfigurationProof) != 64 || len(p.Self.ID) != 64 || !containerID.MatchString(p.Self.ID) || labels(p.Self)["com.docker.compose.project"] == "" || labels(p.Self)["com.docker.compose.service"] != "app" {
 		return p, ErrUnsafe
 	}
 	return p, nil

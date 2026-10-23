@@ -99,6 +99,13 @@ func (r *runner) Backup(ctx context.Context, j *Job) error {
 	if e = atomicFile(filepath.Join(dir, "docker-compose.before.yml"), before); e != nil {
 		return e
 	}
+	snapshot, e := json.Marshal(r.d.self)
+	if e != nil {
+		return e
+	}
+	if e = atomicFile(filepath.Join(dir, "container.before.json"), snapshot); e != nil {
+		return e
+	}
 	b, e := r.compose(ctx, "config", "--format", "json")
 	if e != nil {
 		return e
@@ -420,6 +427,9 @@ func RunUpdater(ctx context.Context, id string) error {
 	if e != nil {
 		return e
 	}
+	if j.Done() {
+		return nil
+	}
 	p, e := readPlan(Root, id)
 	if e != nil {
 		return e
@@ -428,6 +438,21 @@ func RunUpdater(ctx context.Context, id string) error {
 	d.self = p.Self
 	d.target = p.TargetImage
 	d.task = id
+	original, identityErr := originalContainer(ctx, d, p, j)
+	if identityErr != nil {
+		if errors.Is(identityErr, ErrUnsafe) {
+			j.Failure = "execution_identity_unavailable"
+			phase := "failed"
+			if j.Phase == "applying" || j.Phase == "checking" || j.Phase == "rolling_back" {
+				phase = "manual_recovery"
+			}
+			if persistErr := advance(Root, &j, phase); persistErr != nil {
+				return persistErr
+			}
+		}
+		return identityErr
+	}
+	d.self = original
 	listener, e := net.Listen("tcp", "127.0.0.1:0")
 	if e != nil {
 		return e
