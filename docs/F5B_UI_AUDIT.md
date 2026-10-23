@@ -2,20 +2,20 @@
 
 业务页面在隔离 `media_tool_test` / Redis DB15 中逐页检查；没有修改生产权限或密码。每个业务入口覆盖 1440×1000 和 390×844，API 延迟 180ms，记录首次加载 CLS、页头坐标、刷新前后首个工作区坐标及横向溢出。
 
-以下是阶段 5 的 42 个业务入口基线（84 个 viewport）；正常空库/未配置态使用真实测试 API，非空列表、异步详情和弹窗另由客户端序列 E2E 覆盖。截图及完整 boundingBox/位移来源只保存在忽略的 `data/private/f5/f5b/loading/`，不发布运行日志。
+以下是最终完整回归中的 42 个业务入口（84 个 viewport）；正常空库/未配置态使用真实测试 API，非空列表、异步详情和弹窗另由客户端序列 E2E 覆盖。截图及完整 boundingBox/位移来源只保存在忽略的 `data/private/f5/f5b/loading/`，不发布运行日志。
 
 | 页面 | 桌面 CLS | 窄屏 CLS | 刷新 bbox 最大变化（px） |
 |---|---:|---:|---:|
-| /connections?tab=aux | 0.00931 | 0.00000 | 0.00 |
-| /connections?tab=downloader | 0.00000 | 0.00000 | 0.00 |
-| /connections?tab=emby | 0.00000 | 0.00000 | 0.00 |
-| /connections?tab=notifications | 0.00000 | 0.00000 | 0.00 |
-| /connections?tab=storage | 0.00000 | 0.00000 | 0.00 |
+| /connections?tab=aux | 0.00015 | 0.00032 | 0.00 |
+| /connections?tab=downloader | 0.00015 | 0.00032 | 0.00 |
+| /connections?tab=emby | 0.00015 | 0.00000 | 0.00 |
+| /connections?tab=notifications | 0.00015 | 0.00032 | 0.00 |
+| /connections?tab=storage | 0.00097 | 0.00000 | 0.00 |
 | /dashboard | 0.00000 | 0.00009 | 0.00 |
 | /downloads?tab=manual | 0.00000 | 0.00000 | 0.00 |
 | /downloads?tab=tasks | 0.00008 | 0.00033 | 0.00 |
 | /downloads?tab=uploads | 0.00000 | 0.00000 | 0.00 |
-| /files?tab=browser | 0.00104 | 0.00000 | 0.00 |
+| /files?tab=browser | 0.00592 | 0.00000 | 0.00 |
 | /files?tab=strm | 0.00000 | 0.00002 | 0.00 |
 | /files?tab=tools | 0.00000 | 0.00000 | 0.00 |
 | /library?tab=browse | 0.00000 | 0.00000 | 0.00 |
@@ -30,7 +30,7 @@
 | /organize?tab=recovery | 0.00000 | 0.00000 | 0.00 |
 | /organize?tab=scans | 0.00000 | 0.00000 | 0.00 |
 | /playback?tab=players | 0.00000 | 0.00000 | 0.00 |
-| /playback?tab=processing | 0.00508 | 0.00000 | 0.00 |
+| /playback?tab=processing | 0.00000 | 0.00000 | 0.00 |
 | /playback?tab=sessions | 0.00000 | 0.00000 | 0.00 |
 | /playback?tab=settings | 0.00000 | 0.00000 | 0.00 |
 | /playback?tab=users | 0.00000 | 0.00000 | 0.00 |
@@ -39,12 +39,12 @@
 | /search?tab=discover | 0.00000 | 0.00000 | 0.00 |
 | /search?tab=history | 0.00000 | 0.00000 | 0.00 |
 | /search?tab=query | 0.00595 | 0.00000 | 0.00 |
-| /settings?tab=api | 0.00000 | 0.00000 | 0.00 |
+| /settings?tab=api | 0.00019 | 0.00144 | 0.00 |
 | /settings?tab=automation | 0.00000 | 0.00000 | 0.00 |
 | /settings?tab=general | 0.00000 | 0.00000 | 0.00 |
 | /settings?tab=mobile | 0.00000 | 0.00000 | 0.00 |
 | /settings?tab=naming | 0.00000 | 0.00000 | 0.00 |
-| /settings?tab=security | 0.00855 | 0.00000 | 0.00 |
+| /settings?tab=security | 0.00365 | 0.00000 | 0.00 |
 | /sites?tab=accounts | 0.00000 | 0.00001 | 0.00 |
 | /sites?tab=templates | 0.00000 | 0.00000 | 0.00 |
 | /subscriptions | 0.00000 | 0.00000 | 0.00 |
@@ -82,3 +82,6 @@ APP_ENV 按业主要求暂缓，开发环境标识不隐藏。无上游总数的
 补充边界：恢复/回滚与丢失回执核对依赖同一份有界聚合快照，备份、演练、维护单、告警、服务连接及 API 凭据/调用保留该接口供核验/选择使用，但列表 DOM 已统一为本地分页并把页码写入 URL；它们不是“每次只传当前页”的 SQL 列表。业务大列表采用 SQL 当前页。此取舍不改变已批准的恢复证明、凭据只显示一次和操作回读流程。
 
 最终安全复查另外覆盖：字符串 source 原值不被快速日志索引丢弃；清空与快照失效在同一互斥边界；只恢复受限 0600 中断暂存文件；设置读取失败时停止保留清理并关闭 Debug，不能回退为更短的保留期限；旧的设置读取不能覆盖已确认保存，每批删除重新读取当前期限；仅修改保留天数不会偷偷延长正在开启的 Debug。
+
+
+最终本地验证：全量 Go race（串行测试库）、vet、617 项 Vitest/guards、前端 build；浏览器完整相关套件 366 通过、2 项既有条件跳过。42 个业务入口 × 2 视口的最大 CLS 为 0.005946；日志副本同机查询中位耗时 94→65ms，同一快照翻页约 1ms。线上耗时在实际部署后另验，不能用本地数字冒充。
