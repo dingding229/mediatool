@@ -123,7 +123,7 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "registration_failed", "注册未确认成功，请检查登录服务后重试")
 		return
 	}
-	a.Auth.SetCookie(w, token)
+	a.Auth.SetCookieUntil(w, token, account.SessionExpiresAt, account.SessionObservedAt)
 	write(w, 201, map[string]any{"authenticated": true, "account": account, "registrationOpen": false})
 }
 func (a *API) login(w http.ResponseWriter, r *http.Request) {
@@ -162,11 +162,12 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		fail(w, 500, "session_failed", "无法建立管理会话")
 		return
 	}
-	if err = a.accountRepository().CreateSession(ctx, account, token, adminSessionMetadata(r)); err != nil {
+	expiresAt, err := a.accountRepository().CreateSession(ctx, account, token, adminSessionMetadata(r))
+	if err != nil {
 		fail(w, 503, "session_unavailable", "账号状态已改变或会话数据库不可用，请重新登录")
 		return
 	}
-	a.Auth.SetCookie(w, token)
+	a.Auth.SetCookieUntil(w, token, expiresAt.ExpiresAt, expiresAt.AsOf)
 	write(w, 200, map[string]any{"authenticated": true, "account": account})
 }
 func (a *API) accountSession(w http.ResponseWriter, r *http.Request) {

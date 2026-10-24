@@ -53,16 +53,48 @@ type SessionPage struct {
 	HasNext bool          `json:"hasNext"`
 }
 
-// Touch only a still-valid session; authentication itself always reads PG, never
-// an authority cache. Record raw UA/IP, bounded UA/IP, never cookies, hashes or login bodies.
-func (r Repository) TouchSession(ctx context.Context, digest []byte, metadata SessionMetadata) error {
+// SessionDeadline carries authoritative database times, never cookie/token material.
+type SessionDeadline struct {
+	ExpiresAt time.Time
+	AsOf      time.Time
+}
+
+// TouchResult refreshes a cookie only after a committed renewal.
+// A throttled or no-longer-valid row returns the zero value.
+type TouchResult struct {
+	SessionDeadline
+	Renewed bool
+}
+
+// Capture one DB timestamp and lock only due rows. The strict renewal condition is
+// expires_at < min(now+7d,created_at+30d)-1h, independent of last_active_at.
+const touchSessionSQL = `WITH clock AS MATERIALIZED (SELECT statement_timestamp() AS now),
+ candidate AS MATERIALIZED (
+ SELECT s.id,s.expires_at,c.now,
+ least(c.now+interval '7 days',s.created_at+interval '30 days') AS target,
+ (NOT a.must_change_password AND a.temporary_password_expires_at IS NULL AND s.expires_at<least(c.now+interval '7 days',s.created_at+interval '30 days')-interval '1 hour') AS renew
+ FROM administrator_sessions s JOIN administrator_accounts a ON a.id=s.account_id CROSS JOIN clock c
+ WHERE s.token_digest=$1 AND s.credential_version=a.credential_version AND s.revoked_at IS NULL
+ AND s.expires_at>c.now AND s.created_at+interval '30 days'>c.now AND coalesce(a.temporary_password_expires_at>c.now,true)
+ AND (s.last_active_at<c.now-interval '60 seconds' OR s.ip<>$2 OR s.user_agent<>$3 OR
+ (NOT a.must_change_password AND a.temporary_password_expires_at IS NULL AND s.expires_at<least(c.now+interval '7 days',s.created_at+interval '30 days')-interval '1 hour'))
+ FOR UPDATE OF s
+ ) UPDATE administrator_sessions s SET last_active_at=greatest(s.last_active_at,c.now),ip=$2,user_agent=$3,
+ expires_at=CASE WHEN c.renew THEN c.target ELSE c.expires_at END FROM candidate c WHERE s.id=c.id
+ RETURNING s.expires_at,c.now,c.renew`
+
+func (r Repository) TouchSession(ctx context.Context, digest []byte, metadata SessionMetadata) (TouchResult, error) {
+	var out TouchResult
 	metadata.IP = clientip.Sanitize(metadata.IP)
 	metadata.UserAgent = boundedUserAgent(metadata.UserAgent)
-	_, err := r.DB.Exec(ctx, `UPDATE administrator_sessions s SET last_active_at=clock_timestamp(),ip=$2,user_agent=$3 FROM administrator_accounts a WHERE s.token_digest=$1 AND s.account_id=a.id AND s.credential_version=a.credential_version AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND (s.last_active_at < clock_timestamp()-interval '60 seconds' OR s.ip<>$2 OR s.user_agent<>$3)`, digest, metadata.IP, metadata.UserAgent)
-	return err
+	err := r.DB.QueryRow(ctx, touchSessionSQL, digest, metadata.IP, metadata.UserAgent).Scan(&out.ExpiresAt, &out.AsOf, &out.Renewed)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return TouchResult{}, nil
+	}
+	return out, err
 }
 func (r Repository) Sessions(ctx context.Context, digest []byte, page int) (SessionPage, error) {
-	rows, err := r.DB.Query(ctx, `SELECT s.id::text,a.id::text,a.username,s.created_at,s.last_active_at,s.expires_at,s.ip,s.user_agent,s.token_digest=$1 FROM administrator_sessions s JOIN administrator_accounts a ON a.id=s.account_id WHERE s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND s.credential_version=a.credential_version AND coalesce(a.temporary_password_expires_at>clock_timestamp(),true) ORDER BY s.created_at DESC,s.id LIMIT 51 OFFSET $2`, digest, (page-1)*50)
+	rows, err := r.DB.Query(ctx, `SELECT s.id::text,a.id::text,a.username,s.created_at,s.last_active_at,s.expires_at,s.ip,s.user_agent,s.token_digest=$1 FROM administrator_sessions s JOIN administrator_accounts a ON a.id=s.account_id WHERE s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND s.created_at+interval '30 days'>clock_timestamp() AND s.credential_version=a.credential_version AND coalesce(a.temporary_password_expires_at>clock_timestamp(),true) ORDER BY s.created_at DESC,s.id LIMIT 51 OFFSET $2`, digest, (page-1)*50)
 	if err != nil {
 		return SessionPage{}, err
 	}

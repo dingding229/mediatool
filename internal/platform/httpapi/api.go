@@ -357,7 +357,7 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 }
 func (a *API) protected(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		account, err := a.sessionAccount(r)
+		account, err := a.activeSessionAccount(w, r)
 		if err != nil {
 			fail(w, 401, "unauthorized", "请使用管理员账号密码登录")
 			return

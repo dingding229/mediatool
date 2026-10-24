@@ -27,6 +27,16 @@ Origin: https://admin.example.invalid
 
 成功一般为 `{"data": ...}`；错误为 `{"error":{"code":"...","message":"...","flow":{...}}}`。`flow` 可省略，不是所有失败都能重试。二进制、STRM、SSE、Emby原生/兼容响应**不是**普通 JSON Envelope，不要交给 `web/src/api/client.ts` 的 `request()` 强行解析。`X-Request-ID` 可用于私有日志排错；不要把错误响应、日志/数据视图里的原值复制进公开产物。
 
+### 管理员会话续期（T1 / v0.32.1）
+
+- 普通管理员新登录的数据库有效期和Cookie初始MaxAge为7天。认证先校验现有v2 Token的格式与HMAC签名，再实时查询PostgreSQL；Token中的历史8小时时间字段不再决定管理端会话过期。
+- 数据库必须命中未撤销、凭据版本一致、未过期且未超过`created_at+30天`的会话，并通过临时密码期限检查；没有数据库有效记录就不能认证，旧过期会话不会被续活。
+- 续期与既有活动更新在同一条SQL中完成。只有`expires_at < min(now+7天, created_at+30天)-1小时`才更新到该最小值；活动记录的60秒节流和续期窗口相互独立，不新增数据库字段或迁移。
+- 仅提交成功的续期下发Set-Cookie；沿用同一Cookie值和会话身份，Expires与MaxAge使用数据库返回的到期时间及数据库时钟计算，保留HttpOnly/SameSite/Secure/Path属性。写入失败不伪报续期成功；退出或撤销当前会话的清除Cookie覆盖同响应内的续期Cookie。
+- 临时恢复密码会话不续为长期会话，新登录期限仍受临时密码截止时间约束。改密、撤销、管理员重置和owner recovery的失效机制不变。
+- SSE初次HTTP鉴权可续期；响应头发出后的心跳只读复核授权。网页恢复路径保留原有不触碰活动记录的边界，10分钟新登录校验仍使用created_at，续期不修改created_at。
+- 前端无需读取、保存或导出Cookie，只需沿用现有API客户端的同源凭据策略；无新增“记住我”、续期API或登录交互。
+
 ### 状态与错误处理
 
 | HTTP / code | 前端动作 |

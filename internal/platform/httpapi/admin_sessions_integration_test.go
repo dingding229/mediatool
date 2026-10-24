@@ -23,7 +23,7 @@ func TestAdminSessionEnumerationAndSingleRevoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	second, _ := (auth.Auth{Key: c.SessionKey}).Issue(time.Now())
-	if err = repo.CreateSession(ctx, account, second, accounts.SessionMetadata{IP: "1.1.1.1", UserAgent: "Second/1.0"}); err != nil {
+	if _, err = repo.CreateSession(ctx, account, second, accounts.SessionMetadata{IP: "1.1.1.1", UserAgent: "Second/1.0"}); err != nil {
 		t.Fatal(err)
 	}
 	h := New(c, Dependencies{DB: s.DB})

@@ -12,11 +12,8 @@ import (
 )
 
 func (a *API) sessionAccount(r *http.Request) (accounts.Account, error) {
-	if !a.Auth.Authorized(r) {
-		return accounts.Account{}, accounts.ErrCredentials
-	}
 	cookie, err := r.Cookie(auth.CookieName)
-	if err != nil {
+	if err != nil || !a.Auth.VerifySignature(cookie.Value) {
 		return accounts.Account{}, accounts.ErrCredentials
 	}
 	digest := sha256.Sum256([]byte(cookie.Value))
@@ -26,15 +23,30 @@ func (a *API) sessionAccount(r *http.Request) (accounts.Account, error) {
 	if reader == nil {
 		reader = a.accountRepository()
 	}
-	account, err := reader.Session(ctx, digest[:])
-	if err == nil && a.Deps.AuthSessions == nil && !strings.HasPrefix(r.URL.Path, "/api/v1/ops/restores") {
-		touchCtx, touchCancel := context.WithTimeout(ctx, 100*time.Millisecond)
-		defer touchCancel()
-		if touchErr := a.accountRepository().TouchSession(touchCtx, digest[:], adminSessionMetadata(r)); touchErr != nil {
-			a.Deps.Logger.Warn("administrator session activity update failed", "error", touchErr)
-		}
+	return reader.Session(ctx, digest[:])
+}
+
+// Call only before response headers start. SSE heartbeats and nested ownership
+// checks use sessionAccount (read-only), never an unobservable DB-only renewal.
+func (a *API) activeSessionAccount(w http.ResponseWriter, r *http.Request) (accounts.Account, error) {
+	account, err := a.sessionAccount(r)
+	if err != nil || a.Deps.AuthSessions != nil || strings.HasPrefix(r.URL.Path, "/api/v1/ops/restores") {
+		return account, err
 	}
-	return account, err
+	cookie, e := r.Cookie(auth.CookieName)
+	if e != nil {
+		return account, accounts.ErrCredentials
+	}
+	digest := sha256.Sum256([]byte(cookie.Value))
+	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
+	defer cancel()
+	touch, e := a.accountRepository().TouchSession(ctx, digest[:], adminSessionMetadata(r))
+	if e != nil {
+		a.Deps.Logger.Warn("administrator session activity update failed", "error", e)
+	} else if touch.Renewed {
+		a.Auth.SetCookieUntil(w, cookie.Value, touch.ExpiresAt, touch.AsOf)
+	}
+	return account, nil
 }
 func (a *API) authorized(r *http.Request) bool { _, err := a.sessionAccount(r); return err == nil }
 func (a *API) revokeSession(r *http.Request) error {

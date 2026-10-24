@@ -125,7 +125,7 @@ func TestRestoreAllBusinessAndReturnToPreSnapshot(t *testing.T) {
 			if err := e.DB.QueryRow(ctx, `SELECT id::text,username,credential_version FROM administrator_accounts WHERE id=$1`, account).Scan(&a.ID, &a.Username, &a.Version); err != nil {
 				t.Fatal(err)
 			}
-			if err := (accounts.Repository{DB: e.DB}).CreateSession(ctx, a, "current-cookie"); err != nil {
+			if _, err := (accounts.Repository{DB: e.DB}).CreateSession(ctx, a, "current-cookie"); err != nil {
 				t.Fatal(err)
 			}
 			if empty {
@@ -263,7 +263,7 @@ func TestRestoreAtomicAuthAndProgressReadableUntilCommit(t *testing.T) {
 	if _, err := e.DB.Exec(ctx, `UPDATE administrator_accounts SET username='during_restore',credential_version=2 WHERE id=$1`, account); err != nil {
 		t.Fatal(err)
 	}
-	if err := (accounts.Repository{DB: e.DB}).CreateSession(ctx, accounts.Account{ID: account, Username: "during_restore", Version: 2}, "pending-current-cookie"); err != nil {
+	if _, err := (accounts.Repository{DB: e.DB}).CreateSession(ctx, accounts.Account{ID: account, Username: "during_restore", Version: 2}, "pending-current-cookie"); err != nil {
 		t.Fatal(err)
 	}
 	r := queueWeb(t, e, target)
