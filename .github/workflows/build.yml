@@ -98,7 +98,7 @@ jobs:
           TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
           MEDIA_TOOL_TEST_HELPER_DOCKER: "1"
           MEDIA_TOOL_TEST_PLUGIN_UID: ""
-        run: bash scripts/test-go.sh ./internal/modules/onlineupdate
+        run: bash scripts/test-updater-helper.sh
       - name: Native AMD64 media concurrency verification (real media required)
         run: go test -race -count=3 -v ./internal/modules/mediaprobe/...
       - name: Native AMD64 release worker isolation kernel gate (static, non-root)
