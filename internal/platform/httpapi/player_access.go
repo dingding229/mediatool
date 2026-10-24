@@ -6,6 +6,7 @@ import (
 	"media-tool/internal/modules/playeraccess"
 	"media-tool/internal/modules/settings"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -75,7 +76,7 @@ func (a *API) admitPlayer(w http.ResponseWriter, r *http.Request) bool {
 	fields := []any{"module", "playback", "entry", entry, "userAgent", r.UserAgent(), "clientIp", addr.ClientIP, "connectionIp", addr.ConnectionIP, "ipSource", addr.Source, "ipPublic", addr.Public, "uaAllowed", d.Allowed, "uaReason", d.Reason, "uaRuleId", d.RuleID, "uaPolicyRevision", d.PolicyRevision}
 	if !d.Allowed {
 		a.Deps.Logger.Warn("player UA denied", fields...)
-		fail(w, 403, "player_ua_denied", "当前播放器User-Agent不在白名单中，请联系管理员添加")
+		fail(w, 403, "player_ua_denied", "当前播放器User-Agent未通过准入策略，请联系管理员")
 		return false
 	}
 	a.Deps.Logger.Debug("player UA admitted; media authorization still required", fields...)
@@ -93,7 +94,7 @@ func (a *API) getPlayerAccess(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) savePlayerAccess(w http.ResponseWriter, r *http.Request) {
 	var in playeraccess.Policy
-	if !decodeLimit(w, r, &in, 600<<10) {
+	if !decodeLimit(w, r, &in, 1200<<10) {
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
@@ -135,7 +136,11 @@ func (a *API) allowPlayerObservation(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	p, err := a.playerAccessRepo().AllowObservation(ctx, r.PathValue("id"), in.Label, in.Revision)
+	list := "whitelist"
+	if strings.HasSuffix(r.URL.Path, "/block") {
+		list = "blacklist"
+	}
+	p, err := a.playerAccessRepo().AddObservation(ctx, r.PathValue("id"), in.Label, in.Revision, list)
 	if err != nil {
 		playerAccessError(w, err)
 		return
@@ -165,5 +170,6 @@ func (a *API) registerPlayerAccess(mux routeRegistrar) {
 	mux.HandleFunc("PUT /api/v1/player-access/policy", a.protected(a.savePlayerAccess))
 	mux.HandleFunc("GET /api/v1/player-access/observations", a.protected(a.playerObservations))
 	mux.HandleFunc("POST /api/v1/player-access/observations/{id}/allow", a.protected(a.allowPlayerObservation))
+	mux.HandleFunc("POST /api/v1/player-access/observations/{id}/block", a.protected(a.allowPlayerObservation))
 	mux.HandleFunc("POST /api/v1/player-access/observations/clear", a.protected(a.clearPlayerObservations))
 }

@@ -1036,7 +1036,7 @@ test('player UA observations can be approved and enforce whitelist before all pl
  expect(observed.status()).toBe(401)
  await page.goto('/player-access')
  await expect(page.getByRole('heading',{name:'播放器准入',exact:true})).toBeVisible()
- await expect(page.getByText('当前仅记录访问，不按UA限制现有播放器。',{exact:true})).toBeVisible()
+ await expect(page.getByRole('combobox',{name:'UA 策略模式',exact:true})).toHaveValue('off')
  await page.getByLabel('搜索UA记录',{exact:true}).fill(ua)
  await page.getByRole('button',{name:'搜索记录',exact:true}).click()
  const row=page.locator('.u5-ua-record').filter({hasText:ua})
@@ -1051,10 +1051,9 @@ test('player UA observations can be approved and enforce whitelist before all pl
  await dialog.getByLabel('播放器备注',{exact:true}).fill('Owned E2E player')
  await dialog.getByRole('button',{name:'保存规则',exact:true}).click()
  await expect(page.getByText('Owned E2E player',{exact:true})).toBeVisible()
- await expect(page.getByRole('button',{name:'启用 UA 限制',exact:true})).toBeVisible()
- await page.getByRole('button',{name:'启用 UA 限制',exact:true}).click()
- await page.getByRole('dialog',{name:'启用播放器白名单',exact:true}).getByRole('button',{name:'启用限制',exact:true}).click()
- await expect(page.getByRole('button',{name:'关闭 UA 限制',exact:true})).toBeVisible()
+ await page.getByRole('combobox',{name:'UA 策略模式',exact:true}).selectOption('whitelist')
+ await page.getByRole('dialog',{name:'切换 UA 策略为白名单（仅允许匹配规则）',exact:true}).getByRole('button',{name:'确认切换',exact:true}).click()
+ await expect(page.getByRole('combobox',{name:'UA 策略模式',exact:true})).toHaveValue('whitelist')
  try{
   const blocked=await page.request.get('/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key',{headers:{'User-Agent':'Unknown-E2E-Player/2'},maxRedirects:0})
   expect(blocked.status()).toBe(403);expect(blocked.headers().location).toBeUndefined();expect((await blocked.json()).error.code).toBe('player_ua_denied')
@@ -1068,6 +1067,21 @@ test('player UA observations can be approved and enforce whitelist before all pl
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
    await page.screenshot({path:resolve(screenshots,`player-ua-access-${width}.png`),fullPage:true})
   }
+  await row.getByRole('button',{name:'加入黑名单',exact:true}).click()
+  dialog=page.getByRole('dialog',{name:'从访问记录加入黑名单',exact:true})
+  await dialog.getByLabel('播放器备注',{exact:true}).fill('Owned E2E blocked player')
+  await dialog.getByRole('button',{name:'保存规则',exact:true}).click()
+  await expect(dialog).toBeHidden()
+  await page.getByRole('combobox',{name:'UA 策略模式',exact:true}).selectOption('blacklist')
+  await page.getByRole('dialog').getByRole('button',{name:'确认切换',exact:true}).click()
+  await expect(page.getByRole('combobox',{name:'UA 策略模式',exact:true})).toHaveValue('blacklist')
+  for(const path of ['/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key','/emby/Items/11/PlaybackInfo','/emby/Videos/11/original.mkv']){
+   const reply=await page.request.get(path,{headers:{'User-Agent':ua},maxRedirects:0});expect(reply.status()).toBe(403);expect((await reply.json()).error.code).toBe('player_ua_denied');expect(reply.headers().location).toBeUndefined()
+  }
+  const blackRoot=await page.request.get('http://localhost:18085/Items/11/PlaybackInfo',{headers:{'User-Agent':ua},maxRedirects:0});expect(blackRoot.status()).toBe(403)
+  const unlisted=await page.request.get('/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key',{headers:{'User-Agent':'Unknown-E2E-Player/2'},maxRedirects:0});expect(unlisted.status()).toBe(401)
+  const stored=(await(await page.request.get('/api/v1/player-access/policy')).json()).data;expect(stored.rules).toHaveLength(1);expect(stored.blacklistRules).toHaveLength(1)
+  const visits=(await(await page.request.get('/api/v1/player-access/observations?filter=blacklisted')).json()).data;expect(visits.items.some((r:any)=>r.userAgent===ua&&r.lastReason==='blacklisted')).toBe(true)
  }finally{
   const current=await page.request.get('/api/v1/player-access/policy');const p=(await current.json()).data
   const disabled=await page.request.put('/api/v1/player-access/policy',{headers:{'X-Requested-With':'media-tool'},data:{enabled:false,revision:p.revision,rules:p.rules}});expect(disabled.status()).toBe(200)
@@ -1078,7 +1092,7 @@ test('player UA observations can be approved and enforce whitelist before all pl
  await expect(page.getByText('Owned E2E player',{exact:true})).toBeVisible()
  const p=(await(await page.request.get('/api/v1/player-access/policy')).json()).data
  expect(p.rules).toHaveLength(1);expect(p.enabled).toBe(false)
- expect((await page.request.put('/api/v1/player-access/policy',{headers:{'X-Requested-With':'media-tool'},data:{enabled:false,revision:p.revision,rules:[]}})).status()).toBe(200)
+ expect((await page.request.put('/api/v1/player-access/policy',{headers:{'X-Requested-With':'media-tool'},data:{enabled:false,mode:'off',revision:p.revision,rules:[],blacklistRules:[]}})).status()).toBe(200)
 })
 
 test('subscription tabs have separation and PT metrics actions are centered',async({page})=>{

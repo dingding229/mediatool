@@ -370,7 +370,7 @@ X-Requested-With: media-tool
   `DeliveryMethod=External` 和用户鉴权的 `DeliveryUrl`。字幕流路由沿用
   GET/HEAD `/Videos/{id}/{mediaSourceId}/Subtitles/{index}/Stream.{format}` 及已有短路由；
   `SubtitleId` 绑定云盘文件身份，`MediaSourceId` 绑定当前可播放版本。
-  仅原格式零正文 302，实际请求 UA 同样通过播放器白名单并用于官方 115 取链；
+  仅原格式零正文 302，实际请求 UA 同样通过播放器准入策略并用于官方 115 取链；
   格式转换明确 400，嵌入字幕提取不支持。字幕正文不落地、不代理、不转码。
 
 ## 网页恢复（schema 77）

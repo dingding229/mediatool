@@ -20,7 +20,7 @@ test_db_exec 'TRUNCATE site_template_loads,subscriptions,integrations,cloud_file
 test_db_exec "INSERT INTO directory_classification(singleton,value,revision)VALUES(true,'null',1) ON CONFLICT(singleton) DO UPDATE SET value='null',revision=1"
 test_db_exec "INSERT INTO native_server_settings(server_id)VALUES(replace(gen_random_uuid()::text,'-','')) ON CONFLICT(singleton)DO NOTHING"
 test_db_exec "UPDATE native_server_settings SET enabled=false,probe_enabled=true,stills_enabled=true,revision=revision+1 WHERE singleton"
-test_db_exec "UPDATE player_ua_policy SET enabled=false,revision=1 WHERE id='main'"
+test_db_exec "UPDATE player_ua_policy SET enabled=false,mode='off',revision=1 WHERE id='main'"
 # Background checks are read-only but fixture suites must not call public networks.
 test_db_exec "INSERT INTO app_settings(key,value)VALUES('system.update-check','{\"enabled\":false}') ON CONFLICT(key)DO UPDATE SET value='{\"enabled\":false}'"
 test_db_exec 'TRUNCATE player_ua_rules,player_ua_observations,player_access_events'
@@ -29,7 +29,7 @@ test_db_exec "INSERT INTO site_metric_schedule(singleton,enabled,cron_expression
 private=$(mktemp -d)
 private=$(cd "$private" && pwd -P)
 pids=()
-cleanup(){ for pid in "${pids[@]}";do kill "$pid" 2>/dev/null||true;done;for pid in "${pids[@]}";do wait "$pid" 2>/dev/null||true;done;test_db_exec "UPDATE network_proxy_settings SET tmdb_enabled=false,sites_enabled=false,url_ciphertext=''::bytea,revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE external_api_keys,administrator_accounts,administrator_auth_limits,media_users,media_user_auth_limits CASCADE' >/dev/null 2>&1 || true;test_db_exec "UPDATE player_ua_policy SET enabled=false,revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE player_ua_rules,player_ua_observations,player_access_events' >/dev/null 2>&1 || true; rm -rf "$private"; }
+cleanup(){ for pid in "${pids[@]}";do kill "$pid" 2>/dev/null||true;done;for pid in "${pids[@]}";do wait "$pid" 2>/dev/null||true;done;test_db_exec "UPDATE network_proxy_settings SET tmdb_enabled=false,sites_enabled=false,url_ciphertext=''::bytea,revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE external_api_keys,administrator_accounts,administrator_auth_limits,media_users,media_user_auth_limits CASCADE' >/dev/null 2>&1 || true;test_db_exec "UPDATE player_ua_policy SET enabled=false,mode='off',revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE player_ua_rules,player_ua_observations,player_access_events' >/dev/null 2>&1 || true; rm -rf "$private"; }
 trap cleanup EXIT INT TERM
 export MEMBER_ADDR=127.0.0.1:18087
 export AUTH_ALLOWED_ORIGINS=https://proxy.fixture.invalid

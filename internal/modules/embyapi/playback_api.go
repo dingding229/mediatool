@@ -248,7 +248,7 @@ func (s *Server) playbackError(w http.ResponseWriter, err error) {
 	case errors.Is(err, nativeplayback.ErrForbidden):
 		message = "权限不足，无法播放或下载此媒体库"
 	case errors.Is(err, nativeplayback.ErrUADenied):
-		message = "当前播放器UA不在白名单，请联系管理员"
+		message = "当前播放器UA未通过准入策略，请联系管理员"
 	case errors.Is(err, nativeplayback.ErrParentalDenied):
 		message = "分级限制，不允许播放此内容"
 	case errors.Is(err, nativeplayback.ErrStreamLimit):

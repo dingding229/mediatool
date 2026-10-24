@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"media-tool/internal/modules/embyapi/dto"
+	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/mediausers"
 	"media-tool/internal/modules/nativelibrary/catalog"
 	playbackruntime "media-tool/internal/modules/nativeplayback/runtime"
@@ -229,9 +230,16 @@ func TestNativeSubtitleEmbedProjectionAnd404(t *testing.T) {
 	}
 }
 func TestPlaybackReportsMigrationRoundTrip(t *testing.T) {
-	f := newReportFixture(t)
-	id := reportInfo(t, f)
-	f.exec(t, `UPDATE native_playback_sessions SET play_counted=true WHERE id=$1`, id)
+	// A historical migration test seeds its historical row directly. Do not run
+	// today's UA runtime against schema 61 or cross irreversible migration 68.
+	f := newBrowseFixture(t)
+	if _, e := f.provider.UpTo(f.ctx, 61); e != nil {
+		t.Fatal(e)
+	}
+	id := jobs.UUID()
+	device := f.text(t, `SELECT id::text FROM media_user_devices WHERE user_id=$1 LIMIT 1`, f.user.ID)
+	f.exec(t, `INSERT INTO native_playback_sessions(id,user_id,device_id,item_id,media_source_id,play_counted)VALUES($1,$2,$3,$4,'synthetic-migration',true)`, id, f.user.ID, device, f.parents["g:test-a"])
+
 	if _, e := f.provider.DownTo(f.ctx, 60); e != nil {
 		t.Fatal(e)
 	}

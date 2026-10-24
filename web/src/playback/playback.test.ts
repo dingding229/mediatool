@@ -54,3 +54,8 @@ it('defaults only newly selected library grants to play, keeps download off and 
  expect(existing.canPlay).toBe(false);
  expect(fetch.mock.calls.some(([,o])=>o?.method==='PUT')).toBe(false);
 })
+it('switches UA modes without losing either rule list and blacklists observations independently',async()=>{
+ const s=mount(Access);await flush();s.policy.data={enabled:true,mode:'whitelist',revision:3,rules:[{id:'white',userAgent:'Family/',matchType:'prefix',enabled:true}],blacklistRules:[{id:'black',userAgent:'Crawler',matchType:'contains',enabled:true}]};
+ s.ask('mode','blacklist');expect(fetch.mock.calls.some(([,o])=>o?.method==='PUT')).toBe(false);await s.apply();const write=fetch.mock.calls.find(([,o])=>o?.method==='PUT')!;expect(JSON.parse(String(write[1].body))).toMatchObject({mode:'blacklist',enabled:true,rules:[{id:'white'}],blacklistRules:[{id:'black'}]});
+ s.op.clear();s.edit(null,{id:'owned-observation',userAgent:'Blocked/1'},'blacklistRules');s.form.label='拒绝的设备';await s.submit();const block=fetch.mock.calls.find(([u])=>u.endsWith('/owned-observation/block'))!;expect(JSON.parse(String(block[1].body))).toEqual({revision:1,label:'拒绝的设备',confirm:true});
+})

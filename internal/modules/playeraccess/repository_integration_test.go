@@ -26,14 +26,14 @@ func TestPostgresUARecordsWhitelistRevisionAndBoundedStorage(t *testing.T) {
 	if db.QueryRow(ctx, `SELECT current_database()`).Scan(&name) != nil || name != "media_tool_test" {
 		t.Fatal("isolated database only")
 	}
-	reset := `TRUNCATE player_ua_rules,player_ua_observations; INSERT INTO player_ua_policy(id)VALUES('main')ON CONFLICT(id)DO UPDATE SET enabled=false,revision=1`
+	reset := `TRUNCATE player_ua_rules,player_ua_observations; INSERT INTO player_ua_policy(id)VALUES('main')ON CONFLICT(id)DO UPDATE SET enabled=false,mode='off',revision=1`
 	if _, err = db.Exec(ctx, reset); err != nil {
 		t.Fatal(err)
 	}
 	defer db.Exec(context.Background(), reset)
 	repo := Repository{DB: db}
 	p, err := repo.Policy(ctx)
-	if err != nil || p.Enabled || p.Revision != 1 || len(p.Rules) != 0 {
+	if err != nil || p.Enabled || p.Mode != "off" || p.Revision != 1 || len(p.Rules) != 0 {
 		t.Fatal(p, err)
 	}
 	req := Request{UserAgent: "SenPlayer/1.0", Entry: "strm", Method: "GET", ClientIP: "192.0.2.5"}
@@ -56,6 +56,7 @@ func TestPostgresUARecordsWhitelistRevisionAndBoundedStorage(t *testing.T) {
 	}
 	old := p
 	p.Enabled = true
+	p.Mode = "whitelist"
 	p, err = repo.Save(ctx, p)
 	if err != nil {
 		t.Fatal(err)
@@ -165,7 +166,7 @@ func TestConcurrentPlaybackChecksDoNotSerializeOnAdministratorLock(t *testing.T)
 	if db.QueryRow(ctx, `SELECT current_database()`).Scan(&name) != nil || name != "media_tool_test" {
 		t.Skip("isolated database only")
 	}
-	if _, err = db.Exec(ctx, `TRUNCATE player_ua_rules,player_ua_observations;UPDATE player_ua_policy SET enabled=false,revision=1 WHERE id='main'`); err != nil {
+	if _, err = db.Exec(ctx, `TRUNCATE player_ua_rules,player_ua_observations;UPDATE player_ua_policy SET enabled=false,mode='off',revision=1 WHERE id='main'`); err != nil {
 		t.Fatal(err)
 	}
 	defer db.Exec(context.Background(), `TRUNCATE player_ua_rules,player_ua_observations`)

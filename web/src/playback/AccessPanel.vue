@@ -2,7 +2,7 @@
 import IpAddress from '../ui/IpAddress.vue';
 import {usePageNumber} from '../ui/page-query';
 
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { request, post } from '../api/client';
 import { useResource } from '../workflows/useResource';
 import { useOperation } from '../workflows/useOperation';
@@ -10,9 +10,14 @@ import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
+import {getUAPolicy,saveUAPolicy,addUAObservation,type RuleList,type AccessMode} from '../api/playerAccess';
 import { date, errorText } from '../workflows/readiness';
-const query = ref(''), filter = ref(''), page = usePageNumber(), visitPage = usePageNumber('visitPage'), embyUser = ref(''), policy = reactive(useResource<any>(() => request('/player-access/policy'))), records = reactive(useResource<any>(() => request(`/player-access/observations?${new URLSearchParams({ q: query.value, filter: filter.value, page: String(page.value), pageSize: '25' })}`))), visits = reactive(useResource<any>(() => request(`/player-access/events?page=${visitPage.value}&pageSize=25&q=${encodeURIComponent(query.value)}&embyUserId=${encodeURIComponent(embyUser.value)}`))), embyUsers = reactive(useResource<any>(() => request('/player-access/users'), [])), op = reactive(useOperation('access')), editing = ref(false), form = reactive<any>({}), base = ref<any>(null), latest = ref<any>(null), confirm = ref(false), action = ref<any>(null), details = ref<any>(null), detailOpen = ref(false), notice = ref(''), copyNotice = ref('');
-const ipSource = (s: string) => ({ direct: '直连', trusted_proxy: '可信反代', proxy_without_header: '代理未提供来源', trusted_chain_without_client: '代理链没有访客地址', invalid_forwarded_chain: '代理链无效', legacy_unknown: '历史来源未核验' } as Record<string, string>)[s] || '来源待核对', reason = (s: string) => ({ restriction_disabled: '限制关闭', whitelisted: '命中白名单', ua_not_whitelisted: '未匹配白名单' } as Record<string, string>)[s] || '原因待核对';
+const query = ref(''), filter = ref(''), page = usePageNumber(), visitPage = usePageNumber('visitPage'), embyUser = ref(''), policy = reactive(useResource<any>(async () => {const p=await getUAPolicy();return {...p,mode:p.mode||(p.enabled?'whitelist':'off'),blacklistRules:p.blacklistRules||[]}})), records = reactive(useResource<any>(() => request(`/player-access/observations?${new URLSearchParams({ q: query.value, filter: filter.value, page: String(page.value), pageSize: '25' })}`))), visits = reactive(useResource<any>(() => request(`/player-access/events?page=${visitPage.value}&pageSize=25&q=${encodeURIComponent(query.value)}&embyUserId=${encodeURIComponent(embyUser.value)}`))), embyUsers = reactive(useResource<any>(() => request('/player-access/users'), [])), op = reactive(useOperation('access')), editing = ref(false), form = reactive<any>({}), base = ref<any>(null), latest = ref<any>(null), confirm = ref(false), action = ref<any>(null), details = ref<any>(null), detailOpen = ref(false), notice = ref(''), copyNotice = ref('');
+const list=ref<RuleList>('rules'),modeName=(mode:string)=>({off:'关闭（全部允许）',whitelist:'白名单（仅允许匹配规则）',blacklist:'黑名单（拒绝匹配规则）'}[mode]||'待核对');
+const listName=(key:RuleList)=>key==='blacklistRules'?'黑名单':'白名单';
+const rules=computed(()=>policy.data?.[list.value]||[]);
+const matchName=(kind:string)=>({exact:'完整匹配',prefix:'前缀匹配',contains:'包含匹配'}[kind]||'待核对');
+const ipSource = (s: string) => ({ direct: '直连', trusted_proxy: '可信反代', proxy_without_header: '代理未提供来源', trusted_chain_without_client: '代理链没有访客地址', invalid_forwarded_chain: '代理链无效', legacy_unknown: '历史来源未核验' } as Record<string, string>)[s] || '来源待核对', reason = (s: string) => ({ restriction_disabled: '限制关闭', whitelisted: '命中白名单', ua_not_whitelisted: '未匹配白名单', blacklisted:'命中黑名单',not_blacklisted:'未匹配黑名单' } as Record<string, string>)[s] || '原因待核对';
 async function load() {
   await Promise.all([policy.load(), records.load(), visits.load(), embyUsers.load()]);
   if (op.pending && !policy.error) {
@@ -29,11 +34,11 @@ function search() {
   void records.load();
   void visits.load();
 }
-function edit(rule: any = null, observation: any = null) {
+function edit(rule: any = null, observation: any = null, targetList:RuleList = list.value) {
   op.error = null;
   latest.value = null;
   base.value = JSON.parse(JSON.stringify(policy.data));
-  Object.assign(form, { id: rule?.id || '', label: rule?.label || '', matchType: rule?.matchType || 'exact', userAgent: rule?.userAgent || observation?.userAgent || '', enabled: rule?.enabled ?? true, observationId: observation?.id || '' });
+  Object.assign(form, { list:targetList, id: rule?.id || '', label: rule?.label || '', matchType: rule?.matchType || 'exact', userAgent: rule?.userAgent || observation?.userAgent || '', enabled: rule?.enabled ?? true, observationId: observation?.id || '' });
   editing.value = true;
 }
 async function submit() {
@@ -43,28 +48,32 @@ async function submit() {
   }
   if (!base.value)
     return;
-  const rule = { id: form.id, label: form.label, matchType: form.matchType, userAgent: form.userAgent, enabled: form.enabled }, rules = base.value.rules.filter((r: any) => r.id !== form.id);
+  const rule = { id: form.id, label: form.label, matchType: form.matchType, userAgent: form.userAgent, enabled: form.enabled }, rules = (base.value[form.list]||[]).filter((r: any) => r.id !== form.id);
   rules.push(rule);
   const p = { action: 'save', revision: base.value.revision };
-  const out = await op.run(JSON.stringify(p), () => form.observationId ? post(`/player-access/observations/${form.observationId}/allow`, { revision: p.revision, label: form.label, confirm: true }) : request('/player-access/policy', { method: 'PUT', body: JSON.stringify({ enabled: base.value.enabled, revision: p.revision, rules }) }));
+  const out = await op.run(JSON.stringify(p), () => form.observationId ? addUAObservation(form.observationId,form.list,p.revision,form.label) : saveUAPolicy({...base.value,[form.list]:rules}));
   if (out !== undefined) {
     await load();
     if (!op.pending)
       editing.value = false;
   }
   else if (op.error) {
-    latest.value = await policy.load() || { revision: null, rules: [], enabled: false };
+    latest.value = await policy.load() || { revision: null, rules: [], blacklistRules:[],mode:'off',enabled: false };
     notice.value = latest.value.revision == null ? '重新读取失败，输入已保留，请先读取当前策略。' : '配置已被修改或保存未完成，已重新读取；输入已保留。请核对后采用最新修订。';
   }
 }
 function ask(kind: string, row: any = null) {
   const p = JSON.parse(JSON.stringify(policy.data));
-  action.value = { kind, row, policy: p };
+  action.value = { kind, row, list:list.value, mode:kind==='toggle'?(p.enabled?'off':'whitelist'):row, policy: p };
   confirm.value = true;
 }
+function chooseMode(event:Event){const select=event.target as HTMLSelectElement;ask('mode',select.value);select.value=policy.data?.mode||'off'}
 async function apply() {
   const a = action.value, p = a.policy;
-  await op.run(JSON.stringify({ action: a.kind, revision: p.revision }), () => a.kind === 'clear' ? post('/player-access/observations/clear', { confirm: true, revision: p.revision }) : request('/player-access/policy', { method: 'PUT', body: JSON.stringify({ enabled: a.kind === 'toggle' ? !p.enabled : p.enabled, revision: p.revision, rules: a.kind === 'remove' ? p.rules.filter((r: any) => r.id !== a.row.id) : p.rules }) }));
+  const value={...p};
+  if(a.kind==='toggle'||a.kind==='mode'){value.mode=a.mode;value.enabled=a.mode!=='off'}
+  if(a.kind==='remove')value[a.list]=p[a.list].filter((r:any)=>r.id!==a.row.id);
+  await op.run(JSON.stringify({action:a.kind,revision:p.revision}),()=>a.kind==='clear'?post('/player-access/observations/clear',{confirm:true,revision:p.revision}):saveUAPolicy(value));
   confirm.value = false;
   await load();
 }
@@ -78,7 +87,7 @@ async function copyUA() {
   }
 }
 onMounted(load);
-defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, query, filter, page, visitPage, embyUser, form, base, latest, action, op });
+defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, query, filter, page, visitPage, embyUser, form, base, latest, action, op, list });
 </script>
 <template>
   <div class="media-stack">
@@ -87,24 +96,30 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
         <h2>播放器准入</h2><p>播放器标识（UA）用于识别发起请求的设备或应用。</p>
         <div class="media-actions">
           <el-button :disabled="!policy.data||!!policy.error||!!op.pending" @click="edit()">添加 UA 规则</el-button>
-          <el-button :disabled="!policy.data||!!policy.error||!!op.pending" @click="ask('toggle')">{{ policy.data?.enabled?'关闭 UA 限制':'启用 UA 限制' }}</el-button>
+          <label class="u5-field">策略模式
+            <select :value="policy.data?.mode||'off'" aria-label="UA 策略模式" :disabled="!policy.data||!!policy.error||!!op.pending" @change="chooseMode">
+              <option v-for="mode in (['off','whitelist','blacklist'] as AccessMode[])" :key="mode" :value="mode">{{ modeName(mode) }}</option>
+            </select>
+          </label>
         </div>
       </header>
 <div class="f5-player-policy-rows">
-      <ResourceState :stale="policy.loaded" :loading="policy.loading" :error="policy.error" @reload="load"/>
-      <p v-if="policy.data">{{ policy.data.enabled?'仅允许命中白名单的播放器访问。':'当前仅记录访问，不按UA限制现有播放器。' }}</p>
+      <ResourceState overlay :stale="policy.loaded" :loading="policy.loading" :error="policy.error" @reload="load"/>
+      <p class="ua-policy-summary">当前策略：{{ policy.data?modeName(policy.data.mode):'读取中' }}。切换模式不删除任何名单规则；UA 可由客户端伪造，不替代媒体授权。</p>
+      <label class="u5-field">规则名单 <select v-model="list" aria-label="UA 规则名单"><option value="rules">白名单规则</option><option value="blacklistRules">黑名单规则</option></select></label>
+      <p>{{ listName(list) }}规则只在对应模式生效。</p>
       <el-alert v-if="op.error&&!editing" :title="errorText(op.error)" type="error" :closable="false"/>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>
-      <article v-for="rule in policy.data?.rules||[]" :key="rule.id" class="organize-record">
+      <article v-for="rule in rules" :key="rule.id" class="organize-record">
         <h3>{{ rule.label||'—' }}</h3>
-        <p>{{ rule.matchType==='prefix'?'前缀匹配':'完整匹配' }} · {{ rule.enabled?'启用':'停用' }}</p>
+        <p>{{ matchName(rule.matchType) }} · {{ rule.enabled?'启用':'停用' }}</p>
         <p class="u5-original">{{ rule.userAgent }}</p>
         <div class="media-actions">
           <el-button :disabled="!!op.pending" @click="edit(rule)">编辑规则</el-button>
           <el-button :disabled="!!op.pending" @click="ask('remove',rule)">删除规则</el-button>
         </div>
       </article>
-      <p v-if="policy.data&&!policy.data.rules.length">尚无 UA 规则。</p>
+      <p v-if="policy.data&&!rules.length">尚无{{ listName(list) }}规则。</p>
 </div>
     </section>
     <section class="media-surface">
@@ -118,11 +133,12 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
           <input v-model="query" aria-label="搜索UA记录"/>
         </label>
         <label>
-          白名单状态
+          名单状态
           <select v-model="filter" aria-label="UA记录筛选" @change="search">
             <option value="">全部访问</option>
             <option value="whitelisted">已在白名单</option>
             <option value="unlisted">未在白名单</option>
+            <option value="blacklisted">已在黑名单</option>
           </select>
         </label>
         <el-button native-type="submit">搜索记录</el-button>
@@ -130,11 +146,12 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <ResourceState :stale="records.loaded" :loading="records.loading" :error="records.error" :empty="!records.data?.items.length" @reload="records.load"/>
       <article v-for="record in records.data?.items||[]" :key="record.id" class="organize-record u5-ua-record">
         <p class="u5-original">{{ record.userAgent||'空 UA' }}</p>
-        <p>访问 {{ record.requestCount??'—' }} · 通过 {{ record.allowedCount??'—' }} · 拒绝 {{ record.deniedCount??'—' }} · {{ record.whitelisted?'已在白名单':'未在白名单' }}</p>
+        <p>访问 {{ record.requestCount??'—' }} · 通过 {{ record.allowedCount??'—' }} · 拒绝 {{ record.deniedCount??'—' }} · {{ record.whitelisted?'已在白名单':'未在白名单' }} · {{ record.blacklisted?'已在黑名单':'未在黑名单' }}</p>
         <p><IpAddress :ip="record.lastClientIp"/> · {{ date(record.lastSeenAt) }} · {{ reason(record.lastReason) }}</p>
         <div class="media-actions">
           <el-button @click="details=record;copyNotice='';detailOpen=true">查看完整 UA</el-button>
-          <el-button :disabled="!record.userAgent||record.whitelisted||!!op.pending||!policy.data" @click="edit(null,record)">加入白名单</el-button>
+          <el-button :disabled="!record.userAgent||record.whitelisted||!!op.pending||!policy.data" @click="edit(null,record,'rules')">加入白名单</el-button>
+          <el-button :disabled="!record.userAgent||record.blacklisted||!!op.pending||!policy.data" @click="edit(null,record,'blacklistRules')">加入黑名单</el-button>
         </div>
       </article>
       <PagePagination v-model:current-page="page" :page-size="25" :total="records.data.total" layout="prev,pager,next,total" @current-change="records.load"/>
@@ -162,7 +179,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <PagePagination v-model:current-page="visitPage" :page-size="25" :total="visits.data.total" layout="prev,pager,next,total" @current-change="visits.load"/>
     </section>
   </div>
-  <el-dialog v-model="editing" :title="form.observationId?'从访问记录加入白名单':form.id?'编辑 UA 规则':'添加 UA 规则'" width="min(680px,94vw)" class="media-dialog u5-dialog" :close-on-click-modal="false">
+  <el-dialog v-model="editing" :title="form.observationId?'从访问记录加入'+listName(form.list):(form.id?'编辑':'添加')+listName(form.list)+'规则'" width="min(680px,94vw)" class="media-dialog u5-dialog" :close-on-click-modal="false">
     <div class="u5-form">
       <label>
         播放器备注
@@ -177,6 +194,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
         <select v-model="form.matchType" aria-label="UA匹配方式" :disabled="op.busy">
           <option value="exact">完整匹配</option>
           <option value="prefix">前缀匹配</option>
+          <option value="contains">包含匹配</option>
         </select>
       </label>
       <label class="u5-check">
@@ -187,8 +205,8 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <section v-if="latest">
         <el-button v-if="latest.revision==null" @click="policy.load().then(p=>latest=p||latest)">核对准入策略</el-button>
-        <p>当前策略：{{ latest.enabled?'启用限制':'不限 UA' }} · {{ latest.rules.length }} 条规则</p>
-        <p v-for="rule in latest.rules" :key="rule.id" class="u5-original">{{ rule.label||'—' }}：{{ rule.userAgent }}</p>
+        <p>当前策略：{{ modeName(latest.mode) }} · {{ (latest[form.list]||[]).length }} 条{{ listName(form.list) }}规则</p>
+        <p v-for="rule in latest[form.list]||[]" :key="rule.id" class="u5-original">{{ rule.label||'—' }}：{{ rule.userAgent }}</p>
 
         <el-button :disabled="latest.revision==null" @click="base=JSON.parse(JSON.stringify(latest));latest=null">保留输入并采用最新修订</el-button>
       </section>
@@ -206,8 +224,11 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
     <el-button @click="copyUA">复制完整 UA</el-button>
     <p role="status">{{ copyNotice }}</p>
     <p>访客地址 <IpAddress :ip="details?.clientIp||details?.lastClientIp"/> · 连接地址 <IpAddress :ip="details?.connectionIp"/></p>
-    <el-button v-if="details?.requestCount!=null&&!details?.whitelisted&&details?.userAgent" :disabled="!policy.data||!!op.pending" @click="detailOpen=false;edit(null,details)">从此记录加入白名单</el-button>
+    <el-button v-if="details?.requestCount!=null&&!details?.whitelisted&&details?.userAgent" :disabled="!policy.data||!!op.pending" @click="detailOpen=false;edit(null,details,'rules')">从此记录加入白名单</el-button>
+    <el-button v-if="details?.requestCount!=null&&!details?.blacklisted&&details?.userAgent" :disabled="!policy.data||!!op.pending" @click="detailOpen=false;edit(null,details,'blacklistRules')">从此记录加入黑名单</el-button>
   </DetailDrawer>
-  <ConfirmAction v-model:visible="confirm" :title="action?.kind==='remove'?'删除 UA 白名单规则':action?.kind==='clear'?'清理 UA 访问记录':action?.policy.enabled?'关闭播放器限制':'启用播放器白名单'" :description="action?.kind==='remove'?'删除后，依赖此规则的播放器可能无法访问。':action?.kind==='clear'?'只清理 UA 聚合记录，新的访问会重新记录。':'启用后，未匹配的播放器和空 UA 会被拒绝；关闭后仍检查媒体授权。'" impact-scope="不删除媒体、不删除程序日志；聚合记录清理不移除白名单，也不清理访问明细。" :confirm-text="action?.kind==='remove'?'删除规则':action?.kind==='clear'?'清理记录':action?.policy.enabled?'关闭限制':'启用限制'" :loading="op.busy" class="media-dialog" @confirm="apply"/>
+  <ConfirmAction v-model:visible="confirm" :title="action?.kind==='remove'?'删除 UA '+listName(action.list)+'规则':action?.kind==='clear'?'清理 UA 访问记录':'切换 UA 策略为'+modeName(action?.mode)" :description="action?.kind==='remove'?'删除后会改变对应名单的准入结果，请核对规则。':action?.kind==='clear'?'只清理 UA 聚合记录和明细，新的访问会重新记录。':'关闭时全部允许；白名单仅允许匹配规则；黑名单拒绝匹配规则、允许其余 UA。现有两份名单均保留。'" impact-scope="不删除媒体、不删除程序日志；名单策略同时约束 Emby API 和 302 播放入口，仍检查媒体授权。" :confirm-text="action?.kind==='remove'?'删除规则':action?.kind==='clear'?'清理记录':'确认切换'" :loading="op.busy" class="media-dialog" @confirm="apply"/>
 
 </template>
+
+<style scoped>.ua-policy-summary{min-height:44px}@media(max-width:600px){.ua-policy-summary{min-height:88px}}.media-section-heading .media-actions{align-items:flex-end}.u5-field select{max-width:100%;min-height:44px}.media-actions .u5-field{min-width:0}.media-section-heading .media-actions .el-button{min-height:44px}.u5-ua-record .media-actions{align-items:center}</style>

@@ -43,7 +43,7 @@ func TestPostgresUAAdminWorkflowCachedSTRMAndUnavailableDenial(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer rc.Close()
-	reset := `TRUNCATE player_ua_rules,player_ua_observations; INSERT INTO player_ua_policy(id)VALUES('main')ON CONFLICT(id)DO UPDATE SET enabled=false,revision=1`
+	reset := `TRUNCATE player_ua_rules,player_ua_observations; INSERT INTO player_ua_policy(id)VALUES('main')ON CONFLICT(id)DO UPDATE SET enabled=false,mode='off',revision=1`
 	if _, err = db.Exec(ctx, reset); err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestPostgresUAAdminWorkflowCachedSTRMAndUnavailableDenial(t *testing.T) {
 	var calls atomic.Int32
 	ua := "Owned-Player/" + time.Now().Format("150405.000000000")
 	source := resolverFunc(func(_ context.Context, ref storage.FileRef) (storage.DownloadLink, error) {
-		if ref.UserAgent != ua {
+		if ref.UserAgent != ua && ref.UserAgent != "UnknownPlayer/blacklist-allowed" {
 			t.Error("actual UA replaced", ref.UserAgent)
 		}
 		calls.Add(1)
@@ -106,6 +106,7 @@ func TestPostgresUAAdminWorkflowCachedSTRMAndUnavailableDenial(t *testing.T) {
 	json.Unmarshal(w.Body.Bytes(), &policy)
 	p := policy.Data
 	p.Enabled = true
+	p.Mode = "whitelist"
 	r := httptest.NewRequest("PUT", "/api/v1/player-access/policy", strings.NewReader(`{}`))
 	r.AddCookie(admin)
 	r.Header.Set("Origin", "https://untrusted.invalid")
@@ -167,6 +168,54 @@ func TestPostgresUAAdminWorkflowCachedSTRMAndUnavailableDenial(t *testing.T) {
 		t.Fatal("unavailable policy CDN")
 	}
 	tx.Rollback(ctx)
+	// The blacklisting shortcut uses the same protected, confirmed revisioned API.
+	expect(call("POST", "/api/v1/player-access/observations/"+id+"/block", "", map[string]any{"revision": p.Revision, "confirm": true}, nil), 401)
+	expect(call("POST", "/api/v1/player-access/observations/"+id+"/block", "", map[string]any{"revision": p.Revision, "confirm": false}, admin), 400)
+	w = call("POST", "/api/v1/player-access/observations/"+id+"/block", "", map[string]any{"revision": p.Revision, "confirm": true, "label": "拒绝播放器"}, admin)
+	expect(w, 200)
+	json.Unmarshal(w.Body.Bytes(), &policy)
+	p = policy.Data
+	if p.Mode != "whitelist" || len(p.BlacklistRules) != 1 {
+		t.Fatal("shortcut changed mode or lost rule", p)
+	}
+	p.Mode = "blacklist"
+	w = call("PUT", "/api/v1/player-access/policy", "", p, admin)
+	expect(w, 200)
+	json.Unmarshal(w.Body.Bytes(), &policy)
+	p = policy.Data
+	for _, path := range []string{linkTarget(), "/emby/Videos/11/original.mkv", "/emby/Items/11/PlaybackInfo"} {
+		reply := call("GET", path, ua, nil, nil)
+		expect(reply, 403)
+		if reply.Header().Get("Location") != "" || !strings.Contains(reply.Body.String(), "player_ua_denied") {
+			t.Fatal("blacklist bypass", path, reply.Body.String())
+		}
+	}
+	expect(call("HEAD", linkTarget(), ua, nil, nil), 403)
+	r = httptest.NewRequest("POST", "/Items/11/PlaybackInfo", strings.NewReader(`{}`))
+	r.Header.Set("User-Agent", ua)
+	bad = httptest.NewRecorder()
+	root.ServeHTTP(bad, r)
+	expect(bad, 403)
+	expect(call("GET", linkTarget(), "UnknownPlayer/blacklist-allowed", nil, nil), 302)
+	w = call("GET", "/api/v1/player-access/observations?filter=blacklisted", "", nil, admin)
+	expect(w, 200)
+	if !strings.Contains(w.Body.String(), `"lastReason":"blacklisted"`) {
+		t.Fatal("denial missing observation", w.Body.String())
+	}
+	p.Mode = "off"
+	w = call("PUT", "/api/v1/player-access/policy", "", p, admin)
+	expect(w, 200)
+	json.Unmarshal(w.Body.Bytes(), &policy)
+	p = policy.Data
+	expect(call("GET", linkTarget(), ua, nil, nil), 302)
+	p.Mode = "whitelist"
+	w = call("PUT", "/api/v1/player-access/policy", "", p, admin)
+	expect(w, 200)
+	json.Unmarshal(w.Body.Bytes(), &policy)
+	p = policy.Data
+	if len(p.Rules) != 1 || len(p.BlacklistRules) != 1 {
+		t.Fatal("mode switching lost rules")
+	}
 	// Concurrent edits share one revision; exactly one may commit.
 	repo := playeraccess.Repository{DB: db}
 	var wg sync.WaitGroup

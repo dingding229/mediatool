@@ -25854,6 +25854,10 @@
             "format": "date-time",
             "type": "string"
           },
+          "deviceCount": {
+            "format": "int64",
+            "type": "integer"
+          },
           "displayName": {
             "type": "string"
           },
@@ -25882,6 +25886,31 @@
           },
           "id": {
             "type": "string"
+          },
+          "lastIp": {
+            "type": "string"
+          },
+          "lastPlayedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lockedUntil": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "maxParentalRating": {
             "anyOf": [
@@ -25916,11 +25945,15 @@
         "required": [
           "activeSessions",
           "createdAt",
+          "deviceCount",
           "displayName",
           "enabled",
           "expiresAt",
           "grants",
           "id",
+          "lastIp",
+          "lastPlayedAt",
+          "lockedUntil",
           "maxParentalRating",
           "maxStreams",
           "mustChangePassword",
@@ -27429,6 +27462,9 @@
             "format": "int64",
             "type": "integer"
           },
+          "blacklisted": {
+            "type": "boolean"
+          },
           "deniedCount": {
             "format": "int64",
             "type": "integer"
@@ -27482,6 +27518,7 @@
         },
         "required": [
           "allowedCount",
+          "blacklisted",
           "deniedCount",
           "firstSeenAt",
           "id",
@@ -27548,8 +27585,20 @@
       "modules_playeraccess_Policy": {
         "additionalProperties": false,
         "properties": {
+          "blacklistRules": {
+            "items": {
+              "$ref": "#/components/schemas/modules_playeraccess_Rule"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "enabled": {
             "type": "boolean"
+          },
+          "mode": {
+            "type": "string"
           },
           "revision": {
             "format": "int64",
@@ -27570,7 +27619,9 @@
           }
         },
         "required": [
+          "blacklistRules",
           "enabled",
+          "mode",
           "revision",
           "rules",
           "updatedAt"
@@ -63450,7 +63501,7 @@
         "x-go-handler": "deviceIPHistory",
         "x-go-registration": "GET /api/v1/media-server/device-ips",
         "x-listener": "management",
-        "x-source": "media_server.go:147"
+        "x-source": "media_server.go:149"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -63543,7 +63594,7 @@
         "x-go-handler": "deviceIPHistory",
         "x-go-registration": "GET /api/v1/media-server/device-ips",
         "x-listener": "management",
-        "x-source": "media_server.go:147"
+        "x-source": "media_server.go:149"
       }
     },
     "/api/v1/media-server/libraries": {
@@ -63591,7 +63642,7 @@
         "x-go-handler": "nativeLibraries",
         "x-go-registration": "GET /api/v1/media-server/libraries",
         "x-listener": "management",
-        "x-source": "media_server.go:160"
+        "x-source": "media_server.go:162"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -63637,7 +63688,7 @@
         "x-go-handler": "nativeLibraries",
         "x-go-registration": "GET /api/v1/media-server/libraries",
         "x-listener": "management",
-        "x-source": "media_server.go:160"
+        "x-source": "media_server.go:162"
       }
     },
     "/api/v1/media-server/native/libraries": {
@@ -63676,7 +63727,7 @@
         "x-go-handler": "listNativeLibraries",
         "x-go-registration": "GET /api/v1/media-server/native/libraries",
         "x-listener": "management",
-        "x-source": "media_server.go:158"
+        "x-source": "media_server.go:160"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -63713,7 +63764,7 @@
         "x-go-handler": "listNativeLibraries",
         "x-go-registration": "GET /api/v1/media-server/native/libraries",
         "x-listener": "management",
-        "x-source": "media_server.go:158"
+        "x-source": "media_server.go:160"
       }
     },
     "/api/v1/media-server/native/library-mappings": {
@@ -63774,7 +63825,7 @@
         "x-go-handler": "nativeLibraryMappings",
         "x-go-registration": "GET /api/v1/media-server/native/library-mappings",
         "x-listener": "management",
-        "x-source": "media_server.go:141"
+        "x-source": "media_server.go:143"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -63833,7 +63884,7 @@
         "x-go-handler": "nativeLibraryMappings",
         "x-go-registration": "GET /api/v1/media-server/native/library-mappings",
         "x-listener": "management",
-        "x-source": "media_server.go:141"
+        "x-source": "media_server.go:143"
       }
     },
     "/api/v1/media-server/native/probe/{assetId}/retry": {
@@ -63896,7 +63947,7 @@
         "x-go-handler": "retryNativeProbe",
         "x-go-registration": "POST /api/v1/media-server/native/probe/{assetId}/retry",
         "x-listener": "management",
-        "x-source": "media_server.go:156"
+        "x-source": "media_server.go:158"
       }
     },
     "/api/v1/media-server/native/processing": {
@@ -63941,7 +63992,7 @@
         "x-go-handler": "processingSummary",
         "x-go-registration": "GET /api/v1/media-server/native/processing",
         "x-listener": "management",
-        "x-source": "media_server.go:151"
+        "x-source": "media_server.go:153"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -63984,7 +64035,7 @@
         "x-go-handler": "processingSummary",
         "x-go-registration": "GET /api/v1/media-server/native/processing",
         "x-listener": "management",
-        "x-source": "media_server.go:151"
+        "x-source": "media_server.go:153"
       }
     },
     "/api/v1/media-server/native/processing/gc": {
@@ -64041,7 +64092,7 @@
         "x-go-handler": "processingGC",
         "x-go-registration": "POST /api/v1/media-server/native/processing/gc",
         "x-listener": "management",
-        "x-source": "media_server.go:155"
+        "x-source": "media_server.go:157"
       }
     },
     "/api/v1/media-server/native/processing/retry": {
@@ -64128,7 +64179,7 @@
         "x-go-handler": "processingRetry",
         "x-go-registration": "POST /api/v1/media-server/native/processing/retry",
         "x-listener": "management",
-        "x-source": "media_server.go:154"
+        "x-source": "media_server.go:156"
       }
     },
     "/api/v1/media-server/native/processing/settings": {
@@ -64233,7 +64284,7 @@
         "x-go-handler": "processingSettings",
         "x-go-registration": "PUT /api/v1/media-server/native/processing/settings",
         "x-listener": "management",
-        "x-source": "media_server.go:152"
+        "x-source": "media_server.go:154"
       }
     },
     "/api/v1/media-server/native/processing/tasks": {
@@ -64296,7 +64347,7 @@
         "x-go-handler": "processingTasks",
         "x-go-registration": "GET /api/v1/media-server/native/processing/tasks",
         "x-listener": "management",
-        "x-source": "media_server.go:153"
+        "x-source": "media_server.go:155"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -64357,7 +64408,7 @@
         "x-go-handler": "processingTasks",
         "x-go-registration": "GET /api/v1/media-server/native/processing/tasks",
         "x-listener": "management",
-        "x-source": "media_server.go:153"
+        "x-source": "media_server.go:155"
       }
     },
     "/api/v1/media-server/native/sessions": {
@@ -64469,7 +64520,7 @@
         "x-go-handler": "nativeServerSettings",
         "x-go-registration": "GET /api/v1/media-server/native/settings",
         "x-listener": "management",
-        "x-source": "media_server.go:149"
+        "x-source": "media_server.go:151"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -64503,7 +64554,7 @@
         "x-go-handler": "nativeServerSettings",
         "x-go-registration": "GET /api/v1/media-server/native/settings",
         "x-listener": "management",
-        "x-source": "media_server.go:149"
+        "x-source": "media_server.go:151"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -64586,7 +64637,7 @@
         "x-go-handler": "nativeServerSettings",
         "x-go-registration": "PUT /api/v1/media-server/native/settings",
         "x-listener": "management",
-        "x-source": "media_server.go:150"
+        "x-source": "media_server.go:152"
       }
     },
     "/api/v1/media-server/native/tmdb/refresh": {
@@ -64670,7 +64721,7 @@
         "x-go-handler": "refreshNativeTMDB",
         "x-go-registration": "POST /api/v1/media-server/native/tmdb/refresh",
         "x-listener": "management",
-        "x-source": "media_server.go:157"
+        "x-source": "media_server.go:159"
       }
     },
     "/api/v1/media-server/playback-events": {
@@ -64765,7 +64816,7 @@
         "x-go-handler": "playbackEvents",
         "x-go-registration": "GET /api/v1/media-server/playback-events",
         "x-listener": "management",
-        "x-source": "media_server.go:146"
+        "x-source": "media_server.go:148"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -64858,7 +64909,7 @@
         "x-go-handler": "playbackEvents",
         "x-go-registration": "GET /api/v1/media-server/playback-events",
         "x-listener": "management",
-        "x-source": "media_server.go:146"
+        "x-source": "media_server.go:148"
       }
     },
     "/api/v1/media-server/playback-ips": {
@@ -64961,7 +65012,7 @@
         "x-go-handler": "playbackIPs",
         "x-go-registration": "GET /api/v1/media-server/playback-ips",
         "x-listener": "management",
-        "x-source": "media_server.go:148"
+        "x-source": "media_server.go:150"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -65062,7 +65113,7 @@
         "x-go-handler": "playbackIPs",
         "x-go-registration": "GET /api/v1/media-server/playback-ips",
         "x-listener": "management",
-        "x-source": "media_server.go:148"
+        "x-source": "media_server.go:150"
       }
     },
     "/api/v1/media-server/playback-statistics": {
@@ -65157,7 +65208,7 @@
         "x-go-handler": "playbackStatistics",
         "x-go-registration": "GET /api/v1/media-server/playback-statistics",
         "x-listener": "management",
-        "x-source": "media_server.go:145"
+        "x-source": "media_server.go:147"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -65250,7 +65301,7 @@
         "x-go-handler": "playbackStatistics",
         "x-go-registration": "GET /api/v1/media-server/playback-statistics",
         "x-listener": "management",
-        "x-source": "media_server.go:145"
+        "x-source": "media_server.go:147"
       }
     },
     "/api/v1/media-server/providers": {
@@ -65286,7 +65337,7 @@
         "x-go-handler": "mediaProviders",
         "x-go-registration": "GET /api/v1/media-server/providers",
         "x-listener": "management",
-        "x-source": "media_server.go:159"
+        "x-source": "media_server.go:161"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -65320,7 +65371,7 @@
         "x-go-handler": "mediaProviders",
         "x-go-registration": "GET /api/v1/media-server/providers",
         "x-listener": "management",
-        "x-source": "media_server.go:159"
+        "x-source": "media_server.go:161"
       }
     },
     "/api/v1/media-server/users": {
@@ -65390,7 +65441,7 @@
         "x-go-handler": "listMediaUsers",
         "x-go-registration": "GET /api/v1/media-server/users",
         "x-listener": "management",
-        "x-source": "media_server.go:161"
+        "x-source": "media_server.go:163"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -65458,7 +65509,7 @@
         "x-go-handler": "listMediaUsers",
         "x-go-registration": "GET /api/v1/media-server/users",
         "x-listener": "management",
-        "x-source": "media_server.go:161"
+        "x-source": "media_server.go:163"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -65609,7 +65660,7 @@
         "x-go-handler": "saveMediaUser",
         "x-go-registration": "POST /api/v1/media-server/users",
         "x-listener": "management",
-        "x-source": "media_server.go:162"
+        "x-source": "media_server.go:164"
       }
     },
     "/api/v1/media-server/users/{id}": {
@@ -65705,7 +65756,7 @@
         "x-go-handler": "mutateMediaUser",
         "x-go-registration": "DELETE /api/v1/media-server/users/{id}",
         "x-listener": "management",
-        "x-source": "media_server.go:165"
+        "x-source": "media_server.go:167"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -65762,7 +65813,7 @@
         "x-go-handler": "getMediaUser",
         "x-go-registration": "GET /api/v1/media-server/users/{id}",
         "x-listener": "management",
-        "x-source": "media_server.go:163"
+        "x-source": "media_server.go:165"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -65819,7 +65870,7 @@
         "x-go-handler": "getMediaUser",
         "x-go-registration": "GET /api/v1/media-server/users/{id}",
         "x-listener": "management",
-        "x-source": "media_server.go:163"
+        "x-source": "media_server.go:165"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -65979,7 +66030,7 @@
         "x-go-handler": "saveMediaUser",
         "x-go-registration": "PUT /api/v1/media-server/users/{id}",
         "x-listener": "management",
-        "x-source": "media_server.go:164"
+        "x-source": "media_server.go:166"
       }
     },
     "/api/v1/media-server/users/{id}/devices": {
@@ -66058,7 +66109,7 @@
         "x-go-handler": "mediaUserDevices",
         "x-go-registration": "GET /api/v1/media-server/users/{id}/devices",
         "x-listener": "management",
-        "x-source": "media_server.go:142"
+        "x-source": "media_server.go:144"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -66135,7 +66186,7 @@
         "x-go-handler": "mediaUserDevices",
         "x-go-registration": "GET /api/v1/media-server/users/{id}/devices",
         "x-listener": "management",
-        "x-source": "media_server.go:142"
+        "x-source": "media_server.go:144"
       }
     },
     "/api/v1/media-server/users/{id}/devices/{deviceId}/revoke": {
@@ -66213,7 +66264,7 @@
         "x-go-handler": "revokeMediaDevice",
         "x-go-registration": "POST /api/v1/media-server/users/{id}/devices/{deviceId}/revoke",
         "x-listener": "management",
-        "x-source": "media_server.go:143"
+        "x-source": "media_server.go:145"
       }
     },
     "/api/v1/media-server/users/{id}/history": {
@@ -66292,7 +66343,7 @@
         "x-go-handler": "mediaUserHistory",
         "x-go-registration": "GET /api/v1/media-server/users/{id}/history",
         "x-listener": "management",
-        "x-source": "media_server.go:144"
+        "x-source": "media_server.go:146"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -66369,7 +66420,7 @@
         "x-go-handler": "mediaUserHistory",
         "x-go-registration": "GET /api/v1/media-server/users/{id}/history",
         "x-listener": "management",
-        "x-source": "media_server.go:144"
+        "x-source": "media_server.go:146"
       }
     },
     "/api/v1/media-server/users/{id}/password": {
@@ -66465,7 +66516,7 @@
         "x-go-handler": "mutateMediaUser",
         "x-go-registration": "POST /api/v1/media-server/users/{id}/password",
         "x-listener": "management",
-        "x-source": "media_server.go:166"
+        "x-source": "media_server.go:168"
       }
     },
     "/api/v1/media-server/users/{id}/sessions/revoke": {
@@ -66561,7 +66612,7 @@
         "x-go-handler": "mutateMediaUser",
         "x-go-registration": "POST /api/v1/media-server/users/{id}/sessions/revoke",
         "x-listener": "management",
-        "x-source": "media_server.go:167"
+        "x-source": "media_server.go:169"
       }
     },
     "/api/v1/media/assets": {
@@ -70728,7 +70779,7 @@
         "x-go-handler": "playerAccessEvents",
         "x-go-registration": "GET /api/v1/player-access/events",
         "x-listener": "management",
-        "x-source": "player_access.go:162"
+        "x-source": "player_access.go:167"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -70817,7 +70868,7 @@
         "x-go-handler": "playerAccessEvents",
         "x-go-registration": "GET /api/v1/player-access/events",
         "x-listener": "management",
-        "x-source": "player_access.go:162"
+        "x-source": "player_access.go:167"
       }
     },
     "/api/v1/player-access/observations": {
@@ -70900,7 +70951,7 @@
         "x-go-handler": "playerObservations",
         "x-go-registration": "GET /api/v1/player-access/observations",
         "x-listener": "management",
-        "x-source": "player_access.go:166"
+        "x-source": "player_access.go:171"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -70981,7 +71032,7 @@
         "x-go-handler": "playerObservations",
         "x-go-registration": "GET /api/v1/player-access/observations",
         "x-listener": "management",
-        "x-source": "player_access.go:166"
+        "x-source": "player_access.go:171"
       }
     },
     "/api/v1/player-access/observations/clear": {
@@ -71059,7 +71110,7 @@
         "x-go-handler": "clearPlayerObservations",
         "x-go-registration": "POST /api/v1/player-access/observations/clear",
         "x-listener": "management",
-        "x-source": "player_access.go:168"
+        "x-source": "player_access.go:174"
       }
     },
     "/api/v1/player-access/observations/{id}/allow": {
@@ -71149,7 +71200,97 @@
         "x-go-handler": "allowPlayerObservation",
         "x-go-registration": "POST /api/v1/player-access/observations/{id}/allow",
         "x-listener": "management",
-        "x-source": "player_access.go:167"
+        "x-source": "player_access.go:172"
+      }
+    },
+    "/api/v1/player-access/observations/{id}/block": {
+      "post": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "post_api_v1_player_access_observations_id_block_00d1927d",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "还须通过同源Origin/Fetch Metadata检查；不能以此头代替会话。",
+            "in": "header",
+            "name": "X-Requested-With",
+            "required": true,
+            "schema": {
+              "const": "media-tool",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "description": "字段级与条件必填校验由业务规则决定；确认字段只在明确批准时传true，不能自动补全。",
+                "properties": {
+                  "confirm": {
+                    "type": "boolean"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "format": "int64",
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_c31676849242"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_8cb66a23a6bd"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_67f32a5e5df3"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_1087f6a13307"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_b9a6bb644015"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "allowPlayerObservation",
+        "tags": [
+          "基础与静态挂载"
+        ],
+        "x-go-handler": "allowPlayerObservation",
+        "x-go-registration": "POST /api/v1/player-access/observations/{id}/block",
+        "x-listener": "management",
+        "x-source": "player_access.go:173"
       }
     },
     "/api/v1/player-access/policy": {
@@ -71194,7 +71335,7 @@
         "x-go-handler": "getPlayerAccess",
         "x-go-registration": "GET /api/v1/player-access/policy",
         "x-listener": "management",
-        "x-source": "player_access.go:164"
+        "x-source": "player_access.go:169"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -71237,7 +71378,7 @@
         "x-go-handler": "getPlayerAccess",
         "x-go-registration": "GET /api/v1/player-access/policy",
         "x-listener": "management",
-        "x-source": "player_access.go:164"
+        "x-source": "player_access.go:169"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -71261,8 +71402,20 @@
                 "additionalProperties": false,
                 "description": "字段级与条件必填校验由业务规则决定；确认字段只在明确批准时传true，不能自动补全。",
                 "properties": {
+                  "blacklistRules": {
+                    "items": {
+                      "$ref": "#/components/schemas/modules_playeraccess_Rule"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
                   "enabled": {
                     "type": "boolean"
+                  },
+                  "mode": {
+                    "type": "string"
                   },
                   "revision": {
                     "format": "int64",
@@ -71327,7 +71480,7 @@
         "x-go-handler": "savePlayerAccess",
         "x-go-registration": "PUT /api/v1/player-access/policy",
         "x-listener": "management",
-        "x-source": "player_access.go:165"
+        "x-source": "player_access.go:170"
       }
     },
     "/api/v1/player-access/users": {
@@ -71372,7 +71525,7 @@
         "x-go-handler": "playerAccessUsers",
         "x-go-registration": "GET /api/v1/player-access/users",
         "x-listener": "management",
-        "x-source": "player_access.go:163"
+        "x-source": "player_access.go:168"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -71415,7 +71568,7 @@
         "x-go-handler": "playerAccessUsers",
         "x-go-registration": "GET /api/v1/player-access/users",
         "x-listener": "management",
-        "x-source": "player_access.go:163"
+        "x-source": "player_access.go:168"
       }
     },
     "/api/v1/plugin/{instance}/{path}": {

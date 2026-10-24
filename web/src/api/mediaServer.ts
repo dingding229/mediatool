@@ -1,6 +1,6 @@
 import {request,post,checkedPage,type ListPage} from './client'
 export interface MediaGrant { libraryId: string; canPlay: boolean; canDownload: boolean }
-export interface MediaUser { maxStreams: number; maxParentalRating: number | null; expiresAt: string | null; id: string; username: string; displayName: string; enabled: boolean; mustChangePassword: boolean; revision: number; grants: MediaGrant[]; activeSessions: number; createdAt: string; updatedAt: string }
+export interface MediaUser { lastPlayedAt?: string | null; lastIp?: string; deviceCount?: number; lockedUntil?: string | null; maxStreams: number; maxParentalRating: number | null; expiresAt: string | null; id: string; username: string; displayName: string; enabled: boolean; mustChangePassword: boolean; revision: number; grants: MediaGrant[]; activeSessions: number; createdAt: string; updatedAt: string }
 export interface MediaLibrary { id: string; name: string; mediaType: string; canPlay: boolean }
 export interface MediaProvider { id: string; name: string; contract: string; runtime: string; stage: string; note: string; capabilities: Record<string, boolean> }
 export interface MediaItem { id: string; title: string; year: string; mediaType: string; overview: string; poster: string; season?: number; episode?: number }

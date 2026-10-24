@@ -150,6 +150,9 @@ func (s *Service) Info(ctx context.Context, a nativeplayback.Actor, q nativeplay
 	if err != nil {
 		return out, err
 	}
+	if err = s.admit(ctx, a); err != nil {
+		return out, err
+	}
 	chosen, err := selectSource(sources, q.MediaSourceID, false)
 	if err != nil {
 		return out, err
@@ -182,19 +185,28 @@ func (s *Service) Info(ctx context.Context, a nativeplayback.Actor, q nativeplay
 	out.PlaySessionId = r.ID
 	return out, err
 }
+
+// Shared by PlaybackInfo and the final 302 (including subtitle redirects).
+// Permission checks still precede admission; a matching UA never grants identity.
+func (s *Service) admit(ctx context.Context, a nativeplayback.Actor) error {
+	gate := playeraccess.Repository{DB: s.DB}
+	req := playeraccess.Request{UserAgent: a.UserAgent, Entry: "emby", Method: a.Method, ClientIP: a.Address.ClientIP, ConnectionIP: a.Address.ConnectionIP, IPSource: a.Address.Source, IPPublic: a.Address.Public}
+	decision, err := gate.Check(ctx, req)
+	if err != nil {
+		return nativeplayback.ErrUpstream
+	}
+	if !decision.Allowed {
+		return nativeplayback.ErrUADenied
+	}
+	return nil
+}
 func (s *Service) Stream(ctx context.Context, a nativeplayback.Actor, q nativeplayback.Request) (nativeplayback.RedirectTarget, error) {
 	sources, err := s.sources(ctx, a, q)
 	if err != nil {
 		return nativeplayback.RedirectTarget{}, err
 	}
-	gate := playeraccess.Repository{DB: s.DB}
-	req := playeraccess.Request{UserAgent: a.UserAgent, Entry: "emby", Method: a.Method, ClientIP: a.Address.ClientIP, ConnectionIP: a.Address.ConnectionIP, IPSource: a.Address.Source, IPPublic: a.Address.Public}
-	decision, err := gate.Check(ctx, req)
-	if err != nil {
-		return nativeplayback.RedirectTarget{}, nativeplayback.ErrUpstream
-	}
-	if !decision.Allowed {
-		return nativeplayback.RedirectTarget{}, nativeplayback.ErrUADenied
+	if err = s.admit(ctx, a); err != nil {
+		return nativeplayback.RedirectTarget{}, err
 	}
 	chosen, err := selectSource(sources, q.MediaSourceID, q.Download)
 	if err != nil {

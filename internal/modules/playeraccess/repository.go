@@ -9,6 +9,7 @@ import (
 	"media-tool/internal/modules/jobs"
 	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/clientip"
+	"strings"
 )
 
 type Repository struct{ DB *pgxpool.Pool }
@@ -30,21 +31,26 @@ func (r Repository) begin(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 func readPolicy(ctx context.Context, tx pgx.Tx) (Policy, error) {
-	p := Policy{Rules: []Rule{}}
-	if err := tx.QueryRow(ctx, `SELECT enabled,revision,updated_at FROM player_ua_policy WHERE id='main'`).Scan(&p.Enabled, &p.Revision, &p.UpdatedAt); err != nil {
+	p := Policy{Rules: []Rule{}, BlacklistRules: []Rule{}}
+	if err := tx.QueryRow(ctx, `SELECT enabled,mode,revision,updated_at FROM player_ua_policy WHERE id='main'`).Scan(&p.Enabled, &p.Mode, &p.Revision, &p.UpdatedAt); err != nil {
 		return p, ErrUnavailable
 	}
-	rows, err := tx.Query(ctx, `SELECT id::text,label,match_type,user_agent,enabled FROM player_ua_rules ORDER BY match_type,label,id`)
+	rows, err := tx.Query(ctx, `SELECT id::text,label,match_type,user_agent,enabled,list_type FROM player_ua_rules ORDER BY list_type,match_type,label,id`)
 	if err != nil {
 		return p, ErrUnavailable
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var rule Rule
-		if err = rows.Scan(&rule.ID, &rule.Label, &rule.MatchType, &rule.UserAgent, &rule.Enabled); err != nil {
+		var list string
+		if err = rows.Scan(&rule.ID, &rule.Label, &rule.MatchType, &rule.UserAgent, &rule.Enabled, &list); err != nil {
 			return p, ErrUnavailable
 		}
-		p.Rules = append(p.Rules, rule)
+		if list == "blacklist" {
+			p.BlacklistRules = append(p.BlacklistRules, rule)
+		} else {
+			p.Rules = append(p.Rules, rule)
+		}
 	}
 	if rows.Err() != nil {
 		return p, ErrUnavailable
@@ -79,27 +85,43 @@ func replace(ctx context.Context, tx pgx.Tx, in Policy) (Policy, error) {
 	if current.Revision != in.Revision {
 		return Policy{}, ErrConflict
 	}
-	// IDs are server-assigned for new rules; existing IDs must belong to this policy.
-	known := map[string]bool{}
-	for _, rule := range current.Rules {
-		known[rule.ID] = true
+	// Both lists share one revision and transaction. IDs may not move between
+	// lists; identical UA patterns in separate lists are intentional and valid.
+	in.Mode = in.EffectiveMode()
+	in.Enabled = in.Mode != "off"
+	if in.Rules == nil {
+		in.Rules = current.Rules
 	}
-	for i := range in.Rules {
-		if in.Rules[i].ID == "" {
-			in.Rules[i].ID = jobs.UUID()
-		} else if !known[in.Rules[i].ID] {
-			return Policy{}, ErrInvalid
-		}
+	if in.BlacklistRules == nil {
+		in.BlacklistRules = current.BlacklistRules
+	}
+	if err = in.Validate(); err != nil {
+		return Policy{}, err
+	}
+	known := map[string]string{}
+	for _, rule := range current.Rules {
+		known[rule.ID] = "whitelist"
+	}
+	for _, rule := range current.BlacklistRules {
+		known[rule.ID] = "blacklist"
 	}
 	if _, err = tx.Exec(ctx, `DELETE FROM player_ua_rules`); err != nil {
 		return Policy{}, ErrUnavailable
 	}
-	for _, r := range in.Rules {
-		if _, err = tx.Exec(ctx, `INSERT INTO player_ua_rules(id,label,match_type,user_agent,enabled)VALUES($1,$2,$3,$4,$5)`, r.ID, r.Label, r.MatchType, r.UserAgent, r.Enabled); err != nil {
-			return Policy{}, ErrUnavailable
+	for list, rules := range map[string][]Rule{"whitelist": in.Rules, "blacklist": in.BlacklistRules} {
+		for i := range rules {
+			if rules[i].ID == "" {
+				rules[i].ID = jobs.UUID()
+			} else if known[rules[i].ID] != list {
+				return Policy{}, ErrInvalid
+			}
+			v := rules[i]
+			if _, err = tx.Exec(ctx, `INSERT INTO player_ua_rules(id,label,match_type,user_agent,enabled,list_type)VALUES($1,$2,$3,$4,$5,$6)`, v.ID, v.Label, v.MatchType, v.UserAgent, v.Enabled, list); err != nil {
+				return Policy{}, ErrUnavailable
+			}
 		}
 	}
-	if err = tx.QueryRow(ctx, `UPDATE player_ua_policy SET enabled=$1,revision=revision+1,updated_at=now() WHERE id='main' RETURNING revision,updated_at`, in.Enabled).Scan(&in.Revision, &in.UpdatedAt); err != nil {
+	if err = tx.QueryRow(ctx, `UPDATE player_ua_policy SET enabled=$1,mode=$2,revision=revision+1,updated_at=now() WHERE id='main' RETURNING revision,updated_at`, in.Enabled, in.Mode).Scan(&in.Revision, &in.UpdatedAt); err != nil {
 		return Policy{}, ErrUnavailable
 	}
 	if err = audit(ctx, tx, "player_ua.policy_saved", in); err != nil {
@@ -108,8 +130,8 @@ func replace(ctx context.Context, tx pgx.Tx, in Policy) (Policy, error) {
 	return in, nil
 }
 func (r Repository) Save(ctx context.Context, in Policy) (Policy, error) {
-	if err := in.Validate(); err != nil {
-		return Policy{}, err
+	if in.Revision < 1 {
+		return Policy{}, ErrInvalid
 	}
 	tx, err := r.begin(ctx)
 	if err != nil {
@@ -131,12 +153,15 @@ type policySnapshotReader interface {
 }
 
 func playbackPolicySnapshot(ctx context.Context, q policySnapshotReader) (Policy, error) {
-	p := Policy{Rules: []Rule{}}
-	var raw []byte
-	if err := q.QueryRow(ctx, `SELECT enabled,revision,updated_at,coalesce((SELECT jsonb_agg(jsonb_build_object('id',id,'label',label,'matchType',match_type,'userAgent',user_agent,'enabled',enabled) ORDER BY match_type,label,id) FROM player_ua_rules),'[]'::jsonb) FROM player_ua_policy WHERE id='main'`).Scan(&p.Enabled, &p.Revision, &p.UpdatedAt, &raw); err != nil {
+	p := Policy{Rules: []Rule{}, BlacklistRules: []Rule{}}
+	var raw, black []byte
+	if err := q.QueryRow(ctx, `SELECT enabled,mode,revision,updated_at,
+ coalesce((SELECT jsonb_agg(jsonb_build_object('id',id,'label',label,'matchType',match_type,'userAgent',user_agent,'enabled',enabled) ORDER BY match_type,label,id) FROM player_ua_rules WHERE list_type='whitelist'),'[]'::jsonb),
+ coalesce((SELECT jsonb_agg(jsonb_build_object('id',id,'label',label,'matchType',match_type,'userAgent',user_agent,'enabled',enabled) ORDER BY match_type,label,id) FROM player_ua_rules WHERE list_type='blacklist'),'[]'::jsonb)
+ FROM player_ua_policy WHERE id='main'`).Scan(&p.Enabled, &p.Mode, &p.Revision, &p.UpdatedAt, &raw, &black); err != nil {
 		return p, ErrUnavailable
 	}
-	if json.Unmarshal(raw, &p.Rules) != nil {
+	if json.Unmarshal(raw, &p.Rules) != nil || json.Unmarshal(black, &p.BlacklistRules) != nil {
 		return p, ErrUnavailable
 	}
 	return p, nil
@@ -172,7 +197,10 @@ func (r Repository) Check(ctx context.Context, in Request) (Decision, error) {
 	return d, nil
 }
 func (r Repository) AllowObservation(ctx context.Context, id, label string, revision int64) (Policy, error) {
-	if !validObservationID(id) || revision < 1 {
+	return r.AddObservation(ctx, id, label, revision, "whitelist")
+}
+func (r Repository) AddObservation(ctx context.Context, id, label string, revision int64, list string) (Policy, error) {
+	if !validObservationID(id) || revision < 1 || list != "whitelist" && list != "blacklist" {
 		return Policy{}, ErrInvalid
 	}
 	tx, err := r.begin(ctx)
@@ -195,18 +223,22 @@ func (r Repository) AllowObservation(ctx context.Context, id, label string, revi
 	if err != nil {
 		return p, ErrUnavailable
 	}
+	rules := &p.Rules
+	if list == "blacklist" {
+		rules = &p.BlacklistRules
+	}
 	duplicate := false
-	for i, r := range p.Rules {
+	for i, r := range *rules {
 		if r.MatchType == "exact" && r.UserAgent == ua {
-			p.Rules[i].Enabled = true
+			(*rules)[i].Enabled = true
 			if label != "" {
-				p.Rules[i].Label = label
+				(*rules)[i].Label = label
 			}
 			duplicate = true
 		}
 	}
 	if !duplicate {
-		p.Rules = append(p.Rules, Rule{Label: label, MatchType: "exact", UserAgent: ua, Enabled: true})
+		*rules = append(*rules, Rule{Label: label, MatchType: "exact", UserAgent: ua, Enabled: true})
 	}
 	if err = p.Validate(); err != nil {
 		return p, err
@@ -222,7 +254,7 @@ func (r Repository) AllowObservation(ctx context.Context, id, label string, revi
 }
 func (r Repository) Observations(ctx context.Context, q, filter string, page, size int) (Page, error) {
 	out := Page{Items: []Observation{}, Page: page, PageSize: size, MaxRecords: MaxObservations}
-	if len(q) > 200 || page < 1 || page > 20000 || size < 1 || size > 100 || filter != "" && filter != "whitelisted" && filter != "unlisted" {
+	if len(q) > 200 || page < 1 || page > 20000 || size < 1 || size > 100 || filter != "" && filter != "whitelisted" && filter != "unlisted" && filter != "blacklisted" {
 		return out, ErrInvalid
 	}
 	tx, err := r.begin(ctx)
@@ -235,8 +267,9 @@ func (r Repository) Observations(ctx context.Context, q, filter string, page, si
 		return out, err
 	}
 	out.PolicyRevision = p.Revision
-	matching := `EXISTS(SELECT 1 FROM player_ua_rules r WHERE r.enabled AND o.user_agent<>'' AND (r.match_type='exact' AND r.user_agent=o.user_agent OR r.match_type='prefix' AND left(o.user_agent,length(r.user_agent))=r.user_agent))`
-	where := ` WHERE ($1='' OR position(lower($1) in lower(o.user_agent))>0) AND ($2='' OR ($2='whitelisted' AND ` + matching + `) OR ($2='unlisted' AND NOT ` + matching + `))`
+	matching := `EXISTS(SELECT 1 FROM player_ua_rules r WHERE r.enabled AND r.list_type='whitelist' AND o.user_agent<>'' AND (r.match_type='exact' AND r.user_agent=o.user_agent OR r.match_type='prefix' AND left(o.user_agent,length(r.user_agent))=r.user_agent OR r.match_type='contains' AND position(r.user_agent in o.user_agent)>0))`
+	blackMatching := strings.ReplaceAll(matching, "r.list_type='whitelist'", "r.list_type='blacklist'")
+	where := ` WHERE ($1='' OR position(lower($1) in lower(o.user_agent))>0) AND ($2='' OR ($2='whitelisted' AND ` + matching + `) OR ($2='unlisted' AND NOT ` + matching + `) OR ($2='blacklisted' AND ` + blackMatching + `))`
 	if err = tx.QueryRow(ctx, `SELECT count(*) FROM player_ua_observations o`+where, q, filter).Scan(&out.Total); err != nil {
 		return out, ErrUnavailable
 	}
@@ -252,6 +285,7 @@ func (r Repository) Observations(ctx context.Context, q, filter string, page, si
 		}
 		o.MatchedRuleID = Match(p.Rules, o.UserAgent)
 		o.Whitelisted = o.MatchedRuleID != ""
+		o.Blacklisted = Match(p.BlacklistRules, o.UserAgent) != ""
 		o.LastClientIP = clientip.Sanitize(o.LastClientIP)
 		out.Items = append(out.Items, o)
 	}

@@ -32,10 +32,12 @@ type Rule struct {
 	Enabled   bool   `json:"enabled"`
 }
 type Policy struct {
-	Enabled   bool      `json:"enabled"`
-	Revision  int64     `json:"revision"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	Rules     []Rule    `json:"rules"`
+	Enabled        bool      `json:"enabled"`
+	Mode           string    `json:"mode"`
+	BlacklistRules []Rule    `json:"blacklistRules"`
+	Revision       int64     `json:"revision"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+	Rules          []Rule    `json:"rules"`
 }
 type Decision struct {
 	Allowed        bool   `json:"allowed"`
@@ -63,6 +65,7 @@ type Observation struct {
 	LastRuleID         string    `json:"lastRuleId"`
 	LastPolicyRevision int64     `json:"lastPolicyRevision"`
 	Whitelisted        bool      `json:"whitelisted"`
+	Blacklisted        bool      `json:"blacklisted"`
 	MatchedRuleID      string    `json:"matchedRuleId"`
 }
 type Page struct {
@@ -84,31 +87,53 @@ func validObservationID(id string) bool {
 	_, err := hex.DecodeString(id)
 	return err == nil && strings.ToLower(id) == id
 }
+
+// EffectiveMode keeps the pre-migration enabled flag a whitelist unless an
+// explicit mode was supplied. Persisted policies always carry a mode.
+func (p Policy) EffectiveMode() string {
+	if p.Mode != "" {
+		return p.Mode
+	}
+	if p.Enabled {
+		return "whitelist"
+	}
+	return "off"
+}
 func (p Policy) Validate() error {
-	if p.Revision < 1 || len(p.Rules) > MaxRules {
+	mode := p.EffectiveMode()
+	if p.Revision < 1 || mode != "off" && mode != "whitelist" && mode != "blacklist" {
 		return ErrInvalid
 	}
-	seen := map[string]bool{}
 	ids := map[string]bool{}
+	for _, rules := range [][]Rule{p.Rules, p.BlacklistRules} {
+		if len(rules) > MaxRules {
+			return ErrInvalid
+		}
+		seen := map[string]bool{}
+		for _, r := range rules {
+			if !ValidUA(r.UserAgent) || strings.TrimSpace(r.UserAgent) == "" || r.MatchType != "exact" && r.MatchType != "prefix" && r.MatchType != "contains" || r.MatchType != "exact" && len(r.UserAgent) < 3 || !utf8.ValidString(r.Label) || utf8.RuneCountInString(r.Label) > 80 || strings.ContainsAny(r.Label, "\x00\r\n") {
+				return ErrInvalid
+			}
+			if r.ID != "" && (!validID(r.ID) || ids[r.ID]) {
+				return ErrInvalid
+			}
+			if r.ID != "" {
+				ids[r.ID] = true
+			}
+			key := r.MatchType + ":" + r.UserAgent
+			if seen[key] {
+				return ErrInvalid
+			}
+			seen[key] = true
+		}
+	}
 	active := 0
 	for _, r := range p.Rules {
-		if !ValidUA(r.UserAgent) || strings.TrimSpace(r.UserAgent) == "" || r.MatchType != "exact" && r.MatchType != "prefix" || r.MatchType == "prefix" && len(r.UserAgent) < 3 || !utf8.ValidString(r.Label) || utf8.RuneCountInString(r.Label) > 80 || strings.ContainsAny(r.Label, "\x00\r\n") {
-			return ErrInvalid
-		}
-		if r.ID != "" && (!validID(r.ID) || ids[r.ID]) {
-			return ErrInvalid
-		}
-		ids[r.ID] = r.ID != ""
-		key := r.MatchType + ":" + r.UserAgent
-		if seen[key] {
-			return ErrInvalid
-		}
-		seen[key] = true
 		if r.Enabled {
 			active++
 		}
 	}
-	if p.Enabled && active == 0 {
+	if mode == "whitelist" && active == 0 {
 		return errors.New("启用播放器限制前，请先添加至少一条启用的UA白名单规则")
 	}
 	return nil
@@ -119,9 +144,9 @@ func Match(rules []Rule, ua string) string {
 	}
 	// Prefer exact identities over broader prefixes; stable ordering makes the
 	// recorded rule deterministic without changing the allow result.
-	for _, kind := range []string{"exact", "prefix"} {
+	for _, kind := range []string{"exact", "prefix", "contains"} {
 		for _, r := range rules {
-			if r.Enabled && r.MatchType == kind && (kind == "exact" && ua == r.UserAgent || kind == "prefix" && strings.HasPrefix(ua, r.UserAgent)) {
+			if r.Enabled && r.MatchType == kind && (kind == "exact" && ua == r.UserAgent || kind == "prefix" && strings.HasPrefix(ua, r.UserAgent) || kind == "contains" && strings.Contains(ua, r.UserAgent)) {
 				return r.ID
 			}
 		}
@@ -134,15 +159,26 @@ func (p Policy) Decide(ua string) Decision {
 		d.Reason = "invalid_ua"
 		return d
 	}
-	d.RuleID = Match(p.Rules, ua)
-	if !p.Enabled {
+	switch p.EffectiveMode() {
+	case "off":
 		d.Allowed = true
 		d.Reason = "restriction_disabled"
-	} else if d.RuleID != "" {
-		d.Allowed = true
-		d.Reason = "whitelisted"
-	} else {
+	case "whitelist":
+		d.RuleID = Match(p.Rules, ua)
+		d.Allowed = d.RuleID != ""
 		d.Reason = "ua_not_whitelisted"
+		if d.Allowed {
+			d.Reason = "whitelisted"
+		}
+	case "blacklist":
+		d.RuleID = Match(p.BlacklistRules, ua)
+		d.Allowed = d.RuleID == ""
+		d.Reason = "not_blacklisted"
+		if !d.Allowed {
+			d.Reason = "blacklisted"
+		}
+	default:
+		d.Reason = "invalid_policy"
 	}
 	return d
 }

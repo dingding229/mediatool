@@ -67,7 +67,7 @@ func TestB3ExternalSubtitlesAuthenticatedOfficial302AndUAGate(t *testing.T) {
 	if w := f.call("GET", strings.Replace(u.RequestURI(), "Stream.srt", "Stream.vtt", 1), f.token, "Infuse/8"); w.Code != 400 {
 		t.Fatal("conversion accepted", w.Code)
 	}
-	f.exec(t, `UPDATE player_ua_policy SET enabled=true WHERE id='main'`)
+	f.exec(t, `UPDATE player_ua_policy SET enabled=true,mode='whitelist' WHERE id='main'`)
 	f.exec(t, `INSERT INTO player_ua_rules(id,label,match_type,user_agent,enabled)VALUES(gen_random_uuid(),'B3','prefix','Infuse/',true)`)
 	before := f.downloads.Load()
 	if w := f.call("GET", u.RequestURI(), f.token, "OtherPlayer/1"); w.Code != 403 {

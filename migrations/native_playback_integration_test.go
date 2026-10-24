@@ -60,6 +60,10 @@ func (syntheticTimeout) Temporary() bool { return true }
 func newPlaybackFixture(t *testing.T) *playbackFixture {
 	t.Helper()
 	f := &playbackFixture{browseFixture: newBrowseFixture(t), root: t.TempDir()}
+	// Current runtime admission uses schema 81, not the historical browse fixture.
+	if _, e := f.provider.UpTo(f.ctx, 81); e != nil {
+		t.Fatal(e)
+	}
 	m := f.media(t, 3132001, "Synthetic Playback Film", "2026", `{"officialRating":"G"}`)
 	f.a = f.asset(t, m, "g:test-a", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), "mkv")
 	f.b = f.asset(t, m, "g:test-a", time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "mp4")
@@ -312,7 +316,7 @@ func TestNativePlaybackPermissionTokenUAAndSourceFailures(t *testing.T) {
 		t.Fatal("hidden source visible", w.Code)
 	}
 	f.exec(t, `UPDATE native_libraries SET hidden=false WHERE id='g:test-a'`)
-	f.exec(t, `UPDATE player_ua_policy SET enabled=true WHERE id='main'`)
+	f.exec(t, `UPDATE player_ua_policy SET enabled=true,mode='whitelist' WHERE id='main'`)
 	f.exec(t, `INSERT INTO player_ua_rules(id,label,match_type,user_agent,enabled)VALUES(gen_random_uuid(),'Synthetic','prefix','Infuse/',true)`)
 	if w := f.call("GET", stream, f.token, "ForbiddenPlayer/1"); w.Code != 403 {
 		t.Fatal("UA allowed", w.Code, w.Body.String())

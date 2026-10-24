@@ -19,9 +19,11 @@ func (r snapshotRow) Scan(out ...any) error {
 		return r.err
 	}
 	*out[0].(*bool) = true
-	*out[1].(*int64) = 8
-	*out[2].(*time.Time) = time.Now()
-	*out[3].(*[]byte) = []byte(r.raw)
+	*out[1].(*string) = "whitelist"
+	*out[2].(*int64) = 8
+	*out[3].(*time.Time) = time.Now()
+	*out[4].(*[]byte) = []byte(r.raw)
+	*out[5].(*[]byte) = []byte(`[]`)
 	return nil
 }
 

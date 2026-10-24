@@ -65,7 +65,7 @@ PlaybackInfo 提供受当前用户、媒体源和设备约束的直接播放地�
 | GET | `/Items/{id}/Images/{type}/{index}` | 指定图片序号 |
 | GET | `/Items/{id}/PlaybackInfo` | 只返回 DirectPlay/DirectStream 能力 |
 | POST | `/Items/{id}/PlaybackInfo` | 兼容客户端播放协商 |
-| GET | `/Videos/{id}/stream` | 受权限和 UA 白名单保护，302 到 CDN |
+| GET | `/Videos/{id}/stream` | 受权限和 UA 准入策略保护，302 到 CDN |
 | GET | `/Videos/{id}/stream.{ext}` | 容器扩展名兼容形式 |
 | GET | `/Videos/{id}/original.{ext}` | 原始媒体直链形式 |
 | GET | `/Items/{id}/Download` | 需要下载权限，仍只允许 302 |

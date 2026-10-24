@@ -320,11 +320,12 @@
 | HEAD | `/api/v1/player-access/events` | management | 未检出静态使用 |  |
 | GET | `/api/v1/player-access/observations` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:11` |
 | HEAD | `/api/v1/player-access/observations` | management | 未检出静态使用 |  |
-| POST | `/api/v1/player-access/observations/{id}/allow` | management | 未检出静态使用 | `web/src/playback/AccessPanel.vue:46` |
+| POST | `/api/v1/player-access/observations/{id}/allow` | management | 前端直接调用 | `web/src/api/playerAccess.ts:8` |
+| POST | `/api/v1/player-access/observations/{id}/block` | management | 前端直接调用 | `web/src/api/playerAccess.ts:8` |
 | POST | `/api/v1/player-access/observations/clear` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:64` |
-| GET | `/api/v1/player-access/policy` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:11` |
+| GET | `/api/v1/player-access/policy` | management | 前端直接调用 | `web/src/api/playerAccess.ts:6` |
 | HEAD | `/api/v1/player-access/policy` | management | 未检出静态使用 |  |
-| PUT | `/api/v1/player-access/policy` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:46`、`web/src/playback/AccessPanel.vue:64` |
+| PUT | `/api/v1/player-access/policy` | management | 前端直接调用 | `web/src/api/playerAccess.ts:7` |
 | GET | `/api/v1/player-access/users` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:11` |
 | HEAD | `/api/v1/player-access/users` | management | 未检出静态使用 |  |
 | DELETE | `/api/v1/plugin/{instance}/{path}` | management | 未检出静态使用 |  |

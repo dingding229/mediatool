@@ -13,7 +13,9 @@ import (
 	"time"
 )
 
-func (a *API) mediaUsers() mediausers.Repository { return mediausers.Repository{DB: a.Deps.DB} }
+func (a *API) mediaUsers() mediausers.Repository {
+	return mediausers.Repository{DB: a.Deps.DB, AuthSecret: a.Config.SessionKey}
+}
 func (a *API) mediaRegistry() *mediaserver.Registry {
 	// The set is server-owned; clients cannot register a provider or change the
 	// default backend. Future implementations plug into this explicit boundary.

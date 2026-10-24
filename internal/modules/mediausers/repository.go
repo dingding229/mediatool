@@ -11,13 +11,17 @@ import (
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
 	uuidcheck "media-tool/internal/platform/identity"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Repository struct{ DB *pgxpool.Pool }
+type Repository struct {
+	DB         *pgxpool.Pool
+	AuthSecret string
+}
 
 func dbError(err error) error {
 	if err == nil {
@@ -124,7 +128,7 @@ func (r Repository) AdminPage(ctx context.Context, start, limit int) ([]User, er
 		return out, ErrUnavailable
 	}
 	// One snapshot avoids pairing an old user revision with new permissions.
-	rows, err := r.DB.Query(ctx, `SELECT `+userColumns+`,(SELECT count(*) FROM media_user_tokens s WHERE s.user_id=u.id AND s.revoked_at IS NULL AND s.expires_at>now() AND s.credential_version=u.credential_version),coalesce((SELECT jsonb_agg(jsonb_build_object('libraryId',g.library_id,'canPlay',g.can_play,'canDownload',g.can_download) ORDER BY g.library_id) FROM media_user_library_grants g WHERE g.user_id=u.id),'[]'::jsonb) FROM media_users u ORDER BY created_at DESC,u.id LIMIT $1 OFFSET $2`, limit, start)
+	rows, err := r.DB.Query(ctx, `SELECT `+userColumns+`,(SELECT count(*) FROM media_user_tokens s WHERE s.user_id=u.id AND s.revoked_at IS NULL AND s.expires_at>now() AND s.credential_version=u.credential_version),coalesce((SELECT jsonb_agg(jsonb_build_object('libraryId',g.library_id,'canPlay',g.can_play,'canDownload',g.can_download) ORDER BY g.library_id) FROM media_user_library_grants g WHERE g.user_id=u.id),'[]'::jsonb),greatest((SELECT max(last_played_at) FROM media_user_item_data WHERE user_id=u.id),(SELECT max(started_at) FROM media_playback_events WHERE user_id=u.id)),coalesce((SELECT host(ip) FROM media_device_ips WHERE user_id=u.id ORDER BY last_seen_at DESC,device_id,ip LIMIT 1),''),(SELECT count(*) FROM media_user_devices WHERE user_id=u.id) FROM media_users u ORDER BY created_at DESC,u.id LIMIT $1 OFFSET $2`, limit, start)
 	if err != nil {
 		return out, ErrUnavailable
 	}
@@ -132,7 +136,7 @@ func (r Repository) AdminPage(ctx context.Context, start, limit int) ([]User, er
 	for rows.Next() {
 		var u User
 		var raw []byte
-		if err = rows.Scan(append(userDest(&u), &u.ActiveSessions, &raw)...); err != nil {
+		if err = rows.Scan(append(userDest(&u), &u.ActiveSessions, &raw, &u.LastPlayedAt, &u.LastIP, &u.DeviceCount)...); err != nil {
 			return out, ErrUnavailable
 		}
 		if err = json.Unmarshal(raw, &u.Grants); err != nil {
@@ -140,7 +144,41 @@ func (r Repository) AdminPage(ctx context.Context, start, limit int) ([]User, er
 		}
 		out = append(out, u)
 	}
-	return out, dbError(rows.Err())
+	if err = rows.Err(); err != nil {
+		return out, ErrUnavailable
+	}
+	rows.Close()
+	// Only user-scope failed-login locks are identity-specific; never mark a
+	// user locked merely because another visitor exhausted an IP allowance.
+	if r.AuthSecret != "" && len(out) > 0 {
+		digests := make([][]byte, len(out))
+		indices := map[string]int{}
+		for i, u := range out {
+			h := hmac.New(sha256.New, []byte(r.AuthSecret))
+			h.Write([]byte("media-tool:member-rate:v1:user:" + u.Username))
+			digests[i] = h.Sum(nil)
+			indices[string(digests[i])] = i
+		}
+		locks, e := r.DB.Query(ctx, `SELECT scope_digest,window_start+interval '1 minute' FROM media_user_auth_limits WHERE scope_digest=ANY($1::bytea[]) AND attempts>=10 AND window_start>now()-interval '1 minute'`, digests)
+		if e != nil {
+			return out, ErrUnavailable
+		}
+		defer locks.Close()
+		for locks.Next() {
+			var digest []byte
+			var until time.Time
+			if e = locks.Scan(&digest, &until); e != nil {
+				return out, ErrUnavailable
+			}
+			if i, ok := indices[string(digest)]; ok {
+				out[i].LockedUntil = &until
+			}
+		}
+		if locks.Err() != nil {
+			return out, ErrUnavailable
+		}
+	}
+	return out, nil
 }
 
 // Mutations fence the credential/permission revision and revoke every session.

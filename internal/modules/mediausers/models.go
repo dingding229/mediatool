@@ -27,6 +27,10 @@ type Grant struct {
 	CanDownload bool   `json:"canDownload"`
 }
 type User struct {
+	LastPlayedAt       *time.Time `json:"lastPlayedAt"`
+	LastIP             string     `json:"lastIp"`
+	DeviceCount        int        `json:"deviceCount"`
+	LockedUntil        *time.Time `json:"lockedUntil"`
 	MaxStreams         int        `json:"maxStreams"`
 	MaxParentalRating  *int       `json:"maxParentalRating"`
 	ExpiresAt          *time.Time `json:"expiresAt"`
