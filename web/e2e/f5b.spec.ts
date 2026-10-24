@@ -28,7 +28,8 @@ test('F5b compact scan rows, expandable directory evidence and local history pos
 test('F5b auth setup and asynchronous media detail retain their frames in both widths',async({page})=>{
  for(const [mode,width,height] of [['desktop',1440,1000],['narrow',390,844]] as const){
   await page.setViewportSize({width,height});await page.addInitScript(()=>{(window as any).__f5cls=0;new PerformanceObserver(list=>{for(const e of list.getEntries() as any[])if(!e.hadRecentInput)(window as any).__f5cls+=e.value}).observe({type:'layout-shift',buffered:true})});
-  await page.route('**/api/v1/auth/session',r=>r.fulfill({json:{data:{authenticated:false}}}));await page.route('**/api/v1/auth/setup',async r=>{await new Promise(resolve=>setTimeout(resolve,500));return r.fulfill({json:{data:{registrationOpen:false}}})});
+  // Match the real unauthenticated API contract; a 200 response admits the fixture into the app first.
+  await page.route('**/api/v1/auth/session',r=>r.fulfill({status:401,json:{error:{code:'unauthorized',message:'未登录'}}}));await page.route('**/api/v1/auth/setup',async r=>{await new Promise(resolve=>setTimeout(resolve,500));return r.fulfill({json:{data:{registrationOpen:false}}})});
   await page.goto('/login');await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible();await page.waitForTimeout(200);expect(await page.evaluate(()=>(window as any).__f5cls)).toBeLessThan(.01);await page.screenshot({path:resolve(dir,`login-${mode}.png`),fullPage:true,animations:'disabled'});
  }
  const {u4Fixture,libraryItem}=await import('./u4-fixture');await u4Fixture(page);await page.route('**/api/v1/media/library?*',r=>r.fulfill({json:{data:{items:[{...libraryItem,tmdbId:42}],total:1}}}));await page.route('**/api/v1/metadata/details?*',async r=>{await new Promise(resolve=>setTimeout(resolve,700));return r.fulfill({json:{data:{item:{overview:'资料在授权的详情抽屉内更新，既有播放与文件操作不改变。'}}}})});
