@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"media-tool/internal/modules/updatecheck"
+	"media-tool/internal/platform/buildinfo"
 	"net"
 	"net/http"
 	"net/url"
@@ -26,6 +27,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// The mounted fixture binary uses today's schema. Synthetic migration uses
+// Schema+1; never delete a real migration ledger row when the release advances.
 const helperFixtureImage = "dingding229/mediatool@sha256:f8d74ba13ef7fcf0411551b4f0d5def5a2eea325a86637c6bc4ec063849aa514"
 const helperFixtureOld = "dingding229/mediatool@sha256:e458207bb03f850eaf80f828fad1460c1e09f2456903af413b0fc8fb5fb27a3b"
 
@@ -281,7 +284,7 @@ func TestDockerReadyChild(t *testing.T) {
 			t.Fatal(e)
 		}
 		if string(mode) == "migration_failure" {
-			if _, e = db.Exec(t.Context(), `INSERT INTO goose_db_version(version_id,is_applied)VALUES(80,true);CREATE TABLE f8b_flow_added(id int)`); e != nil {
+			if _, e = db.Exec(t.Context(), fmt.Sprintf(`INSERT INTO goose_db_version(version_id,is_applied)VALUES(%d,true);CREATE TABLE f8b_flow_added(id int)`, buildinfo.Schema+1)); e != nil {
 				t.Fatal(e)
 			}
 		}
@@ -531,14 +534,14 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 				t.Fatal(e)
 			}
 			j := Job{ID: id, Actor: "fixture-admin", FromVersion: "0.28.0", FromImage: helperFixtureOld, CreatedAt: time.Now().UTC(), Phase: "queued"}
-			j.Target = updatecheck.Release{Metadata: updatecheck.Metadata{Version: "0.28.1", Commit: "1883c1850084932a116b7d38250824b02ac3f202", Digest: strings.TrimPrefix(helperFixtureImage, "dingding229/mediatool@"), MinimumSchema: 79, Schema: 79, Platform: "linux/amd64", Repository: updatecheck.Repository}, Tag: "v0.28.1"}
+			j.Target = updatecheck.Release{Metadata: updatecheck.Metadata{Version: "0.28.1", Commit: "1883c1850084932a116b7d38250824b02ac3f202", Digest: strings.TrimPrefix(helperFixtureImage, "dingding229/mediatool@"), MinimumSchema: buildinfo.MinimumSchema, Schema: buildinfo.Schema, Platform: "linux/amd64", Repository: updatecheck.Repository}, Tag: "v0.28.1"}
 			sock := strings.TrimPrefix(endpoint, "unix://")
 			if runtime.GOOS == "darwin" {
 				sock = "/var/run/docker.sock"
 			}
 			socketGroup := strings.TrimSpace(string(cli("run", "--rm", "--platform", "linux/amd64", "-v", sock+":/var/run/docker.sock:rw", "--entrypoint", "/bin/stat", helperFixtureImage, "-c", "%g", "/var/run/docker.sock")))
 			if tc.name == "migration_failure" {
-				j.Target.Schema = 80
+				j.Target.Schema = buildinfo.Schema + 1
 			}
 			appChild := func(mode string) {
 				t.Log(string(cli("run", "--rm", "--platform", "linux/amd64", "--user", "65532:65532", "--group-add", socketGroup, "-v", sock+":/var/run/docker.sock:rw", "--read-only", "--cap-drop", "ALL", "--network", project+"_default", "-v", work+":"+work+":ro", "-v", data+":/data:rw", "-e", "MEDIA_TOOL_APP_AUDIT_CHILD="+mode, "-e", "MEDIA_TOOL_SEED_DIR="+work, "-e", "MEDIA_TOOL_HELPER_ID="+id, "-e", "TEST_DATABASE_URL="+appDSN.String(), "-e", "MEDIA_TOOL_TEST_LOCKED=1", "--entrypoint", filepath.Join(work, "helper.test"), helperFixtureImage, "-test.run=^TestDockerAppAuditChild$", "-test.v")))
@@ -551,7 +554,7 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			}
 			rootOwner("65532:65532")
 			appChild("admission") // The production Start path prepares app-owned locks.
-			if _, e = db.Exec(ctx, `DROP TABLE IF EXISTS f8b_flow_probe,f8b_flow_added;DELETE FROM goose_db_version WHERE version_id=80;CREATE TABLE f8b_flow_probe(value text);INSERT INTO f8b_flow_probe VALUES('before')`); e != nil {
+			if _, e = db.Exec(ctx, fmt.Sprintf(`DROP TABLE IF EXISTS f8b_flow_probe,f8b_flow_added;DELETE FROM goose_db_version WHERE version_id=%d;CREATE TABLE f8b_flow_probe(value text);INSERT INTO f8b_flow_probe VALUES('before')`, buildinfo.Schema+1)); e != nil {
 				t.Fatal(e)
 			}
 			if e = os.WriteFile(filepath.Join(data, "original-host"), []byte(fmtString(original.Config["Hostname"])), 0644); e != nil {
@@ -686,7 +689,7 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			}
 			var actualSchema int64
 			var absent bool
-			if e = db.QueryRow(ctx, `SELECT max(version_id) FILTER(WHERE is_applied), to_regclass('public.f8b_flow_added') IS NULL FROM goose_db_version`).Scan(&actualSchema, &absent); e != nil || actualSchema != 79 || !absent {
+			if e = db.QueryRow(ctx, `SELECT max(version_id) FILTER(WHERE is_applied), to_regclass('public.f8b_flow_added') IS NULL FROM goose_db_version`).Scan(&actualSchema, &absent); e != nil || actualSchema != buildinfo.Schema || !absent {
 				t.Fatal("actual migration rollback", e, actualSchema, absent)
 			}
 			current := strings.TrimSpace(string(compose("ps", "-q", "app")))
@@ -698,7 +701,7 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 					t.Fatal("old container not removed after success")
 				}
 			}
-			if _, e = db.Exec(ctx, `DROP TABLE IF EXISTS f8b_flow_probe,f8b_flow_added;DELETE FROM goose_db_version WHERE version_id=80`); e != nil {
+			if _, e = db.Exec(ctx, fmt.Sprintf(`DROP TABLE IF EXISTS f8b_flow_probe,f8b_flow_added;DELETE FROM goose_db_version WHERE version_id=%d`, buildinfo.Schema+1)); e != nil {
 				t.Fatal(e)
 			}
 			t.Logf("exported RunUpdater: phase=%s terminal audit=%s count=%d; real inspect/pg_dump/Compose/readyz/schema", tc.phase, source, count)
