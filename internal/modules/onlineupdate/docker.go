@@ -219,9 +219,12 @@ func (d *docker) inspect(ctx context.Context, id string) (Container, error) {
 func (d *docker) project() string { return labels(d.self)["com.docker.compose.project"] }
 func (d *docker) appName() string { return strings.TrimPrefix(d.self.Name, "/") }
 func (d *docker) scoped(id string) bool {
+	if id == d.self.ID || id == d.appName() || id == d.helperName() || d.validAppName(id) {
+		return true
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return id == d.self.ID || id == d.appName() || id == d.helperName() || d.validAppName(id) || d.ids[id]
+	return d.ids[id]
 }
 func (d *docker) helperName() string { return d.project() + "-updater-" + d.task }
 func (d *docker) allowed(method, p string, b []byte) bool {
@@ -288,7 +291,19 @@ func validImage(s string) bool {
 	return regexp.MustCompile(`^dingding229/mediatool@sha256:[a-f0-9]{64}$`).MatchString(s)
 }
 func (d *docker) validAppName(n string) bool {
-	return n == d.appName() || n == d.self.ID[:12]+"_"+d.appName() || n == d.self.ID+"_"+d.appName()
+	if n == d.appName() || n == d.self.ID[:12]+"_"+d.appName() || n == d.self.ID+"_"+d.appName() {
+		return true
+	}
+	// During rollback Compose's temporary replacement is prefixed by the NEW
+	// app ID. Only IDs created or freshly re-verified for this app may be used.
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for id := range d.ids {
+		if containerID.MatchString(id) && (n == id[:12]+"_"+d.appName() || n == id+"_"+d.appName()) {
+			return true
+		}
+	}
+	return false
 }
 func (d *docker) validCreate(name string, b []byte) bool {
 	var c map[string]any

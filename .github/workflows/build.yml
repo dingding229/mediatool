@@ -93,6 +93,12 @@ jobs:
           bash scripts/test-go.sh
         env:
           TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+      - name: Complete updater entrypoint in isolated Docker (real inspect, dump, replace, health and audit)
+        env:
+          TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+          MEDIA_TOOL_TEST_HELPER_DOCKER: "1"
+          MEDIA_TOOL_TEST_PLUGIN_UID: ""
+        run: bash scripts/test-go.sh ./internal/modules/onlineupdate
       - name: Native AMD64 media concurrency verification (real media required)
         run: go test -race -count=3 -v ./internal/modules/mediaprobe/...
       - name: Native AMD64 release worker isolation kernel gate (static, non-root)

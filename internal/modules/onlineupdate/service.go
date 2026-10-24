@@ -120,6 +120,9 @@ func PolicyProof(ctx context.Context) (map[string]bool, error) {
 
 func (s *Service) Status(ctx context.Context) (Status, error) {
 	var v Status
+	if e := s.reconcileAudits(ctx); e != nil {
+		return v, e
+	}
 	_, e := os.Stat(socket)
 	v.SocketMounted = e == nil
 	d, e := discover(ctx)
@@ -150,6 +153,9 @@ func (s *Service) Start(ctx context.Context, actor, version, digest string) (Job
 	}
 	if old != nil && (!old.Done() || old.Phase == "manual_recovery") {
 		return j, ErrBusy
+	}
+	if e := s.reconcileAudits(ctx); e != nil {
+		return j, e
 	}
 	// No cached update-check result is trusted to execute an update.
 	r, e := s.Checker.VerifyFresh(ctx)
@@ -251,7 +257,7 @@ func (s *Service) failQueued(ctx context.Context, id, reason string) {
 	}
 	auditCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
-	deferutil.Report(audit(auditCtx, s.DB, j.Actor, "online_update.failed", j), "audit online update failure")
+	deferutil.Report(auditTerminal(auditCtx, s.DB, j, "app"), "audit online update failure")
 }
 func (s *Service) startHelper(ctx context.Context, d *docker, id, ref string) {
 	_, e := d.request(ctx, "POST", "/containers/"+ref+"/start", nil)
@@ -342,6 +348,7 @@ func (s *Service) Run(ctx context.Context) {
 	tick := time.NewTicker(time.Minute)
 	defer tick.Stop()
 	for {
+		deferutil.Report(s.reconcileAudits(ctx), "online update terminal audit reconciliation")
 		j, e := latest(s.Root)
 		if e == nil && j != nil && !j.Done() {
 			go s.launch(j.ID)

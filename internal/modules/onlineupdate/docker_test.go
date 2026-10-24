@@ -90,3 +90,25 @@ func TestAppCreateNeverExpandsPrivileges(t *testing.T) {
 		}
 	}
 }
+
+func TestRollbackTemporaryNameOnlyUsesKnownOwnedAppIDs(t *testing.T) {
+	d := testDocker()
+	current := strings.Repeat("e", 64)
+	foreign := strings.Repeat("f", 64)
+	for _, prefix := range []string{current[:12], current} {
+		if d.validAppName(prefix + "_" + d.appName()) {
+			t.Fatal("unverified app prefix accepted")
+		}
+	}
+	d.ids[current] = true
+	for _, prefix := range []string{current[:12], current} {
+		if !d.validAppName(prefix+"_"+d.appName()) || !d.scoped(prefix+"_"+d.appName()) {
+			t.Fatal("owned rollback name refused")
+		}
+	}
+	for _, name := range []string{foreign[:12] + "_" + d.appName(), current[:12] + "_foreign", current + "_foreign"} {
+		if d.validAppName(name) || d.scoped(name) {
+			t.Fatal("foreign name accepted")
+		}
+	}
+}

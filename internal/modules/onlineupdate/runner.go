@@ -330,6 +330,12 @@ func (r *runner) Rollback(ctx context.Context, j Job) error {
 		if image != j.FromImage && image != updatecheck.Repository+"@"+j.Target.Digest {
 			return ErrUnsafe
 		}
+		if c.Config["User"] != "65532:65532" || labels(c)["com.docker.compose.project"] != r.d.project() || labels(c)["com.docker.compose.service"] != "app" || !containerID.MatchString(c.ID) {
+			return ErrUnsafe
+		}
+		r.d.mu.Lock()
+		r.d.ids[c.ID] = true
+		r.d.mu.Unlock()
 		if c.State.Running {
 			if _, e = r.d.request(ctx, "POST", "/containers/"+r.d.appName()+"/stop?t=30", nil); e != nil {
 				return e
@@ -415,63 +421,76 @@ func (r *runner) restoreDatabase(ctx context.Context, dir string, j Job) error {
 
 // RunUpdater executes only a persisted, pre-admitted task from the mounted app data.
 func RunUpdater(ctx context.Context, id string) error {
+	return runUpdater(ctx, Root, id, newDocker())
+}
+
+// All admitted jobs use the same configuration recovery and terminal audit path.
+func runUpdater(ctx context.Context, root, id string, d *docker) (result error) {
 	if !idPattern.MatchString(id) {
 		return ErrUnsafe
 	}
-	unlock, e := lock(Root, "execution")
+	unlock, e := lock(root, "execution")
 	if e != nil {
 		return e
 	}
 	defer unlock()
-	j, e := load(Root, id)
+	j, e := load(root, id)
 	if e != nil {
 		return e
 	}
 	if j.Done() {
 		return nil
-	}
-	p, e := readPlan(Root, id)
-	if e != nil {
-		return e
-	}
-	d := newDocker()
-	d.self = p.Self
-	d.target = p.TargetImage
-	d.task = id
-	original, identityErr := originalContainer(ctx, d, p, j)
-	if identityErr != nil {
-		if errors.Is(identityErr, ErrUnsafe) {
-			j.Failure = "execution_identity_unavailable"
-			phase := "failed"
-			if j.Phase == "applying" || j.Phase == "checking" || j.Phase == "rolling_back" {
-				phase = "manual_recovery"
-			}
-			if persistErr := advance(Root, &j, phase); persistErr != nil {
-				return persistErr
-			}
+	} // app reconciliation covers a previous helper exit.
+	var dsn string
+	defer func() {
+		if !j.Done() || dsn == "" {
+			return
 		}
-		return identityErr
+		auditCtx, done := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer done()
+		db, e := pgxpool.New(auditCtx, dsn)
+		if e != nil {
+			result = errors.Join(result, errTerminalAudit)
+			return
+		}
+		defer db.Close()
+		result = errors.Join(result, auditTerminal(auditCtx, db, j, "helper"))
+	}()
+	fail := func(reason string) error {
+		j.Failure = reason
+		phase := "failed"
+		if j.Phase == "applying" || j.Phase == "checking" || j.Phase == "rolling_back" {
+			phase = "manual_recovery"
+		}
+		return errors.Join(ErrUnsafe, advance(root, &j, phase))
+	}
+	p, e := readPlan(root, id)
+	if e != nil {
+		return fail("execution_plan_unavailable")
+	}
+	d.self, d.target, d.task = p.Self, p.TargetImage, id
+	original, e := originalContainer(ctx, d, p, j)
+	if e != nil {
+		return fail("execution_identity_unavailable")
 	}
 	d.self = original
+	// Never read Env from the intentionally secret-free plan. This value lives
+	// only in helper memory and is shared by backup, schema, restore and audit.
+	dsn = env(original, "DATABASE_URL")
+	u, e := url.Parse(dsn)
+	if e != nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Hostname() == "" || u.User == nil {
+		dsn = ""
+		return fail("database_configuration_unavailable")
+	}
 	listener, e := net.Listen("tcp", "127.0.0.1:0")
 	if e != nil {
-		return e
+		return fail("compose_proxy_unavailable")
 	}
 	srv := &http.Server{Handler: http.HandlerFunc(d.proxy), ReadHeaderTimeout: 5 * time.Second}
 	go func() { _ = srv.Serve(listener) }()
 	defer deferutil.Close(srv, "Descriptor teardown only; primary operation and persistence results are checked")
-	r := &runner{d: d, root: Root, proxyURL: "tcp://" + listener.Addr().String(), dsn: env(p.Self, "DATABASE_URL")}
-	e = execute(ctx, Root, &j, r)
-	auditCtx, auditDone := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
-	defer auditDone()
-	db, dbErr := pgxpool.New(auditCtx, r.dsn)
-	if dbErr == nil {
-		defer db.Close()
-		if a := audit(auditCtx, db, j.Actor, "online_update."+j.Phase, j); a != nil && e == nil {
-			e = a
-		}
-	}
-	return e
+	r := &runner{d: d, root: root, proxyURL: "tcp://" + listener.Addr().String(), dsn: dsn}
+	return execute(ctx, root, &j, r)
 }
 
 func publicTOC(line string) bool {

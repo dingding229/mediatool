@@ -39,3 +39,14 @@ CI 通过固定 v0.28.0 镜像 digest 提取并缓存已有 ffmpeg/ffprobe 和 m
 断连恢复：inspect/start 响应丢失不是“容器不存在/启动失败”。按固定任务名重新核对已有 helper，不复制执行器，不覆盖它已写入的阶段。只有明确失败且复核为未运行的本任务容器才删除；Docker 状态不明时禁止恢复数据库，转为待运维处理。
 
 凭据隔离：`/data/online-update/*.plan` 仅存容器身份、配置指纹及启动 helper 必需的非敏感挂载/网络标识，不存 Env、命令或自定义 label。初次执行从白名单 inspect 获取原配置；替换前完整快照以 0600 写入宿主机 private/0700，恢复时核对配置指纹。该目录不挂入常驻 app/worker，不能因 Landlock 不可用而把 master key/数据库凭据暴露到共享数据目录。
+
+
+## F8b 生产演练修复（v0.28.2）
+
+- helperConfig 的 Image 是经核验的目标 digest，并非当前 app 镜像。仍按业主要求先通过 Actions → Hub → 备份 → 仅替换 app digest 常规部署 v0.28.2，再发布仅 CHANGELOG 的 v0.28.3；准备好后由业主再次输入密码确认，不自动触发。
+- `.plan` 不保存 Env。`RunUpdater` 从真实 inspect（或已核验的原私有快照）恢复原容器并核对身份与配置指纹之后，才在 helper 内存读取 DATABASE_URL。备份、schema、数据库恢复及终态审计统一使用这一个值，禁止从脱敏计划读凭据。原始 Compose/配置的 operator-private 备份规则不变，不新增单独的凭据文件。
+- failed/succeeded/rolled_back/manual_recovery 终态先持久化到任务文件。helper 尝试终态审计；无 DSN、数据库故障、进程提前退出时，app 在 helper 释放执行锁后通过自身连接对账所有终态任务。启动、每分钟及读取状态/新更新前均重试；数据库事务锁与 job ID + 终态去重。对账记录 `auditSource=reconciliation`，不补造成功事件。
+- 旧任务 `94c4d4c392cd6b32e2e78cb56ea79383` 的 failed 审计由同一对账机制补齐。其零字节 partial 仅按精确路径标记无效，目录与有效 bootstrap 备份保留。
+- 上次漏测：配置恢复、PG 备份、Compose、回滚分别测试，但没有从脱敏 `.plan` 调用真正的 `RunUpdater`，手工设置 runner.dsn 掩盖了组装错误。现在隔离 Docker 子进程调用导出的入口，只有固定 Release/Hub 公开 HTTP 响应使用测试夹具；inspect、pg_dump/restore、Compose 白名单、readyz、schema 和审计均真实执行。父测试带 -race，Linux helper fixture 与真实发布一样为 CGO-free 二进制，不削弱原断言或预算。
+
+完整回滚实测还发现 Compose 会以新 app 的 ID 作为临时替换名。白名单只补充接受本更新器已创建或经项目/服务/非 root/镜像复核的 app ID 前缀；未知 ID、其他项目和其他服务仍拒绝。中断重启回滚时也先复核当前 app 再记入本次已知 ID 集合。
