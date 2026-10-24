@@ -1072,7 +1072,7 @@ func (s *source) build(t *testing.T) object {
 				op["requestBody"] = object{"required": true, "content": object{"multipart/form-data": object{"schema": object{"type": "object", "required": []string{"file", "uploadId"}, "properties": object{"file": object{"type": "string", "format": "binary", "description": "srt/ass/ssa/vtt，原文件和UTF-8转换后均≤5MiB"}, "encoding": object{"type": "string", "enum": []string{"auto", "utf-8", "utf-16le", "utf-16be", "utf-32le", "utf-32be", "gb18030", "big5", "shift-jis", "windows-1252"}}, "uploadId": object{"type": "string", "format": "uuid", "description": "客户端一次逻辑上传的稳定UUID，用于丢失响应后的幂等核对"}}, "additionalProperties": false}}}}
 			}
 			switch r.handler {
-			case "assetSTRM", "opsDownload", "catalogImage", "tmdbPoster", "tmdbImage", "ptTemplateIcon", "ptTemplateFavicon", "downloadSubtitle":
+			case "opsDownload", "catalogImage", "tmdbPoster", "tmdbImage", "ptTemplateIcon", "ptTemplateFavicon", "downloadSubtitle":
 				mime := []string{"application/octet-stream"}
 				switch r.handler {
 				case "downloadSubtitle":

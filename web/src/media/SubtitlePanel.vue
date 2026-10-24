@@ -35,6 +35,7 @@ async function applyDelete(){if(!remove.value)return;const row=remove.value,targ
  </div>
  <p v-if="notice" role="status">{{notice}}</p>
  <p v-if="data.loaded&&!data.error&&!data.data.items.length" class="subtitle-empty">此版本暂无字幕，可上传自己的字幕文件。</p>
+ <p v-if="data.data.items.some(row=>row.source==='embedded')" class="subtitle-embedded-note">内嵌字幕随视频播放，仅编辑显示信息，不提供提取或删除。</p>
  <article v-for="row in data.data.items" :key="row.id" class="subtitle-row">
   <header><strong :title="row.filename">{{row.title||row.filename}}</strong><el-tag>{{origin(row.source)}}</el-tag></header>
   <p>{{row.language||'语言未标注'}} · {{row.extension.toUpperCase()}}<span v-if="row.default"> · 默认</span><span v-if="row.forced"> · 强制</span><span v-if="row.hidden"> · 已隐藏</span><span v-if="row.deleting"> · 副本清理待重试</span></p>
@@ -50,7 +51,6 @@ async function applyDelete(){if(!remove.value)return;const row=remove.value,targ
    <div class="subtitle-checks"><label><input v-model="form.default" type="checkbox"/>默认字幕</label><label><input v-model="form.forced" type="checkbox"/>强制字幕</label></div>
    <div class="subtitle-actions"><el-button :disabled="!!op.pending" @click="editing=undefined">取消编辑</el-button><el-button native-type="submit" :disabled="!!op.pending" :loading="op.busy">保存字幕信息</el-button></div>
   </form>
-  <p v-if="row.source==='embedded'">内嵌字幕随视频播放，仅编辑显示信息，不提供提取或删除。</p>
  </article>
  <ConfirmAction v-model:visible="confirm" title="删除上传字幕副本" :description="`确认删除 ${remove?.title||remove?.filename||'此字幕'}？`" impact-scope="仅删除本程序登记和上传副本；不会删除或修改网盘文件、媒体及 STRM。" confirm-text="删除副本" :loading="op.busy" @confirm="applyDelete"/>
 </section>

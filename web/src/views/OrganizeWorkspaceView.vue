@@ -20,7 +20,7 @@ import HistoryPanel from '../organize/HistoryPanel.vue';
 import ArchivePanel from '../organize/ArchivePanel.vue';
 import { useOrganize } from '../organize/useOrganize';
 import { label, selectable, rows } from '../organize/model';
-import { sourceState, originalSTRM } from '../media/model';
+import { sourceState } from '../media/model';
 import { errorText } from '../workflows/readiness';
 import { readIntent, writeIntent, size } from '../acquisition/model';
 import '../media/media.css';
@@ -230,7 +230,6 @@ usePageRefresh(state.refresh,'*');
       <h3>当前输出与 STRM</h3>
       <p v-for="item in outputs?.outputs||[]" :key="item.path">{{ item.kind==='strm'?'STRM':item.kind==='nfo'?'NFO':'输出文件' }} · {{ item.path }}</p>
       <p v-if="!outputs">尚未取得匹配的输出清单，不据此推断输出已删除。</p>
-      <a v-if="assetDetail?.fileScoped&&!assetDetail?.revoked&&originalSTRM({...assetDetail,source:'managed'})" :href="originalSTRM({...assetDetail,source:'managed'})" download>下载原始 STRM</a>
       <h3>按当前文件名检索的文件操作记录</h3>
       <p v-for="item in operations" :key="item.id">{{ label(item.state) }} · {{ item.source }} → {{ item.destination||'—' }}</p>
       <RouterLink :to="{path:'/organize',query:{tab:'history',kind:'file',q:assetDetail?.path?.split('/').pop()}}" @click="detailsOpen=false">查看重命名与整理历史</RouterLink>

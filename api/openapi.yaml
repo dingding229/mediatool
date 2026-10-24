@@ -2463,17 +2463,6 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
-      "HTTP200_61c1d40f996a": {
-        "content": {
-          "application/octet-stream": {
-            "schema": {
-              "format": "binary",
-              "type": "string"
-            }
-          }
-        },
-        "description": "真实文件/图片响应，不包JSON Envelope；备份与STRM含私有数据，不可放公开产物。"
-      },
       "HTTP200_65870610ab6a": {
         "content": {
           "application/json": {
@@ -6049,6 +6038,25 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
+      "HTTP200_edb6aadfb7fe": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/modules_catalog_ManagedDetail"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
       "HTTP200_edfe720a0a57": {
         "content": {
           "application/json": {
@@ -7664,37 +7672,6 @@
         "x-error-codes": [
           "download_create_failed",
           "invalid_json"
-        ]
-      },
-      "HTTP400_0caff5c10c23": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "invalid_pagination"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "invalid_pagination"
         ]
       },
       "HTTP400_12a52783829f": {
@@ -9476,6 +9453,39 @@
         "x-error-codes": [
           "invalid_json",
           "proxy_save_failed"
+        ]
+      },
+      "HTTP400_9e52125b1fbc": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "invalid_catalog_query",
+                            "invalid_pagination"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "invalid_catalog_query",
+          "invalid_pagination"
         ]
       },
       "HTTP400_9fa4027189eb": {
@@ -11795,37 +11805,6 @@
         },
         "description": "固定原生错误，ResponseStatus.ErrorCode/Message；429参照Retry-After，不显示驱动SQL。"
       },
-      "HTTP404_4610eed8cb92": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "strm_unavailable"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "strm_unavailable"
-        ]
-      },
       "HTTP404_5400aef5fb86": {
         "content": {
           "application/json": {
@@ -12775,39 +12754,6 @@
         "x-error-codes": [
           "online_update_busy",
           "online_update_control_rejected"
-        ]
-      },
-      "HTTP409_342647e501e1": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "strm_invalid",
-                            "strm_unmanaged"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "strm_invalid",
-          "strm_unmanaged"
         ]
       },
       "HTTP409_39bc31309a85": {
@@ -16335,43 +16281,6 @@
           "maintenance_busy",
           "maintenance_unavailable",
           "settings_unavailable"
-        ]
-      },
-      "HTTP503_5f9787dbc12b": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "integrations_unavailable",
-                            "maintenance_busy",
-                            "maintenance_unavailable",
-                            "strm_unavailable"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "integrations_unavailable",
-          "maintenance_busy",
-          "maintenance_unavailable",
-          "strm_unavailable"
         ]
       },
       "HTTP503_604ad8ec236b": {
@@ -20526,6 +20435,46 @@
         "type": "object",
         "x-go-type": "media-tool/internal/modules/catalog.Card"
       },
+      "modules_catalog_Category": {
+        "additionalProperties": false,
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "group",
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/catalog.Category"
+      },
+      "modules_catalog_Dimensions": {
+        "additionalProperties": false,
+        "properties": {
+          "height": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "width": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "height",
+          "width"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/catalog.Dimensions"
+      },
       "modules_catalog_Home": {
         "additionalProperties": false,
         "properties": {
@@ -20611,6 +20560,12 @@
       "modules_catalog_Item": {
         "additionalProperties": false,
         "properties": {
+          "category": {
+            "type": "string"
+          },
+          "categoryId": {
+            "type": "string"
+          },
           "episode": {
             "anyOf": [
               {
@@ -20676,9 +20631,134 @@
         "type": "object",
         "x-go-type": "media-tool/internal/modules/catalog.Item"
       },
+      "modules_catalog_ManagedDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "aggregate": {
+            "type": "boolean"
+          },
+          "assetCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "category": {
+            "type": "string"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "episode": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "filePath": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "overview": {
+            "type": "string"
+          },
+          "poster": {
+            "type": "string"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolutions": {
+            "items": {
+              "$ref": "#/components/schemas/modules_catalog_Dimensions"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "season": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "year": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "aggregate",
+          "assetCount",
+          "id",
+          "mediaType",
+          "overview",
+          "poster",
+          "rating",
+          "resolutions",
+          "size",
+          "source",
+          "title",
+          "year"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/catalog.ManagedDetail"
+      },
       "modules_catalog_Page": {
         "additionalProperties": false,
         "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/modules_catalog_Category"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/modules_catalog_Item"
@@ -55145,7 +55225,7 @@
         "x-go-handler": "cloudAccountInfo",
         "x-go-registration": "GET /api/v1/cloud/accounts/info",
         "x-listener": "management",
-        "x-source": "api.go:222"
+        "x-source": "api.go:223"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -55179,7 +55259,7 @@
         "x-go-handler": "cloudAccountInfo",
         "x-go-registration": "GET /api/v1/cloud/accounts/info",
         "x-listener": "management",
-        "x-source": "api.go:222"
+        "x-source": "api.go:223"
       }
     },
     "/api/v1/cloudStorage": {
@@ -56682,7 +56762,7 @@
         "x-go-handler": "playbackPreflight",
         "x-go-registration": "GET /api/v1/diagnostics/playback/preflight",
         "x-listener": "management",
-        "x-source": "api.go:243"
+        "x-source": "api.go:244"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -56716,7 +56796,7 @@
         "x-go-handler": "playbackPreflight",
         "x-go-registration": "GET /api/v1/diagnostics/playback/preflight",
         "x-listener": "management",
-        "x-source": "api.go:243"
+        "x-source": "api.go:244"
       }
     },
     "/api/v1/downloads": {
@@ -58303,7 +58383,7 @@
         "x-go-handler": "listFiles",
         "x-go-registration": "GET /api/v1/files",
         "x-listener": "management",
-        "x-source": "api.go:231"
+        "x-source": "api.go:232"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -58387,7 +58467,7 @@
         "x-go-handler": "listFiles",
         "x-go-registration": "GET /api/v1/files",
         "x-listener": "management",
-        "x-source": "api.go:231"
+        "x-source": "api.go:232"
       }
     },
     "/api/v1/files/batches/preview": {
@@ -58470,7 +58550,7 @@
         "x-go-handler": "previewFileBatch",
         "x-go-registration": "POST /api/v1/files/batches/preview",
         "x-listener": "management",
-        "x-source": "api.go:217"
+        "x-source": "api.go:218"
       }
     },
     "/api/v1/files/batches/{id}": {
@@ -58529,7 +58609,7 @@
         "x-go-handler": "getFileBatch",
         "x-go-registration": "GET /api/v1/files/batches/{id}",
         "x-listener": "management",
-        "x-source": "api.go:218"
+        "x-source": "api.go:219"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -58586,7 +58666,7 @@
         "x-go-handler": "getFileBatch",
         "x-go-registration": "GET /api/v1/files/batches/{id}",
         "x-listener": "management",
-        "x-source": "api.go:218"
+        "x-source": "api.go:219"
       }
     },
     "/api/v1/files/batches/{id}/approve": {
@@ -58675,7 +58755,7 @@
         "x-go-handler": "approveFileBatch",
         "x-go-registration": "POST /api/v1/files/batches/{id}/approve",
         "x-listener": "management",
-        "x-source": "api.go:219"
+        "x-source": "api.go:220"
       }
     },
     "/api/v1/files/batches/{id}/reconcile": {
@@ -58757,7 +58837,7 @@
         "x-go-handler": "reconcileFileBatch",
         "x-go-registration": "POST /api/v1/files/batches/{id}/reconcile",
         "x-listener": "management",
-        "x-source": "api.go:220"
+        "x-source": "api.go:221"
       }
     },
     "/api/v1/files/identify": {
@@ -58884,7 +58964,7 @@
         "x-go-handler": "listFileOperations",
         "x-go-registration": "GET /api/v1/files/operations",
         "x-listener": "management",
-        "x-source": "api.go:232"
+        "x-source": "api.go:233"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -58930,7 +59010,7 @@
         "x-go-handler": "listFileOperations",
         "x-go-registration": "GET /api/v1/files/operations",
         "x-listener": "management",
-        "x-source": "api.go:232"
+        "x-source": "api.go:233"
       }
     },
     "/api/v1/files/operations/{id}/execute": {
@@ -59019,7 +59099,7 @@
         "x-go-handler": "executeFileOperation",
         "x-go-registration": "POST /api/v1/files/operations/{id}/execute",
         "x-listener": "management",
-        "x-source": "api.go:234"
+        "x-source": "api.go:235"
       }
     },
     "/api/v1/files/operations/{id}/reconcile": {
@@ -59101,7 +59181,7 @@
         "x-go-handler": "reconcileFileOperation",
         "x-go-registration": "POST /api/v1/files/operations/{id}/reconcile",
         "x-listener": "management",
-        "x-source": "api.go:235"
+        "x-source": "api.go:236"
       }
     },
     "/api/v1/files/preview": {
@@ -59249,7 +59329,7 @@
         "x-go-handler": "previewFileOperation",
         "x-go-registration": "POST /api/v1/files/preview",
         "x-listener": "management",
-        "x-source": "api.go:233"
+        "x-source": "api.go:234"
       }
     },
     "/api/v1/files/roots": {
@@ -59297,7 +59377,7 @@
         "x-go-handler": "listFileRoots",
         "x-go-registration": "GET /api/v1/files/roots",
         "x-listener": "management",
-        "x-source": "api.go:230"
+        "x-source": "api.go:231"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -59343,7 +59423,7 @@
         "x-go-handler": "listFileRoots",
         "x-go-registration": "GET /api/v1/files/roots",
         "x-listener": "management",
-        "x-source": "api.go:230"
+        "x-source": "api.go:231"
       }
     },
     "/api/v1/integrations": {
@@ -60376,7 +60456,7 @@
         "x-go-handler": "listJobs",
         "x-go-registration": "GET /api/v1/jobs",
         "x-listener": "management",
-        "x-source": "api.go:236"
+        "x-source": "api.go:237"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60410,7 +60490,7 @@
         "x-go-handler": "listJobs",
         "x-go-registration": "GET /api/v1/jobs",
         "x-listener": "management",
-        "x-source": "api.go:236"
+        "x-source": "api.go:237"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60476,7 +60556,7 @@
         "x-go-handler": "createJob",
         "x-go-registration": "POST /api/v1/jobs",
         "x-listener": "management",
-        "x-source": "api.go:237"
+        "x-source": "api.go:238"
       }
     },
     "/api/v1/jobs/browse": {
@@ -60569,7 +60649,7 @@
         "x-go-handler": "browseJobs",
         "x-go-registration": "GET /api/v1/jobs/browse",
         "x-listener": "management",
-        "x-source": "api.go:238"
+        "x-source": "api.go:239"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60660,7 +60740,7 @@
         "x-go-handler": "browseJobs",
         "x-go-registration": "GET /api/v1/jobs/browse",
         "x-listener": "management",
-        "x-source": "api.go:238"
+        "x-source": "api.go:239"
       }
     },
     "/api/v1/jobs/events": {
@@ -60696,7 +60776,7 @@
         "x-go-handler": "events",
         "x-go-registration": "GET /api/v1/jobs/events",
         "x-listener": "management",
-        "x-source": "api.go:241"
+        "x-source": "api.go:242"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60730,7 +60810,7 @@
         "x-go-handler": "events",
         "x-go-registration": "GET /api/v1/jobs/events",
         "x-listener": "management",
-        "x-source": "api.go:241"
+        "x-source": "api.go:242"
       }
     },
     "/api/v1/jobs/{id}": {
@@ -60783,7 +60863,7 @@
         "x-go-handler": "jobDetail",
         "x-go-registration": "GET /api/v1/jobs/{id}",
         "x-listener": "management",
-        "x-source": "api.go:239"
+        "x-source": "api.go:240"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60834,7 +60914,7 @@
         "x-go-handler": "jobDetail",
         "x-go-registration": "GET /api/v1/jobs/{id}",
         "x-listener": "management",
-        "x-source": "api.go:239"
+        "x-source": "api.go:240"
       }
     },
     "/api/v1/library/activity": {
@@ -60951,7 +61031,7 @@
         "x-go-handler": "libraryActivity",
         "x-go-registration": "GET /api/v1/library/activity",
         "x-listener": "management",
-        "x-source": "api.go:224"
+        "x-source": "api.go:225"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61066,7 +61146,7 @@
         "x-go-handler": "libraryActivity",
         "x-go-registration": "GET /api/v1/library/activity",
         "x-listener": "management",
-        "x-source": "api.go:224"
+        "x-source": "api.go:225"
       }
     },
     "/api/v1/library/activity/remove": {
@@ -61146,7 +61226,7 @@
         "x-go-handler": "removeLibraryHistory",
         "x-go-registration": "POST /api/v1/library/activity/remove",
         "x-listener": "management",
-        "x-source": "api.go:223"
+        "x-source": "api.go:224"
       }
     },
     "/api/v1/library/archive-cleanups/{id}": {
@@ -62472,7 +62552,7 @@
         "x-go-handler": "managedOutputs",
         "x-go-registration": "GET /api/v1/library/outputs",
         "x-listener": "management",
-        "x-source": "api.go:226"
+        "x-source": "api.go:227"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -62547,7 +62627,7 @@
         "x-go-handler": "managedOutputs",
         "x-go-registration": "GET /api/v1/library/outputs",
         "x-listener": "management",
-        "x-source": "api.go:226"
+        "x-source": "api.go:227"
       }
     },
     "/api/v1/library/outputs/{id}/content": {
@@ -62608,7 +62688,7 @@
         "x-go-handler": "managedOutputContent",
         "x-go-registration": "GET /api/v1/library/outputs/{id}/content",
         "x-listener": "management",
-        "x-source": "api.go:225"
+        "x-source": "api.go:226"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -62667,7 +62747,7 @@
         "x-go-handler": "managedOutputContent",
         "x-go-registration": "GET /api/v1/library/outputs/{id}/content",
         "x-listener": "management",
-        "x-source": "api.go:225"
+        "x-source": "api.go:226"
       }
     },
     "/api/v1/library/outputs/{id}/emby": {
@@ -62740,7 +62820,7 @@
         "x-go-handler": "checkManagedEmby",
         "x-go-registration": "POST /api/v1/library/outputs/{id}/emby",
         "x-listener": "management",
-        "x-source": "api.go:227"
+        "x-source": "api.go:228"
       }
     },
     "/api/v1/library/scan-schedules": {
@@ -63187,7 +63267,7 @@
         "x-go-handler": "scanDetails",
         "x-go-registration": "GET /api/v1/library/scans/{id}",
         "x-listener": "management",
-        "x-source": "api.go:228"
+        "x-source": "api.go:229"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -63258,7 +63338,7 @@
         "x-go-handler": "scanDetails",
         "x-go-registration": "GET /api/v1/library/scans/{id}",
         "x-listener": "management",
-        "x-source": "api.go:228"
+        "x-source": "api.go:229"
       }
     },
     "/api/v1/library/scans/{id}/{action}": {
@@ -63343,7 +63423,7 @@
         "x-go-handler": "controlScan",
         "x-go-registration": "POST /api/v1/library/scans/{id}/{action}",
         "x-listener": "management",
-        "x-source": "api.go:229"
+        "x-source": "api.go:230"
       }
     },
     "/api/v1/logs": {
@@ -67616,110 +67696,6 @@
         "x-source": "api.go:292"
       }
     },
-    "/api/v1/media/assets/{id}/strm": {
-      "get": {
-        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
-        "operationId": "get_api_v1_media_assets_id_strm_df932370",
-        "parameters": [
-          {
-            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/HTTP200_61c1d40f996a"
-          },
-          "401": {
-            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
-          },
-          "403": {
-            "$ref": "#/components/responses/HTTP403_2601227bedbe"
-          },
-          "404": {
-            "$ref": "#/components/responses/HTTP404_4610eed8cb92"
-          },
-          "409": {
-            "$ref": "#/components/responses/HTTP409_342647e501e1"
-          },
-          "423": {
-            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
-          },
-          "503": {
-            "$ref": "#/components/responses/HTTP503_5f9787dbc12b"
-          }
-        },
-        "security": [
-          {
-            "AdminSession": []
-          }
-        ],
-        "summary": "assetSTRM",
-        "tags": [
-          "媒体库与文件"
-        ],
-        "x-go-handler": "assetSTRM",
-        "x-go-registration": "GET /api/v1/media/assets/{id}/strm",
-        "x-listener": "management",
-        "x-source": "api.go:245"
-      },
-      "head": {
-        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
-        "operationId": "head_api_v1_media_assets_id_strm_df932370",
-        "parameters": [
-          {
-            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/HTTP200_61c1d40f996a"
-          },
-          "401": {
-            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
-          },
-          "403": {
-            "$ref": "#/components/responses/HTTP403_2601227bedbe"
-          },
-          "404": {
-            "$ref": "#/components/responses/HTTP404_4610eed8cb92"
-          },
-          "409": {
-            "$ref": "#/components/responses/HTTP409_342647e501e1"
-          },
-          "423": {
-            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
-          },
-          "503": {
-            "$ref": "#/components/responses/HTTP503_5f9787dbc12b"
-          }
-        },
-        "security": [
-          {
-            "AdminSession": []
-          }
-        ],
-        "summary": "assetSTRM",
-        "tags": [
-          "媒体库与文件"
-        ],
-        "x-go-handler": "assetSTRM",
-        "x-go-registration": "GET /api/v1/media/assets/{id}/strm",
-        "x-listener": "management",
-        "x-source": "api.go:245"
-      }
-    },
     "/api/v1/media/assets/{id}/subtitles": {
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -68323,7 +68299,7 @@
         "x-go-handler": "assetValidationRef",
         "x-go-registration": "GET /api/v1/media/assets/{id}/validation-ref",
         "x-listener": "management",
-        "x-source": "api.go:244"
+        "x-source": "api.go:245"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -68371,7 +68347,7 @@
         "x-go-handler": "assetValidationRef",
         "x-go-registration": "GET /api/v1/media/assets/{id}/validation-ref",
         "x-listener": "management",
-        "x-source": "api.go:244"
+        "x-source": "api.go:245"
       }
     },
     "/api/v1/media/emby/items/{id}": {
@@ -68479,6 +68455,14 @@
         "parameters": [
           {
             "in": "query",
+            "name": "categoryId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "mediaType",
             "required": false,
             "schema": {
@@ -68535,7 +68519,7 @@
             "$ref": "#/components/responses/HTTP200_f1d61230afe0"
           },
           "400": {
-            "$ref": "#/components/responses/HTTP400_0caff5c10c23"
+            "$ref": "#/components/responses/HTTP400_9e52125b1fbc"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -68568,6 +68552,14 @@
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "head_api_v1_media_library_3856d96b",
         "parameters": [
+          {
+            "in": "query",
+            "name": "categoryId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "in": "query",
             "name": "mediaType",
@@ -68626,7 +68618,7 @@
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
           },
           "400": {
-            "$ref": "#/components/responses/HTTP400_0caff5c10c23"
+            "$ref": "#/components/responses/HTTP400_9e52125b1fbc"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -68801,7 +68793,7 @@
         "x-go-handler": "catalogImage",
         "x-go-registration": "GET /api/v1/media/library/emby/{id}/image",
         "x-listener": "management",
-        "x-source": "api.go:216"
+        "x-source": "api.go:217"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -68856,6 +68848,104 @@
         ],
         "x-go-handler": "catalogImage",
         "x-go-registration": "GET /api/v1/media/library/emby/{id}/image",
+        "x-listener": "management",
+        "x-source": "api.go:217"
+      }
+    },
+    "/api/v1/media/library/managed/{id}": {
+      "get": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "get_api_v1_media_library_managed_id_5adf7011",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_edb6aadfb7fe"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_2584b9dfbbef"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_da3b508aa570"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "managedCatalogDetail",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "managedCatalogDetail",
+        "x-go-registration": "GET /api/v1/media/library/managed/{id}",
+        "x-listener": "management",
+        "x-source": "api.go:216"
+      },
+      "head": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "head_api_v1_media_library_managed_id_5adf7011",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_2584b9dfbbef"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_da3b508aa570"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "managedCatalogDetail",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "managedCatalogDetail",
+        "x-go-registration": "GET /api/v1/media/library/managed/{id}",
         "x-listener": "management",
         "x-source": "api.go:216"
       }
@@ -77603,7 +77693,7 @@
         "x-go-handler": "namingPreview",
         "x-go-registration": "POST /api/v1/settings/naming-preview",
         "x-listener": "management",
-        "x-source": "api.go:221"
+        "x-source": "api.go:222"
       }
     },
     "/api/v1/settings/network-proxy": {
@@ -78357,7 +78447,7 @@
         "x-go-handler": "preview",
         "x-go-registration": "POST /api/v1/strm/preview",
         "x-listener": "management",
-        "x-source": "api.go:242"
+        "x-source": "api.go:243"
       }
     },
     "/api/v1/strm/repairs/preview": {
@@ -79779,7 +79869,7 @@
         "x-go-handler": "operations",
         "x-go-registration": "GET /api/v1/system/operations",
         "x-listener": "management",
-        "x-source": "api.go:240"
+        "x-source": "api.go:241"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -79813,7 +79903,7 @@
         "x-go-handler": "operations",
         "x-go-registration": "GET /api/v1/system/operations",
         "x-listener": "management",
-        "x-source": "api.go:240"
+        "x-source": "api.go:241"
       }
     },
     "/api/v1/system/runtime": {

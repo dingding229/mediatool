@@ -2,11 +2,8 @@ package httpapi
 
 import (
 	"errors"
-	"io"
 	"media-tool/internal/modules/integrations"
-	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
-	"os"
 )
 
 // Playback preflight reports effective runtime configuration, never credentials.
@@ -53,51 +50,6 @@ func (a *API) playbackPreflight(w http.ResponseWriter, r *http.Request) {
 }
 
 // Explicit authenticated download; listing assets never returns file keys.
-func (a *API) assetSTRM(w http.ResponseWriter, r *http.Request) {
-	if !a.integrationReady(w) {
-		return
-	}
-	var output string
-	if a.Deps.DB.QueryRow(r.Context(), `SELECT output_path FROM strm_entries WHERE asset_id=$1 ORDER BY output_path LIMIT 1`, r.PathValue("id")).Scan(&output) != nil {
-		fail(w, 404, "strm_unavailable", "没有对应STRM")
-		return
-	}
-	root, err := os.OpenRoot(a.Config.STRMOutputDir)
-	if err != nil {
-		fail(w, 503, "strm_unavailable", "STRM目录不可用")
-		return
-	}
-	defer deferutil.Close(root, "Read/descriptor teardown only; primary operations handle their own I/O result")
-	f, err := root.Open(output)
-	if err != nil {
-		fail(w, 404, "strm_unavailable", "STRM文件不可用")
-		return
-	}
-	defer deferutil.Close(f, "Read/descriptor teardown only; primary operations handle their own I/O result")
-	raw, err := io.ReadAll(io.LimitReader(f, 8193))
-	if err != nil || len(raw) > 8192 {
-		fail(w, 409, "strm_invalid", "STRM无效")
-		return
-	}
-	if string(raw) == "" {
-		fail(w, 409, "strm_invalid", "STRM无效")
-		return
-	}
-	// Do not return a hand-edited URL containing an unrelated secret.
-	g := a.gateway(r.Context())
-	if g == nil || !g.ManagedLink(r.Context(), string(raw)) {
-		fail(w, 409, "strm_unmanaged", "STRM未通过托管验证")
-		return
-	}
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", `attachment; filename="media.strm"`)
-	w.Header().Set("Cache-Control", "no-store")
-	if _, checkedErr := w.Write(raw); checkedErr != nil {
-		deferutil.Report(checkedErr, "internal/platform/httpapi/validation.go:assetSTRM")
-		return
-	}
-}
-
 func (a *API) assetValidationRef(w http.ResponseWriter, r *http.Request) {
 	if !a.integrationReady(w) {
 		return

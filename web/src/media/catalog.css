@@ -23,16 +23,16 @@
 .catalog-poster:hover .catalog-art{border-color:var(--mt-color-primary)}
 .catalog-workspace button:focus-visible,.catalog-detail button:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:3px}
 .catalog-summary{display:grid;grid-template-columns:120px minmax(0,1fr);gap:20px}
+.catalog-summary--text{grid-template-columns:minmax(0,1fr)}
 .catalog-summary>img{width:120px;border-radius:8px}
 .catalog-summary dl{display:grid;gap:12px}
 .catalog-summary dl>div{display:flex;justify-content:space-between;gap:16px}
-.catalog-detail dt{color:var(--mt-text-muted)}
+.catalog-detail dt{color:var(--mt-text-muted);flex-shrink:0;white-space:nowrap}
 .catalog-detail dd{margin:0}
 .catalog-detail p,.catalog-detail dd{line-height:1.8;overflow-wrap:anywhere}
 .catalog-detail h3{margin-top:28px}
 .catalog-episodes{padding:0;list-style:none}
 .catalog-episodes button{padding:12px 0;min-height:44px;background:none;border:0;border-bottom:1px solid var(--mt-border-color);color:var(--mt-text-primary);cursor:pointer;width:100%;text-align:left;overflow-wrap:anywhere}
-.catalog-link{border-top:1px solid var(--mt-border-color);margin-top:24px;padding-top:20px}
 .catalog-detail .el-button,.catalog-detail .el-drawer__close-btn{min-height:44px;min-width:44px}
 
 @media(max-width:680px){.catalog-wall{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}
@@ -40,6 +40,7 @@
 .catalog-filters>.el-button{grid-column:1/-1}
 .catalog-toolbar{align-items:flex-start}
 .catalog-summary{grid-template-columns:minmax(0,1fr)}
+.catalog-summary--text{grid-template-columns:minmax(0,1fr)}
 .catalog-summary>img{width:120px}
 .catalog-summary dl{margin:0}
 .catalog-toolbar nav button{padding:10px 12px}

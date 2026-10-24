@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"media-tool/internal/modules/classification"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,7 +13,21 @@ import (
 // first physical file. Bind parent filters before grouping/paging.
 const managedMembers = ` FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id LEFT JOIN media_asset_bindings b ON b.asset_id=a.id LEFT JOIN media_items m ON m.id=b.media_id `
 
-func (e Engine) managed(ctx context.Context, out Page, q, kind string) (Page, error) {
+func (e Engine) managed(ctx context.Context, out Page, q, kind, category string) (Page, error) {
+	policy, err := (classification.Repository{DB: e.DB}).Get(ctx)
+	if err != nil {
+		return out, ErrUnavailable
+	}
+	out.Categories = categoryOptions(policy.Value)
+	if category != "" && category != "unclassified" {
+		found := false
+		for _, v := range out.Categories {
+			found = found || v.ID == category
+		}
+		if !found {
+			return out, ErrInvalid
+		}
+	}
 	parent := out.ParentID
 	where := ` WHERE ($1='' OR coalesce(m.title,f.metadata->>'name',f.full_path) ILIKE '%'||$1||'%') AND ($2='' OR m.media_type=$2)`
 	args := []any{q, kind}
@@ -47,12 +62,26 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind string) (Page, er
 		where += ` GROUP BY CASE WHEN m.media_type='series' THEN 'series_'||m.id::text ELSE a.id::text END,m.media_type,m.id`
 		order = `title,id`
 	}
+	categoryExpr := categorySQL(policy.Value, &args)
+	if category != "" {
+		args = append(args, category)
+		condition := fmt.Sprintf(" AND (%s)=$%d", categoryExpr, len(args))
+		where = strings.Replace(where, " GROUP BY", condition+" GROUP BY", 1)
+		if !strings.Contains(where, " GROUP BY") {
+			where += condition
+		}
+	}
+	if strings.Contains(where, " GROUP BY") {
+		fields += ",max(" + categoryExpr + ") category_id"
+	} else {
+		fields += "," + categoryExpr + " category_id"
+	}
 	sql := `WITH entries AS(SELECT ` + fields + managedMembers + where + `) `
 	if err := e.DB.QueryRow(ctx, sql+`SELECT count(*) FROM entries`, args...).Scan(&out.Total); err != nil {
 		return out, ErrUnavailable
 	}
 	args = append(args, out.PageSize, (out.Page-1)*out.PageSize)
-	rows, err := e.DB.Query(ctx, sql+`SELECT id,title,item_year,media_type,overview,poster,file_path,state,season,episode,type FROM entries ORDER BY `+order+fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)-1, len(args)), args...)
+	rows, err := e.DB.Query(ctx, sql+`SELECT id,title,item_year,media_type,overview,poster,file_path,state,season,episode,type,category_id FROM entries ORDER BY `+order+fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)-1, len(args)), args...)
 	if err != nil {
 		return out, ErrUnavailable
 	}
@@ -60,8 +89,15 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind string) (Page, er
 	for rows.Next() {
 		item := Item{Source: "managed"}
 		var poster string
-		if err = rows.Scan(&item.ID, &item.Title, &item.Year, &item.MediaType, &item.Overview, &poster, &item.FilePath, &item.State, &item.Season, &item.Episode, &item.Type); err != nil {
+		if err = rows.Scan(&item.ID, &item.Title, &item.Year, &item.MediaType, &item.Overview, &poster, &item.FilePath, &item.State, &item.Season, &item.Episode, &item.Type, &item.CategoryID); err != nil {
 			return out, ErrUnavailable
+		}
+		item.Category = "未分类"
+		for _, c := range out.Categories {
+			if c.ID == item.CategoryID {
+				item.Category = c.Name
+				break
+			}
 		}
 		if safePoster.MatchString(poster) {
 			item.Poster = "/api/v1/media/tmdb/image?path=" + url.QueryEscape(poster)
@@ -72,4 +108,13 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind string) (Page, er
 		return out, ErrUnavailable
 	}
 	return out, nil
+}
+
+// ListClassified is the administrator-only category-filtered view. Protocol
+// repositories and external Emby browsing do not depend on this projection.
+func (e Engine) ListClassified(ctx context.Context, q, kind, parent, category string, page, size int) (Page, error) {
+	if len(q) > 200 || page < 1 || page > 10000 || size < 1 || size > 100 || len(category) > 210 || parent != "" && !safeID.MatchString(parent) || kind != "" && kind != "movie" && kind != "series" {
+		return Page{}, ErrInvalid
+	}
+	return e.managed(ctx, Page{Items: []Item{}, Source: "managed", Page: page, PageSize: size, ParentID: parent}, q, kind, category)
 }

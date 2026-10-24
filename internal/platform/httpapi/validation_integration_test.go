@@ -94,8 +94,8 @@ func TestPostgresPreflightUsesDatabaseAndDisabledProfileBlocksEnvironmentFallbac
 		if err = strm.WriteAtomic(c.STRMOutputDir, output, oldLink); err != nil {
 			t.Fatal(err)
 		}
-		if result := invoke(h, "GET", "/api/v1/media/assets/"+assetID+"/strm", "", c.SessionKey); result.Code != 200 {
-			t.Fatal("download failed", result.Code)
+		if result := invoke(h, "GET", "/api/v1/media/assets/"+assetID+"/strm", "", c.SessionKey); result.Code != 404 {
+			t.Fatal("removed management STRM route remains", result.Code)
 		}
 		if result := invoke(h, "POST", "/api/v1/media/assets/"+assetID+"/grant/revoke", "{}", c.SessionKey); result.Code != 200 {
 			t.Fatal("revoke failed", result.Code)

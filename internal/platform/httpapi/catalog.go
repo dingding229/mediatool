@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"io"
 	"media-tool/internal/modules/catalog"
 	"media-tool/internal/modules/mediaserver"
@@ -35,8 +36,14 @@ func (a *API) listCatalog(w http.ResponseWriter, r *http.Request) {
 	var items catalog.Page
 	if source == "emby" {
 		items, err = (mediaserver.EmbyAdapter{Catalog: e}).AdministrativeList(ctx, r.URL.Query().Get("q"), r.URL.Query().Get("mediaType"), r.URL.Query().Get("parentId"), p.Page, p.Limit)
+	} else if source == "managed" {
+		items, err = e.ListClassified(ctx, r.URL.Query().Get("q"), r.URL.Query().Get("mediaType"), r.URL.Query().Get("parentId"), r.URL.Query().Get("categoryId"), p.Page, p.Limit)
 	} else {
 		items, err = e.ListParent(ctx, source, r.URL.Query().Get("q"), r.URL.Query().Get("mediaType"), r.URL.Query().Get("parentId"), p.Page, p.Limit)
+	}
+	if errors.Is(err, catalog.ErrInvalid) {
+		fail(w, 400, "invalid_catalog_query", "媒体库筛选参数无效")
+		return
 	}
 	if err != nil {
 		fail(w, 503, "catalog_unavailable", "媒体库读取失败；Emby内容需配置并启用Emby连接和媒体库API Key")
@@ -154,4 +161,20 @@ func (a *API) catalogSources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, v)
+}
+
+func (a *API) managedCatalogDetail(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 6*time.Second)
+	defer cancel()
+	detail, err := (catalog.Engine{DB: a.Deps.DB}).ManagedDetail(ctx, r.PathValue("id"))
+	if errors.Is(err, catalog.ErrInvalid) {
+		fail(w, 404, "media_unavailable", "媒体详情不存在")
+		return
+	}
+	if err != nil {
+		fail(w, 503, "catalog_unavailable", "媒体详情暂不可用")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	write(w, 200, detail)
 }

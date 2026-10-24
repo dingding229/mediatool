@@ -7,11 +7,11 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import PosterWall from '../media/PosterWall.vue';
 import SubtitlePanel from '../media/SubtitlePanel.vue';
 import { useCatalog } from '../media/useCatalog';
-import { image, originalSTRM, mediaType, sourceState } from '../media/model';
+import { image, mediaType, sourceState, displayRating, displayResolution, displayMediaSize } from '../media/model';
 import { errorText } from '../workflows/readiness';
 import { formatBytes } from '../operations/model';
 import '../media/catalog.css';
-const { selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, items, total, home, groups, loading, error, embyConnected, connectionError, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, copyMessage, playLink, copyBusy, load, search, chooseSource, all, browse, inspect, homeItem, refresh, readChildren, copyLink } = useCatalog();
+const { selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, items, total, home, groups, loading, error, embyConnected, connectionError, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, category, categories, load, search, chooseSource, all, browse, inspect, homeItem, refresh, readChildren } = useCatalog();
 usePageRefresh(refresh,'*');
 </script>
 <template>
@@ -42,10 +42,14 @@ usePageRefresh(refresh,'*');
         </label>
         <label>
           类型
-          <el-select popper-class="catalog-options" placeholder="全部类型" v-model="kind" aria-label="媒体类型筛选" @change="search">
+          <el-select v-if="source==='emby'" popper-class="catalog-options" placeholder="全部类型" v-model="kind" aria-label="媒体类型筛选" @change="search">
             <el-option label="全部类型" value=""/>
             <el-option label="电影" value="movie"/>
             <el-option label="电视剧" value="series"/>
+          </el-select>
+          <el-select v-else popper-class="catalog-options" placeholder="全部类型" v-model="category" aria-label="目录分类筛选" @change="search">
+            <el-option label="全部类型" value=""/>
+            <el-option v-for="option in categories" :key="option.id" :label="option.name" :value="option.id"/>
           </el-select>
         </label>
         <el-button native-type="submit">筛选</el-button>
@@ -77,30 +81,31 @@ usePageRefresh(refresh,'*');
     <DetailDrawer :key="detail?.id" v-model:visible="detailOpen" :title="detail?.title||'作品详情'" class="catalog-detail">
       <StateView v-if="detailLoading" state="loading" title="正在读取作品详情…"/>
       <StateView v-if="detailError" :state="sourceState(detailError)" :description="errorText(detailError)" @retry="detail&&inspect(detail)"/>
-      <div class="catalog-summary">
+      <div class="catalog-summary" :class="{'catalog-summary--text':!image(detail?.poster)}">
         <img v-if="image(detail?.poster)" :src="image(detail?.poster)" :alt="detail?.title+'海报'"/>
         <div>
           <p>{{detail?.year||'—'}} · {{mediaType(detail?.mediaType)}}</p>
           <dl>
             <div>
               <dt>评分</dt>
-              <dd>{{detail?.rating??'—'}}</dd>
+              <dd>{{source==='managed'?displayRating(detail?.rating):detail?.rating??'—'}}</dd>
             </div>
             <div>
               <dt>文件大小</dt>
-              <dd>{{formatBytes(detail?.size)}}</dd>
+              <dd>{{source==='managed'?displayMediaSize(detail?.size):formatBytes(detail?.size)}}</dd>
             </div>
             <div>
               <dt>清晰度</dt>
-              <dd>{{detail?.resolution||'—'}}</dd>
+              <dd>{{source==='managed'?displayResolution(detail?.resolutions):detail?.resolution||'—'}}</dd>
             </div>
             <div>
               <dt>类型</dt>
-              <dd>{{detail?.genres?.join('、')||'—'}}</dd>
+              <dd>{{source==='managed'?detail?.category||'未分类':detail?.genres?.join('、')||'—'}}</dd>
             </div>
           </dl>
         </div>
       </div>
+      <p v-if="source==='managed'&&detail?.aggregate" class="catalog-note">文件大小为已入库的 {{detail.assetCount}} 个物理文件合计；清晰度为已有探测结果汇总，不代表整部剧集已收齐。</p>
       <h3>作品简介</h3>
       <p>{{detail?.overview||'—'}}</p>
       <section v-if="series" aria-label="季与集">
@@ -125,12 +130,6 @@ usePageRefresh(refresh,'*');
       </section>
       <p v-if="source==='managed'&&detail?.mediaType==='series'">内置媒体库按作品、季、集分层读取，仅反映已入库内容，不代表整部剧集已收齐。</p>
       <SubtitlePanel v-if="source==='managed'&&detail&&!['Series','Season'].includes(detail.type||'')&&['movie','series'].includes(detail.mediaType||'')" :key="detail.id" :asset-id="detail.id"/>
-      <div v-if="!detail?.groupFiles&&originalSTRM(detail)" class="catalog-link">
-        <el-button :loading="copyBusy" @click="copyLink(originalSTRM(detail))">复制播放链接</el-button>
-        <p>仅复制给兼容播放器使用，本页不播放。链接含此文件的访问权限，请勿公开分享。</p>
-        <p v-if="copyMessage" role="status">{{copyMessage}}</p>
-        <el-input v-if="playLink&&copyMessage.includes('失败')" :model-value="playLink" readonly type="textarea" aria-label="待复制播放链接"/>
-      </div>
     </DetailDrawer>
   </div>
 </template>

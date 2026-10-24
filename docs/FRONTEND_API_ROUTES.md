@@ -266,8 +266,6 @@
 | POST | `/api/v1/media/assets/{id}/grant/rotate` | management | 前端直接调用 | `web/src/views/OrganizeWorkspaceView.vue:85` |
 | POST | `/api/v1/media/assets/{id}/identity` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:188` |
 | POST | `/api/v1/media/assets/{id}/identity-preview` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:154` |
-| GET | `/api/v1/media/assets/{id}/strm` | management | 经适配调用 | `web/src/api/client.ts:35`、`web/src/media/model.ts:52` |
-| HEAD | `/api/v1/media/assets/{id}/strm` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/assets/{id}/validation-ref` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/assets/{id}/validation-ref` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/emby/items/{id}` | management | 前端直接调用 | `web/src/media/useCatalog.ts:153` |
@@ -728,3 +726,6 @@ POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹�
 
 上传为 multipart file/encoding/uploadId；更新使用 revision；删除需要 confirm=true。
 管理员下载使用同源 cookie 包装 URL。原生播放器的 DeliveryUrl 则保持 F2 媒体用户令牌认证、物理版本/字幕身份/库权限/UA 准入；只有本程序上传的字幕可返回文本，自动字幕与视频仍零正文 302，内嵌字幕不提取。见 [字幕管理](MANAGED_SUBTITLES.md)。
+
+| GET | `/api/v1/media/library/managed/{id}` | management | 经适配调用；持久化详情聚合，不触发播放/探测 | `web/src/api/mediaCatalog.ts:5` |
+| HEAD | `/api/v1/media/library/managed/{id}` | management | 未检出静态使用 |  |

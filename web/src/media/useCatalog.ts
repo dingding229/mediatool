@@ -1,11 +1,12 @@
 import {usePageNumber} from '../ui/page-query';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { request, originalSTRM } from '../api/client';
+import { request } from '../api/client';
+import {managedCatalog,managedDetail,type Category} from '../api/mediaCatalog';
 import { rows, type Home, type MediaItem } from './model';
 export function useCatalog() {
-  const route = useRoute(), router = useRouter(), source = ref(route.query.source === 'emby' ? 'emby' : 'managed'), view = ref(route.query.view === 'all' ? 'all' : 'home'), page = usePageNumber(), query = ref(''), kind = ref(''), parentId = ref(String(route.query.parentId || '')), user = ref(''), items = ref<MediaItem[]>([]), total = ref<number | null>(null), home = ref<Home | null>(null), loading = ref(true), error = ref<unknown>(), embyConnected = ref<boolean | null>(null), connectionError = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>(), children = ref<MediaItem[]>([]), childTotal = ref(0), childPage = usePageNumber('childPage'), childError = ref<unknown>(), childLoading = ref(false), series = ref<MediaItem | null>(null), copyMessage = ref(''), playLink = ref(''), copyBusy = ref(false);
-  let epoch = 0, detailEpoch = 0, childEpoch = 0, copyEpoch = 0, alive = true;
+  const route = useRoute(), router = useRouter(), source = ref(route.query.source === 'emby' ? 'emby' : 'managed'), view = ref(route.query.view === 'all' ? 'all' : 'home'), page = usePageNumber(), query = ref(''), kind = ref(''), parentId = ref(String(route.query.parentId || '')), user = ref(''), items = ref<MediaItem[]>([]), total = ref<number | null>(null), home = ref<Home | null>(null), loading = ref(true), error = ref<unknown>(), embyConnected = ref<boolean | null>(null), connectionError = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>(), children = ref<MediaItem[]>([]), childTotal = ref(0), childPage = usePageNumber('childPage'), childError = ref<unknown>(), childLoading = ref(false), series = ref<MediaItem | null>(null), category=ref(''), categories=ref<Category[]>([]);
+  let epoch = 0, detailEpoch = 0, childEpoch = 0, alive = true;
   const displayItems = computed(() => items.value);
   const groups = computed(() => [{ key: 'libraries', title: '媒体库分类' }, { key: 'playing', title: '正在播放' }, { key: 'resume', title: '继续观看' }, { key: 'recent', title: '近期观看' }, { key: 'latest', title: '最新入库' }].map(g => ({ ...g, items: rows((home.value as any)?.[g.key]) })));
   const selectedSeason = ref<MediaItem | null>(null);
@@ -27,7 +28,7 @@ export function useCatalog() {
       }
     }
   }
-  const catalogPage = (parent: string, p: number, child = false) => request<any>(`/media/library?source=${source.value}&q=${encodeURIComponent(child ? '' : query.value)}&mediaType=${child ? '' : kind.value}&page=${p}&pageSize=24&parentId=${encodeURIComponent(parent)}`);
+  const catalogPage = (parent: string, p: number, child = false) => source.value==='managed'?managedCatalog(child?'':query.value,parent,category.value,p):request<any>(`/media/library?source=${source.value}&q=${encodeURIComponent(child ? '' : query.value)}&mediaType=${child ? '' : kind.value}&page=${p}&pageSize=24&parentId=${encodeURIComponent(parent)}`);
   let hasLoaded=false;
   async function load() {
     const version = ++epoch;
@@ -48,6 +49,7 @@ export function useCatalog() {
         if (alive && version === epoch) {
           items.value = rows(out.items);
           total.value = out.total ?? null;
+          if(source.value==='managed')categories.value=rows(out.categories);
         }
       }
     hasLoaded=true;
@@ -65,17 +67,14 @@ export function useCatalog() {
     detailOpen.value = false;
     detailEpoch++;
     childEpoch++;
-    copyEpoch++;
     children.value = [];
-    playLink.value = '';
-    copyMessage.value = '';
-    copyBusy.value = false;
   }
   function search() {
     page.value = 1;
     void load();
   }
   async function chooseSource(value: string) {
+    category.value='';
     if (!['managed', 'emby'].includes(value))
       return;
     close();
@@ -124,10 +123,6 @@ export function useCatalog() {
   }
   async function inspect(item: MediaItem, withinSeries = false) {
     const version = ++detailEpoch;
-    copyEpoch++;
-    copyBusy.value = false;
-    playLink.value = '';
-    copyMessage.value = '';
     detail.value = { ...item, source: source.value };
     detailOpen.value = true;
     detailError.value = undefined;
@@ -142,12 +137,16 @@ export function useCatalog() {
         void readChildren();
     }
     try {
+      if(source.value==='managed'){
+        const out=await managedDetail(item.id);
+        if(alive&&version===detailEpoch)detail.value={...item,...out,source:'managed'};
+      }
       if (source.value === 'emby') {
         const out = await request<MediaItem>(`/media/emby/items/${encodeURIComponent(item.id)}`);
         if (alive && version === detailEpoch)
           detail.value = { ...item, ...out, source: 'emby' };
       }
-      if (item.tmdbId) {
+      if (source.value==='emby'&&item.tmdbId) {
         const out = await request<any>(`/metadata/details?mediaType=${item.mediaType}&tmdbId=${item.tmdbId}`);
         if (alive && version === detailEpoch)
           detail.value = { ...detail.value!, overview: out.item?.overview || detail.value?.overview, genres: out.item?.genres || item.genres, episodeDetails: out.item?.episodeDetails || item.episodeDetails, poster: detail.value?.poster || out.item?.posterPath };
@@ -176,40 +175,6 @@ export function useCatalog() {
     if (source.value === 'emby')
       await load();
   }
-  async function copyLink(path: string) {
-    const version = ++copyEpoch;
-    copyBusy.value = true;
-    copyMessage.value = '';
-    playLink.value = '';
-    try {
-      const text = await originalSTRM(path);
-      const url = new URL(text);
-      if (!['https:', 'http:'].includes(url.protocol) || /[\r\n]/.test(text))
-        throw Error('播放链接格式不可用。');
-      if (!alive || version !== copyEpoch)
-        return;
-      playLink.value = text;
-      try {
-        if (!navigator.clipboard?.writeText)
-          throw Error();
-        await navigator.clipboard.writeText(text);
-        if (alive && version === copyEpoch)
-          copyMessage.value = '播放链接已复制，请勿公开分享。';
-      }
-      catch {
-        if (alive && version === copyEpoch)
-          copyMessage.value = '复制失败，请在下方字段手动选择并复制。';
-      }
-    }
-    catch (e) {
-      if (alive && version === copyEpoch)
-        copyMessage.value = e instanceof Error && /[\u4e00-\u9fff]/.test(e.message) ? e.message : '暂时无法取得播放链接，请稍后重新读取。';
-    }
-    finally {
-      if (alive && version === copyEpoch)
-        copyBusy.value = false;
-    }
-  }
   watch(() => [route.query.source, route.query.view, route.query.parentId], () => {
     const next = route.query.source === 'emby' ? 'emby' : 'managed';
     const nextView = route.query.view === 'all' ? 'all' : 'home', parent = String(route.query.parentId || '');
@@ -232,5 +197,5 @@ export function useCatalog() {
     epoch++;
     close();
   });
-  return { selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, user, items, total, home, groups, loading, error, embyConnected, connectionError, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, copyMessage, playLink, copyBusy, load, search, chooseSource, all, browse, inspect, homeItem, refresh, readChildren, copyLink };
+  return { selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, user, items, total, home, groups, loading, error, embyConnected, connectionError, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, category, categories, load, search, chooseSource, all, browse, inspect, homeItem, refresh, readChildren };
 }

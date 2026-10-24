@@ -22,7 +22,7 @@ const emit = defineEmits<{
         </span>
       </span>
       <strong>{{item.title||'—'}}</strong>
-      <small>{{item.year||'—'}} · {{mediaType(item.mediaType||item.type)}}</small>
+      <small>{{item.year||'—'}} · {{item.source==='managed'?(item.category||mediaType(item.mediaType||item.type)):mediaType(item.mediaType||item.type)}}</small>
       <small v-if="item.season!=null">
         第
         {{item.season}}

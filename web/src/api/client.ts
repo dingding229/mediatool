@@ -37,14 +37,5 @@ export async function testExternalToken(token:string):Promise<void>{
  if(!response.ok||body.error)throw new APIError(response.status,body.error?.code??'token_rejected',body.error?.message??'验证未通过')
  }finally{finish()}
 }
-export async function originalSTRM(path:string):Promise<string>{
- const finish=beginActivity();try{
- if(!/^\/api\/v1\/media\/assets\/[^/?]+\/strm(?:\?.*)?$/.test(path))throw Error('播放文件地址不可用。')
- const response=await fetch(path,{credentials:'same-origin'})
- if(!response.ok)throw Error('暂时无法取得此媒体的播放链接。')
- return (await response.text()).trim()
- }finally{finish()}
-}
-
 export interface ListPage<T>{items:T[];total:number;page?:number;pageSize?:number}
 export function checkedPage<T>(value:ListPage<T>):ListPage<T>{if(!value||!Array.isArray(value.items)||!Number.isSafeInteger(value.total)||value.total<0)throw Error('分页回执不完整，请重新读取。');return value;}

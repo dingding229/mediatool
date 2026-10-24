@@ -396,7 +396,7 @@ X-Requested-With: media-tool
 
 状态仍为preview/pending/running/unknown/completed/rolled_back/failed，返回backupSchema/programSchema、snapshotId/appliedBackup及阶段message。重复execute对pending/running返回202，对历史终态/unknown返回200原状态，不新建执行。
 
-前端传输仍统一由`web/src/api/client.ts`管理：SSE subscribeJobEvents、外部令牌testExternalToken（credentials:omit）、originalSTRM（仅同源既有媒体路径）。普通JSON API保持same-origin；index.html不注入业务数据，传输归属与调用路径守卫继续生效。
+前端传输仍统一由`web/src/api/client.ts`管理：SSE subscribeJobEvents、外部令牌testExternalToken（credentials:omit）。普通JSON API保持same-origin；index.html不注入业务数据，传输归属与调用路径守卫继续生效。
 
 ### F5a 插件配置展示边界
 
@@ -409,3 +409,11 @@ X-Requested-With: media-tool
 日志仍为私有轮转 JSONL（最多 50 MiB），不是 PostgreSQL 日志表。`/logs/query` 默认每页 200 条；`before` 固定检索快照，后续页复用同一快照，检索窗口最多 20,000 条且通过 `truncated` 明示，不把窗口计数说成全量历史。返回管理员原值和完整 URL。
 
 应用设置 `logging.retentionDays` 为 1–90，默认 7；`logging.debugUntil` 是自动关闭时间，过去/零时间关闭，未来最多 24 小时。每天按 1000 条/批清理文件中的过期记录；后台按秒关闭过期 Debug，不采集登录请求体。一次性恢复密码仍只写启动 stdout。
+
+
+## T2 内置媒体库详情与分类（v0.33.0）
+
+- 管理端 `GET /api/v1/media/library/managed/{id}` 仅读取持久化 TMDB/探测快照，ID沿用物理资产、作品、季身份；输出评分、物理文件大小、实际视频尺寸及目录分类，不返回播放URL、原始探测对象或存储凭据。
+- `GET /api/v1/media/library?source=managed` 返回与当前目录分类配置一致的 `categories`，`categoryId` 为稳定组/规则ID，筛选在分组与分页之前生效。旧 `mediaType` 仍表示媒体形式，不再充当内置来源的“类型”UI。
+- 评分保留一位小数；大小按1024换算、使用 GB 等媒体单位；清晰度按宽度 ≥3800/1900/1260 分别显示4K/1080p/720p，否则SD，并保留实际尺寸。
+- 删除管理端 `GET/HEAD /api/v1/media/assets/{id}/strm` 及所有共用入口（含整理页原始STRM下载）。原生媒体API、PlaybackInfo、已生成STRM正文和解析302地址不变。

@@ -19,8 +19,13 @@ export interface MediaItem {
   tmdbId?: number;
   instanceId?: string;
   groupFiles?: MediaItem[];
-  rating?: number;
-  size?: number;
+  rating?: number | null;
+  size?: number | null;
+ categoryId?: string;
+ category?: string;
+ resolutions?: {width:number;height:number}[];
+ aggregate?: boolean;
+ assetCount?: number;
   resolution?: string;
   genres?: string[];
   episodeDetails?: {
@@ -48,8 +53,17 @@ export const mediaType = (value?: string) => ({ movie: '电影', series: '剧集
 export function image(value?: string) {
   return value && /^\/api\/v1\/(?:media\/(?:library\/emby\/[^/?]+\/image|tmdb\/image)|metadata\/image\/)/.test(value) && !/[?&](?:api_key|token|key)=/i.test(value) ? value : tmdbImage(value);
 }
-export function originalSTRM(item?: MediaItem | null) {
-  return item?.source === 'managed' && item.id && !['Series','Season'].includes(item.type || '') && !['missing', 'suspected_missing', 'trashed'].includes(item.state || '') ? `/api/v1/media/assets/${encodeURIComponent(item.id)}/strm` : '';
-}
 export const sourceState = (e: unknown) => e instanceof APIError && [401, 403].includes(e.status) ? 'unauthorized' : e instanceof APIError && e.status === 501 ? 'unsupported' : 'error';
 export const cloudState = (v?: string) => ({ present: '文件在库', suspected_missing: '待完整对账', missing: '文件缺失', trashed: '已在回收目录' } as Record<string, string>)[v || ''] || '—';
+
+export function displayRating(value?:number|null){return value!=null&&Number.isFinite(value)&&value>=0&&value<=10?value.toFixed(1):'—';}
+export function displayResolution(values?:{width:number;height:number}[]){
+ return values?.filter(v=>Number.isInteger(v.width)&&v.width>0&&Number.isInteger(v.height)&&v.height>0).map(v=>`${v.width>=3800?'4K':v.width>=1900?'1080p':v.width>=1260?'720p':'SD'}（${v.width}×${v.height}）`).join('、')||'—';
+}
+// Match the owner's media-size convention without changing global capacity units.
+export function displayMediaSize(value?:number|null){
+ if(value==null||!Number.isFinite(value)||value<0)return '—';
+ const units=['B','KB','MB','GB','TB','PB'];let i=0;
+ while(value>=1024&&i<units.length-1){value/=1024;i++;}
+ return `${value.toFixed(2)} ${units[i]}`;
+}

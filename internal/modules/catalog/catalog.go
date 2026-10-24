@@ -21,26 +21,29 @@ var ErrUnavailable = errors.New("catalog unavailable")
 var ErrInvalid = errors.New("invalid catalog query")
 
 type Item struct {
-	ID        string `json:"id"`
-	Type      string `json:"type,omitempty"`
-	Source    string `json:"source"`
-	Title     string `json:"title"`
-	Year      string `json:"year"`
-	MediaType string `json:"mediaType"`
-	Overview  string `json:"overview"`
-	Poster    string `json:"poster"`
-	FilePath  string `json:"filePath,omitempty"`
-	State     string `json:"state,omitempty"`
-	Season    *int   `json:"season,omitempty"`
-	Episode   *int   `json:"episode,omitempty"`
+	ID         string `json:"id"`
+	Type       string `json:"type,omitempty"`
+	Source     string `json:"source"`
+	Title      string `json:"title"`
+	Year       string `json:"year"`
+	MediaType  string `json:"mediaType"`
+	Overview   string `json:"overview"`
+	Poster     string `json:"poster"`
+	FilePath   string `json:"filePath,omitempty"`
+	State      string `json:"state,omitempty"`
+	Season     *int   `json:"season,omitempty"`
+	Episode    *int   `json:"episode,omitempty"`
+	CategoryID string `json:"categoryId,omitempty"`
+	Category   string `json:"category,omitempty"`
 }
 type Page struct {
-	Items    []Item `json:"items"`
-	Total    int    `json:"total"`
-	Page     int    `json:"page"`
-	PageSize int    `json:"pageSize"`
-	Source   string `json:"source"`
-	ParentID string `json:"parentId,omitempty"`
+	Items      []Item     `json:"items"`
+	Total      int        `json:"total"`
+	Page       int        `json:"page"`
+	PageSize   int        `json:"pageSize"`
+	Source     string     `json:"source"`
+	ParentID   string     `json:"parentId,omitempty"`
+	Categories []Category `json:"categories,omitempty"`
 }
 type Engine struct {
 	Sources     *SourceRegistry
@@ -65,7 +68,7 @@ func (e Engine) ListParent(ctx context.Context, source, q, kind, parent string, 
 	if source != "managed" {
 		return out, ErrInvalid
 	}
-	return e.managed(ctx, out, q, kind)
+	return e.managed(ctx, out, q, kind, "")
 }
 
 var uuidID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
