@@ -18,7 +18,7 @@ func TestH2bBlacklistUpDownUpAndUserSummary(t *testing.T) {
 	const white = "11111111-0000-4000-8000-000000000081"
 	f.exec(t, `UPDATE player_ua_policy SET enabled=true`)
 	f.exec(t, `INSERT INTO player_ua_rules(id,label,match_type,user_agent)VALUES($1,'原有','prefix','OwnedPlayer/')`, white)
-	if _, e := f.provider.Up(f.ctx); e != nil {
+	if _, e := f.provider.UpTo(f.ctx, 81); e != nil {
 		t.Fatal(e)
 	}
 	var mode, list string
@@ -33,7 +33,7 @@ func TestH2bBlacklistUpDownUpAndUserSummary(t *testing.T) {
 	if e := f.db.QueryRowContext(f.ctx, `SELECT p.enabled,r.user_agent FROM player_ua_policy p CROSS JOIN player_ua_rules r`).Scan(&enabled, &ua); e != nil || !enabled || ua != "OwnedPlayer/" {
 		t.Fatal(enabled, ua, e)
 	}
-	if _, e := f.provider.Up(f.ctx); e != nil {
+	if _, e := f.provider.UpTo(f.ctx, 81); e != nil {
 		t.Fatal(e)
 	}
 	// Reuse this fixture's isolated schema; no production/public data is accessed.

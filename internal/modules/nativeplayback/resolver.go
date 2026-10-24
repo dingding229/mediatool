@@ -1,5 +1,5 @@
-// Package nativeplayback defines a redirect-only boundary. It cannot return media
-// bytes, readers, HLS playlists, or a transcoder. T32 implements this contract.
+// Package nativeplayback keeps video redirect-only. The sole direct-content
+// exception is bounded registered-upload subtitle text, never media/readers/HLS.
 package nativeplayback
 
 import (
@@ -19,10 +19,11 @@ var (
 	ErrUpstream       = errors.New("native playback upstream unavailable")
 )
 
-// This internal target is consumed only as a 302 Location, never a JSON DTO.
+// Internal response: video/provider Location, or bounded registered subtitle text; never a JSON DTO.
 type RedirectTarget struct {
-	URL       string    `json:"-"`
-	ExpiresAt time.Time `json:"-"`
+	Subtitle  *TextSubtitle `json:"-"`
+	URL       string        `json:"-"`
+	ExpiresAt time.Time     `json:"-"`
 }
 type StreamResolver interface {
 	Resolve(ctx context.Context, user contracts.User, itemID, mediaSourceID, ua, clientIP string) (RedirectTarget, error)

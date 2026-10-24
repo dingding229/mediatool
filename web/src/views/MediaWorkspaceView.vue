@@ -5,6 +5,7 @@ import PageHeader from '../ui/PageHeader.vue';
 import StateView from '../ui/StateView.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import PosterWall from '../media/PosterWall.vue';
+import SubtitlePanel from '../media/SubtitlePanel.vue';
 import { useCatalog } from '../media/useCatalog';
 import { image, originalSTRM, mediaType, sourceState } from '../media/model';
 import { errorText } from '../workflows/readiness';
@@ -123,6 +124,7 @@ usePageRefresh(refresh,'*');
         <p v-for="episode in detail.episodeDetails" :key="episode.id">第 {{episode.season}} 季 · 第 {{episode.number}} 集 · {{episode.title}}</p>
       </section>
       <p v-if="source==='managed'&&detail?.mediaType==='series'">内置媒体库按作品、季、集分层读取，仅反映已入库内容，不代表整部剧集已收齐。</p>
+      <SubtitlePanel v-if="source==='managed'&&detail&&!['Series','Season'].includes(detail.type||'')&&['movie','series'].includes(detail.mediaType||'')" :key="detail.id" :asset-id="detail.id"/>
       <div v-if="!detail?.groupFiles&&originalSTRM(detail)" class="catalog-link">
         <el-button :loading="copyBusy" @click="copyLink(originalSTRM(detail))">复制播放链接</el-button>
         <p>仅复制给兼容播放器使用，本页不播放。链接含此文件的访问权限，请勿公开分享。</p>

@@ -70,7 +70,7 @@ PlaybackInfo 提供受当前用户、媒体源和设备约束的直接播放地�
 | GET | `/Videos/{id}/original.{ext}` | 原始媒体直链形式 |
 | GET | `/Items/{id}/Download` | 需要下载权限，仍只允许 302 |
 | GET | `/Videos/{id}/subtitles/{index}/stream` | 内嵌字幕由客户端读直链，此端点404 |
-| GET | `/Videos/{id}/{mediaSourceId}/Subtitles/{index}/Stream.{format}` | 内嵌字幕统一404，不抽取或转换 |
+| GET | `/Videos/{id}/{mediaSourceId}/Subtitles/{index}/Stream.{format}` | 自动外挂字幕302；本程序上传字幕200文本；内嵌字幕404，不抽取或转换 |
 | POST | `/Sessions/Playing` | 激活草稿会话 |
 | POST | `/Sessions/Playing/Progress` | 10秒节流，状态/seek即时写入 |
 | POST | `/Sessions/Playing/Ping` | 续约会话，不修改用户进度 |
@@ -120,3 +120,5 @@ PlaybackInfo 提供受当前用户、媒体源和设备约束的直接播放地�
 管理 API 只位于管理监听端口；媒体端口不提供数据库、插件管理、账号恢复或任意文件访问。WebSocket、服务器管理和其他未提供的客户端能力不能通过别名绕过限制。
 
 完整字段与状态码见[OpenAPI](../api/openapi.yaml)。
+
+H3a/schema82 字幕管理、存储与认证例外详见 [MANAGED_SUBTITLES.md](MANAGED_SUBTITLES.md)。视频始终严格原始源302，不增加转码或媒体中转。

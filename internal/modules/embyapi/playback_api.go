@@ -108,6 +108,9 @@ func playbackQuery(v Values) (string, string, error) {
 		if key == "AudioStreamIndex" || key == "SubtitleStreamIndex" {
 			minimum = -1
 			maximum = 65535
+			if key == "SubtitleStreamIndex" {
+				maximum = 2147483647
+			}
 		}
 		if e != nil || n < minimum || n > maximum {
 			return "", "", ErrInvalid
@@ -146,7 +149,7 @@ func (s *Server) playback(w http.ResponseWriter, r *http.Request, info RequestCo
 	request := nativeplayback.Request{ItemID: r.PathValue("id"), MediaSourceID: source, Download: strings.HasSuffix(strings.ToLower(r.URL.Path), "/download")}
 	if raw := r.PathValue("index"); raw != "" {
 		n, e := strconv.Atoi(raw)
-		if e != nil || n < 0 || n > 10000 {
+		if e != nil || n < 0 || n > 2147483647 {
 			s.router.fail(w, 400)
 			return
 		}
@@ -190,6 +193,25 @@ func (s *Server) playback(w http.ResponseWriter, r *http.Request, info RequestCo
 		target, err := s.options.Playback.Stream(r.Context(), actor, request)
 		if err != nil {
 			s.playbackError(w, err)
+			return
+		}
+		if target.Subtitle != nil {
+			// Only an authenticated subtitle route can consume bounded uploaded text.
+			if request.SubtitleIndex == nil || target.URL != "" || len(target.Subtitle.Bytes()) > 5<<20 {
+				s.router.fail(w, 503)
+				return
+			}
+			w.Header().Set("Content-Type", target.Subtitle.ContentType())
+			w.Header().Set("Content-Length", strconv.Itoa(len(target.Subtitle.Bytes())))
+			w.Header().Set("Cache-Control", "no-store")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
+			w.WriteHeader(http.StatusOK)
+			if r.Method != "HEAD" {
+				if _, err := w.Write(target.Subtitle.Bytes()); err != nil {
+					s.options.Logger.Error("uploaded subtitle response failed", "module", "playback")
+				}
+			}
 			return
 		}
 		// Never use http.Redirect: its default GET response contains an HTML body.

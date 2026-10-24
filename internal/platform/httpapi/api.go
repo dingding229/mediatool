@@ -328,6 +328,7 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	a.registerMaintenance(mux)
 	a.registerMediaServer(mux)
 	a.registerPlayerAccess(mux)
+	a.registerSubtitles(mux)
 	a.registerSTRMTools(mux)
 	a.registerExternal(mux)
 	ui := webui.Handler()

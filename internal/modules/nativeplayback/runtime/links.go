@@ -19,6 +19,7 @@ import (
 	"media-tool/internal/modules/settings"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
+	"media-tool/internal/modules/subtitles"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/requestbudget"
 	"net/url"
@@ -56,7 +57,7 @@ func New(db *pgxpool.Pool, c config.Config, m *integrations.Manager, cache *redi
 			blocked = append(blocked, u.Hostname())
 		}
 	}
-	return &Service{DB: db, Browse: catalog.NewBrowseRepository(db, logger), Links: &Resolver{Logger: logger, DB: db, Config: c, Manager: m, Source: source, Policy: playback.Policy{BlockedHosts: blocked, AllowedHosts: c.PlaybackAllowedHosts, AllowHTTP: c.PlaybackAllowHTTP}}}
+	return &Service{Subtitles: subtitles.Repository{DB: db, Root: subtitles.Root(c)}, DB: db, Browse: catalog.NewBrowseRepository(db, logger), Links: &Resolver{Logger: logger, DB: db, Config: c, Manager: m, Source: source, Policy: playback.Policy{BlockedHosts: blocked, AllowedHosts: c.PlaybackAllowedHosts, AllowHTTP: c.PlaybackAllowHTTP}}}
 }
 
 type evidence struct {

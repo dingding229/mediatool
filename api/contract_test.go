@@ -1068,10 +1068,16 @@ func (s *source) build(t *testing.T) object {
 			if path == "/api/v1/downloads/manual" && method == "post" {
 				op["requestBody"].(object)["content"].(object)["multipart/form-data"] = object{"schema": object{"type": "object", "required": []string{"torrent"}, "properties": object{"torrent": object{"type": "string", "format": "binary", "description": ".torrent，最大10MiB"}}, "additionalProperties": false}}
 			}
+			if r.handler == "uploadSubtitle" {
+				op["requestBody"] = object{"required": true, "content": object{"multipart/form-data": object{"schema": object{"type": "object", "required": []string{"file", "uploadId"}, "properties": object{"file": object{"type": "string", "format": "binary", "description": "srt/ass/ssa/vtt，原文件和UTF-8转换后均≤5MiB"}, "encoding": object{"type": "string", "enum": []string{"auto", "utf-8", "utf-16le", "utf-16be", "utf-32le", "utf-32be", "gb18030", "big5", "shift-jis", "windows-1252"}}, "uploadId": object{"type": "string", "format": "uuid", "description": "客户端一次逻辑上传的稳定UUID，用于丢失响应后的幂等核对"}}, "additionalProperties": false}}}}
+			}
 			switch r.handler {
-			case "assetSTRM", "opsDownload", "catalogImage", "tmdbPoster", "tmdbImage", "ptTemplateIcon", "ptTemplateFavicon":
+			case "assetSTRM", "opsDownload", "catalogImage", "tmdbPoster", "tmdbImage", "ptTemplateIcon", "ptTemplateFavicon", "downloadSubtitle":
 				mime := []string{"application/octet-stream"}
 				switch r.handler {
+				case "downloadSubtitle":
+					mime = []string{"application/x-subrip", "text/x-ssa", "text/vtt"}
+					responses["302"] = object{"description": "自动识别字幕仍302至115官方链接；只有已登记上传的≤5MiB UTF-8字幕可200直返。均需管理员cookie鉴权。", "headers": object{"Location": object{"schema": object{"type": "string", "format": "uri"}}}}
 				case "opsDownload":
 					mime = []string{"application/x-tar"}
 				case "ptTemplateFavicon":
@@ -1096,6 +1102,14 @@ func (s *source) build(t *testing.T) object {
 				}
 				if r.handler == "tmdbImage" {
 					responses["502"] = object{"description": "固定图片获取错误，非Envelope", "content": object{"text/plain": object{"schema": object{"type": "string"}}}}
+				}
+			}
+			if strings.Contains(path, "/media/assets/") && strings.Contains(path, "/subtitles") {
+				for code, key := range map[int]string{400: "invalid_subtitle", 404: "subtitle_not_found", 409: "subtitle_conflict", 503: "subtitle_unavailable"} {
+					if o.errors[code] == nil {
+						o.errors[code] = map[string]bool{}
+					}
+					o.errors[code][key] = true
 				}
 			}
 			if path == "/api/v1/jobs/events" {

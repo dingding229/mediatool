@@ -229,7 +229,7 @@ X-Requested-With: media-tool
 - `/System/Info/Public` → `/Users/AuthenticateByName`（Username/Pw或Password）→返回AccessToken →Views/Items →PlaybackInfo →Videos/stream严格302 →Sessions/Playing/Progress/Stopped上报。详情/列表/进度等DTO为PascalCase，列表是QueryResult或指定数组，不能泛用管理data解包。
 - token可从X-Emby-Token、X-MediaBrowser-Token、Emby/MediaBrowser Authorization字段或兼容query api_key读取；冲突token拒绝。优先header，不把媒体token放日志/公开URL。
 - 原生服务只接受自己的路由；管理 `/api/v1/*`、PWA/admin路径在媒体端404。GET包含HEAD；已知path OPTIONS只返回静态Allow，不授予任意Origin/Credentials跨域权限。
-- `/socket` 明确501（没有WebSocket实现）；字幕stream明确404（STRM原媒体由播放器从CDN处理）；媒体转码/HLS参数被拒绝。外部Emby网关可以代理元数据/图片/登录，媒体仍只允许受管原始源302，不重开fallback。
+- `/socket` 明确501（没有WebSocket实现）；内嵌字幕stream明确404（STRM原媒体由播放器从CDN处理）；媒体转码/HLS参数被拒绝。外部Emby网关可以代理元数据/图片/登录，媒体仍只允许受管原始源302，不重开fallback。
 
 ```http
 POST /Users/AuthenticateByName
@@ -371,7 +371,8 @@ X-Requested-With: media-tool
   GET/HEAD `/Videos/{id}/{mediaSourceId}/Subtitles/{index}/Stream.{format}` 及已有短路由；
   `SubtitleId` 绑定云盘文件身份，`MediaSourceId` 绑定当前可播放版本。
   仅原格式零正文 302，实际请求 UA 同样通过播放器准入策略并用于官方 115 取链；
-  格式转换明确 400，嵌入字幕提取不支持。字幕正文不落地、不代理、不转码。
+  格式转换明确 400，嵌入字幕提取不支持。自动字幕正文不落地、不代理、不转码。
+  H3a/schema82 新增的唯一内容例外是管理员上传的≤5MiB UTF-8 字幕副本，详见 [字幕管理](MANAGED_SUBTITLES.md)。
 
 ## 网页恢复（schema 77）
 

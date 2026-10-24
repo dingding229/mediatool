@@ -11,6 +11,7 @@ import (
 	"media-tool/internal/modules/nativeplayback"
 	"media-tool/internal/modules/playbackstats"
 	"media-tool/internal/modules/playeraccess"
+	"media-tool/internal/modules/subtitles"
 	"strconv"
 	"strings"
 	"time"
@@ -20,10 +21,11 @@ type Links interface {
 	Resolve(context.Context, string, string, string) (nativeplayback.RedirectTarget, error)
 }
 type Service struct {
-	Stats  playbackstats.Sink
-	DB     *pgxpool.Pool
-	Browse nativelibrary.BrowseService
-	Links  Links
+	Subtitles subtitles.Repository
+	Stats     playbackstats.Sink
+	DB        *pgxpool.Pool
+	Browse    nativelibrary.BrowseService
+	Links     Links
 }
 type source struct {
 	dto.MediaSourceInfo

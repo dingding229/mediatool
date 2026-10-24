@@ -20,6 +20,7 @@ type playbackStub struct {
 	request nativeplayback.Request
 	calls   int
 	err     error
+	target  *nativeplayback.RedirectTarget
 }
 
 func (p *playbackStub) Info(_ context.Context, a nativeplayback.Actor, q nativeplayback.Request) (dto.PlaybackInfoResponse, error) {
@@ -30,6 +31,9 @@ func (p *playbackStub) Info(_ context.Context, a nativeplayback.Actor, q nativep
 func (p *playbackStub) Stream(_ context.Context, a nativeplayback.Actor, q nativeplayback.Request) (nativeplayback.RedirectTarget, error) {
 	p.seen, p.request = a, q
 	p.calls++
+	if p.target != nil {
+		return *p.target, p.err
+	}
 	return nativeplayback.RedirectTarget{URL: "https://cdn.synthetic.invalid/video?signature=VISIBLE"}, p.err
 }
 func TestNativePlaybackParametersCaseVariantsEmpty302AndDenials(t *testing.T) {
@@ -110,5 +114,55 @@ func TestNativePlaybackParametersCaseVariantsEmpty302AndDenials(t *testing.T) {
 	play.err = errors.New("SECRET https://private.invalid/")
 	if w := call("GET", "/Videos/100031/stream", ""); w.Code != 503 || strings.Contains(w.Body.String(), "SECRET") {
 		t.Fatal(w.Code, w.Body.String())
+	}
+}
+
+func TestUploadedSubtitleHTTPIsOnlySmallAuthenticatedText(t *testing.T) {
+	text, e := nativeplayback.NewTextSubtitle("srt", []byte("1\n00:00:01,000 --> 00:00:02,000\ntext\n"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	play := &playbackStub{target: &nativeplayback.RedirectTarget{Subtitle: text}}
+	settings := settingsFixture()
+	settings.Enabled = true
+	s, e := NewServer(ServerOptions{Playback: play, Auth: &fakeAccountService{user: contracts.User{ID: strings.Repeat("a", 32), Enabled: true}}, Settings: nativeSettingsFunc(func(context.Context) (nativelibrary.ServerSettings, error) { return settings, nil }), PublicURL: "https://native.synthetic.invalid"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	call := func(method, path, token string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, path, nil)
+		if token != "" {
+			r.Header.Set("X-Emby-Token", token)
+		}
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		return w
+	}
+	path := "/Videos/100031/00000000-0000-4000-8000-000000000002/Subtitles/65536/Stream.srt"
+	for _, method := range []string{"GET", "HEAD"} {
+		w := call(method, path, "valid-token")
+		if w.Code != 200 || w.Header().Get("Content-Type") != text.ContentType() || w.Header().Get("Content-Length") == "" || method == "GET" && w.Body.String() != string(text.Bytes()) || method == "HEAD" && w.Body.Len() != 0 {
+			t.Fatal(method, w.Code, w.Body.String())
+		}
+	}
+	if w := call("GET", path, ""); w.Code != 401 {
+		t.Fatal("anonymous subtitle", w.Code)
+	}
+	if w := call("GET", "/Videos/100031/stream.mkv", "valid-token"); w.Code != 503 {
+		t.Fatal("text escaped onto media route", w.Code)
+	}
+	play.target.URL = "https://cdn.synthetic.invalid/video"
+	if w := call("GET", path, "valid-token"); w.Code != 503 {
+		t.Fatal("ambiguous redirect and body", w.Code)
+	}
+	for _, raw := range []string{"65536", "2147483647"} {
+		if _, _, e := playbackQuery(values(t, "SubtitleStreamIndex="+raw)); e != nil {
+			t.Fatal(raw, e)
+		}
+	}
+	for _, raw := range []string{"2147483648", "-2"} {
+		if _, _, e := playbackQuery(values(t, "SubtitleStreamIndex="+raw)); e == nil {
+			t.Fatal(raw)
+		}
 	}
 }

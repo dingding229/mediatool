@@ -14,61 +14,48 @@ import (
 	"media-tool/internal/modules/embyapi/dto"
 	"media-tool/internal/modules/nativeplayback"
 	"media-tool/internal/modules/storage"
+	"media-tool/internal/modules/subtitles"
 	"media-tool/internal/platform/mediaext"
 )
 
 type subtitle struct {
+	entry                    *subtitles.Entry
 	id, name, fullPath, pick string
 	size                     int64
 	updated                  time.Time
 }
 
-const subtitleSQL = `SELECT f.id::text,f.full_path,coalesce(f.pick_code,''),f.size_bytes,f.updated_at FROM media_assets a JOIN cloud_files v ON v.id=a.cloud_file_id JOIN cloud_files f ON f.storage_id=v.storage_id AND regexp_replace(f.full_path,'/[^/]+$','')=regexp_replace(v.full_path,'/[^/]+$','') WHERE a.id=$1::uuid AND f.state='present' AND f.id<>v.id AND ('.'||lower(regexp_replace(f.full_path,'^.*\.','')))=ANY($3::text[]) AND left(lower(f.full_path),length(regexp_replace(v.full_path,'\.[^/.]+$',''))+1)=lower(regexp_replace(v.full_path,'\.[^/.]+$',''))||'.' AND ($2::text='' OR f.id::text=$2) ORDER BY f.full_path,f.id LIMIT 201`
+const subtitleSQL = subtitles.AutoSQL
 
-// A dot-delimited suffix belongs to this exact video's basename, never E01 -> E010.
-func subtitleMatches(video, sub string) bool {
-	if path.Dir(video) != path.Dir(sub) || !mediaext.IsSubtitle(sub) {
-		return false
-	}
-	stem := strings.ToLower(strings.TrimSuffix(path.Base(video), path.Ext(video)))
-	name := strings.ToLower(strings.TrimSuffix(path.Base(sub), path.Ext(sub)))
-	return name == stem || strings.HasPrefix(name, stem+".")
-}
+func subtitleMatches(video, sub string) bool { return subtitles.Matches(video, sub) }
 func (s *Service) subtitleGroups(ctx context.Context, assets []string) (map[string][]subtitle, error) {
-	out := map[string][]subtitle{}
-	// One bounded query per PlaybackInfo, not two queries per physical version.
-	sql := strings.Replace(subtitleSQL, "SELECT f.id::text,", "SELECT a.id::text,v.full_path,f.id::text,", 1)
-	sql = strings.Replace(sql, "a.id=$1::uuid", "a.id=ANY($1::uuid[])", 1)
-	sql = strings.Replace(sql, "ORDER BY f.full_path,f.id LIMIT 201", "ORDER BY a.id,f.full_path,f.id LIMIT 20001", 1)
-	rows, e := s.DB.Query(ctx, sql, assets, "", mediaext.SubtitleExtensions())
+	repo := s.Subtitles
+	if repo.DB == nil {
+		repo.DB = s.DB
+	}
+	entries, e := repo.Groups(ctx, assets, mediaext.SubtitleExtensions())
 	if e != nil {
 		return nil, nativeplayback.ErrUpstream
 	}
-	defer rows.Close()
-	count := 0
-	for rows.Next() {
-		var asset, video string
-		var v subtitle
-		count++
-		if e = rows.Scan(&asset, &video, &v.id, &v.fullPath, &v.pick, &v.size, &v.updated); e != nil {
-			return nil, nativeplayback.ErrUpstream
-		}
-		if subtitleMatches(video, v.fullPath) {
-			v.name = path.Base(v.fullPath)
-			out[asset] = append(out[asset], v)
-			if len(out[asset]) > 200 {
-				return nil, nativeplayback.ErrUpstream
+	out := map[string][]subtitle{}
+	for asset, list := range entries {
+		for _, v := range list {
+			if v.Hidden || v.Deleting {
+				continue
 			}
+			id := v.ID
+			if v.Source == "automatic" {
+				id = v.SourceKey
+			}
+			entry := v
+			out[asset] = append(out[asset], subtitle{id: id, name: v.Filename, entry: &entry})
 		}
-	}
-	if count > 20000 || rows.Err() != nil {
-		return nil, nativeplayback.ErrUpstream
 	}
 	return out, nil
 }
 func (s *Service) subtitles(ctx context.Context, asset string) ([]subtitle, error) {
-	groups, e := s.subtitleGroups(ctx, []string{asset})
-	return groups[asset], e
+	v, e := s.subtitleGroups(ctx, []string{asset})
+	return v[asset], e
 }
 
 func subtitleStream(v subtitle, index int, origin, item, source, token string) (dto.MediaStream, error) {
@@ -81,52 +68,105 @@ func subtitleStream(v subtitle, index int, origin, item, source, token string) (
 			break
 		}
 	}
+	title := v.name
+	forced := strings.Contains(lower, ".forced.") || strings.Contains(lower, ".foreign.")
+	def := strings.Contains(lower, ".default.")
+	if v.entry != nil {
+		language = v.entry.Language
+		title = v.entry.Title
+		forced = v.entry.Forced
+		def = v.entry.Default
+		ext = v.entry.Extension
+	}
 	target, e := nativeplayback.SubtitleURL(origin, item, source, token, v.id, index, ext)
 	if e != nil {
 		return dto.MediaStream{}, e
 	}
-	return dto.MediaStream{Type: "Subtitle", Codec: ext, Language: language, DisplayTitle: v.name, Index: &index, IsExternal: true, DeliveryMethod: "External", DeliveryUrl: target, IsTextSubtitleStream: ext != "sub" && ext != "idx" && ext != "sup", IsForced: strings.Contains(lower, ".forced.") || strings.Contains(lower, ".foreign."), IsDefault: strings.Contains(lower, ".default."), IsHearingImpaired: strings.Contains(lower, ".sdh.")}, nil
+	return dto.MediaStream{Type: "Subtitle", Codec: ext, Language: language, DisplayTitle: title, Index: &index, IsExternal: true, DeliveryMethod: "External", DeliveryUrl: target, IsTextSubtitleStream: ext != "sub" && ext != "idx" && ext != "sup", IsForced: forced, IsDefault: def, IsHearingImpaired: strings.Contains(lower, ".sdh.")}, nil
 }
 func addSubtitles(a nativeplayback.Actor, item string, v *source, subs []subtitle) error {
-	index := 0
-	for _, stream := range v.MediaStreams {
-		if stream.Index != nil {
-			index = max(index, *stream.Index+1)
-		}
-	}
 	for _, sub := range subs {
+		if sub.entry != nil && sub.entry.Source == "embedded" {
+			if sub.entry.Overridden {
+				for i := range v.MediaStreams {
+					m := &v.MediaStreams[i]
+					if m.Type == "Subtitle" && m.Index != nil && *m.Index == sub.entry.Index {
+						m.Language = sub.entry.Language
+						m.DisplayTitle = sub.entry.Title
+						m.Title = sub.entry.Title
+						m.IsDefault = sub.entry.Default
+						m.IsForced = sub.entry.Forced
+					}
+				}
+			}
+			continue
+		}
+		index := 65536
+		if sub.entry != nil {
+			index = sub.entry.Index
+		}
 		stream, e := subtitleStream(sub, index, a.Origin, item, v.Id, a.Token)
 		if e != nil {
 			return nativeplayback.ErrUpstream
 		}
 		v.MediaStreams = append(v.MediaStreams, stream)
-		index++
+	}
+	v.DefaultSubtitleStreamIndex = nil
+	for _, stream := range v.MediaStreams {
+		if stream.Type == "Subtitle" && stream.IsDefault && stream.Index != nil {
+			index := *stream.Index
+			v.DefaultSubtitleStreamIndex = &index
+			break
+		}
 	}
 	return nil
 }
 func (s *Service) subtitleTarget(ctx context.Context, a nativeplayback.Actor, q nativeplayback.Request, v source) (nativeplayback.RedirectTarget, error) {
-	// Rebuild the same deterministic list, including embedded stream offsets.
+	// Revalidate the per-asset registry identity; hiding/deletion never remaps an index.
 	subs, e := s.subtitles(ctx, v.Id)
 	if e != nil {
 		return nativeplayback.RedirectTarget{}, e
 	}
-	first := 0
-	for _, stream := range v.MediaStreams {
-		if stream.Index != nil {
-			first = max(first, *stream.Index+1)
+	var sub subtitle
+	found := false
+	for _, candidate := range subs {
+		if candidate.entry != nil && candidate.entry.Source != "embedded" && candidate.entry.Index == *q.SubtitleIndex {
+			sub = candidate
+			found = true
+			break
 		}
 	}
-	n := *q.SubtitleIndex - first
-	if n < 0 || n >= len(subs) {
+	if !found || q.SubtitleID != "" && q.SubtitleID != sub.id {
 		return nativeplayback.RedirectTarget{}, nativeplayback.ErrNotFound
 	}
-	sub := subs[n]
-	if q.SubtitleID != "" && q.SubtitleID != sub.id {
-		return nativeplayback.RedirectTarget{}, nativeplayback.ErrNotFound
-	}
-	ext := strings.TrimPrefix(strings.ToLower(path.Ext(sub.name)), ".")
+	ext := sub.entry.Extension
 	if q.SubtitleFormat != "" && q.SubtitleFormat != ext {
 		return nativeplayback.RedirectTarget{}, nativeplayback.ErrSubtitleConversion
+	}
+	if sub.entry.Source == "uploaded" {
+		repo := s.Subtitles
+		if repo.DB == nil {
+			repo.DB = s.DB
+		}
+		entry, body, err := repo.Read(ctx, v.Id, sub.entry.ID)
+		if err != nil {
+			return nativeplayback.RedirectTarget{}, nativeplayback.ErrNotFound
+		}
+		latest, err := s.sources(ctx, a, q)
+		if err == nil {
+			_, err = selectSource(latest, v.Id, false)
+		}
+		if err != nil {
+			return nativeplayback.RedirectTarget{}, err
+		}
+		if err = s.subtitleVisible(ctx, v.Id, sub.entry.ID); err != nil {
+			return nativeplayback.RedirectTarget{}, err
+		}
+		text, err := nativeplayback.NewTextSubtitle(entry.Extension, body)
+		if err != nil {
+			return nativeplayback.RedirectTarget{}, nativeplayback.ErrUpstream
+		}
+		return nativeplayback.RedirectTarget{Subtitle: text}, nil
 	}
 	links, ok := s.Links.(interface {
 		ResolveSubtitle(context.Context, string, string, string, string) (nativeplayback.RedirectTarget, error)
@@ -141,7 +181,10 @@ func (s *Service) subtitleTarget(ctx context.Context, a nativeplayback.Actor, q 
 		if e == nil {
 			_, e = selectSource(latest, v.Id, false)
 		}
-	} // Recheck permission after provider I/O.
+	} // Recheck permission and visibility after provider I/O.
+	if e == nil {
+		e = s.subtitleVisible(ctx, v.Id, sub.entry.ID)
+	}
 	return target, e
 }
 func (r *Resolver) ResolveSubtitle(parent context.Context, asset, id, ua, ip string) (nativeplayback.RedirectTarget, error) {
@@ -202,4 +245,16 @@ func (r *Resolver) ResolveSubtitle(parent context.Context, asset, id, ua, ip str
 		return nativeplayback.RedirectTarget{}, nativeplayback.ErrNotFound
 	}
 	return nativeplayback.RedirectTarget{URL: link.URL, ExpiresAt: link.ExpiresAt}, nil
+}
+
+func (s *Service) subtitleVisible(ctx context.Context, asset, id string) error {
+	repo := s.Subtitles
+	if repo.DB == nil {
+		repo.DB = s.DB
+	}
+	v, e := repo.Get(ctx, asset, id)
+	if e != nil || v.Hidden || v.Deleting {
+		return nativeplayback.ErrNotFound
+	}
+	return nil
 }

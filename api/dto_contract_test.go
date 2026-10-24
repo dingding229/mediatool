@@ -185,8 +185,29 @@ func TestSchemaReferencesErrorsAndProtocolBoundaries(t *testing.T) {
 				}
 			}
 			if strings.HasPrefix(path, "/Videos/") && (strings.Contains(path, "/stream") || strings.Contains(path, "/original")) && op["x-listener"] == "native-media" && method != "options" {
-				if op["responses"].(map[string]any)["200"] != nil || op["responses"].(map[string]any)["206"] != nil {
-					t.Error("native media byte relay advertised", path)
+				responses := op["responses"].(map[string]any)
+				if responses["206"] != nil {
+					t.Error("native media range relay advertised", path)
+				}
+				if response := responses["200"]; response != nil {
+					if op["x-go-handler"] != "handle:subtitleResponse" {
+						t.Error("native media byte relay advertised", path)
+						continue
+					}
+					if method == "get" {
+						definition := response.(map[string]any)
+						if ref, ok := definition["$ref"].(string); ok {
+							definition = doc["components"].(map[string]any)["responses"].(map[string]any)[strings.TrimPrefix(ref, "#/components/responses/")].(map[string]any)
+						}
+						content, ok := definition["content"].(map[string]any)
+						if !ok {
+							t.Error("missing subtitle text response content", path)
+							continue
+						}
+						if len(content) != 3 || content["application/x-subrip"] == nil || content["text/x-ssa"] == nil || content["text/vtt"] == nil {
+							t.Error("subtitle exception must only advertise bounded text", path)
+						}
+					}
 				}
 			}
 		}

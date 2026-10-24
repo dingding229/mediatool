@@ -713,3 +713,18 @@ F5b 图标：新增 `GET /pt/templates/{id}/favicon`，管理员会话保护，�
 | HEAD | `/api/v1/system/online-update` | management | 未检出静态使用 | GET 自动派生，仅管理员 |
 
 POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹配重新核验的最新 Release，不能指定镜像/URL/命令。GET 只返回可公开给管理员的状态、阶段与备份路径，不返回 Docker inspect、Compose 内容或私有执行计划。详见 [在线更新设计](ONLINE_UPDATE.md)。
+
+
+## H3a：按物理版本管理字幕（schema 82）
+
+| method | path | listener | 当前前端使用 | 证据（源码行） |
+|---|---|---|---|---|
+| GET | `/api/v1/media/assets/{id}/subtitles` | management | 前端经适配调用 | `web/src/api/subtitles.ts:7` |
+| POST | `/api/v1/media/assets/{id}/subtitles` | management | 前端经适配调用 | `web/src/api/subtitles.ts:8` |
+| PUT | `/api/v1/media/assets/{id}/subtitles/{subtitleId}` | management | 前端经适配调用 | `web/src/api/subtitles.ts:9` |
+| DELETE | `/api/v1/media/assets/{id}/subtitles/{subtitleId}` | management | 前端经适配调用 | `web/src/api/subtitles.ts:10` |
+| GET | `/api/v1/media/assets/{id}/subtitles/{subtitleId}/download` | management | 资源/链接使用 | `web/src/api/subtitles.ts:11` |
+| HEAD | `/api/v1/media/assets/{id}/subtitles/{subtitleId}/download` | management | 未检出静态使用 | GET 自动派生，仅管理员 |
+
+上传为 multipart file/encoding/uploadId；更新使用 revision；删除需要 confirm=true。
+管理员下载使用同源 cookie 包装 URL。原生播放器的 DeliveryUrl 则保持 F2 媒体用户令牌认证、物理版本/字幕身份/库权限/UA 准入；只有本程序上传的字幕可返回文本，自动字幕与视频仍零正文 302，内嵌字幕不提取。见 [字幕管理](MANAGED_SUBTITLES.md)。

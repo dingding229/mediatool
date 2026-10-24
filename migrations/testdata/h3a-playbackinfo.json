@@ -1,0 +1,38 @@
+{
+  "MediaStreams": [
+    {
+      "VideoRange": "HDR",
+      "VideoRangeType": "HDR10",
+      "Type": "Video",
+      "Codec": "hevc",
+      "DisplayTitle": "1080p HEVC HDR10",
+      "Index": 0,
+      "Width": 1920,
+      "Height": 1080
+    },
+    {
+      "DeliveryMethod": "Embed",
+      "IsTextSubtitleStream": true,
+      "Type": "Subtitle",
+      "Codec": "srt",
+      "Language": "eng",
+      "DisplayTitle": "English SRT",
+      "Index": 5,
+      "IsExternal": false
+    },
+    {
+      "DeliveryUrl": "https://native.synthetic.invalid/Videos/100001/00000000-0000-4000-8000-000000000001/Subtitles/65536/Stream.srt?MediaSourceId=00000000-0000-4000-8000-000000000001\u0026Static=true\u0026SubtitleId=00000000-0000-4000-8000-000000000002\u0026api_key=synthetic-token",
+      "DeliveryMethod": "External",
+      "IsTextSubtitleStream": true,
+      "Type": "Subtitle",
+      "Codec": "srt",
+      "Language": "chs",
+      "DisplayTitle": "film.chs.default.forced.srt",
+      "Index": 65536,
+      "IsDefault": true,
+      "IsForced": true,
+      "IsExternal": true
+    }
+  ],
+  "DefaultSubtitleStreamIndex": 65536
+}

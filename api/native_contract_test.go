@@ -107,6 +107,16 @@ func (s *source) addNative(t *testing.T, doc object) {
 				delete(responses, "302")
 			case "streamResponse", "subtitleResponse":
 				responses = object{"302": object{"description": "原始视频/外挂字幕严格302到官方CDN，按实际播放器UA取链；不读取正文、不提取或转换字幕。", "headers": object{"Location": object{"schema": object{"type": "string", "format": "uri"}}}}}
+				if r.kind == "subtitleResponse" && method != "head" {
+					content := object{}
+					for _, mime := range []string{"application/x-subrip", "text/x-ssa", "text/vtt"} {
+						content[mime] = object{"schema": object{"type": "string", "format": "binary"}}
+					}
+					responses["200"] = object{"description": "唯一内容例外：本程序已登记上传的≤5MiB UTF-8字幕；媒体用户令牌、条目/物理版本/库权限与UA准入校验一致。no-store/nosniff/CSP sandbox；不提取内嵌字幕。", "content": content}
+				} else if r.kind == "subtitleResponse" {
+					responses["200"] = object{"description": "已鉴权的上传字幕HEAD，无正文"}
+				}
+
 			case "imageResponse":
 				responses = object{"200": object{"description": "受控图片", "content": object{"image/jpeg": object{"schema": object{"type": "string", "format": "binary"}}, "image/png": object{"schema": object{"type": "string", "format": "binary"}}, "image/webp": object{"schema": object{"type": "string", "format": "binary"}}}}, "304": object{"description": "ETag匹配，无正文"}}
 			case "brandingCSSResponse":

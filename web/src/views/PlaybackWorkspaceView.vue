@@ -46,7 +46,7 @@ usePageRefresh(()=>tab.value==='users'?users.value?.load():act(),'*');
         <el-button v-if="tab==='users'" type="primary" @click="act">新建媒体用户</el-button>
       </template>
     </PageHeader>
-    <PageTabs :tabs="tabs" default-tab="settings"/>
+    <PageTabs class="playback-page-tabs" :tabs="tabs" default-tab="settings"/>
     <div v-if="visited.has('settings')" v-show="tab==='settings'">
       <ServicePanel ref="service"/>
     </div>
@@ -65,3 +65,9 @@ usePageRefresh(()=>tab.value==='users'?users.value?.load():act(),'*');
     <section v-if="visited.has('ips')" v-show="tab==='ips'" class="media-surface"><h2>播放 IP 统计</h2><PlaybackStatistics ref="ipStats" only-IPs/></section>
   </div>
 </template>
+
+<style scoped>
+.playback-page-tabs :deep(.tab-button){transition:color .16s ease}
+.playback-page-tabs :deep(.tab-button:not(.is-active):hover){background:var(--mt-bg-surface);color:var(--mt-text-primary)}
+.playback-page-tabs :deep(.tab-button:not(.is-active):focus-visible){outline:2px dashed var(--mt-text-primary);outline-offset:-3px}
+</style>

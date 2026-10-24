@@ -60,8 +60,8 @@ func (syntheticTimeout) Temporary() bool { return true }
 func newPlaybackFixture(t *testing.T) *playbackFixture {
 	t.Helper()
 	f := &playbackFixture{browseFixture: newBrowseFixture(t), root: t.TempDir()}
-	// Current runtime admission uses schema 81, not the historical browse fixture.
-	if _, e := f.provider.UpTo(f.ctx, 81); e != nil {
+	// Current runtime admission uses current schema, not the historical browse fixture.
+	if _, e := f.provider.UpTo(f.ctx, 82); e != nil {
 		t.Fatal(e)
 	}
 	m := f.media(t, 3132001, "Synthetic Playback Film", "2026", `{"officialRating":"G"}`)

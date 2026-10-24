@@ -783,6 +783,32 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
+      "HTTP200_1a13b87457f8": {
+        "description": "已鉴权的上传字幕HEAD，无正文"
+      },
+      "HTTP200_1a1f7bf3a677": {
+        "content": {
+          "application/x-subrip": {
+            "schema": {
+              "format": "binary",
+              "type": "string"
+            }
+          },
+          "text/vtt": {
+            "schema": {
+              "format": "binary",
+              "type": "string"
+            }
+          },
+          "text/x-ssa": {
+            "schema": {
+              "format": "binary",
+              "type": "string"
+            }
+          }
+        },
+        "description": "唯一内容例外：本程序已登记上传的≤5MiB UTF-8字幕；媒体用户令牌、条目/物理版本/库权限与UA准入校验一致。no-store/nosniff/CSP sandbox；不提取内嵌字幕。"
+      },
       "HTTP200_1c02f7e38c72": {
         "content": {
           "application/json": {
@@ -2273,6 +2299,25 @@
               "properties": {
                 "data": {
                   "$ref": "#/components/schemas/modules_settings_Record"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
+      "HTTP200_5e14049a5400": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/modules_subtitles_Page"
                 }
               },
               "required": [
@@ -3902,6 +3947,29 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
+      "HTTP200_ab5b7800e0df": {
+        "content": {
+          "application/x-subrip": {
+            "schema": {
+              "format": "binary",
+              "type": "string"
+            }
+          },
+          "text/vtt": {
+            "schema": {
+              "format": "binary",
+              "type": "string"
+            }
+          },
+          "text/x-ssa": {
+            "schema": {
+              "format": "binary",
+              "type": "string"
+            }
+          }
+        },
+        "description": "真实文件/图片响应，不包JSON Envelope；备份与STRM含私有数据，不可放公开产物。"
+      },
       "HTTP200_ab6a8272ad74": {
         "content": {
           "application/json": {
@@ -4833,6 +4901,25 @@
                     "state"
                   ],
                   "type": "object"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
+      "HTTP200_dc367bdc0997": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/modules_subtitles_Entry"
                 }
               },
               "required": [
@@ -6911,6 +6998,25 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
+      "HTTP201_dc367bdc0997": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/modules_subtitles_Entry"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
       "HTTP201_ec914063cfcb": {
         "content": {
           "application/json": {
@@ -7416,6 +7522,17 @@
           }
         }
       },
+      "HTTP302_de02e6d9b3b5": {
+        "description": "自动识别字幕仍302至115官方链接；只有已登记上传的≤5MiB UTF-8字幕可200直返。均需管理员cookie鉴权。",
+        "headers": {
+          "Location": {
+            "schema": {
+              "format": "uri",
+              "type": "string"
+            }
+          }
+        }
+      },
       "HTTP304_29860160b051": {
         "description": "ETag匹配，无正文"
       },
@@ -7774,6 +7891,37 @@
         "x-error-codes": [
           "invalid_management_page",
           "invalid_media_request"
+        ]
+      },
+      "HTTP400_25b3d03a5a16": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "invalid_subtitle"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "invalid_subtitle"
         ]
       },
       "HTTP400_28366f4b37d5": {
@@ -9971,6 +10119,39 @@
           "confirm_required"
         ]
       },
+      "HTTP400_c961829f08df": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "invalid_json",
+                            "invalid_subtitle"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "invalid_json",
+          "invalid_subtitle"
+        ]
+      },
       "HTTP400_cadc3b44dd8d": {
         "content": {
           "application/json": {
@@ -11895,6 +12076,37 @@
           "subscription_run_not_found"
         ]
       },
+      "HTTP404_89e5afaaf297": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "subtitle_not_found"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "subtitle_not_found"
+        ]
+      },
       "HTTP404_8e7394f09374": {
         "description": "按实际handler状态处理。"
       },
@@ -13552,6 +13764,37 @@
           "notification_retry_blocked"
         ]
       },
+      "HTTP409_c4405538d138": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "subtitle_conflict"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "subtitle_conflict"
+        ]
+      },
       "HTTP409_ca23088045ee": {
         "content": {
           "application/json": {
@@ -14025,6 +14268,37 @@
           }
         },
         "description": "固定原生错误，ResponseStatus.ErrorCode/Message；429参照Retry-After，不显示驱动SQL。"
+      },
+      "HTTP413_790e429f5844": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "subtitle_too_large"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "subtitle_too_large"
+        ]
       },
       "HTTP413_f0c0de0eef9c": {
         "content": {
@@ -16322,6 +16596,41 @@
           "proxy_unavailable",
           "templates_unavailable",
           "validation_record_failed"
+        ]
+      },
+      "HTTP503_6e3c1a4df2c8": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "maintenance_busy",
+                            "maintenance_unavailable",
+                            "subtitle_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "maintenance_busy",
+          "maintenance_unavailable",
+          "subtitle_unavailable"
         ]
       },
       "HTTP503_6eadd39e5acd": {
@@ -29274,6 +29583,161 @@
         "type": "object",
         "x-go-type": "media-tool/internal/modules/subscriptions.RunRecord"
       },
+      "modules_subtitles_Entry": {
+        "additionalProperties": false,
+        "properties": {
+          "assetId": {
+            "type": "string"
+          },
+          "default": {
+            "type": "boolean"
+          },
+          "deleting": {
+            "type": "boolean"
+          },
+          "encoding": {
+            "type": "string"
+          },
+          "extension": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "forced": {
+            "type": "boolean"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "index": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "language": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "size": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "source": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "assetId",
+          "default",
+          "deleting",
+          "extension",
+          "filename",
+          "forced",
+          "hidden",
+          "id",
+          "index",
+          "language",
+          "revision",
+          "size",
+          "source",
+          "title"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/subtitles.Entry"
+      },
+      "modules_subtitles_Metadata": {
+        "additionalProperties": false,
+        "properties": {
+          "default": {
+            "type": "boolean"
+          },
+          "forced": {
+            "type": "boolean"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "language": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "default",
+          "forced",
+          "hidden",
+          "language",
+          "revision",
+          "title"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/subtitles.Metadata"
+      },
+      "modules_subtitles_Page": {
+        "additionalProperties": false,
+        "properties": {
+          "assetId": {
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/modules_subtitles_Entry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/modules_subtitles_Version"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "assetId",
+          "items",
+          "versions"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/subtitles.Page"
+      },
+      "modules_subtitles_Version": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/subtitles.Version"
+      },
       "modules_system_Module": {
         "additionalProperties": false,
         "properties": {
@@ -30313,7 +30777,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -30332,7 +30796,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -30351,7 +30815,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -30370,7 +30834,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -30389,7 +30853,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -30408,7 +30872,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -30427,7 +30891,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -30446,7 +30910,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       }
     },
     "/Branding/Configuration": {
@@ -51289,6 +51753,9 @@
           }
         ],
         "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_1a1f7bf3a677"
+          },
           "302": {
             "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
@@ -51514,6 +51981,9 @@
           }
         ],
         "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_1a13b87457f8"
+          },
           "302": {
             "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
@@ -51794,6 +52264,9 @@
           }
         ],
         "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_1a1f7bf3a677"
+          },
           "302": {
             "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
@@ -52035,6 +52508,9 @@
           }
         ],
         "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_1a13b87457f8"
+          },
           "302": {
             "$ref": "#/components/responses/HTTP302_3cce5d00cc33"
           },
@@ -67244,6 +67720,562 @@
         "x-source": "api.go:245"
       }
     },
+    "/api/v1/media/assets/{id}/subtitles": {
+      "get": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "get_api_v1_media_assets_id_subtitles_d9f4d372",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_5e14049a5400"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_25b3d03a5a16"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_89e5afaaf297"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_c4405538d138"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6e3c1a4df2c8"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "listSubtitles",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "listSubtitles",
+        "x-go-registration": "GET /api/v1/media/assets/{id}/subtitles",
+        "x-listener": "management",
+        "x-source": "subtitles.go:191"
+      },
+      "head": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "head_api_v1_media_assets_id_subtitles_d9f4d372",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_25b3d03a5a16"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_89e5afaaf297"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_c4405538d138"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6e3c1a4df2c8"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "listSubtitles",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "listSubtitles",
+        "x-go-registration": "GET /api/v1/media/assets/{id}/subtitles",
+        "x-listener": "management",
+        "x-source": "subtitles.go:191"
+      },
+      "post": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "post_api_v1_media_assets_id_subtitles_d9f4d372",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "还须通过同源Origin/Fetch Metadata检查；不能以此头代替会话。",
+            "in": "header",
+            "name": "X-Requested-With",
+            "required": true,
+            "schema": {
+              "const": "media-tool",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "encoding": {
+                    "enum": [
+                      "auto",
+                      "utf-8",
+                      "utf-16le",
+                      "utf-16be",
+                      "utf-32le",
+                      "utf-32be",
+                      "gb18030",
+                      "big5",
+                      "shift-jis",
+                      "windows-1252"
+                    ],
+                    "type": "string"
+                  },
+                  "file": {
+                    "description": "srt/ass/ssa/vtt，原文件和UTF-8转换后均≤5MiB",
+                    "format": "binary",
+                    "type": "string"
+                  },
+                  "uploadId": {
+                    "description": "客户端一次逻辑上传的稳定UUID，用于丢失响应后的幂等核对",
+                    "format": "uuid",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "uploadId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/HTTP201_dc367bdc0997"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_25b3d03a5a16"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_89e5afaaf297"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_c4405538d138"
+          },
+          "413": {
+            "$ref": "#/components/responses/HTTP413_790e429f5844"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6e3c1a4df2c8"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "uploadSubtitle",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "uploadSubtitle",
+        "x-go-registration": "POST /api/v1/media/assets/{id}/subtitles",
+        "x-listener": "management",
+        "x-source": "subtitles.go:192"
+      }
+    },
+    "/api/v1/media/assets/{id}/subtitles/{subtitleId}": {
+      "delete": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "delete_api_v1_media_assets_id_subtitles_subtitleId_43d1ee6d",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "subtitleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "还须通过同源Origin/Fetch Metadata检查；不能以此头代替会话。",
+            "in": "header",
+            "name": "X-Requested-With",
+            "required": true,
+            "schema": {
+              "const": "media-tool",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "description": "字段级与条件必填校验由业务规则决定；确认字段只在明确批准时传true，不能自动补全。",
+                "properties": {
+                  "confirm": {
+                    "type": "boolean"
+                  },
+                  "revision": {
+                    "format": "int64",
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_453a0c1164b6"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c961829f08df"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_89e5afaaf297"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_c4405538d138"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6e3c1a4df2c8"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "deleteSubtitle",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "deleteSubtitle",
+        "x-go-registration": "DELETE /api/v1/media/assets/{id}/subtitles/{subtitleId}",
+        "x-listener": "management",
+        "x-source": "subtitles.go:194"
+      },
+      "put": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "put_api_v1_media_assets_id_subtitles_subtitleId_43d1ee6d",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "subtitleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "还须通过同源Origin/Fetch Metadata检查；不能以此头代替会话。",
+            "in": "header",
+            "name": "X-Requested-With",
+            "required": true,
+            "schema": {
+              "const": "media-tool",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "description": "字段级与条件必填校验由业务规则决定；确认字段只在明确批准时传true，不能自动补全。",
+                "properties": {
+                  "default": {
+                    "type": "boolean"
+                  },
+                  "forced": {
+                    "type": "boolean"
+                  },
+                  "hidden": {
+                    "type": "boolean"
+                  },
+                  "language": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "format": "int64",
+                    "type": "integer"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "x-go-type": "media-tool/internal/modules/subtitles.Metadata"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_dc367bdc0997"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_c961829f08df"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_89e5afaaf297"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_c4405538d138"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6e3c1a4df2c8"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "saveSubtitle",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "saveSubtitle",
+        "x-go-registration": "PUT /api/v1/media/assets/{id}/subtitles/{subtitleId}",
+        "x-listener": "management",
+        "x-source": "subtitles.go:193"
+      }
+    },
+    "/api/v1/media/assets/{id}/subtitles/{subtitleId}/download": {
+      "get": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "get_api_v1_media_assets_id_subtitles_subtitleId_download_dad09f46",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "subtitleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_ab5b7800e0df"
+          },
+          "302": {
+            "$ref": "#/components/responses/HTTP302_de02e6d9b3b5"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_25b3d03a5a16"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_89e5afaaf297"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_c4405538d138"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6e3c1a4df2c8"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "downloadSubtitle",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "downloadSubtitle",
+        "x-go-registration": "GET /api/v1/media/assets/{id}/subtitles/{subtitleId}/download",
+        "x-listener": "management",
+        "x-source": "subtitles.go:195"
+      },
+      "head": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "head_api_v1_media_assets_id_subtitles_subtitleId_download_dad09f46",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "subtitleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_ab5b7800e0df"
+          },
+          "302": {
+            "$ref": "#/components/responses/HTTP302_de02e6d9b3b5"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_25b3d03a5a16"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_89e5afaaf297"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_c4405538d138"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6e3c1a4df2c8"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "downloadSubtitle",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "downloadSubtitle",
+        "x-go-registration": "GET /api/v1/media/assets/{id}/subtitles/{subtitleId}/download",
+        "x-listener": "management",
+        "x-source": "subtitles.go:195"
+      }
+    },
     "/api/v1/media/assets/{id}/validation-ref": {
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80265,7 +81297,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:338"
+        "x-source": "api.go:339"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80292,7 +81324,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:338"
+        "x-source": "api.go:339"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80319,7 +81351,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:338"
+        "x-source": "api.go:339"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80343,7 +81375,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:338"
+        "x-source": "api.go:339"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80367,7 +81399,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:338"
+        "x-source": "api.go:339"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80391,7 +81423,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:338"
+        "x-source": "api.go:339"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80415,7 +81447,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:338"
+        "x-source": "api.go:339"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80439,7 +81471,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:338"
+        "x-source": "api.go:339"
       }
     },
     "/emby/": {
@@ -80465,7 +81497,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80489,7 +81521,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80513,7 +81545,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80537,7 +81569,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80561,7 +81593,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80585,7 +81617,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80609,7 +81641,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80633,7 +81665,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       }
     },
     "/emby/{path}": {
@@ -80670,7 +81702,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80705,7 +81737,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80740,7 +81772,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80775,7 +81807,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80810,7 +81842,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80845,7 +81877,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80880,7 +81912,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80915,7 +81947,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:338"
       }
     },
     "/healthz": {
@@ -81165,7 +82197,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "GET /watch",
         "x-listener": "management",
-        "x-source": "api.go:334"
+        "x-source": "api.go:335"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81183,7 +82215,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "GET /watch",
         "x-listener": "management",
-        "x-source": "api.go:334"
+        "x-source": "api.go:335"
       }
     },
     "/watch/{rest}": {
@@ -81214,7 +82246,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "GET /watch/{rest...}",
         "x-listener": "management",
-        "x-source": "api.go:335"
+        "x-source": "api.go:336"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81243,7 +82275,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "GET /watch/{rest...}",
         "x-listener": "management",
-        "x-source": "api.go:335"
+        "x-source": "api.go:336"
       }
     },
     "/{path}": {
@@ -81275,7 +82307,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81305,7 +82337,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81335,7 +82367,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81365,7 +82397,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81395,7 +82427,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81425,7 +82457,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81455,7 +82487,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81485,7 +82517,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:348"
       }
     }
   },

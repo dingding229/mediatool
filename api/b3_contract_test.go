@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -35,8 +36,15 @@ func TestB3HierarchyAndExternalSubtitleContract(t *testing.T) {
 	if _, ok := op.Responses["302"]; !ok {
 		t.Fatal("missing strict subtitle redirect")
 	}
-	if _, ok := op.Responses["200"]; ok {
-		t.Fatal("subtitle must not proxy a response body")
+	if _, ok := op.Responses["200"]; !ok {
+		t.Fatal("missing bounded uploaded-text subtitle exception")
+	}
+	for path, methods := range doc.Paths {
+		if strings.Contains(path, "/Videos/") && !strings.Contains(strings.ToLower(path), "/subtitles/") {
+			if _, ok := methods["get"].Responses["200"]; ok {
+				t.Fatal("video must remain redirect-only", path)
+			}
+		}
 	}
 	for path, methods := range doc.Paths {
 		for method, op := range methods {

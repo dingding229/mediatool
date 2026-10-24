@@ -473,7 +473,7 @@ func seedBrowseMovies(t *testing.T, f browseFixture, count int) {
 func TestNativeBrowseTenThousandMoviesBudgetAndBatchBound(t *testing.T) {
 	f := newBrowseFixture(t)
 	// The endpoint portion exercises current admission, not historical schema 60.
-	if _, e := f.provider.UpTo(f.ctx, 81); e != nil {
+	if _, e := f.provider.UpTo(f.ctx, 82); e != nil {
 		t.Fatal(e)
 	}
 	seedBrowseMovies(t, f, 10000)

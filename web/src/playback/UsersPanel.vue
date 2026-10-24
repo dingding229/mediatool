@@ -75,7 +75,7 @@ defineExpose({ load, create });
       <div class="media-actions media-user-actions" :aria-label="user.username+' 的操作'">
         <el-button :disabled="!!users.error||!!libraries.error" @click="editor?.open(user)">编辑用户</el-button>
         <el-button @click="activity=user;activityOpen=true">设备与历史</el-button>
-        <RouterLink class="el-button" :to="{path:'/playback',query:{tab:'sessions',userId:user.id}}">查看会话与撤销登录</RouterLink>
+        <RouterLink class="el-button media-user-session-link" :to="{path:'/playback',query:{tab:'sessions',userId:user.id}}">查看会话与撤销登录</RouterLink>
         <el-dropdown trigger="click" popper-class="media-dropdown">
           <el-button>更多</el-button>
           <template #dropdown>
@@ -98,4 +98,5 @@ defineExpose({ load, create });
 
 <style scoped>
 .media-users-panel{min-width:0;max-width:100%;box-sizing:border-box}.media-user-card{padding:20px;min-width:0}.media-user-identity{display:flex;gap:12px;align-items:center}.media-user-avatar{display:grid;place-items:center;flex:0 0 44px;height:44px;border-radius:50%;background:var(--el-color-primary-light-9);color:var(--el-color-primary);font-size:1.1rem;font-weight:600}.media-user-name{min-width:0;width:0;flex:1}.media-user-name h3,.media-user-name p{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.media-user-name p{color:var(--el-text-color-secondary);font-size:.85rem;margin-top:4px}.media-user-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;margin:20px 0 16px}.media-user-summary dt,.media-user-limits{color:var(--el-text-color-secondary);font-size:.85rem}.media-user-summary dd{margin:6px 0 0;overflow-wrap:anywhere}.media-user-actions{padding-top:16px;border-top:1px solid var(--el-border-color-lighter);align-items:center}.media-user-actions :deep(.el-button){height:44px;margin:0;text-decoration:none}.media-user-actions :deep(.el-dropdown){display:inline-flex}.media-user-limits{overflow-wrap:anywhere}@media(max-width:600px){.media-user-card{padding:16px}.media-user-summary{grid-template-columns:1fr;gap:14px}.media-user-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.media-user-actions :deep(.el-button){width:100%;padding:10px 8px}.media-user-actions :deep(.el-dropdown){width:100%}}
+.media-user-actions .media-user-session-link{color:var(--el-button-text-color)}.media-user-actions .media-user-session-link:hover,.media-user-actions .media-user-session-link:focus-visible{color:var(--el-button-hover-text-color)}
 </style>
