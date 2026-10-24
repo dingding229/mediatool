@@ -203,7 +203,33 @@ func TestDockerAppAuditChild(t *testing.T) {
 		if _, e := service.Start(t.Context(), "fixture-preflight-"+id, "0.28.1", strings.TrimPrefix(helperFixtureImage, "dingding229/mediatool@")); e == nil {
 			t.Fatal("unavailable release admitted")
 		}
+	} else if mode == "seed" {
+		dir := os.Getenv("MEDIA_TOOL_SEED_DIR")
+		id := os.Getenv("MEDIA_TOOL_HELPER_ID")
+		raw, e := os.ReadFile(filepath.Join(dir, "fixture-plan.json"))
+		if e != nil || bytes.Contains(raw, []byte("DATABASE_URL")) {
+			t.Fatal("redacted fixture plan", e)
+		}
+		if e = atomicFile(filepath.Join(Root, id+".plan"), raw); e != nil {
+			t.Fatal(e)
+		}
+		raw, e = os.ReadFile(filepath.Join(dir, "fixture-job.json"))
+		if e != nil {
+			t.Fatal(e)
+		}
+		var job Job
+		if e = json.Unmarshal(raw, &job); e != nil || job.ID != id {
+			t.Fatal(e)
+		}
+		if e = save(Root, job); e != nil {
+			t.Fatal(e)
+		}
 	} else {
+		id := os.Getenv("MEDIA_TOOL_HELPER_ID")
+		st, e := os.Stat(filepath.Join(Root, id+".plan"))
+		if e != nil || st.Mode().Perm() != 0600 || st.Sys().(*syscall.Stat_t).Uid != 65532 {
+			t.Fatal("plan must be written by the real app UID before helper, not repaired by cleanup", e)
+		}
 		for range 2 {
 			if e := service.reconcileAudits(t.Context()); e != nil {
 				t.Fatal("real app UID cannot reconcile", e)
@@ -426,7 +452,7 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 				j.Target.Schema = 80
 			}
 			appChild := func(mode string) {
-				t.Log(string(cli("run", "--rm", "--platform", "linux/amd64", "--user", "65532:65532", "--group-add", socketGroup, "-v", sock+":/var/run/docker.sock:rw", "--read-only", "--cap-drop", "ALL", "--network", project+"_default", "-v", work+":"+work+":ro", "-v", data+":/data:rw", "-e", "MEDIA_TOOL_APP_AUDIT_CHILD="+mode, "-e", "MEDIA_TOOL_HELPER_ID="+id, "-e", "TEST_DATABASE_URL="+appDSN.String(), "-e", "MEDIA_TOOL_TEST_LOCKED=1", "--entrypoint", filepath.Join(work, "helper.test"), helperFixtureImage, "-test.run=^TestDockerAppAuditChild$", "-test.v")))
+				t.Log(string(cli("run", "--rm", "--platform", "linux/amd64", "--user", "65532:65532", "--group-add", socketGroup, "-v", sock+":/var/run/docker.sock:rw", "--read-only", "--cap-drop", "ALL", "--network", project+"_default", "-v", work+":"+work+":ro", "-v", data+":/data:rw", "-e", "MEDIA_TOOL_APP_AUDIT_CHILD="+mode, "-e", "MEDIA_TOOL_SEED_DIR="+work, "-e", "MEDIA_TOOL_HELPER_ID="+id, "-e", "TEST_DATABASE_URL="+appDSN.String(), "-e", "MEDIA_TOOL_TEST_LOCKED=1", "--entrypoint", filepath.Join(work, "helper.test"), helperFixtureImage, "-test.run=^TestDockerAppAuditChild$", "-test.v")))
 			}
 			rootOwner := func(owner string) {
 				cli("run", "--rm", "--user", "0:0", "-v", data+":/data:rw", "--entrypoint", "/bin/chown", helperFixtureImage, owner, "/data/online-update")
@@ -436,7 +462,6 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			}
 			rootOwner("65532:65532")
 			appChild("admission") // The production Start path prepares app-owned locks.
-			rootOwner(fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()))
 			if _, e = db.Exec(ctx, `DROP TABLE IF EXISTS f8b_flow_probe,f8b_flow_added;DELETE FROM goose_db_version WHERE version_id=80;CREATE TABLE f8b_flow_probe(value text);INSERT INTO f8b_flow_probe VALUES('before')`); e != nil {
 				t.Fatal(e)
 			}
@@ -464,12 +489,19 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			if strings.Contains(string(raw), "DATABASE_URL") || strings.Contains(string(raw), fixtureDSN.String()) {
 				t.Fatal("plan leaked DSN")
 			}
-			if e = os.WriteFile(filepath.Join(root, id+".plan"), raw, 0600); e != nil {
+			// These inputs contain no credentials. The real non-root app process
+			// writes the 0600 shared plan/job, exactly as production admission does.
+			if e = os.WriteFile(filepath.Join(work, "fixture-plan.json"), raw, 0644); e != nil {
 				t.Fatal(e)
 			}
-			if e = save(root, j); e != nil {
+			raw, e = json.Marshal(j)
+			if e != nil {
 				t.Fatal(e)
 			}
+			if e = os.WriteFile(filepath.Join(work, "fixture-job.json"), raw, 0644); e != nil {
+				t.Fatal(e)
+			}
+			appChild("seed")
 			if e = audit(ctx, db, j.Actor, "online_update.requested", j); e != nil {
 				t.Fatal(e)
 			}
