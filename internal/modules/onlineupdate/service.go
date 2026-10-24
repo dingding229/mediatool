@@ -28,6 +28,7 @@ type Status struct {
 	SocketMounted  bool   `json:"socketMounted"`
 	PolicyVerified bool   `json:"policyVerified"`
 	Job            *Job   `json:"job"`
+	Control
 }
 type plan struct {
 	Self               Container
@@ -115,7 +116,15 @@ func PolicyProof(ctx context.Context) (map[string]bool, error) {
 	if !pass {
 		return nil, ErrUnsafe
 	}
-	return map[string]bool{"scopedIdentityVerified": true, "forbiddenRequestsBlockedBeforeTransport": true, "daemonMutationPerformed": false}, nil
+	d.target = fmtString(d.self.Config["Image"])
+	body, e := d.appCreate(ctx)
+	if e != nil {
+		return nil, e
+	}
+	if e = d.preflightCreate(body); e != nil {
+		return nil, e
+	}
+	return map[string]bool{"scopedIdentityVerified": true, "forbiddenRequestsBlockedBeforeTransport": true, "replacementCreateDryRunVerified": true, "daemonMutationPerformed": false}, nil
 }
 
 func (s *Service) Status(ctx context.Context) (Status, error) {
@@ -138,6 +147,18 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 		e = nil
 	}
 	v.Job = j
+	if e != nil {
+		return v, e
+	}
+	v.Control, e = s.Control(ctx)
+	if !v.Enabled {
+		v.Available = false
+		v.Reason = "执行开关默认关闭；由管理员复核密码后开启"
+	}
+	if len(v.Recovery) > 0 {
+		v.Available = false
+		v.Reason = "存在未完成人工确认的更新任务"
+	}
 	return v, e
 }
 func (s *Service) Start(ctx context.Context, actor, version, digest string) (Job, error) {
@@ -151,11 +172,28 @@ func (s *Service) Start(ctx context.Context, actor, version, digest string) (Job
 	if e != nil {
 		return j, e
 	}
-	if old != nil && (!old.Done() || old.Phase == "manual_recovery") {
+	if old != nil && (!old.Done() || (old.Phase == "manual_recovery" && s.DB == nil)) {
+		return j, ErrBusy
+	}
+	control, e := s.Control(ctx)
+	if e != nil {
+		return j, e
+	}
+	if !control.Enabled {
+		return j, ErrDisabled
+	}
+	if len(control.Recovery) > 0 {
 		return j, ErrBusy
 	}
 	if e := s.reconcileAudits(ctx); e != nil {
 		return j, e
+	}
+	control, e = s.Control(ctx)
+	if e != nil {
+		return j, e
+	}
+	if len(control.Recovery) > 0 {
+		return j, ErrBusy
 	}
 	// No cached update-check result is trusted to execute an update.
 	r, e := s.Checker.VerifyFresh(ctx)
@@ -304,6 +342,11 @@ func (s *Service) launchDocker(ctx context.Context, d *docker, id string) {
 	}
 	j, e = load(s.Root, id)
 	if e != nil || j.Done() {
+		return
+	}
+	control, controlErr := s.Control(ctx)
+	if controlErr != nil || !control.Enabled || len(control.Recovery) > 0 {
+		s.failQueued(ctx, id, "execution_disabled")
 		return
 	}
 	if _, e = d.request(ctx, "POST", "/images/create?fromImage="+urlQuery(d.target)+"&platform=linux%2Famd64", nil); e != nil {

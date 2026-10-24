@@ -47,6 +47,9 @@ func auditTerminal(ctx context.Context, db *pgxpool.Pool, j Job, source string) 
 	if e != nil {
 		return errTerminalAudit
 	}
+	if e = latchRecovery(ctx, tx, j); e != nil {
+		return errTerminalAudit
+	}
 	if e = tx.Commit(ctx); e != nil {
 		return errTerminalAudit
 	}
@@ -86,6 +89,28 @@ func (s *Service) reconcileAudits(ctx context.Context) error {
 		if e = auditTerminal(ctx, s.DB, j, "reconciliation"); e != nil {
 			return e
 		}
+		if j.Done() {
+			s.cleanupHelper(ctx, j)
+		}
 	}
 	return nil
+}
+
+// Only after durable terminal audit, and only this stopped, labelled helper.
+// Stage stderr has already been saved before process exit; uncertain Docker
+// outcomes are reconciled next time, never retried as an update.
+func (s *Service) cleanupHelper(ctx context.Context, j Job) {
+	p, e := readPlan(s.Root, j.ID)
+	if e != nil {
+		return
+	}
+	d := newDocker()
+	d.self = p.Self
+	d.target = p.TargetImage
+	d.task = j.ID
+	c, e := d.inspect(ctx, d.helperName())
+	if e != nil || c.State.Running || labels(c)[label] != j.ID || labels(c)["io.mediatool.project"] != d.project() {
+		return
+	}
+	_, _ = d.request(ctx, "DELETE", "/containers/"+d.helperName(), nil)
 }

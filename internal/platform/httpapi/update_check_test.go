@@ -14,7 +14,7 @@ func TestVersionAndUpdatesAreAdministratorOnly(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	for _, route := range []struct{ method, path string }{{"GET", "/api/v1/system/online-update"}, {"POST", "/api/v1/system/online-update"}, {"GET", "/api/v1/system/version"}, {"GET", "/api/v1/system/updates"}, {"PUT", "/api/v1/system/updates/settings"}, {"POST", "/api/v1/system/updates/check"}, {"POST", "/api/v1/system/updates/notice"}} {
+	for _, route := range []struct{ method, path string }{{"POST", "/api/v1/system/online-update/control"}, {"GET", "/api/v1/system/online-update"}, {"POST", "/api/v1/system/online-update"}, {"GET", "/api/v1/system/version"}, {"GET", "/api/v1/system/updates"}, {"PUT", "/api/v1/system/updates/settings"}, {"POST", "/api/v1/system/updates/check"}, {"POST", "/api/v1/system/updates/notice"}} {
 		r := httptest.NewRequest(route.method, route.path, strings.NewReader(`{}`))
 		r.Header.Set("X-Emby-Token", "not-admin")
 		w := httptest.NewRecorder()
@@ -59,5 +59,21 @@ func TestOnlineUpdateRequiresExplicitPasswordAndConfirmation(t *testing.T) {
 	a.executeOnlineUpdate(w, httptest.NewRequest("POST", "/api/v1/system/online-update", strings.NewReader(`{"password":"fixture-sensitive","confirm":true}`)))
 	if w.Code != 401 || strings.Contains(w.Body.String(), "fixture-sensitive") {
 		t.Fatal(w.Code, w.Body.String())
+	}
+}
+
+func TestOnlineUpdateControlRequiresPasswordConfirmation(t *testing.T) {
+	a := &API{}
+	for _, body := range []string{`{}`, `{"action":"enable","confirm":true}`, `{"action":"confirm_recovery","password":"private-fixture"}`} {
+		w := httptest.NewRecorder()
+		a.controlOnlineUpdate(w, httptest.NewRequest("POST", "/", strings.NewReader(body)))
+		if w.Code != 400 || strings.Contains(w.Body.String(), "private-fixture") {
+			t.Fatal(w.Code, w.Body.String())
+		}
+	}
+	w := httptest.NewRecorder()
+	a.controlOnlineUpdate(w, httptest.NewRequest("POST", "/", strings.NewReader(`{"action":"enable","password":"private-fixture","confirm":true}`)))
+	if w.Code != 401 {
+		t.Fatal(w.Code)
 	}
 }

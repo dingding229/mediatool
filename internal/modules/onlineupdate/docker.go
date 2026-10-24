@@ -133,6 +133,7 @@ type docker struct {
 	mu           sync.Mutex
 	ids          map[string]bool
 	imageConfig  map[string]any
+	recordError  func(string, []byte) error
 	imageID      string
 }
 
@@ -173,6 +174,17 @@ func (d *docker) request(ctx context.Context, method, p string, body []byte) ([]
 		return nil, e
 	}
 	if r.StatusCode >= 300 {
+		if d.recordError != nil {
+			stage := "docker"
+			if len(parts) > 2 {
+				stage += "_" + parts[len(parts)-1]
+			} else {
+				stage += "_request"
+			}
+			if e := d.recordError(stage, b); e != nil {
+				return nil, e
+			}
+		}
 		return nil, dockerError{r.StatusCode}
 	}
 	if method == "GET" && strings.HasPrefix(p, "/images/") {
@@ -226,7 +238,8 @@ func (d *docker) scoped(id string) bool {
 	defer d.mu.Unlock()
 	return d.ids[id]
 }
-func (d *docker) helperName() string { return d.project() + "-updater-" + d.task }
+func (d *docker) retainedName() string { return d.appName() + "-rollback-" + d.task }
+func (d *docker) helperName() string   { return d.project() + "-updater-" + d.task }
 func (d *docker) allowed(method, p string, b []byte) bool {
 	u, e := url.ParseRequestURI(p)
 	if e != nil || u.Fragment != "" || (strings.Contains(u.EscapedPath(), "%") && !strings.HasPrefix(u.Path, "/images/")) || path.Clean(u.Path) != u.Path {
@@ -291,6 +304,9 @@ func validImage(s string) bool {
 	return regexp.MustCompile(`^dingding229/mediatool@sha256:[a-f0-9]{64}$`).MatchString(s)
 }
 func (d *docker) validAppName(n string) bool {
+	if n == d.retainedName() {
+		return true
+	}
 	if n == d.appName() || n == d.self.ID[:12]+"_"+d.appName() || n == d.self.ID+"_"+d.appName() {
 		return true
 	}
@@ -328,9 +344,39 @@ func (d *docker) validCreate(name string, b []byte) bool {
 	if l["com.docker.compose.project"] != d.project() || l["com.docker.compose.service"] != "app" {
 		return false
 	}
+	for k, v := range c {
+		switch k {
+		case "Image", "HostConfig", "NetworkingConfig", "Labels":
+			continue
+		case "Hostname":
+			if v == "" && d.self.Config[k] == d.self.ID[:12] {
+				continue
+			}
+		}
+		if !same(v, d.self.Config[k]) {
+			return false
+		}
+	}
 	d.mu.Lock()
 	base := d.imageConfig
 	d.mu.Unlock()
+	oldLabels := labels(d.self)
+	for k, v := range l {
+		want := any(oldLabels[k])
+		if strings.HasPrefix(k, "org.opencontainers.image.") {
+			if bl, ok := base["Labels"].(map[string]any); ok && bl[k] != nil {
+				want = bl[k]
+			}
+		}
+		if v != want {
+			return false
+		}
+	}
+	for k := range oldLabels {
+		if _, ok := l[k]; !ok {
+			return false
+		}
+	}
 	effective := map[string]any{}
 	for k, v := range c {
 		effective[k] = v
@@ -358,7 +404,15 @@ func (d *docker) validCreate(name string, b []byte) bool {
 	if h == nil {
 		return false
 	}
+	originalMounts, e1 := mountSpecs(d.self.HostConfig)
+	requestedMounts, e2 := mountSpecs(h)
+	if e1 != nil || e2 != nil || !same(originalMounts, requestedMounts) {
+		return false
+	}
 	for _, k := range []string{"Binds", "CapAdd", "CapDrop", "SecurityOpt", "GroupAdd", "VolumesFrom", "ExtraHosts", "Dns", "Devices", "DeviceRequests", "Mounts", "PortBindings", "Privileged", "ReadonlyRootfs", "PidMode", "IpcMode", "UTSMode", "UsernsMode", "NetworkMode", "Tmpfs", "Sysctls", "AutoRemove", "PublishAllPorts"} {
+		if k == "Binds" || k == "Mounts" {
+			continue
+		}
 		if !same(h[k], d.self.HostConfig[k]) {
 			if k == "IpcMode" && (h[k] == nil || h[k] == "") && d.self.HostConfig[k] == "private" {
 				continue
@@ -378,6 +432,9 @@ func (d *docker) validCreate(name string, b []byte) bool {
 	// Every additional HostConfig value must retain the old value. Defaults below
 	// are daemon defaults, not a permission to supply a different explicit value.
 	for k, v := range h {
+		if k == "Binds" || k == "Mounts" {
+			continue
+		}
 		old := d.self.HostConfig[k]
 		if same(v, old) {
 			continue
@@ -410,6 +467,9 @@ func (d *docker) validCreate(name string, b []byte) bool {
 	}
 	if netcfg, ok := c["NetworkingConfig"].(map[string]any); ok {
 		ends, _ := netcfg["EndpointsConfig"].(map[string]any)
+		if len(ends) != len(d.self.NetworkSettings.Networks) {
+			return false
+		}
 		for n, v := range ends {
 			if _, exists := d.self.NetworkSettings.Networks[n]; !exists {
 				return false
@@ -444,7 +504,7 @@ func (d *docker) helperConfig() map[string]any {
 	} else {
 		binds = append(binds, data.Name+":/data:rw")
 	}
-	return map[string]any{"Image": d.target, "User": "0:0", "Entrypoint": []string{"/app/media-tool"}, "Cmd": []string{"updater", d.task}, "Labels": map[string]string{label: d.task, "io.mediatool.project": d.project()}, "HostConfig": map[string]any{"AutoRemove": true, "Binds": binds, "NetworkMode": d.project() + "_default", "ReadonlyRootfs": true, "CapDrop": []string{"ALL"}, "CapAdd": []string{"CHOWN", "DAC_OVERRIDE"}, "SecurityOpt": []string{"no-new-privileges:true"}, "Tmpfs": map[string]string{"/tmp": "rw,nosuid,nodev,size=64m"}}}
+	return map[string]any{"Image": d.target, "User": "0:0", "Entrypoint": []string{"/app/media-tool"}, "Cmd": []string{"updater", d.task}, "Labels": map[string]string{label: d.task, "io.mediatool.project": d.project()}, "HostConfig": map[string]any{"AutoRemove": false, "Binds": binds, "NetworkMode": d.project() + "_default", "ReadonlyRootfs": true, "CapDrop": []string{"ALL"}, "CapAdd": []string{"CHOWN", "DAC_OVERRIDE"}, "SecurityOpt": []string{"no-new-privileges:true"}, "Tmpfs": map[string]string{"/tmp": "rw,nosuid,nodev,size=64m"}}}
 }
 
 // proxy is only used by our fixed Compose command, never exposed by the web API.

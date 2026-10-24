@@ -59,7 +59,7 @@ func TestDockerOnlyPullsReleaseDigestAndFailsWithoutSideEffects(t *testing.T) {
 		t.Fatal("denied API reached daemon", calls)
 	}
 }
-func TestTemporaryUpdaterConfigIsExactAndAutoRemoved(t *testing.T) {
+func TestTemporaryUpdaterConfigIsExactAndRetainedForReconciliation(t *testing.T) {
 	d := testDocker()
 	b, e := json.Marshal(d.helperConfig())
 	if e != nil || !d.allowed("POST", "/containers/create?name="+d.helperName(), b) {
@@ -75,7 +75,7 @@ func TestTemporaryUpdaterConfigIsExactAndAutoRemoved(t *testing.T) {
 }
 func TestAppCreateNeverExpandsPrivileges(t *testing.T) {
 	d := testDocker()
-	c := map[string]any{"Image": d.target, "User": "65532:65532", "Labels": map[string]any{"com.docker.compose.project": "owned", "com.docker.compose.service": "app"}, "HostConfig": map[string]any{"ReadonlyRootfs": true}}
+	c := map[string]any{"Image": d.target, "User": "65532:65532", "Labels": map[string]any{"com.docker.compose.project": "owned", "com.docker.compose.service": "app", "com.docker.compose.project.working_dir": "/owned"}, "HostConfig": map[string]any{"ReadonlyRootfs": true}}
 	b, _ := json.Marshal(c)
 	if !d.validCreate(d.appName(), b) {
 		t.Fatal("unchanged app refused", string(b))

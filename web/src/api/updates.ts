@@ -10,6 +10,8 @@ export const checkUpdates=()=>post<UpdateState>('/system/updates/check',{}).then
 export const setUpdateChecks=(enabled:boolean)=>request<UpdateState>('/system/updates/settings',{method:'PUT',body:JSON.stringify({enabled})}).then(state);
 export const takeUpdateNotice=()=>post<{release:ReleaseInfo|null}>('/system/updates/notice',{});
 export interface OnlineUpdateJob{id:string;actor:string;fromVersion:string;fromImage:string;target:ReleaseInfo;phase:string;failure?:string;createdAt:string;updatedAt:string;backup:string;dumpSHA256:string;events:{at:string;phase:string}[]}
-export interface OnlineUpdateStatus{available:boolean;reason:string;socketMounted:boolean;policyVerified:boolean;job:OnlineUpdateJob|null}
+export interface OnlineUpdateStatus{executionEnabled:boolean;recoveryRequired:string[];available:boolean;reason:string;socketMounted:boolean;policyVerified:boolean;job:OnlineUpdateJob|null}
 export const getOnlineUpdate=()=>request<OnlineUpdateStatus>('/system/online-update');
 export const executeOnlineUpdate=(version:string,digest:string,password:string,confirm:boolean)=>post<OnlineUpdateJob>('/system/online-update',{version,digest,password,confirm});
+
+export const setOnlineUpdateControl=(action:"enable"|"disable"|"confirm_recovery",jobId:string,password:string,confirm:boolean)=>post<{ok:boolean}>('/system/online-update/control',{action,jobId,password,confirm});

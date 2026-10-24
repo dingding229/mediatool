@@ -189,6 +189,7 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("POST /api/v1/classification/preview", a.protected(a.previewClassification))
 	mux.HandleFunc("GET /api/v1/system/status", a.protected(a.status))
 	mux.HandleFunc("GET /api/v1/system/online-update", a.protected(a.onlineUpdateStatus))
+	mux.HandleFunc("POST /api/v1/system/online-update/control", a.protected(a.controlOnlineUpdate))
 	mux.HandleFunc("POST /api/v1/system/online-update", a.protected(a.executeOnlineUpdate))
 	mux.HandleFunc("GET /api/v1/system/version", a.protected(a.versionInfo))
 	mux.HandleFunc("GET /api/v1/system/updates", a.protected(a.updateState))

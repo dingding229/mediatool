@@ -35,6 +35,7 @@ type Job struct {
 	ID          string              `json:"id"`
 	Actor       string              `json:"actor"`
 	FromVersion string              `json:"fromVersion"`
+	FromSchema  int64               `json:"fromSchema"`
 	FromImage   string              `json:"fromImage"`
 	Target      updatecheck.Release `json:"target"`
 	Phase       string              `json:"phase"`
@@ -160,6 +161,12 @@ func lock(root, name string) (func(), error) {
 	if e != nil {
 		return nil, e
 	}
+	if os.Geteuid() == 0 {
+		if e = f.Chown(65532, 65532); e != nil {
+			deferutil.Close(f, "lock ownership failed")
+			return nil, e
+		}
+	}
 	if e = unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB); e != nil {
 		deferutil.Close(f, "Lock acquisition failed; release descriptor")
 		return nil, ErrBusy
@@ -193,6 +200,17 @@ func execute(ctx context.Context, root string, j *Job, s Steps) error {
 		_ = advance(root, j, "failed")
 		return e
 	}
+	if pre, ok := s.(interface {
+		Preflight(context.Context, *Job) error
+	}); ok {
+		if e := advance(root, j, "preflighting"); e != nil {
+			return e
+		}
+		if e := pre.Preflight(ctx, j); e != nil {
+			j.Failure = "preflight_rejected"
+			return errors.Join(e, advance(root, j, "failed"))
+		}
+	}
 	if e := advance(root, j, "backing_up"); e != nil {
 		return e
 	}
@@ -220,6 +238,14 @@ func execute(ctx context.Context, root string, j *Job, s Steps) error {
 	if e := s.Health(ctx, *j); e != nil {
 		j.Failure = "health_or_schema_failed"
 		return rollback(ctx, root, j, s)
+	}
+	if final, ok := s.(interface {
+		Finalize(context.Context, Job) error
+	}); ok {
+		if e := final.Finalize(ctx, *j); e != nil {
+			j.Failure = "old_container_cleanup_failed"
+			return errors.Join(e, advance(root, j, "manual_recovery"))
+		}
 	}
 	return advance(root, j, "succeeded")
 }

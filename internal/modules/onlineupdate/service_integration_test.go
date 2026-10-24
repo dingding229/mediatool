@@ -46,6 +46,9 @@ func TestFreshReleaseHubMismatchIsAuditedBeforeDocker(t *testing.T) {
 	if _, e = db.Exec(t.Context(), `CREATE TABLE audit_logs(actor text,action text,details jsonb)`); e != nil {
 		t.Fatal(e)
 	}
+	if _, e = db.Exec(t.Context(), `CREATE TABLE app_settings(LIKE public.app_settings INCLUDING ALL);INSERT INTO app_settings(key,value)VALUES('online_update.execution','true'::jsonb)`); e != nil {
+		t.Fatal(e)
+	}
 	checker := updatecheck.New(db, nil)
 	m := updatecheck.Metadata{Version: "0.28.1", Commit: strings.Repeat("a", 40), Digest: "sha256:" + strings.Repeat("b", 64), MinimumSchema: 79, Schema: 79, Platform: "linux/amd64", Repository: updatecheck.Repository}
 	body, e := updatecheck.ReleaseBody("fixture", m)

@@ -707,6 +707,7 @@ F5b 图标：新增 `GET /pt/templates/{id}/favicon`，管理员会话保护，�
 | method | path | listener | 当前前端使用 | 证据（源码行） |
 |---|---|---|---|---|
 | GET | `/api/v1/system/online-update` | management | 前端经适配调用 | `web/src/api/updates.ts:14` |
+| POST | `/api/v1/system/online-update/control` | management | 前端经适配调用 | `web/src/api/updates.ts:17` |
 | POST | `/api/v1/system/online-update` | management | 前端经适配调用 | `web/src/api/updates.ts:15` |
 
 | HEAD | `/api/v1/system/online-update` | management | 未检出静态使用 | GET 自动派生，仅管理员 |

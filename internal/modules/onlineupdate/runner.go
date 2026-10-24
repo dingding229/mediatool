@@ -30,6 +30,7 @@ type runner struct {
 	root     string
 	proxyURL string
 	dsn      string
+	create   []byte
 	runPG    func(context.Context, string, []string, []string, io.Reader, io.Writer) error
 }
 
@@ -63,15 +64,21 @@ func (r *runner) pg(ctx context.Context, name string, args []string, in io.Reade
 	}
 	c.Stdin = in
 	c.Stdout = out
-	c.Stderr = io.Discard
-	if e = c.Run(); e != nil {
+	var stderr stderrBuffer
+	c.Stderr = &stderr
+	e = c.Run()
+	evidenceErr := r.evidence(name, stderr.Bytes(), e != nil)
+	if evidenceErr != nil {
+		return evidenceErr
+	}
+	if e != nil {
 		return errors.New("数据库备份/恢复命令失败，详情仅由运维检查私有备份")
 	}
 	return nil
 }
 func (r *runner) compose(ctx context.Context, args ...string) ([]byte, error) {
 	// Fixed argv only. Every Docker request is forced through our local allowlist.
-	allowed := reflect.DeepEqual(args, []string{"config", "--format", "json"}) || reflect.DeepEqual(args, []string{"up", "-d", "--no-deps", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "app"})
+	allowed := reflect.DeepEqual(args, []string{"config", "--format", "json"})
 	if !allowed {
 		return nil, ErrUnsafe
 	}
@@ -80,13 +87,19 @@ func (r *runner) compose(ctx context.Context, args ...string) ([]byte, error) {
 	c.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=/tmp", "DOCKER_HOST=" + r.proxyURL, "DOCKER_API_VERSION=1.47", "COMPOSE_PROJECT_NAME=" + r.d.project()}
 	var b bytes.Buffer
 	c.Stdout = &b
-	c.Stderr = io.Discard
-	if e := c.Run(); e != nil {
+	var stderr stderrBuffer
+	c.Stderr = &stderr
+	runErr := c.Run()
+	if evidenceErr := r.evidence("compose_config", stderr.Bytes(), runErr != nil); evidenceErr != nil {
+		return nil, evidenceErr
+	}
+	if runErr != nil {
 		return nil, errors.New("app-only Compose 操作失败，未操作其他服务")
 	}
 	return b.Bytes(), nil
 }
-func (r *runner) Backup(ctx context.Context, j *Job) error {
+func (r *runner) Backup(ctx context.Context, j *Job) (result error) {
+	defer func() { result = errors.Join(result, r.stageEvidence("backup", result)) }()
 	name := "online-update-" + j.CreatedAt.UTC().Format("20060102T150405Z") + "-" + j.ID
 	dir := filepath.Join(r.work(), "private", name)
 	if e := os.MkdirAll(dir, 0700); e != nil {
@@ -196,7 +209,46 @@ func composeImage(before []byte, old, new string) ([]byte, error) {
 	}
 	return []byte(strings.Join(lines, "\n")), nil
 }
+func (r *runner) Preflight(ctx context.Context, j *Job) (result error) {
+	defer func() { result = errors.Join(result, r.stageEvidence("preflight", result)) }()
+	if e := r.Verify(ctx, *j); e != nil {
+		return e
+	}
+	body, e := r.d.appCreate(ctx)
+	if e != nil {
+		return e
+	}
+	if e = r.d.preflightCreate(body); e != nil {
+		return e
+	}
+	before, e := os.ReadFile(filepath.Join(r.work(), "docker-compose.yml"))
+	if e != nil {
+		return e
+	}
+	if _, e = composeImage(before, j.FromImage, r.d.target); e != nil {
+		return e
+	}
+	if j.FromSchema, e = r.schema(ctx); e != nil {
+		return e
+	}
+	if j.Target.Schema < j.FromSchema {
+		return ErrUnsafe
+	}
+	r.create = body
+	return nil
+}
+func (r *runner) schema(ctx context.Context) (int64, error) {
+	db, e := pgx.Connect(ctx, r.dsn)
+	if e != nil {
+		return 0, e
+	}
+	defer deferutil.CloseContext(ctx, db, "release schema connection")
+	var v int64
+	e = db.QueryRow(ctx, `SELECT max(version_id) FROM goose_db_version WHERE is_applied`).Scan(&v)
+	return v, e
+}
 func (r *runner) Apply(ctx context.Context, j Job) (result error) {
+	defer func() { result = errors.Join(result, r.stageEvidence("apply", result)) }()
 	changed := false
 	defer func() {
 		if result != nil && !changed {
@@ -205,7 +257,13 @@ func (r *runner) Apply(ctx context.Context, j Job) (result error) {
 	}()
 	if e := r.Verify(ctx, j); e != nil {
 		return e
-	} // immediately before touching Compose
+	}
+	if len(r.create) == 0 {
+		return ErrUnsafe
+	}
+	if e := r.d.preflightCreate(r.create); e != nil {
+		return e
+	}
 	before, e := os.ReadFile(filepath.Join(r.backupDir(j), "docker-compose.before.yml"))
 	if e != nil {
 		return e
@@ -218,38 +276,58 @@ func (r *runner) Apply(ctx context.Context, j Job) (result error) {
 	if e != nil {
 		return e
 	}
-	changed = true
+	old, e := r.d.inspect(ctx, r.d.self.ID)
+	if e != nil || configurationProof(old) != configurationProof(r.d.self) || !old.State.Running {
+		return ErrUnsafe
+	}
+	changed = true // rename/fsync failure can still mean the Compose write committed
 	if e = atomicFile(filepath.Join(r.work(), "docker-compose.yml"), next); e != nil {
 		return e
 	}
-	after, e := r.compose(ctx, "config", "--format", "json")
+	if _, e = r.d.request(ctx, "POST", "/containers/"+r.d.self.ID+"/stop?t=30", nil); e != nil {
+		return e
+	}
+	if _, e = r.d.request(ctx, "POST", "/containers/"+r.d.self.ID+"/rename?name="+r.d.retainedName(), nil); e != nil {
+		return e
+	}
+	b, e := r.d.request(ctx, "POST", "/containers/create?name="+r.d.appName(), r.create)
 	if e != nil {
 		return e
 	}
-	original, e := os.ReadFile(filepath.Join(r.backupDir(j), "compose.before.json"))
-	if e != nil {
+	var created struct {
+		ID string `json:"Id"`
+	}
+	if json.Unmarshal(b, &created) != nil || !containerID.MatchString(created.ID) {
+		return ErrUnsafe
+	}
+	// Persist only the safe replacement identity before a start can migrate DB.
+	if e = atomicFile(filepath.Join(r.root, j.ID+".replacement"), []byte(created.ID)); e != nil {
 		return e
 	}
-	var a, b map[string]any
-	if json.Unmarshal(after, &a) != nil || json.Unmarshal(original, &b) != nil {
-		return ErrUnsafe
-	}
-	services, ok := b["services"].(map[string]any)
-	if !ok {
-		return ErrUnsafe
-	}
-	app, ok := services["app"].(map[string]any)
-	if !ok {
-		return ErrUnsafe
-	}
-	app["image"] = r.d.target
-	if !reflect.DeepEqual(a, b) {
-		return ErrUnsafe
-	}
-	_, e = r.compose(ctx, "up", "-d", "--no-deps", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "app")
+	_, e = r.d.request(ctx, "POST", "/containers/"+created.ID+"/start", nil)
 	return e
 }
-func (r *runner) Health(ctx context.Context, j Job) error {
+func (r *runner) Health(ctx context.Context, j Job) (result error) {
+	defer func() { result = errors.Join(result, r.stageEvidence("health", result)) }()
+	wait, done := context.WithTimeout(ctx, 180*time.Second)
+	defer done()
+	for {
+		c, inspectErr := r.d.inspect(wait, r.d.appName())
+		if inspectErr == nil && (!c.State.Running || c.State.Health.Status == "unhealthy") {
+			return errors.New("新 app 已退出或健康检查失败")
+		}
+		e := r.healthOnce(wait, j)
+		if e == nil {
+			return nil
+		}
+		select {
+		case <-wait.Done():
+			return errors.New("app 健康或 schema 校验超时")
+		case <-time.After(time.Second):
+		}
+	}
+}
+func (r *runner) healthOnce(ctx context.Context, j Job) error {
 	c, e := r.d.inspect(ctx, r.d.appName())
 	if e != nil {
 		return e
@@ -260,27 +338,8 @@ func (r *runner) Health(ctx context.Context, j Job) error {
 	if labels(c)["org.opencontainers.image.revision"] != j.Target.Commit || labels(c)["org.opencontainers.image.version"] != j.Target.Version {
 		return ErrUnsafe
 	}
-	addr := env(c, "APP_ADDR")
-	_, port, e := net.SplitHostPort(addr)
-	if e != nil {
-		return ErrUnsafe
-	}
-	var network struct{ IPAddress string }
-	if json.Unmarshal(c.NetworkSettings.Networks[r.d.project()+"_default"], &network) != nil || net.ParseIP(network.IPAddress) == nil {
-		return ErrUnsafe
-	}
-	client := &http.Client{Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return ErrUnsafe }}
-	req, e := http.NewRequestWithContext(ctx, "GET", "http://"+net.JoinHostPort(network.IPAddress, port)+"/readyz", nil)
-	if e != nil {
+	if e = r.ready(ctx, c); e != nil {
 		return e
-	}
-	resp, e := client.Do(req)
-	if e != nil {
-		return e
-	}
-	defer deferutil.Close(resp.Body, "Descriptor teardown only; primary operation and persistence results are checked")
-	if resp.StatusCode != 200 {
-		return ErrUnsafe
 	}
 	db, e := pgx.Connect(ctx, r.dsn)
 	if e != nil {
@@ -296,71 +355,118 @@ func (r *runner) Health(ctx context.Context, j Job) error {
 	}
 	return nil
 }
-func (r *runner) Rollback(ctx context.Context, j Job) error {
+func (r *runner) Rollback(ctx context.Context, j Job) (result error) {
+	defer func() { result = errors.Join(result, r.stageEvidence("rollback", result)) }()
 	dir := r.backupDir(j)
-	dump, e := os.Open(filepath.Join(dir, "database.dump"))
-	if e != nil {
-		return e
-	}
-	defer deferutil.Close(dump, "Descriptor teardown only; primary operation and persistence results are checked")
-	h := sha256.New()
-	if _, e = io.Copy(h, dump); e != nil || j.DumpSHA256 == "" || hex.EncodeToString(h.Sum(nil)) != j.DumpSHA256 {
-		return ErrUnsafe
-	}
-	if _, e = dump.Seek(0, 0); e != nil {
-		return e
-	}
 	before, e := os.ReadFile(filepath.Join(dir, "docker-compose.before.yml"))
 	if e != nil {
 		return e
 	}
-	live, readErr := os.ReadFile(filepath.Join(r.work(), "docker-compose.yml"))
-	expected, expectedErr := composeImage(before, j.FromImage, updatecheck.Repository+"@"+j.Target.Digest)
-	if readErr != nil || expectedErr != nil || (!bytes.Equal(live, before) && !bytes.Equal(live, expected)) {
+	live, e := os.ReadFile(filepath.Join(r.work(), "docker-compose.yml"))
+	if e != nil {
+		return e
+	}
+	expected, e := composeImage(before, j.FromImage, updatecheck.Repository+"@"+j.Target.Digest)
+	if e != nil || (!bytes.Equal(live, before) && !bytes.Equal(live, expected)) {
 		return ErrUnsafe
 	}
-	// Unknown Docker state is not "app stopped". Never restore a live database
-	// after a lost inspect response, nor overwrite a concurrent operator image.
-	c, inspectErr := r.d.inspect(ctx, r.d.appName())
-	if inspectErr != nil && !notFound(inspectErr) {
-		return inspectErr
+	// The original ID must still exist. Never construct a replacement old app.
+	old, e := r.d.inspect(ctx, r.d.self.ID)
+	if e != nil || configurationProof(old) != configurationProof(r.d.self) {
+		return ErrUnsafe
 	}
-	if inspectErr == nil {
-		image := fmtString(c.Config["Image"])
-		if image != j.FromImage && image != updatecheck.Repository+"@"+j.Target.Digest {
+	current, e := r.d.inspect(ctx, r.d.appName())
+	if e != nil && !notFound(e) {
+		return e
+	}
+	if e == nil && current.ID != old.ID {
+		replacement, readErr := os.ReadFile(filepath.Join(r.root, j.ID+".replacement"))
+		if readErr != nil || string(replacement) != current.ID {
 			return ErrUnsafe
 		}
-		if c.Config["User"] != "65532:65532" || labels(c)["com.docker.compose.project"] != r.d.project() || labels(c)["com.docker.compose.service"] != "app" || !containerID.MatchString(c.ID) {
+		if fmtString(current.Config["Image"]) != r.d.target || labels(current)["com.docker.compose.project"] != r.d.project() || labels(current)["com.docker.compose.service"] != "app" {
 			return ErrUnsafe
 		}
 		r.d.mu.Lock()
-		r.d.ids[c.ID] = true
+		r.d.ids[current.ID] = true
 		r.d.mu.Unlock()
-		if c.State.Running {
-			if _, e = r.d.request(ctx, "POST", "/containers/"+r.d.appName()+"/stop?t=30", nil); e != nil {
+		if current.State.Running {
+			if _, e = r.d.request(ctx, "POST", "/containers/"+current.ID+"/stop?t=30", nil); e != nil {
 				return e
 			}
+		}
+		if _, e = r.d.request(ctx, "DELETE", "/containers/"+current.ID+"?force=true", nil); e != nil {
+			return e
+		}
+	}
+	// Query the actual schema, never infer a migration from the advertised target.
+	// Same schema means ZERO restore commands, preserving post-backup writes.
+	if j.FromSchema <= 0 {
+		return ErrUnsafe
+	}
+	schema, e := r.schema(ctx)
+	if e != nil {
+		return e
+	}
+	if schema != j.FromSchema {
+		if j.Target.Schema <= j.FromSchema || schema < j.FromSchema || schema > j.Target.Schema {
+			return ErrUnsafe
+		}
+		if old.State.Running {
+			return ErrUnsafe
+		}
+		if e = r.restoreDatabase(ctx, dir, j); e != nil {
+			return e
+		}
+		schema, e = r.schema(ctx)
+		if e != nil || schema != j.FromSchema {
+			return ErrUnsafe
 		}
 	}
 	if e = atomicFile(filepath.Join(r.work(), "docker-compose.yml"), before); e != nil {
 		return e
 	}
-
-	if e = r.restoreDatabase(ctx, dir, j); e != nil {
-		return e
+	if old.Name != "/"+r.d.appName() {
+		if old.Name != "/"+r.d.retainedName() {
+			return ErrUnsafe
+		}
+		if _, e = r.d.request(ctx, "POST", "/containers/"+old.ID+"/rename?name="+r.d.appName(), nil); e != nil {
+			return e
+		}
 	}
-
-	// The old immutable image is retained. Creation checks now require its digest.
-	r.d.target = j.FromImage
-	_, e = r.compose(ctx, "up", "-d", "--no-deps", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "app")
+	if !old.State.Running {
+		if _, e = r.d.request(ctx, "POST", "/containers/"+old.ID+"/start", nil); e != nil {
+			return e
+		}
+	}
+	wait, done := context.WithTimeout(ctx, 180*time.Second)
+	defer done()
+	for {
+		c, e := r.d.inspect(wait, old.ID)
+		if e == nil && c.State.Running && c.State.Health.Status == "healthy" && r.ready(wait, c) == nil {
+			return nil
+		}
+		select {
+		case <-wait.Done():
+			return ErrUnsafe
+		case <-time.After(time.Second):
+		}
+	}
+}
+func (r *runner) Finalize(ctx context.Context, j Job) (result error) {
+	defer func() { result = errors.Join(result, r.stageEvidence("finalize", result)) }()
+	c, e := r.d.inspect(ctx, r.d.self.ID)
+	if notFound(e) {
+		return nil
+	}
 	if e != nil {
 		return e
 	}
-	c, e = r.d.inspect(ctx, r.d.appName())
-	if e != nil || c.State.Health.Status != "healthy" || fmtString(c.Config["Image"]) != j.FromImage {
+	if c.State.Running || c.Name != "/"+r.d.retainedName() || configurationProof(c) != configurationProof(r.d.self) {
 		return ErrUnsafe
 	}
-	return nil
+	_, e = r.d.request(ctx, "DELETE", "/containers/"+c.ID, nil)
+	return e
 }
 
 func (r *runner) restoreDatabase(ctx context.Context, dir string, j Job) error {
@@ -490,7 +596,12 @@ func runUpdater(ctx context.Context, root, id string, d *docker) (result error) 
 	go func() { _ = srv.Serve(listener) }()
 	defer deferutil.Close(srv, "Descriptor teardown only; primary operation and persistence results are checked")
 	r := &runner{d: d, root: root, proxyURL: "tcp://" + listener.Addr().String(), dsn: dsn}
-	return execute(ctx, root, &j, r)
+	d.recordError = func(stage string, b []byte) error { return r.evidence(stage, b, true) }
+	result = execute(ctx, root, &j, r)
+	if evidenceErr := r.evidence("terminal", []byte(j.Phase+": "+j.Failure), result != nil); evidenceErr != nil {
+		result = errors.Join(result, evidenceErr)
+	}
+	return result
 }
 
 func publicTOC(line string) bool {
@@ -505,4 +616,31 @@ func publicTOC(line string) bool {
 		}
 	}
 	return f[3] == "EXTENSION" || (f[3] == "COMMENT" && len(f) > 5 && f[4] == "-" && f[5] == "EXTENSION")
+}
+
+func (r *runner) ready(ctx context.Context, c Container) error {
+	addr := env(c, "APP_ADDR")
+	_, port, e := net.SplitHostPort(addr)
+	if e != nil {
+		return ErrUnsafe
+	}
+	var network struct{ IPAddress string }
+	if json.Unmarshal(c.NetworkSettings.Networks[r.d.project()+"_default"], &network) != nil || net.ParseIP(network.IPAddress) == nil {
+		return ErrUnsafe
+	}
+	client := &http.Client{Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return ErrUnsafe }}
+	req, e := http.NewRequestWithContext(ctx, "GET", "http://"+net.JoinHostPort(network.IPAddress, port)+"/readyz", nil)
+	if e != nil {
+		return e
+	}
+	resp, e := client.Do(req)
+	if e != nil {
+		return e
+	}
+	defer deferutil.Close(resp.Body, "Descriptor teardown only; primary operation and persistence results are checked")
+	if resp.StatusCode != 200 {
+		return ErrUnsafe
+	}
+
+	return nil
 }

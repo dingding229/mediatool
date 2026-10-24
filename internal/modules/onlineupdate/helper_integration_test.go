@@ -15,7 +15,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
+
 	"testing"
 	"time"
 
@@ -69,21 +71,107 @@ func TestDockerHelperChild(t *testing.T) {
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(bytes.NewReader(b))}, nil
 	})
 	defer func() { http.DefaultTransport = transport }()
-	e = RunUpdater(t.Context(), id)
-	j, readErr := load(Root, id)
-	if readErr != nil || j.Phase != os.Getenv("MEDIA_TOOL_HELPER_EXPECT") {
-		t.Fatal("helper phase", readErr, j.Phase, j.Failure)
+	// Probe from the SAME VM clock as the helper journal. Host/Colima clock
+	// offsets cannot be treated as service downtime. DNS app follows the old/new
+	// scoped service; do not reuse keepalive connections across the switch.
+	type sample struct {
+		start, end time.Time
+		ok         bool
 	}
-	if j.Phase == "succeeded" && (e != nil || calls != 4) {
+	samples := []sample{}
+	var mu sync.Mutex
+	probeCtx, stopProbe := context.WithCancel(t.Context())
+	defer stopProbe()
+	probeDone := make(chan struct{})
+	go func() {
+		defer close(probeDone)
+		client := http.Client{Timeout: 300 * time.Millisecond, Transport: &http.Transport{DisableKeepAlives: true}}
+		for {
+			req, _ := http.NewRequestWithContext(probeCtx, "GET", "http://app:18080/readyz", nil)
+			start := time.Now()
+			resp, err := client.Do(req)
+			ok := err == nil && resp.StatusCode == 200
+			if resp != nil {
+				_ = resp.Body.Close()
+			}
+			if probeCtx.Err() != nil {
+				return
+			}
+			mu.Lock()
+			samples = append(samples, sample{start, time.Now(), ok})
+			mu.Unlock()
+			select {
+			case <-probeCtx.Done():
+				return
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}()
+	time.Sleep(time.Second)
+	if os.Getenv("MEDIA_TOOL_HELPER_CASE") == "start_failure" {
+		d := newDocker()
+		upstream := d.client.Transport
+		d.client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.Method == "POST" && strings.HasSuffix(req.URL.Path, "/start") && !strings.Contains(req.URL.Path, p.Self.ID) {
+				db, _ := helperTestDB(t)
+				if _, err := db.Exec(t.Context(), `UPDATE f8b_flow_probe SET value='after-backup'`); err != nil {
+					t.Fatal(err)
+				}
+				return &http.Response{StatusCode: 500, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"message":"injected new-container start failure"}`))}, nil
+			}
+			return upstream.RoundTrip(req)
+		})
+		e = runUpdater(t.Context(), Root, id, d)
+	} else {
+		if os.Getenv("MEDIA_TOOL_HELPER_CASE") == "backup_failure" {
+			_ = os.Setenv("PATH", labels(p.Self)["com.docker.compose.project.working_dir"]+"/bin:"+os.Getenv("PATH"))
+		}
+		e = RunUpdater(t.Context(), id)
+	}
+	time.Sleep(time.Second)
+	stopProbe()
+	<-probeDone
+	j, readErr := load(Root, id)
+	var windowStart, windowEnd time.Time
+	for _, event := range j.Events {
+		if event.Phase == "applying" {
+			windowStart = event.At
+		}
+		if event.Phase == j.Phase {
+			windowEnd = event.At
+		}
+	}
+	stable, failures := 0, 0
+	mu.Lock()
+	for _, v := range samples {
+		if !windowStart.IsZero() && !v.end.Before(windowStart) && !v.start.After(windowEnd) {
+			continue
+		}
+		stable++
+		if !v.ok {
+			failures++
+			t.Logf("unexpected readyz interval %s–%s; switch %s–%s", v.start, v.end, windowStart, windowEnd)
+		}
+	}
+	mu.Unlock()
+	if stable < 10 || failures != 0 {
+		t.Fatal("readyz outside expected switch window", stable, failures)
+	}
+	t.Logf("continuous readyz: %d stable probes, %d failures outside expected switch window (same-clock measurement)", stable, failures)
+
+	if readErr != nil || j.Phase != os.Getenv("MEDIA_TOOL_HELPER_EXPECT") {
+		t.Fatal("helper phase", readErr, j.Phase, j.Failure, e)
+	}
+	if j.Phase == "succeeded" && (e != nil || calls != 6) {
 		t.Fatal("full entrypoint", e, calls)
 	}
 	if j.Phase == "failed" && e == nil {
 		t.Fatal("failure hidden")
 	}
-	if j.Phase == "rolled_back" && (e != nil || j.Failure != "health_or_schema_failed") {
+	if j.Phase == "rolled_back" && (e != nil || (j.Failure != "health_or_schema_failed" && j.Failure != "apply_failed")) {
 		t.Fatal("rollback must be complete and preserve original failure", e, j.Failure)
 	}
-	if j.Phase == "failed" && j.Failure != "backup_failed" {
+	if j.Phase == "failed" && (j.Failure != "backup_failed" && j.Failure != "preflight_rejected") {
 		t.Fatal(j.Failure)
 	}
 	if j.Phase != "failed" && (j.Backup == "" || j.DumpSHA256 == "") {
@@ -109,6 +197,9 @@ func TestDockerAppAuditChild(t *testing.T) {
 	service := New(db, checker)
 	if mode == "admission" {
 		id := os.Getenv("MEDIA_TOOL_HELPER_ID")
+		if e := service.reconcileAudits(t.Context()); e != nil {
+			t.Fatal(e)
+		}
 		if _, e := service.Start(t.Context(), "fixture-preflight-"+id, "0.28.1", strings.TrimPrefix(helperFixtureImage, "dingding229/mediatool@")); e == nil {
 			t.Fatal("unavailable release admitted")
 		}
@@ -130,11 +221,29 @@ func TestDockerReadyChild(t *testing.T) {
 	if os.Getenv("MEDIA_TOOL_READY_CHILD") != "1" {
 		t.Skip("Docker app fixture only")
 	}
+
+	host, _ := os.Hostname()
+	oldHost, _ := os.ReadFile("/data/original-host")
+	newApp := string(oldHost) != "" && string(oldHost) != host
+	mode, _ := os.ReadFile("/data/flow-case")
+	if newApp {
+		db, e := pgxpool.New(t.Context(), os.Getenv("DATABASE_URL"))
+		if e != nil {
+			t.Fatal(e)
+		}
+		if _, e = db.Exec(t.Context(), `UPDATE f8b_flow_probe SET value='after-backup'`); e != nil {
+			t.Fatal(e)
+		}
+		if string(mode) == "migration_failure" {
+			if _, e = db.Exec(t.Context(), `INSERT INTO goose_db_version(version_id,is_applied)VALUES(80,true);CREATE TABLE f8b_flow_added(id int)`); e != nil {
+				t.Fatal(e)
+			}
+		}
+		db.Close()
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
-		flag := "/data/fail-health-once"
-		if _, e := os.Stat(flag); e == nil {
-			_ = os.Remove(flag)
+		if newApp && (string(mode) == "health_failure" || string(mode) == "migration_failure") {
 			w.WriteHeader(503)
 			return
 		}
@@ -197,7 +306,7 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 	if b, e := c.CombinedOutput(); e != nil {
 		t.Fatal(e, string(b))
 	}
-	for _, tc := range []struct{ name, phase string }{{"success", "succeeded"}, {"backup_failure", "failed"}, {"health_failure", "rolled_back"}} {
+	for _, tc := range []struct{ name, phase string }{{"preflight_rejected", "failed"}, {"start_failure", "rolled_back"}, {"migration_failure", "rolled_back"}, {"health_failure", "rolled_back"}, {"success", "succeeded"}, {"backup_failure", "failed"}} {
 		t.Run(tc.name, func(t *testing.T) {
 			cli := commands(t)
 			id, e := newID()
@@ -247,11 +356,34 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			appDSN := *dsn
 			appDSN.Host = "testpg:5432"
 			fixtureDSN := appDSN
-			if tc.phase == "failed" {
-				fixtureDSN.User = url.UserPassword(dsn.User.Username(), "intentionally-invalid-fixture-password")
-			}
+
 			q := func(s string) string { b, _ := json.Marshal(s); return string(b) }
 			before := fmt.Sprintf("name: %s\nservices:\n  app:\n    image: %s\n    platform: linux/amd64\n    user: '65532:65532'\n    entrypoint: [%s]\n    command: ['-test.run=^TestDockerReadyChild$']\n    environment:\n      MEDIA_TOOL_READY_CHILD: '1'\n      APP_ADDR: ':18080'\n      DATABASE_URL: %s\n    volumes:\n      - %s\n      - %s\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: ['no-new-privileges:true']\n    healthcheck:\n      test: ['CMD', 'true']\n      interval: 1s\n      timeout: 1s\n      retries: 5\n", project, helperFixtureOld, q(filepath.Join(work, "helper.test")), q(fixtureDSN.String()), q(work+":"+work+":ro"), q(data+":/data:rw"))
+			// Real production-shaped mix of short/long mounts, not just two binds.
+			extra := ""
+			for i := 0; i < 8; i++ {
+				source := filepath.Join(work, fmt.Sprintf("fixture%d", i))
+				if e = os.Mkdir(source, 0755); e != nil {
+					t.Fatal(e)
+				}
+				suffix := ":ro"
+				if tc.name == "preflight_rejected" && i == 0 {
+					suffix = ":ro,z"
+				}
+				if i%2 == 0 {
+					extra += "      - " + q(source+":/fixture"+fmt.Sprint(i)+suffix) + "\n"
+				} else {
+					extra += fmt.Sprintf("      - type: bind\n        source: %s\n        target: /fixture%d\n        read_only: true\n        bind:\n          create_host_path: %t\n", q(source), i, i%3 != 0)
+				}
+			}
+			portListener, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			fixedPort := portListener.Addr().(*net.TCPAddr).Port
+			_ = portListener.Close()
+			before = strings.Replace(before, "    read_only: true\n", extra+fmt.Sprintf("    ports: ['127.0.0.1:%d:18080']\n    read_only: true\n", fixedPort), 1)
+			before = strings.Replace(before, "test: ['CMD', 'true']", "test: ['CMD-SHELL', 'test ! -f /data/unhealthy || test \"$(hostname)\" = \"$(cat /data/original-host)\"']", 1)
 			file := filepath.Join(work, "docker-compose.yml")
 			if e = os.WriteFile(file, []byte(before), 0600); e != nil {
 				t.Fatal(e)
@@ -263,7 +395,7 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			t.Cleanup(func() {
 				_ = exec.Command("docker", "rm", "-f", helperName).Run()
 				_ = exec.Command("docker", "network", "disconnect", project+"_default", pg).Run()
-				_ = exec.Command("docker", "compose", "-f", file, "down").Run()
+				_ = exec.Command("docker", "compose", "-f", file, "down", "--remove-orphans").Run()
 				restoreOwnership()
 				if e := os.RemoveAll(work); e != nil {
 					t.Error("scoped fixture cleanup", e)
@@ -285,8 +417,16 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			}
 			j := Job{ID: id, Actor: "fixture-admin", FromVersion: "0.28.0", FromImage: helperFixtureOld, CreatedAt: time.Now().UTC(), Phase: "queued"}
 			j.Target = updatecheck.Release{Metadata: updatecheck.Metadata{Version: "0.28.1", Commit: "1883c1850084932a116b7d38250824b02ac3f202", Digest: strings.TrimPrefix(helperFixtureImage, "dingding229/mediatool@"), MinimumSchema: 79, Schema: 79, Platform: "linux/amd64", Repository: updatecheck.Repository}, Tag: "v0.28.1"}
+			sock := strings.TrimPrefix(endpoint, "unix://")
+			if runtime.GOOS == "darwin" {
+				sock = "/var/run/docker.sock"
+			}
+			socketGroup := strings.TrimSpace(string(cli("run", "--rm", "--platform", "linux/amd64", "-v", sock+":/var/run/docker.sock:rw", "--entrypoint", "/bin/stat", helperFixtureImage, "-c", "%g", "/var/run/docker.sock")))
+			if tc.name == "migration_failure" {
+				j.Target.Schema = 80
+			}
 			appChild := func(mode string) {
-				t.Log(string(cli("run", "--rm", "--platform", "linux/amd64", "--user", "65532:65532", "--read-only", "--cap-drop", "ALL", "--network", project+"_default", "-v", work+":"+work+":ro", "-v", data+":/data:rw", "-e", "MEDIA_TOOL_APP_AUDIT_CHILD="+mode, "-e", "MEDIA_TOOL_HELPER_ID="+id, "-e", "TEST_DATABASE_URL="+appDSN.String(), "-e", "MEDIA_TOOL_TEST_LOCKED=1", "--entrypoint", filepath.Join(work, "helper.test"), helperFixtureImage, "-test.run=^TestDockerAppAuditChild$", "-test.v")))
+				t.Log(string(cli("run", "--rm", "--platform", "linux/amd64", "--user", "65532:65532", "--group-add", socketGroup, "-v", sock+":/var/run/docker.sock:rw", "--read-only", "--cap-drop", "ALL", "--network", project+"_default", "-v", work+":"+work+":ro", "-v", data+":/data:rw", "-e", "MEDIA_TOOL_APP_AUDIT_CHILD="+mode, "-e", "MEDIA_TOOL_HELPER_ID="+id, "-e", "TEST_DATABASE_URL="+appDSN.String(), "-e", "MEDIA_TOOL_TEST_LOCKED=1", "--entrypoint", filepath.Join(work, "helper.test"), helperFixtureImage, "-test.run=^TestDockerAppAuditChild$", "-test.v")))
 			}
 			rootOwner := func(owner string) {
 				cli("run", "--rm", "--user", "0:0", "-v", data+":/data:rw", "--entrypoint", "/bin/chown", helperFixtureImage, owner, "/data/online-update")
@@ -297,6 +437,28 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			rootOwner("65532:65532")
 			appChild("admission") // The production Start path prepares app-owned locks.
 			rootOwner(fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()))
+			if _, e = db.Exec(ctx, `DROP TABLE IF EXISTS f8b_flow_probe,f8b_flow_added;DELETE FROM goose_db_version WHERE version_id=80;CREATE TABLE f8b_flow_probe(value text);INSERT INTO f8b_flow_probe VALUES('before')`); e != nil {
+				t.Fatal(e)
+			}
+			if e = os.WriteFile(filepath.Join(data, "original-host"), []byte(fmtString(original.Config["Hostname"])), 0644); e != nil {
+				t.Fatal(e)
+			}
+			if e = os.WriteFile(filepath.Join(data, "flow-case"), []byte(tc.name), 0644); e != nil {
+				t.Fatal(e)
+			}
+			if tc.name == "health_failure" || tc.name == "migration_failure" {
+				if e = os.WriteFile(filepath.Join(data, "unhealthy"), nil, 0644); e != nil {
+					t.Fatal(e)
+				}
+			}
+			if tc.name == "backup_failure" {
+				if e = os.Mkdir(filepath.Join(work, "bin"), 0755); e != nil {
+					t.Fatal(e)
+				}
+				if e = os.WriteFile(filepath.Join(work, "bin", "pg_dump"), []byte("#!/bin/sh\necho 'injected dump failure' >&2\nexit 43\n"), 0755); e != nil {
+					t.Fatal(e)
+				}
+			}
 			p := newPlan(original, helperFixtureImage, id)
 			raw, _ := json.Marshal(p)
 			if strings.Contains(string(raw), "DATABASE_URL") || strings.Contains(string(raw), fixtureDSN.String()) {
@@ -311,25 +473,19 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			if e = audit(ctx, db, j.Actor, "online_update.requested", j); e != nil {
 				t.Fatal(e)
 			}
-			if tc.phase == "rolled_back" {
-				if e = os.WriteFile(filepath.Join(data, "fail-health-once"), []byte("fixture"), 0666); e != nil {
-					t.Fatal(e)
-				}
-			}
-			sock := strings.TrimPrefix(endpoint, "unix://")
-			if runtime.GOOS == "darwin" {
-				sock = "/var/run/docker.sock"
-			}
-			child := []string{"run", "--rm", "--name", helperName, "--label", label + "=" + id, "--label", "io.mediatool.project=" + project, "--user", "0:0", "--platform", "linux/amd64", "--network", project + "_default", "--read-only", "--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "DAC_OVERRIDE", "--security-opt", "no-new-privileges:true", "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m", "-v", work + ":" + work + ":rw", "-v", data + ":/data:rw", "-v", sock + ":/var/run/docker.sock:rw", "-e", "MEDIA_TOOL_HELPER_CHILD=1", "-e", "MEDIA_TOOL_HELPER_ID=" + id, "-e", "MEDIA_TOOL_HELPER_EXPECT=" + tc.phase, "--entrypoint", filepath.Join(work, "helper.test"), helperFixtureImage, "-test.run=^TestDockerHelperChild$", "-test.v"}
+			child := []string{"run", "--name", helperName, "--label", label + "=" + id, "--label", "io.mediatool.project=" + project, "--user", "0:0", "--platform", "linux/amd64", "--network", project + "_default", "--read-only", "--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "DAC_OVERRIDE", "--security-opt", "no-new-privileges:true", "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m", "-v", work + ":" + work + ":rw", "-v", data + ":/data:rw", "-v", sock + ":/var/run/docker.sock:rw", "-e", "MEDIA_TOOL_HELPER_CHILD=1", "-e", "MEDIA_TOOL_HELPER_ID=" + id, "-e", "MEDIA_TOOL_HELPER_EXPECT=" + tc.phase, "-e", "MEDIA_TOOL_HELPER_CASE=" + tc.name, "-e", "TEST_DATABASE_URL=" + appDSN.String(), "-e", "MEDIA_TOOL_TEST_LOCKED=1", "--entrypoint", filepath.Join(work, "helper.test"), helperFixtureImage, "-test.run=^TestDockerHelperChild$", "-test.v"}
 			t.Log(string(cli(child...)))
 			appChild("reconcile") // Must pass BEFORE cleanup can chown any fixture files.
+			if e := exec.CommandContext(ctx, "docker", "inspect", helperName).Run(); e == nil {
+				t.Fatal("stopped helper was not cleaned after durable audit")
+			}
+
 			restoreOwnership()
 			done, e := load(root, id)
 			if e != nil || done.Phase != tc.phase {
 				t.Fatal(e, done.Phase)
 			}
-			// Both helper and app reconciliation must be idempotent; backup failure has
-			// deliberately invalid PG credentials, so ONLY the app's own pool can audit.
+			// Both helper and app reconciliation must be idempotent, including backup failure.
 			s := &Service{DB: db, Root: root}
 			for range 2 {
 				if e = s.reconcileAudits(ctx); e != nil {
@@ -342,9 +498,7 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 				t.Fatal("terminal audit", e, count)
 			}
 			expectedSource := "helper"
-			if tc.phase == "failed" {
-				expectedSource = "reconciliation"
-			}
+
 			if source != expectedSource {
 				t.Fatal("audit source", source)
 			}
@@ -379,6 +533,34 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 				if e != nil {
 					t.Fatal("dump unreadable", e)
 				}
+			}
+			var marker string
+			if e = db.QueryRow(ctx, `SELECT value FROM f8b_flow_probe`).Scan(&marker); e != nil {
+				t.Fatal(e)
+			}
+			expectedMarker := "before"
+			if tc.name == "success" || tc.name == "health_failure" || tc.name == "start_failure" {
+				expectedMarker = "after-backup"
+			}
+			if marker != expectedMarker {
+				t.Fatal("schema-conditioned DB rollback", tc.name, marker)
+			}
+			var actualSchema int64
+			var absent bool
+			if e = db.QueryRow(ctx, `SELECT max(version_id) FILTER(WHERE is_applied), to_regclass('public.f8b_flow_added') IS NULL FROM goose_db_version`).Scan(&actualSchema, &absent); e != nil || actualSchema != 79 || !absent {
+				t.Fatal("actual migration rollback", e, actualSchema, absent)
+			}
+			current := strings.TrimSpace(string(compose("ps", "-q", "app")))
+			if tc.phase != "succeeded" && current != cid {
+				t.Fatal("rollback did not retain original container ID", current, cid)
+			}
+			if tc.phase == "succeeded" {
+				if e := exec.CommandContext(ctx, "docker", "inspect", cid).Run(); e == nil {
+					t.Fatal("old container not removed after success")
+				}
+			}
+			if _, e = db.Exec(ctx, `DROP TABLE IF EXISTS f8b_flow_probe,f8b_flow_added;DELETE FROM goose_db_version WHERE version_id=80`); e != nil {
+				t.Fatal(e)
 			}
 			t.Logf("exported RunUpdater: phase=%s terminal audit=%s count=%d; real inspect/pg_dump/Compose/readyz/schema", tc.phase, source, count)
 		})
