@@ -31,7 +31,7 @@ Release 元数据必须只有一个合法块，版本与 tag 相同，仓库固�
 
 ## 本批不做的事
 
-没有 Docker API、docker.sock 挂载、updater 子命令、镜像拉取或执行更新入口，也不修改 APP_ENV 或 CZ88 配置。自动替换、备份、回滚、确认与审计均留给 F8b 单独设计、审核和验证。
+没有 Docker API、docker.sock 挂载、updater 子命令、镜像拉取或执行更新入口，也不修改 APP_ENV 或 IP 库配置。自动替换、备份、回滚、确认与审计均留给 F8b 单独设计、审核和验证。
 
 ## F8b：镜像启动契约与手动更新
 

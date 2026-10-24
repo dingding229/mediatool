@@ -57,7 +57,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -567,15 +566,11 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 		defer deferutil.Close(adapter, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 		resolver = adapter
 	}
-	var geoVault *secrets.Vault
-	if manager != nil {
-		geoVault = manager.Repository.Vault
+	geo := ipgeo.New(ipgeo.DefaultDirectory)
+	defer geo.Close()
+	if status := geo.Status(ctx); !status.IPv4 || !status.IPv6 {
+		logger.Warn("镜像内 IP 数据不可用或不完整，仅显示可核对的公网 IP", "module", "ipgeo")
 	}
-	geo := ipgeo.New(db, geoVault, filepath.Join(filepath.Dir(c.PluginDataRoot), "ipgeo"))
-	geoCtx, geoCancel := context.WithCancel(ctx)
-	geoDone := make(chan struct{})
-	go func() { defer close(geoDone); geo.Run(geoCtx, logger) }()
-	defer func() { geoCancel(); <-geoDone }()
 	updates := updatecheck.New(db, logger)
 	updateCtx, stopUpdates := context.WithCancel(ctx)
 	updatesDone := make(chan struct{})

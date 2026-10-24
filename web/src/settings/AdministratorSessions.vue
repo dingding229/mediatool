@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import IpAddress from '../ui/IpAddress.vue';
-import IpAttribution from '../ui/IpAttribution.vue';
 import {beijingTime as date} from '../presentation/time';
 import {usePageNumber} from '../ui/page-query';
 
@@ -36,5 +35,5 @@ onMounted(sessions.load);usePageRefresh(sessions.load,'security');
 <PagePagination v-model:current-page="page" :has-next="sessions.data.value.hasNext" :disabled="sessions.loading.value" @current-change="sessions.load"/>
 <ConfirmAction :visible="!!target" @update:visible="v=>{if(!v)target=undefined}" :title="target?.current?'撤销当前管理端登录':'撤销指定管理端登录'" :description="target?.current?'确认后将退出当前管理端并跳转到登录页。':'仅撤销所选登录，不影响其他管理端登录。'" impact-scope="不会撤销媒体服务器用户登录，也不会修改账号密码。撤销立即对下一次请求生效。" confirm-text="确认撤销登录" :loading="busy" @confirm="revoke"/>
 </section>
-<IpAttribution/></template>
+</template>
 <style scoped>.admin-session-raw{white-space:pre-wrap;overflow-wrap:anywhere}</style>

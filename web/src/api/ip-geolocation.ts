@@ -1,9 +1,8 @@
 import {request} from './client';
 export interface IPLocation {ip:string;unavailable?:boolean;label?:string;country?:string;province?:string;city?:string;isp?:string}
-export interface GeoStatus {configured:boolean;ipv4:boolean;ipv6:boolean;updatedAt:string|null;sha256:string;attribution:string}
+export interface GeoStatus {source:string;version:string;ipv4:boolean;ipv6:boolean;ipv4Date:string|null;ipv6Date:string|null;dataDate:string|null;cacheStrategy:string;memoryBytes:number;reason?:string}
 const path='/ip-geolocation';
 export const getGeoStatus=()=>request<GeoStatus>(path+'/settings');
-export const saveGeoSettings=(downloadKey:string,decryptKey:string)=>request<GeoStatus>(path+'/settings',{method:'PUT',body:JSON.stringify({downloadKey,decryptKey})});
 // Coalesce a rendered page into bounded administrator-only lookups. No external
 // geolocation requests, and no display of unclassified historical private IPs.
 const cache=new Map<string,{at:number;value:IPLocation}>();

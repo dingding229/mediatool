@@ -13,3 +13,6 @@ internal/platform/webui/assets/index.html
 examples/sites
 
 internal/modules/sites/testdata
+
+# Operator-private task evidence must never enter an image build context.
+scratchpad

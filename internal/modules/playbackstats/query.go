@@ -7,17 +7,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/platform/clientip"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var ErrInvalid = errors.New("invalid playback statistics query")
 
 type Filter struct {
 	UserID, DeviceID   string
+	Query              string
 	Days, Start, Limit int
 }
 
 func (v Filter) Validate() error {
+	if utf8.RuneCountInString(v.Query) > 100 || strings.ContainsRune(v.Query, 0) {
+		return ErrInvalid
+	}
 	for _, id := range []string{v.UserID, v.DeviceID} {
 		if id != "" {
 			var u pgtype.UUID
@@ -161,13 +167,22 @@ func (r Repository) Events(ctx context.Context, f Filter) (Page[Event], error) {
 }
 
 type IPRow struct {
-	Location    string    `json:"location,omitempty"`
-	IP          string    `json:"ip"`
-	Users       int       `json:"users"`
-	Devices     int       `json:"devices"`
-	Count       int       `json:"count"`
-	FirstSeenAt time.Time `json:"firstSeenAt"`
-	LastSeenAt  time.Time `json:"lastSeenAt"`
+	Country         string      `json:"country,omitempty"`
+	Province        string      `json:"province,omitempty"`
+	City            string      `json:"city,omitempty"`
+	ISP             string      `json:"isp,omitempty"`
+	Label           string      `json:"label,omitempty"`
+	Accounts        []IPAccount `json:"accounts"`
+	Clients         []IPClient  `json:"clients"`
+	NewIP           bool        `json:"newIP"`
+	DifferentRegion bool        `json:"differentRegion"`
+	Location        string      `json:"location,omitempty"`
+	IP              string      `json:"ip"`
+	Users           int         `json:"users"`
+	Devices         int         `json:"devices"`
+	Count           int         `json:"count"`
+	FirstSeenAt     time.Time   `json:"firstSeenAt"`
+	LastSeenAt      time.Time   `json:"lastSeenAt"`
 }
 
 func (r Repository) IPs(ctx context.Context, f Filter) (Page[IPRow], error) {

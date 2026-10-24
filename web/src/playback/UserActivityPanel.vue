@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import PlaybackStatistics from './PlaybackStatistics.vue';
 import IpAddress from '../ui/IpAddress.vue';
-import IpAttribution from '../ui/IpAttribution.vue';
 import {mediaTitle,playbackDuration} from '../utils/media-title';
 import {usePageNumber} from '../ui/page-query';
 
@@ -70,7 +69,7 @@ defineExpose({ load, tab, page, data, changeTab, revoke, target, op });
   </article>
   <PagePagination v-model:current-page="page" :page-size="50" :total="data.data?.total||0" layout="prev,pager,next,total" @current-change="load"/>
   <p v-if="tab==='history'">次数按本功能启用后的播放会话计（未看完也计 1 次）；累计时长为有效进度增量，不是影片总时长。旧条目保留续播状态，不推算历史事件。</p>
- <IpAttribution/>
+
  </template>
   <ConfirmAction v-model:visible="confirm" title="撤销设备登录" :description="`撤销 ${userName} 在 ${target?.name||'此设备'} 的登录？`" impact-scope="该设备需要重新输入密码，其他设备不受影响；不删除媒体或观看记录。" confirm-text="确认撤销" :loading="op.busy" class="media-dialog" @confirm="revoke"/>
 </template>

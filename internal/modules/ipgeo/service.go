@@ -1,331 +1,168 @@
+// Package ipgeo provides offline, public-IP-only attribution from pinned xdb files.
 package ipgeo
 
 import (
-	"archive/zip"
-	"bytes"
-	"container/list"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
-	"errors"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"io"
-	"log/slog"
-	deferutil "media-tool/internal/platform/cleanup"
-	"media-tool/internal/platform/clientip"
-	"media-tool/internal/platform/secrets"
-	"net/http"
 	"net/netip"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lionsoul2014/ip2region/binding/golang/service"
+	"media-tool/internal/platform/clientip"
 )
 
-const Attribution = "IP地址位置数据由纯真CZ88提供支持"
-const downloadURL = "https://www.cz88.net/api/communityIpAuthorization/communityIpDbFile"
+const DefaultDirectory = "/app/ip2region"
+const DatabaseCommit = "f8b0792b0cd729f5b2593f690aeed225e49c1967"
+const IPv4SHA256 = "27ecba8c9a6d5e3b280aedbe7ee15c65372b179fbd0dad3845d8c608f2fcace1"
+const IPv6SHA256 = "939f6b46bd2b8bec3cf7c5ceb8ba782266ae9b1f35b5ba7916700dec0b7506ed"
 
-type Credentials struct {
-	DownloadKey string `json:"downloadKey"`
-	DecryptKey  string `json:"decryptKey"`
+type Location struct {
+	IP       string `json:"ip"`
+	Country  string `json:"country,omitempty"`
+	Province string `json:"province,omitempty"`
+	City     string `json:"city,omitempty"`
+	ISP      string `json:"isp,omitempty"`
+	Label    string `json:"label,omitempty"`
 }
 type Status struct {
-	Configured  bool       `json:"configured"`
-	IPv4        bool       `json:"ipv4"`
-	IPv6        bool       `json:"ipv6"`
-	UpdatedAt   *time.Time `json:"updatedAt"`
-	SHA256      string     `json:"sha256"`
-	Attribution string     `json:"attribution"`
-}
-type cached struct {
-	ip       string
-	location Location
+	Source        string     `json:"source"`
+	Version       string     `json:"version"`
+	IPv4          bool       `json:"ipv4"`
+	IPv6          bool       `json:"ipv6"`
+	IPv4Date      *time.Time `json:"ipv4Date"`
+	IPv6Date      *time.Time `json:"ipv6Date"`
+	DataDate      *time.Time `json:"dataDate"`
+	CacheStrategy string     `json:"cacheStrategy"`
+	MemoryBytes   int        `json:"memoryBytes"`
+	Reason        string     `json:"reason,omitempty"`
 }
 type Service struct {
-	DB        *pgxpool.Pool
-	Vault     *secrets.Vault
-	Directory string
-	Client    *http.Client
-	mu        sync.Mutex
-	dbs       []*Database
-	updated   *time.Time
-	digest    string
-	cache     map[string]*list.Element
-	lru       *list.List
+	// The pinned upstream searcher resets its mutable ioCount even in content mode.
+	// An exclusive lock also serializes Close with searches, not just state reads.
+	mu     sync.Mutex
+	engine *service.Ip2Region
+	status Status
 }
 
-func New(db *pgxpool.Pool, v *secrets.Vault, dir string) *Service {
-	return &Service{DB: db, Vault: v, Directory: dir, Client: &http.Client{Timeout: 2 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("CZ88 不允许重定向") }}, cache: map[string]*list.Element{}, lru: list.New()}
-}
-func (s *Service) credentials(ctx context.Context) (Credentials, error) {
-	out := Credentials{}
-	if s.DB == nil || s.Vault == nil {
-		return out, nil
+func New(dir string) *Service {
+	s := &Service{status: Status{Source: "ip2region", Version: DatabaseCommit[:12], CacheStrategy: "content"}}
+	load := func(name, digest string, create func(int, string, int) (*service.Config, error)) *service.Config {
+		path := filepath.Join(dir, name)
+		f, e := os.Open(path)
+		if e != nil {
+			return nil
+		}
+		hash := sha256.New()
+		_, e = io.Copy(hash, f)
+		ce := f.Close()
+		if e != nil || ce != nil || hex.EncodeToString(hash.Sum(nil)) != digest {
+			return nil
+		}
+		config, e := create(service.BufferCache, path, 1)
+		if e != nil {
+			return nil
+		}
+		s.status.MemoryBytes += len(config.CBuffer())
+		return config
 	}
-	var raw []byte
-	e := s.DB.QueryRow(ctx, `SELECT encrypted_credentials FROM ip_geo_settings WHERE singleton`).Scan(&raw)
-	if errors.Is(e, pgx.ErrNoRows) {
-		return out, nil
+	v4 := load("ip2region_v4.xdb", IPv4SHA256, service.NewV4Config)
+	v6 := load("ip2region_v6.xdb", IPv6SHA256, service.NewV6Config)
+	if v4 != nil {
+		at := time.Unix(int64(v4.Header().CreatedAt), 0).UTC()
+		s.status.IPv4 = true
+		s.status.IPv4Date = &at
+		s.status.DataDate = &at
 	}
-	if e != nil {
-		return out, e
-	}
-	v, e := s.Vault.Open("cz88-community", raw)
-	if e != nil {
-		return out, e
-	}
-	return Credentials{v["downloadKey"], v["decryptKey"]}, nil
-}
-func (s *Service) Save(ctx context.Context, v Credentials) error {
-	if s.DB == nil || s.Vault == nil {
-		return errors.New("敏感设置不可用")
-	}
-	old, e := s.credentials(ctx)
-	if e != nil {
-		return e
-	}
-	if v.DownloadKey == "" {
-		v.DownloadKey = old.DownloadKey
-	}
-	if v.DecryptKey == "" {
-		v.DecryptKey = old.DecryptKey
-	}
-	if len(v.DownloadKey) < 8 || len(v.DownloadKey) > 2048 || strings.ContainsAny(v.DownloadKey, " \r\n\x00") || len(v.DecryptKey) > 128 {
-		return ErrDatabase
-	}
-	// Validate AES key without exposing it or requiring a database download.
-	if _, e = decodeKey(v.DecryptKey); e != nil {
-		return e
-	}
-	raw, e := s.Vault.Seal("cz88-community", map[string]string{"downloadKey": v.DownloadKey, "decryptKey": v.DecryptKey})
-	if e != nil {
-		return e
-	}
-	_, e = s.DB.Exec(ctx, `INSERT INTO ip_geo_settings(singleton,encrypted_credentials)VALUES(true,$1)ON CONFLICT(singleton)DO UPDATE SET encrypted_credentials=EXCLUDED.encrypted_credentials,updated_at=now()`, raw)
-	return e
-}
-func (s *Service) Status(ctx context.Context) Status {
-	c, _ := s.credentials(ctx)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	out := Status{Configured: c.DownloadKey != "" && c.DecryptKey != "", UpdatedAt: s.updated, SHA256: s.digest, Attribution: Attribution}
-	for _, d := range s.dbs {
-		if d.size == 4 {
-			out.IPv4 = true
-		} else {
-			out.IPv6 = true
+	if v6 != nil {
+		at := time.Unix(int64(v6.Header().CreatedAt), 0).UTC()
+		s.status.IPv6 = true
+		s.status.IPv6Date = &at
+		if s.status.DataDate == nil || at.After(*s.status.DataDate) {
+			s.status.DataDate = &at
 		}
 	}
-	return out
+	if v4 != nil || v6 != nil {
+		var err error
+		s.engine, err = service.NewIp2Region(v4, v6)
+		if err != nil {
+			s.status.IPv4, s.status.IPv6 = false, false
+			s.status.MemoryBytes = 0
+		}
+	}
+	if !s.status.IPv4 || !s.status.IPv6 {
+		s.status.Reason = "镜像内 IP 数据缺失或校验失败，请重新拉取已发布镜像；不会联网下载。"
+	}
+	return s
+}
+func (s *Service) Status(context.Context) Status {
+	if s == nil {
+		return Status{Source: "ip2region", Version: DatabaseCommit[:12], CacheStrategy: "content", Reason: "IP 数据暂不可用"}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.status
 }
 func (s *Service) Lookup(raw string) Location {
-	ip := clientip.Sanitize(raw)
-	out := Location{IP: ip}
-	if ip == "" {
+	addr, e := netip.ParseAddr(strings.TrimSpace(raw))
+	if e != nil {
+		return Location{Label: "无效 IP"}
+	}
+	if !clientip.PublicIP(addr) {
+		return Location{Label: "局域网/保留地址"}
+	}
+	out := Location{IP: addr.Unmap().String(), Label: "归属地暂不可用"}
+	if s == nil {
 		return out
 	}
-	a, _ := netip.ParseAddr(ip)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cacheKey := time.Now().Format("2006-01-02") + ":" + ip
-	if x := s.cache[cacheKey]; x != nil {
-		s.lru.MoveToFront(x)
-		return x.Value.(cached).location
+	if s.engine == nil {
+		return out
 	}
-	for _, d := range s.dbs {
-		if a.Is4() == (d.size == 4) {
-			out = d.Lookup(a)
-			break
+	region, e := s.engine.Search(out.IP)
+	if e != nil {
+		return out
+	}
+	parts := strings.Split(region, "|")
+	if len(parts) < 4 {
+		return out
+	}
+	clean := func(v string) string {
+		v = strings.TrimSpace(v)
+		if v == "0" {
+			return ""
+		}
+		return v
+	}
+	out.Country, out.Province, out.City, out.ISP = clean(parts[0]), clean(parts[1]), clean(parts[2]), clean(parts[3])
+	labels := []string{}
+	for _, v := range []string{out.Country, out.Province, out.City, out.ISP} {
+		if v != "" && (len(labels) == 0 || labels[len(labels)-1] != v) {
+			labels = append(labels, v)
 		}
 	}
-	x := s.lru.PushFront(cached{cacheKey, out})
-	s.cache[cacheKey] = x
-	if s.lru.Len() > 4096 {
-		x = s.lru.Back()
-		delete(s.cache, x.Value.(cached).ip)
-		s.lru.Remove(x)
+	out.Label = strings.Join(labels, " ")
+	if out.Label == "" {
+		out.Label = "未知归属地"
 	}
 	return out
 }
-func parseBundle(raw []byte, key string) ([]*Database, error) {
-	if len(raw) > maxDatabase {
-		return nil, ErrDatabase
+func (s *Service) Close() {
+	if s == nil {
+		return
 	}
-	if !bytes.HasPrefix(raw, []byte{'P', 'K'}) {
-		d, e := Parse(raw, key, time.Now())
-		if e != nil {
-			return nil, e
-		}
-		return []*Database{d}, nil
-	}
-	z, e := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
-	if e != nil {
-		return nil, ErrDatabase
-	}
-	out := []*Database{}
-	seen := map[int]bool{}
-	total := uint64(0)
-	for _, f := range z.File {
-		if f.FileInfo().IsDir() || !strings.HasSuffix(strings.ToLower(f.Name), ".czdb") {
-			continue
-		}
-		if len(out) >= 2 || f.UncompressedSize64 > maxDatabase {
-			return nil, ErrDatabase
-		}
-		total += f.UncompressedSize64
-		if total > maxDatabase {
-			return nil, ErrDatabase
-		}
-		r, e := f.Open()
-		if e != nil {
-			return nil, ErrDatabase
-		}
-		b, e := io.ReadAll(io.LimitReader(r, maxDatabase+1))
-		ce := r.Close()
-		if e != nil || ce != nil {
-			return nil, ErrDatabase
-		}
-		d, e := Parse(b, key, time.Now())
-		if e != nil || seen[dSize(d)] {
-			return nil, ErrDatabase
-		}
-		seen[d.size] = true
-		out = append(out, d)
-	}
-	if len(out) == 0 {
-		return nil, ErrDatabase
-	}
-	return out, nil
-}
-func dSize(d *Database) int {
-	if d == nil {
-		return 0
-	}
-	return d.size
-}
-func (s *Service) install(raw []byte, key string, persist bool) error {
-	dbs, e := parseBundle(raw, key)
-	if e != nil {
-		return e
-	}
-	if persist {
-		if e = os.MkdirAll(s.Directory, 0700); e != nil {
-			return e
-		}
-		f, e := os.CreateTemp(s.Directory, ".czdb-*")
-		if e != nil {
-			return e
-		}
-		name := f.Name()
-		defer func() {
-			e := os.Remove(name)
-			if e != nil && !os.IsNotExist(e) {
-				deferutil.Report(e, "remove CZDB staging file")
-			}
-		}()
-		if _, e = f.Write(raw); e != nil {
-			deferutil.Close(f, "Write or Sync already failed; discard staging file")
-			return e
-		}
-		if e = f.Sync(); e != nil {
-			deferutil.Close(f, "Write or Sync already failed; discard staging file")
-			return e
-		}
-		if e = f.Close(); e != nil {
-			return e
-		}
-		if e = os.Rename(name, filepath.Join(s.Directory, "current.bundle")); e != nil {
-			return e
-		}
-	}
-	stat, e := os.Stat(filepath.Join(s.Directory, "current.bundle"))
-	now := time.Now()
-	if e == nil {
-		now = stat.ModTime()
-	}
-	sum := sha256.Sum256(raw)
 	s.mu.Lock()
-	s.dbs = dbs
-	s.updated = &now
-	s.digest = hex.EncodeToString(sum[:])
-	s.cache = map[string]*list.Element{}
-	s.lru.Init()
-	s.mu.Unlock()
-	return nil
-}
-func (s *Service) Update(ctx context.Context, v Credentials) error {
-	if v.DownloadKey == "" || v.DecryptKey == "" {
-		return nil
+	defer s.mu.Unlock()
+	if s.engine != nil {
+		s.engine.Close()
+		s.engine = nil
 	}
-	u, _ := url.Parse(downloadURL)
-	q := u.Query()
-	q.Set("fn", "czdb")
-	q.Set("key", v.DownloadKey)
-	u.RawQuery = q.Encode()
-	req, e := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
-	if e != nil {
-		return errors.New("CZ88 更新失败")
-	}
-	response, e := s.Client.Do(req)
-	if e != nil {
-		return errors.New("CZ88 更新失败")
-	}
-	defer deferutil.Close(response.Body, "CZ88 response processing already checked read/validation result")
-	if response.StatusCode != 200 {
-		return errors.New("CZ88 授权下载失败")
-	}
-	raw, e := io.ReadAll(io.LimitReader(response.Body, maxDatabase+1))
-	if e != nil {
-		return errors.New("CZ88 下载不完整")
-	}
-	return s.install(raw, v.DecryptKey, true)
-}
-func (s *Service) Run(ctx context.Context, logger *slog.Logger) {
-	c, e := s.credentials(ctx)
-	if e == nil && c.DecryptKey != "" {
-		if raw, e := os.ReadFile(filepath.Join(s.Directory, "current.bundle")); e == nil {
-			if e = s.install(raw, c.DecryptKey, false); e != nil {
-				logger.Warn("CZDB 旧库不可用，降级为仅显示公网 IP", "module", "ipgeo")
-			}
-		}
-	}
-	tick := time.NewTicker(time.Minute)
-	defer tick.Stop()
-	next := time.Time{}
-	fingerprint := ""
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case now := <-tick.C:
-			c, e = s.credentials(ctx)
-			if e != nil || c.DownloadKey == "" || c.DecryptKey == "" {
-				continue
-			}
-			raw, _ := json.Marshal(c)
-			hash := sha256.Sum256(raw)
-			fp := hex.EncodeToString(hash[:])
-			s.mu.Lock()
-			last := s.updated
-			s.mu.Unlock()
-			if fp == fingerprint && now.Before(next) {
-				continue
-			}
-			if fp == fingerprint && last != nil && now.Sub(*last) < 7*24*time.Hour {
-				continue
-			}
-			fingerprint = fp
-			next = now.Add(6 * time.Hour)
-			check, cancel := context.WithTimeout(ctx, 2*time.Minute)
-			e = s.Update(check, c)
-			cancel()
-			if e != nil {
-				logger.Warn("CZDB 更新失败，保留旧库；无库时仅显示公网 IP", "module", "ipgeo")
-			}
-		}
-	}
+	s.status.IPv4, s.status.IPv6 = false, false
+	s.status.MemoryBytes = 0
 }

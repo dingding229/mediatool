@@ -13,7 +13,7 @@ func statisticsFilter(w http.ResponseWriter, r *http.Request) (playbackstats.Fil
 		return playbackstats.Filter{}, false
 	}
 	days, e := queryInt(r.URL.Query(), "days", 30, 0, 90)
-	f := playbackstats.Filter{UserID: r.URL.Query().Get("userId"), DeviceID: r.URL.Query().Get("deviceId"), Days: days, Start: start, Limit: limit}
+	f := playbackstats.Filter{Query: r.URL.Query().Get("q"), UserID: r.URL.Query().Get("userId"), DeviceID: r.URL.Query().Get("deviceId"), Days: days, Start: start, Limit: limit}
 	if e != nil || f.Validate() != nil {
 		fail(w, 400, "invalid_statistics_filter", "统计范围或用户/设备无效")
 		return f, false
@@ -89,7 +89,13 @@ func (a *API) playbackIPs(w http.ResponseWriter, r *http.Request) {
 			return l.Country + " " + l.Province
 		})
 	} else if group == "" || group == "ip" {
-		v, e = repo.IPs(r.Context(), f)
+		report, err := repo.IPReport(r.Context(), f, a.Deps.IPGeo.Lookup)
+		if err != nil {
+			fail(w, 503, "statistics_unavailable", "统计暂不可用，请缩小时间范围后重试")
+			return
+		}
+		write(w, 200, report)
+		return
 	} else {
 		fail(w, 400, "invalid_ip_group", "归属地汇总方式无效")
 		return

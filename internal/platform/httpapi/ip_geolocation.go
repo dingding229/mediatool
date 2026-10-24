@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"media-tool/internal/modules/ipgeo"
-	"media-tool/internal/platform/clientip"
 	"net/http"
 	"strings"
 )
@@ -18,25 +17,14 @@ func (a *API) ipLocations(w http.ResponseWriter, r *http.Request) {
 		if a.Deps.IPGeo != nil {
 			out = append(out, a.Deps.IPGeo.Lookup(v))
 		} else {
-			out = append(out, ipgeo.Location{IP: clientip.Sanitize(v)})
+			out = append(out, (*ipgeo.Service)(nil).Lookup(v))
 		}
 	}
 	write(w, 200, out)
 }
 func (a *API) ipGeoSettings(w http.ResponseWriter, r *http.Request) {
 	if a.Deps.IPGeo == nil {
-		write(w, 200, ipgeo.Status{Attribution: ipgeo.Attribution})
-		return
-	}
-	write(w, 200, a.Deps.IPGeo.Status(r.Context()))
-}
-func (a *API) saveIPGeoSettings(w http.ResponseWriter, r *http.Request) {
-	var in ipgeo.Credentials
-	if !decode(w, r, &in) {
-		return
-	}
-	if a.Deps.IPGeo == nil || a.Deps.IPGeo.Save(r.Context(), in) != nil {
-		fail(w, 400, "invalid_ip_geo_settings", "请检查下载授权 key 和 Base64 解密密钥；旧库不会被替换")
+		write(w, 200, (*ipgeo.Service)(nil).Status(r.Context()))
 		return
 	}
 	write(w, 200, a.Deps.IPGeo.Status(r.Context()))

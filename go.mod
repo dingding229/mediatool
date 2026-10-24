@@ -11,6 +11,7 @@ require (
 	github.com/dingding229/mediatool-site v0.0.0-20261013180133-7dfba442a392
 	github.com/felixge/httpsnoop v1.1.0
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20261018023631-f8b0792b0cd7
 	github.com/pressly/goose/v3 v3.28.0
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/robfig/cron/v3 v3.0.1

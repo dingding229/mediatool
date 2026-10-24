@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import IpAddress from '../ui/IpAddress.vue';
-import IpAttribution from '../ui/IpAttribution.vue';
 import {usePageNumber} from '../ui/page-query';
 
 import { onMounted, reactive, ref } from 'vue';
@@ -210,5 +209,5 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
     <el-button v-if="details?.requestCount!=null&&!details?.whitelisted&&details?.userAgent" :disabled="!policy.data||!!op.pending" @click="detailOpen=false;edit(null,details)">从此记录加入白名单</el-button>
   </DetailDrawer>
   <ConfirmAction v-model:visible="confirm" :title="action?.kind==='remove'?'删除 UA 白名单规则':action?.kind==='clear'?'清理 UA 访问记录':action?.policy.enabled?'关闭播放器限制':'启用播放器白名单'" :description="action?.kind==='remove'?'删除后，依赖此规则的播放器可能无法访问。':action?.kind==='clear'?'只清理 UA 聚合记录，新的访问会重新记录。':'启用后，未匹配的播放器和空 UA 会被拒绝；关闭后仍检查媒体授权。'" impact-scope="不删除媒体、不删除程序日志；聚合记录清理不移除白名单，也不清理访问明细。" :confirm-text="action?.kind==='remove'?'删除规则':action?.kind==='clear'?'清理记录':action?.policy.enabled?'关闭限制':'启用限制'" :loading="op.busy" class="media-dialog" @confirm="apply"/>
-<IpAttribution/>
+
 </template>

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import IpAddress from '../ui/IpAddress.vue';
-import IpAttribution from '../ui/IpAttribution.vue';
 import {beijingISO} from '../presentation/time';
 import {usePageNumber} from '../ui/page-query';
 import {Refresh,Delete,Setting,CopyDocument,Download,DArrowLeft,ArrowLeft,ArrowRight,DArrowRight} from '@element-plus/icons-vue';
@@ -177,5 +176,5 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
       </template>
     </el-dialog>
   </section>
-<IpAttribution/>
+
 </template>
