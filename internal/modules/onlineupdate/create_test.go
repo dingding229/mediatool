@@ -58,7 +58,12 @@ func TestProductionShapeDryRunNeverWritesDocker(t *testing.T) {
 			t.Error("dry run wrote Docker")
 		}
 		reads++
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"Id":"sha256:fixture","Config":{}}`)), Header: make(http.Header)}, nil
+		id := d.self.Image
+		if strings.Contains(r.URL.Path, d.target) {
+			id = "sha256:fixture"
+		}
+		body, _ := json.Marshal(map[string]any{"Id": id, "Config": map[string]any{}})
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(body))), Header: make(http.Header)}, nil
 	})}
 	body, e := d.appCreate(context.Background())
 	if e != nil {
@@ -82,7 +87,7 @@ func TestProductionShapeDryRunNeverWritesDocker(t *testing.T) {
 	if e = d.preflightCreate(body); e == nil {
 		t.Fatal("create_host_path semantics widened")
 	}
-	if writes != 0 || reads != 1 {
+	if writes != 0 || reads != 2 {
 		t.Fatal(reads, writes)
 	}
 }

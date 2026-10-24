@@ -208,6 +208,9 @@ func execute(ctx context.Context, root string, j *Job, s Steps) error {
 		}
 		if e := pre.Preflight(ctx, j); e != nil {
 			j.Failure = "preflight_rejected"
+			if errors.Is(e, ErrImageConfigChanged) {
+				j.Failure = "image_startup_config_changed"
+			}
 			return errors.Join(e, advance(root, j, "failed"))
 		}
 	}

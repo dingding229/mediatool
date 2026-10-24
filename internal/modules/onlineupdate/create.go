@@ -178,7 +178,7 @@ func mountSpecs(h map[string]any) ([]mountSpec, error) {
 // The request is derived from the verified live inspect, never from the redacted
 // plan or a second Compose version. It is held only in helper memory.
 func (d *docker) appCreate(ctx context.Context) ([]byte, error) {
-	if _, e := d.request(ctx, "GET", "/images/"+d.target+"/json", nil); e != nil {
+	if e := d.imageStartupPreflight(ctx); e != nil {
 		return nil, e
 	}
 	b, e := json.Marshal(d.self.Config)

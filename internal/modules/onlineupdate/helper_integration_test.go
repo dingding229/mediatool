@@ -13,7 +13,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -122,6 +124,24 @@ func TestDockerHelperChild(t *testing.T) {
 			return upstream.RoundTrip(req)
 		})
 		e = runUpdater(t.Context(), Root, id, d)
+	} else if strings.HasPrefix(os.Getenv("MEDIA_TOOL_HELPER_CASE"), "image_config_") {
+		d := newDocker()
+		upstream := d.client.Transport
+		derived := os.Getenv("MEDIA_TOOL_GUARD_IMAGE_ID")
+		if !strings.HasPrefix(derived, "sha256:") || len(derived) != 71 {
+			t.Fatal("real derived image ID required")
+		}
+		d.client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.Method == "GET" && req.URL.Path == apiVersion+"/images/"+p.TargetImage+"/json" {
+				clone := req.Clone(req.Context())
+				u := *req.URL
+				u.Path = apiVersion + "/images/" + derived + "/json"
+				clone.URL = &u
+				return upstream.RoundTrip(clone)
+			}
+			return upstream.RoundTrip(req)
+		})
+		e = runUpdater(t.Context(), Root, id, d)
 	} else {
 		if os.Getenv("MEDIA_TOOL_HELPER_CASE") == "backup_failure" {
 			_ = os.Setenv("PATH", labels(p.Self)["com.docker.compose.project.working_dir"]+"/bin:"+os.Getenv("PATH"))
@@ -171,7 +191,7 @@ func TestDockerHelperChild(t *testing.T) {
 	if j.Phase == "rolled_back" && (e != nil || (j.Failure != "health_or_schema_failed" && j.Failure != "apply_failed")) {
 		t.Fatal("rollback must be complete and preserve original failure", e, j.Failure)
 	}
-	if j.Phase == "failed" && (j.Failure != "backup_failed" && j.Failure != "preflight_rejected") {
+	if j.Phase == "failed" && (j.Failure != "backup_failed" && j.Failure != "preflight_rejected" && j.Failure != "image_startup_config_changed") {
 		t.Fatal(j.Failure)
 	}
 	if j.Phase != "failed" && (j.Backup == "" || j.DumpSHA256 == "") {
@@ -332,7 +352,11 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 	if b, e := c.CombinedOutput(); e != nil {
 		t.Fatal(e, string(b))
 	}
-	for _, tc := range []struct{ name, phase string }{{"preflight_rejected", "failed"}, {"start_failure", "rolled_back"}, {"migration_failure", "rolled_back"}, {"health_failure", "rolled_back"}, {"success", "succeeded"}, {"backup_failure", "failed"}} {
+	cases := []struct{ name, phase string }{{"preflight_rejected", "failed"}, {"start_failure", "rolled_back"}, {"migration_failure", "rolled_back"}, {"health_failure", "rolled_back"}, {"success", "succeeded"}, {"backup_failure", "failed"}}
+	for _, c := range startupImageCases {
+		cases = append(cases, struct{ name, phase string }{"image_config_" + c.field, "failed"})
+	}
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			cli := commands(t)
 			id, e := newID()
@@ -341,6 +365,70 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			}
 			project := "f8b-entry-" + id[:10]
 			helperName := project + "-updater-" + id
+			derived := ""
+			if strings.HasPrefix(tc.name, "image_config_") {
+				field := strings.TrimPrefix(tc.name, "image_config_")
+				instruction := ""
+				for _, c := range startupImageCases {
+					if c.field == field {
+						instruction = c.instruction
+					}
+				}
+				if instruction == "" {
+					t.Fatal("missing Dockerfile mutation", field)
+				}
+				tag := "f8b-startup-config-" + id + ":fixture"
+				build := exec.CommandContext(ctx, "docker", "build", "--platform", "linux/amd64", "--pull=false", "--network=none", "-t", tag, "-")
+				build.Stdin = strings.NewReader("FROM " + helperFixtureImage + "\n" + instruction + "\n")
+				if out, err := build.CombinedOutput(); err != nil {
+					t.Fatal("isolated config-only image", err, string(out))
+				}
+				t.Cleanup(func() { _ = exec.Command("docker", "image", "rm", tag).Run() })
+				derived = strings.TrimSpace(string(cli("image", "inspect", "--format", "{{.Id}}", tag)))
+				inspectConfig := func(ref string) map[string]any {
+					cmd := exec.CommandContext(ctx, "docker", "image", "inspect", ref)
+					cmd.Env = append(os.Environ(), "DOCKER_API_VERSION=1.47")
+					raw, err := cmd.Output()
+					if err != nil {
+						t.Fatal(err)
+					}
+					var images []struct{ Config map[string]any }
+					if json.Unmarshal(raw, &images) != nil || len(images) != 1 {
+						t.Fatal("invalid fixture image config")
+					}
+					return images[0].Config
+				}
+				baseConfig, changedConfig := inspectConfig(helperFixtureImage), inspectConfig(tag)
+				keys := map[string]bool{}
+				for k := range baseConfig {
+					keys[k] = true
+				}
+				for k := range changedConfig {
+					keys[k] = true
+				}
+				changed := []string{}
+				for k := range keys {
+					if k == "Labels" {
+						continue
+					}
+					a, aok := baseConfig[k]
+					b, bok := changedConfig[k]
+					if aok != bok || !reflect.DeepEqual(a, b) {
+						changed = append(changed, k)
+					}
+				}
+				// Docker's CMD builder also materializes ArgsEscaped=false. Keep
+				// that difference visible and checked; do not normalize it away.
+				sort.Strings(changed)
+				expected := []string{field}
+				if field == "Cmd" {
+					expected = []string{"ArgsEscaped", "Cmd"}
+				}
+				if !reflect.DeepEqual(changed, expected) {
+					t.Fatal("unexpected fixture startup changes", field, changed)
+				}
+			}
+
 			// Colima shares HOME, not /var/folders or external SSD volumes. Use
 			// only this program's scoped fixture directory and remove it on exit.
 			base, e := filepath.Abs("../../../data/private/f8b-helper-tests")
@@ -431,6 +519,7 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			compose("up", "-d", "--pull", "never", "--wait")
 			cli("network", "connect", "--alias", "testpg", project+"_default", pg)
 			cid := strings.TrimSpace(string(compose("ps", "-q", "app")))
+			originalStarted := strings.TrimSpace(string(cli("inspect", "--format", "{{.State.StartedAt}}", cid)))
 			endpoint := strings.TrimSpace(string(cli("context", "inspect", "--format", "{{.Endpoints.docker.Host}}")))
 			socketPath := strings.TrimPrefix(endpoint, "unix://")
 			inspectedDocker := newDocker()
@@ -505,7 +594,7 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			if e = audit(ctx, db, j.Actor, "online_update.requested", j); e != nil {
 				t.Fatal(e)
 			}
-			child := []string{"run", "--name", helperName, "--label", label + "=" + id, "--label", "io.mediatool.project=" + project, "--user", "0:0", "--platform", "linux/amd64", "--network", project + "_default", "--read-only", "--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "DAC_OVERRIDE", "--security-opt", "no-new-privileges:true", "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m", "-v", work + ":" + work + ":rw", "-v", data + ":/data:rw", "-v", sock + ":/var/run/docker.sock:rw", "-e", "MEDIA_TOOL_HELPER_CHILD=1", "-e", "MEDIA_TOOL_HELPER_ID=" + id, "-e", "MEDIA_TOOL_HELPER_EXPECT=" + tc.phase, "-e", "MEDIA_TOOL_HELPER_CASE=" + tc.name, "-e", "TEST_DATABASE_URL=" + appDSN.String(), "-e", "MEDIA_TOOL_TEST_LOCKED=1", "--entrypoint", filepath.Join(work, "helper.test"), helperFixtureImage, "-test.run=^TestDockerHelperChild$", "-test.v"}
+			child := []string{"run", "--name", helperName, "--label", label + "=" + id, "--label", "io.mediatool.project=" + project, "--user", "0:0", "--platform", "linux/amd64", "--network", project + "_default", "--read-only", "--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "DAC_OVERRIDE", "--security-opt", "no-new-privileges:true", "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m", "-v", work + ":" + work + ":rw", "-v", data + ":/data:rw", "-v", sock + ":/var/run/docker.sock:rw", "-e", "MEDIA_TOOL_HELPER_CHILD=1", "-e", "MEDIA_TOOL_HELPER_ID=" + id, "-e", "MEDIA_TOOL_HELPER_EXPECT=" + tc.phase, "-e", "MEDIA_TOOL_HELPER_CASE=" + tc.name, "-e", "MEDIA_TOOL_GUARD_IMAGE_ID=" + derived, "-e", "TEST_DATABASE_URL=" + appDSN.String(), "-e", "MEDIA_TOOL_TEST_LOCKED=1", "--entrypoint", filepath.Join(work, "helper.test"), helperFixtureImage, "-test.run=^TestDockerHelperChild$", "-test.v"}
 			t.Log(string(cli(child...)))
 			appChild("reconcile") // Must pass BEFORE cleanup can chown any fixture files.
 			if e := exec.CommandContext(ctx, "docker", "inspect", helperName).Run(); e == nil {
@@ -516,6 +605,24 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			done, e := load(root, id)
 			if e != nil || done.Phase != tc.phase {
 				t.Fatal(e, done.Phase)
+			}
+			if strings.HasPrefix(tc.name, "image_config_") {
+				if done.Phase != "failed" || done.Failure != "image_startup_config_changed" || done.Backup != "" || done.DumpSHA256 != "" {
+					t.Fatal("startup change must fail before backup", done.Phase, done.Failure)
+				}
+				for _, event := range done.Events {
+					if event.Phase == "backing_up" || event.Phase == "applying" || event.Phase == "rolling_back" {
+						t.Fatal("startup guard ran too late", event.Phase)
+					}
+				}
+				// No backup directory exists, and current app has never been stopped.
+				if entries, err := os.ReadDir(filepath.Join(work, "private")); err == nil && len(entries) > 0 {
+					t.Fatal("guard created backup")
+				}
+				now := strings.TrimSpace(string(cli("inspect", "--format", "{{.State.StartedAt}}", cid)))
+				if now != originalStarted {
+					t.Fatal("old app was restarted before guard rejection")
+				}
 			}
 			// Both helper and app reconciliation must be idempotent, including backup failure.
 			s := &Service{DB: db, Root: root}

@@ -44,4 +44,20 @@ Compose 仅用于备份时的只读 `config --format json`，没有 `compose up`
 
 整链覆盖：预检拒绝（旧 app 全程在线）、新启动失败/健康失败（原 ID 回滚且 DB 不动）、真实 schema 79→80 后失败（恢复到 79 再启动原 ID）、成功及备份失败。持续探测 readyz，严格断言只在 applying 至终态的预期切换窗口内允许中断。单测也覆盖凭据、Docker 白名单、互锁文件删除与显式确认、API 管理员/密码边界。
 
-本次 v0.28.4 按标准 Actions→Hub digest→私有备份→仅 app.image 部署，**执行保持关闭，不发布 v0.28.5、不触发生产演练**。历史任务的人工确认由业主操作；等审核后再决定何时启用与最后演练。
+v0.28.4 修复批次（历史）按标准 Actions→Hub digest→私有备份→仅 app.image 部署；当时保持执行关闭，未发布 v0.28.5、未触发演练。后续 v0.28.5 仅发布并备份准备，仍由业主完成历史任务人工确认、开启执行与最终更新操作。
+
+## v0.28.5 镜像启动配置兼容性守卫
+
+直接复用旧容器的运行配置只适用于两版镜像的启动契约不变。因此，生成 create 请求之前，先分别 inspect **当前容器的不可变 Image ID** 与目标 Release digest 的 image Config，不能拿包含 Compose 覆盖值的容器 Config 代替镜像默认值。
+
+- 严格比较整个 Config 的所有键和值；至少包括 Entrypoint、Cmd、Env、Healthcheck、User、WorkingDir、ExposedPorts、Volumes、StopSignal，以及 Shell、OnBuild、StopTimeout、ArgsEscaped、终端/标准输入等同类字段。未知新增键也拒绝；不删除 null、不排序或筛掉 Env 项、不忽略版本 ENV。
+- **唯一明确排除的是 Labels**：它是非启动元数据，正常发布必须更新版本、commit、构建时间等 OCI 标签；create 继续使用经验证目标镜像的 OCI 标签。不存在其他隐藏排除项。
+- 任一启动配置不同，任务在 preflighting 阶段直接 `failed / image_startup_config_changed`，错误为「镜像启动配置已变化，请按文档手动更新」。不进入 backing_up，不停止/重命名/重建旧 app，不改 Compose，不恢复数据库，也不设置 manual_recovery。
+- 当前 runtime Dockerfile 没有 ENV 指令；版本/commit/build time 由 ARG → ldflags 与 OCI labels 表达，不放入运行时 Env。基础镜像自带的 Env 仍完整比较。
+- **改变镜像启动配置的版本只能手动更新**：先阅读新版本部署要求，完成私有备份、显式审核 Compose 配置与挂载，再按标准手动部署流程更新；不得改错误码、放宽白名单或关闭守卫绕过。
+
+helper 始终使用目标 Release digest。本次从 v0.28.4 到 v0.28.5 的演练会启动 **v0.28.5 的 updater**，因此会真正执行新守卫；不是用 v0.28.4 的旧 updater 检查。当前 v0.28.4 页面不认识新增错误码时可能只显示通用预检失败提示；任务 API 中的错误码与脱敏 stderr 保留明确原因。v0.28.5 页面展示上述完整文案。演练准备阶段必须额外比对两版实际发布镜像的 Config，以避免要求业主盲目试错。
+
+回归使用 config-only 的本地隔离派生镜像，逐项改变上述 Dockerfile 可表达的字段；test-only inspect 路由将目标 digest 的读取指向该真实派生镜像 ID，其余 helper 流程使用真实 Docker/PG。每项严格核对差异字段；CMD 构建同时显式产生 ArgsEscaped=false，两项都保留比较、没有排除。单元测试另外独立改变每个键。任务必须 failed、没有备份/停容器/改 Compose/回滚，原容器 ID 与 StartedAt 不变，并以同一 VM 时钟持续探测 readyz。派生镜像只用于测试，按本程序专属随机 tag 精确删除，不推送、不代替生产 Hub 镜像。
+
+本地定向运行：`bash scripts/test-updater-helper.sh startup-config`；Actions 默认不带参数，仍执行全部整链及新增守卫用例。所有改库操作限 media_tool_test，串行执行。

@@ -32,3 +32,11 @@ Release 元数据必须只有一个合法块，版本与 tag 相同，仓库固�
 ## 本批不做的事
 
 没有 Docker API、docker.sock 挂载、updater 子命令、镜像拉取或执行更新入口，也不修改 APP_ENV 或 CZ88 配置。自动替换、备份、回滚、确认与审计均留给 F8b 单独设计、审核和验证。
+
+## F8b：镜像启动契约与手动更新
+
+v0.28.5 起，目标 helper 在备份/停止 app/修改 Compose 之前，比较当前运行镜像（不可变 image ID）和目标镜像的完整 image Config。Entrypoint、Cmd、Env、Healthcheck、User、WorkingDir、ExposedPorts、Volumes、StopSignal、Shell/OnBuild/StopTimeout 等任一项变化都必须**手动更新**，不能直接套用旧容器设置。未来新增 Config 字段也不会被忽略。
+
+只明确排除 Labels：版本、commit、构建时间等是非启动元数据，应保存在 OCI labels 和 ldflags 构建信息中；不得为了版本显示添加随版本变化的运行时 ENV。当前 Dockerfile 符合此规则，基础镜像 Env 仍受比较约束。
+
+拒绝时为 failed，而不是 manual_recovery，原因「镜像启动配置已变化，请按文档手动更新」。详细手动更新边界、凭据/备份和回滚规则见 ONLINE_UPDATE.md。更新检查可继续显示可信发布，但“可信发布”不代表启动契约允许自动更新。不可变 digest 交叉核对与此守卫是两道独立检查，均不可绕过。

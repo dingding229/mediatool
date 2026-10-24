@@ -1,5 +1,5 @@
 import {describe,it,expect,vi} from 'vitest';
-import {newerStable,updateDone} from './online-update';
+import {newerStable,updateDone,updateFailures} from './online-update';
 import {executeOnlineUpdate,getOnlineUpdate} from '../api/updates';
 describe('F8b execution contract',()=>{
  it('never offers old stable version to a newer bootstrap build',()=>{expect(newerStable('0.28.0-dev+abc','0.28.0')).toBe(false);expect(newerStable('0.28.0-dev+abc','0.28.1')).toBe(true);expect(newerStable('0.28.1','0.28.0')).toBe(false);expect(newerStable('unknown','0.28.1')).toBe(false);expect(updateDone('manual_recovery')).toBe(true);expect(updateDone('applying')).toBe(false)});
@@ -11,3 +11,5 @@ it('execution controls carry password only in JSON body',async()=>{
  const {setOnlineUpdateControl}=await import('../api/updates');await setOnlineUpdateControl('confirm_recovery','fixture-job','fixture-secret',true);
  expect(fetch.mock.calls[0][0]).toBe('/api/v1/system/online-update/control');expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({action:'confirm_recovery',jobId:'fixture-job',password:'fixture-secret',confirm:true});vi.unstubAllGlobals();
 });
+
+it('shows a clear manual-update requirement for changed image startup settings',()=>{expect(updateFailures.image_startup_config_changed).toBe('镜像启动配置已变化，请按文档手动更新')});
