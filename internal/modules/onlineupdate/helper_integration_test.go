@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -87,6 +88,40 @@ func TestDockerHelperChild(t *testing.T) {
 	}
 	if j.Phase != "failed" && (j.Backup == "" || j.DumpSHA256 == "") {
 		t.Fatal("missing verified pg_dump")
+	}
+}
+
+// Actual app UID, before any host fixture ownership cleanup. Admission creates
+// the execution lock as app; reconciliation must never depend on root access.
+func TestDockerAppAuditChild(t *testing.T) {
+	mode := os.Getenv("MEDIA_TOOL_APP_AUDIT_CHILD")
+	if mode == "" {
+		t.Skip("Docker app child only")
+	}
+	if os.Getuid() != 65532 {
+		t.Fatal("real non-root app UID required")
+	}
+	db, _ := helperTestDB(t)
+	checker := updatecheck.New(db, nil)
+	checker.Client.Transport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("fixture unavailable"))}, nil
+	})
+	service := New(db, checker)
+	if mode == "admission" {
+		id := os.Getenv("MEDIA_TOOL_HELPER_ID")
+		if _, e := service.Start(t.Context(), "fixture-preflight-"+id, "0.28.1", strings.TrimPrefix(helperFixtureImage, "dingding229/mediatool@")); e == nil {
+			t.Fatal("unavailable release admitted")
+		}
+	} else {
+		for range 2 {
+			if e := service.reconcileAudits(t.Context()); e != nil {
+				t.Fatal("real app UID cannot reconcile", e)
+			}
+		}
+	}
+	st, e := os.Stat(filepath.Join(Root, "execution.lock"))
+	if e != nil || st.Mode().Perm() != 0600 || st.Sys().(*syscall.Stat_t).Uid != 65532 {
+		t.Fatal("app must own execution lock", e)
 	}
 }
 
@@ -209,8 +244,9 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			if e = os.WriteFile(filepath.Join(work, "helper.test"), b, 0755); e != nil {
 				t.Fatal(e)
 			}
-			fixtureDSN := *dsn
-			fixtureDSN.Host = "testpg:5432"
+			appDSN := *dsn
+			appDSN.Host = "testpg:5432"
+			fixtureDSN := appDSN
 			if tc.phase == "failed" {
 				fixtureDSN.User = url.UserPassword(dsn.User.Username(), "intentionally-invalid-fixture-password")
 			}
@@ -232,7 +268,7 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 				if e := os.RemoveAll(work); e != nil {
 					t.Error("scoped fixture cleanup", e)
 				}
-				_, _ = db.Exec(context.Background(), `DELETE FROM audit_logs WHERE details->>'id'=$1`, id)
+				_, _ = db.Exec(context.Background(), `DELETE FROM audit_logs WHERE details->>'id'=$1 OR actor=$2`, id, "fixture-preflight-"+id)
 			})
 			compose("up", "-d", "--pull", "never", "--wait")
 			cli("network", "connect", "--alias", "testpg", project+"_default", pg)
@@ -249,6 +285,18 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			}
 			j := Job{ID: id, Actor: "fixture-admin", FromVersion: "0.28.0", FromImage: helperFixtureOld, CreatedAt: time.Now().UTC(), Phase: "queued"}
 			j.Target = updatecheck.Release{Metadata: updatecheck.Metadata{Version: "0.28.1", Commit: "1883c1850084932a116b7d38250824b02ac3f202", Digest: strings.TrimPrefix(helperFixtureImage, "dingding229/mediatool@"), MinimumSchema: 79, Schema: 79, Platform: "linux/amd64", Repository: updatecheck.Repository}, Tag: "v0.28.1"}
+			appChild := func(mode string) {
+				t.Log(string(cli("run", "--rm", "--platform", "linux/amd64", "--user", "65532:65532", "--read-only", "--cap-drop", "ALL", "--network", project+"_default", "-v", work+":"+work+":ro", "-v", data+":/data:rw", "-e", "MEDIA_TOOL_APP_AUDIT_CHILD="+mode, "-e", "MEDIA_TOOL_HELPER_ID="+id, "-e", "TEST_DATABASE_URL="+appDSN.String(), "-e", "MEDIA_TOOL_TEST_LOCKED=1", "--entrypoint", filepath.Join(work, "helper.test"), helperFixtureImage, "-test.run=^TestDockerAppAuditChild$", "-test.v")))
+			}
+			rootOwner := func(owner string) {
+				cli("run", "--rm", "--user", "0:0", "-v", data+":/data:rw", "--entrypoint", "/bin/chown", helperFixtureImage, owner, "/data/online-update")
+			}
+			if e = os.Chmod(root, 0700); e != nil {
+				t.Fatal(e)
+			}
+			rootOwner("65532:65532")
+			appChild("admission") // The production Start path prepares app-owned locks.
+			rootOwner(fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()))
 			p := newPlan(original, helperFixtureImage, id)
 			raw, _ := json.Marshal(p)
 			if strings.Contains(string(raw), "DATABASE_URL") || strings.Contains(string(raw), fixtureDSN.String()) {
@@ -274,6 +322,7 @@ func TestRealHelperEntrypointDocker(t *testing.T) {
 			}
 			child := []string{"run", "--rm", "--name", helperName, "--label", label + "=" + id, "--label", "io.mediatool.project=" + project, "--user", "0:0", "--platform", "linux/amd64", "--network", project + "_default", "--read-only", "--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "DAC_OVERRIDE", "--security-opt", "no-new-privileges:true", "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m", "-v", work + ":" + work + ":rw", "-v", data + ":/data:rw", "-v", sock + ":/var/run/docker.sock:rw", "-e", "MEDIA_TOOL_HELPER_CHILD=1", "-e", "MEDIA_TOOL_HELPER_ID=" + id, "-e", "MEDIA_TOOL_HELPER_EXPECT=" + tc.phase, "--entrypoint", filepath.Join(work, "helper.test"), helperFixtureImage, "-test.run=^TestDockerHelperChild$", "-test.v"}
 			t.Log(string(cli(child...)))
+			appChild("reconcile") // Must pass BEFORE cleanup can chown any fixture files.
 			restoreOwnership()
 			done, e := load(root, id)
 			if e != nil || done.Phase != tc.phase {

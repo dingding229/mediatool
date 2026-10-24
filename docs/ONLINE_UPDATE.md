@@ -46,7 +46,12 @@ CI 通过固定 v0.28.0 镜像 digest 提取并缓存已有 ffmpeg/ffprobe 和 m
 - helperConfig 的 Image 是经核验的目标 digest，并非当前 app 镜像。仍按业主要求先通过 Actions → Hub → 备份 → 仅替换 app digest 常规部署 v0.28.2，再发布仅 CHANGELOG 的 v0.28.3；准备好后由业主再次输入密码确认，不自动触发。
 - `.plan` 不保存 Env。`RunUpdater` 从真实 inspect（或已核验的原私有快照）恢复原容器并核对身份与配置指纹之后，才在 helper 内存读取 DATABASE_URL。备份、schema、数据库恢复及终态审计统一使用这一个值，禁止从脱敏计划读凭据。原始 Compose/配置的 operator-private 备份规则不变，不新增单独的凭据文件。
 - failed/succeeded/rolled_back/manual_recovery 终态先持久化到任务文件。helper 尝试终态审计；无 DSN、数据库故障、进程提前退出时，app 在 helper 释放执行锁后通过自身连接对账所有终态任务。启动、每分钟及读取状态/新更新前均重试；数据库事务锁与 job ID + 终态去重。对账记录 `auditSource=reconciliation`，不补造成功事件。
-- 旧任务 `94c4d4c392cd6b32e2e78cb56ea79383` 的 failed 审计由同一对账机制补齐。其零字节 partial 仅按精确路径标记无效，目录与有效 bootstrap 备份保留。
+- 历史备份失败任务的 failed 审计由同一对账机制补齐。其零字节 partial 仅按精确路径标记无效，目录与有效 bootstrap 备份保留。
 - 上次漏测：配置恢复、PG 备份、Compose、回滚分别测试，但没有从脱敏 `.plan` 调用真正的 `RunUpdater`，手工设置 runner.dsn 掩盖了组装错误。现在隔离 Docker 子进程调用导出的入口，只有固定 Release/Hub 公开 HTTP 响应使用测试夹具；inspect、pg_dump/restore、Compose 白名单、readyz、schema 和审计均真实执行。父测试带 -race，Linux helper fixture 与真实发布一样为 CGO-free 二进制，不削弱原断言或预算。
 
 完整回滚实测还发现 Compose 会以新 app 的 ID 作为临时替换名。白名单只补充接受本更新器已创建或经项目/服务/非 root/镜像复核的 app ID 前缀；未知 ID、其他项目和其他服务仍拒绝。中断重启回滚时也先复核当前 app 再记入本次已知 ID 集合。
+
+
+历史锁权限：旧 helper 可能曾创建 root:root/0600 的 `/data/online-update/execution.lock`。v0.28.2 的新 Start 请求在 helper 启动前已由 app 取得/创建此锁，因此新请求由非 root app 持有正确属主。升级前如已有 root 属主旧锁，运维应在确认旧 helper 已退出后，仅对该精确文件修复为 app UID/GID 65532，保留 0600、inode 和内容；不能修改 docker.sock。保留无效备份目录及有效回滚备份。
+
+夹具不得掩盖权限问题：整链测试先用 UID 65532 容器执行实际 Start 的准入拒绝路径，确认协调锁属主，再运行 root helper；helper 退出后立即用 UID 65532 和 app 自身连接对账，全部完成后才允许夹具归属清理。不能先 chown 到测试父进程再声称非 root 对账通过。
