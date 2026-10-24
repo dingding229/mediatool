@@ -31,3 +31,5 @@ describe('unified pagination',()=>{
 });
 it.each([['0 */2 * * *','每 2 小时'],['*/15 * * * *','每 15 分钟'],['0 * * * *','每小时'],['30 2 * * *','每天 02:30'],['0 0 * * 1','按指定日期执行'],['','—']])('human schedule %s', (cron,label)=>expect(scheduleLabel(cron)).toBe(label));
 it.each([['*/15 * * * * *','每 15 秒'],['* * * * *','每分钟']])('human scheduler interval %s',(cron,label)=>expect(scheduleLabel(cron)).toBe(label));
+
+it.each([{total:0,label:'第 1 页 / 共 1 页'},{total:1,label:'第 1 页 / 共 1 页'},{total:26,label:'第 1 页 / 共 2 页'},{total:undefined,label:'第 1 页'}])('pagination copy for $total',({total,label})=>{const view=setupComponent(Pagination,{total});expect(view.state.pageLabel).toBe(label);view.unmount()});

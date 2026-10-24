@@ -56,6 +56,8 @@ jobs:
           go run ./cmd/media-tool-dev plugins assets
           go run ./cmd/media-tool-dev plugins matrix --check
       - run: npm ci --prefix web --no-fund --no-audit
+      - name: Install pinned browser for DOM sanitization and E2E tests
+        run: npx --prefix web playwright install --with-deps --only-shell chromium
       - run: npm test --prefix web
       - run: npm run build --prefix web
       - name: Restore pinned media-tool dependency bundle
@@ -110,7 +112,6 @@ jobs:
         env:
           TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: |
-          npx --prefix web playwright install --with-deps --only-shell chromium
           bash scripts/test-e2e.sh
   publish:
     needs: verify

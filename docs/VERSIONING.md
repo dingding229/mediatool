@@ -21,7 +21,7 @@ API 文档的 `info.version=1.0.0` 表示 `/api/v1` 协议文档版本，不再�
 1. GitHub：`/repos/dingding229/mediatool/releases/latest`，过滤 draft/prerelease，并严格要求稳定语义版本 tag。
 2. Docker Hub：`/v2/namespaces/dingding229/repositories/mediatool/tags/vX.Y.Z`。
 
-Release 元数据必须只有一个合法块，版本与 tag 相同，仓库固定，commit/digest 格式合法，平台为 linux/amd64，最低 schema 不高于目标 schema。Hub tag 的 digest 必须与 Release 一致，并确认 AMD64/Linux 镜像。跨域/其他重定向、超大响应、缺字段、类型/版本异常或 digest 不符均不提示更新；人类变更说明始终按纯文本展示。该交叉检查不等于密码学签名，也不能防御两个发布账号同时失陷。
+Release 元数据必须只有一个合法块，版本与 tag 相同，仓库固定，commit/digest 格式合法，平台为 linux/amd64，最低 schema 不高于目标 schema。Hub tag 的 digest 必须与 Release 一致，并确认 AMD64/Linux 镜像。跨域/其他重定向、超大响应、缺字段、类型/版本异常或 digest 不符均不提示更新；变更说明仅在专用组件内通过精确锁版的 marked 和 DOMPurify 渲染；原始 HTML 和图片在 Markdown 阶段丢弃，再按标签/属性白名单清洗，链接统一以新窗口打开并设置 noopener noreferrer。该交叉检查不等于密码学签名，也不能防御两个发布账号同时失陷。
 
 ## 持久化与频率
 
