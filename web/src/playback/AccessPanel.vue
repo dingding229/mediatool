@@ -197,10 +197,11 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
           <option value="contains">包含匹配</option>
         </select>
       </label>
-      <label class="u5-check">
+      <label v-if="!form.observationId" class="u5-check">
         <input v-model="form.enabled" type="checkbox" :disabled="op.busy"/>
         启用此规则
       </label>
+      <p v-else>从访问记录加入的规则会启用，仅在对应名单模式下生效。</p>
       <p v-if="notice">{{ notice }}</p>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <section v-if="latest">
