@@ -5,6 +5,7 @@ import { request } from '../api/client';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import RevisionFeedback from './RevisionFeedback.vue';
 import { useRevision, messageFor } from './revision';
+import {integerInputError,subscriptionCronError} from '../ui/number-input';
 const props = defineProps<{
   section: 'general' | 'naming' | 'automation';
 }>();
@@ -13,6 +14,18 @@ const a = app.draft, domains = access.draft, confirmCleanup = ref(false), previe
   movie: string;
   series: string;
 }>(), previewError = ref(''), previewing = ref(false);
+const automationErrors=computed(()=>({
+ searchCacheSeconds:a.value?integerInputError(a.value.searchCacheSeconds,0,86400,'站点搜索缓存有效期（秒）'):'',
+ tmdbCacheSeconds:a.value?integerInputError(a.value.tmdbCacheSeconds,0,2592000,'TMDB 搜索缓存有效期（秒）'):'',
+ subscriptionCron:a.value?subscriptionCronError(a.value.subscriptionCron):''
+}));
+const invalidAutomation=computed(()=>Object.values(automationErrors.value).some(Boolean));
+async function saveAutomation(){
+ if(!a.value||invalidAutomation.value)return false;
+ a.value.searchCacheSeconds=Number(String(a.value.searchCacheSeconds).trim());
+ a.value.tmdbCacheSeconds=Number(String(a.value.tmdbCacheSeconds).trim());
+ return app.save(['searchCacheSeconds','tmdbCacheSeconds','subscriptionCron']);
+}
 const touched=reactive(new Set<string>());
 function originValue(key:string){return touched.has(key)?domains.value?.[key]||'':domains.value?.[key]||effective.value?.[key]||''}
 function setOrigin(key:string,value:string){touched.add(key);if(domains.value)domains.value[key]=value}
@@ -120,7 +133,7 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
 
       </header>
       <RevisionFeedback :form="app"/>
-      <form v-if="a" @submit.prevent="section==='naming'?saveNaming():app.save(section==='general'?['trustedProxyCidrs']:['searchCacheSeconds','tmdbCacheSeconds','subscriptionCron'])">
+      <form v-if="a" @submit.prevent="section==='naming'?saveNaming():section==='automation'?saveAutomation():app.save(['trustedProxyCidrs'])">
         <template v-if="section==='general'">
           <label for="trusted-proxies">可信反代 IP / CIDR（每行一个）</label>
           <el-input id="trusted-proxies" v-model="proxyText" type="textarea" :rows="4"/>
@@ -178,11 +191,15 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
           <div class="settings-grid">
             <div class="settings-field">
               <label for="pt-cache-seconds">站点搜索缓存有效期（秒）</label>
-              <el-input-number id="pt-cache-seconds" v-model="a.searchCacheSeconds" :min="0" :max="86400"/>
+              <el-input id="pt-cache-seconds" v-model="a.searchCacheSeconds" inputmode="numeric" :aria-invalid="!!automationErrors.searchCacheSeconds" aria-describedby="pt-cache-hint"/>
+              <small id="pt-cache-hint">0～86400 秒，0 表示禁用缓存。</small>
+              <p v-if="automationErrors.searchCacheSeconds" role="alert" class="settings-input-error">{{automationErrors.searchCacheSeconds}}</p>
             </div>
             <div class="settings-field">
               <label for="tmdb-cache-seconds">TMDB 搜索缓存有效期（秒）</label>
-              <el-input-number id="tmdb-cache-seconds" v-model="a.tmdbCacheSeconds" :min="0" :max="2592000"/>
+              <el-input id="tmdb-cache-seconds" v-model="a.tmdbCacheSeconds" inputmode="numeric" :aria-invalid="!!automationErrors.tmdbCacheSeconds" aria-describedby="tmdb-cache-hint"/>
+              <small id="tmdb-cache-hint">0～2592000 秒，0 表示禁用缓存。</small>
+              <p v-if="automationErrors.tmdbCacheSeconds" role="alert" class="settings-input-error">{{automationErrors.tmdbCacheSeconds}}</p>
             </div>
           </div>
           <p>
@@ -191,12 +208,13 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
           </p>
           <div class="settings-field">
             <label for="subscription-cron">订阅调度时间</label>
-            <el-input id="subscription-cron" v-model="a.subscriptionCron"/>
-            <small>五字段：分、时、日、月、周；上海时区，间隔至少 5 分钟。不自动启用已停用的订阅。</small>
+            <el-input id="subscription-cron" v-model="a.subscriptionCron" :aria-invalid="!!automationErrors.subscriptionCron" aria-describedby="subscription-cron-hint"/>
+            <p v-if="automationErrors.subscriptionCron" role="alert" class="settings-input-error">{{automationErrors.subscriptionCron}}</p>
+            <small id="subscription-cron-hint">五字段：分、时、日、月、周；上海时区，间隔至少 5 分钟。不自动启用已停用的订阅。</small>
           </div>
         </template>
         <footer>
-          <el-button native-type="submit" type="primary" :loading="app.busy.value" :disabled="app.conflict.value||!app.changed.value" class="mt-save-button">{{section==='general'?'保存访客地址设置':section==='naming'?'保存命名与入库设置':'保存搜索订阅设置'}}</el-button>
+          <el-button native-type="submit" type="primary" :loading="app.busy.value" :disabled="app.conflict.value||!app.changed.value||(section==='automation'&&invalidAutomation)" class="mt-save-button">{{section==='general'?'保存访客地址设置':section==='naming'?'保存命名与入库设置':'保存搜索订阅设置'}}</el-button>
         </footer>
       </form>
     </section>

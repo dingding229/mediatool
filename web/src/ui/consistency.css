@@ -11,3 +11,8 @@
 /* Disabled does not mean invisible; retain readable text in both themes. */
 :root .el-button.is-disabled,:root .el-button.is-disabled:hover,:root .el-button.is-disabled:focus{color:var(--mt-text-muted);background:var(--mt-bg-canvas);border-color:var(--mt-border-bold);opacity:1;cursor:not-allowed;--el-button-disabled-text-color:var(--mt-text-muted);--el-button-disabled-bg-color:var(--mt-bg-canvas);--el-button-disabled-border-color:var(--mt-border-bold)}
 @media(max-width:680px){.mt-segments.mt-segments{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}.mt-segments.mt-segments button{flex:none;white-space:nowrap}}
+
+/* Numeric fields use direct entry. Keep native min/max/step validation and
+   keyboard semantics while removing browser-provided increment/decrement UI. */
+input[type="number"]{appearance:textfield;-moz-appearance:textfield}
+input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;appearance:none;margin:0}

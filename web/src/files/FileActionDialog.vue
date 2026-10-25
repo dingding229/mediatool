@@ -239,11 +239,11 @@ defineExpose({ open, inspect });
           </label>
           <label v-if="form.mediaType==='series'">
             季号
-            <el-input-number v-model="form.season" aria-label="季号" :min="0" :max="9999" :disabled="busy"/>
+            <el-input-number :controls="false" v-model="form.season" aria-label="季号" :min="0" :max="9999" :disabled="busy"/>
           </label>
           <label v-if="form.mediaType==='series'">
             集号
-            <el-input-number v-model="form.episode" aria-label="集号" :min="1" :max="9999" :disabled="busy"/>
+            <el-input-number :controls="false" v-model="form.episode" aria-label="集号" :min="1" :max="9999" :disabled="busy"/>
           </label>
           </template>
           <label v-if="form.operation!=='organize'">

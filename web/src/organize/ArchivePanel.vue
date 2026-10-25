@@ -212,7 +212,7 @@ usePageRefresh(load, 'recovery');
     <div class="media-actions">
       <label>
         归档保留天数
-        <el-input-number v-model="days" aria-label="归档保留天数" :min="1" :max="3650" :disabled="!!phase"/>
+        <el-input-number :controls="false" v-model="days" aria-label="归档保留天数" :min="1" :max="3650" :disabled="!!phase"/>
       </label>
 
       <el-button :disabled="!selected.length||busy||!!phase" @click="preview">预览清理所选 {{ selected.length }}</el-button>

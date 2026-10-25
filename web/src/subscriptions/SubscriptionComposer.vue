@@ -97,7 +97,7 @@ onUnmounted(() => { disposed = true; ++sequence })
             <label>排除关键词（每行一条）<el-input v-model="draft.excludeText" type="textarea" :rows="3" aria-label="订阅排除关键词" /></label>
           </div>
           <div v-if="draft.media?.mediaType === 'series'" class="composer-fields">
-            <label>目标季（0 为特别篇）<el-input-number v-model="draft.season" :min="0" :max="999" aria-label="目标季" /></label>
+            <label>目标季（0 为特别篇）<el-input-number :controls="false" v-model="draft.season" :min="0" :max="999" aria-label="目标季" /></label>
             <label>目标集（留空跟进已播集）<el-input v-model="draft.episodeText" aria-label="目标集" placeholder="使用逗号分隔集数" /></label>
           </div>
           <fieldset class="composer-safeguards">

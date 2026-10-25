@@ -63,3 +63,5 @@
 .settings-conflict-field{padding:12px 0;border-bottom:1px solid var(--mt-border-color);font-size:13px}.settings-conflict-field .settings-comparison{margin-top:8px}
 
 .settings-card small,.settings-card h2,.settings-card h3,.settings-card strong{overflow-wrap:anywhere}
+
+.settings-input-error{color:var(--el-color-danger);font-size:13px;margin:4px 0;line-height:1.6}

@@ -284,7 +284,7 @@ defineExpose({ open });
         <el-button :disabled="saving" @click="reconcile">核对媒体识别</el-button>
         <label>
           修正季度
-          <el-input-number v-model="season" aria-label="修正季度" :min="0" :max="9999" :disabled="!!phase||saving"/>
+          <el-input-number :controls="false" v-model="season" aria-label="修正季度" :min="0" :max="9999" :disabled="!!phase||saving"/>
         </label>
         <label>
           修正实际覆盖集
@@ -300,7 +300,7 @@ defineExpose({ open });
           <p>{{ row.candidate.path }}</p>
           <label>
             季度
-            <el-input-number v-model="row.season" :aria-label="'季度 '+row.candidate.name" :min="0" :max="9999" :disabled="!!phase||saving"/>
+            <el-input-number :controls="false" v-model="row.season" :aria-label="'季度 '+row.candidate.name" :min="0" :max="9999" :disabled="!!phase||saving"/>
           </label>
           <label>
             实际覆盖集

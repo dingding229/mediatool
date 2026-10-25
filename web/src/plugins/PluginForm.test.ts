@@ -14,7 +14,7 @@ it('every numeric form control accepts both boundaries and off-preset legal valu
  for(const manifest of inventory.manifests){const form=staticPluginForm(manifest.id)!;expect(form).toBeTruthy();for(const field of nodes(form.content).filter(n=>n.component==='VNumberInput')){
   const p=field.props;for(const value of [p.min,p.max,p.min+(p.stepStrictly?1:.001)]){
    const model={...form.defaults,[field.model]:value,unknownSavedKey:'preserved'};expect(validateForm(form.content,model)).toBe('')
-   const emit=vi.fn(),render=(PluginJson as any).setup({nodes:[field],model,readonly:false},{emit}),input=render().children[0].children[1];expect(input.props.min).toBe(p.min);expect(input.props.max).toBe(p.max);expect(input.props.step).toBe(p.step);input.props['onUpdate:modelValue'](value);expect(emit).toHaveBeenCalledWith('update:model',model)
+   const emit=vi.fn(),render=(PluginJson as any).setup({nodes:[field],model,readonly:false},{emit}),input=render().children[0].children[1];expect(input.props.min).toBe(p.min);expect(input.props.max).toBe(p.max);expect(input.props.step).toBe(p.step);expect(input.props.controls).toBe(false);input.props['onUpdate:modelValue'](value);expect(emit).toHaveBeenCalledWith('update:model',model)
   }
   for(const value of [p.min-1,p.max+1,null,NaN,...(p.stepStrictly?[p.min+.5]:[])])expect(validateForm(form.content,{...form.defaults,[field.model]:value})).not.toBe('')
  }}

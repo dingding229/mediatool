@@ -182,7 +182,7 @@ defineExpose({ readback });
           </label>
           <label>
             本批选择上限
-            <el-input-number v-model="limit" aria-label="修复选择上限" :min="1" :max="100"/>
+            <el-input-number :controls="false" v-model="limit" aria-label="修复选择上限" :min="1" :max="100"/>
           </label>
           <el-button native-type="submit">筛选资产</el-button>
         </form>

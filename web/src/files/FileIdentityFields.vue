@@ -29,8 +29,8 @@ const name=(normal:string,bulk:string)=>props.batch?bulk:normal;
    <label>目录分类<el-select v-model="draft.category" :aria-label="name('目录分类','批次目录分类')" placeholder="请选择已配置分类" :disabled="disabled||identity.loading"><el-option v-for="choice in identity.choices" :key="choice.directory" :label="choice.name" :value="choice.directory"/></el-select></label>
   </div>
   <div class="f6-identity-episodes"><label>分辨率<el-input v-model="draft.resolution" :aria-label="name('分辨率','批次分辨率')" :disabled="disabled||identity.loading"/></label><template v-if="draft.mediaType==='series'">
-   <label>季号<el-input-number v-model="draft.season" :aria-label="name('季号','批次季号')" :min="0" :max="999" :disabled="disabled||identity.loading" placeholder="从文件名解析或填写"/></label>
-   <label>集号<el-input-number v-model="draft.episode" :aria-label="name('集号','批次集号')" :min="1" :max="9999" :disabled="disabled||identity.loading" placeholder="从文件名解析或填写"/></label>
+   <label>季号<el-input-number :controls="false" v-model="draft.season" :aria-label="name('季号','批次季号')" :min="0" :max="999" :disabled="disabled||identity.loading" placeholder="从文件名解析或填写"/></label>
+   <label>集号<el-input-number :controls="false" v-model="draft.episode" :aria-label="name('集号','批次集号')" :min="1" :max="9999" :disabled="disabled||identity.loading" placeholder="从文件名解析或填写"/></label>
   </template></div>
  </section>
 </template>
