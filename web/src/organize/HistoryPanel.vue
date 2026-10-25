@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import PathText from '../ui/PathText.vue';
+import StatusBadge from '../components/StatusBadge.vue';
 import {beijingISO} from '../presentation/time';
 import {cachedTMDBImage} from '../api/images';
 import {usePageNumber} from '../ui/page-query';
@@ -108,7 +110,7 @@ onUnmounted(() => {
 usePageRefresh(load, 'history');
 </script>
 <template>
-  <section class="media-surface">
+  <section class="media-surface organize-history-panel">
     <header class="media-section-heading">
       <div>
         <h2>文件与入库历史</h2>
@@ -172,16 +174,23 @@ usePageRefresh(load, 'history');
     <StateView v-if="loading" state="loading" title="正在读取历史…"/>
     <StateView v-else-if="error&&!hasLoaded" :state="sourceState(error)" title="历史读取或核对失败" :description="errorText(error)" @retry="load"/>
     <p v-if="uncertain">移除回执未知，请先重新读取，不重复提交。</p>
-    <el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button>
-    <article v-for="item in items" :key="item.kind+item.id" class="organize-record f5-history-row">
-      <label v-if="removable(item)" class="media-consent f5-history-check"><input type="checkbox" :checked="selected.some(r=>r.id===item.id&&r.kind===item.kind)" :disabled="uncertain" @change="toggle(item,($event.target as HTMLInputElement).checked)"/><span class="sr-only">选择此历史</span></label>
+    <ol class="organize-history-timeline" aria-label="整理处理时间线">
+    <li v-for="item in items" :key="item.kind+item.id" class="organize-record f5-history-row">
+      <label v-if="removable(item)" class="media-consent f5-history-check"><input type="checkbox" aria-label="选择此历史" :checked="selected.some(r=>r.id===item.id&&r.kind===item.kind)" :disabled="uncertain" @change="toggle(item,($event.target as HTMLInputElement).checked)"/></label>
       <span v-else class="f5-history-check"/>
       <span class="f5-history-cover"><img v-if="cachedTMDBImage(item.poster||item.media?.posterPath)&&!brokenPosters.has(item.id)" :src="cachedTMDBImage(item.poster||item.media?.posterPath)" alt="作品海报" width="44" height="66" loading="lazy" @error="brokenPosters.add(item.id)"/><span v-else aria-label="暂无海报">暂无海报</span></span>
-      <div class="f5-row-summary"><h3>{{item.media?.title?item.media.title+(item.media.year?' ('+item.media.year+')':''):item.source?.split('/').pop()||kindLabels[item.kind]||'业务记录'}}</h3><p>{{kindLabels[item.kind]||'业务记录'}} · {{label(item.state)}} · <time>{{date(item.updatedAt||item.createdAt)}}</time></p><p class="f5-row-result" :title="item.message">{{item.category||item.message||item.destination?.split('/').pop()||'结果见详情'}}</p></div>
+      <div class="f5-row-summary">
+        <h3>{{kindLabels[item.kind]||'业务记录'}}</h3>
+        <div class="history-paths"><div><small>源文件</small><PathText :path="item.source"/></div><span aria-hidden="true">→</span><div><small>目标路径</small><PathText :path="item.destination"/></div></div>
+        <p>识别结果：{{item.media?.title?item.media.title+(item.media.year?' ('+item.media.year+')':''):'暂无识别结果'}}<span v-if="item.category"> · {{item.category}}</span></p>
+        <div class="history-record-meta"><StatusBadge :state="item.state" :label="label(item.state)"/><time>{{date(item.updatedAt||item.createdAt)}}</time></div>
+      </div>
       <div class="media-actions"><el-button @click="detail=item;open=true">查看步骤详情</el-button><TaskControl v-if="item.kind==='batch'" kind="organize" :id="item.batchId||item.id" :state="item.state" @changed="load"/></div>
-    </article>
+    </li>
+    </ol>
     <StateView v-if="!loading&&!error&&!items.length" state="empty" title="暂无符合条件的历史"/>
     <PagePagination v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next,total" @current-change="load"/>
+    <div class="media-actions history-danger-actions"><el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button></div>
   </section>
   <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" :technical-data="detail" class="media-detail">
     <h3>{{ detail?.media?.title||kindLabels[detail?.kind]||'业务记录' }}</h3>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {usePageNumber} from '../ui/page-query';
 
+import PathText from '../ui/PathText.vue';
+import ScanRecord from './ScanRecord.vue';
 import TaskControl from '../workflows/TaskControl.vue';
 import {scheduleLabel} from '../presentation/labels';
 import {usePageRefresh} from '../ui/page-refresh';
@@ -221,7 +223,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
   <section class="media-surface">
     <h2>扫描目录</h2>
     <p>范围预览不计算整棵目录树的变更；真实数量与完整覆盖以扫描记录为准。</p>
-    <PreviewApprove :current-step="step">
+    <PreviewApprove :current-step="step" :steps="[{title:'选择范围'},{title:'核对目录'},{title:'后台扫描'},{title:'完成对账'}]">
       <div class="media-form">
         <label>
           云盘目录来源
@@ -237,7 +239,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
         <StateView v-if="rootError" :state="sourceState(rootError)" title="目录浏览暂不可用" description="可以手工输入扫描范围；不会把未取得的数据当作完整预览。" @retry="readRoots"/>
         <el-button :loading="busy" :disabled="!!pending||(!useDefault&&!root.trim())" @click="rangePreview">预览扫描范围</el-button>
         <section v-if="preview" aria-label="扫描范围预览">
-          <h3>{{ preview.root||'服务端默认云盘根目录' }}</h3>
+          <h3><PathText :path="preview.root||'服务端默认云盘根目录'"/></h3>
           <p>只读查看范围，不移动文件；执行时由服务端按当前连接和授权校验。</p>
           <p v-if="preview.listing">此层已取得 {{ preview.listing.items?.length??'—' }} 项 · 总数 {{ preview.listing.total??'—' }}；这不是全树文件总数。</p>
           <p v-else>未预读文件清单，不推断文件数、缺失项或完整覆盖。</p>
@@ -255,18 +257,15 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <StateView v-if="scanError" :state="sourceState(scanError)" title="扫描记录读取失败" @retry="emit('changed')"/>
     <p v-else-if="loading&&!scans.length">正在读取扫描记录…</p>
     <p v-else-if="!scans.length">尚无扫描记录</p>
-    <article v-for="scan in scans" :key="scan.id" class="organize-record f5-scan-row">
-      <div class="f5-row-summary"><h3 :title="scan.root">{{scan.root}}</h3>
-      <p>{{ label(scan.state) }} · {{date(scan.updatedAt||scan.createdAt)}} · {{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</p>
-      <el-progress :show-text="false" :stroke-width="4" v-if="scan.directories>0" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/>
-      </div>
-      <div class="media-actions">
+    <ScanRecord v-for="scan in scans" :key="scan.id" class="f5-scan-row" :path="scan.root" :state="scan.state" :time="scan.updatedAt||scan.createdAt" :percent="scan.directories>0?scanPercent(scan.completedDirectories||0,scan.directories):undefined">
+      <span>{{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</span>
+      <template #actions>
         <el-button @click="inspect(scan)">查看目录记录</el-button>
         <el-button v-if="['pending','running'].includes(scan.state)" :disabled="!!scanError||busy" @click="askControl(scan,'pause')">暂停扫描</el-button>
         <el-button v-if="['paused','failed'].includes(scan.state)" :disabled="!!scanError||busy" @click="askControl(scan,'resume')">重新完整对账</el-button>
         <TaskControl kind="scans" :id="scan.id" :state="scan.state" @changed="emit('changed')"/>
-      </div>
-    </article>
+      </template>
+    </ScanRecord>
     <PagePagination v-model:current-page="scanPage" :page-size="8" :total="total??scans.length" layout="prev,pager,next"/>
     <p>扫描中断或云盘内容变化时，不会把未扫描到的文件直接标记为缺失；恢复后会重新检查。</p>
   </section>
@@ -279,7 +278,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <StateView v-else-if="scheduleError" :state="sourceState(scheduleError)" title="扫描计划读取失败" @retry="emit('changed')"/>
     <StateView v-else-if="!schedules.length" state="empty" title="尚无定时扫描" description="新增计划默认停用，核对目录与周期后再启用。"/>
     <article v-for="schedule in schedules" :key="schedule.id" class="organize-record">
-      <h3>{{ schedule.root }}</h3>
+      <h3><PathText :path="schedule.root"/></h3>
       <p>{{ scheduleLabel(schedule.cron) }} · {{ schedule.enabled?'已启用':'未启用' }} · 下次 {{ date(schedule.nextRunAt) }}</p>
       <p>文件变化推送：{{ label(schedule.watchState) }} · {{ schedule.watchMessage||'—' }}</p>
       <p>{{ schedule.lastError||'—' }}</p>
@@ -287,8 +286,13 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     </article>
   </section>
   <DetailDrawer v-model:visible="detailOpen" title="扫描目录覆盖" :technical-data="detail" class="media-detail">
-    <p>{{ detail?.scan?.root }} · {{ label(detail?.scan?.state) }}</p><p>当前目录：{{detail?.scan?.currentDirectory||'—'}}</p><p>{{detail?.scan?.message||'—'}}</p>
-    <details v-for="directory in detail?.directories||[]" :key="directory.path" class="f5-directory-row"><summary><strong>{{directory.path.split('/').filter(Boolean).pop()||'根目录'}}</strong><span>{{label(directory.state)}}</span><time>{{date(directory.updatedAt)}}</time></summary><p>完整路径：{{directory.path}}</p><p>{{directory.lastError||directory.message||'—'}}</p><pre>{{JSON.stringify(directory,null,2)}}</pre></details>
+    <ScanRecord v-if="detail?.scan" :path="detail.scan.root" :state="detail.scan.state" :time="detail.scan.updatedAt||detail.scan.createdAt" :percent="detail.scan.directories>0?scanPercent(detail.scan.completedDirectories||0,detail.scan.directories):undefined">
+      <span>{{detail.scan.files??'—'}} 个文件 · 已知目录 {{detail.scan.completedDirectories??'—'}} / {{detail.scan.directories??'—'}}</span>
+      <template #details><p>当前目录：<PathText :path="detail.scan.currentDirectory"/></p><p>{{detail.scan.message||'—'}}</p></template>
+    </ScanRecord>
+    <ScanRecord v-for="directory in detail?.directories||[]" :key="directory.path" :path="directory.path" :state="directory.state" :time="directory.updatedAt">
+      <template #details><details class="f5-directory-row"><summary>目录覆盖说明</summary><p>完整路径：{{directory.path}}</p><p>{{directory.lastError||directory.message||'—'}}</p></details></template>
+    </ScanRecord>
     <PagePagination v-if="detail" v-model:current-page="cursorPage" :page-size="25" :total="detail.scan.directories||0" layout="prev,pager,next" @current-change="inspect(detail.scan,false)"/>
   </DetailDrawer>
   <ConfirmAction v-model:visible="approveOpen" title="开始目录扫描" :description="`将扫描「${preview?.root||'服务端默认目录'}」。`" impact-scope="更新索引、候选与缺失对账状态，不移动媒体或做种源；未完成覆盖不作为缺失证据。" confirm-text="确认开始扫描" :loading="busy" class="media-dialog" @confirm="create"/>

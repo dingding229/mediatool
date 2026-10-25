@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import PathText from '../ui/PathText.vue';
+import '../organize/workspaces.css';
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -208,25 +210,25 @@ usePageRefresh(state.refresh,'*');
  </div>
       <PagePagination v-model:current-page="state.page.assets" :page-size="50" :total="state.total.assets" layout="prev,pager,next,total" @current-change="pageChange('assets')"/>
     </section>
-    <div v-show="tab==='history'">
+    <div v-show="tab==='history'" class="organize-history-host">
       <HistoryPanel/>
     </div>
-    <div v-show="tab==='recovery'" class="media-stack">
+    <div v-show="tab==='recovery'" class="media-stack t7-recovery">
       <section class="media-surface">
         <h2>输出与入库恢复</h2>
         <p v-if="state.loading.repairs&&!state.data.repairs.length" role="status">正在读取恢复记录…</p>
         <StateView v-else-if="state.errors.repairs" :state="sourceState(state.errors.repairs)" title="恢复记录读取失败" @retry="state.load('repairs')"/>
         <p v-else-if="!state.data.repairs.length">暂无待恢复输出</p>
-        <article v-for="repair in state.data.repairs" :key="repair.id" class="organize-record">
-          <h3>{{ repair.path }}</h3>
+        <article v-for="repair in state.data.repairs" :key="repair.id" class="organize-record recovery-record">
+          <h3><PathText :path="repair.path"/></h3>
           <p>{{ repair.operation==='archive'?'归档':'写入' }} · {{ repair.kind||'—' }} · {{ label(repair.state) }}</p>
-          <el-button @click="ask(repair,'repair')">重试恢复</el-button>
+          <div class="media-actions"><el-button @click="ask(repair,'repair')">重试恢复</el-button></div>
         </article>
-        <label>
+        <div class="recovery-lookup"><label>
           已有上传记录的入库恢复
           <el-input v-model="state.data.transferId" aria-label="待恢复上传任务ID" placeholder="填写需核对的上传任务ID"/>
         </label>
-        <el-button :disabled="!state.data.transferId" @click="output?.open(state.data.transferId)">核对入库恢复</el-button>
+        <el-button :disabled="!state.data.transferId" @click="output?.open(state.data.transferId)">核对入库恢复</el-button></div>
       </section>
       <ArchivePanel/>
     </div>

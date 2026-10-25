@@ -1,0 +1,12 @@
+import {expect,it} from 'vitest';
+import {readFileSync} from 'node:fs';
+import {createSSRApp,defineComponent,h} from 'vue';
+import {renderToString} from 'vue/server-renderer';
+import ScanRecord from './ScanRecord.vue';
+const read=(file:string)=>readFileSync(new URL(file,import.meta.url),'utf8');
+async function card(percent?:number){const app=createSSRApp(ScanRecord,{path:'/115/电影/自有影片',state:'running',time:'2026-10-25T00:00:00Z',percent});app.component('el-progress',defineComponent({props:['percentage'],setup:p=>()=>h('div',{'data-percentage':p.percentage})}));return renderToString(app)}
+it('scan and directory cards preserve state/path and show only known progress',async()=>{const known=await card(37.5);expect(known).toContain('title="/115/电影/自有影片"');expect(known).toContain('进行中');expect(known).toContain('37.5%');expect(known).toContain('data-percentage="37.5"');expect(await card()).not.toContain('scan-record-progress')});
+it('subscription list pagination does not mount in history',()=>{expect(read('../subscriptions/subscriptions.css')).toContain('.subscription-workbench.subscription-history-section{max-height:none}');expect(read('../views/SubscriptionWorkspaceView.vue')).toContain('<PagePagination v-if="tab===\'list\'" label="订阅列表分页"')});
+it('timeline leaves failure reasons in the existing detail drawer, retaining controls and confirmation',()=>{const code=read('./HistoryPanel.vue'),rows=code.slice(code.indexOf('<ol class="organize-history-timeline"'),code.indexOf('</ol>'));expect(rows).toContain('源文件');expect(rows).toContain('目标路径');expect(rows).toContain('识别结果');expect(rows).not.toContain('item.message');expect(code).toContain('detail?.message');expect(code).toContain('@confirm="remove"')});
+it('archive dangerous confirmation stays last without changing phrase or apply handler',()=>{const code=read('./ArchivePanel.vue'),actions=code.slice(code.indexOf('class="media-actions archive-plan-actions"'));expect(actions.indexOf('技术详情')).toBeLessThan(actions.indexOf('type="danger"'));expect(code).toContain('confirm-phrase="清理归档"');expect(code).toContain('@confirm="apply"');expect(code).toContain(':disabled="busy||!!phase&&!readbackMissing"')});
+it('directory raw evidence stays in the technical drawer and duplicate recovery guidance is suppressed only when identical',()=>{const scan=read('./ScanPanel.vue');expect(scan).toContain(':technical-data="detail"');expect(scan).not.toContain('JSON.stringify(directory');expect(read('../workflows/OutputRecoveryDialog.vue')).toContain('preview.message!==recoveryScope')});

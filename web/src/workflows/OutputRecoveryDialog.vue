@@ -5,6 +5,7 @@ import StateView from '../ui/StateView.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { errorText, stateFor } from '../workflows/readiness';
 import { readIntent, writeIntent, type Intent } from './intents';
+const recoveryScope='只恢复已校验文件的入库；不重新上传、不改已确认媒体身份，也不重写 STRM 固定链接。';
 const emit = defineEmits<{
   completed: [
   ];
@@ -77,11 +78,11 @@ defineExpose({ open });
 <template>
   <el-dialog v-model="visible" title="核对并恢复已有入库" width="min(700px,94vw)" top="5vh" :close-on-click-modal="false" :show-close="!applying" :close-on-press-escape="!applying" class="output-recovery-dialog">
     <div class="output-recovery-form">
-      <p>只恢复已校验文件的入库；不重新上传、不改已确认媒体身份，也不重写 STRM 固定链接。</p>
+      <p>{{recoveryScope}}</p>
       <StateView v-if="busy" state="loading" title="正在核对已有输出…"/>
       <el-alert v-if="error" :title="errorText(error)+'；请重新核对后再确认。'" type="error" :closable="false"/>
       <template v-if="preview">
-        <p>{{ preview.message }}</p>
+        <p v-if="preview.message&&preview.message!==recoveryScope">{{ preview.message }}</p>
         <div class="output-recovery-paths" aria-label="已有入库输出核对">
           <section>
             <h3>已有输出</h3>
@@ -104,6 +105,6 @@ defineExpose({ open });
   </el-dialog>
 </template>
 <style scoped>
-.output-recovery-form{display:grid;gap:16px}.output-recovery-paths{display:grid;gap:12px;max-height:30vh;overflow:auto}.output-recovery-form p{font-size:13px;line-height:1.7;overflow-wrap:anywhere;color:var(--mt-text-muted)}.output-recovery-form a{display:inline-flex;align-items:center;min-height:44px;color:var(--mt-color-primary)}
-:global(.output-recovery-dialog .el-button),:global(.output-recovery-dialog .el-dialog__headerbtn){min-height:44px}:global(.output-recovery-dialog .el-dialog__headerbtn){min-width:44px}:global(.output-recovery-dialog .el-dialog__footer){display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.output-recovery-form{display:grid;gap:16px;min-width:0}.output-recovery-paths{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;max-height:30vh;overflow:auto}.output-recovery-paths section{min-width:0;padding:12px;border:1px solid var(--mt-border-color);border-radius:8px}.output-recovery-paths h3{margin:0;font-size:14px}.output-recovery-form p{font-size:13px;line-height:1.7;overflow-wrap:anywhere;color:var(--mt-text-muted)}.output-recovery-form a{display:inline-flex;align-items:center;min-height:44px;color:var(--mt-color-primary)}
+:global(.output-recovery-dialog .el-button),:global(.output-recovery-dialog .el-dialog__headerbtn){min-height:44px}:global(.output-recovery-dialog .el-dialog__headerbtn){min-width:44px}:global(.output-recovery-dialog .el-dialog__footer){display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}:global(.output-recovery-dialog .el-button){height:auto;white-space:normal;margin-left:0;max-width:100%}@media(max-width:600px){:global(.output-recovery-dialog .el-dialog__footer){display:grid;grid-template-columns:minmax(0,1fr)}}
 </style>

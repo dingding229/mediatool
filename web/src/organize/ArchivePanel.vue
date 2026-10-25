@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PathText from '../ui/PathText.vue';
 import {usePageNumber} from '../ui/page-query';
 
 import TaskControl from '../workflows/TaskControl.vue';
@@ -203,21 +204,16 @@ onUnmounted(() => {
 usePageRefresh(load, 'recovery');
 </script>
 <template>
-  <section class="media-surface">
+  <section class="media-surface t7-archive">
     <header class="media-section-heading">
       <h2>旧输出归档</h2>
 
     </header>
     <p>只管理完成迁移后生成的过期托管归档；不自动清理，不操作原媒体、做种源、当前 STRM 或共享 NFO。</p>
-    <div class="media-actions">
-      <label>
-        归档保留天数
-        <el-input-number :controls="false" v-model="days" aria-label="归档保留天数" :min="1" :max="3650" :disabled="!!phase"/>
-      </label>
-
-      <el-button :disabled="!selected.length||busy||!!phase" @click="preview">预览清理所选 {{ selected.length }}</el-button>
+    <div class="archive-policy">
+      <label>归档保留天数<el-input-number :controls="false" v-model="days" aria-label="归档保留天数" :min="1" :max="3650" :disabled="!!phase"/></label>
+      <el-button :disabled="!policy||busy||!!phase||!!conflict" @click="savePolicy" type="primary" class="mt-save-button">保存保留期</el-button>
     </div>
-    <div class="mt-save-actions"><el-button :disabled="!policy||busy||!!phase||!!conflict" @click="savePolicy" type="primary" class="mt-save-button">保存保留期</el-button></div>
     <p v-if="retryPending" role="status">上次继续清理的结果未知，请先刷新归档核对状态。</p>
     <section v-if="conflict">
       <p>服务端当前保留期 {{ conflict.retentionDays }} 天。你的输入 {{ days }} 天。</p>
@@ -226,30 +222,30 @@ usePageRefresh(load, 'recovery');
     <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
     <StateView v-if="loading" state="loading" title="正在读取归档与策略…"/>
     <StateView v-else-if="!items.length&&!error" state="empty" title="暂无旧输出归档"/>
-    <article v-for="item in items" :key="item.id" class="organize-record">
+    <article v-for="item in items" :key="item.id" class="organize-record archive-record">
       <label class="media-consent">
         <input type="checkbox" :disabled="!eligible(item)||!!phase||busy" :checked="selected.some(r=>r.id===item.id)" @change="toggle(item,($event.target as HTMLInputElement).checked)"/>
-        {{ item.originalPath }}
+        <span class="archive-record-path"><small>原输出</small><PathText :path="item.originalPath"/></span>
       </label>
-      <p>{{ item.archivePath }}</p>
+      <div class="archive-copy-path"><small>归档副本</small><PathText :path="item.archivePath"/></div>
       <p>{{ label(item.state) }} · 保留至 {{ date(item.eligibleAfter) }}</p>
       <p>{{ item.message||'—' }}</p>
       <TaskControl v-if="item.cleanupId&&item.state!=='removed'" kind="archives" :id="item.cleanupId" state="unknown" @changed="load"/>
     </article>
     <PagePagination v-model:current-page="page" :page-size="50" :total="total" layout="prev,pager,next,total" @current-change="load"/>
-    <section v-if="plan" class="organize-plan" aria-label="归档清理计划">
-      <h3>预览归档清理</h3>
-      <p>将物理删除下面选中的过期归档，不操作原媒体或当前输出。</p>
-      <p v-for="item in plan.items" :key="item.id">{{ item.originalPath }} → {{ item.archivePath }}</p>
-      <el-button :disabled="busy||!!phase&&!readbackMissing" type="danger" @click="confirmOpen=true">{{ readbackMissing?'使用原请求继续确认':'确认物理清理' }}</el-button>
-      <el-button @click="detailsOpen=true">技术详情</el-button>
-    </section>
+    <div class="media-actions archive-selection"><el-button :disabled="!selected.length||busy||!!phase" @click="preview">预览清理所选 {{ selected.length }}</el-button></div>
     <AsyncResultBanner v-if="phase" :status="phase" message="归档清理结果需核对，未确认前不更换请求或计划。" @refresh="reconcile"/>
     <div v-if="phase" class="media-actions">
       <el-button @click="reconcile">核对已有请求结果</el-button>
       <el-button :disabled="!results.length||!results.every(r=>['removed','conflict'].includes(r.state))" @click="finish">已核对结果，结束本次操作</el-button>
     </div>
     <p v-for="result in results" :key="result.id">{{ label(result.state) }} · {{ result.message||'—' }}</p>
+    <section v-if="plan" class="organize-plan" aria-label="归档清理计划">
+      <h3>预览归档清理</h3>
+      <p>将物理删除下面选中的过期归档，不操作原媒体或当前输出。</p>
+      <ol class="archive-plan-list"><li v-for="item in plan.items" :key="item.id"><div class="history-paths"><div><small>原输出</small><PathText :path="item.originalPath"/></div><span aria-hidden="true">→</span><div><small>归档副本</small><PathText :path="item.archivePath"/></div></div></li></ol>
+      <div class="media-actions archive-plan-actions"><el-button @click="detailsOpen=true">技术详情</el-button><el-button :disabled="busy||!!phase&&!readbackMissing" type="danger" @click="confirmOpen=true">{{ readbackMissing?'使用原请求继续确认':'确认物理清理' }}</el-button></div>
+    </section>
   </section>
   <ConfirmAction v-model:visible="confirmOpen" title="确认物理清理归档" description="物理删除已预览的过期托管归档，不能自动撤销。" impact-scope="不删除原媒体、做种源、当前输出或共享NFO。确认时重新检查归属、内容和保留期。" confirm-phrase="清理归档" confirm-text="确认物理清理" cancel-text="返回检查" danger-level="danger" :loading="busy" class="media-dialog" @confirm="apply"/>
   <ConfirmAction v-model:visible="retryOpen" title="继续已批准的归档清理" description="只继续此项已有批准，仍检查文件、归属、保留期和恢复状态。" impact-scope="不会重建清理计划，不覆盖或删除手工修改内容。" confirm-text="明确继续" :loading="busy" class="media-dialog" @confirm="retry"/>
