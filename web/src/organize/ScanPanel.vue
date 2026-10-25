@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import CronInput from '../ui/CronInput.vue';
+const cronValid=ref(false);
 import {usePageNumber} from '../ui/page-query';
 
 import PathText from '../ui/PathText.vue';
@@ -169,7 +171,7 @@ function editSchedule(row: any = null) {
   scheduleOpen.value = true;
 }
 async function saveSchedule() {
-  if (scheduleBusy.value || conflict.value)
+  if (scheduleBusy.value || conflict.value || !cronValid.value)
     return;
   scheduleBusy.value = true;
   savePrivate('media-tool:scan-schedule-write:v1', form.value);
@@ -279,7 +281,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <StateView v-else-if="!schedules.length" state="empty" title="尚无定时扫描" description="新增计划默认停用，核对目录与周期后再启用。"/>
     <article v-for="schedule in schedules" :key="schedule.id" class="organize-record">
       <h3><PathText :path="schedule.root"/></h3>
-      <p>{{ scheduleLabel(schedule.cron) }} · {{ schedule.enabled?'已启用':'未启用' }} · 下次 {{ date(schedule.nextRunAt) }}</p>
+      <p>{{ scheduleLabel(schedule.cron) }} · {{ schedule.enabled?'已启用':'未启用' }} · 下次 {{ schedule.nextRunAt===null?'计划已结束':date(schedule.nextRunAt) }}</p>
       <p>文件变化推送：{{ label(schedule.watchState) }} · {{ schedule.watchMessage||'—' }}</p>
       <p>{{ schedule.lastError||'—' }}</p>
       <el-button @click="editSchedule(schedule)">编辑</el-button>
@@ -303,10 +305,9 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
         扫描根目录
         <el-input v-model="form.root" aria-label="定时扫描根目录"/>
       </label>
-      <label>
-        Cron
-        <el-input v-model="form.cron" aria-label="定时扫描Cron"/>
-      </label>
+      <div>
+        <CronInput v-model="form.cron" purpose="scan" label="定时扫描Cron" :disabled="scheduleBusy" @valid="cronValid=$event"/>
+      </div>
       <el-switch v-model="form.enabled" aria-label="启用定时扫描"/>
       <span>启用定时扫描</span>
       <el-switch v-model="form.watchChanges" aria-label="启用CloudDrive2文件变化推送"/>
@@ -321,7 +322,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     </div>
     <template #footer>
       <el-button @click="scheduleOpen=false">取消</el-button>
-      <el-button type="primary" :loading="scheduleBusy" :disabled="!!conflict" @click="saveSchedule" class="mt-save-button">保存定时扫描</el-button>
+      <el-button type="primary" :loading="scheduleBusy" :disabled="!!conflict||!cronValid" @click="saveSchedule" class="mt-save-button">保存定时扫描</el-button>
     </template>
   </el-dialog>
 </template>

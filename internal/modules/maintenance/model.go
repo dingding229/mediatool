@@ -48,9 +48,9 @@ func Defaults() Policy {
 }
 
 type PolicyRecord struct {
-	Value      Policy    `json:"value"`
-	Revision   int64     `json:"revision"`
-	NextBackup time.Time `json:"nextBackupAt"`
+	Value      Policy     `json:"value"`
+	Revision   int64      `json:"revision"`
+	NextBackup *time.Time `json:"nextBackupAt"`
 }
 
 func (p Policy) Validate() error {

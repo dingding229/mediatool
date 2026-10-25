@@ -43,7 +43,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 	if err = tx.QueryRow(ctx, `UPDATE ops_policy SET next_sample_at=$1 WHERE singleton AND next_sample_at<=now() RETURNING true`, nextSample).Scan(&due); err != nil {
 		due = false
 	}
-	backupDue := r.Value.BackupEnabled && !r.NextBackup.After(time.Now())
+	backupDue := r.Value.BackupEnabled && r.NextBackup != nil && !r.NextBackup.After(time.Now())
 	if backupDue {
 		key := "cron:" + strconv.FormatInt(r.Revision, 10) + ":" + r.NextBackup.UTC().Format(time.RFC3339Nano)
 		if _, queueErr := e.QueueBackup(ctx, key); queueErr != nil {
@@ -54,7 +54,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 			}
 		}
 		if backupDue {
-			next, nextErr := scheduling.Next(r.Value.BackupCron, time.Now(), time.Hour)
+			next, nextErr := scheduling.NextOptional(r.Value.BackupCron, time.Now(), time.Hour)
 			if nextErr != nil {
 				return nextErr
 			}

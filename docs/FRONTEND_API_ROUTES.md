@@ -7,7 +7,7 @@
 | 分类 | operations |
 |---|---:|
 | 未检出静态使用 | 432 |
-| 前端直接调用 | 163 |
+| 前端直接调用 | 164 |
 | 资源/链接使用 | 4 |
 | 前端经适配调用 | 24 |
 | 仅适配层调用 | 3 |
@@ -742,3 +742,9 @@ POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹�
 | PATCH | /api/v1/media/library/managed/{id}/images | management | 前端经适配调用 | `web/src/api/mediaImages.ts:11` |
 | GET | /api/v1/media/library/managed/{id}/images/candidates | management | 前端经适配调用 | `web/src/api/mediaImages.ts:10` |
 | GET | /api/v1/media/library/managed/{id}/images/{kind} | management | 资源/链接使用 | `web/src/media/ImageEditor.vue:34` |
+
+## T9 Cron 预览
+
+| 方法 | 路径 | 监听器 | 使用情况 | 前端证据 |
+|---|---|---|---|---|
+| POST | `/api/v1/scheduling/cron/preview` | management | 前端直接调用：Cron实时校验与接下来5次预览（只读） | `web/src/api/scheduling.ts:4` |

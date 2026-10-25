@@ -46,7 +46,7 @@ type Record struct {
 	Revision        int64         `json:"revision"`
 	LastState       string        `json:"lastState"`
 	LastMessage     string        `json:"lastMessage"`
-	NextRunAt       time.Time     `json:"nextRunAt"`
+	NextRunAt       *time.Time    `json:"nextRunAt"`
 	UpdatedAt       time.Time     `json:"updatedAt"`
 }
 
@@ -195,7 +195,7 @@ func (e Engine) save(ctx context.Context, id string, in Input, ensure bool) (Rec
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','subscription.save',$1)`, audit); err != nil {
 		return Record{}, err
 	}
-	next, _ := scheduling.Next(cronExpression, time.Now(), 5*time.Minute)
+	next, _ := scheduling.NextOptional(cronExpression, time.Now(), 5*time.Minute)
 	if _, err = tx.Exec(ctx, `UPDATE subscriptions SET next_run_at=$2 WHERE id=$1`, id, next); err != nil {
 		return Record{}, err
 	}
@@ -248,7 +248,7 @@ func (e Engine) Queue(ctx context.Context, id string, preview bool) (string, err
 	if err != nil {
 		return "", err
 	}
-	next, err := scheduling.Next(prefs.Value.SubscriptionCron, time.Now(), 5*time.Minute)
+	next, err := scheduling.NextOptional(prefs.Value.SubscriptionCron, time.Now(), 5*time.Minute)
 	if err != nil {
 		return "", err
 	}

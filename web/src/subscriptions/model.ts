@@ -7,7 +7,7 @@ export interface Rules {
   resolution?: string; source?: string; codec?: string; minSize: number; maxSize: number; minSeeders: number
   freeOnly: boolean; rejectHR?: boolean; season: number; episodes: number[]; includeHistory: boolean
 }
-export interface Subscription { id: string; title: string; media: Media; enabled: boolean; source: string; rules: Rules; revision: number; lastState: string; lastMessage: string; nextRunAt: string }
+export interface Subscription { id: string; title: string; media: Media; enabled: boolean; source: string; rules: Rules; revision: number; lastState: string; lastMessage: string; nextRunAt: string|null }
 export interface HistoryRun { id: string; state: string; preview: boolean; createdAt: string }
 export interface Run { id: string; subscriptionId?: string; state: string; preview: boolean; decisions: Decision[] | null }
 export interface Decision { id: string; title: string; action: string; reasons: string[]; episodes: number[]; checks?: { key: string; label: string; state: string; actual?: string; expected?: string; message: string }[] }

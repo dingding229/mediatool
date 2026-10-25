@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import CronInput from '../ui/CronInput.vue';
+const cronValid=ref(false);
 import {usePageRefresh} from '../ui/page-refresh';
 import {scheduleLabel} from '../presentation/labels';
 import { onMounted, reactive, ref } from 'vue';
@@ -35,7 +37,7 @@ async function reloadPolicy() {
   }
 }
 async function save() {
-  if (!form.value || latest.value || op.pending)
+  if (!form.value || !cronValid.value || latest.value || op.pending)
     return;
   await op.run(String(revision.value), () => request('/ops/policy', { method: 'PUT', body: JSON.stringify({ value: form.value, revision: revision.value }) }));
   await load();
@@ -58,10 +60,7 @@ usePageRefresh(load,'maintenance');
           <input v-model="form.backupEnabled" type="checkbox"/>
           启用定时备份
         </label>
-        <label>
-          备份计划（Asia/Shanghai）
-          <input v-model="form.backupCron" aria-label="备份Cron"/>
-        </label>
+        <CronInput v-model="form.backupCron" purpose="backup" label="备份Cron" :disabled="op.busy||!!op.pending" @valid="cronValid=$event"/>
         <label class="u5-check">
           <input v-model="form.alertsEnabled" type="checkbox"/>
           启用阈值告警
@@ -71,7 +70,7 @@ usePageRefresh(load,'maintenance');
           <input v-model.number="form[field.key]" type="number" :aria-label="field.label" :min="field.min" :max="field.max" :step="field.step||1" required/>
         </label>
       </div>
-      <p>下次备份 {{ date(read.data?.policy.nextBackupAt) }}；关闭计划不删除已有备份，固定备份不参与保留清理。</p>
+      <p>下次备份 {{ read.data?.policy.nextBackupAt===null?'计划已结束':date(read.data?.policy.nextBackupAt) }}；关闭计划不删除已有备份，固定备份不参与保留清理。</p>
       <p v-if="latest">配置已被修改，已重新读取；你的输入已保留。</p>
       <details v-if="latest?.value">
         <summary>对照当前保存策略（只读）</summary>
@@ -90,7 +89,7 @@ usePageRefresh(load,'maintenance');
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" message="策略保存结果尚未确认，请先重新读取核对。" @refresh="load"/>
       <div class="media-actions">
-        <el-button :disabled="!!op.pending||!!latest||!!read.error" native-type="submit" class="mt-save-button" type="primary">保存维护策略</el-button>
+        <el-button :disabled="!!op.pending||!!latest||!!read.error||!cronValid" native-type="submit" class="mt-save-button" type="primary">保存维护策略</el-button>
         <el-button @click="reloadPolicy">放弃草稿</el-button>
       </div>
     </form>

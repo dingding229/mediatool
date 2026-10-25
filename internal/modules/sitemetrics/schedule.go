@@ -21,7 +21,7 @@ type ScheduleConfig struct {
 	Cron             string     `json:"cron"`
 	Timezone         string     `json:"timezone"`
 	Revision         int64      `json:"revision"`
-	NextRunAt        time.Time  `json:"nextRunAt"`
+	NextRunAt        *time.Time `json:"nextRunAt"`
 	LastDispatchedAt *time.Time `json:"lastDispatchedAt"`
 }
 
@@ -88,7 +88,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 			return err
 		}
 	}
-	next, err := scheduling.Next(s.Cron, time.Now(), 15*time.Minute)
+	next, err := scheduling.NextOptional(s.Cron, time.Now(), 15*time.Minute)
 	if err != nil {
 		return err
 	}

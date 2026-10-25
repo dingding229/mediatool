@@ -7,3 +7,7 @@
 
 /* Match the existing select frame, including the log date-range outer frame. */
 .t8-ops .f3-log-filters>label>input,.t8-ops .f3-log-filters .f4-log-time-range .el-date-editor.el-range-editor{height:44px;min-height:44px;box-sizing:border-box}
+
+.t8-ops .ops-job-actions>.task-controls{display:contents}
+.t8-ops .ops-job-actions>.task-controls .state-view{flex-basis:100%;max-width:100%}
+.t8-ops .organize-record.f3-job-row>.ops-job-actions{box-sizing:border-box;justify-self:end}

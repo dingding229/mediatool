@@ -210,6 +210,9 @@ func (s Store) apply(ctx context.Context, actor string, in Request) (Instance, e
 		if contracts.ValidateJSON(in.Config) != nil || len(in.Config) > 128<<10 {
 			return out, ErrInvalid
 		}
+		if e = validateCronConfig(in.PluginID, in.Config, time.Now()); e != nil {
+			return out, e
+		}
 		// Only the approved built-in capability subset is executable in F1.
 		for _, p := range d.Manifest.Permissions {
 			switch p.Scope {
@@ -333,6 +336,9 @@ func (s Store) apply(ctx context.Context, actor string, in Request) (Instance, e
 		case Configure:
 			if contracts.ValidateJSON(in.Config) != nil || len(in.Config) > 128<<10 {
 				return out, ErrInvalid
+			}
+			if e = validateCronConfig(current.PluginID, in.Config, time.Now()); e != nil {
+				return out, e
 			}
 			cipher, e := s.seal("config", id, in.Config)
 			if e != nil {

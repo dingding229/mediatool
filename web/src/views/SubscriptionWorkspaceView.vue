@@ -74,7 +74,7 @@ usePageRefresh(refresh,'*');
               </div>
             </div>
             <div class="subscription-rule-summary"><strong>{{ quality(record.rules) }}</strong><p>{{ siteNames(record.rules.accountIds) }}</p><small>{{ discovery[record.source] || '—' }} · {{ record.rules.freeOnly ? '仅免费资源' : '不限促销' }}</small></div>
-            <div class="subscription-schedule"><StatusBadge v-if="record.lastState" :state="record.lastState" /><span v-else>尚未运行</span><p>{{ timestamp(record.nextRunAt) }}</p></div>
+            <div class="subscription-schedule"><StatusBadge v-if="record.lastState" :state="record.lastState" /><span v-else>尚未运行</span><p>{{ record.nextRunAt===null?'计划已结束':timestamp(record.nextRunAt) }}</p></div>
             <div class="subscription-row-actions">
               <template v-if="scope === 'current'">
                 <el-button type="primary" :disabled="!!pending" @click="evaluate(record, false)">立即运行</el-button>
@@ -130,7 +130,7 @@ usePageRefresh(refresh,'*');
           <div><dt>质量要求</dt><dd>{{ quality(selected.rules) }}</dd></div>
           <div><dt>搜索与筛选</dt><dd>{{ selected.rules.keyword || '—' }}<small>包含：{{ selected.rules.include?.join('、') || '—' }}<br />排除：{{ selected.rules.exclude?.join('、') || '—' }}</small></dd></div>
           <div><dt>最近运行说明</dt><dd>{{ selected.lastMessage || '—' }}</dd></div>
-          <div><dt>下次运行</dt><dd>{{ timestamp(selected.nextRunAt) }}</dd></div>
+          <div><dt>下次运行</dt><dd>{{ selected.nextRunAt===null?'计划已结束':timestamp(selected.nextRunAt) }}</dd></div>
         </dl>
         <div class="subscription-detail-actions">
           <el-button @click="showHistory(selected.id)">查看运行记录</el-button>

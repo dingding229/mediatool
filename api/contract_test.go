@@ -1110,6 +1110,10 @@ func (s *source) build(t *testing.T) object {
 				responses["409"] = object{"description": "图片revision或绑定已变化，请重新读取核对"}
 				responses["429"] = object{"description": "解码并发已达上限2，稍后重试"}
 			}
+			if r.handler == "previewCron" {
+				op["description"] = "管理员只读计算，上海时区。5/6/7字段；单次最多4096步、250毫秒，JSON体最多2048字节；业务最低间隔不放宽。有限计划最多返回5次，无未来时间时exhausted=true。"
+				op["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": object{"type": "object", "required": []string{"expression", "purpose"}, "additionalProperties": false, "properties": object{"expression": object{"type": "string", "minLength": 1, "maxLength": 128, "description": "秒 分 时 日 月 周 年；5位省略秒和年，6位省略年；年1970～2199"}, "purpose": object{"type": "string", "enum": []string{"generic", "subscription", "scan", "site-metrics", "backup", "plugin"}}}}}}}
+			}
 			if r.handler == "uploadSubtitle" {
 				op["requestBody"] = object{"required": true, "content": object{"multipart/form-data": object{"schema": object{"type": "object", "required": []string{"file", "uploadId"}, "properties": object{"file": object{"type": "string", "format": "binary", "description": "srt/ass/ssa/vtt，原文件和UTF-8转换后均≤5MiB"}, "encoding": object{"type": "string", "enum": []string{"auto", "utf-8", "utf-16le", "utf-16be", "utf-32le", "utf-32be", "gb18030", "big5", "shift-jis", "windows-1252"}}, "uploadId": object{"type": "string", "format": "uuid", "description": "客户端一次逻辑上传的稳定UUID，用于丢失响应后的幂等核对"}}, "additionalProperties": false}}}}
 			}

@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import CronInput from '../ui/CronInput.vue';
+const cronValid=ref(false);
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, onUnmounted, ref, watch, reactive } from 'vue';
 import { request } from '../api/client';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import RevisionFeedback from './RevisionFeedback.vue';
 import { useRevision, messageFor } from './revision';
-import {integerInputError,subscriptionCronError} from '../ui/number-input';
+import {integerInputError} from '../ui/number-input';
 const props = defineProps<{
   section: 'general' | 'naming' | 'automation';
 }>();
@@ -17,7 +19,7 @@ const a = app.draft, domains = access.draft, confirmCleanup = ref(false), previe
 const automationErrors=computed(()=>({
  searchCacheSeconds:a.value?integerInputError(a.value.searchCacheSeconds,0,86400,'站点搜索缓存有效期（秒）'):'',
  tmdbCacheSeconds:a.value?integerInputError(a.value.tmdbCacheSeconds,0,2592000,'TMDB 搜索缓存有效期（秒）'):'',
- subscriptionCron:a.value?subscriptionCronError(a.value.subscriptionCron):''
+ subscriptionCron:cronValid.value?'':'请先通过订阅计划校验'
 }));
 const invalidAutomation=computed(()=>Object.values(automationErrors.value).some(Boolean));
 async function saveAutomation(){
@@ -207,10 +209,8 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
             <RouterLink to="/ops?tab=cache">查看与清理缓存</RouterLink>
           </p>
           <div class="settings-field">
-            <label for="subscription-cron">订阅调度时间</label>
-            <el-input id="subscription-cron" v-model="a.subscriptionCron" :aria-invalid="!!automationErrors.subscriptionCron" aria-describedby="subscription-cron-hint"/>
-            <p v-if="automationErrors.subscriptionCron" role="alert" class="settings-input-error">{{automationErrors.subscriptionCron}}</p>
-            <small id="subscription-cron-hint">五字段：分、时、日、月、周；上海时区，间隔至少 5 分钟。不自动启用已停用的订阅。</small>
+            <CronInput v-model="a.subscriptionCron" purpose="subscription" label="订阅调度时间" @valid="cronValid=$event"/>
+            <small>间隔至少5分钟；不自动启用已停用的订阅。</small>
           </div>
         </template>
         <footer>

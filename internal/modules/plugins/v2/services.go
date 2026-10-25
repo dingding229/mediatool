@@ -41,11 +41,11 @@ func nextService(d contracts.Descriptor, config json.RawMessage, now time.Time) 
 	var next time.Time
 	switch d.Trigger {
 	case "cron":
-		v, e := scheduling.Next(d.Cron, now, time.Minute)
+		v, e := scheduling.NextOptional(d.Cron, now, time.Minute)
 		if e != nil {
 			return nil, false, ErrInvalid
 		}
-		next = v
+		return v, true, nil
 	case "interval":
 		if d.IntervalMS < 1000 || d.IntervalMS > 31536000000 {
 			return nil, false, ErrInvalid

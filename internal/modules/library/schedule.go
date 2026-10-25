@@ -20,7 +20,7 @@ type ScheduleConfig struct {
 	Interval        int        `json:"-"`
 	Cron            string     `json:"cron"`
 	Revision        int64      `json:"revision"`
-	NextRun         time.Time  `json:"nextRunAt"`
+	NextRun         *time.Time `json:"nextRunAt"`
 	LastError       string     `json:"lastError"`
 	WatchChanges    bool       `json:"watchChanges"`
 	ChangeScanAfter *time.Time `json:"changeScanAfter,omitempty"`
@@ -76,7 +76,7 @@ func (e Engine) SaveSchedule(ctx context.Context, in ScheduleConfig) (ScheduleCo
 	if _, err = tx.Exec(ctx, `UPDATE library_scan_schedules SET next_run_at=$2 WHERE id=$1`, in.ID, next); err != nil {
 		return in, err
 	}
-	in.NextRun = next
+	in.NextRun = &next
 	return in, tx.Commit(ctx)
 }
 func (e Engine) Schedules(ctx context.Context) ([]ScheduleConfig, error) {
@@ -128,7 +128,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 		return err
 	}
 	for _, s := range list {
-		nextRun, cronErr := scheduling.Next(s.cron, time.Now(), 5*time.Minute)
+		nextRun, cronErr := scheduling.NextOptional(s.cron, time.Now(), 5*time.Minute)
 		if cronErr != nil {
 			return cronErr
 		}
@@ -157,7 +157,7 @@ func (e Engine) Schedule(ctx context.Context) error {
 				if s.dirty && !created {
 					// The active traversal may have passed the changed path.
 					// Retain the dirty hint until a genuinely new scan is admitted.
-					if _, err = tx.Exec(ctx, `UPDATE library_scan_schedules SET change_scan_after=now()+interval '20 seconds',next_run_at=greatest(next_run_at,now()+interval '20 seconds'),last_scan_id=$2,updated_at=now() WHERE id=$1`, s.id, id); err != nil {
+					if _, err = tx.Exec(ctx, `UPDATE library_scan_schedules SET change_scan_after=now()+interval '20 seconds',next_run_at=CASE WHEN next_run_at IS NULL THEN NULL ELSE greatest(next_run_at,now()+interval '20 seconds') END,last_scan_id=$2,updated_at=now() WHERE id=$1`, s.id, id); err != nil {
 						return err
 					}
 					continue

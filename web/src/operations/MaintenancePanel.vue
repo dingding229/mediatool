@@ -97,7 +97,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <ResourceState :stale="data.loaded" :error="data.error" @reload="load"/>
       <div class="f5-maint-summary">
       <p v-if="data.data&&!data.data.toolsReady">备份工具暂不可用，无法创建备份或演练；已有记录仍可查看。</p>
-      <p v-if="data.data">当前备份 {{ bytes(data.data.totalBytes) }} · 下次 {{ date(data.data.policy?.nextBackupAt) }}</p>
+      <p v-if="data.data">当前备份 {{ bytes(data.data.totalBytes) }} · 下次 {{ data.data.policy?.nextBackupAt===null?'计划已结束':date(data.data.policy?.nextBackupAt) }}</p>
       <div v-if="data.data?.mode.paused">
         <p>业务暂停：{{ data.data.mode.reason }}</p>
         <el-button :disabled="!!op.pending" @click="ask('resume')">核对后解除维护</el-button>
