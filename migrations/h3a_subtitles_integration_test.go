@@ -56,7 +56,7 @@ func TestH3aSubtitleUpDownUpStoreStableIndicesAndIsolation(t *testing.T) {
 		t.Fatal("migration touched credentials")
 	}
 	// Current native readers run only after the historical 82 round trip.
-	if _, e := f.provider.UpTo(f.ctx, 83); e != nil {
+	if _, e := f.provider.UpTo(f.ctx, 84); e != nil {
 		t.Fatal(e)
 	}
 	repo := subtitles.Repository{DB: f.pool, Root: filepath.Join(t.TempDir(), "subtitles")}
