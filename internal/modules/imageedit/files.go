@@ -7,6 +7,7 @@ import (
 	database "media-tool/internal/platform/database"
 	"media-tool/internal/platform/identity"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -14,7 +15,7 @@ func (r Repository) remove(name string) error {
 	if !safeFile(name) {
 		return ErrInvalid
 	}
-	root, e := os.OpenRoot(r.root())
+	root, e := r.openRoot()
 	if e != nil {
 		return e
 	}
@@ -40,7 +41,7 @@ func (r Repository) Reconcile(ctx context.Context) error {
 	if _, e = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(840035)`); e != nil {
 		return e
 	}
-	root, e := os.OpenRoot(r.root())
+	root, e := r.openRoot()
 	if errors.Is(e, os.ErrNotExist) {
 		return nil
 	}
@@ -94,3 +95,33 @@ func (r Repository) Reconcile(ctx context.Context) error {
 	return database.Commit(ctx, tx)
 }
 func validUUID(s string) bool { return identity.UUID(s) }
+
+// Validate both the program directory and its parent before scoped read/delete.
+// A configured/replaced symlink must never redirect collection into media/STRM.
+func (r Repository) openRoot() (*os.Root, error) {
+	path := r.root()
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path || filepath.Base(path) != "images" || filepath.Base(filepath.Dir(path)) != "native-media" {
+		return nil, ErrInvalid
+	}
+	for _, p := range []string{filepath.Dir(path), path} {
+		info, e := os.Lstat(p)
+		if e != nil {
+			return nil, e
+		}
+		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return nil, ErrInvalid
+		}
+	}
+	root, e := os.OpenRoot(path)
+	if e != nil {
+		return nil, e
+	}
+	held, e := root.Stat(".")
+	current, statErr := os.Lstat(path)
+	parent, parentErr := os.Lstat(filepath.Dir(path))
+	if e != nil || statErr != nil || parentErr != nil || !parent.IsDir() || parent.Mode()&os.ModeSymlink != 0 || !current.IsDir() || current.Mode()&os.ModeSymlink != 0 || !os.SameFile(held, current) {
+		cleanup.Close(root, "unsafe image root")
+		return nil, ErrInvalid
+	}
+	return root, nil
+}

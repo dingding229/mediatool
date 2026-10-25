@@ -288,6 +288,13 @@ func (r Repository) ensureRoot() error {
 	if !filepath.IsAbs(root) || filepath.Clean(root) != root || filepath.Base(root) != "images" || filepath.Base(filepath.Dir(root)) != "native-media" {
 		return ErrInvalid
 	}
+	if parent, e := os.Lstat(filepath.Dir(root)); e == nil {
+		if !parent.IsDir() || parent.Mode()&os.ModeSymlink != 0 {
+			return ErrInvalid
+		}
+	} else if !errors.Is(e, os.ErrNotExist) {
+		return e
+	}
 	if e := os.MkdirAll(root, 0750); e != nil {
 		return e
 	}
@@ -309,7 +316,7 @@ func (r Repository) File(ctx context.Context, id string) ([]byte, string, string
 	if !safeFile(filename) {
 		return nil, "", "", ErrInvalid
 	}
-	root, e := os.OpenRoot(r.root())
+	root, e := r.openRoot()
 	if e != nil {
 		return nil, "", "", e
 	}
@@ -373,7 +380,7 @@ func (r Repository) Collect(ctx context.Context, ids ...string) error {
 	if len(dead) == 0 {
 		return nil
 	}
-	root, e := os.OpenRoot(r.root())
+	root, e := r.openRoot()
 	if e != nil {
 		return e
 	}

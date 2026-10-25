@@ -313,3 +313,50 @@ func TestT4ImageHTTPMultipartAuthenticationAndCache(t *testing.T) {
 		t.Fatal(files, e)
 	}
 }
+
+func TestT4ImageCollectionRejectsSymlinkedProgramDirectory(t *testing.T) {
+	f := newBrowseFixture(t)
+	m := f.media(t, 935004, "Scoped images", "2026", `{"officialRating":"G"}`)
+	asset := f.asset(t, m, "g:test-a", time.Now(), "mkv")
+	root := filepath.Join(t.TempDir(), "native-media/images")
+	repo := imageedit.Repository{DB: f.pool, Root: root}
+	r, e := repo.Read(f.ctx, asset.asset)
+	if e != nil {
+		t.Fatal(e)
+	}
+	pic := t4Image(t)
+	r, e = repo.Save(f.ctx, asset.asset, "fixture-admin", imageedit.Change{TargetKey: r.TargetKey, Revision: r.Revision, Kind: "Primary"}, &pic, "upload")
+	if e != nil {
+		t.Fatal(e)
+	}
+	fid := r.Overrides["Primary"]
+	name := f.text(t, `SELECT filename FROM media_image_files WHERE id=$1`, fid)
+	outside := t.TempDir()
+	foreign := filepath.Join(outside, name)
+	if e = os.WriteFile(foreign, []byte("foreign media must remain"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.Rename(root, root+"-retained"); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.Symlink(outside, root); e != nil {
+		t.Fatal(e)
+	}
+	if _, _, _, e = repo.File(f.ctx, fid); !errors.Is(e, imageedit.ErrInvalid) {
+		t.Fatal("followed root symlink", e)
+	}
+	f.exec(t, `UPDATE media_image_overrides SET images='{}' WHERE media_id=$1`, m)
+	if e = repo.Collect(f.ctx, fid); !errors.Is(e, imageedit.ErrInvalid) {
+		t.Fatal("unsafe collection root", e)
+	}
+	if e = repo.Reconcile(f.ctx); !errors.Is(e, imageedit.ErrInvalid) {
+		t.Fatal("unsafe reconciliation root", e)
+	}
+	body, e := os.ReadFile(foreign)
+	if e != nil || string(body) != "foreign media must remain" {
+		t.Fatal("foreign file changed", e)
+	}
+	if got := f.text(t, `SELECT count(*)::text FROM media_image_files WHERE id=$1`, fid); got != "1" {
+		t.Fatal(got)
+	}
+}
