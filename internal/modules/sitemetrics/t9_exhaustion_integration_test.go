@@ -2,6 +2,7 @@ package sitemetrics
 
 import (
 	"testing"
+	"time"
 )
 
 func TestT9LastDueSlotThenNullSkipsWithoutErrors(t *testing.T) {
@@ -30,7 +31,7 @@ func TestT9LastDueSlotThenNullSkipsWithoutErrors(t *testing.T) {
 	}
 	s.Cron = "0 0 0 1 1 * 2199"
 	s, err = e.SaveSchedule(ctx, s)
-	if err != nil || s.NextRunAt == nil || s.NextRunAt.Year() != 2199 {
+	if err != nil || s.NextRunAt == nil || !s.NextRunAt.Equal(time.Date(2198, 12, 31, 16, 0, 0, 0, time.UTC)) {
 		t.Fatal(s, err)
 	}
 }
