@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/classification"
+	"media-tool/internal/modules/imageedit"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/metadataedit"
 )
@@ -157,6 +158,13 @@ func (e Engine) ManagedDetail(parent context.Context, id string) (ManagedDetail,
 		_ = json.Unmarshal(record.Effective["communityRating"], &out.Rating)
 	} else if !errors.Is(editErr, metadataedit.ErrNotFound) {
 		return out, ErrUnavailable
+	}
+	posters, imageErr := imageedit.ManagedPrimary(ctx, e.DB, []string{id})
+	if imageErr != nil {
+		return out, ErrUnavailable
+	}
+	if p := posters[id]; p != "" {
+		out.Poster = p
 	}
 	return out, nil
 }

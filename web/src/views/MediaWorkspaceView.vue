@@ -7,6 +7,7 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import PosterWall from '../media/PosterWall.vue';
 import SubtitlePanel from '../media/SubtitlePanel.vue';
 import MetadataEditor from '../media/MetadataEditor.vue';
+import ImageEditor from '../media/ImageEditor.vue';
 import {managedDetail} from '../api/mediaCatalog';
 import { useCatalog } from '../media/useCatalog';
 import { image, mediaType, sourceState, displayRating, displayResolution, displayMediaSize } from '../media/model';
@@ -85,6 +86,7 @@ async function metadataSaved(){await load();if(detail.value){try {const updated=
       <StateView v-if="detailLoading" state="loading" title="正在读取作品详情…"/>
       <StateView v-if="detailError" :state="sourceState(detailError)" :description="errorText(detailError)" @retry="detail&&inspect(detail)"/>
       <MetadataEditor v-if="source==='managed'&&detail&&!detailLoading&&!detailError" :item-id="detail.id" @saved="metadataSaved"/>
+ <ImageEditor v-if="source==='managed'&&detail&&!detailLoading&&!detailError" :item-id="detail.id" @saved="metadataSaved"/>
       <div class="catalog-summary" :class="{'catalog-summary--text':!image(detail?.poster)}">
         <img v-if="image(detail?.poster)" :src="image(detail?.poster)" :alt="detail?.title+'海报'"/>
         <div>

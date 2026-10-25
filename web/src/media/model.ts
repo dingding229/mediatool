@@ -51,7 +51,7 @@ export interface Home {
 export const rows = (value: any): any[] => Array.isArray(value) ? value : [];
 export const mediaType = (value?: string) => ({ movie: '电影', series: '剧集', Movie: '电影', Series: '剧集', Season: '季', Episode: '单集' } as Record<string, string>)[value || ''] || '媒体';
 export function image(value?: string) {
-  return value && /^\/api\/v1\/(?:media\/(?:library\/emby\/[^/?]+\/image|tmdb\/image)|metadata\/image\/)/.test(value) && !/[?&](?:api_key|token|key)=/i.test(value) ? value : tmdbImage(value);
+  return value && /^\/api\/v1\/(?:media\/(?:library\/(?:emby\/[^/?]+\/image|managed\/[^/?]+\/images\/(?:Primary|Backdrop|Logo))|tmdb\/image)|metadata\/image\/)/.test(value) && !/[?&](?:api_key|token|key)=/i.test(value) ? value : tmdbImage(value);
 }
 export const sourceState = (e: unknown) => e instanceof APIError && [401, 403].includes(e.status) ? 'unauthorized' : e instanceof APIError && e.status === 501 ? 'unsupported' : 'error';
 export const cloudState = (v?: string) => ({ present: '文件在库', suspected_missing: '待完整对账', missing: '文件缺失', trashed: '已在回收目录' } as Record<string, string>)[v || ''] || '—';

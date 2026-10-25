@@ -1,0 +1,13 @@
+import {afterEach,beforeEach,expect,it,vi} from 'vitest';
+import {setupComponent,flush} from '../test/setup-component';
+import Editor from './ImageEditor.vue';
+import Poster from './PosterArtwork.vue';
+import {image} from './model';
+import {uploadMediaImage} from '../api/mediaImages';
+let view:ReturnType<typeof setupComponent>;
+afterEach(()=>{view?.unmount();vi.unstubAllGlobals()});
+beforeEach(()=>{vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,status:200,json:async()=>({data:{target:{mediaId:'root',kind:'movie',season:-1,episode:-1},targetKey:'root:movie:-1:-1',revision:3,base:{},effective:{Primary:{url:'/api/v1/media/tmdb/image?path=x'}},overrides:{Primary:'file'},unmatched:[],choices:[],matched:true}})})))});
+it('image uploads stay in API layer with multipart, CSRF and revision',async()=>{const file=new File(['png'],'poster.png',{type:'image/png'});await uploadMediaImage('a/b',{targetKey:'key',revision:3,kind:'Primary'},file);const [url,options]=vi.mocked(fetch).mock.calls[0]!;expect(url).toBe('/api/v1/media/library/managed/a%2Fb/images');expect((options!.body as FormData).get('revision')).toBe('3');expect((options!.headers as Headers).get('X-Requested-With')).toBe('media-tool');expect((options!.headers as Headers).has('Content-Type')).toBe(false);expect(options!.credentials).toBe('same-origin')});
+it('opens image editor lazily and restores one image with independent revision',async()=>{view=setupComponent(Editor,{itemId:'asset'});expect(fetch).not.toHaveBeenCalled();await view.state.toggle();await flush();expect(view.state.record.revision).toBe(3);expect(view.state.change('Primary')).toEqual({kind:'Primary',targetKey:'root:movie:-1:-1',revision:3});expect(view.state.label('Primary')).toBe('海报')});
+it('blocks on conflicts and oversized uploads without an automatic replay',async()=>{view=setupComponent(Editor,{itemId:'asset'});await view.state.toggle();vi.mocked(fetch).mockResolvedValueOnce({ok:false,status:409,json:async()=>({error:{code:'image_conflict',message:'图片已变化'}})} as Response);await view.state.upload('Primary',{target:{files:[new File(['png'],'poster.png')],value:'selected'}});expect(view.state.blocked).toBe(true);expect(view.state.error).toContain('图片已变化');const n=vi.mocked(fetch).mock.calls.length;await view.state.upload('Primary',{target:{files:[{size:10*1024*1024+1}],value:''}});expect(vi.mocked(fetch).mock.calls).toHaveLength(n)});
+it('retries a new poster URL after an earlier loading error',async()=>{view=setupComponent(Poster,{title:'电影',src:'/old'});view.state.broken=true;expect(view.state.broken).toBe(true);expect(image('/api/v1/media/library/managed/asset/images/Primary?tag=abc')).toContain('/images/Primary');expect(image('https://evil.invalid/poster.jpg')).toBe('')});

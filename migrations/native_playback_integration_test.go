@@ -58,7 +58,7 @@ func (syntheticTimeout) Error() string   { return "synthetic transport timeout" 
 func (syntheticTimeout) Timeout() bool   { return true }
 func (syntheticTimeout) Temporary() bool { return true }
 func newPlaybackFixture(t *testing.T, versions ...int64) *playbackFixture {
-	target := int64(83)
+	target := int64(84)
 	if len(versions) > 0 {
 		target = versions[0]
 	}

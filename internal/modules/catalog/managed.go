@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"media-tool/internal/modules/classification"
+	"media-tool/internal/modules/imageedit"
 	"net/url"
 	"strconv"
 	"strings"
@@ -112,6 +113,20 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 	}
 	if rows.Err() != nil {
 		return out, ErrUnavailable
+	}
+	rows.Close()
+	ids := []string{}
+	for _, item := range out.Items {
+		ids = append(ids, item.ID)
+	}
+	posters, err := imageedit.ManagedPrimary(ctx, e.DB, ids)
+	if err != nil {
+		return out, ErrUnavailable
+	}
+	for i := range out.Items {
+		if p := posters[out.Items[i].ID]; p != "" {
+			out.Items[i].Poster = p
+		}
 	}
 	return out, nil
 }

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/emby"
+	"media-tool/internal/modules/imageedit"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/ipgeo"
 	"media-tool/internal/modules/jobs"
@@ -59,6 +60,7 @@ type Dependencies struct {
 	NativePlayback    nativeplayback.Service
 	NativeProcessing  NativeProcessingService
 	NativeStills      StillReader
+	NativeImageRoot   string
 	NativeLibraries   NativeLibraryReader
 	NativeTMDBRefresh NativeTMDBRefresher
 	NativeProbeRetry  NativeProbeRetrier
@@ -107,6 +109,13 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 		d.Logger = slog.Default()
 	}
 	a := &API{Config: c, Deps: d, Auth: auth.Auth{Key: c.SessionKey, Origin: c.PublicURL, AllowedOrigins: c.AuthAllowedOrigins, Secure: !c.Development()}, Builder: strm.Builder{BaseURL: c.PublicURL, APIKey: c.STRMKey, AllowedRoots: c.STRMAllowedRoots}}
+	if d.DB != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		if err := (imageedit.Repository{DB: d.DB, Root: d.NativeImageRoot}).Reconcile(ctx); err != nil {
+			d.Logger.Warn("本地图片清理暂未完成，将保留文件", "module", "media_images")
+		}
+		cancel()
+	}
 	a.EmbyIdentities = emby.NewMemoryIdentityStore()
 	if d.Redis != nil {
 		a.EmbyIdentities = &emby.RedisIdentityStore{Redis: d.Redis}
@@ -215,6 +224,11 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("GET /api/v1/media/library", a.protected(a.listCatalog))
 	mux.HandleFunc("GET /api/v1/media/library/managed/{id}", a.protected(a.managedCatalogDetail))
 	mux.HandleFunc("GET /api/v1/media/library/managed/{id}/metadata", a.protected(a.mediaMetadata))
+	mux.HandleFunc("GET /api/v1/media/library/managed/{id}/images", a.protected(a.mediaImages))
+	mux.HandleFunc("POST /api/v1/media/library/managed/{id}/images", a.protected(a.mediaImages))
+	mux.HandleFunc("PATCH /api/v1/media/library/managed/{id}/images", a.protected(a.mediaImages))
+	mux.HandleFunc("GET /api/v1/media/library/managed/{id}/images/candidates", a.protected(a.mediaImageCandidates))
+	mux.HandleFunc("GET /api/v1/media/library/managed/{id}/images/{kind}", a.protected(a.mediaImage))
 	mux.HandleFunc("PATCH /api/v1/media/library/managed/{id}/metadata", a.protected(a.mediaMetadata))
 	mux.HandleFunc("GET /api/v1/media/library/emby/{id}/image", a.protected(a.catalogImage))
 	mux.HandleFunc("POST /api/v1/files/batches/preview", a.protected(a.previewFileBatch))

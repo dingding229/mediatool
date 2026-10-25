@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"io"
+	"media-tool/internal/modules/imageedit"
 	"media-tool/internal/modules/library"
 	"media-tool/internal/modules/playbackgrants"
 	"media-tool/internal/modules/strm"
@@ -36,7 +37,7 @@ func (a *API) listAssets(w http.ResponseWriter, r *http.Request) {
 	if !p.Paged {
 		limit = 500
 	}
-	rows, err := a.Deps.DB.Query(r.Context(), `SELECT a.id::text,a.revision,a.artifacts_state,m.title,m.media_type,f.full_path,f.state,coalesce(g.revoked_at IS NOT NULL,false),g.id IS NOT NULL FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id LEFT JOIN media_asset_bindings b ON b.asset_id=a.id LEFT JOIN media_items m ON m.id=b.media_id LEFT JOIN playback_grants g ON g.asset_id=a.id WHERE ($3='' OR a.id::text=$3) ORDER BY a.created_at DESC,a.id DESC LIMIT $1 OFFSET $2`, limit, p.Offset, strings.ToLower(assetFilter))
+	rows, err := a.Deps.DB.Query(r.Context(), `SELECT a.id::text,a.revision,a.artifacts_state,m.title,m.media_type,f.full_path,f.state,coalesce(g.revoked_at IS NOT NULL,false),g.id IS NOT NULL,coalesce(m.metadata->>'posterPath','') FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id LEFT JOIN media_asset_bindings b ON b.asset_id=a.id LEFT JOIN media_items m ON m.id=b.media_id LEFT JOIN playback_grants g ON g.asset_id=a.id WHERE ($3='' OR a.id::text=$3) ORDER BY a.created_at DESC,a.id DESC LIMIT $1 OFFSET $2`, limit, p.Offset, strings.ToLower(assetFilter))
 	if err != nil {
 		fail(w, 503, "assets_unavailable", "媒体文件暂不可用")
 		return
@@ -45,19 +46,39 @@ func (a *API) listAssets(w http.ResponseWriter, r *http.Request) {
 	out := []map[string]any{}
 	for rows.Next() {
 		var revision int64
-		var artifactsState string
+		var artifactsState, poster string
 		var id, cloudPath, state string
 		var title, kind *string
 		var revoked, scoped bool
-		if err = rows.Scan(&id, &revision, &artifactsState, &title, &kind, &cloudPath, &state, &revoked, &scoped); err != nil {
+		if err = rows.Scan(&id, &revision, &artifactsState, &title, &kind, &cloudPath, &state, &revoked, &scoped, &poster); err != nil {
 			fail(w, 503, "assets_unavailable", "媒体文件读取失败")
 			return
 		}
-		out = append(out, map[string]any{"id": id, "revision": revision, "artifactsState": artifactsState, "title": title, "mediaType": kind, "path": cloudPath, "state": state, "revoked": revoked, "fileScoped": scoped})
+		out = append(out, map[string]any{"id": id, "revision": revision, "artifactsState": artifactsState, "title": title, "mediaType": kind, "path": cloudPath, "state": state, "revoked": revoked, "fileScoped": scoped, "poster": func() string {
+			if validTMDBImagePath(poster) {
+				return "/api/v1/media/tmdb/image?path=" + url.QueryEscape(poster)
+			}
+			return ""
+		}()})
 	}
 	if rows.Err() != nil {
 		fail(w, 503, "assets_unavailable", "分页读取失败")
 		return
+	}
+	rows.Close()
+	ids := []string{}
+	for _, item := range out {
+		ids = append(ids, item["id"].(string))
+	}
+	posters, imageErr := imageedit.ManagedPrimary(r.Context(), a.Deps.DB, ids)
+	if imageErr != nil {
+		fail(w, 503, "assets_unavailable", "海报读取失败")
+		return
+	}
+	for _, item := range out {
+		if poster := posters[item["id"].(string)]; poster != "" {
+			item["poster"] = poster
+		}
 	}
 	if p.Paged {
 		var total int

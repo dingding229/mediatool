@@ -101,7 +101,7 @@ type browseFixture struct {
 }
 
 func newBrowseFixture(t *testing.T, versions ...int64) browseFixture {
-	target := int64(83)
+	target := int64(84)
 	if len(versions) > 0 {
 		target = versions[0]
 	}

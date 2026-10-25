@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"media-tool/internal/modules/embyapi/dto"
+	"media-tool/internal/modules/imageedit"
 	"media-tool/internal/modules/mediausers/contracts"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/nativelibrary"
@@ -52,6 +53,14 @@ func (r BrowseRepository) hydrate(ctx context.Context, records []browseRow, fiel
 	}
 	keyID := func(kind, key string) string {
 		return strconv.FormatInt(ids[nativelibrary.Key{EntityType: nativelibrary.EntityType(kind), InternalKey: key}], 10)
+	}
+	allImageIDs := []string{}
+	for _, v := range ids {
+		allImageIDs = append(allImageIDs, strconv.FormatInt(v, 10))
+	}
+	editedImages, err := imageedit.NativePage(ctx, r.DB, allImageIDs)
+	if err != nil {
+		return nil, contracts.ErrUnavailable
 	}
 	var imageIDs []string
 	for _, x := range records {
@@ -235,6 +244,11 @@ func (r BrowseRepository) hydrate(ctx context.Context, records []browseRow, fiel
 				item.ProductionYear = &y
 			}
 		}
+		parentImages := map[string]imageedit.Image(nil)
+		if x.Kind == "season" || x.Kind == "episode" {
+			parentImages = editedImages[seriesID]
+		}
+		applyEditedImages(&item, editedImages[id], parentImages)
 		item.OfficialRating = x.Rating
 		if !slices.Contains(fields, "Overview") {
 			item.Overview = ""
@@ -252,4 +266,29 @@ func firstNonempty(a, b string) string {
 		return a
 	}
 	return b
+}
+
+// Apply after provider projection so a provider refresh cannot replace image locks.
+func applyEditedImages(item *dto.BaseItemDto, own, parent map[string]imageedit.Image) {
+	if item.ImageTags == nil {
+		item.ImageTags = map[string]string{}
+	}
+	for k, im := range own {
+		if k == "Backdrop" {
+			item.BackdropImageTags = dto.Array[string]{im.Tag}
+		} else {
+			item.ImageTags[k] = im.Tag
+		}
+	}
+	if im, ok := parent["Primary"]; ok {
+		item.SeriesPrimaryImageTag = im.Tag
+	}
+	if im, ok := parent["Backdrop"]; ok {
+		item.ParentBackdropImageTags = dto.Array[string]{im.Tag}
+		item.ParentBackdropItemId = item.SeriesId
+	}
+	if im, ok := parent["Logo"]; ok {
+		item.ParentLogoImageTag = im.Tag
+		item.ParentLogoItemId = item.SeriesId
+	}
 }

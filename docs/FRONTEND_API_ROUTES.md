@@ -732,3 +732,13 @@ POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹�
 | GET | `/api/v1/media/library/managed/{id}/metadata` | management | 经适配调用；元数据基础值、覆盖锁、修订号与未匹配编号 | `web/src/api/mediaMetadata.ts:9` |
 | HEAD | `/api/v1/media/library/managed/{id}/metadata` | management | 未检出静态使用 | |
 | PATCH | `/api/v1/media/library/managed/{id}/metadata` | management | 经适配调用；原子编辑／逐项恢复；修订冲突409 | `web/src/api/mediaMetadata.ts:9` |
+
+## T4 图片覆盖（schema 84）
+
+| 方法 | 路径 | listener | 用途 | 前端证据 |
+|---|---|---|---|---|
+| GET | /api/v1/media/library/managed/{id}/images | management | 前端经适配调用 | `web/src/api/mediaImages.ts:9` |
+| POST | /api/v1/media/library/managed/{id}/images | management | 前端经适配调用 | `web/src/api/mediaImages.ts:12` |
+| PATCH | /api/v1/media/library/managed/{id}/images | management | 前端经适配调用 | `web/src/api/mediaImages.ts:11` |
+| GET | /api/v1/media/library/managed/{id}/images/candidates | management | 前端经适配调用 | `web/src/api/mediaImages.ts:10` |
+| GET | /api/v1/media/library/managed/{id}/images/{kind} | management | 资源/链接使用 | `web/src/media/ImageEditor.vue:34` |

@@ -20,6 +20,7 @@ import (
 func NativeMediaHandler(c config.Config, d Dependencies) (http.Handler, error) {
 	images := NewNativeImageResolver(d.DB, d.Integrations, d.Redis)
 	images.Stills = d.NativeStills
+	images.ImageRoot = d.NativeImageRoot
 	browse := catalog.NewCachedBrowse(catalog.NewBrowseRepository(d.DB, d.Logger), d.Redis)
 	playback := d.NativePlayback
 	if playback == nil {

@@ -240,3 +240,8 @@ func (r Repository) Save(ctx context.Context, id, actor string, p Patch) (out Re
 	err = dbutil.Commit(ctx, tx)
 	return out, err
 }
+
+// ResolveTarget shares numbered identity and binding locking with image editing.
+func ResolveTarget(ctx context.Context, q querier, id string, lock bool) (Target, error) {
+	return resolve(ctx, q, id, lock)
+}

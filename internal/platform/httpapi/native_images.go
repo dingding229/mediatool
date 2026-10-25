@@ -17,6 +17,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/singleflight"
 	"media-tool/internal/modules/embyapi"
+	"media-tool/internal/modules/imageedit"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/metadata"
 	"media-tool/internal/modules/nativelibrary"
@@ -32,6 +33,7 @@ type NativeImageResolver struct {
 	Redis        *redis.Client
 	ImageBaseURL string
 	Stills       StillReader
+	ImageRoot    string
 	group        singleflight.Group
 }
 
@@ -76,6 +78,23 @@ func (r *NativeImageResolver) ResolveImage(ctx context.Context, req embyapi.Imag
 	}
 	if req.Index > 0 && kind != "backdrop" {
 		return embyapi.ImageResult{}, embyapi.ErrImageNotFound
+	}
+	if !isPerson {
+		custom, e := imageedit.NativePage(ctx, r.DB, []string{req.ItemID})
+		if e != nil {
+			return embyapi.ImageResult{}, embyapi.ErrImageUnavailable
+		}
+		key := map[string]string{"primary": "Primary", "thumb": "Primary", "backdrop": "Backdrop", "logo": "Logo"}[kind]
+		if im, ok := custom[req.ItemID][key]; ok {
+			if req.Index > 0 {
+				return embyapi.ImageResult{}, embyapi.ErrImageNotFound
+			}
+			body, ct, tag, e := (imageedit.Repository{DB: r.DB, Root: r.ImageRoot}).File(ctx, im.ID)
+			if e != nil {
+				return embyapi.ImageResult{}, embyapi.ErrImageUnavailable
+			}
+			return embyapi.ImageResult{Body: body, ContentType: ct, Tag: tag, MaxAge: 0}, nil
+		}
 	}
 	var meta imageMeta
 	var err error

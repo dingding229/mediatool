@@ -20,7 +20,10 @@ import HistoryPanel from '../organize/HistoryPanel.vue';
 import ArchivePanel from '../organize/ArchivePanel.vue';
 import { useOrganize } from '../organize/useOrganize';
 import { label, selectable, rows } from '../organize/model';
-import { sourceState } from '../media/model';
+import { sourceState,image } from '../media/model';
+import PosterArtwork from '../media/PosterArtwork.vue';
+import ImageEditor from '../media/ImageEditor.vue';
+import '../media/catalog.css';
 import { errorText } from '../workflows/readiness';
 import { readIntent, writeIntent, size } from '../acquisition/model';
 import '../media/media.css';
@@ -30,6 +33,9 @@ watch(() => route.query.transferId, value => {
   if (typeof value === 'string')
     state.data.transferId = value;
 }, { immediate: true });
+const assetView=ref<'wall'|'list'>(readAssetView());
+function readAssetView():'wall'|'list'{try{return localStorage.getItem('media-tool:asset-view:v1')==='list'?'list':'wall'}catch{return 'wall'}}
+function setAssetView(view:'wall'|'list'){assetView.value=view;try{localStorage.setItem('media-tool:asset-view:v1',view)}catch{/* View preference is optional. */}}
 let detailVersion = 0;
 function edit(files: any[], asset: any = null) {
   void editor.value?.open(files, asset, { page: state.page.candidates, state: state.filter });
@@ -164,6 +170,7 @@ usePageRefresh(state.refresh,'*');
     <section v-show="tab==='assets'" class="media-surface">
       <header class="media-section-heading">
         <h2>已入库资产</h2>
+ <nav class="mt-segments" aria-label="已入库视图"><button :aria-pressed="assetView==='wall'" @click="setAssetView('wall')">海报墙</button><button :aria-pressed="assetView==='list'" @click="setAssetView('list')">列表视图</button></nav>
         <RouterLink v-if="state.selected.assets.length>0&&state.selected.assets.length<=20" :to="{path:'/files',query:{tab:'browser',selectionKind:'assets',selection:state.selected.assets.map((x:any)=>x.id)}}">在文件页批量整理 · {{state.selected.assets.length}}</RouterLink>
       </header>
       <p v-if="state.assetId">
@@ -173,12 +180,15 @@ usePageRefresh(state.refresh,'*');
       <StateView v-if="state.loading.assets&&!state.data.assets.length" state="loading" title="正在读取资产…"/>
       <StateView v-else-if="state.errors.assets" :state="sourceState(state.errors.assets)" title="资产读取失败，旧数据待核对" :description="errorText(state.errors.assets)" @retry="state.load('assets')"/>
       <StateView v-else-if="!state.data.assets.length" state="empty" title="尚无已确认资产"/>
-      <article v-for="asset in state.data.assets" :key="asset.id" class="organize-record">
+      <div class="asset-collection" :class="'asset-collection-'+assetView">
+ <article v-for="asset in state.data.assets" :key="asset.id" class="organize-record asset-card">
+ <button class="asset-poster-button" :aria-label="'查看'+(asset.title||'资产')+'详情'" @click="inspect(asset)"><PosterArtwork :src="image(asset.poster)" :title="asset.title||'资产'"/></button>
+ <div class="asset-card-body">
         <label class="media-consent">
           <input type="checkbox" :checked="state.selected.assets.some(r=>r.id===asset.id)" :disabled="state.selected.assets.length>=20&&!state.selected.assets.some(r=>r.id===asset.id)" @change="state.toggle('assets',asset,($event.target as HTMLInputElement).checked)"/>
-          {{ asset.title||'—' }}
+          <span class="asset-title" :title="asset.title||'—'">{{ asset.title||'—' }}</span>
         </label>
-        <p>{{ asset.path }}</p>
+        <p class="asset-path" :title="asset.path">{{ asset.path }}</p>
         <p>{{ label(asset.state) }} · {{ label(asset.artifactsState) }} · {{ asset.revoked?'文件播放已撤销':'文件播放未撤销' }}</p>
         <div class="media-actions">
           <el-button @click="inspect(asset)">查看资产详情</el-button>
@@ -193,7 +203,9 @@ usePageRefresh(state.refresh,'*');
             </template>
           </ElDropdown>
         </div>
-      </article>
+ </div>
+ </article>
+ </div>
       <PagePagination v-model:current-page="state.page.assets" :page-size="50" :total="state.total.assets" layout="prev,pager,next,total" @current-change="pageChange('assets')"/>
     </section>
     <div v-show="tab==='history'">
@@ -225,6 +237,7 @@ usePageRefresh(state.refresh,'*');
     <ConfirmAction v-model:visible="confirmOpen" :title="action?.type==='repair'?'重试输出恢复':action?.type==='rotate'?'轮换播放凭据':'撤销文件播放'" :description="action?.type==='repair'?'先核对权限，移开或回退手工修改的冲突文件；不覆盖其他内容。':action?.type==='rotate'?'旧凭据将失效，STRM 重写通过恢复日志执行，不覆盖手工文件。':'固定链接将失效；此前已签发的临时 CDN 链接可能短期仍有效。'" impact-scope="不删除云端媒体或本地做种源；后续结果以恢复记录和最新资产状态为准。" :loading="busy" class="media-dialog" @confirm="apply"/>
     <DetailDrawer :key="assetDetail?.id" v-model:visible="detailsOpen" title="资产与输出详情" :technical-data="{asset:assetDetail,outputs,operations}" class="media-detail">
       <h3>{{ assetDetail?.title||'—' }}</h3>
+ <ImageEditor v-if="assetDetail" :item-id="assetDetail.id" @saved="state.load('assets')"/>
       <p>{{ assetDetail?.path }}</p>
       <StateView v-if="detailError" :state="sourceState(detailError)" title="部分输出或历史未取得" :description="errorText(detailError)"/>
       <h3>当前输出与 STRM</h3>
@@ -236,3 +249,7 @@ usePageRefresh(state.refresh,'*');
     </DetailDrawer>
   </div>
 </template>
+
+<style scoped>
+.asset-collection{display:grid;gap:20px;margin-block:20px}.asset-collection-wall{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}.asset-card{min-width:0;margin:0;display:flex;flex-direction:column;gap:12px}.asset-poster-button{padding:0;border:0;background:none;cursor:pointer;width:100%;min-height:44px;color:inherit}.asset-poster-button:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:3px}.asset-card-body{min-width:0}.asset-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.asset-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--mt-text-muted)}.asset-card .media-actions{gap:8px}.asset-card .media-actions .el-button{margin:0;min-height:44px}.asset-collection-list{grid-template-columns:minmax(0,1fr)}.asset-collection-list .asset-card{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:start}.asset-card .media-consent{min-height:44px}.asset-card .media-consent input{flex-shrink:0}@media(max-width:680px){.asset-collection-wall{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.asset-collection-wall .asset-card{padding:12px}.asset-collection-wall .media-actions{display:grid;grid-template-columns:minmax(0,1fr)}.asset-collection-wall .media-actions>.el-dropdown{display:block}.asset-collection-wall .media-actions .el-button{width:100%;padding-inline:8px}.asset-collection-list .asset-card{grid-template-columns:60px minmax(0,1fr)}}
+</style>

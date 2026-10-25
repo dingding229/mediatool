@@ -1094,11 +1094,27 @@ func (s *source) build(t *testing.T) object {
 					"restore":   object{"type": "array", "uniqueItems": true, "items": object{"type": "string", "enum": []string{"title", "originalTitle", "sortName", "year", "premiereDate", "overview", "tagline", "genres", "tags", "communityRating", "officialRating"}}},
 				}, "description": "set/restore至少一项；同字段不能同时修改和恢复。恢复解除锁定，采用最新已存刮削值，不触发联网获取。"}}}}
 			}
+
+			if path == "/api/v1/media/library/managed/{id}/images" && (method == "post" || method == "patch") {
+				props := object{"targetKey": object{"type": "string"}, "revision": object{"type": "integer", "minimum": 0}, "kind": object{"type": "string", "enum": []string{"Primary", "Backdrop", "Logo"}}}
+				required := []string{"targetKey", "revision", "kind"}
+				mime := "application/json"
+				if method == "post" {
+					mime = "multipart/form-data"
+					props["file"] = object{"type": "string", "format": "binary", "description": "JPG/PNG/WebP≤10MiB，真实格式与扩展名一致；≤1600万像素、单边≤8192，不支持动画；重新编码移除元数据"}
+					required = append(required, "file")
+				} else {
+					props["path"] = object{"type": "string", "description": "空字符串恢复刮削值；非空只能是候选接口返回的TMDB路径，选中后服务端下载到本地"}
+				}
+				op["requestBody"] = object{"required": true, "content": object{mime: object{"schema": object{"type": "object", "required": required, "properties": props, "additionalProperties": false}}}}
+				responses["409"] = object{"description": "图片revision或绑定已变化，请重新读取核对"}
+				responses["429"] = object{"description": "解码并发已达上限2，稍后重试"}
+			}
 			if r.handler == "uploadSubtitle" {
 				op["requestBody"] = object{"required": true, "content": object{"multipart/form-data": object{"schema": object{"type": "object", "required": []string{"file", "uploadId"}, "properties": object{"file": object{"type": "string", "format": "binary", "description": "srt/ass/ssa/vtt，原文件和UTF-8转换后均≤5MiB"}, "encoding": object{"type": "string", "enum": []string{"auto", "utf-8", "utf-16le", "utf-16be", "utf-32le", "utf-32be", "gb18030", "big5", "shift-jis", "windows-1252"}}, "uploadId": object{"type": "string", "format": "uuid", "description": "客户端一次逻辑上传的稳定UUID，用于丢失响应后的幂等核对"}}, "additionalProperties": false}}}}
 			}
 			switch r.handler {
-			case "opsDownload", "catalogImage", "tmdbPoster", "tmdbImage", "ptTemplateIcon", "ptTemplateFavicon", "downloadSubtitle":
+			case "opsDownload", "catalogImage", "tmdbPoster", "tmdbImage", "mediaImage", "ptTemplateIcon", "ptTemplateFavicon", "downloadSubtitle":
 				mime := []string{"application/octet-stream"}
 				switch r.handler {
 				case "downloadSubtitle":
@@ -1110,7 +1126,7 @@ func (s *source) build(t *testing.T) object {
 					mime = []string{"image/png", "image/jpeg", "image/gif", "image/webp", "image/x-icon", "image/vnd.microsoft.icon"}
 				case "ptTemplateIcon":
 					mime = []string{"image/x-icon"}
-				case "catalogImage", "tmdbPoster", "tmdbImage":
+				case "catalogImage", "tmdbPoster", "tmdbImage", "mediaImage":
 					mime = []string{"image/jpeg", "image/png", "image/webp"}
 				}
 				content := object{}
@@ -1118,7 +1134,7 @@ func (s *source) build(t *testing.T) object {
 					content[m] = object{"schema": object{"type": "string", "format": "binary"}}
 				}
 				responses["200"] = object{"description": "真实文件/图片响应，不包JSON Envelope；备份与STRM含私有数据，不可放公开产物。", "content": content}
-				if r.handler == "ptTemplateIcon" || r.handler == "ptTemplateFavicon" || r.handler == "tmdbImage" {
+				if r.handler == "ptTemplateIcon" || r.handler == "ptTemplateFavicon" || r.handler == "tmdbImage" || r.handler == "mediaImage" {
 					responses["304"] = object{"description": "ETag匹配，无正文"}
 					params = append(params, object{"name": "If-None-Match", "in": "header", "schema": object{"type": "string"}})
 					op["parameters"] = params
@@ -1126,7 +1142,7 @@ func (s *source) build(t *testing.T) object {
 				if r.handler == "ptTemplateFavicon" {
 					responses["206"] = object{"description": "图片字节范围，非Envelope", "content": content}
 				}
-				if r.handler == "tmdbImage" {
+				if r.handler == "tmdbImage" || r.handler == "mediaImage" {
 					responses["502"] = object{"description": "固定图片获取错误，非Envelope", "content": object{"text/plain": object{"schema": object{"type": "string"}}}}
 				}
 			}
