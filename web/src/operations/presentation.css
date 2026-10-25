@@ -4,3 +4,6 @@
 @media(max-width:700px){.t8-ops{--ops-gap:16px}.t8-ops .media-surface{padding:16px}.t8-ops .ops-panel-header{padding:0}.t8-ops .u5-filters{grid-template-columns:minmax(0,1fr)}.t8-ops .organize-record.f3-job-row{grid-template-columns:minmax(0,1fr) 136px;min-height:96px;gap:4px 8px}.t8-ops .organize-record.f3-job-row>.ops-job-actions{grid-column:2;grid-row:1/span 2;width:136px}.t8-ops .ops-job-actions .el-button{height:44px;min-height:44px;padding-inline:8px}.t8-ops .media-surface>.organize-record:has(.u6-cache-content){align-items:flex-start;flex-direction:column}.t8-ops .media-surface>.organize-record:has(.u6-cache-content) .media-actions{justify-content:flex-start}.t8-ops .media-section-heading{flex-wrap:wrap}}
 
 @media(max-width:700px){.t8-ops-menu .el-dropdown-menu__item,.t8-ops-menu a{min-height:44px}}
+
+/* Match the existing select frame, including the log date-range outer frame. */
+.t8-ops .f3-log-filters>label>input,.t8-ops .f3-log-filters .f4-log-time-range .el-date-editor.el-range-editor{height:44px;min-height:44px;box-sizing:border-box}
