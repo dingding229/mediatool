@@ -58,3 +58,16 @@ test('T9 generation, manual validation and stale preview cannot enable save',asy
 test('T9 exhausted summaries remain explicit and NULL is not a date error',async({page})=>{
  await fixture(page,true);await page.goto('/subscriptions?tab=list');await expect(page.getByText('计划已结束',{exact:true})).toBeVisible();await page.goto('/sites');await expect(page.getByText(/下次 计划已结束/)).toBeVisible();await page.goto('/organize?tab=scans');await expect(page.getByText(/下次 计划已结束/)).toBeVisible();await page.goto('/ops?tab=maintenance');await expect(page.getByText(/计划已结束/).first()).toBeVisible();
 });
+
+test('T9 preview loading, success and error keep the automation card height',async({page})=>{
+ await fixture(page);
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});let release!:()=>void,seen=false;const gate=new Promise<void>(r=>release=r);
+  await page.route('**/api/v1/scheduling/cron/preview',async r=>{seen=true;await gate;await fixtureFulfill(r,{json:{data:{}}})});
+  await open(page,'settings');await expect.poll(()=>seen).toBe(true);const card=page.locator('.settings-card:visible').first(),before=(await card.boundingBox())!;
+  release();await expect(page.locator('.cron-preview')).toContainText('接下来');const loaded=(await card.boundingBox())!;expect(Math.abs(loaded.height-before.height)).toBeLessThanOrEqual(1);
+  await page.getByLabel('订阅调度时间',{exact:true}).fill('* *');await expect(page.locator('.cron-preview [role=alert]')).toBeVisible();const failed=(await card.boundingBox())!;expect(Math.abs(failed.height-before.height)).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.unroute('**/api/v1/scheduling/cron/preview');
+ }
+});

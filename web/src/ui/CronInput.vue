@@ -45,13 +45,13 @@ const format=(value:string)=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Sha
   </div>
   <label class="cron-expression">{{label}}<el-input :model-value="modelValue" @update:model-value="emit('update:modelValue',String($event));mode='manual'" :aria-label="label" :disabled="disabled" :aria-invalid="!!error"/></label>
   <small>5位：分 时 日 月 周；6位增加秒；7位再增加年（1970～2199）。时区：上海。步长在相应时间字段内循环。</small>
-  <p v-if="error" role="alert" class="cron-error">{{error}}</p>
   <div class="cron-preview" aria-live="polite">
-   <p v-if="pending" role="status">正在校验并计算执行时间…</p>
+   <p v-if="error" role="alert" class="cron-error">{{error}}</p>
+   <p v-else-if="pending" role="status">正在校验并计算执行时间…</p>
    <template v-else-if="preview"><p v-if="preview.exhausted" role="status">计划已结束，没有后续执行时间</p><template v-else><p>接下来 {{preview.next.length}} 次执行时间</p><ol><li v-for="next in preview.next" :key="next">{{format(next)}}</li></ol></template><small v-if="preview.minimumIntervalSeconds">此业务最小间隔：{{preview.minimumIntervalSeconds}} 秒</small></template>
   </div>
  </div>
 </template>
 <style scoped>
-.cron-input{display:grid;gap:10px;min-width:0}.cron-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px}.cron-fields label,.cron-expression{display:grid;gap:6px;min-width:0}.cron-fields .el-input-number{width:100%}.cron-preview{min-height:150px;padding:12px;background:var(--mt-bg-subtle,var(--mt-bg-surface));border-radius:8px;font-size:13px}.cron-preview p{margin:0 0 8px}.cron-preview ol{margin:0;padding-left:24px;font-variant-numeric:tabular-nums}.cron-error{color:var(--el-color-danger);margin:0}.cron-input small{color:var(--mt-text-secondary);overflow-wrap:anywhere}
+.cron-input{display:grid;gap:10px;min-width:0}.cron-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px}.cron-fields label,.cron-expression{display:grid;gap:6px;min-width:0}.cron-fields .el-input-number{width:100%}.cron-preview{height:190px;min-height:190px;box-sizing:border-box;overflow:auto;overflow-wrap:anywhere;padding:12px;background:var(--mt-bg-subtle,var(--mt-bg-surface));border-radius:8px;font-size:13px}.cron-preview p{margin:0 0 8px}.cron-preview ol{margin:0;padding-left:24px;font-variant-numeric:tabular-nums}.cron-error{color:var(--el-color-danger);margin:0}.cron-input small{color:var(--mt-text-secondary);overflow-wrap:anywhere}
 </style>
