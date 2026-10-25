@@ -12,18 +12,18 @@ const patch=computed(()=>record.value?metadataPatch(record.value,draft,restore.v
 const dirty=computed(()=>!!patch.value&&(Object.keys(patch.value.set).length>0||patch.value.restore.length>0));
 const label=(key:MetadataField)=>key==='title'&&record.value?.target.kind==='episode'?'集标题':metadataLabels[key];
 const targetLabel=(t:MetadataTarget)=>t.kind==='episode'?`第 ${t.season} 季 · 第 ${t.episode} 集`:t.kind==='season'?`第 ${t.season} 季`:t.kind==='series'?'剧集':'电影';
-function assign(r:MetadataRecord){for(const key of metadataFields)draft[key]=inputValue(r.effective[key]);restore.value=new Set();}
+function assign(r:MetadataRecord){for(const key of metadataFields)draft[key]=inputValue(r.effective[key],key);restore.value=new Set();}
 async function load(keep=false,page=1){
  const version=++epoch,pending=keep&&record.value?metadataPatch(record.value,draft,restore.value):undefined;
  busy.value=true;error.value='';
  try{const out=await readMediaMetadata(activeID.value,page);if(version!==epoch)return;
   record.value=out;assign(out);
-  if(pending){for(const key of Object.keys(pending.set) as MetadataField[])draft[key]=inputValue(pending.set[key]);restore.value=new Set(pending.restore);for(const key of pending.restore)draft[key]=inputValue(out.base[key]);}
+  if(pending){for(const key of Object.keys(pending.set) as MetadataField[])draft[key]=inputValue(pending.set[key],key);restore.value=new Set(pending.restore);for(const key of pending.restore)draft[key]=inputValue(out.base[key],key);}
   if(activeID.value===props.itemId)choices.value=out.choices||[out.target];blocked.value=false;if(keep)notice.value='已读取当前版本并保留修改草稿，未改字段使用当前值，请比较后再保存。';
  }catch(e){if(version===epoch)error.value=errorText(e);}finally{if(version===epoch)busy.value=false;}
 }
 function open(){opened.value=true;activeID.value=props.itemId;notice.value='';blocked.value=false;void load();}
-function stageRestore(key:MetadataField){restore.value.add(key);draft[key]=inputValue(record.value?.base[key]);notice.value='恢复操作尚未保存。';}
+function stageRestore(key:MetadataField){restore.value.add(key);draft[key]=inputValue(record.value?.base[key],key);notice.value='恢复操作尚未保存。';}
 function changed(key:MetadataField){restore.value.delete(key);}
 async function choose(id:string){activeID.value=id;notice.value='';await load();}
 async function save(){if(!patch.value||!dirty.value||blocked.value)return;const version=epoch;busy.value=true;error.value='';try{const out=await saveMediaMetadata(activeID.value,patch.value);if(version!==epoch)return;record.value=out;assign(out);notice.value='信息已保存，修改字段已锁定；恢复字段已解除锁定。';emit('saved');}catch(e){if(version!==epoch)return;error.value=errorText(e);if(!(e instanceof APIError)||e.status>=500||e.status===409){blocked.value=true;error.value+=' 请重新读取并核对，不要重复提交。';}}finally{if(version===epoch)busy.value=false;}}
@@ -49,7 +49,7 @@ watch(()=>props.itemId,()=>{epoch++;opened.value=false;record.value=undefined;ac
       <textarea v-if="key==='overview'" :id="`metadata-${key}`" v-model="draft[key]" :disabled="busy" rows="5" maxlength="10000" @input="changed(key)"/>
       <input v-else :id="`metadata-${key}`" v-model="draft[key]" :disabled="busy" :type="key==='premiereDate'?'date':['year','communityRating'].includes(key)?'number':'text'" :step="key==='communityRating'?'0.1':key==='year'?'1':undefined" :min="key==='year'?1800:key==='communityRating'?0:undefined" :max="key==='year'?2100:key==='communityRating'?10:undefined" :maxlength="key==='tagline'?1000:['genres','tags'].includes(key)?undefined:500" :placeholder="['genres','tags'].includes(key)?'用顿号或逗号分隔，最多50项':undefined" @input="changed(key)"/>
      </label>
-     <div class="metadata-origin"><span :title="inputValue(record.base[key])">刮削值：{{inputValue(record.base[key])||'暂无刮削值'}}</span><el-button :disabled="busy||!Object.hasOwn(record.overrides,key)&&!restore.has(key)" @click="stageRestore(key)">恢复为刮削值</el-button></div>
+     <div class="metadata-origin"><span :title="inputValue(record.base[key],key)">刮削值：{{inputValue(record.base[key],key)||'暂无刮削值'}}</span><el-button :disabled="busy||!Object.hasOwn(record.overrides,key)&&!restore.has(key)" @click="stageRestore(key)">恢复为刮削值</el-button></div>
     </div>
     <div class="mt-save-actions"><el-button class="mt-save-button" type="primary" native-type="submit" :loading="busy" :disabled="busy||blocked||!dirty">保存信息</el-button><el-button :disabled="busy" @click="assign(record);notice='已撤回未保存修改'">撤回草稿</el-button></div>
    </form>
