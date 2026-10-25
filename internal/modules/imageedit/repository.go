@@ -80,9 +80,9 @@ func (r Repository) Read(ctx context.Context, id string) (Record, error) {
 		return Record{}, e
 	}
 	out, e := read(ctx, r.DB, t)
-	if e == nil && t.Kind == "episode" {
+	if e == nil && t.Kind == "episode" && validUUID(id) {
 		var raw []byte
-		e = r.DB.QueryRow(ctx, `SELECT CASE WHEN jsonb_array_length(episodes)>0 THEN episodes ELSE jsonb_build_array(episode) END FROM media_asset_bindings WHERE asset_id::text=$1 AND state='ready'`, id).Scan(&raw)
+		e = r.DB.QueryRow(ctx, `SELECT CASE WHEN jsonb_array_length(episodes)>0 THEN episodes ELSE jsonb_build_array(episode) END FROM media_asset_bindings WHERE asset_id=$1 AND state='ready'`, id).Scan(&raw)
 		if errors.Is(e, pgx.ErrNoRows) {
 			e = nil
 		} else if e == nil {
