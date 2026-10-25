@@ -57,11 +57,15 @@ type syntheticTimeout struct{}
 func (syntheticTimeout) Error() string   { return "synthetic transport timeout" }
 func (syntheticTimeout) Timeout() bool   { return true }
 func (syntheticTimeout) Temporary() bool { return true }
-func newPlaybackFixture(t *testing.T) *playbackFixture {
+func newPlaybackFixture(t *testing.T, versions ...int64) *playbackFixture {
+	target := int64(83)
+	if len(versions) > 0 {
+		target = versions[0]
+	}
 	t.Helper()
-	f := &playbackFixture{browseFixture: newBrowseFixture(t), root: t.TempDir()}
+	f := &playbackFixture{browseFixture: newBrowseFixture(t, target), root: t.TempDir()}
 	// Current runtime admission uses current schema, not the historical browse fixture.
-	if _, e := f.provider.UpTo(f.ctx, 82); e != nil {
+	if _, e := f.provider.UpTo(f.ctx, target); e != nil {
 		t.Fatal(e)
 	}
 	m := f.media(t, 3132001, "Synthetic Playback Film", "2026", `{"officialRating":"G"}`)

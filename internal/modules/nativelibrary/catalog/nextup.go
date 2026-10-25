@@ -75,7 +75,7 @@ func (r BrowseRepository) nextUpPage(ctx context.Context, u contracts.User, p co
 		return []dto.BaseItemDto{}, total, nil
 	}
 	// Restrict BEFORE metadata/episode JSON expansion, not after a heavy join.
-	pageSQL := strings.Replace(strings.Replace(browseCTE, "WHERE NOT l.hidden", "WHERE e.media_type='series' AND NOT l.hidden", 1), "FROM keyed g JOIN media_items b", "FROM (SELECT * FROM keyed WHERE kind='episode' AND internal_key=ANY($6::text[])) g JOIN media_items b", 1)
+	pageSQL := strings.Replace(strings.Replace(strings.Replace(browseCTE, headerMetadata, fullPageMetadata+`||`+parentTextMetadata, 1), "WHERE NOT l.hidden", "WHERE e.media_type='series' AND NOT l.hidden", 1), "FROM keyed g JOIN media_items b", "FROM (SELECT * FROM keyed WHERE kind='episode' AND internal_key=ANY($6::text[])) g JOIN media_items b", 1)
 	pageSQL += ` SELECT coalesce(jsonb_agg(row_to_json(page)),'[]') FROM (SELECT ` + browseColumns + ` FROM item_rows WHERE kind='episode' AND ($3::boolean OR btrim(regexp_replace(upper(btrim(rating)),'^(CN:|US:)\s*',''))=ANY($2::text[])))page`
 	if err = r.DB.QueryRow(ctx, pageSQL, visible.ids, visible.codes, visible.unrated, visible.library, visible.user, keys).Scan(&raw); err != nil {
 		return nil, 0, contracts.ErrUnavailable

@@ -100,10 +100,14 @@ type browseFixture struct {
 	trace *browseTrace
 }
 
-func newBrowseFixture(t *testing.T) browseFixture {
+func newBrowseFixture(t *testing.T, versions ...int64) browseFixture {
+	target := int64(83)
+	if len(versions) > 0 {
+		target = versions[0]
+	}
 	t.Helper()
 	f := newMovieFixture(t)
-	if _, err := f.provider.UpTo(f.ctx, 83); err != nil {
+	if _, err := f.provider.UpTo(f.ctx, target); err != nil {
 		t.Fatal(err)
 	}
 	config := f.pool.Config()

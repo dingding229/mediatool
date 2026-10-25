@@ -232,7 +232,7 @@ func TestNativeSubtitleEmbedProjectionAnd404(t *testing.T) {
 func TestPlaybackReportsMigrationRoundTrip(t *testing.T) {
 	// A historical migration test seeds its historical row directly. Do not run
 	// today's UA runtime against schema 61 or cross irreversible migration 68.
-	f := newBrowseFixture(t)
+	f := newBrowseFixture(t, 60)
 	if _, e := f.provider.UpTo(f.ctx, 61); e != nil {
 		t.Fatal(e)
 	}

@@ -24,9 +24,9 @@ type stillFixture struct {
 	store  *stillqueue.Repository
 }
 
-func newStillFixture(t *testing.T) stillFixture {
+func newStillFixture(t *testing.T, versions ...int64) stillFixture {
 	t.Helper()
-	f := newBrowseFixture(t)
+	f := newBrowseFixture(t, versions...)
 	if _, err := f.provider.UpTo(f.ctx, 60); err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +352,7 @@ func TestNativeStillLeaseRecoveryConcurrencyAndSwitches(t *testing.T) {
 }
 
 func TestNativeStillMigrationChecksDownUpAndAssetTombstones(t *testing.T) {
-	f := newStillFixture(t)
+	f := newStillFixture(t, 60)
 	f.enqueue(t, false)
 	l := f.claim(t)
 	for _, tt := range []struct{ name, sql string }{
@@ -425,7 +425,7 @@ func TestNativeStillMigrationChecksDownUpAndAssetTombstones(t *testing.T) {
 }
 
 func TestNativeStillMigrationNormalizesDirtyLegacyMetadata(t *testing.T) {
-	f := newStillFixture(t)
+	f := newStillFixture(t, 60)
 	if _, err := f.provider.DownTo(f.ctx, 59); err != nil {
 		t.Fatal(err)
 	}

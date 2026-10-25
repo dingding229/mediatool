@@ -514,7 +514,7 @@ func TestNativeStillCacheReservationReleasedOnAllTransitions(t *testing.T) {
 }
 
 func TestNativeStillCacheSchemaBoundsAndRoundTrip(t *testing.T) {
-	f := newStillFixture(t)
+	f := newStillFixture(t, 60)
 	l := rawStillClaim(t, f)
 	if a, err := f.store.Admit(f.ctx, l, 1024); err != nil || !a.Reserved {
 		t.Fatal(a, err)

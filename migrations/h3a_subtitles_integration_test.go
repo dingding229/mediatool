@@ -38,7 +38,7 @@ func (h3Admin) Session(context.Context, []byte) (accounts.Account, error) {
 }
 
 func TestH3aSubtitleUpDownUpStoreStableIndicesAndIsolation(t *testing.T) {
-	f := newPlaybackFixture(t)
+	f := newPlaybackFixture(t, 82)
 	// Exercise exactly migration 82 down/up, preserving business rows/credentials.
 	sentinel := f.text(t, `SELECT credentials_ciphertext::text FROM integrations WHERE id=$1`, f.storage)
 	for _, up := range []bool{false, true} {
@@ -54,6 +54,10 @@ func TestH3aSubtitleUpDownUpStoreStableIndicesAndIsolation(t *testing.T) {
 	}
 	if got := f.text(t, `SELECT credentials_ciphertext::text FROM integrations WHERE id=$1`, f.storage); got != sentinel {
 		t.Fatal("migration touched credentials")
+	}
+	// Current native readers run only after the historical 82 round trip.
+	if _, e := f.provider.UpTo(f.ctx, 83); e != nil {
+		t.Fatal(e)
 	}
 	repo := subtitles.Repository{DB: f.pool, Root: filepath.Join(t.TempDir(), "subtitles")}
 	f.service.Subtitles = repo

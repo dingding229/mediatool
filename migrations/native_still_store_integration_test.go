@@ -210,7 +210,7 @@ func TestNativeStillStoreAdmissionDeletesOnlyCommittedVictimsAndBacksOff(t *test
 	}
 }
 func TestNativeStillStoreGCSizeCalibrationQuotaAndFences(t *testing.T) {
-	f := newStillFixture(t)
+	f := newStillFixture(t, 60)
 	raw := stillJPEG(t)
 	f.store = cacheRepository(t, f, int64(len(raw)*2))
 	store, cache, root := stillFileCache(t, f)

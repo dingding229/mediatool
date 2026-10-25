@@ -58,7 +58,7 @@
   },
   "detail": {
     "status": 200,
-    "bytes": 1999,
+    "bytes": 2054,
     "body": {
       "BackdropImageTags": [],
       "Bitrate": 100000,
@@ -149,6 +149,7 @@
       "Path": "Synthetic Episode 1.mkv",
       "People": [],
       "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+      "ProductionYear": 2025,
       "RunTimeTicks": 6000000000,
       "SeasonId": "100010",
       "SeasonName": "第 1 季",
@@ -156,6 +157,7 @@
       "SeriesName": "Synthetic Sequence Show",
       "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "Size": 1234,
+      "SortName": "Synthetic Episode 1",
       "Type": "Episode",
       "UserData": {
         "IsFavorite": false,
@@ -170,7 +172,7 @@
   },
   "episodes": {
     "status": 200,
-    "bytes": 3303,
+    "bytes": 3413,
     "body": {
       "Items": [
         {
@@ -263,6 +265,7 @@
           "Path": "Synthetic Episode 1.mkv",
           "People": [],
           "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+          "ProductionYear": 2025,
           "RunTimeTicks": 6000000000,
           "SeasonId": "100010",
           "SeasonName": "第 1 季",
@@ -270,6 +273,7 @@
           "SeriesName": "Synthetic Sequence Show",
           "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
           "Size": 1234,
+          "SortName": "Synthetic Episode 1",
           "Type": "Episode",
           "UserData": {
             "IsFavorite": false,
@@ -322,12 +326,14 @@
           "Path": "Synthetic Episode 2.mkv",
           "People": [],
           "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+          "ProductionYear": 2025,
           "RunTimeTicks": 14400000000,
           "SeasonId": "100010",
           "SeasonName": "第 1 季",
           "SeriesId": "100011",
           "SeriesName": "Synthetic Sequence Show",
           "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "SortName": "Synthetic Episode 2",
           "Type": "Episode",
           "UserData": {
             "IsFavorite": false,
@@ -624,7 +630,7 @@
   },
   "next-progress": {
     "status": 200,
-    "bytes": 2105,
+    "bytes": 2160,
     "body": {
       "Items": [
         {
@@ -717,6 +723,7 @@
           "Path": "Synthetic Episode 1.mkv",
           "People": [],
           "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+          "ProductionYear": 2025,
           "RunTimeTicks": 6000000000,
           "SeasonId": "100010",
           "SeasonName": "第 1 季",
@@ -724,6 +731,7 @@
           "SeriesName": "Synthetic Sequence Show",
           "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
           "Size": 1234,
+          "SortName": "Synthetic Episode 1",
           "Type": "Episode",
           "UserData": {
             "IsFavorite": false,
@@ -743,7 +751,7 @@
   },
   "next-stopped": {
     "status": 200,
-    "bytes": 1303,
+    "bytes": 1358,
     "body": {
       "Items": [
         {
@@ -787,12 +795,14 @@
           "Path": "Synthetic Episode 2.mkv",
           "People": [],
           "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+          "ProductionYear": 2025,
           "RunTimeTicks": 14400000000,
           "SeasonId": "100010",
           "SeasonName": "第 1 季",
           "SeriesId": "100011",
           "SeriesName": "Synthetic Sequence Show",
           "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "SortName": "Synthetic Episode 2",
           "Type": "Episode",
           "UserData": {
             "IsFavorite": false,
@@ -920,7 +930,7 @@
   },
   "resume-progress": {
     "status": 200,
-    "bytes": 2105,
+    "bytes": 2160,
     "body": {
       "Items": [
         {
@@ -1013,6 +1023,7 @@
           "Path": "Synthetic Episode 1.mkv",
           "People": [],
           "PremiereDate": "2025-01-01T00:00:00.0000000Z",
+          "ProductionYear": 2025,
           "RunTimeTicks": 6000000000,
           "SeasonId": "100010",
           "SeasonName": "第 1 季",
@@ -1020,6 +1031,7 @@
           "SeriesName": "Synthetic Sequence Show",
           "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
           "Size": 1234,
+          "SortName": "Synthetic Episode 1",
           "Type": "Episode",
           "UserData": {
             "IsFavorite": false,
@@ -1048,7 +1060,7 @@
   },
   "season-detail": {
     "status": 200,
-    "bytes": 636,
+    "bytes": 659,
     "body": {
       "BackdropImageTags": [],
       "Chapters": [],
@@ -1073,6 +1085,7 @@
       "SeriesId": "100011",
       "SeriesName": "Synthetic Sequence Show",
       "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "SortName": "第 1 季",
       "Type": "Season",
       "UserData": {
         "IsFavorite": false,
@@ -1087,7 +1100,7 @@
   },
   "seasons": {
     "status": 200,
-    "bytes": 684,
+    "bytes": 707,
     "body": {
       "Items": [
         {
@@ -1114,6 +1127,7 @@
           "SeriesId": "100011",
           "SeriesName": "Synthetic Sequence Show",
           "ServerId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "SortName": "第 1 季",
           "Type": "Season",
           "UserData": {
             "IsFavorite": false,
