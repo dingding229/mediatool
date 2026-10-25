@@ -32,13 +32,15 @@ func (r BrowseRepository) facets(ctx context.Context, u contracts.User, p contra
 		args = append(args, q.SearchTerm)
 		searchBind = len(args)
 	}
-	sql := browseSearchSQL(q, searchBind, false) + fmt.Sprintf(`,candidates AS MATERIALIZED(SELECT * FROM item_rows WHERE %s LIMIT %d),facet_values AS(
- SELECT 'genre' kind,lower(normalize(btrim(v),NFKC)) key,min(v COLLATE "C") name FROM candidates c
- CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(c.meta->'genres')='array' THEN c.meta->'genres' ELSE '[]'::jsonb END) v WHERE btrim(v)<>'' GROUP BY lower(normalize(btrim(v),NFKC))
- UNION ALL SELECT 'year',item_year,item_year FROM candidates WHERE item_year~'^[0-9]{4}$' GROUP BY item_year
- UNION ALL SELECT 'rating',rating,rating FROM candidates WHERE rating<>'' GROUP BY rating
+	sql := browseSearchSQL(q, searchBind, false) + fmt.Sprintf(`,candidates AS MATERIALIZED(SELECT meta->'genres' genres,item_year,rating FROM item_rows WHERE %s LIMIT %d),facet_source AS MATERIALIZED(
+ SELECT * FROM candidates WHERE (SELECT count(*) FROM candidates)<=%d
+ ),facet_values AS(
+ SELECT 'genre' kind,lower(normalize(btrim(v),NFKC)) key,min(v COLLATE "C") name FROM facet_source c
+ CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(c.genres)='array' THEN c.genres ELSE '[]'::jsonb END) v WHERE btrim(v)<>'' GROUP BY lower(normalize(btrim(v),NFKC))
+ UNION ALL SELECT 'year',item_year,item_year FROM facet_source WHERE item_year~'^[0-9]{4}$' GROUP BY item_year
+ UNION ALL SELECT 'rating',rating,rating FROM facet_source WHERE rating<>'' GROUP BY rating
  ),ranked AS(SELECT *,row_number() OVER(PARTITION BY kind ORDER BY key COLLATE "C") rank FROM facet_values)
- SELECT (SELECT count(*) FROM candidates),coalesce((SELECT jsonb_agg(row_to_json(ranked) ORDER BY kind,key COLLATE "C") FROM ranked WHERE rank<=513),'[]')`, where, discoveryCandidateLimit+1)
+ SELECT (SELECT count(*) FROM candidates),coalesce((SELECT jsonb_agg(row_to_json(ranked) ORDER BY kind,key COLLATE "C") FROM ranked WHERE rank<=513),'[]')`, where, discoveryCandidateLimit+1, discoveryCandidateLimit)
 	var count int
 	var raw []byte
 	if err := r.DB.QueryRow(ctx, sql, args...).Scan(&count, &raw); err != nil {
