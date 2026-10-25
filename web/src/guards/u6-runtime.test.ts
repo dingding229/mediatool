@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {createHash} from 'node:crypto'
 // F5b changes only workflow list URL page state and shared pagination props.
+// T5 changes only VNumberInput presentation: controls=false; ranges and runtime isolation stay pinned.
 // F5a approves static forms, full-range numeric controls and simplified metadata.
 // Untouched trust/ESM/operation helpers and the shared workflow manager remain pinned.
 // B5 allows only explicit component CSS imports outside the runtime hash;
@@ -14,7 +15,7 @@ import {createHash} from 'node:crypto'
 const baseline={
   "PluginMetadata.vue": "122730e4c54c9b2b76b2246841912fe0e08a1f75c59cde36f0058a5cab0496a2",
   "operation-error.ts": "e9420bd2615fa8326d33a0b558fd8a90c538f788fb45b648de2e34665464d6dd",
-  "PluginJson.ts": "99173237a24f5472b05211372b6609c64db39294643f2bfdd0e23e7c7154cef8",
+  "PluginJson.ts": "5e5250a2aaa266dac3181bcc9140cd96cb652854838b97ec90dcfe32202d191f",
   "PluginSurface.vue": "b4abeb837918d1e8257cce61cd898a8137933f454c4d087da58672866bda0be3",
   "ui-runtime.ts": "3a5fc7b65458ca877eacdc862f27251c2ba7bc61a99830c12b1f8f4d68b1adb2",
   "install-intent.ts": "fa056b05a6532fa495fa8cad9679d447c2738ca4a163ad73e12badf8f17facc2",
