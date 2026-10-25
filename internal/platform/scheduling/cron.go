@@ -41,7 +41,20 @@ func (b *budget) check() error {
 	}
 	return nil
 }
-func (Parser) Parse(expression string) (cron.Schedule, error) { return parse(expression) }
+
+// Keep the legacy 5/6-field executor itself intact. Preview/business validation
+// still uses the budgeted evaluator below, but a paused core process must never
+// interpret an elapsed preview budget as permanent schedule exhaustion.
+func (Parser) Parse(expression string) (cron.Schedule, error) {
+	s, err := parse(expression)
+	if err != nil {
+		return nil, err
+	}
+	if s.fields < 7 {
+		return s.base, nil
+	}
+	return s, nil
+}
 func parse(expression string) (*schedule, error) {
 	if len(expression) > MaxExpressionBytes {
 		return nil, errors.New("Cron 表达式最多128字节")

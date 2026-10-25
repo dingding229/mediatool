@@ -1,5 +1,5 @@
 import CronInput from '../ui/CronInput.vue'
-import { defineComponent, h, type PropType, type Component as VueComponent } from 'vue'
+import { defineComponent, h, watch, type PropType, type Component as VueComponent } from 'vue'
 import { ElInput,ElInputNumber,ElSwitch,ElCheckbox,ElSelect,ElOption,ElAlert,ElTag,ElButton,ElDivider } from 'element-plus'
 import 'element-plus/es/components/input/style/css'
 import 'element-plus/es/components/input-number/style/css'
@@ -13,11 +13,23 @@ import 'element-plus/es/components/button/style/css'
 import 'element-plus/es/components/divider/style/css'
 export interface PluginNode { component:string;key?:string;props?:Record<string,unknown>;model?:string;when?:{model:string;equals:unknown};children?:PluginNode[] }
 const safeKey=(k:string)=>/^[A-Za-z0-9_-]{1,64}$/.test(k)&&!['__proto__','constructor','prototype'].includes(k)
+// Keep metadata traversal within the same bounds as the renderer, including
+// conditional visibility. A cron field cannot bypass the runtime UI limits.
+export function cronFields(nodes:PluginNode[],model:Record<string,unknown>):string[]{
+ let seen=0;
+ const walk=(list:PluginNode[],depth:number):string[]=>{
+  if(depth>12||!Array.isArray(list))return [];const fields:string[]=[];
+  for(const n of list){if(++seen>256)break;if(n.when&&(!safeKey(n.when.model)||JSON.stringify(model[n.when.model])!==JSON.stringify(n.when.equals)))continue;
+   if(n.component==='VCronInput'&&n.model&&safeKey(n.model))fields.push(n.model);fields.push(...walk(n.children||[],depth+1));
+  }return fields;
+ };return walk(nodes,0);
+}
+
 const text=(v:unknown,max=4096)=>typeof v==='string'?v.slice(0,max):typeof v==='number'?String(v):''
 const containers:Record<string,string>={VRow:'plugin-json-row',VCol:'plugin-json-col',VCard:'panel',VCardTitle:'plugin-json-title',VCardText:'plugin-json-text'}
 export default defineComponent({name:'PluginJson',props:{nodes:{type:Array as PropType<PluginNode[]>,required:true},model:{type:Object as PropType<Record<string,unknown>>,default:()=>({})},readonly:Boolean},emits:['update:model','cron-valid'],setup(props,{emit}){
  const validity=new Map<string,boolean>();
- const cronFields=(nodes:PluginNode[]):string[]=>nodes.flatMap(n=>[...(n.component==='VCronInput'&&n.model?[n.model]:[]),...cronFields(n.children||[])]);
+ watch(()=>cronFields(props.nodes,props.model).join('\0'),(fields,previous)=>{if(fields||previous)emit('cron-valid',cronFields(props.nodes,props.model).every(f=>validity.get(f)===true))},{immediate:true});
  return()=>{let count=0
  const render=(n:PluginNode,depth:number,index:number):ReturnType<typeof h>|null=>{
   if(++count>256||depth>12)return h('p',{role:'status'},'插件界面超过安全上限')
@@ -35,7 +47,7 @@ export default defineComponent({name:'PluginJson',props:{nodes:{type:Array as Pr
   if(!component)return h('p',{key,role:'status',class:'plugin-json-placeholder'},`不支持的组件：${text(n.component,64)}`)
   const field=n.model??'',valid=safeKey(field),label=text(p.title??p.label,120)
   const input:Record<string,unknown>={modelValue:valid?props.model[field]:undefined,disabled:props.readonly||p.disabled===true||!valid,'aria-label':label||field,'onUpdate:modelValue':(v:unknown)=>{if(valid&&!props.readonly&&(typeof v==='string'||typeof v==='boolean'||typeof v==='number'||v===undefined||v===null))emit('update:model',{...props.model,[field]:typeof v==='string'?v:v})}}
-  if(n.component==='VCronInput'){input.purpose='plugin';input.label=label||'插件计划';input.onValid=(valid:boolean)=>{validity.set(field,valid);emit('cron-valid',cronFields(props.nodes).every(f=>validity.get(f)===true))}}
+  if(n.component==='VCronInput'){input.purpose='plugin';input.label=label||'插件计划';input.onValid=(valid:boolean)=>{validity.set(field,valid);emit('cron-valid',cronFields(props.nodes,props.model).every(f=>validity.get(f)===true))}}
   if(n.component==='VSelect')input.emptyValues=[undefined,null]
   if(n.component==='VNumberInput'){input.modelValue=props.model[field]==null?null:Number(props.model[field]);for(const k of ['min','max','step'])if(typeof p[k]==='number'&&Number.isFinite(p[k]))input[k]=p[k];input.stepStrictly=p.stepStrictly===true;input.controls=false}
   if(n.component==='VTextField'||n.component==='VTextarea'){input.type=n.component==='VTextarea'?'textarea':'text';input.placeholder=text(p.placeholder,120);if(Number.isFinite(p.maxlength))input.maxlength=Math.max(1,Number(p.maxlength));input.readonly=p.readonly===true}

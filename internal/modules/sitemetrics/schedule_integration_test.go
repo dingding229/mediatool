@@ -61,7 +61,7 @@ func fixture(t *testing.T) (context.Context, Engine, string) {
 		m.Close()
 		db.Exec(ctx, `TRUNCATE integrations,jobs CASCADE`)
 		db.Exec(ctx, `DELETE FROM site_definitions WHERE id='owned_scheduler'`)
-		db.Exec(ctx, `UPDATE site_metric_schedule SET enabled=true,interval_minutes=60,revision=1,next_run_at=now()+interval '1 hour',last_dispatched_at=NULL`)
+		db.Exec(ctx, `UPDATE site_metric_schedule SET enabled=true,interval_minutes=60,cron_expression='0 * * * *',revision=1,next_run_at=now()+interval '1 hour',last_dispatched_at=NULL`)
 		db.Close()
 	})
 	return ctx, e, acct.ID

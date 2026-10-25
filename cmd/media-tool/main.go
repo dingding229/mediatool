@@ -421,7 +421,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 			go func() { defer close(watchDone); libraryEngine.RunChangeWatcher(watchCtx, logger) }()
 			defer func() { watchCancel(); <-watchDone }()
 			cronLogger := scheduling.Logger{Log: logger.With("module", "scheduler")}
-			scheduler := cron.New(cron.WithSeconds(), cron.WithLogger(cronLogger), cron.WithChain(cron.Recover(cronLogger), cron.SkipIfStillRunning(cronLogger)))
+			scheduler := cron.New(cron.WithParser(scheduling.Parser{}), cron.WithLogger(cronLogger), cron.WithChain(cron.Recover(cronLogger), cron.SkipIfStillRunning(cronLogger)))
 			var nativeIDCursor int64 // Only this non-overlapping cron callback owns the cursor.
 			var nativeTMDBCursor string
 			var nativeProbeCursor string

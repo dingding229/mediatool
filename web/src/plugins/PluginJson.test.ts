@@ -1,7 +1,7 @@
 import {describe,it,expect,vi}from'vitest'
 import {createApp,h}from'vue'
 import {renderToString}from'vue/server-renderer'
-import PluginJson from './PluginJson'
+import PluginJson,{cronFields} from './PluginJson'
 import {pluginUIBuildGuard}from'./build-guard'
 describe('plugin JSON contracts',()=>{
  it('escapes text and safely placeholders unknown components without raw props',async()=>{const html=await renderToString(createApp({render:()=>h(PluginJson,{nodes:[{component:'Text',props:{text:'<script>bad()</script>',innerHTML:'<img src=x onerror=bad()>'}},{component:'script',props:{src:'https://remote.invalid/ui.js'}}]})}));expect(html).toContain('&lt;script&gt;');expect(html).toContain('不支持的组件');expect(html).not.toContain('<script>');expect(html).not.toContain('remote.invalid')})
@@ -22,3 +22,11 @@ it('renders the Go/Vue shared form contract with bound defaults and conditions',
  const html=await renderToString(createApp({render:()=>h(PluginJson,{nodes:fixture.form.content,model:fixture.form.defaults})}))
  expect(html).toContain('问候语');expect(html).toContain('定时服务已开启');const render=(PluginJson as any).setup({nodes:fixture.form.content,model:fixture.form.defaults,readonly:false},{emit:vi.fn()});expect(render().children[0].children[1].props.modelValue).toBe(fixture.form.defaults.greeting)
 })
+
+it('cron metadata traversal retains renderer bounds, conditional visibility and safe keys',()=>{
+ expect(cronFields([{component:'VCronInput',model:'cron',when:{model:'active',equals:true}}],{active:false})).toEqual([]);
+ expect(cronFields([{component:'VCronInput',model:'cron',when:{model:'active',equals:true}}],{active:true})).toEqual(['cron']);
+ expect(cronFields([{component:'VCronInput',model:'__proto__'}],{})).toEqual([]);
+ expect(cronFields(Array.from({length:300},(_,i)=>({component:'VCronInput',model:'cron'+i})),{})).toHaveLength(256);
+ let deep:any={component:'VCronInput',model:'cron'};for(let i=0;i<20;i++)deep={component:'VCard',children:[deep]};expect(cronFields([deep],{})).toEqual([]);
+});

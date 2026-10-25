@@ -131,12 +131,15 @@ func TestT9CoreActualLegacyParserAndUnifiedFixedClock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, ok := current.(*cron.SpecSchedule); !ok {
+		t.Fatal("core must retain the original executor")
+	}
 	a := time.Date(2026, 12, 31, 23, 59, 59, 123456789, time.UTC)
 	b := a
 	for i := 0; i < 200; i++ {
 		a = old.Next(a)
 		b = current.Next(b)
-		if !a.Equal(b) {
+		if a.Format(time.RFC3339Nano) != b.Format(time.RFC3339Nano) {
 			t.Fatal(i, a, b)
 		}
 	}
