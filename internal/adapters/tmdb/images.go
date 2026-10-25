@@ -3,6 +3,7 @@ package tmdb
 import (
 	"context"
 	"fmt"
+	"net/url"
 )
 
 // ImageCandidates is called only by an explicit administrator picker operation.
@@ -24,7 +25,7 @@ func (c Client) ImageCandidates(ctx context.Context, kind string, id int64, seas
 			Path string `json:"file_path"`
 		}
 	}
-	if e := c.getNativeRetry(ctx, endpoint, nil, &raw); e != nil {
+	if e := c.getNativeRetry(ctx, endpoint, url.Values{"include_image_language": {"zh,en,null"}}, &raw); e != nil {
 		return nil, e
 	}
 	out := map[string][]string{"Primary": {}, "Backdrop": {}, "Logo": {}}
