@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"media-tool/internal/modules/metadataedit"
 	"media-tool/internal/modules/nativelibrary"
 	"strings"
 )
@@ -35,32 +36,32 @@ const browseKeysCTE = browseExpandedCTE + `,grouped AS (
 // quadratic nested-loop scans on freshly bulk-populated test libraries.
 // Only lightweight headers participate in filtering and paging. Provider
 // snapshots and physical versions are fetched once, only for this page's keys.
-const browseCTE = browseKeysCTE + `,episode_metadata AS MATERIALIZED (
+const parentTextMetadata = `jsonb_build_object('_seriesName',coalesce(ro.overrides->>'title',b.title),'_seasonName',coalesce(so.overrides->>'title',nullif(sd.payload->>'name',''),CASE WHEN g.s=0 THEN '特别篇' ELSE '第 '||g.s||' 季' END))`
+
+var fullPageMetadata = metadataedit.BaseSQL("b.title", "b.release_year", "b.metadata", "g.kind", "g.s", "g.e", "d.payload", "sd.payload", "ep.value") + `||coalesce(o.overrides,'{}'::jsonb)`
+var headerMetadata = metadataedit.HeaderSQL("b.title", "b.release_year", "b.metadata", "g.kind", "g.s", "g.e", "d.payload", "sd.payload", "ep.value", "o.overrides")
+var browseCTE = browseKeysCTE + `,episode_metadata AS MATERIALIZED (
  SELECT DISTINCT ON(m.tmdb_id,m.season,m.first_episode) m.tmdb_id,m.season,m.first_episode,v.value
  FROM members m CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(m.asset_identity->'episodeDetails')='array' THEN m.asset_identity->'episodeDetails' ELSE '[]'::jsonb END) v(value)
  WHERE m.media_type='series' AND v.value->>'season'=m.season::text AND v.value->>'number'=m.first_episode::text
  ORDER BY m.tmdb_id,m.season,m.first_episode,m.created_at DESC,m.asset_id
 ),headers AS NOT MATERIALIZED (
- SELECT g.*,b.title,b.release_year,b.metadata || jsonb_strip_nulls(jsonb_build_object(
- 'originalTitle',nullif(d.payload->>'originalTitle',''),'officialRating',nullif(d.payload->>'officialRating',''),'genres',nullif(d.payload->'genres','[]'::jsonb),'sortName',nullif(d.payload->>'sortName',''),
- 'premiereDate',nullif(d.payload->>'premiereDate',''),'communityRating',d.payload->'communityRating')) meta,
- coalesce(nullif(sd.payload->>'name',''),CASE WHEN s=0 THEN '特别篇' ELSE '第 '||s||' 季' END) season_name,
- coalesce(sd.payload->>'premiereDate','') season_date,coalesce(ep.value,'{}'::jsonb) episode_info
+ SELECT g.*,b.title,b.release_year,coalesce(nullif(sd.payload->>'name',''),CASE WHEN g.s=0 THEN '特别篇' ELSE '第 '||g.s||' 季' END) season_name,coalesce(sd.payload->>'premiereDate','') season_date,
+ (` + headerMetadata + `) meta,
+ coalesce(ep.value,'{}'::jsonb) episode_info
  FROM keyed g JOIN media_items b ON b.tmdb_id=g.tmdb_id AND b.media_type=CASE WHEN g.kind='movie' THEN 'movie' ELSE 'series' END
  LEFT JOIN native_tmdb_details d ON d.tmdb_type=b.media_type AND d.tmdb_id=g.tmdb_id AND d.season_number IS NULL AND d.fetched_at IS NOT NULL
  AND d.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN')
  LEFT JOIN native_tmdb_details sd ON sd.tmdb_type='season' AND sd.tmdb_id=g.tmdb_id AND sd.season_number=g.s AND sd.fetched_at IS NOT NULL
  AND sd.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN')
- LEFT JOIN episode_metadata ep ON g.kind='episode' AND ep.tmdb_id=g.tmdb_id AND ep.season=g.s AND ep.first_episode=g.e
-
+ LEFT JOIN episode_metadata em ON g.kind='episode' AND em.tmdb_id=g.tmdb_id AND em.season=g.s AND em.first_episode=g.e
+ LEFT JOIN LATERAL(SELECT CASE WHEN g.kind='episode' THEN ` + metadataedit.LeafSQL("sd.payload", "jsonb_build_object('episodeDetails',jsonb_build_array(em.value))", "g.s", "g.e") + ` ELSE '{}'::jsonb END value) ep ON true
+ ` + metadataedit.HeaderJoin("o", "b.id", "g.kind", "g.s", "g.e") + metadataedit.Join("ro", "b.id", "b.media_type", "-1", "-1") + metadataedit.Join("so", "b.id", "'season'", "g.s", "-1") + `
 ), media_rows AS NOT MATERIALIZED (
  SELECT h.kind,h.internal_key,h.tmdb_id,h.s,h.e,h.created,h.libraries,h.parent,h.title,h.meta,h.episode_info,h.seasons,h.episodes,n.id::text id,
- CASE kind WHEN 'season' THEN season_name WHEN 'episode' THEN coalesce(nullif(episode_info->>'title',''),'第 '||e||' 集') ELSE title END name,
- CASE kind WHEN 'season' THEN coalesce(nullif(left(season_date,4),''),release_year)
- WHEN 'episode' THEN coalesce(nullif(left(episode_info->>'airDate',4),''),release_year) ELSE release_year END AS item_year,
- coalesce(meta->>'officialRating','') rating,
- CASE kind WHEN 'season' THEN season_date WHEN 'episode' THEN coalesce(episode_info->>'airDate','') ELSE coalesce(meta->>'premiereDate','') END premiere,
- 0 sort_order,'' collection_type,h.latest_created
+ coalesce(meta->>'title',CASE kind WHEN 'season' THEN season_name WHEN 'episode' THEN coalesce(nullif(episode_info->>'name',''),nullif(episode_info->>'title',''),'第 '||e||' 集') ELSE title END) name,
+ CASE WHEN meta?'year' THEN coalesce(meta->>'year','') WHEN kind='season' THEN coalesce(nullif(left(season_date,4),''),release_year) WHEN kind='episode' THEN coalesce(nullif(left(episode_info->>'airDate',4),''),release_year) ELSE release_year END AS item_year,
+ coalesce(meta->>'officialRating','') rating,coalesce(meta->>'premiereDate','') premiere,0 sort_order,'' collection_type,h.latest_created
  FROM headers h LEFT JOIN LATERAL(SELECT id FROM native_item_ids WHERE entity_type=h.kind AND internal_key=h.internal_key LIMIT 1)n ON true
 ), raw_item_rows AS NOT MATERIALIZED (
  SELECT * FROM media_rows UNION ALL
@@ -75,7 +76,7 @@ const browseColumns = `kind,internal_key AS key,tmdb_id AS tmdb,s,e,created,libr
  jsonb_strip_nulls(jsonb_build_object('Played',user_played,'PlaybackPositionTicks',user_position,'PlayCount',user_count,'IsFavorite',user_favorite,'LastPlayedDate',user_last_played,'UnplayedItemCount',user_unplayed,'PlayedPercentage',user_percentage)) AS user_data`
 
 var browseSorts = map[string]string{
-	"Name": "lower(name) COLLATE \"C\"", "SortName": "lower(CASE WHEN kind IN('season','episode') THEN name ELSE coalesce(nullif(meta->>'sortName',''),name) END) COLLATE \"C\"",
+	"Name": "lower(name) COLLATE \"C\"", "SortName": "lower(coalesce(nullif(meta->>'sortName',''),name)) COLLATE \"C\"",
 	"DateLastContentAdded": "latest_created",
 	"DateCreated":          "created", "DatePlayed": "user_last_played", "PremiereDate": "NULLIF(premiere,'')", "ProductionYear": "CASE WHEN item_year~'^[0-9]{4}$' THEN item_year::int END",
 	"CommunityRating": "CASE WHEN jsonb_typeof(meta->'communityRating')='number' THEN (meta->>'communityRating')::numeric END",
@@ -102,7 +103,8 @@ func browseSearchSQL(q nativelibrary.ItemQuery, bind int, normalized bool) strin
 	if bind == 0 {
 		return sql
 	}
-	expr := fmt.Sprintf("strpos(lower(e.title),lower($%d::text))>0", bind)
+	title := `(coalesce((SELECT overrides->>'title' FROM media_metadata_overrides WHERE media_id=e.media_id AND entity_type='movie' AND season_number=-1 AND episode_number=-1),e.title))`
+	expr := fmt.Sprintf("strpos(lower(%s),lower($%d::text))>0", title, bind)
 	if normalized {
 		// Skip 100k empty override probes when this library has no fetched movie
 		// original titles. When overrides exist, keep the indexed correlated lookup
@@ -110,7 +112,8 @@ func browseSearchSQL(q nativelibrary.ItemQuery, bind int, normalized bool) strin
 		language := `coalesce((SELECT nullif(settings->>'language','')FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN')`
 		sql = strings.Replace(sql, "WITH ", `WITH movie_snapshot_presence AS MATERIALIZED(SELECT EXISTS(SELECT 1 FROM native_tmdb_details WHERE tmdb_type='movie' AND season_number IS NULL AND fetched_at IS NOT NULL AND language=`+language+` AND nullif(payload->>'originalTitle','') IS NOT NULL) present), `, 1)
 		original := `coalesce(CASE WHEN (SELECT present FROM movie_snapshot_presence) THEN (SELECT nullif(d.payload->>'originalTitle','') FROM native_tmdb_details d WHERE d.tmdb_type='movie' AND d.tmdb_id=e.tmdb_id AND d.season_number IS NULL AND d.fetched_at IS NOT NULL AND d.language=` + language + ` LIMIT 1)END,e.metadata->>'originalTitle','')`
-		expr = fmt.Sprintf("strpos(lower(normalize(e.title,NFKC)),lower(normalize($%d::text,NFKC)))>0 OR strpos(lower(normalize(%s,NFKC)),lower(normalize($%d::text,NFKC)))>0", bind, original, bind)
+		original = `(coalesce((SELECT overrides->>'originalTitle' FROM media_metadata_overrides WHERE media_id=e.media_id AND entity_type='movie' AND season_number=-1 AND episode_number=-1),` + original + `))`
+		expr = fmt.Sprintf("strpos(lower(normalize(%s,NFKC)),lower(normalize($%d::text,NFKC)))>0 OR strpos(lower(normalize(%s,NFKC)),lower(normalize($%d::text,NFKC)))>0", title, bind, original, bind)
 	}
 
 	return strings.Replace(sql, "AND e.media_type=CASE l.collection_type", "AND (e.media_type<>'movie' OR ("+expr+")) AND e.media_type=CASE l.collection_type", 1)

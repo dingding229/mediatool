@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/modules/classification"
 	"media-tool/internal/modules/metadata"
+	"media-tool/internal/modules/metadataedit"
 )
 
 type Dimensions struct {
@@ -21,11 +22,12 @@ type Dimensions struct {
 }
 type ManagedDetail struct {
 	Item
-	Rating      *float64     `json:"rating"`
-	Size        *int64       `json:"size"`
-	Resolutions []Dimensions `json:"resolutions"`
-	Aggregate   bool         `json:"aggregate"`
-	AssetCount  int          `json:"assetCount"`
+	Metadata    metadataedit.Values `json:"metadata"`
+	Rating      *float64            `json:"rating"`
+	Size        *int64              `json:"size"`
+	Resolutions []Dimensions        `json:"resolutions"`
+	Aggregate   bool                `json:"aggregate"`
+	AssetCount  int                 `json:"assetCount"`
 }
 
 // Scope identities are the existing work/season/physical-asset identities.
@@ -136,6 +138,24 @@ func (e Engine) ManagedDetail(parent context.Context, id string) (ManagedDetail,
 		return out, ErrUnavailable
 	}
 	if json.Unmarshal(dims, &out.Resolutions) != nil {
+		return out, ErrUnavailable
+	}
+	// Use the same effective text as list/search and the native protocol. This
+	// read never changes technical fields, classification, assets or STRM paths.
+	record, editErr := (metadataedit.Repository{DB: e.DB}).Read(ctx, id)
+	if editErr == nil {
+		out.Metadata = record.Effective
+		_ = json.Unmarshal(record.Effective["title"], &out.Title)
+		_ = json.Unmarshal(record.Effective["overview"], &out.Overview)
+		var y *int
+		_ = json.Unmarshal(record.Effective["year"], &y)
+		out.Year = ""
+		if y != nil {
+			out.Year = strconv.Itoa(*y)
+		}
+		out.Rating = nil
+		_ = json.Unmarshal(record.Effective["communityRating"], &out.Rating)
+	} else if !errors.Is(editErr, metadataedit.ErrNotFound) {
 		return out, ErrUnavailable
 	}
 	return out, nil

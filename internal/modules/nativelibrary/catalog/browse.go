@@ -278,6 +278,16 @@ func (r BrowseRepository) query(ctx context.Context, u contracts.User, p contrac
 	}
 	source, prefix, within := "item_rows", "", "true"
 	searchBind := 0
+	// Standard SearchTerm has the same effective Name predicate as the outer
+	// WHERE. Prune movie members before grouping, not after a 100k-row sort.
+	if q.SearchTerm != "" {
+		for i, arg := range args {
+			if value, ok := arg.(string); ok && value == q.SearchTerm {
+				searchBind = i + 1
+				break
+			}
+		}
+	}
 	if options.search != "" {
 		args = append(args, options.search)
 		i := len(args)
@@ -328,7 +338,7 @@ func (r BrowseRepository) query(ctx context.Context, u contracts.User, p contrac
 		parentBind = len(args)
 	}
 
-	base, args := pruneHeadersSQL(browseSearchSQL(q, searchBind, true), q, args)
+	base, args := pruneHeadersSQL(browseSearchSQL(q, searchBind, options.search != ""), q, args)
 	args = append(args, q.Limit, q.StartIndex)
 	countSQL := "(SELECT count(*) FROM filtered)"
 	if options.skipCount {

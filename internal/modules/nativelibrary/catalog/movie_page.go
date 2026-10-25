@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"media-tool/internal/modules/embyapi/dto"
 	"media-tool/internal/modules/mediausers/contracts"
+	"media-tool/internal/modules/metadataedit"
 	"media-tool/internal/modules/nativelibrary"
 	"strings"
 )
@@ -27,10 +28,7 @@ func (r BrowseRepository) moviePage(ctx context.Context, u contracts.User, p con
 		where, args = o.extra(where, args)
 	}
 	rootFilter := ""
-	if len(q.Years) > 0 {
-		args = append(args, q.Years)
-		rootFilter += fmt.Sprintf(" AND e.release_year=ANY($%d::text[])", len(args))
-	}
+
 	cols, ordering, err := projectionOrder(order)
 	if err != nil {
 		return nil, 0, true, err
@@ -45,14 +43,15 @@ func (r BrowseRepository) moviePage(ctx context.Context, u contracts.User, p con
  SELECT DISTINCT e.media_id FROM (` + ExposableAssetsSQL + `)e JOIN native_asset_libraries al ON al.asset_id=e.asset_id JOIN native_libraries l ON l.id=al.library_id
  WHERE e.media_type='movie' ` + rootFilter + ` AND NOT l.hidden AND l.collection_type='movies' AND l.id=ANY($1::text[]) AND ($4::text='' OR l.id=$4)
  ),roots AS NOT MATERIALIZED(
- SELECT m.tmdb_id,m.title,m.release_year,m.metadata,n.id::text id FROM eligible_movies k JOIN media_items m ON m.id=k.media_id
+ SELECT m.id media_id,m.tmdb_id,m.title,m.release_year,m.metadata,n.id::text id FROM eligible_movies k JOIN media_items m ON m.id=k.media_id
  LEFT JOIN LATERAL(SELECT id FROM native_item_ids WHERE entity_type='movie' AND internal_key='tmdb:'||m.tmdb_id LIMIT 1)n ON true
  ),headers AS NOT MATERIALIZED(
- SELECT r.*,r.metadata||jsonb_strip_nulls(jsonb_build_object('originalTitle',nullif(td.payload->>'originalTitle',''),'officialRating',nullif(td.payload->>'officialRating',''),'genres',nullif(td.payload->'genres','[]'::jsonb),'sortName',nullif(td.payload->>'sortName',''),'premiereDate',nullif(td.payload->>'premiereDate',''),'communityRating',td.payload->'communityRating')) meta
+ SELECT r.*,(` + metadataedit.HeaderSQL("r.title", "r.release_year", "r.metadata", "'movie'", "-1", "-1", "td.payload", "'{}'::jsonb", "'{}'::jsonb", "o.overrides") + `) meta
  FROM roots r LEFT JOIN native_tmdb_details td ON td.tmdb_type='movie' AND td.tmdb_id=r.tmdb_id AND td.season_number IS NULL AND td.fetched_at IS NOT NULL
  AND td.language=coalesce((SELECT nullif(settings->>'language','')FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN')
+ ` + metadataedit.HeaderJoin("o", "r.media_id", "'movie'", "-1", "-1") + `
  ),item_rows AS NOT MATERIALIZED(
- SELECT 'movie'::text kind,'tmdb:'||h.tmdb_id internal_key,h.id,-1 s,-1 e,h.title name,h.release_year item_year,h.meta,coalesce(h.meta->>'officialRating','') rating,coalesce(h.meta->>'premiereDate','') premiere,
+ SELECT 'movie'::text kind,'tmdb:'||h.tmdb_id internal_key,h.id,-1 s,-1 e,coalesce(h.meta->>'title',h.title) name,CASE WHEN h.meta?'year' THEN coalesce(h.meta->>'year','') ELSE h.release_year END item_year,h.meta,coalesce(h.meta->>'officialRating','') rating,coalesce(h.meta->>'premiereDate','') premiere,
  coalesce(d.played,false)user_played,coalesce(d.position_ticks,0)user_position,coalesce(d.play_count,0)user_count,coalesce(d.favorite,false)user_favorite,d.last_played_at user_last_played
  FROM headers h LEFT JOIN media_user_item_data d ON d.user_id=$5::uuid AND d.item_id=h.id::bigint
  ),filtered AS MATERIALIZED(SELECT ` + strings.Join(cols, ",") + ` FROM item_rows WHERE ` + where + cap + `)`

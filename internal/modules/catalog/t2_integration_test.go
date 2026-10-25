@@ -36,7 +36,7 @@ func t2DB(t *testing.T) (context.Context, *pgxpool.Pool) {
 	if _, e = base.Exec(ctx, `CREATE SCHEMA `+q); e != nil {
 		t.Fatal(e)
 	}
-	for _, table := range []string{"cloud_files", "storage_connections", "media_assets", "media_asset_bindings", "media_items", "directory_classification", "native_tmdb_details", "media_probe_results", "integrations"} {
+	for _, table := range []string{"cloud_files", "storage_connections", "media_assets", "media_asset_bindings", "media_items", "directory_classification", "native_tmdb_details", "media_probe_results", "integrations", "media_metadata_overrides"} {
 		if _, e = base.Exec(ctx, `CREATE TABLE `+pgx.Identifier{schema, table}.Sanitize()+` (LIKE public.`+pgx.Identifier{table}.Sanitize()+` INCLUDING ALL)`); e != nil {
 			t.Fatal(e)
 		}

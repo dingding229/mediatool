@@ -22,6 +22,10 @@ var ErrInvalidProjection = errors.New("invalid native media projection")
 // StoredMovieMetadata describes optional data already persisted in media_items.
 // Missing values stay absent; projection never fetches metadata or media.
 type StoredMovieMetadata struct {
+	Tagline         string   `json:"tagline"`
+	Tags            []string `json:"tags"`
+	SeriesName      string   `json:"_seriesName"`
+	SeasonName      string   `json:"_seasonName"`
 	OriginalTitle   string   `json:"originalTitle"`
 	SortName        string   `json:"sortName"`
 	Overview        string   `json:"overview"`

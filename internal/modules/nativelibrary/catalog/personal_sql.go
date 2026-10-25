@@ -4,12 +4,10 @@ package catalog
 // remain binds. Parental filtering precedes parent aggregation, not pagination.
 const personalCTE = `,visible_episode_data AS (
  SELECT g.tmdb_id,g.s,coalesce(d.played,false) played,coalesce(d.play_count,0) play_count,d.last_played_at
- FROM keyed g JOIN media_items b ON b.tmdb_id=g.tmdb_id AND b.media_type='series'
+ FROM headers g
  LEFT JOIN LATERAL(SELECT id FROM native_item_ids WHERE entity_type='episode' AND internal_key=g.internal_key LIMIT 1)n ON true
  LEFT JOIN media_user_item_data d ON d.item_id=n.id AND d.user_id=$5::uuid
- LEFT JOIN native_tmdb_details td ON td.tmdb_type='series' AND td.tmdb_id=g.tmdb_id AND td.season_number IS NULL AND td.fetched_at IS NOT NULL
- AND td.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN')
- WHERE g.kind='episode' AND ($3::boolean OR btrim(regexp_replace(upper(btrim(coalesce(nullif(td.payload->>'officialRating',''),b.metadata->>'officialRating',''))),'^(CN:|US:)\s*',''))=ANY($2::text[]))
+ WHERE g.kind='episode' AND ($3::boolean OR btrim(regexp_replace(upper(btrim(coalesce(g.meta->>'officialRating',''))),'^(CN:|US:)\s*',''))=ANY($2::text[]))
 ),episode_user_totals AS MATERIALIZED (
  SELECT tmdb_id,scope_s,count(*) total,count(*) FILTER(WHERE NOT played) unplayed,sum(play_count) play_count,max(last_played_at) last_played_at
  FROM visible_episode_data CROSS JOIN LATERAL(VALUES(-1),(s)) scopes(scope_s) GROUP BY tmdb_id,scope_s

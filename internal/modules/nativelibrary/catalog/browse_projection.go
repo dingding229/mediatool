@@ -227,6 +227,14 @@ func (r BrowseRepository) hydrate(ctx context.Context, records []browseRow, fiel
 		if x.Kind == "season" || x.Kind == "episode" {
 			item.Genres = append(dto.Array[string]{}, x.Meta.Genres...)
 		}
+		if x.Kind != "library" {
+			item.Name = x.Name
+			nativelibrary.ApplyEffectiveText(&item, x.Meta)
+			item.ProductionYear = nil
+			if y, err := strconv.Atoi(x.Year); err == nil && y >= 1 && y <= 9999 {
+				item.ProductionYear = &y
+			}
+		}
 		item.OfficialRating = x.Rating
 		if !slices.Contains(fields, "Overview") {
 			item.Overview = ""

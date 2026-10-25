@@ -24,6 +24,15 @@ type nativeCredit struct {
 }
 type nativeRecord struct {
 	record
+	Tagline  string `json:"tagline"`
+	Keywords struct {
+		Keywords []struct {
+			Name string `json:"name"`
+		} `json:"keywords"`
+		Results []struct {
+			Name string `json:"name"`
+		} `json:"results"`
+	} `json:"keywords"`
 	VoteAverage  *float32 `json:"vote_average"`
 	Runtime      int      `json:"runtime"`
 	SeasonNumber *int     `json:"season_number"`
@@ -60,9 +69,10 @@ type nativeRecord struct {
 		Season         int   `json:"season_number"`
 		Number         int   `json:"episode_number"`
 		Name, Overview string
-		AirDate        string `json:"air_date"`
-		StillPath      string `json:"still_path"`
-		Runtime        int    `json:"runtime"`
+		VoteAverage    *float32 `json:"vote_average"`
+		AirDate        string   `json:"air_date"`
+		StillPath      string   `json:"still_path"`
+		Runtime        int      `json:"runtime"`
 	} `json:"episodes"`
 }
 
@@ -87,10 +97,10 @@ func (c Client) nativeDetails(ctx context.Context, kind nativelibrary.TMDBDetail
 	if id < 1 || (kind != nativelibrary.TMDBTypeMovie && kind != nativelibrary.TMDBTypeSeries && kind != nativelibrary.TMDBTypeSeason) || (kind == nativelibrary.TMDBTypeSeason && (season == nil || *season < 0 || *season > 999)) {
 		return out, ErrRequest
 	}
-	prefix, appendices := "movie", "release_dates,external_ids,credits,images"
+	prefix, appendices := "movie", "release_dates,external_ids,credits,images,keywords"
 	if kind != nativelibrary.TMDBTypeMovie {
 		prefix = "tv"
-		appendices = "content_ratings,external_ids,credits,images"
+		appendices = "content_ratings,external_ids,credits,images,keywords"
 	}
 	endpoint := "/" + prefix + "/" + strconv.FormatInt(id, 10)
 	if kind == nativelibrary.TMDBTypeSeason {
@@ -125,6 +135,17 @@ func (c Client) nativeDetails(ctx context.Context, kind nativelibrary.TMDBDetail
 	}
 	out.Overview, out.PosterPath, out.BackdropPath, out.CommunityRating, out.RuntimeMinutes, out.ImdbID = r.Overview, r.PosterPath, r.BackdropPath, r.VoteAverage, r.Runtime, r.ExternalIDs.Imdb
 	out.EndDate, out.Status = r.LastAirDate, r.Status
+	out.Tagline = r.Tagline
+	for _, k := range r.Keywords.Keywords {
+		if len(out.Tags) < 50 && len([]rune(k.Name)) <= 100 {
+			out.Tags = append(out.Tags, k.Name)
+		}
+	}
+	for _, k := range r.Keywords.Results {
+		if len(out.Tags) < 50 && len([]rune(k.Name)) <= 100 {
+			out.Tags = append(out.Tags, k.Name)
+		}
+	}
 	for _, g := range r.Genres {
 		out.Genres = append(out.Genres, g.Name)
 	}
@@ -219,10 +240,13 @@ func (c Client) nativeDetails(ctx context.Context, kind nativelibrary.TMDBDetail
 				return out, ErrRequest
 			}
 		}
+		if ep.VoteAverage != nil && (*ep.VoteAverage < 0 || *ep.VoteAverage > 10) {
+			return out, ErrRequest
+		}
 		if !nativeImagePath(ep.StillPath) {
 			return out, ErrRequest
 		}
-		out.Episodes = append(out.Episodes, nativelibrary.TMDBEpisode{ID: ep.ID, Season: ep.Season, Number: ep.Number, Name: ep.Name, Overview: ep.Overview, AirDate: ep.AirDate, StillPath: ep.StillPath, RuntimeMinutes: ep.Runtime})
+		out.Episodes = append(out.Episodes, nativelibrary.TMDBEpisode{CommunityRating: ep.VoteAverage, ID: ep.ID, Season: ep.Season, Number: ep.Number, Name: ep.Name, Overview: ep.Overview, AirDate: ep.AirDate, StillPath: ep.StillPath, RuntimeMinutes: ep.Runtime})
 	}
 	for _, p := range []string{out.PosterPath, out.BackdropPath, out.LogoPath} {
 		if !nativeImagePath(p) {

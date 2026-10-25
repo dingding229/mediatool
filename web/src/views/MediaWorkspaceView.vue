@@ -6,6 +6,8 @@ import StateView from '../ui/StateView.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import PosterWall from '../media/PosterWall.vue';
 import SubtitlePanel from '../media/SubtitlePanel.vue';
+import MetadataEditor from '../media/MetadataEditor.vue';
+import {managedDetail} from '../api/mediaCatalog';
 import { useCatalog } from '../media/useCatalog';
 import { image, mediaType, sourceState, displayRating, displayResolution, displayMediaSize } from '../media/model';
 import { errorText } from '../workflows/readiness';
@@ -13,6 +15,7 @@ import { formatBytes } from '../operations/model';
 import '../media/catalog.css';
 const { selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, items, total, home, groups, loading, error, embyConnected, connectionError, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, category, categories, load, search, chooseSource, all, browse, inspect, homeItem, refresh, readChildren } = useCatalog();
 usePageRefresh(refresh,'*');
+async function metadataSaved(){await load();if(detail.value){try {const updated=await managedDetail(detail.value.id);detail.value={...detail.value,...updated};}catch(e){detailError.value=e;}}}
 </script>
 <template>
   <div class="catalog-workspace">
@@ -81,6 +84,7 @@ usePageRefresh(refresh,'*');
     <DetailDrawer :key="detail?.id" v-model:visible="detailOpen" :title="detail?.title||'作品详情'" class="catalog-detail">
       <StateView v-if="detailLoading" state="loading" title="正在读取作品详情…"/>
       <StateView v-if="detailError" :state="sourceState(detailError)" :description="errorText(detailError)" @retry="detail&&inspect(detail)"/>
+      <MetadataEditor v-if="source==='managed'&&detail&&!detailLoading&&!detailError" :item-id="detail.id" @saved="metadataSaved"/>
       <div class="catalog-summary" :class="{'catalog-summary--text':!image(detail?.poster)}">
         <img v-if="image(detail?.poster)" :src="image(detail?.poster)" :alt="detail?.title+'海报'"/>
         <div>

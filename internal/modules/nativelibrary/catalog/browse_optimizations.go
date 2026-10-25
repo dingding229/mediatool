@@ -75,7 +75,7 @@ func pruneHeadersSQL(sql string, q nativelibrary.ItemQuery, args []any) (string,
 func selectedPageSQL() string {
 	start := strings.Index(browseCTE, ",headers AS")
 	end := strings.Index(browseCTE, personalCTE)
-	headers := browseCTE[start:end]
+	headers := strings.Replace(browseCTE[start:end], headerMetadata, fullPageMetadata+`||`+parentTextMetadata, 1)
 	headers = strings.Replace(headers, "FROM keyed g JOIN media_items b", "FROM page_grouped g JOIN media_items b", 1)
 	headers = strings.ReplaceAll(headers, "headers", "page_headers")
 	headers = strings.ReplaceAll(headers, "raw_item_rows", "page_raw_item_rows")

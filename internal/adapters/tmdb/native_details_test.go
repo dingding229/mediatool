@@ -140,3 +140,28 @@ func TestNativeSnapshotRetainsClassificationWithoutChangingLegacyProjection(t *t
 		})
 	}
 }
+
+func TestT3FutureScrapesCollectTaglineKeywordsAndEpisodeRating(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/movie/9001" {
+			if !strings.Contains(r.URL.Query().Get("append_to_response"), "keywords") {
+				t.Error("keywords not requested")
+			}
+			_, _ = w.Write([]byte(`{"id":9001,"title":"新刮削","tagline":"标语","keywords":{"keywords":[{"name":"离线"}]}}`))
+		} else {
+			_, _ = w.Write([]byte(`{"id":71,"season_number":1,"name":"第一季","episodes":[{"id":711,"season_number":1,"episode_number":1,"name":"第一集","vote_average":7.2}]}`))
+		}
+	}))
+	defer server.Close()
+	client := Client{HTTP: server.Client(), BaseURL: server.URL}
+	movie, e := client.NativeDetails(context.Background(), nativelibrary.TMDBTypeMovie, 9001, nil, "CN")
+	if e != nil || movie.Tagline != "标语" || len(movie.Tags) != 1 || movie.Tags[0] != "离线" {
+		t.Fatal(movie, e)
+	}
+	n := 1
+	season, e := client.NativeDetails(context.Background(), nativelibrary.TMDBTypeSeason, 9002, &n, "CN")
+	if e != nil || len(season.Episodes) != 1 || season.Episodes[0].CommunityRating == nil || *season.Episodes[0].CommunityRating != 7.2 {
+		t.Fatal(season, e)
+	}
+}

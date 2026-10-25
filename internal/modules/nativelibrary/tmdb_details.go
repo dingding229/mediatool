@@ -23,12 +23,13 @@ type TMDBPerson struct {
 	ImagePath string `json:"imagePath,omitempty"`
 }
 type TMDBEpisode struct {
-	ID             int64  `json:"id"`
-	Season         int    `json:"season"`
-	Number         int    `json:"number"`
-	Name           string `json:"name"`
-	Overview       string `json:"overview,omitempty"`
-	AirDate        string `json:"airDate,omitempty"`
-	StillPath      string `json:"stillPath,omitempty"`
-	RuntimeMinutes int    `json:"runtimeMinutes,omitempty"`
+	CommunityRating *float32 `json:"communityRating,omitempty"`
+	ID              int64    `json:"id"`
+	Season          int      `json:"season"`
+	Number          int      `json:"number"`
+	Name            string   `json:"name"`
+	Overview        string   `json:"overview,omitempty"`
+	AirDate         string   `json:"airDate,omitempty"`
+	StillPath       string   `json:"stillPath,omitempty"`
+	RuntimeMinutes  int      `json:"runtimeMinutes,omitempty"`
 }

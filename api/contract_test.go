@@ -1068,6 +1068,32 @@ func (s *source) build(t *testing.T) object {
 			if path == "/api/v1/downloads/manual" && method == "post" {
 				op["requestBody"].(object)["content"].(object)["multipart/form-data"] = object{"schema": object{"type": "object", "required": []string{"torrent"}, "properties": object{"torrent": object{"type": "string", "format": "binary", "description": ".torrent，最大10MiB"}}, "additionalProperties": false}}
 			}
+			if path == "/api/v1/media/library/managed/{id}/metadata" && method == "patch" {
+				props := object{}
+				for _, key := range []string{"title", "originalTitle", "sortName", "overview", "tagline", "officialRating"} {
+					max := 500
+					if key == "overview" {
+						max = 10000
+					}
+					if key == "tagline" {
+						max = 1000
+					}
+					props[key] = object{"type": "string", "maxLength": max}
+				}
+				props["title"].(object)["minLength"] = 1
+				props["year"] = object{"type": []string{"integer", "null"}, "minimum": 1800, "maximum": 2100}
+				props["premiereDate"] = object{"type": []string{"string", "null"}, "format": "date"}
+				props["communityRating"] = object{"type": []string{"number", "null"}, "minimum": 0, "maximum": 10, "description": "保存时四舍五入保留1位小数；null明确清空"}
+				for _, key := range []string{"genres", "tags"} {
+					props[key] = object{"type": "array", "maxItems": 50, "items": object{"type": "string", "maxLength": 100}, "description": "去首尾空白、去空项并去重"}
+				}
+				op["requestBody"] = object{"required": true, "content": object{"application/json": object{"schema": object{"type": "object", "additionalProperties": false, "required": []string{"targetKey", "revision"}, "properties": object{
+					"targetKey": object{"type": "string", "description": "GET返回的规范身份；绑定变化返回409"},
+					"revision":  object{"type": "integer", "minimum": 0},
+					"set":       object{"type": "object", "additionalProperties": false, "properties": props},
+					"restore":   object{"type": "array", "uniqueItems": true, "items": object{"type": "string", "enum": []string{"title", "originalTitle", "sortName", "year", "premiereDate", "overview", "tagline", "genres", "tags", "communityRating", "officialRating"}}},
+				}, "description": "set/restore至少一项；同字段不能同时修改和恢复。恢复解除锁定，采用最新已存刮削值，不触发联网获取。"}}}}
+			}
 			if r.handler == "uploadSubtitle" {
 				op["requestBody"] = object{"required": true, "content": object{"multipart/form-data": object{"schema": object{"type": "object", "required": []string{"file", "uploadId"}, "properties": object{"file": object{"type": "string", "format": "binary", "description": "srt/ass/ssa/vtt，原文件和UTF-8转换后均≤5MiB"}, "encoding": object{"type": "string", "enum": []string{"auto", "utf-8", "utf-16le", "utf-16be", "utf-32le", "utf-32be", "gb18030", "big5", "shift-jis", "windows-1252"}}, "uploadId": object{"type": "string", "format": "uuid", "description": "客户端一次逻辑上传的稳定UUID，用于丢失响应后的幂等核对"}}, "additionalProperties": false}}}}
 			}

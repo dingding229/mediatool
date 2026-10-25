@@ -1,0 +1,121 @@
+[
+  {
+    "Taglines": [
+      "人工标语"
+    ],
+    "Tags": [
+      "测试"
+    ],
+    "Id": "100101",
+    "Name": "人工标题",
+    "OriginalTitle": "Original",
+    "SortName": "Manual Sort",
+    "Type": "Movie",
+    "MediaType": "Video",
+    "LocationType": "FileSystem",
+    "IsFolder": false,
+    "Overview": "人工简介",
+    "CommunityRating": 6.7,
+    "OfficialRating": "PG",
+    "PremiereDate": "2026-05-01T00:00:00.0000000Z",
+    "ParentBackdropImageTags": [],
+    "Genres": [
+      "剧情"
+    ],
+    "People": [],
+    "BackdropImageTags": [],
+    "MediaSources": [],
+    "MediaStreams": [],
+    "Chapters": []
+  },
+  {
+    "Taglines": [
+      "人工标语"
+    ],
+    "Tags": [
+      "测试"
+    ],
+    "Id": "100101",
+    "Name": "人工标题",
+    "OriginalTitle": "Original",
+    "SortName": "Manual Sort",
+    "Type": "Series",
+    "MediaType": "Video",
+    "LocationType": "FileSystem",
+    "IsFolder": true,
+    "Overview": "人工简介",
+    "CommunityRating": 6.7,
+    "OfficialRating": "PG",
+    "PremiereDate": "2026-05-01T00:00:00.0000000Z",
+    "ParentBackdropImageTags": [],
+    "Genres": [
+      "剧情"
+    ],
+    "People": [],
+    "BackdropImageTags": [],
+    "MediaSources": [],
+    "MediaStreams": [],
+    "Chapters": []
+  },
+  {
+    "Taglines": [
+      "人工标语"
+    ],
+    "Tags": [
+      "测试"
+    ],
+    "Id": "100101",
+    "Name": "人工标题",
+    "OriginalTitle": "Original",
+    "SortName": "Manual Sort",
+    "SeriesName": "人工剧集",
+    "Type": "Season",
+    "MediaType": "Video",
+    "LocationType": "FileSystem",
+    "IsFolder": true,
+    "Overview": "人工简介",
+    "CommunityRating": 6.7,
+    "OfficialRating": "PG",
+    "PremiereDate": "2026-05-01T00:00:00.0000000Z",
+    "ParentBackdropImageTags": [],
+    "Genres": [
+      "剧情"
+    ],
+    "People": [],
+    "BackdropImageTags": [],
+    "MediaSources": [],
+    "MediaStreams": [],
+    "Chapters": []
+  },
+  {
+    "Taglines": [
+      "人工标语"
+    ],
+    "Tags": [
+      "测试"
+    ],
+    "Id": "100101",
+    "Name": "人工标题",
+    "OriginalTitle": "Original",
+    "SortName": "Manual Sort",
+    "SeriesName": "人工剧集",
+    "SeasonName": "人工季",
+    "Type": "Episode",
+    "MediaType": "Video",
+    "LocationType": "FileSystem",
+    "IsFolder": false,
+    "Overview": "人工简介",
+    "CommunityRating": 6.7,
+    "OfficialRating": "PG",
+    "PremiereDate": "2026-05-01T00:00:00.0000000Z",
+    "ParentBackdropImageTags": [],
+    "Genres": [
+      "剧情"
+    ],
+    "People": [],
+    "BackdropImageTags": [],
+    "MediaSources": [],
+    "MediaStreams": [],
+    "Chapters": []
+  }
+]

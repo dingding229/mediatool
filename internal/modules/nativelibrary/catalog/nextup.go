@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"media-tool/internal/modules/embyapi/dto"
 	"media-tool/internal/modules/mediausers/contracts"
+	"media-tool/internal/modules/metadataedit"
 	"media-tool/internal/modules/nativelibrary"
 	"slices"
 	"strings"
@@ -14,8 +15,8 @@ import (
 
 // Only keys + user state participate in ranking. Do not materialize every
 // episode's overview/still/runtime merely to pick one episode from each show.
-const nextUpLightCTE = `,personal_series_ratings AS MATERIALIZED(
- SELECT b.tmdb_id,coalesce(nullif(td.payload->>'officialRating',''),b.metadata->>'officialRating','') rating
+var nextUpLightCTE = `,personal_series_ratings AS MATERIALIZED(
+ SELECT b.id media_id,b.tmdb_id,coalesce(nullif(td.payload->>'officialRating',''),b.metadata->>'officialRating','') rating
  FROM (SELECT DISTINCT tmdb_id FROM keyed WHERE kind IN('series','season','episode')) root
  JOIN media_items b ON b.tmdb_id=root.tmdb_id AND b.media_type='series'
  LEFT JOIN native_tmdb_details td ON td.tmdb_type='series' AND td.tmdb_id=b.tmdb_id AND td.season_number IS NULL AND td.fetched_at IS NOT NULL
@@ -23,8 +24,9 @@ const nextUpLightCTE = `,personal_series_ratings AS MATERIALIZED(
 ),item_rows AS (
  SELECT g.kind,g.internal_key,n.id::text id,g.tmdb_id,g.s,g.e,g.libraries,
  coalesce(d.position_ticks,0) user_position,coalesce(d.play_count,0) user_count,coalesce(d.favorite,false) user_favorite,
- coalesce(d.played,false) user_played,d.last_played_at user_last_played,r.rating
+ coalesce(d.played,false) user_played,d.last_played_at user_last_played,coalesce(o.overrides->>'officialRating',r.rating) rating
  FROM keyed g JOIN personal_series_ratings r ON r.tmdb_id=g.tmdb_id
+ ` + metadataedit.Join("o", "r.media_id", "g.kind", "g.s", "g.e") + `
  LEFT JOIN LATERAL(SELECT id FROM native_item_ids WHERE entity_type=g.kind AND internal_key=g.internal_key LIMIT 1)n ON true
  LEFT JOIN media_user_item_data d ON d.item_id=n.id AND d.user_id=$5::uuid
  WHERE g.kind IN('series','season','episode')

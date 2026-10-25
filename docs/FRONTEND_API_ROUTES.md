@@ -729,3 +729,6 @@ POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹�
 
 | GET | `/api/v1/media/library/managed/{id}` | management | 经适配调用；持久化详情聚合，不触发播放/探测 | `web/src/api/mediaCatalog.ts:5` |
 | HEAD | `/api/v1/media/library/managed/{id}` | management | 未检出静态使用 |  |
+| GET | `/api/v1/media/library/managed/{id}/metadata` | management | 经适配调用；元数据基础值、覆盖锁、修订号与未匹配编号 | `web/src/api/mediaMetadata.ts:9` |
+| HEAD | `/api/v1/media/library/managed/{id}/metadata` | management | 未检出静态使用 | |
+| PATCH | `/api/v1/media/library/managed/{id}/metadata` | management | 经适配调用；原子编辑／逐项恢复；修订冲突409 | `web/src/api/mediaMetadata.ts:9` |

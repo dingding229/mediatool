@@ -214,6 +214,8 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("GET /api/v1/media/library/sources", a.protected(a.catalogSources))
 	mux.HandleFunc("GET /api/v1/media/library", a.protected(a.listCatalog))
 	mux.HandleFunc("GET /api/v1/media/library/managed/{id}", a.protected(a.managedCatalogDetail))
+	mux.HandleFunc("GET /api/v1/media/library/managed/{id}/metadata", a.protected(a.mediaMetadata))
+	mux.HandleFunc("PATCH /api/v1/media/library/managed/{id}/metadata", a.protected(a.mediaMetadata))
 	mux.HandleFunc("GET /api/v1/media/library/emby/{id}/image", a.protected(a.catalogImage))
 	mux.HandleFunc("POST /api/v1/files/batches/preview", a.protected(a.previewFileBatch))
 	mux.HandleFunc("GET /api/v1/files/batches/{id}", a.protected(a.getFileBatch))

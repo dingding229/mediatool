@@ -29,9 +29,15 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 		}
 	}
 	parent := out.ParentID
-	where := ` WHERE ($1='' OR coalesce(m.title,f.metadata->>'name',f.full_path) ILIKE '%'||$1||'%') AND ($2='' OR m.media_type=$2)`
+	displayKind := "CASE WHEN m.media_type='series' THEN 'episode' ELSE 'movie' END"
+	if parent == "" {
+		displayKind = "m.media_type"
+	} else if strings.HasPrefix(parent, "series_") {
+		displayKind = "'season'"
+	}
+	where := ` WHERE ($1='' OR coalesce(v.metadata->>'title',f.full_path) ILIKE '%'||$1||'%') AND ($2='' OR m.media_type=$2)`
 	args := []any{q, kind}
-	fields := `a.id::text id,coalesce(m.title,f.metadata->>'name',regexp_replace(f.full_path,'^.*/','','g')) title,coalesce(m.release_year,'') item_year,coalesce(m.media_type,'unknown') media_type,coalesce(m.metadata->>'overview','') overview,coalesce(m.metadata->>'posterPath','') poster,f.full_path file_path,f.state,b.season,b.episode,CASE WHEN m.media_type='series' THEN 'Episode' ELSE 'Movie' END type`
+	fields := `a.id::text id,coalesce(v.metadata->>'title',regexp_replace(f.full_path,'^.*/','','g')) title,coalesce(v.metadata->>'year','') item_year,coalesce(m.media_type,'unknown') media_type,coalesce(v.metadata->>'overview','') overview,coalesce(m.metadata->>'posterPath','') poster,f.full_path file_path,f.state,b.season,b.episode,CASE WHEN m.media_type='series' THEN 'Episode' ELSE 'Movie' END type`
 	order := `season NULLS LAST,episode NULLS LAST,id`
 	if parent != "" {
 		parts := strings.Split(parent, "_")
@@ -54,11 +60,11 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 			if len(parts) != 2 {
 				return out, ErrInvalid
 			}
-			fields = `'season_'||m.id::text||'_'||b.season id,'第 '||b.season||' 季' title,max(m.release_year) item_year,'series' media_type,max(coalesce(m.metadata->>'overview','')) overview,max(coalesce(m.metadata->>'posterPath','')) poster,'' file_path,'' state,b.season,NULL::int episode,'Season' type`
+			fields = `'season_'||m.id::text||'_'||b.season id,max(v.metadata->>'title') title,max(coalesce(v.metadata->>'year','')) item_year,'series' media_type,max(coalesce(v.metadata->>'overview','')) overview,max(coalesce(m.metadata->>'posterPath','')) poster,'' file_path,'' state,b.season,NULL::int episode,'Season' type`
 			where += ` AND b.season IS NOT NULL GROUP BY m.id,b.season`
 		}
 	} else {
-		fields = `CASE WHEN m.media_type='series' THEN 'series_'||m.id::text ELSE a.id::text END id,max(coalesce(m.title,f.metadata->>'name',regexp_replace(f.full_path,'^.*/','','g'))) title,max(coalesce(m.release_year,'')) item_year,max(coalesce(m.media_type,'unknown')) media_type,max(coalesce(m.metadata->>'overview','')) overview,max(coalesce(m.metadata->>'posterPath','')) poster,CASE WHEN m.media_type='series' THEN '' ELSE max(f.full_path) END file_path,CASE WHEN m.media_type='series' THEN '' ELSE max(f.state) END state,NULL::int season,NULL::int episode,CASE WHEN m.media_type='series' THEN 'Series' ELSE 'Movie' END type`
+		fields = `CASE WHEN m.media_type='series' THEN 'series_'||m.id::text ELSE a.id::text END id,max(coalesce(v.metadata->>'title',regexp_replace(f.full_path,'^.*/','','g'))) title,max(coalesce(v.metadata->>'year','')) item_year,max(coalesce(m.media_type,'unknown')) media_type,max(coalesce(v.metadata->>'overview','')) overview,max(coalesce(m.metadata->>'posterPath','')) poster,CASE WHEN m.media_type='series' THEN '' ELSE max(f.full_path) END file_path,CASE WHEN m.media_type='series' THEN '' ELSE max(f.state) END state,NULL::int season,NULL::int episode,CASE WHEN m.media_type='series' THEN 'Series' ELSE 'Movie' END type`
 		where += ` GROUP BY CASE WHEN m.media_type='series' THEN 'series_'||m.id::text ELSE a.id::text END,m.media_type,m.id`
 		order = `title,id`
 	}
@@ -76,7 +82,7 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 	} else {
 		fields += "," + categoryExpr + " category_id"
 	}
-	sql := `WITH entries AS(SELECT ` + fields + managedClassificationMembers + where + `) `
+	sql := `WITH entries AS(SELECT ` + fields + managedEffectiveMembers(displayKind) + where + `) `
 	if err := e.DB.QueryRow(ctx, sql+`SELECT count(*) FROM entries`, args...).Scan(&out.Total); err != nil {
 		return out, ErrUnavailable
 	}

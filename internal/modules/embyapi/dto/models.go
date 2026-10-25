@@ -70,6 +70,8 @@ type BaseItemPerson struct {
 	PrimaryImageTag string `json:"PrimaryImageTag,omitempty"`
 }
 type BaseItemDto struct {
+	Taglines                Array[string]          `json:"Taglines,omitempty"`
+	Tags                    Array[string]          `json:"Tags,omitempty"`
 	Id                      string                 `json:"Id"`
 	Name                    string                 `json:"Name,omitempty"`
 	OriginalTitle           string                 `json:"OriginalTitle,omitempty"`

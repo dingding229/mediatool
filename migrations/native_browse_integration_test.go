@@ -103,7 +103,7 @@ type browseFixture struct {
 func newBrowseFixture(t *testing.T) browseFixture {
 	t.Helper()
 	f := newMovieFixture(t)
-	if _, err := f.provider.UpTo(f.ctx, 60); err != nil {
+	if _, err := f.provider.UpTo(f.ctx, 83); err != nil {
 		t.Fatal(err)
 	}
 	config := f.pool.Config()
