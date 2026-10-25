@@ -90,12 +90,12 @@ ownRefresh.register(()=>refresh(),()=>true);
           </label>
         </div>
         <p>筛选整个已取得快照；标题与编码仅为线索，投递前仍需核对媒体身份及 H&amp;R 要求。</p>
-        <div class="f3-stable-scroll">
+        <div class="f3-stable-scroll resource-results-table">
         <div class="resource-columns">
           <span>资源与站点</span>
-          <span role="columnheader" tabindex="0" :aria-sort="direction('size')" aria-label="按文件大小排序" @click="sort('size')" @keydown.enter="sort('size')" @keydown.space.prevent="sort('size')">大小<component :is="sortIcon('size')" class="f4-sort-icon" aria-hidden="true"/></span>
-          <span role="columnheader" tabindex="0" :aria-sort="direction('seeders')" aria-label="按做种人数排序" @click="sort('seeders')" @keydown.enter="sort('seeders')" @keydown.space.prevent="sort('seeders')">做种人数<component :is="sortIcon('seeders')" class="f4-sort-icon" aria-hidden="true"/></span>
-          <span role="columnheader" tabindex="0" :aria-sort="direction('promotion')" aria-label="按促销排序" @click="sort('promotion')" @keydown.enter="sort('promotion')" @keydown.space.prevent="sort('promotion')">促销<component :is="sortIcon('promotion')" class="f4-sort-icon" aria-hidden="true"/></span>
+          <span role="columnheader" tabindex="0" :aria-sort="direction('size')" aria-label="按文件大小排序" @click="sort('size')" @keydown.enter="sort('size')" @keydown.space.prevent="sort('size')"><span class="resource-sort-label">大小</span><component :is="sortIcon('size')" class="f4-sort-icon" aria-hidden="true"/></span>
+          <span role="columnheader" tabindex="0" :aria-sort="direction('seeders')" aria-label="按做种人数排序" @click="sort('seeders')" @keydown.enter="sort('seeders')" @keydown.space.prevent="sort('seeders')"><span class="resource-sort-label">做种人数</span><component :is="sortIcon('seeders')" class="f4-sort-icon" aria-hidden="true"/></span>
+          <span role="columnheader" tabindex="0" :aria-sort="direction('promotion')" aria-label="按促销排序" @click="sort('promotion')" @keydown.enter="sort('promotion')" @keydown.space.prevent="sort('promotion')"><span class="resource-sort-label">促销</span><component :is="sortIcon('promotion')" class="f4-sort-icon" aria-hidden="true"/></span>
           <span>操作</span>
         </div>
         <article v-for="item in run.resources" :key="item.id" class="resource-entry">
@@ -105,9 +105,9 @@ ownRefresh.register(()=>refresh(),()=>true);
             <p>{{ item.siteName||'—' }} · {{ item.metadata?.attributes?.codec?.toUpperCase()||'编码未知' }} · {{ sourceLabel(item.metadata?.attributes?.source) }} · {{ item.metadata?.attributes?.resolution||'分辨率未知' }}</p>
             <p v-if="item.metadata?.yearWarning" role="note">{{ item.metadata.yearWarning }}</p>
           </div>
-          <span>{{ size(item.size) }}</span>
-          <span>做种 {{ item.seeders??'—' }}</span>
-          <ResourcePromotion :factor="item.downloadFactor"/>
+          <span class="resource-stat">{{ size(item.size) }}</span>
+          <span class="resource-stat">{{ item.seeders??'—' }}</span>
+          <ResourcePromotion class="resource-stat" :factor="item.downloadFactor"/>
           <el-button :disabled="mediaSaving||!mediaReady" @click="openDownload(item)">确认并下载</el-button>
         </article>
         <StateView v-if="!run.resources.length" :state="['pending','running'].includes(run.state)?'loading':'empty'" :title="['pending','running'].includes(run.state)?'站点正在查询…':'没有匹配资源'" description="若有站点失败或部分结果，请先核对上方原因。"/>

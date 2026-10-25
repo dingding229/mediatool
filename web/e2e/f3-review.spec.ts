@@ -45,7 +45,7 @@ test('F3 review forty sites stay compact with failures first and all sortable he
  await expect(page.locator('[role=columnheader] .f4-sort-icon')).toHaveCount(3);await toggle.click();await expect(page.locator('.f4-site-grid article')).toHaveCount(40);await expect(page.locator('.f4-site-grid article').first()).toHaveAttribute('data-state','failed')
  expect((await page.locator('.f4-site-grid').boundingBox())!.height).toBeLessThanOrEqual(240);const sizes=await page.locator('.f4-site-grid article').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().height));expect(Math.max(...sizes)).toBeLessThanOrEqual(40)
  await page.locator('.f4-site-grid article').first().hover();await expect(page.getByRole('tooltip')).toContainText('测试站点暂时不可用');await page.getByRole('heading',{name:/择优选择资源/}).hover();await expect(page.getByRole('tooltip')).toBeHidden()
- const header=await page.getByRole('columnheader',{name:'按文件大小排序',exact:true}).boundingBox(),value=await page.locator('.resource-entry>span').first().boundingBox();expect(header!.x+header!.width).toBeCloseTo(value!.x+value!.width,0)
+ const header=await page.getByRole('columnheader',{name:'按文件大小排序',exact:true}).locator('.resource-sort-label').boundingBox(),value=await page.locator('.resource-entry>span').first().boundingBox();expect(header!.x+header!.width).toBeCloseTo(value!.x+value!.width,0)
  await shots(page,'search-results');expect((await page.locator('.f4-site-grid').boundingBox())!.height).toBeLessThanOrEqual(240)
 })
 for(const count of [1,10])test(`F3 review ${count} site accounts keep density, volume labels and narrow alignment`,async({page})=>{
