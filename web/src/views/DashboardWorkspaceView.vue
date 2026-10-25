@@ -17,7 +17,7 @@ const busy = computed(() => Object.values(slots).some(s => s.loading)), runtime 
 const counters = [{ key: 'sites', label: '站点', path: '/sites?tab=accounts' }, { key: 'subscriptions', label: '订阅', path: '/subscriptions' }, { key: 'downloads', label: '下载', path: '/downloads' }, { key: 'media', label: '媒体文件', path: '/library' }, { key: 'todaySearches', label: '今日搜索', path: '/search' }];
 const recent = computed(() => recentSearches(slots.recent?.data));
 const probe=useReadinessTest(()=>slots.accounts?.error?null:slots.accounts?.data,()=>Promise.all([load('accounts'),load('readiness')]));
-usePageRefresh(refresh,'*');
+usePageRefresh(refresh,props.attention?'attention':'*');
 </script>
 <template>
   <div class="dashboard-workspace">
@@ -26,14 +26,13 @@ usePageRefresh(refresh,'*');
 
       </template>
     </PageHeader>
-    <h2 v-if="attention">检测与待处理</h2>
     <ServiceReadiness v-if="attention" :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" :can-test="probe.available.value" :testing="probe.busy.value" :test-locked="!!probe.phase.value" @test="probe.start" @retry="load('readiness')" />
     <AsyncResultBanner v-if="attention&&probe.phase.value" :status="probe.phase.value" :message="probe.message.value" @refresh="probe.reconcile"/>
     <p v-if="attention&&probe.message.value&&!probe.phase.value" role="status">{{probe.message.value}}</p>
     <section v-if="attention" class="dashboard-inbox u2-surface" aria-label="待处理收件箱">
       <header v-if="visibleGroups.length"><h2>待处理</h2></header>
       <StateView v-if="!visibleGroups.length&&inboxLoading" state="loading" title="正在读取待处理事项…"/>
-      <p v-else-if="!visibleGroups.length" class="dashboard-empty">暂无待处理事项</p>
+      <StateView v-else-if="!visibleGroups.length" state="empty" title="暂无待处理事项"/>
       <div v-if="visibleGroups.length" class="inbox-grid">
         <article v-for="group in visibleGroups" :key="group.id" :aria-label="group.title">
           <h3>{{ group.title }}</h3>

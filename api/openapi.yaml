@@ -20628,12 +20628,19 @@
           "resourceId": {
             "type": "string"
           },
+          "resourceSize": {
+            "format": "int64",
+            "type": "integer"
+          },
           "seedingState": {
             "type": "string"
           },
           "seeds": {
             "format": "int64",
             "type": "integer"
+          },
+          "siteName": {
+            "type": "string"
           },
           "sourceControlRevision": {
             "format": "int64",
@@ -20719,8 +20726,10 @@
           "progress",
           "qbState",
           "resourceId",
+          "resourceSize",
           "seedingState",
           "seeds",
+          "siteName",
           "sourceControlRevision",
           "sourceRecoveryRequired",
           "state",

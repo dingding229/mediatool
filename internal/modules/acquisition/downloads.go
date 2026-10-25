@@ -63,6 +63,8 @@ type taskDetails struct {
 	Message              string        `json:"message,omitempty"`
 }
 type Task struct {
+	ResourceSize   int64               `json:"resourceSize"`
+	SiteName       string              `json:"siteName"`
 	Flow           flow.Status         `json:"flow"`
 	CleanupState   string              `json:"cleanupState"`
 	CleanupMessage string              `json:"cleanupMessage"`
@@ -304,7 +306,7 @@ func (e Engine) Page(ctx context.Context, start, limit int, query, id string, do
 	if start < 0 || start > 200000 || limit < 1 || limit > 200 || len(query) > 800 {
 		return nil, errors.New("invalid page")
 	}
-	rows, err := e.DB.Query(ctx, `SELECT d.id::text,coalesce(d.resource_id::text,''),coalesce(r.title,d.details->'media'->>'title','手动下载'),d.download_state,d.seeding_state,coalesce(d.info_hash,''),d.details,d.created_at,d.source_recovery_required,d.source_control_revision,coalesce(c.state,'disabled'),coalesce(c.message,''),coalesce((SELECT state FROM jobs WHERE idempotency_key=`+downloadRetryCase+`),'') FROM download_tasks d LEFT JOIN resources r ON r.id=d.resource_id LEFT JOIN download_cleanup_requests c ON c.task_id=d.id WHERE ($3='' OR coalesce(r.title,d.details->'media'->>'title','') ILIKE '%'||$3||'%') AND ($4='' OR d.id::text=$4) AND(coalesce(cardinality($5::text[]),0)=0 OR d.integration_id::text=ANY($5)) ORDER BY d.created_at DESC,d.id LIMIT $1 OFFSET $2`, limit, start, query, id, downloaderIDs)
+	rows, err := e.DB.Query(ctx, `SELECT d.id::text,coalesce(d.resource_id::text,''),coalesce(r.title,d.details->'media'->>'title','手动下载'),d.download_state,d.seeding_state,coalesce(d.info_hash,''),d.details,d.created_at,d.source_recovery_required,d.source_control_revision,coalesce(c.state,'disabled'),coalesce(c.message,''),coalesce(r.size_bytes,0),coalesce(site.name,''),coalesce((SELECT state FROM jobs WHERE idempotency_key=`+downloadRetryCase+`),'') FROM download_tasks d LEFT JOIN resources r ON r.id=d.resource_id LEFT JOIN integrations site ON site.id=r.account_id LEFT JOIN download_cleanup_requests c ON c.task_id=d.id WHERE ($3='' OR coalesce(r.title,d.details->'media'->>'title','') ILIKE '%'||$3||'%') AND ($4='' OR d.id::text=$4) AND(coalesce(cardinality($5::text[]),0)=0 OR d.integration_id::text=ANY($5)) ORDER BY d.created_at DESC,d.id LIMIT $1 OFFSET $2`, limit, start, query, id, downloaderIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +316,7 @@ func (e Engine) Page(ctx context.Context, start, limit int, query, id string, do
 		var task Task
 		var raw []byte
 		var jobState string
-		if err = rows.Scan(&task.ID, &task.ResourceID, &task.Title, &task.State, &task.SeedingState, &task.InfoHash, &raw, &task.CreatedAt, &task.SourceRecoveryRequired, &task.SourceControlRevision, &task.CleanupState, &task.CleanupMessage, &jobState); err != nil {
+		if err = rows.Scan(&task.ID, &task.ResourceID, &task.Title, &task.State, &task.SeedingState, &task.InfoHash, &raw, &task.CreatedAt, &task.SourceRecoveryRequired, &task.SourceControlRevision, &task.CleanupState, &task.CleanupMessage, &task.ResourceSize, &task.SiteName, &jobState); err != nil {
 			return nil, err
 		}
 		var details taskDetails

@@ -118,7 +118,7 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
     <p class="f5-debug-status" role="status">Debug 日志：{{summary.data?.debugActive?'开启，'+formatLogTime(summary.data.policy.debugUntil)+' 自动关闭':'关闭'}} · 保留 {{summary.data?.policy?.retentionDays??7}} 天（同时受文件容量上限限制）</p>
     <div class="f3-log-table" role="table" aria-label="日志记录" :aria-busy="data.loading||data.refreshing">
       <div class="f3-log-row f3-log-head" role="row"><span>时间</span><span>级别</span><span>消息</span><span>来源 file:line</span></div>
-      <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="data.loaded&&!data.data?.items.length" empty-title="没有符合筛选条件的日志" @reload="load"/>
+      <ResourceState :stale="data.loaded" :loading="!data.loaded&&!data.error" :error="data.error" :empty="data.loaded&&!data.data?.items.length" empty-title="没有符合筛选条件的日志" @reload="load"/>
       <article v-for="(row,index) in data.data?.items||[]" :key="row.time+':'+index" class="u6-log f3-log-row" role="row">
         <time role="cell">{{formatLogTime(row.time)}}</time>
         <span role="cell" class="f3-log-level" :data-level="String(row.level).toLowerCase()">{{String(row.level||'—').toLowerCase()}}</span>

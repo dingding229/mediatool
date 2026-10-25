@@ -87,7 +87,8 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
         <el-button :aria-pressed="kind==='search'" @click="setKind('search')">搜索缓存</el-button>
       </nav>
       <p>只管理缓存复用；清理搜索缓存会隐藏记录，底层结果、下载证明和媒体保留。</p>
-      <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="!!data.data&&!data.data.items?.length" @reload="load"/>
+      <div class="ops-content-stage" :aria-busy="data.loading||data.refreshing">
+      <ResourceState :stale="!!data.data" :loading="(!data.loaded||!data.data)&&!data.error" :error="data.error" :empty="!!data.data&&!data.data.items?.length" @reload="load"/>
       <p>当前检索共 {{ data.loading||data.error?'—':data.data?.total??'—' }} 项 · 本页 {{ data.loading||data.error?'—':bytes(data.data?.items.reduce((n:number,r:any)=>n+(r.bytes||0),0)) }}</p>
       <p v-if="notice" role="status">{{ notice }}</p>
       <p v-if="data.data?.truncated">扫描存在上限，当前列表未必覆盖全部缓存；可分批清理并重新读取。</p>
@@ -107,7 +108,8 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
           <el-button :disabled="!!op.pending" @click="ask(row.id)">删除缓存项</el-button>
         </div>
       </article>
-      <PagePagination v-model:current-page="page" :total="data.data.total" :page-size="30" layout="prev,pager,next" @current-change="load"/>
+      </div>
+      <PagePagination v-model:current-page="page" :total="data.data?.total" :page-size="30" layout="prev,pager,next" @current-change="load"/>
     </section>
     <p>
       缓存有效期统一在

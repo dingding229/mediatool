@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import {ElDropdown,ElDropdownMenu,ElDropdownItem} from 'element-plus';
+import 'element-plus/es/components/dropdown/style/css';
+import 'element-plus/es/components/dropdown-menu/style/css';
+import 'element-plus/es/components/dropdown-item/style/css';
 import {usePageNumber} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { subscribeJobEvents } from '../api/client';
@@ -87,20 +91,28 @@ defineExpose({ load, filter, jobs });
         <el-button native-type="submit">筛选任务</el-button>
       </form>
       <p>取消只停止本程序后续执行；重试先核对原业务状态，不能证明安全时保留未知状态。</p>
-      <div class="f4-queue-rows">
-      <ResourceState :stale="jobs.loaded" :loading="jobs.loading" :error="jobs.error" :empty="!!jobs.data&&!jobs.data.items?.length" @reload="load"/>
+      <div class="f4-queue-rows ops-content-stage" :aria-busy="jobs.loading||jobs.refreshing">
+      <ResourceState :stale="jobs.loaded" :loading="!jobs.loaded&&!jobs.error" :error="jobs.error" :empty="!!jobs.data&&!jobs.data.items?.length" @reload="load"/>
       <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
       <article v-for="j in jobs.data?.items||[]" :key="j.id" class="organize-record f3-job-row">
-        <div class="f4-job-summary"><h3>{{ kindLabel(j.kind) }}</h3><StatusBadge :state="j.state" :label="stateLabel(j.state)" :title="j.lastError||undefined"/><span class="f4-job-queue">{{ queueLabel(j.queue) }}</span></div>
+        <div class="f4-job-summary"><h3 :title="kindLabel(j.kind)">{{ kindLabel(j.kind) }}</h3><StatusBadge :state="j.state" :label="stateLabel(j.state)" :title="j.lastError||undefined"/></div>
         <p class="f3-job-meta">尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }} · 耗时 {{ j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—' }} 秒 <span> · {{ j.state==='succeeded'?'已完成':j.state==='running'?'业务进度见详情':'等待状态核对' }}</span></p>
-        <div class="media-actions">
-          <el-button @click="inspect(j.id)">任务详情</el-button>
-          <TaskControl kind="jobs" :id="j.id" :state="j.state" @changed="jobs.load"/>
-          <RouterLink v-if="taskTarget(j)" :to="taskTarget(j)!">前往业务页核对</RouterLink>
+        <div class="media-actions ops-job-actions">
+          <el-button size="small" @click="inspect(j.id)">任务详情</el-button>
+          <TaskControl kind="jobs" :id="j.id" :state="j.state" @changed="jobs.load" v-slot="{ask,disabled,canCancel,canRetry}">
+            <ElDropdown v-if="canCancel||canRetry||taskTarget(j)" trigger="click" popper-class="t8-ops-menu">
+              <el-button size="small">更多</el-button>
+              <template #dropdown><ElDropdownMenu>
+                <ElDropdownItem v-if="taskTarget(j)"><RouterLink :to="taskTarget(j)!">前往业务页核对</RouterLink></ElDropdownItem>
+                <ElDropdownItem v-if="canRetry" :disabled="disabled" @click="ask('retry')">核对后重试</ElDropdownItem>
+                <ElDropdownItem v-if="canCancel" :disabled="disabled" @click="ask('cancel')">取消后台任务</ElDropdownItem>
+              </ElDropdownMenu></template>
+            </ElDropdown>
+          </TaskControl>
         </div>
       </article>
       </div>
-      <PagePagination v-model:current-page="filter.page" :total="jobs.data.total" :page-size="25" layout="prev,pager,next,total" @current-change="changePage"/>
+      <PagePagination v-model:current-page="filter.page" :total="jobs.data?.total" :page-size="25" layout="prev,pager,next,total" @current-change="changePage"/>
     </section>
     <DetailDrawer v-model:visible="open" title="任务与运行技术详情" :technical-data="detail" class="media-detail">
       <el-button @click="copyOriginal(JSON.stringify(detail,null,2),s=>copyText=s).then(s=>copied=s)">复制原始记录</el-button>

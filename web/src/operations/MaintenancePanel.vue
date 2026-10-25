@@ -9,6 +9,7 @@ import { useOperation } from '../workflows/useOperation';
 import { savePrivate } from '../organize/model';
 import { date, errorText } from '../workflows/readiness';
 import { stateLabel, canDeleteBackup, canPinBackup, ticketLabel, requestStep, copyOriginal } from './model';
+import StateView from '../ui/StateView.vue';
 import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import PreviewApprove from '../ui/PreviewApprove.vue';
@@ -88,12 +89,12 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
 </script>
 <template>
   <div class="media-stack">
-    <section class="media-surface">
+    <section class="media-surface ops-panel-header">
       <header class="media-section-heading">
         <h2>备份与告警</h2>
         <el-button :disabled="!!op.pending||!!data.error||data.loading||!data.data?.toolsReady" @click="ask('backup')">创建系统备份</el-button>
       </header>
-      <ResourceState overlay :stale="data.loaded" :loading="data.loading" :error="data.error" @reload="load"/>
+      <ResourceState :stale="data.loaded" :error="data.error" @reload="load"/>
       <div class="f5-maint-summary">
       <p v-if="data.data&&!data.data.toolsReady">备份工具暂不可用，无法创建备份或演练；已有记录仍可查看。</p>
       <p v-if="data.data">当前备份 {{ bytes(data.data.totalBytes) }} · 下次 {{ date(data.data.policy?.nextBackupAt) }}</p>
@@ -108,8 +109,11 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
         <el-button v-for="(name,key) in {backups:'备份管理',recovery:'恢复与回滚',alerts:'运维告警',trends:'运行趋势',policy:'维护策略'}" :key="key" :aria-pressed="section===key" @click="section=String(key)">{{ name }}</el-button>
       </nav>
     </section>
+    <div class="ops-content-stage" :aria-busy="data.loading||data.refreshing">
+      <StateView v-if="!data.loaded&&!data.error" state="loading" title="正在读取备份与告警…"/>
+      <template v-else>
     <section v-if="section==='backups'" class="media-surface">
-      <h2>系统备份</h2>
+      <h3>系统备份</h3>
       <p>保留最近两份成功备份，固定及维护单使用中的备份不参与自动清理；最多显示最近200条。</p>
       <div class="f5-backups-region">
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.backups?.length" empty-title="尚无系统备份"/>
@@ -128,7 +132,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
 
       </div>
 <PagePagination label="系统备份分页" v-model:current-page="recordPages.backups" :page-size="25" :total="data.data?.backups?.length"/>
-<h2>恢复演练记录</h2>
+<h3>恢复演练记录</h3>
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.drills?.length" empty-title="暂无恢复演练记录"/>
       <article v-for="d in recordRows('drills')" :key="d.id" class="organize-record">
         <h3>{{ stateLabel(d.state) }} · {{ date(d.createdAt) }}</h3>
@@ -142,7 +146,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
 
     </section>
     <section v-else-if="section==='recovery'" class="media-surface">
-      <h2>受控恢复与回滚</h2>
+      <h3>受控恢复与回滚</h3>
       <WebRestorePanel :backups="data.data?.backups||[]" :backup-error="data.error" :backups-loading="data.loading"/>
       <h3>命令行维护</h3>
       <p>以下保留原命令行审批流程；网页恢复请使用上方的预览与确认。</p>
@@ -180,7 +184,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.requests?.length" empty-title="暂无维护单"/>
     </section>
     <section v-else-if="section==='alerts'" class="media-surface">
-      <h2>阈值告警</h2>
+      <h3>阈值告警</h3>
       <RouterLink to="/connections?tab=notifications">查看通知投递记录</RouterLink>
       <article v-for="a in recordRows('alerts')" :key="a.code" class="organize-record">
         <h3>{{ a.message||a.code }} · {{ stateLabel(a.state) }}</h3>
@@ -196,7 +200,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.alerts?.length" empty-title="暂无告警记录"/>
     </section>
     <section v-else-if="section==='trends'" class="media-surface">
-      <h2>运行趋势</h2>
+      <h3>运行趋势</h3>
       <label class="u5-field">
         趋势时间范围
         <select v-model.number="hours" aria-label="趋势时间范围" @change="trends.load">
@@ -210,6 +214,8 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <el-button @click="inspect(trends.data)">查看原始采样记录</el-button>
     </section>
     <PolicyPanel v-else/>
+      </template>
+    </div>
     <ConfirmAction v-model:visible="confirm" :title="actionTitle" :description="'请核对：'+actionTitle" :impact-scope="impact" :confirm-phrase="action?.kind==='resume'?'解除维护并恢复业务':undefined" confirm-text="确认继续" :loading="op.busy" class="media-dialog" @confirm="apply"/>
     <el-dialog v-model="previewDialog" title="恢复与回滚预览" width="min(920px,94vw)" class="media-dialog u5-dialog">
       <ResourceState :loading="previewLoading" :error="previewError" @reload="load"/>
