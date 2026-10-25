@@ -417,3 +417,10 @@ X-Requested-With: media-tool
 - `GET /api/v1/media/library?source=managed` 返回与当前目录分类配置一致的 `categories`，`categoryId` 为稳定组/规则ID，筛选在分组与分页之前生效。旧 `mediaType` 仍表示媒体形式，不再充当内置来源的“类型”UI。
 - 评分保留一位小数；大小按1024换算、使用 GB 等媒体单位；清晰度按宽度 ≥3800/1900/1260 分别显示4K/1080p/720p，否则SD，并保留实际尺寸。
 - 删除管理端 `GET/HEAD /api/v1/media/assets/{id}/strm` 及所有共用入口（含整理页原始STRM下载）。原生媒体API、PlaybackInfo、已生成STRM正文和解析302地址不变。
+
+
+## T2b 分类事实补齐（v0.33.1）
+
+管理端列表/类型筛选/详情共用当前语言 TMDB 成功快照的 `classification`（version=1，genreIds/countries/originalLanguage）；仅补齐缺失的分类判定输入，已有入库事实保持优先，损坏或未知版本忽略。无新增 HTTP 路由/DTO，不提供元数据编辑功能。
+
+旧快照可通过 app 内所有者 CLI 执行一次受限补齐：`media-tool ops refresh-classification --targets movie:700,series:701`（示例 ID；实际必须属于已入库可展示内容，最多20个且不允许重复）。命令只执行 TMDB GET，payload 比较栅栏防并发覆盖；只写分类子对象和缓存更新时间，不改入库记录/整理路径/STRM，不入整理队列、不发布 metadata.scraped 事件。已有完整分类事实时直接跳过，不重复请求；未来正常详情获取也保存这些事实。

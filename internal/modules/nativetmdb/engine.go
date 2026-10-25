@@ -74,7 +74,7 @@ func (e Engine) Process(ctx context.Context, j jobs.Job) error {
 		if parts := strings.Split(language, "-"); len(parts) == 2 {
 			region = parts[1]
 		}
-		details, err := client.NativeDetails(bounded, nativelibrary.TMDBDetailType(target.Type), target.TMDBID, target.Season, region)
+		details, err := client.NativeSnapshot(bounded, nativelibrary.TMDBDetailType(target.Type), target.TMDBID, target.Season, region)
 		fetchErr = err
 		if err == nil {
 			payload, fetchErr = json.Marshal(details)

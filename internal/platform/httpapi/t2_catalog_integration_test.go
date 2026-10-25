@@ -64,4 +64,33 @@ func TestT2ManagedDetailGoldenAndDeletedPlaybackRoute(t *testing.T) {
 			t.Fatal(v.Code)
 		}
 	}
+	// Fresh provider classification facts must drive both HTTP surfaces without
+	// changing the public detail shape. Fixture below models legacy missing inputs.
+	exec(`UPDATE media_items SET metadata=metadata-'countries'-'originalLanguage'`)
+	exec(`UPDATE native_tmdb_details SET payload=jsonb_set(payload,'{classification}' ,'{"version":1,"genreIds":[18],"countries":["TW"],"originalLanguage":"zh"}') WHERE tmdb_id=100`)
+	refreshed := invoke(h, "GET", "/api/v1/media/library/managed/aaaaaaaa-0000-4000-8000-000000000003", "", c.SessionKey)
+	newRaw, e := os.ReadFile("testdata/contracts/t2b-managed-detail.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	var newGot, newWant any
+	if refreshed.Code != 200 || json.Unmarshal(refreshed.Body.Bytes(), &newGot) != nil || json.Unmarshal(newRaw, &newWant) != nil {
+		t.Fatal(refreshed.Code)
+	}
+	a, _ := json.Marshal(newGot)
+	b, _ := json.Marshal(newWant)
+	if string(a) != string(b) {
+		t.Fatalf("repaired classification contract differs: %s", a)
+	}
+	filtered := invoke(h, "GET", "/api/v1/media/library?source=managed&categoryId=r%3Amovie%3Amovie-chinese", "", c.SessionKey)
+	var page struct {
+		Data struct {
+			Total int
+			Items []struct{ Category string }
+		}
+	}
+	if filtered.Code != 200 || json.Unmarshal(filtered.Body.Bytes(), &page) != nil || page.Data.Total != 1 || len(page.Data.Items) != 1 || page.Data.Items[0].Category != "电影 / 华语电影" {
+		t.Fatal(filtered.Code, filtered.Body.String())
+	}
+
 }

@@ -34,6 +34,7 @@ func run() error {
 	success := flags.Bool("success", false, "completed safely")
 	confirmText := flags.String("confirm-text", "", "exact preview confirmation phrase")
 	message := flags.String("message", "", "owner execution result")
+	targets := flags.String("targets", "", "explicit movie:id,series:id classification repair targets (max 20)")
 	if err := flags.Parse(os.Args[2:]); err != nil {
 		return err
 	}
@@ -51,6 +52,9 @@ func run() error {
 		return maintenance.ErrUnsafe
 	}
 	defer db.Close()
+	if action == "refresh-classification" {
+		return refreshClassification(ctx, db, c, *targets, os.Stdout)
+	}
 	e := maintenance.Engine{DB: db, DSN: c.DatabaseURL, Root: c.MaintenanceDir, OutputRoot: c.STRMOutputDir, Key: c.SecretKey, HostProc: c.HostProcDir, Revision: buildinfo.Revision}
 	var out any
 	switch action {

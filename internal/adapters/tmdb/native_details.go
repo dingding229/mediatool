@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"media-tool/internal/modules/classification"
 	"media-tool/internal/modules/nativelibrary"
 )
 
@@ -67,7 +68,21 @@ type nativeRecord struct {
 
 // NativeDetails uses the existing Token, language and explicitly scoped proxy.
 // A season response contains episode metadata; no per-episode fan-out is needed.
+// NativeSnapshot adds classification facts only to the private provider cache.
+// Existing NativeDetails callers/protocol DTOs retain their exact contract.
+type NativeSnapshot struct {
+	nativelibrary.TMDBDetails
+	Classification *classification.Facts `json:"classification,omitempty"`
+}
+
 func (c Client) NativeDetails(ctx context.Context, kind nativelibrary.TMDBDetailType, id int64, season *int, region string) (nativelibrary.TMDBDetails, error) {
+	return c.nativeDetails(ctx, kind, id, season, region, nil)
+}
+func (c Client) NativeSnapshot(ctx context.Context, kind nativelibrary.TMDBDetailType, id int64, season *int, region string) (out NativeSnapshot, err error) {
+	out.TMDBDetails, err = c.nativeDetails(ctx, kind, id, season, region, &out.Classification)
+	return
+}
+func (c Client) nativeDetails(ctx context.Context, kind nativelibrary.TMDBDetailType, id int64, season *int, region string, facts **classification.Facts) (nativelibrary.TMDBDetails, error) {
 	var out nativelibrary.TMDBDetails
 	if id < 1 || (kind != nativelibrary.TMDBTypeMovie && kind != nativelibrary.TMDBTypeSeries && kind != nativelibrary.TMDBTypeSeason) || (kind == nativelibrary.TMDBTypeSeason && (season == nil || *season < 0 || *season > 999)) {
 		return out, ErrRequest
@@ -88,6 +103,13 @@ func (c Client) NativeDetails(ctx context.Context, kind nativelibrary.TMDBDetail
 	}
 	if kind != nativelibrary.TMDBTypeSeason && int64(r.ID) != id || kind == nativelibrary.TMDBTypeSeason && (r.SeasonNumber == nil || *r.SeasonNumber != *season || r.ID < 1) {
 		return out, ErrRequest
+	}
+	if facts != nil && kind != nativelibrary.TMDBTypeSeason {
+		f, err := classification.FactsFromItem(convert(r.record, string(kind)))
+		if err != nil {
+			return out, ErrRequest
+		}
+		*facts = &f
 	}
 	out.Name, out.OriginalTitle, out.PremiereDate = r.Title, r.OriginalTitle, r.ReleaseDate
 	if kind != nativelibrary.TMDBTypeMovie {

@@ -66,9 +66,7 @@ func (e Engine) ManagedDetail(parent context.Context, id string) (ManagedDetail,
 	defer cancel()
 	var basic, snapshot []byte
 	var poster, mediaID string
-	query := `SELECT coalesce(m.title,f.metadata->>'name',regexp_replace(f.full_path,'^.*/','','g')),coalesce(m.release_year,''),coalesce(m.media_type,'unknown'),coalesce(m.metadata,'{}'::jsonb),coalesce(d.payload,'{}'::jsonb),f.state,b.season,b.episode,coalesce(m.id::text,'')` + managedMembers + ` LEFT JOIN LATERAL(
- SELECT payload FROM native_tmdb_details d WHERE d.tmdb_type=m.media_type AND d.tmdb_id=m.tmdb_id AND d.fetched_at IS NOT NULL
- AND d.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN') ORDER BY d.fetched_at DESC LIMIT 1)d ON true WHERE ` + where + ` ORDER BY a.id LIMIT 1`
+	query := `SELECT coalesce(m.title,f.metadata->>'name',regexp_replace(f.full_path,'^.*/','','g')),coalesce(m.release_year,''),coalesce(m.media_type,'unknown'),coalesce(m.metadata,'{}'::jsonb),coalesce(d.payload,'{}'::jsonb),f.state,b.season,b.episode,coalesce(m.id::text,'')` + managedSnapshots + ` WHERE ` + where + ` ORDER BY a.id LIMIT 1`
 	err = e.DB.QueryRow(ctx, query, args...).Scan(&out.Title, &out.Year, &out.MediaType, &basic, &snapshot, &out.State, &out.Season, &out.Episode, &mediaID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return out, ErrInvalid
@@ -111,7 +109,7 @@ func (e Engine) ManagedDetail(parent context.Context, id string) (ManagedDetail,
 	if err != nil {
 		return out, ErrUnavailable
 	}
-	out.CategoryID, out.Category = categoryFor(policy.Value, item)
+	out.CategoryID, out.Category = categoryFor(policy.Value, classificationInput(item, snapshot))
 	out.Type = "Movie"
 	if out.MediaType == "series" {
 		out.Type = "Episode"

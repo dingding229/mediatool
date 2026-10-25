@@ -62,7 +62,7 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 		where += ` GROUP BY CASE WHEN m.media_type='series' THEN 'series_'||m.id::text ELSE a.id::text END,m.media_type,m.id`
 		order = `title,id`
 	}
-	categoryExpr := categorySQL(policy.Value, &args)
+	categoryExpr := categorySQLFrom(policy.Value, &args, "c.metadata")
 	if category != "" {
 		args = append(args, category)
 		condition := fmt.Sprintf(" AND (%s)=$%d", categoryExpr, len(args))
@@ -76,7 +76,7 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 	} else {
 		fields += "," + categoryExpr + " category_id"
 	}
-	sql := `WITH entries AS(SELECT ` + fields + managedMembers + where + `) `
+	sql := `WITH entries AS(SELECT ` + fields + managedClassificationMembers + where + `) `
 	if err := e.DB.QueryRow(ctx, sql+`SELECT count(*) FROM entries`, args...).Scan(&out.Total); err != nil {
 		return out, ErrUnavailable
 	}

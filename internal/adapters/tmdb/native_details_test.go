@@ -2,10 +2,12 @@ package tmdb
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"media-tool/internal/modules/nativelibrary"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -94,5 +96,47 @@ func TestNativeDetailsPayloadAndImageBounds(t *testing.T) {
 	}
 	if d := ExponentialBackoff(2, &ResponseError{Status: 429}); d < 4*time.Minute {
 		t.Fatal(d)
+	}
+}
+func TestNativeSnapshotRetainsClassificationWithoutChangingLegacyProjection(t *testing.T) {
+	for _, tc := range []struct {
+		kind           nativelibrary.TMDBDetailType
+		body, language string
+		countries      []string
+	}{
+		{nativelibrary.TMDBTypeMovie, `{"id":700,"title":"电影","original_language":"zh","production_countries":[{"iso_3166_1":"TW"}],"origin_country":["TW"],"genres":[{"id":18,"name":"Drama"}]}`, "zh", []string{"TW"}},
+		{nativelibrary.TMDBTypeSeries, `{"id":700,"name":"剧集","original_language":"cn","origin_country":["HK"],"genres":[{"id":18,"name":"Drama"}]}`, "cn", []string{"HK"}},
+	} {
+		t.Run(string(tc.kind), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "GET" {
+					t.Error("non-read-only provider request")
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer server.Close()
+			c := Client{HTTP: server.Client(), BaseURL: server.URL}
+			snapshot, e := c.NativeSnapshot(context.Background(), tc.kind, 700, nil, "CN")
+			if e != nil || snapshot.Classification == nil || !snapshot.Classification.Valid() {
+				t.Fatal(snapshot, e)
+			}
+			f := snapshot.Classification
+			if f.OriginalLanguage != tc.language || !reflect.DeepEqual(f.Countries, tc.countries) || !reflect.DeepEqual(f.GenreIDs, []int{18}) {
+				t.Fatal(f)
+			}
+			raw, _ := json.Marshal(snapshot)
+			if !strings.Contains(string(raw), `"classification"`) {
+				t.Fatal("cache dropped classification facts")
+			}
+			legacy, e := c.NativeDetails(context.Background(), tc.kind, 700, nil, "CN")
+			if e != nil {
+				t.Fatal(e)
+			}
+			raw, _ = json.Marshal(legacy)
+			if strings.Contains(string(raw), `"classification"`) {
+				t.Fatal("legacy/native wire changed")
+			}
+		})
 	}
 }

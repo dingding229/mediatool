@@ -56,12 +56,15 @@ func categoryFor(p classification.Policy, item metadata.Item) (string, string) {
 // classification filtering and totals happen BEFORE grouping and SQL paging.
 // Differential tests compare every result with classification.Policy.Match.
 func categorySQL(p classification.Policy, args *[]any) string {
+	return categorySQLFrom(p, args, "m.metadata")
+}
+func categorySQLFrom(p classification.Policy, args *[]any, input string) string {
 	bind := func(v any) string { *args = append(*args, v); return fmt.Sprintf("$%d", len(*args)) }
 	array := func(key string, values []string) string {
 		if len(values) == 0 {
 			return "true"
 		}
-		return "EXISTS(SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(m.metadata->'" + key + "')='array' THEN m.metadata->'" + key + "' ELSE '[]'::jsonb END) v WHERE v=ANY(" + bind(values) + "::text[]))"
+		return "EXISTS(SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(" + input + "->'" + key + "')='array' THEN " + input + "->'" + key + "' ELSE '[]'::jsonb END) v WHERE v=ANY(" + bind(values) + "::text[]))"
 	}
 	genres := func(ids []int) string {
 		values := make([]string, len(ids))
@@ -84,7 +87,7 @@ func categorySQL(p classification.Policy, args *[]any) string {
 			hasRules = true
 			condition := group + " AND " + genres(r.GenreIDs) + " AND " + array("countries", r.Countries)
 			if len(r.Languages) > 0 {
-				condition += " AND coalesce(m.metadata->>'originalLanguage','')=ANY(" + bind(r.Languages) + "::text[])"
+				condition += " AND coalesce(" + input + "->>'originalLanguage','')=ANY(" + bind(r.Languages) + "::text[])"
 			}
 			cases = append(cases, "WHEN "+condition+" THEN "+bind(categoryKey(g.ID, r.ID))+"::text")
 		}
