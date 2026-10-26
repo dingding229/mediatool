@@ -7,9 +7,9 @@ async function screenshot(page:import('@playwright/test').Page,name:string){awai
 const session=(id:string,current=false)=>({id,accountId:'owned',username:'管理员',current,createdAt:'2026-10-21T09:00:00Z',lastActiveAt:'2026-10-21T10:00:00Z',expiresAt:'2026-10-21T17:00:00Z',ip:'192.0.2.10',userAgent:'Original Agent/1.0 中文 <raw>'});
 test('B2 administrator session UI keeps raw values, confirms individual revoke and current logout',async({page})=>{
  await u4Fixture(page);let rows=[session('current',true),session('other')],writes:string[]=[];
- await page.route('**/api/v1/auth/sessions?*',r=>r.fulfill({json:{data:{items:rows,hasNext:false}}}));
+ await page.route('**/api/v1/auth/sessions{,?*}',r=>r.fulfill({json:{data:{items:rows}}}));
  await page.route('**/api/v1/auth/sessions/*/revoke',r=>{expect(r.request().postDataJSON()).toEqual({confirm:true});const id=new URL(r.request().url()).pathname.split('/').at(-2)!;writes.push(id);rows=rows.filter(x=>x.id!==id);return r.fulfill({json:{data:{revoked:true,loginRequired:id==='current'}}})});
- await page.goto('/settings?tab=security');const panel=page.getByRole('region',{name:'管理端登录会话'});await expect(panel.getByText('UA：Original Agent/1.0 中文 <raw>').first()).toBeVisible();
+ await page.goto('/settings?tab=security');const panel=page.getByRole('region',{name:'管理端登录会话'});await expect(panel.getByText(/第.*页/)).toHaveCount(0);await expect(panel.getByText('UA：Original Agent/1.0 中文 <raw>').first()).toBeVisible();
  await page.getByRole('button',{name:'撤销此登录',exact:true}).click();expect(writes).toEqual([]);await page.getByRole('button',{name:'确认撤销登录',exact:true}).click();await expect.poll(()=>writes).toEqual(['other']);await expect(panel.getByText('已撤销指定管理端登录',{exact:false})).toBeVisible();
  await expect(page.locator('.el-overlay:visible')).toHaveCount(0);mkdirSync(shots,{recursive:true});await screenshot(page,'admin-sessions-desktop');
  await page.setViewportSize({width:390,height:844});await screenshot(page,'admin-sessions-mobile');
@@ -36,7 +36,7 @@ test('B2 real isolated session revoke denies only the selected cookie on next re
  const other=await browser.newContext({baseURL:base,userAgent:'Owned B2 second management session'});
  try{
  expect((await other.request.post('/api/v1/auth/login',{headers,data:login})).status()).toBe(200);
- const listed=await(await other.request.get('/api/v1/auth/sessions?page=1')).json();const current=listed.data.items.find((x:any)=>x.current);expect(current.userAgent).toBe('Owned B2 second management session');
+ const listed=await(await other.request.get('/api/v1/auth/sessions')).json();const current=listed.data.items.find((x:any)=>x.current);expect(current.userAgent).toBe('Owned B2 second management session');
  expect((await page.request.post(`${base}/api/v1/auth/sessions/${current.id}/revoke`,{headers,data:{confirm:true}})).status()).toBe(200);
  expect((await other.request.get('/api/v1/auth/session')).status()).toBe(401);expect((await page.request.get(`${base}/api/v1/auth/session`)).status()).toBe(200);
  }finally{await other.close()}
