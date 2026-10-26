@@ -59,6 +59,7 @@ defineExpose({ load, create });
     <ResourceState :error="libraries.error" @reload="libraries.load"/>
     <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>
+    <div class="media-user-grid">
     <article v-for="user in users.data.items" :key="user.id" class="organize-record media-user-card">
       <header class="media-user-identity">
         <span class="media-user-avatar" aria-hidden="true">{{ Array.from(user.displayName||user.username)[0]?.toLocaleUpperCase()||'用' }}</span>
@@ -68,14 +69,10 @@ defineExpose({ load, create });
       <dl class="media-user-summary">
         <div><dt>最近播放</dt><dd>{{ user.lastPlayedAt?date(user.lastPlayedAt):'暂无播放' }}</dd></div>
         <div><dt>最近 IP 归属地</dt><dd><IpAddress v-if="user.lastIp" :ip="user.lastIp"/><span v-else>暂无公网记录</span></dd></div>
-        <div><dt>设备与登录</dt><dd>{{ user.deviceCount??'—' }} 台设备 · {{ user.activeSessions??'—' }} 个有效登录</dd></div>
-        <div><dt>权限摘要</dt><dd>{{ permission(user) }}</dd></div>
       </dl>
-      <p class="media-user-limits">同时播放上限 {{ user.maxStreams??'—' }} · 到期 {{ date(user.expiresAt||undefined) }}<span v-if="status(user)==='锁定'"> · {{ statusHint(user) }}</span></p>
       <div class="media-actions media-user-actions" :aria-label="user.username+' 的操作'">
         <el-button :disabled="!!users.error||!!libraries.error" @click="editor?.open(user)">编辑用户</el-button>
-        <el-button @click="activity=user;activityOpen=true">设备与历史</el-button>
-        <RouterLink class="el-button media-user-session-link" :to="{path:'/playback',query:{tab:'sessions',userId:user.id}}">查看会话与撤销登录</RouterLink>
+        <el-button @click="activity=user;activityOpen=true">用户详情</el-button>
         <el-dropdown trigger="click" popper-class="media-dropdown">
           <el-button>更多</el-button>
           <template #dropdown>
@@ -87,16 +84,43 @@ defineExpose({ load, create });
         </el-dropdown>
       </div>
     </article>
+    </div>
   <PagePagination v-model:current-page="page" :total="users.data.total" :page-size="25" @current-change="users.load"/>
   </section>
   <UserEditor ref="editor" :libraries="libraries.data" @saved="load"/>
-  <DetailDrawer v-model:visible="activityOpen" :title="(activity?.username||'媒体用户')+' · 设备与历史'" class="media-detail">
+  <DetailDrawer v-model:visible="activityOpen" :title="(activity?.username||'媒体用户')+' · 用户详情'" class="media-detail">
+    <dl v-if="activity" class="media-user-summary media-user-detail-summary">
+      <div><dt>设备与登录</dt><dd>{{ activity.deviceCount??'—' }} 台设备 · {{ activity.activeSessions??'—' }} 个有效登录</dd></div>
+      <div><dt>权限摘要</dt><dd>{{ permission(activity) }}</dd></div>
+      <div><dt>同时播放上限</dt><dd>{{ activity.maxStreams??'—' }}</dd></div>
+      <div><dt>年龄分级上限</dt><dd>{{ activity.maxParentalRating??'不限' }}</dd></div>
+      <div><dt>到期</dt><dd>{{ date(activity.expiresAt||undefined) }}</dd></div>
+      <div><dt>账号状态</dt><dd>{{ statusHint(activity) }}</dd></div>
+    </dl>
+    <RouterLink v-if="activity" class="el-button media-user-session-link" :to="{path:'/playback',query:{tab:'sessions',userId:activity.id}}" @click="activityOpen=false">查看会话与撤销登录</RouterLink>
+    <h3>设备与历史</h3>
     <UserActivityPanel v-if="activity&&activityOpen" :user-id="activity.id" :user-name="activity.username"/>
   </DetailDrawer>
   <ConfirmAction v-model:visible="confirm" title="删除媒体用户" :description="`将处理 ${target?.username||'此用户'} 的账号或登录权限。`" impact-scope="删除账号、权限、登录及该用户的播放事件和 IP 统计；不删除媒体文件或其他用户的数据。" confirm-text="确认删除用户" :loading="op.busy" class="media-dialog" @confirm="apply"/>
 </template>
 
 <style scoped>
-.media-users-panel{min-width:0;max-width:100%;box-sizing:border-box}.media-user-card{padding:20px;min-width:0}.media-user-identity{display:flex;gap:12px;align-items:center}.media-user-avatar{display:grid;place-items:center;flex:0 0 44px;height:44px;border-radius:50%;background:var(--el-color-primary-light-9);color:var(--el-color-primary);font-size:1.1rem;font-weight:600}.media-user-name{min-width:0;width:0;flex:1}.media-user-name h3,.media-user-name p{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.media-user-name p{color:var(--el-text-color-secondary);font-size:.85rem;margin-top:4px}.media-user-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;margin:20px 0 16px}.media-user-summary dt,.media-user-limits{color:var(--el-text-color-secondary);font-size:.85rem}.media-user-summary dd{margin:6px 0 0;overflow-wrap:anywhere}.media-user-actions{padding-top:16px;border-top:1px solid var(--el-border-color-lighter);align-items:center}.media-user-actions :deep(.el-button){height:44px;margin:0;text-decoration:none}.media-user-actions :deep(.el-dropdown){display:inline-flex}.media-user-limits{overflow-wrap:anywhere}@media(max-width:600px){.media-user-card{padding:16px}.media-user-summary{grid-template-columns:1fr;gap:14px}.media-user-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.media-user-actions :deep(.el-button){width:100%;padding:10px 8px}.media-user-actions :deep(.el-dropdown){width:100%}}
-.media-user-actions .media-user-session-link{color:var(--el-button-text-color)}.media-user-actions .media-user-session-link:hover,.media-user-actions .media-user-session-link:focus-visible{color:var(--el-button-hover-text-color)}
+.media-users-panel{min-width:0;max-width:100%;box-sizing:border-box}
+.media-user-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:16px}
+.media-user-card{padding:16px;min-width:0;margin:0;display:flex;flex-direction:column;gap:16px}
+.media-user-identity{display:flex;gap:12px;align-items:center}
+.media-user-avatar{display:grid;place-items:center;flex:0 0 40px;height:40px;border-radius:50%;background:var(--el-color-primary-light-9);color:var(--el-color-primary);font-size:1.1rem;font-weight:600}
+.media-user-name{min-width:0;width:0;flex:1}
+.media-user-name h3,.media-user-name p{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.media-user-name p{color:var(--el-text-color-secondary);font-size:.85rem;margin-top:4px}
+.media-user-summary{display:grid;gap:10px;margin:0}
+.media-user-summary>div{display:grid;grid-template-columns:7.5em minmax(0,1fr);gap:8px;align-items:baseline}
+.media-user-summary dt{color:var(--el-text-color-secondary);font-size:.85rem}
+.media-user-summary dd{margin:0;overflow-wrap:anywhere}
+.media-user-actions{padding-top:12px;border-top:1px solid var(--el-border-color-lighter);align-items:center;margin-top:auto;gap:8px}
+.media-user-actions :deep(.el-button){height:44px;margin:0;padding:8px 12px;text-decoration:none}
+.media-user-actions :deep(.el-dropdown){display:inline-flex}
+.media-user-detail-summary{margin-bottom:16px}
+.media-user-session-link{color:var(--el-button-text-color);text-decoration:none;min-height:44px}
+.media-user-session-link:hover,.media-user-session-link:focus-visible{color:var(--el-button-hover-text-color)}
 </style>

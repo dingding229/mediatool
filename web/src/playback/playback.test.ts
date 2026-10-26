@@ -38,7 +38,7 @@ it('policy conflicts reread the server but keep rule input until explicit revisi
 it('an older mutation cannot clear a newer operation storage lock',async()=>{const s=mount(defineComponent({setup:()=>reactive(useOperation('race'))})),old=deferred();const pending=s.run('old',()=>old.promise);const t=mount(defineComponent({setup:()=>reactive(useOperation('race'))}));t.clear();const newer=deferred();const next=t.run('new',()=>newer.promise);old.reject(Error('offline'));await pending;expect(JSON.parse(sessionStorage.getItem('media-tool:u5:race')!).key).toBe('new');newer.resolve({});await next})
 it('processing state choices never issue a filter unsupported by the selected task kind',async()=>{const s=mount(Processing);await flush();s.filter.kind='still';s.filter.state='probing';await s.changeFilter();expect(s.filter.state).toBe('failed');expect(fetch.mock.calls.some(([u])=>u.includes('kind=still')&&u.includes('state=probing'))).toBe(false)})
 
-it('the single session owner can revoke idle user logins even without an active playback row',async()=>{testRoute.query={tab:'sessions',userId:'idle-user'};const fallback=fetch.getMockImplementation()!;fetch.mockImplementation(async(url,o)=>url.includes('/native/sessions?')?{ok:true,status:200,json:async()=>({data:{items:[],total:0}})}:url.endsWith('/media-server/users/idle-user')?{ok:true,status:200,json:async()=>({data:{...user,id:'idle-user',activeSessions:1}})}:(fallback as (...args:any[])=>any)(url,o));const s=mount(Sessions);await flush();expect(s.open).toBe(true);expect(s.detail).toMatchObject({userId:'idle-user',account:{activeSessions:1}});expect(s.confirm).toBe(false);expect(fetch.mock.calls.some(([,o])=>o?.method==='POST')).toBe(false)});
+it('the single session owner can revoke idle user logins even without an active playback row',async()=>{testRoute.query={tab:'sessions',userId:'idle-user'};const fallback=fetch.getMockImplementation()!;fetch.mockImplementation(async(url,o)=>url.includes('/native/sessions?')?{ok:true,status:200,json:async()=>({data:{items:[],total:0}})}:url.endsWith('/media-server/users/idle-user')?{ok:true,status:200,json:async()=>({data:{...user,id:'idle-user',activeSessions:1}})}:(fallback as (...args:any[])=>any)(url,o));const s=mount(Sessions);await flush();expect(s.open).toBe(false);await s.accountEntry();expect(s.open).toBe(true);expect(s.detail).toMatchObject({userId:'idle-user',account:{activeSessions:1}});expect(s.confirm).toBe(false);expect(fetch.mock.calls.some(([,o])=>o?.method==='POST')).toBe(false)});
 
 it('defaults only newly selected library grants to play, keeps download off and preserves existing browse-only grants',async()=>{
  const s=mount(Editor,{libraries:[{id:'existing',name:'已有剧集库'},{id:'new',name:'新增电影库'}]});
@@ -59,3 +59,22 @@ it('switches UA modes without losing either rule list and blacklists observation
  s.ask('mode','blacklist');expect(fetch.mock.calls.some(([,o])=>o?.method==='PUT')).toBe(false);await s.apply();const write=fetch.mock.calls.find(([,o])=>o?.method==='PUT')!;expect(JSON.parse(String(write[1].body))).toMatchObject({mode:'blacklist',enabled:true,rules:[{id:'white'}],blacklistRules:[{id:'black'}]});
  s.op.clear();s.edit(null,{id:'owned-observation',userAgent:'Blocked/1'},'blacklistRules');s.form.label='拒绝的设备';await s.submit();const block=fetch.mock.calls.find(([u])=>u.endsWith('/owned-observation/block'))!;expect(JSON.parse(String(block[1].body))).toEqual({revision:1,label:'拒绝的设备',confirm:true});
 })
+
+// T10: a retained userId is context, never an instruction to open a drawer.
+it('session tab entry, refresh and returning with retained userId never open details',async()=>{
+ testRoute.query={tab:'users',userId:'idle-user'};
+ const s=mount(Sessions);await flush();expect(s.open).toBe(false);
+ testRoute.query.tab='sessions';await flush();expect(s.open).toBe(false);
+ await s.load();expect(s.open).toBe(false);
+ s.showSession({id:'selected',userId:'idle-user'});expect(s.open).toBe(true);expect(s.detail.id).toBe('selected');
+ testRoute.query.tab='users';await flush();expect(s.open).toBe(false);
+ testRoute.query.tab='sessions';await flush();expect(s.open).toBe(false);
+ expect(fetch.mock.calls.some(([u])=>u.endsWith('/media-server/users/idle-user'))).toBe(false);
+});
+it('late user login detail reads cannot reopen a drawer after tab navigation',async()=>{
+ testRoute.query={tab:'sessions',userId:'idle-user'};const s=mount(Sessions);await flush();
+ const late=deferred<any>();fetch.mockReturnValueOnce(late.promise);const pending=s.accountEntry();
+ testRoute.query.tab='users';await flush();testRoute.query.tab='sessions';await flush();
+ late.resolve({ok:true,status:200,json:async()=>({data:{...user,id:'idle-user'}})});await pending;
+ expect(s.open).toBe(false);expect(s.detail).toBe(null);
+});

@@ -1449,8 +1449,8 @@ test('P4 native settings, media user limits, device revoke and history (isolated
   const token=await login('p4-first'), other=await login('p4-other')
   await page.reload()
   const row=page.locator('.organize-record').filter({hasText:username})
-  await row.getByRole('button',{name:'设备与历史',exact:true}).click()
-  dialog=page.getByRole('dialog',{name:username+' · 设备与历史',exact:true})
+  await row.getByRole('button',{name:'用户详情',exact:true}).click()
+  dialog=page.getByRole('dialog',{name:username+' · 用户详情',exact:true})
   const deviceRow=dialog.locator('.organize-record').first()
   await expect(deviceRow).toContainText('Infuse')
   const devices=(await (await page.request.get(`/api/v1/media-server/users/${userId}/devices`)).json()).data.items

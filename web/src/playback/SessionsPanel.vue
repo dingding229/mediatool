@@ -20,21 +20,23 @@ async function accountEntry() {
   const id = route.query.userId;
   if (typeof id !== 'string' || !id || route.query.tab !== 'sessions' || op.pending)
     return;
+  const currentSelection = ++selection;
   const user = await account.load();
-  if (!user || route.query.tab !== 'sessions' || route.query.userId !== id)
+  if (!user || currentSelection !== selection || route.query.tab !== 'sessions' || route.query.userId !== id)
     return;
   detail.value = { userId: id, userName: user.displayName || user.username, itemName: '用户登录', account: user };
   open.value = true;
 }
+// Route context may highlight a user, but only an explicit record selection opens details.
+// Invalidate in-flight selections too: leaving and returning must not reopen a stale drawer.
+let selection = 0;
 watch(() => [route.query.tab, route.query.userId], () => {
-  if (route.query.tab === 'sessions')
-    void accountEntry();
-  else
-    open.value = false;
+  selection++;
+  open.value = false;
+  confirm.value = false;
 });
 async function load() {
   await data.load();
-  await accountEntry();
   if (op.pending) {
     try {
       const u: any = await request(`/media-server/users/${encodeURIComponent(op.pending.key)}`);
@@ -62,7 +64,12 @@ async function revoke() {
   }
 }
 onMounted(load);
-defineExpose({ load, data, page });
+function showSession(session: any) {
+  selection++;
+  detail.value = session;
+  open.value = true;
+}
+defineExpose({ load, data, page, accountEntry, showSession });
 </script>
 <template>
   <section class="media-surface">
@@ -70,7 +77,12 @@ defineExpose({ load, data, page });
     <p>查看设备正在播放的内容与最近进度。</p>
     <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="!data.data?.items.length" @reload="load"/>
     <p>当前不支持单独结束一条会话。可在详情中明确撤销该用户的全部登录。</p>
-    <ResourceState :error="account.error" @reload="accountEntry"/>
+    <article v-if="typeof route.query.userId==='string' && route.query.userId" class="organize-record">
+      <h3>用户登录</h3>
+      <ResourceState :error="account.error" @reload="accountEntry"/>
+      <p>查看所选用户的有效登录，即使没有播放中的会话也可撤销登录。</p>
+      <el-button :loading="account.loading" :disabled="!!op.pending" @click="accountEntry">用户登录详情</el-button>
+    </article>
     <p v-if="notice" role="status">{{ notice }}</p>
     <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>
@@ -78,7 +90,7 @@ defineExpose({ load, data, page });
       <h3>{{mediaTitle({...session,name:session.itemName})}}</h3>
       <p>{{ session.userName||'—' }} · {{ session.deviceName||'—' }} · {{ session.state==='playing'?'播放中':session.state==='paused'?'已暂停':'状态待核对' }}</p>
       <p>最近进度 {{ date(session.lastProgressAt) }}</p>
-      <el-button @click="detail=session;open=true">会话详情</el-button>
+      <el-button @click="showSession(session)">会话详情</el-button>
     </article>
     <PagePagination v-model:current-page="page" :page-size="50" :total="data.data.total" layout="prev,pager,next,total" @current-change="load"/>
   </section>

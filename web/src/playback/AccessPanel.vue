@@ -92,20 +92,20 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
 <template>
   <div class="media-stack">
     <section class="media-surface">
-      <header class="media-section-heading">
-        <h2>播放器准入</h2><p>播放器标识（UA）用于识别发起请求的设备或应用。</p>
-        <div class="media-actions">
-          <el-button :disabled="!policy.data||!!policy.error||!!op.pending" @click="edit()">添加 UA 规则</el-button>
+      <header class="media-section-heading ua-policy-heading">
+        <div class="ua-policy-intro"><h2>播放器准入</h2><p>播放器标识（UA）用于识别发起请求的设备或应用。</p></div>
+        <div class="media-actions ua-policy-actions">
           <label class="u5-field">策略模式
             <select :value="policy.data?.mode||'off'" aria-label="UA 策略模式" :disabled="!policy.data||!!policy.error||!!op.pending" @change="chooseMode">
               <option v-for="mode in (['off','whitelist','blacklist'] as AccessMode[])" :key="mode" :value="mode">{{ modeName(mode) }}</option>
             </select>
           </label>
+          <el-button :disabled="!policy.data||!!policy.error||!!op.pending" @click="edit()">添加 UA 规则</el-button>
         </div>
       </header>
 <div class="f5-player-policy-rows">
       <ResourceState overlay :stale="policy.loaded" :loading="policy.loading" :error="policy.error" @reload="load"/>
-      <p class="ua-policy-summary">当前策略：{{ policy.data?modeName(policy.data.mode):'读取中' }}。切换模式不删除任何名单规则；UA 可由客户端伪造，不替代媒体授权。</p>
+      <p class="ua-policy-summary">切换模式不删除任何名单规则；UA 可由客户端伪造，不替代媒体授权。</p>
       <label class="u5-field">规则名单 <select v-model="list" aria-label="UA 规则名单"><option value="rules">白名单规则</option><option value="blacklistRules">黑名单规则</option></select></label>
       <p>{{ listName(list) }}规则只在对应模式生效。</p>
       <el-alert v-if="op.error&&!editing" :title="errorText(op.error)" type="error" :closable="false"/>
@@ -232,4 +232,16 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
 
 </template>
 
-<style scoped>.ua-policy-summary{min-height:44px}@media(max-width:600px){.ua-policy-summary{min-height:88px}}.media-section-heading .media-actions{align-items:flex-end}.u5-field select{max-width:100%;min-height:44px}.media-actions .u5-field{min-width:0}.media-section-heading .media-actions .el-button{min-height:44px}.u5-ua-record .media-actions{align-items:center}</style>
+<style scoped>
+.ua-policy-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.ua-policy-intro{min-width:0;flex:1 1 260px}
+.ua-policy-intro h2{margin:0 0 8px}
+.ua-policy-intro p{margin:0}
+.ua-policy-heading .ua-policy-actions{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.ua-policy-actions .u5-field{min-width:0;margin:0}
+.ua-policy-actions select,.ua-policy-actions .el-button{box-sizing:border-box;height:44px;min-height:44px;margin:0}
+.u5-field select{max-width:100%;min-height:44px}
+.ua-policy-summary{min-height:44px}
+.u5-ua-record .media-actions{align-items:center}
+@media(max-width:600px){.ua-policy-summary{min-height:88px}.ua-policy-actions{width:100%}.ua-policy-actions .u5-field{flex:1}.ua-policy-actions select{width:100%}}
+</style>
