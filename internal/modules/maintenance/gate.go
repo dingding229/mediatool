@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
 	deferutil "media-tool/internal/platform/cleanup"
+	"media-tool/internal/platform/updateidle"
 	"time"
 )
 
@@ -15,17 +16,24 @@ func BeginWork(ctx context.Context, db *pgxpool.Pool) (func(), error) {
 	if db == nil {
 		return noop, nil
 	}
+	gateRelease, allowed := updateidle.Default.Enter()
+	if !allowed {
+		return noop, ErrConflict
+	}
 	conn, err := db.Acquire(ctx)
 	if err != nil {
+		gateRelease()
 		return noop, err
 	}
 	var ok bool
 	err = conn.QueryRow(ctx, `SELECT pg_try_advisory_lock_shared(91220883)`).Scan(&ok)
 	if err != nil || !ok {
 		conn.Release()
+		gateRelease()
 		return noop, ErrConflict
 	}
 	release := func() {
+		defer gateRelease()
 		c, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if _, err := conn.Exec(c, `SELECT pg_advisory_unlock_shared(91220883)`); err != nil {

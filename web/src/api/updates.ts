@@ -15,3 +15,10 @@ export const getOnlineUpdate=()=>request<OnlineUpdateStatus>('/system/online-upd
 export const executeOnlineUpdate=(version:string,digest:string,password:string,confirm:boolean)=>post<OnlineUpdateJob>('/system/online-update',{version,digest,password,confirm});
 
 export const confirmOnlineUpdateRecovery=(jobId:string,password:string,confirm:boolean)=>post<{ok:boolean}>('/system/online-update/control',{action:'confirm_recovery',jobId,password,confirm});
+
+export interface IdleUpdatePolicy{enabled:boolean;startTime:string;endTime:string;quietMinutes:number;revision:number;reason:string}
+export interface IdleUpdateCondition{key:string;label:string;passed:boolean;reason:string}
+export interface IdleUpdateCheck{ready:boolean;timezone:string;checkedAt:string;conditions:IdleUpdateCondition[];target?:ReleaseInfo}
+export const getIdleUpdate=()=>request<IdleUpdatePolicy>('/system/online-update/idle');
+export const saveIdleUpdate=(value:IdleUpdatePolicy,password='',confirm=false)=>request<IdleUpdatePolicy>('/system/online-update/idle',{method:'PUT',body:JSON.stringify({...value,password,confirm})});
+export const checkIdleUpdate=()=>post<IdleUpdateCheck>('/system/online-update/idle/check',{});

@@ -12,6 +12,7 @@ import (
 	deferutil "media-tool/internal/platform/cleanup"
 	dbutil "media-tool/internal/platform/database"
 	"media-tool/internal/platform/safeerrors"
+	"media-tool/internal/platform/updateidle"
 	"strings"
 	"time"
 )
@@ -82,6 +83,11 @@ func (r Repository) Claim(ctx context.Context, owner string, lease time.Duration
 	return r.ClaimQueue(ctx, owner, lease, "default")
 }
 func (r Repository) ClaimQueue(ctx context.Context, owner string, lease time.Duration, queue string) (*Job, error) {
+	release, allowed := updateidle.Default.Enter()
+	if !allowed {
+		return nil, nil
+	}
+	defer release()
 	if queue == "" {
 		queue = "default"
 	}

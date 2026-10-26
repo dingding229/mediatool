@@ -13,6 +13,7 @@ import (
 	"media-tool/internal/modules/acquisition"
 	sourcecatalog "media-tool/internal/modules/catalog"
 	"media-tool/internal/modules/filemanager"
+	"media-tool/internal/modules/idleupdate"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/ipblock"
 	"media-tool/internal/modules/ipgeo"
@@ -586,7 +587,10 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	defer func() { stopUpdates(); <-updatesDone }()
 	updater := onlineupdate.New(db, updates)
 	go updater.Run(ctx)
-	managementDeps := httpapi.Dependencies{IPBlock: blocks, OnlineUpdater: updater, UpdateChecker: updates, IPGeo: geo, Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
+	idle := idleupdate.New(db, updater, updates)
+	idle.Logger = logger
+	go idle.Run(ctx)
+	managementDeps := httpapi.Dependencies{IdleUpdater: idle, IPBlock: blocks, OnlineUpdater: updater, UpdateChecker: updates, IPGeo: geo, Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
 	if db != nil && manager != nil {
 		store := pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot, Logger: logger}
 		businessHost := pluginbusiness.AcquisitionHost{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc, Network: networkproxy.NewHostClient(networkproxy.Repository{DB: db, Vault: manager.Repository.Vault})}

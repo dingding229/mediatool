@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/emby"
+	"media-tool/internal/modules/idleupdate"
 	"media-tool/internal/modules/imageedit"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/ipblock"
@@ -52,6 +53,7 @@ type SessionReader interface {
 	Session(context.Context, []byte) (accounts.Account, error)
 }
 type Dependencies struct {
+	IdleUpdater       *idleupdate.Service
 	IPBlock           *ipblock.Service
 	OnlineUpdater     *onlineupdate.Service
 	UpdateChecker     *updatecheck.Service
@@ -203,6 +205,9 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("POST /api/v1/classification/preview", a.protected(a.previewClassification))
 	mux.HandleFunc("GET /api/v1/system/status", a.protected(a.status))
 	mux.HandleFunc("GET /api/v1/system/online-update", a.protected(a.onlineUpdateStatus))
+	mux.HandleFunc("GET /api/v1/system/online-update/idle", a.protected(a.getIdleUpdate))
+	mux.HandleFunc("PUT /api/v1/system/online-update/idle", a.protected(a.saveIdleUpdate))
+	mux.HandleFunc("POST /api/v1/system/online-update/idle/check", a.protected(a.checkIdleUpdate))
 	mux.HandleFunc("POST /api/v1/system/online-update/control", a.protected(a.controlOnlineUpdate))
 	mux.HandleFunc("POST /api/v1/system/online-update", a.protected(a.executeOnlineUpdate))
 	mux.HandleFunc("POST /api/v1/scheduling/cron/preview", a.protected(a.previewCron))
@@ -375,7 +380,7 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 		ui.ServeHTTP(w, r)
 	})
 	a.registerAccountTasks(mux)
-	return a.middleware(mux)
+	return a.middleware(idleMedia(mux, d.DB, mediaIPScope))
 }
 func (a *API) protected(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

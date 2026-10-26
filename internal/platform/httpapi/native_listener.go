@@ -35,7 +35,7 @@ func NativeMediaHandler(c config.Config, d Dependencies) (http.Handler, error) {
 	if o, ok := d.PlaybackStats.(nativeauth.DeviceObserver); ok {
 		observer = o
 	}
-	return embyapi.NewServer(embyapi.ServerOptions{IPAdmission: func(r *http.Request) (bool, error) { return checkMediaIP(r.Context(), d.IPBlock, d.DB, r) }, Playback: playback, RequestOrigin: func(r *http.Request) (string, error) {
+	handler, err := embyapi.NewServer(embyapi.ServerOptions{IPAdmission: func(r *http.Request) (bool, error) { return checkMediaIP(r.Context(), d.IPBlock, d.DB, r) }, Playback: playback, RequestOrigin: func(r *http.Request) (string, error) {
 		if evidence, ok := r.Context().Value(ipEvidenceKey{}).(ipEvidence); ok {
 			return clientinfo.RequestOrigin(r, evidence.proxies), evidence.err
 		}
@@ -58,6 +58,10 @@ func NativeMediaHandler(c config.Config, d Dependencies) (http.Handler, error) {
 		}
 		return clientinfo.ClientAddress(r, prefs.Value.TrustedProxyCIDRs), nil
 	}})
+	if err != nil {
+		return nil, err
+	}
+	return idleMedia(handler, d.DB, func(*http.Request) bool { return true }), nil
 }
 
 // An operator global STRM key is never an Emby user credential, even if a

@@ -761,3 +761,11 @@ POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹�
 T12：`GET /api/v1/auth/sessions` 不分页，一次返回全部有效会话，仍排除过期、撤销、超过创建后30天、凭据版本失效及临时密码失效的会话；不读取历史无效会话。站点账号编辑的 `values` 沿用加密存储，允许管理员修改 `cookie` / `userAgent` / `passkey`，RSS 地址仍经已有站点验证；不写入审计明文。
 
 T13：`PUT /system/updates/settings` 同时要求 enabled 与 intervalHours（1–168 的整数）；保存不覆盖检查结果。在线更新常开，不再返回 executionEnabled；`POST /system/online-update/control` 仅接受 confirm_recovery，旧 enable/disable 返回400。更新执行及人工恢复确认仍要求当前管理员密码与 confirm=true；F8b 核心安全约束不变。
+
+### T14 闲时自动更新
+
+| method | path | listener | 当前前端使用 | 证据（源码行） |
+|---|---|---|---|---|
+| GET | `/api/v1/system/online-update/idle` | management | 前端直接调用 | `web/src/api/updates.ts:22` |
+| PUT | `/api/v1/system/online-update/idle` | management | 前端直接调用 | `web/src/api/updates.ts:23` |
+| POST | `/api/v1/system/online-update/idle/check` | management | 前端直接调用 | `web/src/api/updates.ts:24` |
