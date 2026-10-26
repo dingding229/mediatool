@@ -4,7 +4,6 @@ import { useRoute } from 'vue-router';
 import PageHeader from '../ui/PageHeader.vue';
 import PageTabs from '../ui/PageTabs.vue';
 import AboutPanel from '../settings/AboutPanel.vue';
-import IPGeoSettings from '../settings/IPGeoSettings.vue';
 import ConfigPanel from '../settings/ConfigPanel.vue';
 import ClassificationPanel from '../settings/ClassificationPanel.vue';
 import ExternalAccessPanel from '../settings/ExternalAccessPanel.vue';
@@ -26,7 +25,6 @@ watch(tab, value => {
       <template v-if="visited.has(section)">
         <ConfigPanel :section="section"/>
         <ClassificationPanel v-if="section==='naming'"/>
-        <IPGeoSettings v-if="section==='general'"/>
       </template>
     </div>
     <ExternalAccessPanel v-if="tab==='api'"/>

@@ -99,7 +99,7 @@ func TestPostgresPTTemplateAccountValidatesAutoRSSDuplicatesAndEcho(t *testing.T
 	// Manual RSS/UID must be editable and same-origin validated without replacing good values on failure.
 	edit := func(uid, rss string) *httptest.ResponseRecorder {
 		latest, _ := repo.Get(ctx, response.Data.ID)
-		raw, _ := json.Marshal(map[string]any{"definitionId": "hdsky", "values": map[string]string{"cookie": "owned-cookie", "userAgent": "Owned-UA"}, "revision": latest.Record.Revision, "userId": uid, "rssUrl": rss})
+		raw, _ := json.Marshal(map[string]any{"definitionId": "hdsky", "values": map[string]string{"cookie": "owned-cookie", "userAgent": "Owned-UA", "passkey": "t12-edited-key"}, "revision": latest.Record.Revision, "userId": uid, "rssUrl": rss})
 		req := httptest.NewRequest("PUT", "/pt/accounts", strings.NewReader(string(raw)))
 		req.SetPathValue("id", response.Data.ID)
 		w := httptest.NewRecorder()
@@ -113,6 +113,22 @@ func TestPostgresPTTemplateAccountValidatesAutoRSSDuplicatesAndEcho(t *testing.T
 	if latest.String("rssSource") != "manual" || !strings.Contains(latest.Values["rssUrl"], "manual") {
 		t.Fatal("manual override missing")
 	}
+	if latest.Values["passkey"] != "t12-edited-key" {
+		t.Fatal("edited subscription key missing")
+	}
+	if e = db.QueryRow(ctx, "SELECT credentials_ciphertext FROM integrations WHERE id=$1", response.Data.ID).Scan(&ciphertext); e != nil {
+		t.Fatal(e)
+	}
+	for _, secret := range []string{"owned-cookie", "t12-edited-key", "passkey=manual"} {
+		if strings.Contains(string(ciphertext), secret) {
+			t.Fatal("plaintext in credentials storage")
+		}
+		var leaked bool
+		if e = db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM audit_logs WHERE details::text LIKE '%'||$1||'%')", secret).Scan(&leaked); e != nil || leaked {
+			t.Fatalf("secret in audit: %v", e)
+		}
+	}
+
 	for _, sample := range []struct{ uid, rss string }{{"wrong", ""}, {"99", "https://hdsky.me/torrentrss.php?passkey=manual"}, {"42", "https://foreign.invalid/rss?passkey=owned"}} {
 		if w := edit(sample.uid, sample.rss); w.Code != 400 {
 			t.Fatal("invalid override accepted", w.Code)

@@ -212,7 +212,6 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("POST /api/v1/system/updates/check", a.protected(a.checkUpdates))
 	mux.HandleFunc("POST /api/v1/system/updates/notice", a.protected(a.updateNotice))
 	mux.HandleFunc("GET /api/v1/ip-geolocation", a.protected(a.ipLocations))
-	mux.HandleFunc("GET /api/v1/ip-geolocation/settings", a.protected(a.ipGeoSettings))
 	mux.HandleFunc("GET /api/v1/system/modules", a.protected(func(w http.ResponseWriter, r *http.Request) { write(w, 200, system.Modules()) }))
 	mux.HandleFunc("GET /api/v1/integrations", a.protected(a.listIntegrations))
 	mux.HandleFunc("POST /api/v1/integrations", a.protected(a.saveIntegration))

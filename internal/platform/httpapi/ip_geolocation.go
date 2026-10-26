@@ -22,10 +22,3 @@ func (a *API) ipLocations(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, out)
 }
-func (a *API) ipGeoSettings(w http.ResponseWriter, r *http.Request) {
-	if a.Deps.IPGeo == nil {
-		write(w, 200, (*ipgeo.Service)(nil).Status(r.Context()))
-		return
-	}
-	write(w, 200, a.Deps.IPGeo.Status(r.Context()))
-}

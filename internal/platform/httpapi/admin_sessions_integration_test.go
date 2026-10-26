@@ -42,7 +42,7 @@ func TestAdminSessionEnumerationAndSingleRevoke(t *testing.T) {
 	if w := call("GET", "/api/v1/auth/sessions", "", ""); w.Code != 401 {
 		t.Fatal("anonymous enumeration", w.Code)
 	}
-	w := call("GET", "/api/v1/auth/sessions?page=1", "", accountToken)
+	w := call("GET", "/api/v1/auth/sessions", "", accountToken)
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}

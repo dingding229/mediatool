@@ -65,3 +65,5 @@
 .settings-card small,.settings-card h2,.settings-card h3,.settings-card strong{overflow-wrap:anywhere}
 
 .settings-input-error{color:var(--el-color-danger);font-size:13px;margin:4px 0;line-height:1.6}
+
+.settings-card.settings-guide{min-height:0}

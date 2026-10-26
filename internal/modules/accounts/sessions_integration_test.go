@@ -226,3 +226,39 @@ func TestInitialSessionExpirySevenDaysAndTemporaryClamp(t *testing.T) {
 		t.Fatal("temporary password deadline not respected", result, e)
 	}
 }
+
+func TestT12SessionsEnumerateAllValidWithoutPaging(t *testing.T) {
+	ctx, r, account, digest := sessionRepository(t)
+	// Include more than the former page size. Invalid historical rows must not
+	// inflate the list even when their stored expires_at would otherwise allow it.
+	_, err := r.DB.Exec(ctx, `INSERT INTO administrator_sessions(token_digest,account_id,credential_version,expires_at,created_at,revoked_at,ip,user_agent)
+ SELECT decode(lpad(to_hex(n),64,'0'),'hex'),$1,
+ CASE WHEN n=63 THEN 999 ELSE 1 END,
+ CASE WHEN n=61 THEN now()-interval '1 second' ELSE now()+interval '7 days' END,
+ CASE WHEN n=64 THEN now()-interval '31 days' ELSE now() END,
+ CASE WHEN n=62 THEN now() ELSE NULL END,'8.8.8.8','T12 synthetic'
+ FROM generate_series(1,64) n`, account.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := r.Sessions(ctx, digest)
+	if err != nil || len(out.Items) != 61 {
+		t.Fatalf("all active sessions: %d, %v", len(out.Items), err)
+	}
+	current := 0
+	for _, row := range out.Items {
+		if row.Current {
+			current++
+		}
+	}
+	if current != 1 {
+		t.Fatalf("current session flags: %d", current)
+	}
+	if _, err = r.DB.Exec(ctx, `UPDATE administrator_accounts SET temporary_password_expires_at=now()-interval '1 second' WHERE id=$1`, account.ID); err != nil {
+		t.Fatal(err)
+	}
+	out, err = r.Sessions(ctx, digest)
+	if err != nil || len(out.Items) != 0 {
+		t.Fatalf("expired temporary credential sessions: %d, %v", len(out.Items), err)
+	}
+}

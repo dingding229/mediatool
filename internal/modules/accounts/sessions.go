@@ -49,8 +49,7 @@ type SessionInfo struct {
 }
 
 type SessionPage struct {
-	Items   []SessionInfo `json:"items"`
-	HasNext bool          `json:"hasNext"`
+	Items []SessionInfo `json:"items"`
 }
 
 // SessionDeadline carries authoritative database times, never cookie/token material.
@@ -93,8 +92,8 @@ func (r Repository) TouchSession(ctx context.Context, digest []byte, metadata Se
 	}
 	return out, err
 }
-func (r Repository) Sessions(ctx context.Context, digest []byte, page int) (SessionPage, error) {
-	rows, err := r.DB.Query(ctx, `SELECT s.id::text,a.id::text,a.username,s.created_at,s.last_active_at,s.expires_at,s.ip,s.user_agent,s.token_digest=$1 FROM administrator_sessions s JOIN administrator_accounts a ON a.id=s.account_id WHERE s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND s.created_at+interval '30 days'>clock_timestamp() AND s.credential_version=a.credential_version AND coalesce(a.temporary_password_expires_at>clock_timestamp(),true) ORDER BY s.created_at DESC,s.id LIMIT 51 OFFSET $2`, digest, (page-1)*50)
+func (r Repository) Sessions(ctx context.Context, digest []byte) (SessionPage, error) {
+	rows, err := r.DB.Query(ctx, `SELECT s.id::text,a.id::text,a.username,s.created_at,s.last_active_at,s.expires_at,s.ip,s.user_agent,s.token_digest=$1 FROM administrator_sessions s JOIN administrator_accounts a ON a.id=s.account_id WHERE s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND s.created_at+interval '30 days'>clock_timestamp() AND s.credential_version=a.credential_version AND coalesce(a.temporary_password_expires_at>clock_timestamp(),true) ORDER BY s.created_at DESC,s.id`, digest)
 	if err != nil {
 		return SessionPage{}, err
 	}
@@ -108,11 +107,7 @@ func (r Repository) Sessions(ctx context.Context, digest []byte, page int) (Sess
 		v.IP = clientip.Sanitize(v.IP)
 		out = append(out, v)
 	}
-	hasNext := len(out) > 50
-	if hasNext {
-		out = out[:50]
-	}
-	return SessionPage{Items: out, HasNext: hasNext}, rows.Err()
+	return SessionPage{Items: out}, rows.Err()
 }
 func (r Repository) RevokeSession(ctx context.Context, id string, digest []byte) (bool, error) {
 	tx, err := r.DB.Begin(ctx)

@@ -1,27 +1,26 @@
 <script setup lang="ts">
 import { onUnmounted, reactive, ref, watch, computed } from 'vue';
 import { request } from '../api/client';
-import { useSecretReveal } from '../connections/useSecretReveal';
 import { useOperation } from '../workflows/useOperation';
 import ResourceState from '../workflows/ResourceState.vue';
 import StateView from '../ui/StateView.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { errorText } from '../workflows/readiness';
-import { accountPayload, safeAccount, secretLabels } from './accountModel';
+import { accountPayload, safeAccount } from './accountModel';
 const emit = defineEmits<{
   saved: [
     message: string
   ];
-}>(), visible = ref(false), loading = ref(false), loadError = ref<unknown>(null), templates = ref<any[]>([]), accounts = ref<any[]>([]), current = ref<any>(null), latest = ref<any>(null), notice = ref(''), form = reactive<any>({ id: '', definitionId: '', cookie: '', userAgent: '', userId: '', rssUrl: '', rediscover: false, revision: 0 }), op = reactive(useOperation('site-editor')), reveal = useSecretReveal(() => ({ id: form.id, revision: form.revision }));
+}>(), visible = ref(false), loading = ref(false), loadError = ref<unknown>(null), templates = ref<any[]>([]), accounts = ref<any[]>([]), current = ref<any>(null), latest = ref<any>(null), notice = ref(''), form = reactive<any>({ id: '', definitionId: '', cookie: '', userAgent: '', userId: '', rssUrl: '', passkey: '', rediscover: false, revision: 0 }), op = reactive(useOperation('site-editor'));
 const missingTemplate = computed(() => !!form.id && !loading.value && !loadError.value && !!form.definitionId && !templates.value.some(t => t.id === form.definitionId));
 let generation = 0, savedRSS = '';
 async function open(id = '') {
   savedRSS = '';
-  reveal.hideAll();
   form.id = id;
   form.definitionId = '';
   form.cookie = '';
   form.rssUrl = '';
+  form.passkey = '';
   form.userId = '';
   form.userAgent = '';
   form.rediscover = false;
@@ -49,7 +48,7 @@ async function load(preserve = true) {
       savedRSS = raw.values?.rssUrl || '';
       current.value = safe;
       if (!preserve) {
-        Object.assign(form, { definitionId: safe.definitionId, revision: safe.revision, userAgent: safe.settings.userAgent || ua.userAgent, userId: safe.settings.userId || '' });
+        Object.assign(form, { definitionId: safe.definitionId, revision: safe.revision, userAgent: safe.settings.userAgent || ua.userAgent, userId: safe.settings.userId || '', cookie: raw.values?.cookie || '', rssUrl: raw.values?.rssUrl || '', passkey: raw.values?.passkey || '' });
       }
       else if (form.revision !== safe.revision)
         latest.value = safe;
@@ -106,14 +105,13 @@ async function save() {
     notice.value = '保存未完成或配置已修改，输入已保留。请重新读取后核对当前修订。';
   }
 }
-watch(() => [visible.value, form.id, form.revision, op.busy], () => reveal.hideAll());
 watch(visible, v => {
   if (!v) {
     generation++;
     form.cookie = '';
     form.rssUrl = '';
+    form.passkey = '';
     savedRSS = '';
-    reveal.hideAll();
   }
 });
 onUnmounted(() => {
@@ -121,13 +119,14 @@ onUnmounted(() => {
   savedRSS = '';
   form.cookie = '';
   form.rssUrl = '';
+  form.passkey = '';
 });
-defineExpose({ open, load, save, form, current, latest, op, reveal });
+defineExpose({ open, load, save, form, current, latest, op });
 </script>
 <template>
   <el-dialog v-model="visible" :title="form.id?'编辑站点账号':'添加站点账号'" width="min(740px,94vw)" :close-on-click-modal="false" :show-close="!op.busy" class="media-dialog u5-dialog">
     <ResourceState :loading="loading" :error="loadError" @reload="load(true)"/>
-    <StateView v-if="missingTemplate" state="unsupported" title="此账号的模板当前不可用" description="账号和登录信息仍保留，可以主动查看保存值；不会自动替换模板。"/>
+    <StateView v-if="missingTemplate" state="unsupported" title="此账号的模板当前不可用" description="账号和登录信息仍保留，可查看和编辑保存值；不会自动替换模板。"/>
     <form class="u5-form" @submit.prevent="save">
       <label>
         站点模板
@@ -140,7 +139,7 @@ defineExpose({ open, load, save, form, current, latest, op, reveal });
       <p>同一站点只添加一个账号；请先在站点模板标签加载所需模板。</p>
       <label>
         登录 Cookie
-        <input v-model="form.cookie" type="password" aria-label="站点 Cookie" autocomplete="new-password" :placeholder="current?.secretKeys.includes('cookie')?'已设置；留空保留':'填写此站点的登录 Cookie'" :disabled="loading||op.busy||!!op.pending"/>
+        <input v-model="form.cookie" type="text" aria-label="站点 Cookie" autocomplete="off" spellcheck="false" placeholder="填写此站点的登录 Cookie" :disabled="loading||op.busy||!!op.pending"/>
       </label>
       <label>
         浏览器标识（UA）
@@ -152,31 +151,23 @@ defineExpose({ open, load, save, form, current, latest, op, reveal });
         <input v-model="form.userId" aria-label="站点用户ID" :disabled="loading||op.busy||!!op.pending"/>
       </label>
       <label>
-        替换订阅地址（可选）
-        <input v-model="form.rssUrl" type="password" aria-label="站点 RSS 地址" :placeholder="current?.secretKeys.includes('rssUrl')?'已设置；留空保留':'留空尝试自动获取'" :disabled="loading||op.busy||!!op.pending"/>
+        RSS 地址
+        <input v-model="form.rssUrl" type="text" aria-label="站点 RSS 地址" autocomplete="off" spellcheck="false" placeholder="留空尝试自动获取" :disabled="loading||op.busy||!!op.pending"/>
+      </label>
+      <label>
+        订阅密钥
+        <input v-model="form.passkey" type="text" aria-label="站点订阅密钥" autocomplete="off" spellcheck="false" :disabled="loading||op.busy||!!op.pending"/>
       </label>
       <label class="u5-check">
         <input v-model="form.rediscover" type="checkbox" :disabled="op.busy||!!op.pending"/>
         重新获取订阅地址
       </label>
       <p>保存前会验证站点登录；保存后账号会启用。未取得订阅地址时保留已有内容，并在账号中提示。</p>
-      <section v-for="key in current?.secretKeys||[]" :key="key" class="u5-secret">
-        <strong>{{ secretLabels[key] }}：已设置</strong>
-        <el-button v-if="!(key in reveal.values)" :disabled="op.busy||!!op.pending" :loading="reveal.busy[key]" @click="reveal.show(key)">显示{{ secretLabels[key] }}</el-button>
-        <template v-else>
-          <input :value="reveal.values[key]" :aria-label="secretLabels[key]+'已保存值'" readonly/>
-          <div class="media-actions">
-            <el-button @click="reveal.hide(key)">隐藏{{ secretLabels[key] }}</el-button>
-            <el-button @click="reveal.copy(key)">复制{{ secretLabels[key] }}</el-button>
-          </div>
-        </template>
-      </section>
-      <p v-if="reveal.message.value" role="status">{{ reveal.message.value }}</p>
       <p v-if="notice" role="status">{{ notice }}</p>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <section v-if="latest">
         <el-button v-if="latest.revision==null&&!op.phase" @click="load(true)">核对账号配置</el-button>
-        <p>当前账号已重新读取；你的 Cookie 和订阅地址替换输入仍保留。请核对后采用最新修订。</p>
+        <p>当前账号已重新读取；你的 Cookie、RSS 地址和订阅密钥输入仍保留。请核对后采用最新修订。</p>
 
         <el-button :disabled="latest.revision==null" @click="form.revision=latest.revision;latest=null">保留输入并采用最新修订</el-button>
       </section>

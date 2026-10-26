@@ -635,7 +635,7 @@
 
 | 方法 | 路径 | 监听器 | 使用情况 | 前端证据 |
 | --- | --- | --- | --- | --- |
-| GET | `/api/v1/auth/sessions` | management | 前端直接调用 | `web/src/settings/AdministratorSessions.vue:12` |
+| GET | `/api/v1/auth/sessions` | management | 前端直接调用 | `web/src/settings/AdministratorSessions.vue:15` |
 | HEAD | `/api/v1/auth/sessions` | management | 未检出静态使用 |  |
 | POST | `/api/v1/auth/sessions/{id}/revoke` | management | 前端直接调用 | `web/src/settings/AdministratorSessions.vue:15` |
 | GET | `/api/v1/tasks/{kind}/{id}` | management | 前端直接调用 | `web/src/workflows/TaskControl.vue:12` |
@@ -682,10 +682,9 @@ F5b 图标：新增 `GET /pt/templates/{id}/favicon`，管理员会话保护，�
 | GET | `/api/v1/media-server/playback-statistics` | management | 前端经适配调用 | `web/src/api/playback-statistics.ts:10` |
 | GET | `/api/v1/media-server/playback-events` | management | 前端经适配调用 | `web/src/api/playback-statistics.ts:11` |
 | GET | `/api/v1/media-server/playback-ips` | management | 前端经适配调用 | `web/src/api/playback-statistics.ts:12` |
-| GET | `/api/v1/ip-geolocation` | management | 前端经适配调用 | `web/src/api/ip-geolocation.ts:14` |
-| GET | `/api/v1/ip-geolocation/settings` | management | 前端经适配调用 | `web/src/api/ip-geolocation.ts:5` |
+| GET | `/api/v1/ip-geolocation` | management | 前端经适配调用 | `web/src/api/ip-geolocation.ts:12` |
 
-以上均经过管理员认证。`days=7/30/90/0`（0 为全部），`startIndex/limit` 有界分页，按开始时间倒序。IP 汇总 `group=ip/country/province`，用户/设备过滤使用服务器 UUID。归属地在本地查询，库不存在时保留公网 IP，历史私网地址在显示层隐藏。密钥只通过 PUT body 加密保存，不在 GET、日志、原生媒体 API 返回。
+以上均经过管理员认证。`days=7/30/90/0`（0 为全部），`startIndex/limit` 有界分页，按开始时间倒序。IP 汇总 `group=ip/country/province`，用户/设备过滤使用服务器 UUID。归属地在本地查询，库不存在时保留公网 IP，历史私网地址在显示层隐藏。设置中的归属地状态模块和专用状态 API 已移除；离线查询保留，不需要输入密钥。
 | GET | `/api/v1/media-server/device-ips` | management | 前端经适配调用 | `web/src/api/playback-statistics.ts:14` |
 
 ## F8a 构建版本与只读更新检查

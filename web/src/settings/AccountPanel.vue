@@ -68,11 +68,13 @@ usePageRefresh(session.load, 'security');
       <h2>修改密码</h2>
       <PasswordForm/>
     </section>
-    <section class="settings-card" aria-label="首页配置引导">
+    <section class="settings-card settings-guide" aria-label="首页配置引导">
       <h2>首次使用引导</h2>
       <p>{{hidden?'引导已收起。':'引导可在首页查看。'}}重新查看云盘、播放服务、站点与分类的配置进度。</p>
+      <div class="settings-actions">
       <el-switch :model-value="!hidden" aria-label="在首页显示配置引导" @update:model-value="(v:unknown)=>setGuide(Boolean(v))"/>
       <el-button @click="reopen">重新打开配置引导</el-button>
+      </div>
     </section>
   </div>
 </template>

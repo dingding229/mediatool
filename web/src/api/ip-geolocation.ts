@@ -1,8 +1,6 @@
 import {request} from './client';
 export interface IPLocation {ip:string;unavailable?:boolean;label?:string;country?:string;province?:string;city?:string;isp?:string}
-export interface GeoStatus {source:string;version:string;ipv4:boolean;ipv6:boolean;ipv4Date:string|null;ipv6Date:string|null;dataDate:string|null;cacheStrategy:string;memoryBytes:number;reason?:string}
 const path='/ip-geolocation';
-export const getGeoStatus=()=>request<GeoStatus>(path+'/settings');
 // Coalesce a rendered page into bounded administrator-only lookups. No external
 // geolocation requests, and no display of unclassified historical private IPs.
 const cache=new Map<string,{at:number;value:IPLocation}>();

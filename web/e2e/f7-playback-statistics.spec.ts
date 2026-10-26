@@ -24,11 +24,10 @@ for(const width of [1440,390])test(`F7 admin statistics and IP pagination ${widt
  await page.goto('/playback?tab=ips');await expect(page.getByRole('heading',{name:'播放 IP 统计',exact:true})).toBeVisible();await expect(page.locator('.ip-details')).toContainText('2 次播放');const beforeRefresh=calls.length;await page.getByRole('button',{name:'刷新',exact:true}).click();await expect.poll(()=>calls.length).toBeGreaterThan(beforeRefresh);await expect(page.locator('.ip-report-shell')).toHaveAttribute('aria-busy','false');await page.screenshot({path:resolve(dir,`ip-statistics-${width}.png`),fullPage:true,animations:'disabled'});
  writeFileSync(resolve(dir,`statistics-${width}.json`),JSON.stringify({before,after,calls},null,2));
 });
-for(const width of [1440,390])test(`F7 public IP settings and log display ${width}`,async({page})=>{
+for(const width of [1440,390])test(`F7 retained IP lookup in logs without retired settings card ${width}`,async({page})=>{
  await page.setViewportSize({width,height:950});await u5PlaybackFixture(page);
- await page.route('**/api/v1/ip-geolocation/settings',r=>fixtureFulfill(r,{json:{data:{source:'ip2region',version:'f8b0792b0cd7',ipv4:false,ipv6:false,ipv4Date:null,ipv6Date:null,dataDate:null,memoryBytes:0,cacheStrategy:'content'}}}));
  await page.route('**/api/v1/ip-geolocation?*',r=>fixtureFulfill(r,{json:{data:[{ip:'8.8.8.8',label:'中国 广东 深圳 电信'}]}}));
- await page.goto('/settings?tab=general');await expect(page.getByRole('heading',{name:'IP 归属地',exact:true})).toBeVisible();await page.screenshot({path:resolve(dir,`geo-settings-${width}.png`),fullPage:true,animations:'disabled'});
+ await page.goto('/settings?tab=general');await expect(page.getByRole('heading',{name:'IP 归属地',exact:true})).toHaveCount(0);await page.screenshot({path:resolve(dir,`geo-settings-${width}.png`),fullPage:true,animations:'disabled'});
  await page.goto('/playback?tab=players');await expect(page.getByRole('heading',{name:'播放器准入',exact:true})).toBeVisible();await page.screenshot({path:resolve(dir,`player-access-${width}.png`),fullPage:true,animations:'disabled'});
  await page.route('**/api/v1/logs/query?*',r=>fixtureFulfill(r,{json:{data:{items:[{time:'2026-10-23T09:00:00Z',level:'info',msg:'播放成功',module:'playback',clientIp:'8.8.8.8'}],total:1,page:1,pageSize:200}}}));
  await page.goto('/ops?tab=logs');await expect(page.getByText('播放成功',{exact:true})).toBeVisible();await expect(page.getByText('8.8.8.8 · 中国 广东 深圳 电信',{exact:true})).toBeVisible();await page.screenshot({path:resolve(dir,`logs-ip-${width}.png`),fullPage:true,animations:'disabled'});

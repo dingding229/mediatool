@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import IpAddress from '../ui/IpAddress.vue';
 import {beijingTime as date} from '../presentation/time';
-import {usePageNumber} from '../ui/page-query';
 
 import {onMounted,onUnmounted,ref} from 'vue';
 import {useRouter} from 'vue-router';
@@ -13,7 +12,7 @@ import StateView from '../ui/StateView.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import {messageFor,stateFor} from './revision';
 interface Session {id:string;accountId:string;username:string;createdAt:string;lastActiveAt:string;expiresAt:string;ip:string;userAgent:string;current:boolean}
-const page = usePageNumber(),sessions=useResource(()=>request<{items:Session[];hasNext:boolean}>('/auth/sessions?page='+page.value),{items:[],hasNext:false}),target=ref<Session>(),busy=ref(false),error=ref<unknown>(null),notice=ref(''),router=useRouter(),auth=useAuthStore();
+const sessions=useResource(()=>request<{items:Session[]}>('/auth/sessions'),{items:[]}),target=ref<Session>(),busy=ref(false),error=ref<unknown>(null),notice=ref(''),router=useRouter(),auth=useAuthStore();
 let alive=true;onUnmounted(()=>{alive=false});
 async function revoke(){if(!target.value||busy.value)return;busy.value=true;error.value=null;const row=target.value;try{const out=await post<{revoked:boolean;loginRequired:boolean}>(`/auth/sessions/${row.id}/revoke`,{confirm:true});if(!alive)return;target.value=undefined;if(out.loginRequired){auth.forget();await router.replace('/login?sessionRevoked=1');return}notice.value='已撤销指定管理端登录；该会话的下一次请求需要重新登录。';await sessions.load()}catch(e){error.value=e;target.value=undefined;await sessions.load()}finally{busy.value=false}}
 onMounted(sessions.load);usePageRefresh(sessions.load,'security');
@@ -32,7 +31,6 @@ onMounted(sessions.load);usePageRefresh(sessions.load,'security');
 <p class="admin-session-raw">IP：<IpAddress :ip="row.ip"/></p><p class="admin-session-raw">UA：{{row.userAgent||'—'}}</p>
 <el-button :disabled="busy" @click="target=row">{{row.current?'撤销当前登录':'撤销此登录'}}</el-button>
 </article>
-<PagePagination v-model:current-page="page" :has-next="sessions.data.value.hasNext" :disabled="sessions.loading.value" @current-change="sessions.load"/>
 <ConfirmAction :visible="!!target" @update:visible="v=>{if(!v)target=undefined}" :title="target?.current?'撤销当前管理端登录':'撤销指定管理端登录'" :description="target?.current?'确认后将退出当前管理端并跳转到登录页。':'仅撤销所选登录，不影响其他管理端登录。'" impact-scope="不会撤销媒体服务器用户登录，也不会修改账号密码。撤销立即对下一次请求生效。" confirm-text="确认撤销登录" :loading="busy" @confirm="revoke"/>
 </section>
 </template>

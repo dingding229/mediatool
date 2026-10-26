@@ -1,11 +1,11 @@
 import {formatCompactNumber} from '../presentation/numbers';
-export const secretLabels: Record<string, string> = { cookie: '登录 Cookie', rssUrl: '订阅地址', passkey: '订阅密钥', apiKey: '接口密钥', requestHeaders: '附加鉴权头' };
+export const secretLabels: Record<string, string> = { cookie: '登录 Cookie', rssUrl: 'RSS 地址', passkey: '订阅密钥', apiKey: '接口密钥', requestHeaders: '附加鉴权头' };
 export function safeAccount(row: any) {
   const s = row.settings || {};
   return { id: row.id, definitionId: row.definitionId, name: row.name, revision: row.revision, state: row.state, settings: { endpoint: s.endpoint, userAgent: s.userAgent, userId: s.userId, rssState: s.rssState, rssSource: s.rssSource }, secretKeys: Object.keys(secretLabels).filter(k => typeof row.values?.[k] === 'string' && row.values[k].length > 0) };
 }
 export function accountPayload(form: any, savedRSS: string) {
-  return { definitionId: form.definitionId, revision: form.revision, values: { userAgent: form.userAgent, ...(form.cookie ? { cookie: form.cookie } : {}) }, userId: form.userId, rssUrl: form.rediscover ? '' : form.rssUrl || savedRSS, rediscover: form.rediscover };
+  return { definitionId: form.definitionId, revision: form.revision, values: { userAgent: form.userAgent, ...(form.cookie ? { cookie: form.cookie } : {}), ...(typeof form.passkey === 'string' ? { passkey: form.passkey } : {}) }, userId: form.userId, rssUrl: form.rediscover ? '' : form.rssUrl || savedRSS, rediscover: form.rediscover };
 }
 export const numberText = (n: any) => n == null || n === '' ? '—' : typeof n === 'number' ? formatCompactNumber(n) : String(n);
 export function addSamples(store: Record<string, any[]>, rows: any[]) {

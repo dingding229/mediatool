@@ -20654,9 +20654,6 @@
       "modules_accounts_SessionPage": {
         "additionalProperties": false,
         "properties": {
-          "hasNext": {
-            "type": "boolean"
-          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/modules_accounts_SessionInfo"
@@ -20668,7 +20665,6 @@
           }
         },
         "required": [
-          "hasNext",
           "items"
         ],
         "type": "object",
@@ -55665,18 +55661,8 @@
     },
     "/api/v1/auth/sessions": {
       "get": {
-        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "description": "一次列出所有未过期、未撤销且凭据仍有效的管理端会话（绝对期限不超过创建后30天），不分页。",
         "operationId": "get_api_v1_auth_sessions_5c1e6756",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "page",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_6157d44e9c6e"
@@ -55712,18 +55698,8 @@
         "x-source": "task_controls.go:309"
       },
       "head": {
-        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "description": "一次列出所有未过期、未撤销且凭据仍有效的管理端会话（绝对期限不超过创建后30天），不分页。",
         "operationId": "head_api_v1_auth_sessions_5c1e6756",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "page",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
@@ -61657,76 +61633,6 @@
         "x-go-registration": "GET /api/v1/ip-geolocation",
         "x-listener": "management",
         "x-source": "api.go:214"
-      }
-    },
-    "/api/v1/ip-geolocation/settings": {
-      "get": {
-        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
-        "operationId": "get_api_v1_ip_geolocation_settings_81f7d535",
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/HTTP200_c795ac308645"
-          },
-          "401": {
-            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
-          },
-          "403": {
-            "$ref": "#/components/responses/HTTP403_2601227bedbe"
-          },
-          "423": {
-            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
-          },
-          "503": {
-            "$ref": "#/components/responses/HTTP503_8cc23fd4604e"
-          }
-        },
-        "security": [
-          {
-            "AdminSession": []
-          }
-        ],
-        "summary": "ipGeoSettings",
-        "tags": [
-          "基础与静态挂载"
-        ],
-        "x-go-handler": "ipGeoSettings",
-        "x-go-registration": "GET /api/v1/ip-geolocation/settings",
-        "x-listener": "management",
-        "x-source": "api.go:215"
-      },
-      "head": {
-        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
-        "operationId": "head_api_v1_ip_geolocation_settings_81f7d535",
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/HTTP200_3c96584e0154"
-          },
-          "401": {
-            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
-          },
-          "403": {
-            "$ref": "#/components/responses/HTTP403_2601227bedbe"
-          },
-          "423": {
-            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
-          },
-          "503": {
-            "$ref": "#/components/responses/HTTP503_8cc23fd4604e"
-          }
-        },
-        "security": [
-          {
-            "AdminSession": []
-          }
-        ],
-        "summary": "ipGeoSettings",
-        "tags": [
-          "基础与静态挂载"
-        ],
-        "x-go-handler": "ipGeoSettings",
-        "x-go-registration": "GET /api/v1/ip-geolocation/settings",
-        "x-listener": "management",
-        "x-source": "api.go:215"
       }
     },
     "/api/v1/jobs": {
@@ -78752,7 +78658,8 @@
                     "type": [
                       "object",
                       "null"
-                    ]
+                    ],
+                    "description": "登录 Cookie（cookie）、浏览器标识（userAgent）及订阅密钥（passkey）。仅管理员编辑，凭据沿用加密存储；不会写入审计明文。"
                   }
                 },
                 "type": "object"
@@ -78857,7 +78764,8 @@
                     "type": [
                       "object",
                       "null"
-                    ]
+                    ],
+                    "description": "登录 Cookie（cookie）、浏览器标识（userAgent）及订阅密钥（passkey）。仅管理员编辑，凭据沿用加密存储；不会写入审计明文。"
                   }
                 },
                 "type": "object"

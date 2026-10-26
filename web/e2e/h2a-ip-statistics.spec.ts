@@ -12,7 +12,6 @@ for(const width of [1440,390])for(const theme of ['light','dark'])test(`H2a IP s
  await page.route('**/api/v1/system/version',r=>r.fulfill({json:{data:{version:before?'0.29.0':'0.30.0',commit:'a'.repeat(40),buildTime:since,schema:before?79:80,minimumSchema:79,pluginPin:'fixture'}}}));
  await page.route('**/api/v1/settings/application',r=>r.fulfill({json:{data:{revision:1,value:{trustedProxyCidrs:[],searchCacheSeconds:3600,tmdbCacheSeconds:86400,playbackRetentionDays:180}}}}));
  await page.route('**/api/v1/settings/access',r=>r.fulfill({json:{data:{revision:1,value:{managementUrl:'https://management.example.test',playbackUrl:'https://play.example.test'}}}}));
- await page.route('**/api/v1/ip-geolocation/settings',r=>r.fulfill({json:{data:{configured:true,source:'ip2region',version:'f8b0792b0cd7',dataDate:since,ipv4:true,ipv6:true,ipv4Date:since,ipv6Date:since,updatedAt:since,cacheStrategy:'content',memoryBytes:48400455}}}));
  await page.route('**/api/v1/ip-geolocation?*',r=>r.fulfill({json:{data:rows}}));
  await page.route('**/api/v1/media-server/playback-statistics?*',r=>r.fulfill({json:{data:{count:15,seconds:600,movies:1,series:0,episodes:0,top:[],trend:[]}}}));
  const queries:string[]=[];
@@ -27,7 +26,6 @@ for(const width of [1440,390])for(const theme of ['light','dark'])test(`H2a IP s
  if(!before){await expect(page.locator('.media-detail')).toContainText('新 IP');await expect(page.locator('.media-detail')).toContainText('异地');await expect(page.locator('.media-detail')).toContainText('SenPlayer');}
  await page.screenshot({path:resolve(dir,`${before?'before':'after'}-user-${width}-${theme}.png`),fullPage:true,animations:'disabled'});await check();
  await page.locator(before?'.media-detail .f7-results':'.media-detail .ip-details').scrollIntoViewIfNeeded();await page.screenshot({path:resolve(dir,`${before?'before':'after'}-user-details-${width}-${theme}.png`),animations:'disabled'});
- await page.goto('/settings?tab=general');await page.locator('.f7-geo').scrollIntoViewIfNeeded();await expect(page.locator('.f7-geo')).toBeVisible();
- if(!before){await expect(page.locator('.f7-geo')).toContainText('ip2region');await expect(page.locator('.f7-geo input')).toHaveCount(0);await expect(page.locator('.f7-geo')).toContainText('IPv6');await expect(page.locator('.f7-geo')).toContainText('可用')}
+ await page.goto('/settings?tab=general');await expect(page.getByRole('heading',{name:'设置',exact:true})).toBeVisible();await expect(page.locator('.f7-geo')).toHaveCount(0);
  await page.screenshot({path:resolve(dir,`${before?'before':'after'}-settings-${width}-${theme}.png`),animations:'disabled'});await check();
 });

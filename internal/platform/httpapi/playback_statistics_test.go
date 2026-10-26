@@ -11,7 +11,7 @@ func TestStatisticsAndIPGeolocationRemainAdministratorOnly(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	for _, path := range []string{"/api/v1/media-server/device-ips", "/api/v1/media-server/playback-events", "/api/v1/media-server/playback-statistics", "/api/v1/media-server/playback-ips", "/api/v1/ip-geolocation?ips=8.8.8.8", "/api/v1/ip-geolocation/settings"} {
+	for _, path := range []string{"/api/v1/media-server/device-ips", "/api/v1/media-server/playback-events", "/api/v1/media-server/playback-statistics", "/api/v1/media-server/playback-ips", "/api/v1/ip-geolocation?ips=8.8.8.8"} {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("GET", path, nil)
 		r.Header.Set("X-Emby-Token", "synthetic-media-token")
@@ -31,6 +31,17 @@ func TestStatisticsFiltersRejectInvalidIDsAndDays(t *testing.T) {
 		w := httptest.NewRecorder()
 		if _, ok := statisticsFilter(w, httptest.NewRequest("GET", "/"+q, nil)); ok || w.Code != 400 {
 			t.Fatal(q, w.Code)
+		}
+	}
+}
+
+func TestT12RetiredIPGeoStatusRouteRemoved(t *testing.T) {
+	h := New(cfg(), Dependencies{})
+	for _, method := range []string{"GET", "HEAD", "PUT"} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest(method, "/api/v1/ip-geolocation/settings", nil))
+		if w.Code != 404 {
+			t.Fatalf("retired route %s: %d", method, w.Code)
 		}
 	}
 }

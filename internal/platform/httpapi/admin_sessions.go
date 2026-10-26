@@ -6,7 +6,6 @@ import (
 	"media-tool/internal/platform/auth"
 	"media-tool/internal/platform/clientip"
 	"net/http"
-	"strconv"
 )
 
 func adminSessionMetadata(r *http.Request) accounts.SessionMetadata {
@@ -21,15 +20,7 @@ func sessionDigest(r *http.Request) []byte {
 	return sum[:]
 }
 func (a *API) listAdministratorSessions(w http.ResponseWriter, r *http.Request) {
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	if page < 1 {
-		page = 1
-	}
-	if page > 10000 {
-		fail(w, 400, "invalid_page", "分页范围无效")
-		return
-	}
-	out, err := a.accountRepository().Sessions(r.Context(), sessionDigest(r), page)
+	out, err := a.accountRepository().Sessions(r.Context(), sessionDigest(r))
 	if err != nil {
 		fail(w, 503, "sessions_unavailable", "管理端会话读取失败，请重试读取")
 		return

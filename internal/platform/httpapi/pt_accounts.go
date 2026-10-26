@@ -115,11 +115,11 @@ func (a *API) savePTAccount(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	for k, v := range in.Values {
-		if k != "cookie" && k != "userAgent" {
+		if k != "cookie" && k != "userAgent" && k != "passkey" {
 			fail(w, 400, "invalid_field", "只接受模板认证字段")
 			return
 		}
-		if k == "cookie" {
+		if k == "cookie" || k == "passkey" {
 			values[k] = v
 		}
 	}
