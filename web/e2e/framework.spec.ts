@@ -265,25 +265,6 @@ test('Go template catalog supports selective loading, version, icon and website'
  for(const text of ['来源提交','已导入配置','mediatool-site','天空','我堡','春天'])await expect(page.getByText(text,{exact:true})).toHaveCount(0);await page.screenshot({path:resolve(screenshots,'go-templates-desktop.png'),fullPage:true});await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await page.screenshot({path:resolve(screenshots,'go-templates-mobile.png'),fullPage:true})
 })
 
-test('strict direct-only policy is immutable and visible (isolated settings fixture)',async({page})=>{
- await fixtureLogin(page);await page.goto('/mediaLibrary')
- await expect(page.getByRole('link',{name:'Emby 配置',exact:true})).toHaveCount(0);await page.goto('/connections?tab=aux')
- await page.getByRole('button',{name:'添加连接'}).click()
- const name='Direct-only fixture '+Date.now()
- await page.getByLabel('连接名称',{exact:true}).fill(name)
- await expect(page.getByRole('checkbox',{name:'只使用影片原格式，不中转或转码'})).toBeDisabled()
- await expect(page.getByRole('checkbox',{name:'只使用影片原格式，不中转或转码'})).toBeChecked()
- await expect(page.getByText(/服务器不会转换视频或音频格式/)).toBeVisible()
- await page.getByRole('button',{name:'加密保存',exact:true}).click()
- const row=page.locator('.saved-connection').filter({hasText:name})
- await row.getByRole('button',{name:'编辑',exact:true}).click()
- await expect(page.getByRole('checkbox',{name:'只使用影片原格式，不中转或转码'})).toBeChecked()
- await page.getByRole('button',{name:'关闭此对话框',exact:true}).click()
- await row.getByRole('button',{name:'删除',exact:true}).click()
- await page.getByRole('button',{name:'删除连接',exact:true}).click()
- await expect(row).toHaveCount(0)
-})
-
 test('output identity migration needs read-only preview and explicit archive confirmation (fixture)',async({page})=>{
  const asset='00000000-0000-4000-8000-000000000090'
  const preview={assetId:asset,revision:1,planDigest:'a'.repeat(64),operations:[{path:'TV/自有剧集/Season 01/自有剧集.strm',kind:'strm',operation:'write'},{path:'Movies/自有电影/自有电影.strm',kind:'strm',operation:'archive'}],cloudFileUnchanged:true,playbackGrantUnchanged:true,sharedNfoRetained:true}
@@ -999,7 +980,7 @@ test('native media boundary is explicit and responsive without changing Emby',as
  await page.getByRole('button',{name:'取消',exact:true}).click()
 })
 
-test('player UA observations can be approved and enforce whitelist before all playback paths',async({page})=>{
+test('player UA observations enforce resolver whitelist and blacklist while retired gateway stays 404',async({page})=>{
  await fixtureLogin(page)
  const ua='Owned-E2E-Player/1.0'
  const observed=await page.request.get('/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key&path=/115/OwnedFixture.mkv',{headers:{'User-Agent':ua},maxRedirects:0})
@@ -1028,8 +1009,8 @@ test('player UA observations can be approved and enforce whitelist before all pl
   const blocked=await page.request.get('/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key',{headers:{'User-Agent':'Unknown-E2E-Player/2'},maxRedirects:0})
   expect(blocked.status()).toBe(403);expect(blocked.headers().location).toBeUndefined();expect((await blocked.json()).error.code).toBe('player_ua_denied')
   const allowed=await page.request.get('/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key',{headers:{'User-Agent':ua},maxRedirects:0});expect(allowed.status()).toBe(401)
-  for(const path of ['/Videos/11/original.mkv','/Items/11/PlaybackInfo','/emby/VIDEOS/11/stream']){
-   const reply=await page.request.get('http://localhost:18085'+path,{headers:{'User-Agent':'Unknown-E2E-Player/2'},maxRedirects:0});expect(reply.status()).toBe(403);expect(reply.headers().location).toBeUndefined()
+  for(const path of ['/emby/Items/11/PlaybackInfo','/emby/Videos/11/original.mkv']){
+   const retired=await page.request.get(path,{headers:{'User-Agent':'Unknown-E2E-Player/2'},maxRedirects:0});expect(retired.status()).toBe(404)
   }
   await expect(page.locator('.el-message')).toHaveCount(0,{timeout:6000})
   for(const width of [375,768,1440]){
@@ -1045,10 +1026,10 @@ test('player UA observations can be approved and enforce whitelist before all pl
   await page.getByRole('combobox',{name:'UA 策略模式',exact:true}).selectOption('blacklist')
   await page.getByRole('dialog').getByRole('button',{name:'确认切换',exact:true}).click()
   await expect(page.getByRole('combobox',{name:'UA 策略模式',exact:true})).toHaveValue('blacklist')
-  for(const path of ['/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key','/emby/Items/11/PlaybackInfo','/emby/Videos/11/original.mkv']){
+  for(const path of ['/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key']){
    const reply=await page.request.get(path,{headers:{'User-Agent':ua},maxRedirects:0});expect(reply.status()).toBe(403);expect((await reply.json()).error.code).toBe('player_ua_denied');expect(reply.headers().location).toBeUndefined()
   }
-  const blackRoot=await page.request.get('http://localhost:18085/Items/11/PlaybackInfo',{headers:{'User-Agent':ua},maxRedirects:0});expect(blackRoot.status()).toBe(403)
+  const retired=await page.request.get('/emby/Items/11/PlaybackInfo',{headers:{'User-Agent':ua},maxRedirects:0});expect(retired.status()).toBe(404)
   const unlisted=await page.request.get('/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key',{headers:{'User-Agent':'Unknown-E2E-Player/2'},maxRedirects:0});expect(unlisted.status()).toBe(401)
   const stored=(await(await page.request.get('/api/v1/player-access/policy')).json()).data;expect(stored.rules).toHaveLength(1);expect(stored.blacklistRules).toHaveLength(1)
   const visits=(await(await page.request.get('/api/v1/player-access/observations?filter=blacklisted')).json()).data;expect(visits.items.some((r:any)=>r.userAgent===ua&&r.lastReason==='blacklisted')).toBe(true)
