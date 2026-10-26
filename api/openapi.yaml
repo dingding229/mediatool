@@ -4680,25 +4680,6 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
-      "HTTP200_c795ac308645": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "additionalProperties": false,
-              "properties": {
-                "data": {
-                  "$ref": "#/components/schemas/modules_ipgeo_Status"
-                }
-              },
-              "required": [
-                "data"
-              ],
-              "type": "object"
-            }
-          }
-        },
-        "description": "实际业务响应；排队/批准不等于执行完成。"
-      },
       "HTTP200_cab0fdb4cb48": {
         "content": {
           "text/event-stream": {
@@ -24628,79 +24609,6 @@
         "type": "object",
         "x-go-type": "media-tool/internal/modules/ipgeo.Location"
       },
-      "modules_ipgeo_Status": {
-        "additionalProperties": false,
-        "properties": {
-          "cacheStrategy": {
-            "type": "string"
-          },
-          "dataDate": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "ipv4": {
-            "type": "boolean"
-          },
-          "ipv4Date": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "ipv6": {
-            "type": "boolean"
-          },
-          "ipv6Date": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "memoryBytes": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "reason": {
-            "type": "string"
-          },
-          "source": {
-            "type": "string"
-          },
-          "version": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "cacheStrategy",
-          "dataDate",
-          "ipv4",
-          "ipv4Date",
-          "ipv6",
-          "ipv6Date",
-          "memoryBytes",
-          "source",
-          "version"
-        ],
-        "type": "object",
-        "x-go-type": "media-tool/internal/modules/ipgeo.Status"
-      },
       "modules_jobs_ControlResult": {
         "additionalProperties": false,
         "properties": {
@@ -32159,7 +32067,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -32178,7 +32086,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -32197,7 +32105,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -32216,7 +32124,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -32235,7 +32143,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -32254,7 +32162,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -32273,7 +32181,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -32292,7 +32200,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       }
     },
     "/Branding/Configuration": {
@@ -54024,7 +53932,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -54043,7 +53951,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -54062,7 +53970,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -54081,7 +53989,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -54100,7 +54008,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -54119,7 +54027,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -54138,7 +54046,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -54157,7 +54065,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       }
     },
     "/api/external/v1/classification": {
@@ -55661,14 +55569,11 @@
     },
     "/api/v1/auth/sessions": {
       "get": {
-        "description": "一次列出所有未过期、未撤销且凭据仍有效的管理端会话（绝对期限不超过创建后30天），不分页。",
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "get_api_v1_auth_sessions_5c1e6756",
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_6157d44e9c6e"
-          },
-          "400": {
-            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -55698,14 +55603,11 @@
         "x-source": "task_controls.go:309"
       },
       "head": {
-        "description": "一次列出所有未过期、未撤销且凭据仍有效的管理端会话（绝对期限不超过创建后30天），不分页。",
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
         "operationId": "head_api_v1_auth_sessions_5c1e6756",
         "responses": {
           "200": {
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
-          },
-          "400": {
-            "$ref": "#/components/responses/HTTP400_c1bb7aef7786"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -56507,7 +56409,7 @@
         "x-go-handler": "cloudAccountInfo",
         "x-go-registration": "GET /api/v1/cloud/accounts/info",
         "x-listener": "management",
-        "x-source": "api.go:245"
+        "x-source": "api.go:244"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -56541,7 +56443,7 @@
         "x-go-handler": "cloudAccountInfo",
         "x-go-registration": "GET /api/v1/cloud/accounts/info",
         "x-listener": "management",
-        "x-source": "api.go:245"
+        "x-source": "api.go:244"
       }
     },
     "/api/v1/cloudStorage": {
@@ -56590,7 +56492,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage",
         "x-listener": "management",
-        "x-source": "api.go:346"
+        "x-source": "api.go:345"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -56625,7 +56527,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage",
         "x-listener": "management",
-        "x-source": "api.go:346"
+        "x-source": "api.go:345"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -56660,7 +56562,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage",
         "x-listener": "management",
-        "x-source": "api.go:346"
+        "x-source": "api.go:345"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -56707,7 +56609,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage",
         "x-listener": "management",
-        "x-source": "api.go:346"
+        "x-source": "api.go:345"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -56754,7 +56656,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage",
         "x-listener": "management",
-        "x-source": "api.go:346"
+        "x-source": "api.go:345"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -56801,7 +56703,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage",
         "x-listener": "management",
-        "x-source": "api.go:346"
+        "x-source": "api.go:345"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -56848,7 +56750,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage",
         "x-listener": "management",
-        "x-source": "api.go:346"
+        "x-source": "api.go:345"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -56895,7 +56797,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage",
         "x-listener": "management",
-        "x-source": "api.go:346"
+        "x-source": "api.go:345"
       }
     },
     "/api/v1/cloudStorage/": {
@@ -56944,7 +56846,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -56979,7 +56881,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57014,7 +56916,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57061,7 +56963,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57108,7 +57010,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57155,7 +57057,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57202,7 +57104,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57249,7 +57151,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       }
     },
     "/api/v1/cloudStorage/diagnose": {
@@ -57327,7 +57229,7 @@
         "x-go-handler": "diagnoseStorage",
         "x-go-registration": "POST /api/v1/cloudStorage/diagnose",
         "x-listener": "management",
-        "x-source": "api.go:269"
+        "x-source": "api.go:268"
       }
     },
     "/api/v1/cloudStorage/strm302": {
@@ -57418,7 +57320,7 @@
         "x-go-handler": "resolve",
         "x-go-registration": "GET /api/v1/cloudStorage/strm302",
         "x-listener": "management",
-        "x-source": "api.go:272"
+        "x-source": "api.go:271"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57507,7 +57409,7 @@
         "x-go-handler": "resolve",
         "x-go-registration": "GET /api/v1/cloudStorage/strm302",
         "x-listener": "management",
-        "x-source": "api.go:272"
+        "x-source": "api.go:271"
       }
     },
     "/api/v1/cloudStorage/test": {
@@ -57578,7 +57480,7 @@
         "x-go-handler": "testStorage",
         "x-go-registration": "POST /api/v1/cloudStorage/test",
         "x-listener": "management",
-        "x-source": "api.go:268"
+        "x-source": "api.go:267"
       }
     },
     "/api/v1/cloudStorage/{path}": {
@@ -57636,7 +57538,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57682,7 +57584,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57728,7 +57630,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57784,7 +57686,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57840,7 +57742,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57896,7 +57798,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -57952,7 +57854,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -58008,7 +57910,7 @@
         "x-go-handler": "notImplemented",
         "x-go-registration": "/api/v1/cloudStorage/",
         "x-listener": "management",
-        "x-source": "api.go:347"
+        "x-source": "api.go:346"
       }
     },
     "/api/v1/diagnostics/playback/preflight": {
@@ -58044,7 +57946,7 @@
         "x-go-handler": "playbackPreflight",
         "x-go-registration": "GET /api/v1/diagnostics/playback/preflight",
         "x-listener": "management",
-        "x-source": "api.go:266"
+        "x-source": "api.go:265"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -58078,7 +57980,7 @@
         "x-go-handler": "playbackPreflight",
         "x-go-registration": "GET /api/v1/diagnostics/playback/preflight",
         "x-listener": "management",
-        "x-source": "api.go:266"
+        "x-source": "api.go:265"
       }
     },
     "/api/v1/downloads": {
@@ -58139,7 +58041,7 @@
         "x-go-handler": "listDownloads",
         "x-go-registration": "GET /api/v1/downloads",
         "x-listener": "management",
-        "x-source": "api.go:300"
+        "x-source": "api.go:299"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -58198,7 +58100,7 @@
         "x-go-handler": "listDownloads",
         "x-go-registration": "GET /api/v1/downloads",
         "x-listener": "management",
-        "x-source": "api.go:300"
+        "x-source": "api.go:299"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -58284,7 +58186,7 @@
         "x-go-handler": "startDownload",
         "x-go-registration": "POST /api/v1/downloads",
         "x-listener": "management",
-        "x-source": "api.go:301"
+        "x-source": "api.go:300"
       }
     },
     "/api/v1/downloads/manual": {
@@ -58345,7 +58247,7 @@
         "x-go-handler": "listManualDownloads",
         "x-go-registration": "GET /api/v1/downloads/manual",
         "x-listener": "management",
-        "x-source": "api.go:298"
+        "x-source": "api.go:297"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -58404,7 +58306,7 @@
         "x-go-handler": "listManualDownloads",
         "x-go-registration": "GET /api/v1/downloads/manual",
         "x-listener": "management",
-        "x-source": "api.go:298"
+        "x-source": "api.go:297"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -58486,7 +58388,7 @@
         "x-go-handler": "createManualDownload",
         "x-go-registration": "POST /api/v1/downloads/manual",
         "x-listener": "management",
-        "x-source": "api.go:299"
+        "x-source": "api.go:298"
       }
     },
     "/api/v1/downloads/manual/{id}/import": {
@@ -58573,7 +58475,7 @@
         "x-go-handler": "importManualDownload",
         "x-go-registration": "POST /api/v1/downloads/manual/{id}/import",
         "x-listener": "management",
-        "x-source": "api.go:296"
+        "x-source": "api.go:295"
       }
     },
     "/api/v1/downloads/manual/{id}/inspect": {
@@ -58649,7 +58551,7 @@
         "x-go-handler": "reconcileManualDownload",
         "x-go-registration": "POST /api/v1/downloads/manual/{id}/inspect",
         "x-listener": "management",
-        "x-source": "api.go:297"
+        "x-source": "api.go:296"
       }
     },
     "/api/v1/downloads/manual/{id}/retry": {
@@ -58733,7 +58635,7 @@
         "x-go-handler": "retryManualDownload",
         "x-go-registration": "POST /api/v1/downloads/manual/{id}/retry",
         "x-listener": "management",
-        "x-source": "api.go:295"
+        "x-source": "api.go:294"
       }
     },
     "/api/v1/downloads/sync": {
@@ -58781,7 +58683,7 @@
         "x-go-handler": "syncDownloads",
         "x-go-registration": "POST /api/v1/downloads/sync",
         "x-listener": "management",
-        "x-source": "api.go:304"
+        "x-source": "api.go:303"
       }
     },
     "/api/v1/downloads/{id}/cleanup": {
@@ -58864,7 +58766,7 @@
         "x-go-handler": "approveDownloadCleanup",
         "x-go-registration": "POST /api/v1/downloads/{id}/cleanup",
         "x-listener": "management",
-        "x-source": "api.go:303"
+        "x-source": "api.go:302"
       }
     },
     "/api/v1/downloads/{id}/cleanup/reconcile": {
@@ -58924,7 +58826,7 @@
         "x-go-handler": "reconcileDownloadCleanup",
         "x-go-registration": "POST /api/v1/downloads/{id}/cleanup/reconcile",
         "x-listener": "management",
-        "x-source": "api.go:302"
+        "x-source": "api.go:301"
       }
     },
     "/api/v1/downloads/{id}/reconfirm-source": {
@@ -59018,7 +58920,7 @@
         "x-go-handler": "reconfirmDownloadSource",
         "x-go-registration": "POST /api/v1/downloads/{id}/reconfirm-source",
         "x-listener": "management",
-        "x-source": "api.go:306"
+        "x-source": "api.go:305"
       }
     },
     "/api/v1/downloads/{id}/source-preview": {
@@ -59076,7 +58978,7 @@
         "x-go-handler": "downloadSourcePreview",
         "x-go-registration": "GET /api/v1/downloads/{id}/source-preview",
         "x-listener": "management",
-        "x-source": "api.go:305"
+        "x-source": "api.go:304"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -59132,7 +59034,7 @@
         "x-go-handler": "downloadSourcePreview",
         "x-go-registration": "GET /api/v1/downloads/{id}/source-preview",
         "x-listener": "management",
-        "x-source": "api.go:305"
+        "x-source": "api.go:304"
       }
     },
     "/api/v1/emby/check": {
@@ -59209,7 +59111,7 @@
         "x-go-handler": "checkEmbyItem",
         "x-go-registration": "POST /api/v1/emby/check",
         "x-listener": "management",
-        "x-source": "api.go:271"
+        "x-source": "api.go:270"
       }
     },
     "/api/v1/emby/test": {
@@ -59276,7 +59178,7 @@
         "x-go-handler": "testEmby",
         "x-go-registration": "POST /api/v1/emby/test",
         "x-listener": "management",
-        "x-source": "api.go:270"
+        "x-source": "api.go:269"
       }
     },
     "/api/v1/external-api/calls": {
@@ -59665,7 +59567,7 @@
         "x-go-handler": "listFiles",
         "x-go-registration": "GET /api/v1/files",
         "x-listener": "management",
-        "x-source": "api.go:254"
+        "x-source": "api.go:253"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -59749,7 +59651,7 @@
         "x-go-handler": "listFiles",
         "x-go-registration": "GET /api/v1/files",
         "x-listener": "management",
-        "x-source": "api.go:254"
+        "x-source": "api.go:253"
       }
     },
     "/api/v1/files/batches/preview": {
@@ -59832,7 +59734,7 @@
         "x-go-handler": "previewFileBatch",
         "x-go-registration": "POST /api/v1/files/batches/preview",
         "x-listener": "management",
-        "x-source": "api.go:240"
+        "x-source": "api.go:239"
       }
     },
     "/api/v1/files/batches/{id}": {
@@ -59891,7 +59793,7 @@
         "x-go-handler": "getFileBatch",
         "x-go-registration": "GET /api/v1/files/batches/{id}",
         "x-listener": "management",
-        "x-source": "api.go:241"
+        "x-source": "api.go:240"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -59948,7 +59850,7 @@
         "x-go-handler": "getFileBatch",
         "x-go-registration": "GET /api/v1/files/batches/{id}",
         "x-listener": "management",
-        "x-source": "api.go:241"
+        "x-source": "api.go:240"
       }
     },
     "/api/v1/files/batches/{id}/approve": {
@@ -60037,7 +59939,7 @@
         "x-go-handler": "approveFileBatch",
         "x-go-registration": "POST /api/v1/files/batches/{id}/approve",
         "x-listener": "management",
-        "x-source": "api.go:242"
+        "x-source": "api.go:241"
       }
     },
     "/api/v1/files/batches/{id}/reconcile": {
@@ -60119,7 +60021,7 @@
         "x-go-handler": "reconcileFileBatch",
         "x-go-registration": "POST /api/v1/files/batches/{id}/reconcile",
         "x-listener": "management",
-        "x-source": "api.go:243"
+        "x-source": "api.go:242"
       }
     },
     "/api/v1/files/identify": {
@@ -60246,7 +60148,7 @@
         "x-go-handler": "listFileOperations",
         "x-go-registration": "GET /api/v1/files/operations",
         "x-listener": "management",
-        "x-source": "api.go:255"
+        "x-source": "api.go:254"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60292,7 +60194,7 @@
         "x-go-handler": "listFileOperations",
         "x-go-registration": "GET /api/v1/files/operations",
         "x-listener": "management",
-        "x-source": "api.go:255"
+        "x-source": "api.go:254"
       }
     },
     "/api/v1/files/operations/{id}/execute": {
@@ -60381,7 +60283,7 @@
         "x-go-handler": "executeFileOperation",
         "x-go-registration": "POST /api/v1/files/operations/{id}/execute",
         "x-listener": "management",
-        "x-source": "api.go:257"
+        "x-source": "api.go:256"
       }
     },
     "/api/v1/files/operations/{id}/reconcile": {
@@ -60463,7 +60365,7 @@
         "x-go-handler": "reconcileFileOperation",
         "x-go-registration": "POST /api/v1/files/operations/{id}/reconcile",
         "x-listener": "management",
-        "x-source": "api.go:258"
+        "x-source": "api.go:257"
       }
     },
     "/api/v1/files/preview": {
@@ -60611,7 +60513,7 @@
         "x-go-handler": "previewFileOperation",
         "x-go-registration": "POST /api/v1/files/preview",
         "x-listener": "management",
-        "x-source": "api.go:256"
+        "x-source": "api.go:255"
       }
     },
     "/api/v1/files/roots": {
@@ -60659,7 +60561,7 @@
         "x-go-handler": "listFileRoots",
         "x-go-registration": "GET /api/v1/files/roots",
         "x-listener": "management",
-        "x-source": "api.go:253"
+        "x-source": "api.go:252"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60705,7 +60607,7 @@
         "x-go-handler": "listFileRoots",
         "x-go-registration": "GET /api/v1/files/roots",
         "x-listener": "management",
-        "x-source": "api.go:253"
+        "x-source": "api.go:252"
       }
     },
     "/api/v1/integrations": {
@@ -60750,7 +60652,7 @@
         "x-go-handler": "listIntegrations",
         "x-go-registration": "GET /api/v1/integrations",
         "x-listener": "management",
-        "x-source": "api.go:217"
+        "x-source": "api.go:216"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60793,7 +60695,7 @@
         "x-go-handler": "listIntegrations",
         "x-go-registration": "GET /api/v1/integrations",
         "x-listener": "management",
-        "x-source": "api.go:217"
+        "x-source": "api.go:216"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -60919,7 +60821,7 @@
         "x-go-handler": "saveIntegration",
         "x-go-registration": "POST /api/v1/integrations",
         "x-listener": "management",
-        "x-source": "api.go:218"
+        "x-source": "api.go:217"
       }
     },
     "/api/v1/integrations/{id}": {
@@ -60985,7 +60887,7 @@
         "x-go-handler": "deleteIntegration",
         "x-go-registration": "DELETE /api/v1/integrations/{id}",
         "x-listener": "management",
-        "x-source": "api.go:220"
+        "x-source": "api.go:219"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61120,7 +61022,7 @@
         "x-go-handler": "saveIntegration",
         "x-go-registration": "PUT /api/v1/integrations/{id}",
         "x-listener": "management",
-        "x-source": "api.go:219"
+        "x-source": "api.go:218"
       }
     },
     "/api/v1/integrations/{id}/115/auth/cancel": {
@@ -61206,7 +61108,7 @@
         "x-go-handler": "cancel115Authorization",
         "x-go-registration": "POST /api/v1/integrations/{id}/115/auth/cancel",
         "x-listener": "management",
-        "x-source": "api.go:225"
+        "x-source": "api.go:224"
       }
     },
     "/api/v1/integrations/{id}/115/auth/poll": {
@@ -61292,7 +61194,7 @@
         "x-go-handler": "poll115Authorization",
         "x-go-registration": "POST /api/v1/integrations/{id}/115/auth/poll",
         "x-listener": "management",
-        "x-source": "api.go:224"
+        "x-source": "api.go:223"
       }
     },
     "/api/v1/integrations/{id}/115/auth/start": {
@@ -61374,7 +61276,7 @@
         "x-go-handler": "start115Authorization",
         "x-go-registration": "POST /api/v1/integrations/{id}/115/auth/start",
         "x-listener": "management",
-        "x-source": "api.go:223"
+        "x-source": "api.go:222"
       }
     },
     "/api/v1/integrations/{id}/secrets/reveal": {
@@ -61470,7 +61372,7 @@
         "x-go-handler": "revealIntegrationSecrets",
         "x-go-registration": "POST /api/v1/integrations/{id}/secrets/reveal",
         "x-listener": "management",
-        "x-source": "api.go:221"
+        "x-source": "api.go:220"
       }
     },
     "/api/v1/integrations/{id}/test": {
@@ -61536,7 +61438,7 @@
         "x-go-handler": "testIntegration",
         "x-go-registration": "POST /api/v1/integrations/{id}/test",
         "x-listener": "management",
-        "x-source": "api.go:222"
+        "x-source": "api.go:221"
       }
     },
     "/api/v1/ip-geolocation": {
@@ -61668,7 +61570,7 @@
         "x-go-handler": "listJobs",
         "x-go-registration": "GET /api/v1/jobs",
         "x-listener": "management",
-        "x-source": "api.go:259"
+        "x-source": "api.go:258"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61702,7 +61604,7 @@
         "x-go-handler": "listJobs",
         "x-go-registration": "GET /api/v1/jobs",
         "x-listener": "management",
-        "x-source": "api.go:259"
+        "x-source": "api.go:258"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61768,7 +61670,7 @@
         "x-go-handler": "createJob",
         "x-go-registration": "POST /api/v1/jobs",
         "x-listener": "management",
-        "x-source": "api.go:260"
+        "x-source": "api.go:259"
       }
     },
     "/api/v1/jobs/browse": {
@@ -61861,7 +61763,7 @@
         "x-go-handler": "browseJobs",
         "x-go-registration": "GET /api/v1/jobs/browse",
         "x-listener": "management",
-        "x-source": "api.go:261"
+        "x-source": "api.go:260"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -61952,7 +61854,7 @@
         "x-go-handler": "browseJobs",
         "x-go-registration": "GET /api/v1/jobs/browse",
         "x-listener": "management",
-        "x-source": "api.go:261"
+        "x-source": "api.go:260"
       }
     },
     "/api/v1/jobs/events": {
@@ -61988,7 +61890,7 @@
         "x-go-handler": "events",
         "x-go-registration": "GET /api/v1/jobs/events",
         "x-listener": "management",
-        "x-source": "api.go:264"
+        "x-source": "api.go:263"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -62022,7 +61924,7 @@
         "x-go-handler": "events",
         "x-go-registration": "GET /api/v1/jobs/events",
         "x-listener": "management",
-        "x-source": "api.go:264"
+        "x-source": "api.go:263"
       }
     },
     "/api/v1/jobs/{id}": {
@@ -62075,7 +61977,7 @@
         "x-go-handler": "jobDetail",
         "x-go-registration": "GET /api/v1/jobs/{id}",
         "x-listener": "management",
-        "x-source": "api.go:262"
+        "x-source": "api.go:261"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -62126,7 +62028,7 @@
         "x-go-handler": "jobDetail",
         "x-go-registration": "GET /api/v1/jobs/{id}",
         "x-listener": "management",
-        "x-source": "api.go:262"
+        "x-source": "api.go:261"
       }
     },
     "/api/v1/library/activity": {
@@ -62243,7 +62145,7 @@
         "x-go-handler": "libraryActivity",
         "x-go-registration": "GET /api/v1/library/activity",
         "x-listener": "management",
-        "x-source": "api.go:247"
+        "x-source": "api.go:246"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -62358,7 +62260,7 @@
         "x-go-handler": "libraryActivity",
         "x-go-registration": "GET /api/v1/library/activity",
         "x-listener": "management",
-        "x-source": "api.go:247"
+        "x-source": "api.go:246"
       }
     },
     "/api/v1/library/activity/remove": {
@@ -62438,7 +62340,7 @@
         "x-go-handler": "removeLibraryHistory",
         "x-go-registration": "POST /api/v1/library/activity/remove",
         "x-listener": "management",
-        "x-source": "api.go:246"
+        "x-source": "api.go:245"
       }
     },
     "/api/v1/library/archive-cleanups/{id}": {
@@ -62488,7 +62390,7 @@
         "x-go-handler": "archiveCleanupResults",
         "x-go-registration": "GET /api/v1/library/archive-cleanups/{id}",
         "x-listener": "management",
-        "x-source": "api.go:335"
+        "x-source": "api.go:334"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -62536,7 +62438,7 @@
         "x-go-handler": "archiveCleanupResults",
         "x-go-registration": "GET /api/v1/library/archive-cleanups/{id}",
         "x-listener": "management",
-        "x-source": "api.go:335"
+        "x-source": "api.go:334"
       }
     },
     "/api/v1/library/archive-cleanups/{id}/retry": {
@@ -62612,7 +62514,7 @@
         "x-go-handler": "retryArchiveCleanup",
         "x-go-registration": "POST /api/v1/library/archive-cleanups/{id}/retry",
         "x-listener": "management",
-        "x-source": "api.go:336"
+        "x-source": "api.go:335"
       }
     },
     "/api/v1/library/archive-policy": {
@@ -62648,7 +62550,7 @@
         "x-go-handler": "archivePolicy",
         "x-go-registration": "GET /api/v1/library/archive-policy",
         "x-listener": "management",
-        "x-source": "api.go:331"
+        "x-source": "api.go:330"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -62682,7 +62584,7 @@
         "x-go-handler": "archivePolicy",
         "x-go-registration": "GET /api/v1/library/archive-policy",
         "x-listener": "management",
-        "x-source": "api.go:331"
+        "x-source": "api.go:330"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -62760,7 +62662,7 @@
         "x-go-handler": "saveArchivePolicy",
         "x-go-registration": "POST /api/v1/library/archive-policy",
         "x-listener": "management",
-        "x-source": "api.go:332"
+        "x-source": "api.go:331"
       }
     },
     "/api/v1/library/archives": {
@@ -62821,7 +62723,7 @@
         "x-go-handler": "listArchives",
         "x-go-registration": "GET /api/v1/library/archives",
         "x-listener": "management",
-        "x-source": "api.go:330"
+        "x-source": "api.go:329"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -62880,7 +62782,7 @@
         "x-go-handler": "listArchives",
         "x-go-registration": "GET /api/v1/library/archives",
         "x-listener": "management",
-        "x-source": "api.go:330"
+        "x-source": "api.go:329"
       }
     },
     "/api/v1/library/archives/cleanup-confirm": {
@@ -62964,7 +62866,7 @@
         "x-go-handler": "confirmArchiveCleanup",
         "x-go-registration": "POST /api/v1/library/archives/cleanup-confirm",
         "x-listener": "management",
-        "x-source": "api.go:334"
+        "x-source": "api.go:333"
       }
     },
     "/api/v1/library/archives/cleanup-preview": {
@@ -63041,7 +62943,7 @@
         "x-go-handler": "previewArchiveCleanup",
         "x-go-registration": "POST /api/v1/library/archives/cleanup-preview",
         "x-listener": "management",
-        "x-source": "api.go:333"
+        "x-source": "api.go:332"
       }
     },
     "/api/v1/library/artifact-repairs": {
@@ -63077,7 +62979,7 @@
         "x-go-handler": "listArtifactRepairs",
         "x-go-registration": "GET /api/v1/library/artifact-repairs",
         "x-listener": "management",
-        "x-source": "api.go:329"
+        "x-source": "api.go:328"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -63111,7 +63013,7 @@
         "x-go-handler": "listArtifactRepairs",
         "x-go-registration": "GET /api/v1/library/artifact-repairs",
         "x-listener": "management",
-        "x-source": "api.go:329"
+        "x-source": "api.go:328"
       }
     },
     "/api/v1/library/artifact-repairs/{id}/retry": {
@@ -63187,7 +63089,7 @@
         "x-go-handler": "retryArtifactRepair",
         "x-go-registration": "POST /api/v1/library/artifact-repairs/{id}/retry",
         "x-listener": "management",
-        "x-source": "api.go:337"
+        "x-source": "api.go:336"
       }
     },
     "/api/v1/library/candidates": {
@@ -63256,7 +63158,7 @@
         "x-go-handler": "listLibraryCandidates",
         "x-go-registration": "GET /api/v1/library/candidates",
         "x-listener": "management",
-        "x-source": "api.go:342"
+        "x-source": "api.go:341"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -63323,7 +63225,7 @@
         "x-go-handler": "listLibraryCandidates",
         "x-go-registration": "GET /api/v1/library/candidates",
         "x-listener": "management",
-        "x-source": "api.go:342"
+        "x-source": "api.go:341"
       }
     },
     "/api/v1/library/candidates/batch-confirm": {
@@ -63410,7 +63312,7 @@
         "x-go-handler": "batchConfirmCandidates",
         "x-go-registration": "POST /api/v1/library/candidates/batch-confirm",
         "x-listener": "management",
-        "x-source": "api.go:340"
+        "x-source": "api.go:339"
       }
     },
     "/api/v1/library/candidates/{id}/confirm": {
@@ -63519,7 +63421,7 @@
         "x-go-handler": "confirmLibraryCandidate",
         "x-go-registration": "POST /api/v1/library/candidates/{id}/confirm",
         "x-listener": "management",
-        "x-source": "api.go:344"
+        "x-source": "api.go:343"
       }
     },
     "/api/v1/library/candidates/{id}/recognize": {
@@ -63595,7 +63497,7 @@
         "x-go-handler": "recognizeCandidate",
         "x-go-registration": "POST /api/v1/library/candidates/{id}/recognize",
         "x-listener": "management",
-        "x-source": "api.go:343"
+        "x-source": "api.go:342"
       }
     },
     "/api/v1/library/organize-selection": {
@@ -63687,7 +63589,7 @@
         "x-go-handler": "libraryOrganizeSelection",
         "x-go-registration": "POST /api/v1/library/organize-selection",
         "x-listener": "management",
-        "x-source": "api.go:315"
+        "x-source": "api.go:314"
       }
     },
     "/api/v1/library/outputs": {
@@ -63764,7 +63666,7 @@
         "x-go-handler": "managedOutputs",
         "x-go-registration": "GET /api/v1/library/outputs",
         "x-listener": "management",
-        "x-source": "api.go:249"
+        "x-source": "api.go:248"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -63839,7 +63741,7 @@
         "x-go-handler": "managedOutputs",
         "x-go-registration": "GET /api/v1/library/outputs",
         "x-listener": "management",
-        "x-source": "api.go:249"
+        "x-source": "api.go:248"
       }
     },
     "/api/v1/library/outputs/{id}/content": {
@@ -63900,7 +63802,7 @@
         "x-go-handler": "managedOutputContent",
         "x-go-registration": "GET /api/v1/library/outputs/{id}/content",
         "x-listener": "management",
-        "x-source": "api.go:248"
+        "x-source": "api.go:247"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -63959,7 +63861,7 @@
         "x-go-handler": "managedOutputContent",
         "x-go-registration": "GET /api/v1/library/outputs/{id}/content",
         "x-listener": "management",
-        "x-source": "api.go:248"
+        "x-source": "api.go:247"
       }
     },
     "/api/v1/library/outputs/{id}/emby": {
@@ -64032,7 +63934,7 @@
         "x-go-handler": "checkManagedEmby",
         "x-go-registration": "POST /api/v1/library/outputs/{id}/emby",
         "x-listener": "management",
-        "x-source": "api.go:250"
+        "x-source": "api.go:249"
       }
     },
     "/api/v1/library/scan-schedules": {
@@ -64068,7 +63970,7 @@
         "x-go-handler": "listScanSchedules",
         "x-go-registration": "GET /api/v1/library/scan-schedules",
         "x-listener": "management",
-        "x-source": "api.go:338"
+        "x-source": "api.go:337"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -64102,7 +64004,7 @@
         "x-go-handler": "listScanSchedules",
         "x-go-registration": "GET /api/v1/library/scan-schedules",
         "x-listener": "management",
-        "x-source": "api.go:338"
+        "x-source": "api.go:337"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -64227,7 +64129,7 @@
         "x-go-handler": "saveScanSchedule",
         "x-go-registration": "POST /api/v1/library/scan-schedules",
         "x-listener": "management",
-        "x-source": "api.go:339"
+        "x-source": "api.go:338"
       }
     },
     "/api/v1/library/scans": {
@@ -64288,7 +64190,7 @@
         "x-go-handler": "listLibraryScans",
         "x-go-registration": "GET /api/v1/library/scans",
         "x-listener": "management",
-        "x-source": "api.go:341"
+        "x-source": "api.go:340"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -64347,7 +64249,7 @@
         "x-go-handler": "listLibraryScans",
         "x-go-registration": "GET /api/v1/library/scans",
         "x-listener": "management",
-        "x-source": "api.go:341"
+        "x-source": "api.go:340"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -64413,7 +64315,7 @@
         "x-go-handler": "scanLibrary",
         "x-go-registration": "POST /api/v1/library/scans",
         "x-listener": "management",
-        "x-source": "api.go:328"
+        "x-source": "api.go:327"
       }
     },
     "/api/v1/library/scans/{id}": {
@@ -64486,7 +64388,7 @@
         "x-go-handler": "scanDetails",
         "x-go-registration": "GET /api/v1/library/scans/{id}",
         "x-listener": "management",
-        "x-source": "api.go:251"
+        "x-source": "api.go:250"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -64557,7 +64459,7 @@
         "x-go-handler": "scanDetails",
         "x-go-registration": "GET /api/v1/library/scans/{id}",
         "x-listener": "management",
-        "x-source": "api.go:251"
+        "x-source": "api.go:250"
       }
     },
     "/api/v1/library/scans/{id}/{action}": {
@@ -64642,7 +64544,7 @@
         "x-go-handler": "controlScan",
         "x-go-registration": "POST /api/v1/library/scans/{id}/{action}",
         "x-listener": "management",
-        "x-source": "api.go:252"
+        "x-source": "api.go:251"
       }
     },
     "/api/v1/logs": {
@@ -65147,7 +65049,7 @@
         "x-go-handler": "listMedia",
         "x-go-registration": "GET /api/v1/media",
         "x-listener": "management",
-        "x-source": "api.go:319"
+        "x-source": "api.go:318"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -65181,7 +65083,7 @@
         "x-go-handler": "listMedia",
         "x-go-registration": "GET /api/v1/media",
         "x-listener": "management",
-        "x-source": "api.go:319"
+        "x-source": "api.go:318"
       }
     },
     "/api/v1/media-server/device-ips": {
@@ -68456,7 +68358,7 @@
         "x-go-handler": "listAssets",
         "x-go-registration": "GET /api/v1/media/assets",
         "x-listener": "management",
-        "x-source": "api.go:316"
+        "x-source": "api.go:315"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -68523,7 +68425,7 @@
         "x-go-handler": "listAssets",
         "x-go-registration": "GET /api/v1/media/assets",
         "x-listener": "management",
-        "x-source": "api.go:316"
+        "x-source": "api.go:315"
       }
     },
     "/api/v1/media/assets/{id}/grant/revoke": {
@@ -68596,7 +68498,7 @@
         "x-go-handler": "revokeGrant",
         "x-go-registration": "POST /api/v1/media/assets/{id}/grant/revoke",
         "x-listener": "management",
-        "x-source": "api.go:317"
+        "x-source": "api.go:316"
       }
     },
     "/api/v1/media/assets/{id}/grant/rotate": {
@@ -68688,7 +68590,7 @@
         "x-go-handler": "rotateGrant",
         "x-go-registration": "POST /api/v1/media/assets/{id}/grant/rotate",
         "x-listener": "management",
-        "x-source": "api.go:318"
+        "x-source": "api.go:317"
       }
     },
     "/api/v1/media/assets/{id}/identity": {
@@ -68800,7 +68702,7 @@
         "x-go-handler": "correctAssetIdentity",
         "x-go-registration": "POST /api/v1/media/assets/{id}/identity",
         "x-listener": "management",
-        "x-source": "api.go:313"
+        "x-source": "api.go:312"
       }
     },
     "/api/v1/media/assets/{id}/identity-preview": {
@@ -68912,7 +68814,7 @@
         "x-go-handler": "previewAssetIdentity",
         "x-go-registration": "POST /api/v1/media/assets/{id}/identity-preview",
         "x-listener": "management",
-        "x-source": "api.go:314"
+        "x-source": "api.go:313"
       }
     },
     "/api/v1/media/assets/{id}/subtitles": {
@@ -69518,7 +69420,7 @@
         "x-go-handler": "assetValidationRef",
         "x-go-registration": "GET /api/v1/media/assets/{id}/validation-ref",
         "x-listener": "management",
-        "x-source": "api.go:267"
+        "x-source": "api.go:266"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -69566,7 +69468,7 @@
         "x-go-handler": "assetValidationRef",
         "x-go-registration": "GET /api/v1/media/assets/{id}/validation-ref",
         "x-listener": "management",
-        "x-source": "api.go:267"
+        "x-source": "api.go:266"
       }
     },
     "/api/v1/media/emby/items/{id}": {
@@ -69765,7 +69667,7 @@
         "x-go-handler": "listCatalog",
         "x-go-registration": "GET /api/v1/media/library",
         "x-listener": "management",
-        "x-source": "api.go:230"
+        "x-source": "api.go:229"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -69864,7 +69766,7 @@
         "x-go-handler": "listCatalog",
         "x-go-registration": "GET /api/v1/media/library",
         "x-listener": "management",
-        "x-source": "api.go:230"
+        "x-source": "api.go:229"
       }
     },
     "/api/v1/media/library/emby/home": {
@@ -70012,7 +69914,7 @@
         "x-go-handler": "catalogImage",
         "x-go-registration": "GET /api/v1/media/library/emby/{id}/image",
         "x-listener": "management",
-        "x-source": "api.go:239"
+        "x-source": "api.go:238"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -70068,7 +69970,7 @@
         "x-go-handler": "catalogImage",
         "x-go-registration": "GET /api/v1/media/library/emby/{id}/image",
         "x-listener": "management",
-        "x-source": "api.go:239"
+        "x-source": "api.go:238"
       }
     },
     "/api/v1/media/library/managed/{id}": {
@@ -70118,7 +70020,7 @@
         "x-go-handler": "managedCatalogDetail",
         "x-go-registration": "GET /api/v1/media/library/managed/{id}",
         "x-listener": "management",
-        "x-source": "api.go:231"
+        "x-source": "api.go:230"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -70166,7 +70068,7 @@
         "x-go-handler": "managedCatalogDetail",
         "x-go-registration": "GET /api/v1/media/library/managed/{id}",
         "x-listener": "management",
-        "x-source": "api.go:231"
+        "x-source": "api.go:230"
       }
     },
     "/api/v1/media/library/managed/{id}/images": {
@@ -70225,7 +70127,7 @@
         "x-go-handler": "mediaImages",
         "x-go-registration": "GET /api/v1/media/library/managed/{id}/images",
         "x-listener": "management",
-        "x-source": "api.go:233"
+        "x-source": "api.go:232"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -70282,7 +70184,7 @@
         "x-go-handler": "mediaImages",
         "x-go-registration": "GET /api/v1/media/library/managed/{id}/images",
         "x-listener": "management",
-        "x-source": "api.go:233"
+        "x-source": "api.go:232"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -70386,7 +70288,7 @@
         "x-go-handler": "mediaImages",
         "x-go-registration": "PATCH /api/v1/media/library/managed/{id}/images",
         "x-listener": "management",
-        "x-source": "api.go:235"
+        "x-source": "api.go:234"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -70492,7 +70394,7 @@
         "x-go-handler": "mediaImages",
         "x-go-registration": "POST /api/v1/media/library/managed/{id}/images",
         "x-listener": "management",
-        "x-source": "api.go:234"
+        "x-source": "api.go:233"
       }
     },
     "/api/v1/media/library/managed/{id}/images/candidates": {
@@ -70551,7 +70453,7 @@
         "x-go-handler": "mediaImageCandidates",
         "x-go-registration": "GET /api/v1/media/library/managed/{id}/images/candidates",
         "x-listener": "management",
-        "x-source": "api.go:236"
+        "x-source": "api.go:235"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -70608,7 +70510,7 @@
         "x-go-handler": "mediaImageCandidates",
         "x-go-registration": "GET /api/v1/media/library/managed/{id}/images/candidates",
         "x-listener": "management",
-        "x-source": "api.go:236"
+        "x-source": "api.go:235"
       }
     },
     "/api/v1/media/library/managed/{id}/images/{kind}": {
@@ -70692,7 +70594,7 @@
         "x-go-handler": "mediaImage",
         "x-go-registration": "GET /api/v1/media/library/managed/{id}/images/{kind}",
         "x-listener": "management",
-        "x-source": "api.go:237"
+        "x-source": "api.go:236"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -70774,7 +70676,7 @@
         "x-go-handler": "mediaImage",
         "x-go-registration": "GET /api/v1/media/library/managed/{id}/images/{kind}",
         "x-listener": "management",
-        "x-source": "api.go:237"
+        "x-source": "api.go:236"
       }
     },
     "/api/v1/media/library/managed/{id}/metadata": {
@@ -70838,7 +70740,7 @@
         "x-go-handler": "mediaMetadata",
         "x-go-registration": "GET /api/v1/media/library/managed/{id}/metadata",
         "x-listener": "management",
-        "x-source": "api.go:232"
+        "x-source": "api.go:231"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -70900,7 +70802,7 @@
         "x-go-handler": "mediaMetadata",
         "x-go-registration": "GET /api/v1/media/library/managed/{id}/metadata",
         "x-listener": "management",
-        "x-source": "api.go:232"
+        "x-source": "api.go:231"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -71083,7 +70985,7 @@
         "x-go-handler": "mediaMetadata",
         "x-go-registration": "PATCH /api/v1/media/library/managed/{id}/metadata",
         "x-listener": "management",
-        "x-source": "api.go:238"
+        "x-source": "api.go:237"
       }
     },
     "/api/v1/media/library/sources": {
@@ -71132,7 +71034,7 @@
         "x-go-handler": "catalogSources",
         "x-go-registration": "GET /api/v1/media/library/sources",
         "x-listener": "management",
-        "x-source": "api.go:229"
+        "x-source": "api.go:228"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -71179,7 +71081,7 @@
         "x-go-handler": "catalogSources",
         "x-go-registration": "GET /api/v1/media/library/sources",
         "x-listener": "management",
-        "x-source": "api.go:229"
+        "x-source": "api.go:228"
       }
     },
     "/api/v1/media/organize-history": {
@@ -71564,7 +71466,7 @@
         "x-go-handler": "issueCommandAction",
         "x-go-registration": "POST /api/v1/messaging/command-actions",
         "x-listener": "management",
-        "x-source": "api.go:228"
+        "x-source": "api.go:227"
       }
     },
     "/api/v1/metadata/details": {
@@ -71750,7 +71652,7 @@
         "x-go-handler": "metadataEpisodes",
         "x-go-registration": "GET /api/v1/metadata/episodes",
         "x-listener": "management",
-        "x-source": "api.go:227"
+        "x-source": "api.go:226"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -71816,7 +71718,7 @@
         "x-go-handler": "metadataEpisodes",
         "x-go-registration": "GET /api/v1/metadata/episodes",
         "x-listener": "management",
-        "x-source": "api.go:227"
+        "x-source": "api.go:226"
       }
     },
     "/api/v1/metadata/image/{size}/{file}": {
@@ -72002,7 +71904,7 @@
         "x-go-handler": "metadataSearch",
         "x-go-registration": "GET /api/v1/metadata/search",
         "x-listener": "management",
-        "x-source": "api.go:226"
+        "x-source": "api.go:225"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -72076,7 +71978,7 @@
         "x-go-handler": "metadataSearch",
         "x-go-registration": "GET /api/v1/metadata/search",
         "x-listener": "management",
-        "x-source": "api.go:226"
+        "x-source": "api.go:225"
       }
     },
     "/api/v1/notification-deliveries/{id}/retry": {
@@ -72156,7 +72058,7 @@
         "x-go-handler": "retryNotification",
         "x-go-registration": "POST /api/v1/notification-deliveries/{id}/retry",
         "x-listener": "management",
-        "x-source": "api.go:320"
+        "x-source": "api.go:319"
       }
     },
     "/api/v1/notifications": {
@@ -72217,7 +72119,7 @@
         "x-go-handler": "listNotifications",
         "x-go-registration": "GET /api/v1/notifications",
         "x-listener": "management",
-        "x-source": "api.go:321"
+        "x-source": "api.go:320"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -72276,7 +72178,7 @@
         "x-go-handler": "listNotifications",
         "x-go-registration": "GET /api/v1/notifications",
         "x-listener": "management",
-        "x-source": "api.go:321"
+        "x-source": "api.go:320"
       }
     },
     "/api/v1/ops": {
@@ -73953,7 +73855,7 @@
         "x-go-handler": "retryPipeline",
         "x-go-registration": "POST /api/v1/pipeline/{kind}/{id}/retry",
         "x-listener": "management",
-        "x-source": "api.go:307"
+        "x-source": "api.go:306"
       }
     },
     "/api/v1/player-access/events": {
@@ -78577,7 +78479,7 @@
         "x-go-handler": "ptAccounts",
         "x-go-registration": "GET /api/v1/pt/accounts",
         "x-listener": "management",
-        "x-source": "api.go:283"
+        "x-source": "api.go:282"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -78611,7 +78513,7 @@
         "x-go-handler": "ptAccounts",
         "x-go-registration": "GET /api/v1/pt/accounts",
         "x-listener": "management",
-        "x-source": "api.go:283"
+        "x-source": "api.go:282"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -78658,8 +78560,7 @@
                     "type": [
                       "object",
                       "null"
-                    ],
-                    "description": "登录 Cookie（cookie）、浏览器标识（userAgent）及订阅密钥（passkey）。仅管理员编辑，凭据沿用加密存储；不会写入审计明文。"
+                    ]
                   }
                 },
                 "type": "object"
@@ -78706,7 +78607,7 @@
         "x-go-handler": "savePTAccount",
         "x-go-registration": "POST /api/v1/pt/accounts",
         "x-listener": "management",
-        "x-source": "api.go:284"
+        "x-source": "api.go:283"
       }
     },
     "/api/v1/pt/accounts/{id}": {
@@ -78764,8 +78665,7 @@
                     "type": [
                       "object",
                       "null"
-                    ],
-                    "description": "登录 Cookie（cookie）、浏览器标识（userAgent）及订阅密钥（passkey）。仅管理员编辑，凭据沿用加密存储；不会写入审计明文。"
+                    ]
                   }
                 },
                 "type": "object"
@@ -78812,7 +78712,7 @@
         "x-go-handler": "savePTAccount",
         "x-go-registration": "PUT /api/v1/pt/accounts/{id}",
         "x-listener": "management",
-        "x-source": "api.go:285"
+        "x-source": "api.go:284"
       }
     },
     "/api/v1/pt/templates": {
@@ -78848,7 +78748,7 @@
         "x-go-handler": "ptTemplates",
         "x-go-registration": "GET /api/v1/pt/templates",
         "x-listener": "management",
-        "x-source": "api.go:280"
+        "x-source": "api.go:279"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -78882,7 +78782,7 @@
         "x-go-handler": "ptTemplates",
         "x-go-registration": "GET /api/v1/pt/templates",
         "x-listener": "management",
-        "x-source": "api.go:280"
+        "x-source": "api.go:279"
       }
     },
     "/api/v1/pt/templates/load": {
@@ -78956,7 +78856,7 @@
         "x-go-handler": "loadPTTemplates",
         "x-go-registration": "POST /api/v1/pt/templates/load",
         "x-listener": "management",
-        "x-source": "api.go:281"
+        "x-source": "api.go:280"
       }
     },
     "/api/v1/pt/templates/{id}/favicon": {
@@ -79019,7 +78919,7 @@
         "x-go-handler": "ptTemplateFavicon",
         "x-go-registration": "GET /api/v1/pt/templates/{id}/favicon",
         "x-listener": "management",
-        "x-source": "api.go:277"
+        "x-source": "api.go:276"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -79080,7 +78980,7 @@
         "x-go-handler": "ptTemplateFavicon",
         "x-go-registration": "GET /api/v1/pt/templates/{id}/favicon",
         "x-listener": "management",
-        "x-source": "api.go:277"
+        "x-source": "api.go:276"
       }
     },
     "/api/v1/pt/templates/{id}/icon": {
@@ -79124,7 +79024,7 @@
         "x-go-handler": "ptTemplateIcon",
         "x-go-registration": "GET /api/v1/pt/templates/{id}/icon",
         "x-listener": "management",
-        "x-source": "api.go:276"
+        "x-source": "api.go:275"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -79166,7 +79066,7 @@
         "x-go-handler": "ptTemplateIcon",
         "x-go-registration": "GET /api/v1/pt/templates/{id}/icon",
         "x-listener": "management",
-        "x-source": "api.go:276"
+        "x-source": "api.go:275"
       }
     },
     "/api/v1/pt/ua": {
@@ -79202,7 +79102,7 @@
         "x-go-handler": "ptUA",
         "x-go-registration": "GET /api/v1/pt/ua",
         "x-listener": "management",
-        "x-source": "api.go:282"
+        "x-source": "api.go:281"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -79236,7 +79136,7 @@
         "x-go-handler": "ptUA",
         "x-go-registration": "GET /api/v1/pt/ua",
         "x-listener": "management",
-        "x-source": "api.go:282"
+        "x-source": "api.go:281"
       }
     },
     "/api/v1/readiness": {
@@ -79445,7 +79345,7 @@
         "x-go-handler": "listSearches",
         "x-go-registration": "GET /api/v1/search",
         "x-listener": "management",
-        "x-source": "api.go:287"
+        "x-source": "api.go:286"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -79479,7 +79379,7 @@
         "x-go-handler": "listSearches",
         "x-go-registration": "GET /api/v1/search",
         "x-listener": "management",
-        "x-source": "api.go:287"
+        "x-source": "api.go:286"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -79581,7 +79481,7 @@
         "x-go-handler": "startSearch",
         "x-go-registration": "POST /api/v1/search",
         "x-listener": "management",
-        "x-source": "api.go:288"
+        "x-source": "api.go:287"
       }
     },
     "/api/v1/search/media": {
@@ -79851,7 +79751,7 @@
         "x-go-handler": "getSearch",
         "x-go-registration": "GET /api/v1/search/{id}",
         "x-listener": "management",
-        "x-source": "api.go:294"
+        "x-source": "api.go:293"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -79969,7 +79869,7 @@
         "x-go-handler": "getSearch",
         "x-go-registration": "GET /api/v1/search/{id}",
         "x-listener": "management",
-        "x-source": "api.go:294"
+        "x-source": "api.go:293"
       }
     },
     "/api/v1/search/{id}/media": {
@@ -80056,7 +79956,7 @@
         "x-go-handler": "saveSearchMedia",
         "x-go-registration": "POST /api/v1/search/{id}/media",
         "x-listener": "management",
-        "x-source": "api.go:289"
+        "x-source": "api.go:288"
       }
     },
     "/api/v1/settings/access": {
@@ -80414,7 +80314,7 @@
         "x-go-handler": "namingPreview",
         "x-go-registration": "POST /api/v1/settings/naming-preview",
         "x-listener": "management",
-        "x-source": "api.go:244"
+        "x-source": "api.go:243"
       }
     },
     "/api/v1/settings/network-proxy": {
@@ -80456,7 +80356,7 @@
         "x-go-handler": "networkProxy",
         "x-go-registration": "GET /api/v1/settings/network-proxy",
         "x-listener": "management",
-        "x-source": "api.go:291"
+        "x-source": "api.go:290"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80496,7 +80396,7 @@
         "x-go-handler": "networkProxy",
         "x-go-registration": "GET /api/v1/settings/network-proxy",
         "x-listener": "management",
-        "x-source": "api.go:291"
+        "x-source": "api.go:290"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80576,7 +80476,7 @@
         "x-go-handler": "networkProxy",
         "x-go-registration": "PUT /api/v1/settings/network-proxy",
         "x-listener": "management",
-        "x-source": "api.go:292"
+        "x-source": "api.go:291"
       }
     },
     "/api/v1/sites": {
@@ -80612,7 +80512,7 @@
         "x-go-handler": "listDefinitions",
         "x-go-registration": "GET /api/v1/sites",
         "x-listener": "management",
-        "x-source": "api.go:273"
+        "x-source": "api.go:272"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80646,7 +80546,7 @@
         "x-go-handler": "listDefinitions",
         "x-go-registration": "GET /api/v1/sites",
         "x-listener": "management",
-        "x-source": "api.go:273"
+        "x-source": "api.go:272"
       }
     },
     "/api/v1/sites/definitions": {
@@ -80682,7 +80582,7 @@
         "x-go-handler": "listDefinitions",
         "x-go-registration": "GET /api/v1/sites/definitions",
         "x-listener": "management",
-        "x-source": "api.go:286"
+        "x-source": "api.go:285"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80716,7 +80616,7 @@
         "x-go-handler": "listDefinitions",
         "x-go-registration": "GET /api/v1/sites/definitions",
         "x-listener": "management",
-        "x-source": "api.go:286"
+        "x-source": "api.go:285"
       }
     },
     "/api/v1/sites/metrics": {
@@ -80752,7 +80652,7 @@
         "x-go-handler": "siteMetrics",
         "x-go-registration": "GET /api/v1/sites/metrics",
         "x-listener": "management",
-        "x-source": "api.go:278"
+        "x-source": "api.go:277"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80786,7 +80686,7 @@
         "x-go-handler": "siteMetrics",
         "x-go-registration": "GET /api/v1/sites/metrics",
         "x-listener": "management",
-        "x-source": "api.go:278"
+        "x-source": "api.go:277"
       }
     },
     "/api/v1/sites/metrics/schedule": {
@@ -80822,7 +80722,7 @@
         "x-go-handler": "getSiteMetricSchedule",
         "x-go-registration": "GET /api/v1/sites/metrics/schedule",
         "x-listener": "management",
-        "x-source": "api.go:274"
+        "x-source": "api.go:273"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80856,7 +80756,7 @@
         "x-go-handler": "getSiteMetricSchedule",
         "x-go-registration": "GET /api/v1/sites/metrics/schedule",
         "x-listener": "management",
-        "x-source": "api.go:274"
+        "x-source": "api.go:273"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -80958,7 +80858,7 @@
         "x-go-handler": "saveSiteMetricSchedule",
         "x-go-registration": "PUT /api/v1/sites/metrics/schedule",
         "x-listener": "management",
-        "x-source": "api.go:275"
+        "x-source": "api.go:274"
       }
     },
     "/api/v1/sites/metrics/sync": {
@@ -81026,7 +80926,7 @@
         "x-go-handler": "syncSiteMetrics",
         "x-go-registration": "POST /api/v1/sites/metrics/sync",
         "x-listener": "management",
-        "x-source": "api.go:279"
+        "x-source": "api.go:278"
       }
     },
     "/api/v1/strm/batch-preview": {
@@ -81175,7 +81075,7 @@
         "x-go-handler": "preview",
         "x-go-registration": "POST /api/v1/strm/preview",
         "x-listener": "management",
-        "x-source": "api.go:265"
+        "x-source": "api.go:264"
       }
     },
     "/api/v1/strm/repairs/preview": {
@@ -81566,7 +81466,7 @@
         "x-go-handler": "getSubscriptionRun",
         "x-go-registration": "GET /api/v1/subscription-runs/{id}",
         "x-listener": "management",
-        "x-source": "api.go:327"
+        "x-source": "api.go:326"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81614,7 +81514,7 @@
         "x-go-handler": "getSubscriptionRun",
         "x-go-registration": "GET /api/v1/subscription-runs/{id}",
         "x-listener": "management",
-        "x-source": "api.go:327"
+        "x-source": "api.go:326"
       }
     },
     "/api/v1/subscriptions": {
@@ -81699,7 +81599,7 @@
         "x-go-handler": "listSubscriptions",
         "x-go-registration": "GET /api/v1/subscriptions",
         "x-listener": "management",
-        "x-source": "api.go:322"
+        "x-source": "api.go:321"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81782,7 +81682,7 @@
         "x-go-handler": "listSubscriptions",
         "x-go-registration": "GET /api/v1/subscriptions",
         "x-listener": "management",
-        "x-source": "api.go:322"
+        "x-source": "api.go:321"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -81873,7 +81773,7 @@
         "x-go-handler": "saveSubscription",
         "x-go-registration": "POST /api/v1/subscriptions",
         "x-listener": "management",
-        "x-source": "api.go:323"
+        "x-source": "api.go:322"
       }
     },
     "/api/v1/subscriptions/{id}": {
@@ -81933,7 +81833,7 @@
         "x-go-handler": "deleteSubscription",
         "x-go-registration": "DELETE /api/v1/subscriptions/{id}",
         "x-listener": "management",
-        "x-source": "api.go:325"
+        "x-source": "api.go:324"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -82033,7 +81933,7 @@
         "x-go-handler": "saveSubscription",
         "x-go-registration": "PUT /api/v1/subscriptions/{id}",
         "x-listener": "management",
-        "x-source": "api.go:324"
+        "x-source": "api.go:323"
       }
     },
     "/api/v1/subscriptions/{id}/evaluate": {
@@ -82113,7 +82013,7 @@
         "x-go-handler": "queueSubscription",
         "x-go-registration": "POST /api/v1/subscriptions/{id}/evaluate",
         "x-listener": "management",
-        "x-source": "api.go:326"
+        "x-source": "api.go:325"
       }
     },
     "/api/v1/subscriptions/{id}/history": {
@@ -82186,7 +82086,7 @@
         "x-go-handler": "subscriptionHistory",
         "x-go-registration": "GET /api/v1/subscriptions/{id}/history",
         "x-listener": "management",
-        "x-source": "api.go:290"
+        "x-source": "api.go:289"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -82257,7 +82157,7 @@
         "x-go-handler": "subscriptionHistory",
         "x-go-registration": "GET /api/v1/subscriptions/{id}/history",
         "x-listener": "management",
-        "x-source": "api.go:290"
+        "x-source": "api.go:289"
       }
     },
     "/api/v1/system/modules": {
@@ -82293,7 +82193,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "GET /api/v1/system/modules",
         "x-listener": "management",
-        "x-source": "api.go:216"
+        "x-source": "api.go:215"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -82327,7 +82227,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "GET /api/v1/system/modules",
         "x-listener": "management",
-        "x-source": "api.go:216"
+        "x-source": "api.go:215"
       }
     },
     "/api/v1/system/online-update": {
@@ -82597,7 +82497,7 @@
         "x-go-handler": "operations",
         "x-go-registration": "GET /api/v1/system/operations",
         "x-listener": "management",
-        "x-source": "api.go:263"
+        "x-source": "api.go:262"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -82631,7 +82531,7 @@
         "x-go-handler": "operations",
         "x-go-registration": "GET /api/v1/system/operations",
         "x-listener": "management",
-        "x-source": "api.go:263"
+        "x-source": "api.go:262"
       }
     },
     "/api/v1/system/runtime": {
@@ -82667,7 +82567,7 @@
         "x-go-handler": "runtimeSummary",
         "x-go-registration": "GET /api/v1/system/runtime",
         "x-listener": "management",
-        "x-source": "api.go:293"
+        "x-source": "api.go:292"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -82701,7 +82601,7 @@
         "x-go-handler": "runtimeSummary",
         "x-go-registration": "GET /api/v1/system/runtime",
         "x-listener": "management",
-        "x-source": "api.go:293"
+        "x-source": "api.go:292"
       }
     },
     "/api/v1/system/status": {
@@ -83391,7 +83291,7 @@
         "x-go-handler": "listTransfers",
         "x-go-registration": "GET /api/v1/transfers",
         "x-listener": "management",
-        "x-source": "api.go:310"
+        "x-source": "api.go:309"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -83453,7 +83353,7 @@
         "x-go-handler": "listTransfers",
         "x-go-registration": "GET /api/v1/transfers",
         "x-listener": "management",
-        "x-source": "api.go:310"
+        "x-source": "api.go:309"
       }
     },
     "/api/v1/transfers/{id}/control": {
@@ -83543,7 +83443,7 @@
         "x-go-handler": "controlUpload",
         "x-go-registration": "POST /api/v1/transfers/{id}/control",
         "x-listener": "management",
-        "x-source": "api.go:308"
+        "x-source": "api.go:307"
       }
     },
     "/api/v1/transfers/{id}/output-preview": {
@@ -83596,7 +83496,7 @@
         "x-go-handler": "previewOutputResume",
         "x-go-registration": "GET /api/v1/transfers/{id}/output-preview",
         "x-listener": "management",
-        "x-source": "api.go:311"
+        "x-source": "api.go:310"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -83647,7 +83547,7 @@
         "x-go-handler": "previewOutputResume",
         "x-go-registration": "GET /api/v1/transfers/{id}/output-preview",
         "x-listener": "management",
-        "x-source": "api.go:311"
+        "x-source": "api.go:310"
       }
     },
     "/api/v1/transfers/{id}/resume-import": {
@@ -83731,7 +83631,7 @@
         "x-go-handler": "resumeOutputImport",
         "x-go-registration": "POST /api/v1/transfers/{id}/resume-import",
         "x-listener": "management",
-        "x-source": "api.go:312"
+        "x-source": "api.go:311"
       }
     },
     "/api/v1/transfers/{id}/sessions": {
@@ -83790,7 +83690,7 @@
         "x-go-handler": "transferSessions",
         "x-go-registration": "GET /api/v1/transfers/{id}/sessions",
         "x-listener": "management",
-        "x-source": "api.go:309"
+        "x-source": "api.go:308"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -83847,7 +83747,7 @@
         "x-go-handler": "transferSessions",
         "x-go-registration": "GET /api/v1/transfers/{id}/sessions",
         "x-listener": "management",
-        "x-source": "api.go:309"
+        "x-source": "api.go:308"
       }
     },
     "/api/{path}": {
@@ -83879,7 +83779,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -83909,7 +83809,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -83939,7 +83839,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -83969,7 +83869,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -83999,7 +83899,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84029,7 +83929,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84059,7 +83959,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84089,7 +83989,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/api/",
         "x-listener": "management",
-        "x-source": "api.go:349"
+        "x-source": "api.go:348"
       }
     },
     "/emby": {
@@ -84115,7 +84015,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:362"
+        "x-source": "api.go:361"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84142,7 +84042,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:362"
+        "x-source": "api.go:361"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84169,7 +84069,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:362"
+        "x-source": "api.go:361"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84193,7 +84093,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:362"
+        "x-source": "api.go:361"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84217,7 +84117,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:362"
+        "x-source": "api.go:361"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84241,7 +84141,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:362"
+        "x-source": "api.go:361"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84265,7 +84165,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:362"
+        "x-source": "api.go:361"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84289,7 +84189,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/emby",
         "x-listener": "management",
-        "x-source": "api.go:362"
+        "x-source": "api.go:361"
       }
     },
     "/emby/": {
@@ -84315,7 +84215,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84339,7 +84239,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84363,7 +84263,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84387,7 +84287,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84411,7 +84311,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84435,7 +84335,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84459,7 +84359,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84483,7 +84383,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       }
     },
     "/emby/{path}": {
@@ -84520,7 +84420,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84555,7 +84455,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84590,7 +84490,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84625,7 +84525,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84660,7 +84560,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84695,7 +84595,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84730,7 +84630,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -84765,7 +84665,7 @@
         "x-go-handler": "mount",
         "x-go-registration": "/emby/",
         "x-listener": "management",
-        "x-source": "api.go:361"
+        "x-source": "api.go:360"
       }
     },
     "/healthz": {
@@ -85015,7 +84915,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "GET /watch",
         "x-listener": "management",
-        "x-source": "api.go:358"
+        "x-source": "api.go:357"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -85033,7 +84933,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "GET /watch",
         "x-listener": "management",
-        "x-source": "api.go:358"
+        "x-source": "api.go:357"
       }
     },
     "/watch/{rest}": {
@@ -85064,7 +84964,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "GET /watch/{rest...}",
         "x-listener": "management",
-        "x-source": "api.go:359"
+        "x-source": "api.go:358"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -85093,7 +84993,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "GET /watch/{rest...}",
         "x-listener": "management",
-        "x-source": "api.go:359"
+        "x-source": "api.go:358"
       }
     },
     "/{path}": {
@@ -85125,7 +85025,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -85155,7 +85055,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -85185,7 +85085,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "options": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -85215,7 +85115,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "patch": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -85245,7 +85145,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -85275,7 +85175,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -85305,7 +85205,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       },
       "trace": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -85335,7 +85235,7 @@
         "x-go-handler": "anonymous",
         "x-go-registration": "/",
         "x-listener": "management",
-        "x-source": "api.go:371"
+        "x-source": "api.go:370"
       }
     }
   },
