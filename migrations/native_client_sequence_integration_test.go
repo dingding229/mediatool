@@ -75,7 +75,7 @@ func runNativeClientSequence(t *testing.T, sen bool) {
 	server := httptest.NewUnstartedServer(nil)
 	c.MemberPublicURL = "http://" + server.Listener.Addr().String()
 	logger := slog.New(slog.NewJSONHandler(&f.logs, nil))
-	f.handler, e = httpapi.NativeMediaHandler(c, httpapi.Dependencies{DB: f.pool, Integrations: f.manager, NativePlayback: f.service, Logger: logger})
+	f.handler, e = httpapi.NativeMediaHandler(c, httpapi.Dependencies{IPBlock: fixtureIPBlock(t), DB: f.pool, Integrations: f.manager, NativePlayback: f.service, Logger: logger})
 	if e != nil {
 		if closeErr := server.Listener.Close(); closeErr != nil {
 			t.Error(closeErr)

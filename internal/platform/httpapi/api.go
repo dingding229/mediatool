@@ -12,6 +12,7 @@ import (
 	"media-tool/internal/modules/emby"
 	"media-tool/internal/modules/imageedit"
 	"media-tool/internal/modules/integrations"
+	"media-tool/internal/modules/ipblock"
 	"media-tool/internal/modules/ipgeo"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/linkcache"
@@ -51,6 +52,7 @@ type SessionReader interface {
 	Session(context.Context, []byte) (accounts.Account, error)
 }
 type Dependencies struct {
+	IPBlock           *ipblock.Service
 	OnlineUpdater     *onlineupdate.Service
 	UpdateChecker     *updatecheck.Service
 	IPGeo             *ipgeo.Service
@@ -105,6 +107,9 @@ func New(c config.Config, d Dependencies) http.Handler {
 }
 
 func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handler {
+	if d.IPBlock == nil && d.DB != nil {
+		d.IPBlock = newIPBlock(d.DB, d.Logger)
+	}
 	if d.Logger == nil {
 		d.Logger = slog.Default()
 	}
@@ -345,6 +350,7 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	a.registerMaintenance(mux)
 	a.registerMediaServer(mux)
 	a.registerPlayerAccess(mux)
+	a.registerIPBlock(mux)
 	a.registerSubtitles(mux)
 	a.registerSTRMTools(mux)
 	a.registerExternal(mux)
@@ -493,7 +499,7 @@ func (a *API) middleware(next http.Handler) http.Handler {
 					fail(w, 500, "internal_error", "服务内部错误")
 				}
 			}()
-			if a.admitPlayer(w, r) {
+			if (!mediaIPScope(r) || a.admitIP(w, r)) && a.admitPlayer(w, r) {
 				next.ServeHTTP(w, r)
 			}
 		})

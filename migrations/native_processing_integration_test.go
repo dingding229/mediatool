@@ -148,7 +148,7 @@ func TestNativeProcessingAdminRealHTTPSettingsRetryGCAndBoundaries(t *testing.T)
 			t.Fatal("missing audit", action)
 		}
 	}
-	media, err := httpapi.NativeMediaHandler(c, httpapi.Dependencies{DB: f.pool})
+	media, err := httpapi.NativeMediaHandler(c, httpapi.Dependencies{IPBlock: fixtureIPBlock(t), DB: f.pool})
 	if err != nil {
 		t.Fatal(err)
 	}

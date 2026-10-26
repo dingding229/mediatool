@@ -50,12 +50,17 @@ func (a *API) admitPlayer(w http.ResponseWriter, r *http.Request) bool {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	prefs, prefsErr := (settings.Repository{DB: a.Deps.DB}).Get(ctx)
-	var trusted []string
-	if prefsErr == nil {
-		trusted = prefs.Value.TrustedProxyCIDRs
+	var addr playeraccess.Address
+	if evidence, ok := r.Context().Value(ipEvidenceKey{}).(ipEvidence); ok && evidence.err == nil {
+		addr = publicEvidence(evidence.address)
+	} else {
+		prefs, prefsErr := (settings.Repository{DB: a.Deps.DB}).Get(ctx)
+		var trusted []string
+		if prefsErr == nil {
+			trusted = prefs.Value.TrustedProxyCIDRs
+		}
+		addr = playeraccess.ClientAddress(r, trusted)
 	}
-	addr := playeraccess.ClientAddress(r, trusted)
 	request := playeraccess.Request{UserAgent: r.UserAgent(), Entry: entry, Method: r.Method, ClientIP: addr.ClientIP, ConnectionIP: addr.ConnectionIP, IPSource: addr.Source, IPPublic: addr.Public}
 	d, err := checker.Check(ctx, request)
 	if err != nil {

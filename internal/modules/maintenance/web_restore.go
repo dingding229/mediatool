@@ -353,8 +353,14 @@ func (e Engine) executeWebRestore(ctx context.Context, id string) (result error)
 	if err = e.restoreStage(ctx, id, "正在原子替换全部业务数据；提交前认证可读，提交后会话失效"); err != nil {
 		return err
 	}
+	resumeAdmission := func() {}
+	if e.SuspendMediaAdmission != nil {
+		resumeAdmission = e.SuspendMediaAdmission()
+	}
+	defer resumeAdmission()
 	if err = e.importWebDump(ctx, file, id, r.BackupID); err == nil {
 		if err = e.verifyApplied(ctx, id, r.Protected); err == nil {
+			resumeAdmission()
 			return e.finishWebRestore(ctx, id, "completed", "恢复成功；恢复前快照已保留，旧任务不会自动重放，请重新登录")
 		}
 	}
@@ -394,6 +400,7 @@ func (e Engine) executeWebRestore(ctx context.Context, id string) (result error)
 	if se != nil {
 		return fmt.Errorf("恢复失败：%v；自动回滚失败：%v；保持维护，请按快照核对", err, se)
 	}
+	resumeAdmission()
 	return e.finishWebRestore(rollbackCtx, id, "rolled_back", "恢复失败，已自动回滚到恢复前快照："+err.Error())
 }
 func (e Engine) finishUnchanged(ctx context.Context, id string, cause error) error {

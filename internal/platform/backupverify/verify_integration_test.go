@@ -29,7 +29,7 @@ func TestPostgresCloneGuardAndCompleteRekeyMigrationImmutability(t *testing.T) {
 	if _, e = Verify(ctx, db, dsn, "media_tool", strings.Repeat("9", 64), false); e == nil {
 		t.Fatal("production allowed")
 	}
-	rows, e := db.Query(ctx, `SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename NOT IN ('goose_db_version','application_settings','media_archive_policy','network_proxy_settings','native_media_libraries','native_server_settings','player_ua_policy','directory_classification','site_metric_schedule','ops_policy','ops_mode')`)
+	rows, e := db.Query(ctx, `SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename NOT IN ('goose_db_version','application_settings','media_archive_policy','network_proxy_settings','native_media_libraries','native_server_settings','player_ua_policy','player_ip_block_policy','directory_classification','site_metric_schedule','ops_policy','ops_mode')`)
 	if e != nil {
 		t.Fatal(e)
 	}

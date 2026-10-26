@@ -64,6 +64,7 @@ func (p Policy) Validate() error {
 }
 
 type Engine struct {
+	SuspendMediaAdmission                          func() func()
 	DB                                             *pgxpool.Pool
 	Redis                                          *redis.Client
 	DSN, Root, OutputRoot, Key, HostProc, Revision string

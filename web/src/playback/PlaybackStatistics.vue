@@ -10,8 +10,10 @@ import {date} from '../workflows/readiness';
 import ResourceState from '../workflows/ResourceState.vue';
 import TrendChart from '../operations/TrendChart.vue';
 import IpAddress from '../ui/IpAddress.vue';
+import IPBlockEditor from './IPBlockEditor.vue';
 import IPStatisticsReport from './IPStatisticsReport.vue';
 import type {IPStatsPage} from '../api/playback-statistics';
+const blockEditor=ref<InstanceType<typeof IPBlockEditor>>();
 const route=useRoute(),router=useRouter();
 const props=defineProps<{userId?:string;onlyIPs?:boolean;initialDevice?:string}>(),days=ref([0,7,30,90].includes(Number(route.query.statsDays))?Number(route.query.statsDays):30),device=ref(props.initialDevice||String(route.query.statsDevice||'')),user=ref(props.userId||String(route.query.statsUser||'')),mode=ref(props.onlyIPs?'ips':'events'),query=ref(String(route.query.ipQuery||'')),searchInput=ref(query.value);
 const page=usePageNumber(props.userId?'activityStatsPage':'ipStatsPage'),size=ref(25),users=ref<any[]>([]),devices=ref<any[]>([]);
@@ -47,13 +49,16 @@ defineExpose({load});
   </template>
   <ResourceState v-if="mode!=='ips'" :stale="current.loaded" :loading="current.loading" :error="current.error" :empty="mode!=='ips'&&!current.data?.items.length" @reload="load"/>
   <form v-if="mode==='ips'" class="media-actions ip-search" @submit.prevent="search"><el-input v-model="searchInput" aria-label="搜索 IP 统计" placeholder="搜索 IP、地区、运营商或用户" :maxlength="100" clearable/><el-button native-type="submit">搜索 IP</el-button><el-button :disabled="!query&&!searchInput" @click="searchInput='';query=''">清空</el-button></form>
-  <div v-if="mode==='ips'" class="ip-report-shell" :aria-busy="ips.loading"><ResourceState overlay :stale="ips.loaded" :loading="ips.loading" :error="ips.error" @reload="load"/><IPStatisticsReport v-show="!ips.error||ips.loaded" :rows="ips.data?.items||[]" :summary="ips.data?.summary" :user-scoped="Boolean(user)"/></div>
+  <div v-if="mode==='ips'" class="ip-report-shell" :aria-busy="ips.loading"><ResourceState overlay :stale="ips.loaded" :loading="ips.loading" :error="ips.error" @reload="load"/><IPStatisticsReport @block="blockEditor?.open($event)" v-show="!ips.error||ips.loaded" :rows="ips.data?.items||[]" :summary="ips.data?.summary" :user-scoped="Boolean(user)"/></div>
   <div v-else class="f7-results" :aria-busy="current.loading">
    <template v-if="mode==='events'"><article v-for="row in events.data?.items||[]" :key="row.id" class="organize-record"><h3>{{mediaTitle(row)}}</h3><p>{{date(row.startedAt)}} · {{row.userName}} / {{row.deviceName||row.client}} · {{playbackDuration(row.durationSeconds)}}</p><p><IpAddress :ip="row.ip"/> · {{row.state==='stopped'?'已结束':row.state==='paused'?'暂停':'播放中'}} · 302 {{row.redirectCount}} 次</p></article></template>
-   <template v-else><article v-for="row in ips.data?.items||[]" :key="row.ip" class="organize-record"><h3><IpAddress :ip="row.ip"/></h3><p>{{row.count}} 次已鉴权请求</p><p>首次 {{date(row.firstSeenAt)}} · 最近 {{date(row.lastSeenAt)}}</p></article></template>
+   <template v-else><article v-for="row in ips.data?.items||[]" :key="row.ip" class="organize-record"><h3><IpAddress :ip="row.ip"/></h3><p>{{row.count}} 次已鉴权请求</p><el-button class="ip-block-quick-button" @click="blockEditor?.open(row.ip)">拉黑此 IP</el-button><p>首次 {{date(row.firstSeenAt)}} · 最近 {{date(row.lastSeenAt)}}</p></article></template>
   </div>
   <PagePagination v-model:current-page="page" v-model:page-size="size" :total="current.data?.total||0" :page-sizes="[25,50,100]" label="播放统计分页"/>
 
  </section>
+<IPBlockEditor ref="blockEditor"/>
 </template>
-<style scoped>.f7-statistics{min-height:480px}.f7-statistics>.media-actions{align-items:flex-end}.ip-refresh{min-width:108px}.ip-report-shell{position:relative;min-height:650px}.ip-search{margin:16px 0}.ip-search .el-input{flex:1;min-width:120px;max-width:480px}.f7-scope{font-size:.8rem;color:var(--mt-text-muted,#64748b)}.f7-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;min-height:75px}.f7-metrics div{padding:10px;border:1px solid var(--el-border-color);border-radius:8px}.f7-metrics dt{font-size:.8rem}.f7-metrics dd{margin:6px 0 0;font-weight:600;font-variant-numeric:tabular-nums}.f7-chart{min-height:220px}.f7-chart :deep(.u6-trend){min-height:210px}.f7-results{height:460px;overflow:auto;overscroll-behavior:contain;padding:6px;border:1px solid var(--el-border-color);border-radius:8px;box-shadow:inset 0 -8px 8px -10px #0006}.f7-top{margin:12px 0}.f7-top li{padding:4px 0}.f7-statistics .organize-record{padding:10px}.f7-statistics .organize-record h3,.f7-statistics .organize-record p{margin:4px 0}@media(max-width:600px){.f7-metrics{grid-template-columns:1fr}.f7-statistics .media-actions>label{display:flex;align-items:center;gap:8px}}</style>
+<style scoped>
+.ip-block-quick-button{min-height:44px}
+.f7-statistics{min-height:480px}.f7-statistics>.media-actions{align-items:flex-end}.ip-refresh{min-width:108px}.ip-report-shell{position:relative;min-height:650px}.ip-search{margin:16px 0}.ip-search .el-input{flex:1;min-width:120px;max-width:480px}.f7-scope{font-size:.8rem;color:var(--mt-text-muted,#64748b)}.f7-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;min-height:75px}.f7-metrics div{padding:10px;border:1px solid var(--el-border-color);border-radius:8px}.f7-metrics dt{font-size:.8rem}.f7-metrics dd{margin:6px 0 0;font-weight:600;font-variant-numeric:tabular-nums}.f7-chart{min-height:220px}.f7-chart :deep(.u6-trend){min-height:210px}.f7-results{height:460px;overflow:auto;overscroll-behavior:contain;padding:6px;border:1px solid var(--el-border-color);border-radius:8px;box-shadow:inset 0 -8px 8px -10px #0006}.f7-top{margin:12px 0}.f7-top li{padding:4px 0}.f7-statistics .organize-record{padding:10px}.f7-statistics .organize-record h3,.f7-statistics .organize-record p{margin:4px 0}@media(max-width:600px){.f7-metrics{grid-template-columns:1fr}.f7-statistics .media-actions>label{display:flex;align-items:center;gap:8px}}</style>

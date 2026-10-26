@@ -42,7 +42,7 @@ func TestNativeBrowseHTTPRealAuthenticationCompleteChain(t *testing.T) {
 	}
 	f.exec(t, `UPDATE native_server_settings SET enabled=true,revision=revision+1`)
 	var logs bytes.Buffer
-	handler, err := httpapi.NativeMediaHandler(config.Config{SessionKey: "synthetic-browse-http-key", MemberPublicURL: "https://native.synthetic.invalid"}, httpapi.Dependencies{DB: f.pool, Logger: slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))})
+	handler, err := httpapi.NativeMediaHandler(config.Config{SessionKey: "synthetic-browse-http-key", MemberPublicURL: "https://native.synthetic.invalid"}, httpapi.Dependencies{IPBlock: fixtureIPBlock(t), DB: f.pool, Logger: slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -44,7 +44,7 @@ func TestF1NativeSenPlayerBrowseSequence(t *testing.T) {
 		}
 	}
 	f.exec(t, `UPDATE native_server_settings SET enabled=true,revision=revision+1`)
-	handler, err := httpapi.NativeMediaHandler(config.Config{SessionKey: "f1-synthetic-key", MemberPublicURL: "https://native.synthetic.invalid"}, httpapi.Dependencies{DB: f.pool, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	handler, err := httpapi.NativeMediaHandler(config.Config{SessionKey: "f1-synthetic-key", MemberPublicURL: "https://native.synthetic.invalid"}, httpapi.Dependencies{IPBlock: fixtureIPBlock(t), DB: f.pool, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	if err != nil {
 		t.Fatal(err)
 	}

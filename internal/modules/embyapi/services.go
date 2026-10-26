@@ -48,7 +48,7 @@ func DomainErrorStatus(err error) int {
 		return http.StatusBadRequest
 	case errors.Is(err, contracts.ErrUnauthenticated):
 		return http.StatusUnauthorized
-	case errors.Is(err, nativeplayback.ErrForbidden), errors.Is(err, nativeplayback.ErrUADenied), errors.Is(err, nativeplayback.ErrParentalDenied):
+	case errors.Is(err, nativeplayback.ErrIPDenied), errors.Is(err, nativeplayback.ErrForbidden), errors.Is(err, nativeplayback.ErrUADenied), errors.Is(err, nativeplayback.ErrParentalDenied):
 		return http.StatusForbidden
 	case errors.Is(err, nativeplayback.ErrStreamLimit):
 		return http.StatusForbidden

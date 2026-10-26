@@ -18,6 +18,9 @@ import (
 
 // NativeMediaHandler never wraps or forwards to the management handler.
 func NativeMediaHandler(c config.Config, d Dependencies) (http.Handler, error) {
+	if d.IPBlock == nil && d.DB != nil {
+		d.IPBlock = newIPBlock(d.DB, d.Logger)
+	}
 	images := NewNativeImageResolver(d.DB, d.Integrations, d.Redis)
 	images.Stills = d.NativeStills
 	images.ImageRoot = d.NativeImageRoot
@@ -32,7 +35,10 @@ func NativeMediaHandler(c config.Config, d Dependencies) (http.Handler, error) {
 	if o, ok := d.PlaybackStats.(nativeauth.DeviceObserver); ok {
 		observer = o
 	}
-	return embyapi.NewServer(embyapi.ServerOptions{Playback: playback, RequestOrigin: func(r *http.Request) (string, error) {
+	return embyapi.NewServer(embyapi.ServerOptions{IPAdmission: func(r *http.Request) (bool, error) { return checkMediaIP(r.Context(), d.IPBlock, d.DB, r) }, Playback: playback, RequestOrigin: func(r *http.Request) (string, error) {
+		if evidence, ok := r.Context().Value(ipEvidenceKey{}).(ipEvidence); ok {
+			return clientinfo.RequestOrigin(r, evidence.proxies), evidence.err
+		}
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 		prefs, err := (settings.Repository{DB: d.DB}).Get(ctx)
@@ -41,6 +47,9 @@ func NativeMediaHandler(c config.Config, d Dependencies) (http.Handler, error) {
 		}
 		return clientinfo.RequestOrigin(r, prefs.Value.TrustedProxyCIDRs), nil
 	}, Settings: settings.NewNativeServerRepository(d.DB), PublicURL: c.MemberPublicURL, Logger: d.Logger, Images: images, Browse: browse, Discovery: browse, Auth: nativeAccounts{AccountService: &nativeauth.Store{DB: d.DB, Secret: c.SessionKey, Observer: observer}, global: c.STRMKey}, Permissions: func() contracts.PermissionChecker { return nativepermissions.New(d.DB) }, ClientAddress: func(r *http.Request) (clientinfo.Address, error) {
+		if evidence, ok := r.Context().Value(ipEvidenceKey{}).(ipEvidence); ok {
+			return publicEvidence(evidence.address), evidence.err
+		}
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 		defer cancel()
 		prefs, err := (settings.Repository{DB: d.DB}).Get(ctx)

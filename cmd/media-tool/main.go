@@ -14,6 +14,7 @@ import (
 	sourcecatalog "media-tool/internal/modules/catalog"
 	"media-tool/internal/modules/filemanager"
 	"media-tool/internal/modules/integrations"
+	"media-tool/internal/modules/ipblock"
 	"media-tool/internal/modules/ipgeo"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/library"
@@ -219,6 +220,7 @@ func run() error {
 			}
 		}()
 	}
+	blocks := ipblock.New(ipblock.Repository{DB: db}, logger)
 	switch *role {
 	case "worker":
 		if *queue == "still" {
@@ -230,12 +232,14 @@ func run() error {
 		if *queue == "probe" {
 			return probequeue.Run(ctx, manager, logger)
 		}
-		return runWorker(ctx, c, db, manager, logger, *queue, rc)
+		return runWorker(ctx, c, db, manager, logger, *queue, rc, blocks)
 	case "server":
 		if stills != nil {
-			return supervise(ctx, func(ctx context.Context) error { return runServer(ctx, c, db, rc, manager, logger, logStore, stills) }, stills.MaintainLoop)
+			return supervise(ctx, blocks.Run, func(ctx context.Context) error {
+				return runServer(ctx, c, db, rc, manager, logger, logStore, blocks, stills)
+			}, stills.MaintainLoop)
 		}
-		return runServer(ctx, c, db, rc, manager, logger, logStore)
+		return supervise(ctx, blocks.Run, func(ctx context.Context) error { return runServer(ctx, c, db, rc, manager, logger, logStore, blocks) })
 	case "all":
 		if db == nil || rc == nil || manager == nil {
 			return errors.New("unified runtime requires PostgreSQL, Redis and APP_SECRET_KEY")
@@ -259,14 +263,18 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		return supervise(ctx,
-			func(ctx context.Context) error { return runServer(ctx, c, db, rc, manager, logger, logStore, stills) },
+		return supervise(ctx, blocks.Run,
+			func(ctx context.Context) error {
+				return runServer(ctx, c, db, rc, manager, logger, logStore, blocks, stills)
+			},
 			func(ctx context.Context) error { return stills.Run(ctx) },
-			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "default", rc) },
-			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "transfer", rc) },
-			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "library", rc) },
-			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "maintenance", rc) },
-			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "metadata", rc) },
+			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "default", rc, blocks) },
+			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "transfer", rc, blocks) },
+			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "library", rc, blocks) },
+			func(ctx context.Context) error {
+				return runWorker(ctx, c, db, manager, logger, "maintenance", rc, blocks)
+			},
+			func(ctx context.Context) error { return runWorker(ctx, c, db, manager, logger, "metadata", rc, blocks) },
 			func(ctx context.Context) error { return probequeue.Run(ctx, manager, logger) },
 		)
 
@@ -311,7 +319,7 @@ func supervise(ctx context.Context, components ...func(context.Context) error) e
 	return group.Wait()
 }
 
-func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *integrations.Manager, logger *slog.Logger, queue string, rc *redis.Client) error {
+func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *integrations.Manager, logger *slog.Logger, queue string, rc *redis.Client, blocks *ipblock.Service) error {
 	if queue == "default" {
 		pollCtx, cancelPoll := context.WithCancel(trace.With(ctx, logger))
 		defer cancelPoll()
@@ -332,7 +340,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 			return nil
 		},
 	}}
-	ops := maintenance.Engine{DB: db, Redis: rc, DSN: c.DatabaseURL, Root: c.MaintenanceDir, OutputRoot: c.STRMOutputDir, Key: c.SecretKey, HostProc: c.HostProcDir, Revision: buildinfo.Revision}
+	ops := maintenance.Engine{SuspendMediaAdmission: blocks.Suspend, DB: db, Redis: rc, DSN: c.DatabaseURL, Root: c.MaintenanceDir, OutputRoot: c.STRMOutputDir, Key: c.SecretKey, HostProc: c.HostProcDir, Revision: buildinfo.Revision}
 	if queue == "maintenance" {
 		restoreCtx, restoreCancel := context.WithCancel(ctx)
 		restoreDone := make(chan struct{})
@@ -532,7 +540,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 
 }
 
-func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis.Client, manager *integrations.Manager, logger *slog.Logger, logStore *logging.Store, native ...*stillrunner.Service) error {
+func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis.Client, manager *integrations.Manager, logger *slog.Logger, logStore *logging.Store, blocks *ipblock.Service, native ...*stillrunner.Service) error {
 	stats := playbackstats.New(db, logger)
 	statsCtx, statsCancel := context.WithCancel(ctx)
 	statsDone := make(chan struct{})
@@ -578,7 +586,7 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	defer func() { stopUpdates(); <-updatesDone }()
 	updater := onlineupdate.New(db, updates)
 	go updater.Run(ctx)
-	managementDeps := httpapi.Dependencies{OnlineUpdater: updater, UpdateChecker: updates, IPGeo: geo, Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
+	managementDeps := httpapi.Dependencies{IPBlock: blocks, OnlineUpdater: updater, UpdateChecker: updates, IPGeo: geo, Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
 	if db != nil && manager != nil {
 		store := pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot, Logger: logger}
 		businessHost := pluginbusiness.AcquisitionHost{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc, Network: networkproxy.NewHostClient(networkproxy.Repository{DB: db, Vault: manager.Repository.Vault})}
@@ -625,7 +633,7 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	done := make(chan error, 3)
 	var memberServer *http.Server
 	if c.MemberAddress != "" {
-		deps := httpapi.Dependencies{DB: db, Logger: logger, Integrations: manager, Redis: rc, PlaybackStats: stats}
+		deps := httpapi.Dependencies{IPBlock: blocks, DB: db, Logger: logger, Integrations: manager, Redis: rc, PlaybackStats: stats}
 		if len(native) > 0 {
 			deps.NativeStills = native[0]
 		}

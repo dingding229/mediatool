@@ -51,7 +51,10 @@ func PublicIP(ip netip.Addr) bool {
 	}
 	return true
 }
-func ClientAddress(r *http.Request, proxies []string) Address {
+
+// AdmissionAddress preserves a validated transport identity, including reserved/private addresses.
+// Statistics must continue using ClientAddress, never this security-only result.
+func AdmissionAddress(r *http.Request, proxies []string) Address {
 	out := Address{Source: "unknown"}
 	raw := r.RemoteAddr
 	if host, _, err := net.SplitHostPort(raw); err == nil {
@@ -111,6 +114,14 @@ func ClientAddress(r *http.Request, proxies []string) Address {
 	}
 	ip, err := netip.ParseAddr(out.ClientIP)
 	out.Public = err == nil && (out.Source == "direct" || out.Source == "trusted_proxy") && PublicIP(ip)
+	// Malformed/missing forwarded identity is never a claimed client address.
+	if out.Source != "direct" && out.Source != "trusted_proxy" {
+		out.ClientIP = ""
+	}
+	return out
+}
+func ClientAddress(r *http.Request, proxies []string) Address {
+	out := AdmissionAddress(r, proxies)
 	if !out.Public {
 		out.ClientIP = ""
 	}

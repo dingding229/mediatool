@@ -13,6 +13,7 @@ var (
 	ErrNotImplemented = errors.New("native playback not implemented")
 	ErrForbidden      = errors.New("native playback permission denied")
 	ErrParentalDenied = errors.New("native playback parental rating denied")
+	ErrIPDenied       = errors.New("native playback IP denied")
 	ErrUADenied       = errors.New("native playback UA denied")
 	ErrStreamLimit    = errors.New("native playback stream limit exceeded")
 	ErrNotFound       = errors.New("native playback item not found")

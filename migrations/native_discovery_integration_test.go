@@ -66,7 +66,7 @@ func TestNativeDiscoveryHTTPHierarchyLatestSearchFacetsSimilar(t *testing.T) {
 	f.exec(t, `UPDATE media_users SET max_parental_rating=65 WHERE id=$1::uuid`, f.user.ID)
 	f.exec(t, `UPDATE native_server_settings SET enabled=true,revision=revision+1`)
 	var logs bytes.Buffer
-	handler, err := httpapi.NativeMediaHandler(config.Config{SessionKey: "synthetic-discovery-key", MemberPublicURL: "https://native.synthetic.invalid"}, httpapi.Dependencies{DB: f.pool, Logger: slog.New(slog.NewTextHandler(&logs, nil))})
+	handler, err := httpapi.NativeMediaHandler(config.Config{SessionKey: "synthetic-discovery-key", MemberPublicURL: "https://native.synthetic.invalid"}, httpapi.Dependencies{IPBlock: fixtureIPBlock(t), DB: f.pool, Logger: slog.New(slog.NewTextHandler(&logs, nil))})
 	if err != nil {
 		t.Fatal(err)
 	}

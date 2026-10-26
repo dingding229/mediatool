@@ -269,7 +269,7 @@ func TestNativeProbeAdminHTTPRetryAuditsAndEnforcesCSRF(t *testing.T) {
 	if f.integer(t, `SELECT count(*) FROM audit_logs WHERE action='native.probe.retry'`) != 1 {
 		t.Fatal("disabled retry audited as success")
 	}
-	media, err := httpapi.NativeMediaHandler(cfg, httpapi.Dependencies{DB: f.pool})
+	media, err := httpapi.NativeMediaHandler(cfg, httpapi.Dependencies{IPBlock: fixtureIPBlock(t), DB: f.pool})
 	if err != nil {
 		t.Fatal(err)
 	}

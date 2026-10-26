@@ -6,8 +6,8 @@
 
 | 分类 | operations |
 |---|---:|
-| 未检出静态使用 | 432 |
-| 前端直接调用 | 164 |
+| 未检出静态使用 | 433 |
+| 前端直接调用 | 169 |
 | 资源/链接使用 | 4 |
 | 前端经适配调用 | 24 |
 | 仅适配层调用 | 3 |
@@ -748,3 +748,13 @@ POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹�
 | 方法 | 路径 | 监听器 | 使用情况 | 前端证据 |
 |---|---|---|---|---|
 | POST | `/api/v1/scheduling/cron/preview` | management | 前端直接调用：Cron实时校验与接下来5次预览（只读） | `web/src/api/scheduling.ts:4` |
+
+## T11 IP 拉黑（管理端）
+| 方法 | 路径 | listener | 使用 | 证据 |
+|---|---|---|---|---|
+| GET | `/api/v1/player-access/ip-blocklist` | management | 前端直接调用 | `web/src/api/ip-blocklist.ts:7` |
+| HEAD | `/api/v1/player-access/ip-blocklist` | management | 未检出静态使用 |  |
+| POST | `/api/v1/player-access/ip-blocklist` | management | 前端直接调用 | `web/src/api/ip-blocklist.ts:9` |
+| PUT | `/api/v1/player-access/ip-blocklist/{id}` | management | 前端直接调用 | `web/src/api/ip-blocklist.ts:9` |
+| DELETE | `/api/v1/player-access/ip-blocklist/{id}` | management | 前端直接调用 | `web/src/api/ip-blocklist.ts:10` |
+| POST | `/api/v1/player-access/ip-blocklist/check` | management | 前端直接调用 | `web/src/api/ip-blocklist.ts:8` |

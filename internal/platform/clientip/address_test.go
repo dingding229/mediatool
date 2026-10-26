@@ -54,3 +54,34 @@ func TestAddressFamiliesAndReservedRanges(t *testing.T) {
 		}
 	}
 }
+
+// Security admission needs reserved transport identities; every existing public-only facade stays unchanged.
+func TestAdmissionIdentityDoesNotChangeStatisticsOrHistoricalCallers(t *testing.T) {
+	for _, c := range []struct {
+		peer, xff       string
+		proxies         []string
+		security, stats string
+	}{
+		{"203.0.113.9:123", "8.8.8.8", nil, "203.0.113.9", ""},
+		{"[2001:db8::9]:123", "", nil, "2001:db8::9", ""},
+		{"10.0.0.1:123", "203.0.113.9", []string{"10.0.0.0/8"}, "203.0.113.9", ""},
+		{"10.0.0.1:123", "8.8.8.8", []string{"10.0.0.0/8"}, "8.8.8.8", "8.8.8.8"},
+		{"8.8.8.8:123", "1.1.1.1", nil, "8.8.8.8", "8.8.8.8"},
+		{"10.0.0.1:123", "bad,8.8.8.8", []string{"10.0.0.0/8"}, "", ""},
+	} {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.RemoteAddr = c.peer
+		r.Header.Set("X-Forwarded-For", c.xff)
+		raw := AdmissionAddress(r, c.proxies)
+		got := ClientAddress(r, c.proxies)
+		if raw.ClientIP != c.security || got.ClientIP != c.stats {
+			t.Fatal(c, raw, got)
+		}
+		if got.ConnectionIP != "" && !PublicString(got.ConnectionIP) {
+			t.Fatal("private peer entered stats")
+		}
+		if Observed(WithAddress(r, got)) != got {
+			t.Fatal("context facade changed")
+		}
+	}
+}

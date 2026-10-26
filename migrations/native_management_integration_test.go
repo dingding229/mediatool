@@ -61,6 +61,7 @@ func TestNativeManagementDevicesHistorySettingsRealHTTP(t *testing.T) {
 	c := config.Config{Environment: "development", Address: "127.0.0.1:8080", MemberAddress: "127.0.0.1:8092", MemberPublicURL: "https://native.synthetic.invalid", PublicURL: "https://admin.synthetic.invalid", SessionKey: strings.Repeat("a", 64), STRMKey: "private-global-key-marker"}
 	deps := httpapi.Dependencies{DB: f.pool, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	admin := httpapi.New(c, deps)
+	deps.IPBlock = fixtureIPBlock(t)
 	member, err := httpapi.NativeMediaHandler(c, deps)
 	if err != nil {
 		t.Fatal(err)
@@ -185,6 +186,7 @@ func TestNativeManagementDevicesHistorySettingsRealHTTP(t *testing.T) {
 		call(admin, "PUT", "/api/v1/media-server/native/settings", in, true, 400)
 	}
 	// Fresh handler simulates restart: server name and enable flag come from DB.
+	deps.IPBlock = fixtureIPBlock(t)
 	member, err = httpapi.NativeMediaHandler(c, deps)
 	if err != nil {
 		t.Fatal(err)

@@ -20,6 +20,7 @@ import (
 )
 
 type ServerOptions struct {
+	IPAdmission   func(*http.Request) (bool, error)
 	Playback      nativeplayback.Service
 	RequestOrigin func(*http.Request) (string, error)
 	Settings      nativelibrary.ServerSettingsReader
@@ -89,6 +90,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.router.ServeHTTP(w, r)
 		return
 	}
+
 	// Reject overload before permission/DB/provider work. No global lock spans
 	// processing, and queued work cannot grow without bound inside the handler.
 	select {
@@ -122,6 +124,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.serveKnown(w, r, normalized)
 }
 func (s *Server) serveKnown(w http.ResponseWriter, r *http.Request, normalized string) {
+	if s.options.IPAdmission != nil && normalized != "/healthz" && normalized != "/readyz" {
+		allowed, err := s.options.IPAdmission(r)
+		if err != nil {
+			s.router.fail(w, 503)
+			return
+		}
+		if !allowed {
+			s.playbackError(w, nativeplayback.ErrIPDenied)
+			return
+		}
+	}
 	value, err := s.options.Settings.Get(r.Context())
 	if err != nil {
 		s.router.fail(w, 503)

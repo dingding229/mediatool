@@ -201,7 +201,7 @@ func newPlaybackFixture(t *testing.T, versions ...int64) *playbackFixture {
 	resolver.Policy.Lookup = func(context.Context, string) ([]net.IPAddr, error) {
 		return []net.IPAddr{{IP: net.ParseIP("8.8.8.8")}}, nil
 	}
-	f.handler, err = httpapi.NativeMediaHandler(c, httpapi.Dependencies{DB: f.pool, Integrations: f.manager, NativePlayback: f.service, Logger: logger})
+	f.handler, err = httpapi.NativeMediaHandler(c, httpapi.Dependencies{IPBlock: fixtureIPBlock(t), DB: f.pool, Integrations: f.manager, NativePlayback: f.service, Logger: logger})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -483,7 +483,7 @@ func TestNativePlaybackExistingUACacheAndCooldown(t *testing.T) {
 	f.service.Links.(*playbackruntime.Resolver).Policy.Lookup = func(context.Context, string) ([]net.IPAddr, error) {
 		return []net.IPAddr{{IP: net.ParseIP("8.8.8.8")}}, nil
 	}
-	f.handler, err = httpapi.NativeMediaHandler(c, httpapi.Dependencies{DB: f.pool, Integrations: f.manager, NativePlayback: f.service})
+	f.handler, err = httpapi.NativeMediaHandler(c, httpapi.Dependencies{IPBlock: fixtureIPBlock(t), DB: f.pool, Integrations: f.manager, NativePlayback: f.service})
 	if err != nil {
 		t.Fatal(err)
 	}

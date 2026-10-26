@@ -564,7 +564,7 @@ func TestNativeBrowseTenThousandMoviesBudgetAndBatchBound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler, err := httpapi.NativeMediaHandler(config.Config{SessionKey: secret, MemberPublicURL: "https://native.synthetic.invalid"}, httpapi.Dependencies{DB: f.pool})
+	handler, err := httpapi.NativeMediaHandler(config.Config{SessionKey: secret, MemberPublicURL: "https://native.synthetic.invalid"}, httpapi.Dependencies{IPBlock: fixtureIPBlock(t), DB: f.pool})
 	if err != nil {
 		t.Fatal(err)
 	}
