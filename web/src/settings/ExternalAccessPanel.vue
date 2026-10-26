@@ -33,9 +33,9 @@ onUnmounted(()=>{alive=false;hideToken()});
   <AsyncResultBanner v-if="op.phase.value" :status="op.phase.value" @refresh="load" :message="op.phase.value==='queued'?'操作已排队，请核对列表。':'操作结果未确认，请先核对列表，不会自动重试。'"/>
   <StateView v-if="op.error.value" :state="stateFor(op.error.value)" :description="messageFor(op.error.value)" retry-text="核对列表" @retry="load"/>
   <p v-if="notice" role="status">{{notice}}</p><el-button v-if="op.pending.value" :disabled="op.busy.value||!!keys.error.value||keys.loading.value" @click="acknowledge">我已核对列表，结束本次操作</el-button>
-  <StateView v-if="keys.loading.value&&!keys.loaded.value" state="loading"/>
-  <StateView v-else-if="keys.error.value" :state="stateFor(keys.error.value)" :description="messageFor(keys.error.value)" @retry="load"/>
-  <StateView v-else-if="!keys.data.value.length" state="empty" title="尚无外部 API 凭据" description="按最小权限创建，可重复查看和复制，均记审计。"/>
+  <StateView compact v-if="keys.loading.value&&!keys.loaded.value" state="loading"/>
+  <StateView compact v-else-if="keys.error.value" :state="stateFor(keys.error.value)" :description="messageFor(keys.error.value)" @retry="load"/>
+  <StateView compact v-else-if="!keys.data.value.length" state="empty" title="尚无外部 API 凭据" description="按最小权限创建，可重复查看和复制，均记审计。"/>
   <div v-else class="external-key-list">
    <article v-for="key in keys.data.value" :key="key.id" class="external-key-row">
     <strong class="external-key-name" :title="key.name">{{key.name}}</strong><el-tag :type="key.revokedAt?'info':'success'">{{key.revokedAt?'已撤销':'有效'}}</el-tag>
