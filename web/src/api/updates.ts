@@ -20,5 +20,5 @@ export interface IdleUpdatePolicy{enabled:boolean;startTime:string;endTime:strin
 export interface IdleUpdateCondition{key:string;label:string;passed:boolean;reason:string}
 export interface IdleUpdateCheck{ready:boolean;timezone:string;checkedAt:string;conditions:IdleUpdateCondition[];target?:ReleaseInfo}
 export const getIdleUpdate=()=>request<IdleUpdatePolicy>('/system/online-update/idle');
-export const saveIdleUpdate=(value:IdleUpdatePolicy,password='',confirm=false)=>request<IdleUpdatePolicy>('/system/online-update/idle',{method:'PUT',body:JSON.stringify({...value,password,confirm})});
+export const saveIdleUpdate=(value:IdleUpdatePolicy,password='',confirm=false)=>request<IdleUpdatePolicy>('/system/online-update/idle',{method:'PUT',body:JSON.stringify({enabled:value.enabled,startTime:value.startTime,endTime:value.endTime,quietMinutes:value.quietMinutes,revision:value.revision,password,confirm})});
 export const checkIdleUpdate=()=>post<IdleUpdateCheck>('/system/online-update/idle/check',{});
