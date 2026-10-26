@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/emby"
+	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/modules/idleupdate"
 	"media-tool/internal/modules/imageedit"
 	"media-tool/internal/modules/integrations"
@@ -53,6 +54,8 @@ type SessionReader interface {
 	Session(context.Context, []byte) (accounts.Account, error)
 }
 type Dependencies struct {
+	ExternalSigner    *externalapi.Signer
+	ExternalCalls     *externalapi.Recorder
 	IdleUpdater       *idleupdate.Service
 	IPBlock           *ipblock.Service
 	OnlineUpdater     *onlineupdate.Service
@@ -114,6 +117,9 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	}
 	if d.Logger == nil {
 		d.Logger = slog.Default()
+	}
+	if d.ExternalSigner == nil && c.SecretKey != "" {
+		d.ExternalSigner, _ = externalapi.NewSigner(c.SecretKey)
 	}
 	a := &API{Config: c, Deps: d, Auth: auth.Auth{Key: c.SessionKey, Origin: c.PublicURL, AllowedOrigins: c.AuthAllowedOrigins, Secure: !c.Development()}, Builder: strm.Builder{BaseURL: c.PublicURL, APIKey: c.STRMKey, AllowedRoots: c.STRMAllowedRoots}}
 	if d.DB != nil {
@@ -531,7 +537,13 @@ func (a *API) middleware(next http.Handler) http.Handler {
 			}
 		}
 
-		fields := []any{"module", module, "clientIp", clientip.Observed(r).ClientIP, "url", requestURL.String(), "userAgent", r.UserAgent(), "range", r.Header.Get("Range"), "location", w.Header().Get("Location"), "method", r.Method, "path", r.URL.Path, "status", metrics.Code, "responseBytes", metrics.Written, "durationMs", metrics.Duration.Milliseconds(), "requestId", id}
+		logURL, logPath, logLocation := requestURL.String(), r.URL.Path, w.Header().Get("Location")
+		if strings.HasPrefix(r.URL.Path, "/api/external/") || strings.HasPrefix(r.URL.Path, "/api/v1/external-api/") {
+			logURL = externalLogURL(logURL)
+			logPath = externalLogText(logPath)
+			logLocation = externalLogText(logLocation)
+		}
+		fields := []any{"module", module, "clientIp", clientip.Observed(r).ClientIP, "url", logURL, "userAgent", r.UserAgent(), "range", r.Header.Get("Range"), "location", logLocation, "method", r.Method, "path", logPath, "status", metrics.Code, "responseBytes", metrics.Written, "durationMs", metrics.Duration.Milliseconds(), "requestId", id}
 		// These headers are fixed server enums. No provider URLs, raw queries,
 		// client credentials or client-supplied UA enter access logs.
 		for _, key := range []string{"X-Media-Gateway", "X-Media-Gateway-Reason", "X-Media-Delivery", "X-Media-Delivery-Reason"} {

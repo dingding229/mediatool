@@ -13,7 +13,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/platform/buildinfo"
 	"media-tool/internal/platform/database"
-	"media-tool/internal/platform/secrets"
 )
 
 func fixture(t *testing.T) Engine {
@@ -227,10 +226,6 @@ func TestRealPostgresBackupDrillAndPermanentKeyProof(t *testing.T) {
 	if _, err = e.DB.Exec(ctx, `TRUNCATE integrations,storage_connections,cloud_files,media_assets,media_items,jobs,outbox_events,external_api_keys CASCADE`); err != nil {
 		t.Fatal(err)
 	}
-	vault, err := secrets.New(e.Key)
-	if err != nil {
-		t.Fatal(err)
-	}
 	key := newID()
 	defer func() {
 		_, e := e.DB.Exec(context.Background(), `DELETE FROM external_api_keys WHERE id=$1;`, key)
@@ -238,11 +233,8 @@ func TestRealPostgresBackupDrillAndPermanentKeyProof(t *testing.T) {
 			t.Error(e)
 		}
 	}()
-	cipher, err := vault.Seal("api-key:"+key, map[string]string{"token": "synthetic-permanent-token"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = e.DB.Exec(ctx, `INSERT INTO external_api_keys(id,name,token_digest,token_ciphertext,prefix,scopes)VALUES($1,'Self restore proof',decode(repeat('ab',32),'hex'),$2,'synthetic','["status.read"]')`, key, cipher); err != nil {
+
+	if _, err = e.DB.Exec(ctx, `INSERT INTO external_api_keys(id,name,scopes)VALUES($1,'Self restore proof','["status.read"]')`, key); err != nil {
 		t.Fatal(err)
 	}
 	strm := []byte("http://127.0.0.1/api/v1/cloudStorage/strm302?apiKey=fixture-only&path=%2FSynthetic%2Fmovie.mkv\n")
@@ -287,15 +279,13 @@ func TestRealPostgresBackupDrillAndPermanentKeyProof(t *testing.T) {
 	if err != nil || !report.DryRunCiphertextsUnchanged || !report.SecondMigrationIdempotent || !report.NoWorkersStarted {
 		t.Fatal(report, err)
 	}
-	var after []byte
-	var permanent bool
-	if err = e.DB.QueryRow(ctx, `SELECT token_ciphertext,expires_at IS NULL FROM external_api_keys WHERE id=$1`, key).Scan(&after, &permanent); err != nil || string(after) != string(cipher) || !permanent {
-		t.Fatal("permanent key changed", err)
+	var restoredName string
+	var scopeJSON []byte
+	var revoked *time.Time
+	if err = e.DB.QueryRow(ctx, `SELECT name,scopes,revoked_at FROM external_api_keys WHERE id=$1`, key).Scan(&restoredName, &scopeJSON, &revoked); err != nil || restoredName != "Self restore proof" || string(scopeJSON) != `["status.read"]` || revoked != nil {
+		t.Fatal("JWT authorization metadata changed", err)
 	}
-	decoded, err := vault.Open("api-key:"+key, after)
-	if err != nil || decoded["token"] != "synthetic-permanent-token" {
-		t.Fatal("AAD changed", err)
-	}
+
 	if err = os.Remove(filepath.Join(e.OutputRoot, "Synthetic.strm")); err != nil {
 		t.Fatal(err)
 	}

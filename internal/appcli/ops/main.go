@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/platform/buildinfo"
 	"media-tool/internal/platform/config"
@@ -27,6 +28,7 @@ func run() error {
 	}
 	action := os.Args[1]
 	flags := flag.NewFlagSet(action, flag.ContinueOnError)
+	confirm := flags.Bool("confirm", false, "confirm temporary status.read credential verification and cleanup")
 	id := flags.String("id", "", "maintenance/backup UUID")
 	revision := flags.String("revision", "", "verified source revision")
 	digest := flags.String("digest", "", "image digest")
@@ -52,6 +54,18 @@ func run() error {
 		return maintenance.ErrUnsafe
 	}
 	defer db.Close()
+	if action == "external-jwt-check" {
+		if !*confirm {
+			return maintenance.ErrUnsafe
+		}
+		check, stop := context.WithTimeout(ctx, 45*time.Second)
+		defer stop()
+		out, e := externalapi.VerifyLocalLifecycle(check, db, c.SecretKey, c.Address)
+		if encodeErr := json.NewEncoder(os.Stdout).Encode(out); encodeErr != nil {
+			return encodeErr
+		}
+		return e
+	}
 	if action == "refresh-classification" {
 		return refreshClassification(ctx, db, c, *targets, os.Stdout)
 	}

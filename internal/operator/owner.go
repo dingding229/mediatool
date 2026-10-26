@@ -345,7 +345,7 @@ func (o *owner) execute(id string) (receipt map[string]any) {
 		}
 		expr := "to_jsonb(t)"
 		if table == "external_api_keys" {
-			expr = "(to_jsonb(t)-'last_used_at')"
+			expr = "(to_jsonb(t)-'last_used_at'-'last_ip'-'last_ip_source'-'last_ip_at')"
 		}
 		actual := o.sql("SELECT coalesce(md5(string_agg("+expr+"::text,E'\\n' ORDER BY "+expr+"::text)),md5(''))FROM "+table+" t", "")
 		if actual != expected {

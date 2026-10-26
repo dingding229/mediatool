@@ -20,7 +20,6 @@ var CipherColumns = []CipherColumn{
 	{Table: "plugin_v2_configs", Column: "ciphertext", AADPrefix: "plugin:v2:config:"},
 	{Table: "plugin_v2_kv", Column: "ciphertext", AADPrefix: "plugin:v2:kv:"},
 	{Table: "manual_download_tasks", Column: "payload_ciphertext", AADPrefix: "manual-download:"},
-	{Table: "external_api_keys", Column: "token_ciphertext", AADPrefix: "api-key:"},
 	{Table: "network_proxy_settings", Column: "url_ciphertext", AADPrefix: "network-proxy:", AllowEmpty: true},
 	{Table: "integrations", Column: "credentials_ciphertext"},
 	{Table: "resources", Column: "download_hint_ciphertext"},
@@ -109,6 +108,16 @@ func Rekey(ctx context.Context, db *pgxpool.Pool, old, next *Vault, dryRun bool)
 	if dryRun {
 		return counts, tx.Rollback(ctx)
 	}
+	var hasExternal bool
+	if err = tx.QueryRow(ctx, `SELECT to_regclass('external_api_keys') IS NOT NULL`).Scan(&hasExternal); err != nil {
+		return nil, err
+	}
+	if hasExternal {
+		if _, err = tx.Exec(ctx, `UPDATE external_api_keys SET revoked_at=coalesce(revoked_at,now())WHERE revoked_at IS NULL`); err != nil {
+			return nil, err
+		}
+	}
+
 	_, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('offline-operator','credentials.master_key_rotated','{}')`)
 	if err != nil {
 		return nil, err

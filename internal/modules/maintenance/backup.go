@@ -118,7 +118,7 @@ func Protected(ctx context.Context, db interface {
 			expression = "(to_jsonb(t)-'hit_count'-'last_hit_at')"
 		}
 		if name == "external_api_keys" {
-			expression = "(to_jsonb(t)-'last_used_at')"
+			expression = "(to_jsonb(t)-'last_used_at'-'last_ip'-'last_ip_source'-'last_ip_at')"
 		}
 		sql := `SELECT coalesce(md5(string_agg(` + expression + `::text,E'\n' ORDER BY ` + expression + `::text)),md5('')) FROM ` + pgx.Identifier{name}.Sanitize() + ` t`
 		if err := db.QueryRow(ctx, sql).Scan(&raw); err != nil {

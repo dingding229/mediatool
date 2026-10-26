@@ -63,7 +63,7 @@
 | POST | `/api/external/v1/search` | management | 未检出静态使用 |  |
 | GET | `/api/external/v1/search/{id}` | management | 未检出静态使用 |  |
 | HEAD | `/api/external/v1/search/{id}` | management | 未检出静态使用 |  |
-| GET | `/api/external/v1/status` | management | 前端直接调用 | `web/src/api/client.ts:29`、`web/src/settings/ExternalAccessPanel.vue:89` |
+| GET | `/api/external/v1/status` | management | 外部业务能力（非验证表单） | `internal/platform/httpapi/external_api.go` |
 | HEAD | `/api/external/v1/status` | management | 未检出静态使用 |  |
 | GET | `/api/external/v1/strm` | management | 未检出静态使用 |  |
 | HEAD | `/api/external/v1/strm` | management | 未检出静态使用 |  |
@@ -138,12 +138,12 @@
 | POST | `/api/v1/downloads/sync` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:74`、`web/src/acquisition/useManual.ts:49` |
 | POST | `/api/v1/emby/check` | management | 未检出静态使用 |  |
 | POST | `/api/v1/emby/test` | management | 前端直接调用 | `web/src/connections/GatewayDiagnostics.vue:21` |
-| GET | `/api/v1/external-api/calls` | management | 前端直接调用 | `web/src/settings/ExternalAccessPanel.vue:21` |
+| GET | `/api/v1/external-api/calls` | management | 前端直接调用 | `web/src/api/external-credentials.ts:11` |
 | HEAD | `/api/v1/external-api/calls` | management | 未检出静态使用 |  |
-| GET | `/api/v1/external-api/keys` | management | 前端直接调用（仅元数据和前缀；无令牌/哈希） | `web/src/settings/ExternalAccessPanel.vue:21` |
+| GET | `/api/v1/external-api/keys` | management | 前端直接调用 | `web/src/api/external-credentials.ts:6` |
 | HEAD | `/api/v1/external-api/keys` | management | 未检出静态使用 |  |
-| POST | `/api/v1/external-api/keys` | management | 前端直接调用（201仅此一次返回明文令牌） | `web/src/settings/ExternalAccessPanel.vue:42` |
-| POST | `/api/v1/external-api/keys/{id}/revoke` | management | 前端直接调用 | `web/src/settings/ExternalAccessPanel.vue:59` |
+| POST | `/api/v1/external-api/keys` | management | 前端直接调用 | `web/src/api/external-credentials.ts:7` |
+| POST | `/api/v1/external-api/keys/{id}/revoke` | management | 前端直接调用 | `web/src/api/external-credentials.ts:9` |
 | GET | `/api/v1/files` | management | 前端直接调用 | `web/src/files/useBrowser.ts:18`、`web/src/organize/ScanPanel.vue:56` |
 | HEAD | `/api/v1/files` | management | 未检出静态使用 |  |
 | GET | `/api/v1/files/batches/{id}` | management | 前端直接调用 | `web/src/workflows/FileBatchDialog.vue:160` |
@@ -769,3 +769,12 @@ T13：`PUT /system/updates/settings` 同时要求 enabled 与 intervalHours（1�
 | GET | `/api/v1/system/online-update/idle` | management | 前端直接调用 | `web/src/api/updates.ts:22` |
 | PUT | `/api/v1/system/online-update/idle` | management | 前端直接调用 | `web/src/api/updates.ts:23` |
 | POST | `/api/v1/system/online-update/idle/check` | management | 前端直接调用 | `web/src/api/updates.ts:24` |
+
+### T15 JWT 凭据
+
+| method | path | listener | 当前前端使用 | 证据（源码行） |
+|---|---|---|---|---|
+| POST | `/api/v1/external-api/keys/{id}/reveal` | management | 前端直接调用 | `web/src/api/external-credentials.ts:8` |
+| DELETE | `/api/v1/external-api/keys/{id}` | management | 前端直接调用 | `web/src/api/external-credentials.ts:10` |
+
+旧专用验证UI/客户端函数删除，status.read等十条正式业务路由不变。reveal动作仅view/copy；先提交披露审计再返回token。

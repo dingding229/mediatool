@@ -1227,13 +1227,15 @@ test('directory classification has ordered rules and responsive editing (fixture
  for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`classification-${width}.png`),fullPage:true,animations:'disabled'})}
 })
 
-test('external API has independent scopes, real status verification and revocation (isolated)',async({page})=>{
+test('external API has independent scopes, audited JWT disclosure and revocation (isolated)',async({page})=>{
  await fixtureLogin(page);await page.goto('/external-api');await expect(page.getByRole('heading',{name:'外部 API 凭据',exact:true})).toBeVisible()
- const response=await page.request.post('/api/v1/external-api/keys',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned isolated API',scopes:['status.read'],confirm:true}});expect(response.status()).toBe(201);const key=(await response.json()).data;expect(key.expiresAt).toBeNull();await expect(page.getByText('有效天数',{exact:true})).toHaveCount(0)
+ const response=await page.request.post('/api/v1/external-api/keys',{headers:{'X-Requested-With':'media-tool'},data:{name:'Owned isolated API',scopes:['status.read'],confirm:true}});expect(response.status()).toBe(201);const key=(await response.json()).data;expect(key).not.toHaveProperty('expiresAt');expect(key.token.split('.')).toHaveLength(3);await expect(page.getByText('有效天数',{exact:true})).toHaveCount(0)
  const status=await page.request.get('/api/external/v1/status',{headers:{Authorization:'Bearer '+key.token}});expect(status.status()).toBe(200);expect((await status.json()).data.version).toBe(expectedVersion)
  expect((await page.request.get('/api/external/v1/downloads',{headers:{Authorization:'Bearer '+key.token}})).status()).toBe(403);expect((await page.request.get('/api/external/v1/status')).status()).toBe(401)
- await page.getByRole('button',{name:'刷新',exact:true}).click();await expect(page.getByRole('heading',{name:'Owned isolated API',exact:true})).toBeVisible();await expect(page.getByLabel('完整API凭据')).toHaveCount(0);expect(await page.locator('body').innerText()).not.toContain(key.token);await page.getByLabel('待验证凭据',{exact:true}).fill(key.token);await page.getByRole('button',{name:'验证状态访问',exact:true}).click();await expect(page.getByText('验证通过：此凭据可以读取状态。',{exact:true})).toBeVisible()
- for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`external-api-${width}.png`),fullPage:true,animations:'disabled',mask:[page.getByLabel('待验证凭据')]})}
+ await page.getByRole('button',{name:'刷新',exact:true}).click();await expect(page.getByText('Owned isolated API',{exact:true})).toBeVisible();await expect(page.getByLabel('完整API凭据')).toHaveCount(0);expect(await page.locator('body').innerText()).not.toContain(key.token);
+ for(let n=0;n<2;n++){await page.getByRole('button',{name:'查看',exact:true}).first().click();await expect(page.getByLabel('完整API凭据')).toHaveValue(key.token);await page.getByRole('button',{name:'关闭凭据',exact:true}).click()}
+ for(const width of [1440,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`external-api-${width}.png`),fullPage:true,animations:'disabled'})}
+
  expect((await page.request.post(`/api/v1/external-api/keys/${key.id}/revoke`,{headers:{'X-Requested-With':'media-tool'},data:{confirm:true}})).status()).toBe(200);expect((await page.request.get('/api/external/v1/status',{headers:{Authorization:'Bearer '+key.token}})).status()).toBe(401)
 })
 

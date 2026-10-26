@@ -12,6 +12,7 @@ import (
 	"media-tool/internal/appcli"
 	"media-tool/internal/modules/acquisition"
 	sourcecatalog "media-tool/internal/modules/catalog"
+	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/modules/filemanager"
 	"media-tool/internal/modules/idleupdate"
 	"media-tool/internal/modules/integrations"
@@ -590,7 +591,20 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 	idle := idleupdate.New(db, updater, updates)
 	idle.Logger = logger
 	go idle.Run(ctx)
-	managementDeps := httpapi.Dependencies{IdleUpdater: idle, IPBlock: blocks, OnlineUpdater: updater, UpdateChecker: updates, IPGeo: geo, Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
+	signer, signErr := externalapi.NewSigner(c.SecretKey)
+	if signErr != nil && db != nil {
+		return signErr
+	}
+	callRecorder := externalapi.NewRecorder(db, logger)
+	callCtx, stopCalls := context.WithCancel(ctx)
+	callDone := make(chan struct{})
+	if db != nil {
+		go func() { defer close(callDone); callRecorder.Run(callCtx) }()
+	} else {
+		close(callDone)
+	}
+	defer func() { stopCalls(); <-callDone }()
+	managementDeps := httpapi.Dependencies{ExternalSigner: signer, ExternalCalls: callRecorder, IdleUpdater: idle, IPBlock: blocks, OnlineUpdater: updater, UpdateChecker: updates, IPGeo: geo, Integrations: manager, DB: db, Redis: rc, Storage: resolver, Logger: logger, Logs: logStore}
 	if db != nil && manager != nil {
 		store := pluginv2.Store{DB: db, Vault: manager.Repository.Vault, Root: c.PluginDataRoot, Logger: logger}
 		businessHost := pluginbusiness.AcquisitionHost{DB: db, Vault: manager.Repository.Vault, Connections: manager, Redis: rc, Network: networkproxy.NewHostClient(networkproxy.Repository{DB: db, Vault: manager.Repository.Vault})}

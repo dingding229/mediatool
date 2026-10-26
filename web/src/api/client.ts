@@ -30,12 +30,5 @@ export function subscribeJobEvents(tick:()=>void,state?:(connected:boolean)=>voi
  stream.onerror=()=>{stream.close();state?.(false)}
  return {close:()=>{stream.close();state?.(false)}}
 }
-export async function testExternalToken(token:string):Promise<void>{
- const finish=beginActivity();try{
- const response=await fetch('/api/external/v1/status',{credentials:'omit',headers:{Authorization:`Bearer ${token}`}})
- const body=await response.json()
- if(!response.ok||body.error)throw new APIError(response.status,body.error?.code??'token_rejected',body.error?.message??'验证未通过')
- }finally{finish()}
-}
 export interface ListPage<T>{items:T[];total:number;page?:number;pageSize?:number}
 export function checkedPage<T>(value:ListPage<T>):ListPage<T>{if(!value||!Array.isArray(value.items)||!Number.isSafeInteger(value.total)||value.total<0)throw Error('分页回执不完整，请重新读取。');return value;}

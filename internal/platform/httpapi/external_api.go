@@ -1,33 +1,46 @@
 package httpapi
 
 import (
-	"context"
 	"errors"
 	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/platform/buildinfo"
-	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
+	"strconv"
 	"strings"
-	"time"
 )
 
 func (a *API) apiKeys() externalapi.Repository {
-	return externalapi.Repository{DB: a.Deps.DB, Vault: a.Deps.Integrations.Repository.Vault}
+	return externalapi.Repository{DB: a.Deps.DB, Signer: a.Deps.ExternalSigner}
+}
+func (a *API) externalReady(w http.ResponseWriter) bool {
+	if a.Deps.DB == nil || a.Deps.ExternalSigner == nil {
+		fail(w, 503, "api_unavailable", "外部API凭据服务暂不可用")
+		return false
+	}
+	return true
 }
 func (a *API) listAPIKeys(w http.ResponseWriter, r *http.Request) {
-	if !a.integrationReady(w) {
+	if !a.externalReady(w) {
 		return
 	}
-	out, err := a.apiKeys().List(r.Context())
-	if err != nil {
-		fail(w, 503, "api_keys_unavailable", err.Error())
+	out, e := a.apiKeys().List(r.Context())
+	if e != nil {
+		fail(w, 503, "api_keys_unavailable", "凭据列表读取失败")
 		return
 	}
 	write(w, 200, out)
 }
+func (a *API) externalActor(w http.ResponseWriter, r *http.Request) (string, bool) {
+	v, e := a.sessionAccount(r)
+	if e != nil {
+		fail(w, 401, "unauthorized", "请重新登录")
+		return "", false
+	}
+	return v.Username, true
+}
 func (a *API) createAPIKey(w http.ResponseWriter, r *http.Request) {
-	if !a.integrationReady(w) {
+	if !a.externalReady(w) {
 		return
 	}
 	var in struct {
@@ -39,18 +52,55 @@ func (a *API) createAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !in.Confirm {
-		fail(w, 400, "confirmation_required", "请明确确认创建独立API凭据")
+		fail(w, 400, "confirmation_required", "请确认创建独立API凭据")
 		return
 	}
-	out, err := a.apiKeys().Create(r.Context(), in.Name, in.Scopes)
-	if err != nil {
-		fail(w, 400, "api_key_invalid", err.Error())
+	actor, ok := a.externalActor(w, r)
+	if !ok {
 		return
 	}
+	out, e := a.apiKeys().Create(r.Context(), in.Name, in.Scopes, actor)
+	if e != nil {
+		fail(w, 400, "api_key_invalid", "凭据创建失败，请检查名称和权限")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
 	write(w, 201, out)
 }
-func (a *API) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
-	if !a.integrationReady(w) {
+func (a *API) revealAPIKey(w http.ResponseWriter, r *http.Request) {
+	if !a.externalReady(w) {
+		return
+	}
+	var in struct {
+		Action string `json:"action"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.Action != "view" && in.Action != "copy" {
+		fail(w, 400, "api_key_invalid", "仅支持查看或复制")
+		return
+	}
+	actor, ok := a.externalActor(w, r)
+	if !ok {
+		return
+	}
+	out, e := a.apiKeys().Reveal(r.Context(), r.PathValue("id"), actor, in.Action)
+	if errors.Is(e, externalapi.ErrRevoked) {
+		fail(w, 409, "api_key_revoked", e.Error())
+		return
+	}
+	if e != nil {
+		fail(w, 503, "api_key_reveal_failed", "凭据未披露，请刷新后重试")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	write(w, 200, out)
+}
+func (a *API) revokeAPIKey(w http.ResponseWriter, r *http.Request) { a.changeAPIKey(w, r, false) }
+func (a *API) deleteAPIKey(w http.ResponseWriter, r *http.Request) { a.changeAPIKey(w, r, true) }
+func (a *API) changeAPIKey(w http.ResponseWriter, r *http.Request, remove bool) {
+	if !a.externalReady(w) {
 		return
 	}
 	var in struct {
@@ -60,35 +110,42 @@ func (a *API) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !in.Confirm {
-		fail(w, 400, "confirmation_required", "请确认撤销此API凭据")
+		fail(w, 400, "confirmation_required", "请明确确认此操作")
 		return
 	}
-	if err := a.apiKeys().Revoke(r.Context(), r.PathValue("id")); err != nil {
-		fail(w, 400, "api_key_invalid", err.Error())
+	actor, ok := a.externalActor(w, r)
+	if !ok {
 		return
 	}
-	write(w, 200, map[string]bool{"revoked": true})
+	var e error
+	if remove {
+		e = a.apiKeys().Delete(r.Context(), r.PathValue("id"), actor)
+	} else {
+		e = a.apiKeys().Revoke(r.Context(), r.PathValue("id"), actor)
+	}
+	if e != nil {
+		fail(w, 409, "api_key_invalid", "操作未完成：删除前须先撤销，请刷新后核对")
+		return
+	}
+	write(w, 200, map[string]bool{"ok": true, "revoked": !remove, "deleted": remove})
 }
 func (a *API) listAPICalls(w http.ResponseWriter, r *http.Request) {
-	if !a.integrationReady(w) {
+	if !a.externalReady(w) {
 		return
 	}
-	rows, err := a.Deps.DB.Query(r.Context(), `SELECT k.name,c.method,c.path,c.status,c.created_at FROM external_api_calls c LEFT JOIN external_api_keys k ON k.id=c.key_id ORDER BY c.id DESC LIMIT 100`)
-	if err != nil {
-		fail(w, 503, "api_calls_unavailable", err.Error())
-		return
-	}
-	defer rows.Close()
-	out := []map[string]any{}
-	for rows.Next() {
-		var name, method, path string
-		var status int
-		var at time.Time
-		if rows.Scan(&name, &method, &path, &status, &at) != nil {
-			fail(w, 503, "api_calls_unavailable", "调用记录读取失败")
+	limit := 50
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		v, e := strconv.Atoi(raw)
+		if e != nil || v < 1 || v > 100 {
+			fail(w, 400, "invalid_limit", "调用记录条数须为1–100")
 			return
 		}
-		out = append(out, map[string]any{"name": name, "method": method, "path": path, "status": status, "createdAt": at})
+		limit = v
+	}
+	out, e := a.apiKeys().Calls(r.Context(), r.URL.Query().Get("keyId"), limit)
+	if e != nil {
+		fail(w, 503, "api_calls_unavailable", "调用记录读取失败")
+		return
 	}
 	write(w, 200, out)
 }
@@ -108,7 +165,7 @@ func (w *externalResponse) Write(b []byte) (int, error) {
 func (a *API) external(scope string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		if a.Deps.DB == nil || a.Deps.Integrations == nil {
+		if a.Deps.DB == nil || a.Deps.ExternalSigner == nil {
 			fail(w, 503, "api_unavailable", "数据库不可用")
 			return
 		}
@@ -117,11 +174,14 @@ func (a *API) external(scope string, next http.HandlerFunc) http.HandlerFunc {
 			fail(w, 401, "api_unauthorized", "请使用Authorization: Bearer独立API凭据")
 			return
 		}
-		_, call, err := a.apiKeys().Admit(r.Context(), parts[1], scope, r.Method, r.URL.Path)
+		keyID, call, err := a.apiKeys().Admit(r.Context(), parts[1], scope, r.Method, externalLogText(r.URL.Path))
 		if err != nil {
 			status := 401
 			if errors.Is(err, externalapi.ErrForbidden) {
 				status = 403
+			}
+			if errors.Is(err, externalapi.ErrUnavailable) {
+				status = 503
 			}
 			if errors.Is(err, externalapi.ErrRate) {
 				status = 429
@@ -131,16 +191,17 @@ func (a *API) external(scope string, next http.HandlerFunc) http.HandlerFunc {
 		}
 		out := &externalResponse{ResponseWriter: w}
 		defer func() {
-			ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Second)
-			defer cancel()
-			if _, checkedErr := a.Deps.DB.Exec(ctx, `UPDATE external_api_calls SET status=$2 WHERE id=$1`, call, out.status); checkedErr != nil {
-				deferutil.Report(checkedErr, "internal/platform/httpapi/external_api.go:")
-				return
+			status := out.status
+			if status == 0 {
+				status = 200
 			}
-			if _, checkedErr := a.Deps.DB.Exec(ctx, `DELETE FROM external_api_calls WHERE id IN(SELECT id FROM external_api_calls ORDER BY id DESC OFFSET 10000)`); checkedErr != nil {
-				deferutil.Report(checkedErr, "internal/platform/httpapi/external_api.go:")
-				return
+			evidence, ok := r.Context().Value(ipEvidenceKey{}).(ipEvidence)
+			ip, source := "", "unknown"
+			if ok && evidence.err == nil {
+				ip = evidence.address.ClientIP
+				source = evidence.address.Source
 			}
+			a.Deps.ExternalCalls.Submit(externalapi.Observation{KeyID: keyID, CallID: call, IP: ip, Source: source, Status: status})
 		}()
 		if r.Method != "GET" && r.Method != "HEAD" {
 			if paused, err := maintenance.Paused(r.Context(), a.Deps.DB); err != nil || paused {
@@ -152,6 +213,8 @@ func (a *API) external(scope string, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 func (a *API) registerExternal(mux routeRegistrar) {
+	mux.HandleFunc("POST /api/v1/external-api/keys/{id}/reveal", a.protected(a.revealAPIKey))
+	mux.HandleFunc("DELETE /api/v1/external-api/keys/{id}", a.protected(a.deleteAPIKey))
 	mux.HandleFunc("GET /api/v1/external-api/keys", a.protected(a.listAPIKeys))
 	mux.HandleFunc("POST /api/v1/external-api/keys", a.protected(a.createAPIKey))
 	mux.HandleFunc("POST /api/v1/external-api/keys/{id}/revoke", a.protected(a.revokeAPIKey))

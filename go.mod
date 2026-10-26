@@ -10,6 +10,7 @@ require (
 	github.com/dingding229/mediatool-plugin v0.0.0-20261025203658-df2f97a23613
 	github.com/dingding229/mediatool-site v0.0.0-20261013180133-7dfba442a392
 	github.com/felixge/httpsnoop v1.1.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20261018023631-f8b0792b0cd7
 	github.com/pressly/goose/v3 v3.28.0

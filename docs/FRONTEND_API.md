@@ -286,8 +286,8 @@ X-Requested-With: media-tool
 
 - auth=admin：管理员Cookie+来源/CSRF；apikey：只接受X-API-Key；bearer：只接受Authorization Bearer；public：仅明确获准public descriptor。apikey与bearer不能混用；这也不是external API key。
 - 超限/descriptor失效/权限不足/维护暂停都在宿主拒绝。动态JSON不是通用OK，流式或非JSON能力不能凭UI猜测。
-- 外部API `/api/external/v1/*` 另用永久凭据+具体scope；不接受管理员Cookie或STRM key代替。`POST /api/v1/external-api/keys` 的 **201** 创建回执仅此一次返回完整 `token`，请立即安全保存；公开示例不使用真key。
-- `GET /api/v1/external-api/keys` 返回 `KeySummary[]`：`id/name/prefix/scopes/expiresAt/revokedAt/lastUsedAt/createdAt`。`prefix` 仅为原令牌前15字符的脱敏提示，不含完整 `token`、哈希或密文；列表不读取/解密密文，旧凭据和撤销凭据同样适用。前端列表不依赖明文，也不会补显或持久化创建回执。创建结果未知时只读列表核对，禁止自动重复创建；明文丢失则撤销并显式创建新凭据。
+- 外部API `/api/external/v1/*` 使用不设exp的HS256 JWT及具体scope；不接受管理员Cookie或STRM key替代。创建201返回token；管理员POST `/api/v1/external-api/keys/{id}/reveal` 按固定claims重签，可反复查看/复制，每次披露先提交审计，审计失败不返回token。列表不含token/digest/ciphertext。
+- `GET /api/v1/external-api/keys` 全量返回元数据及最近IP/时间，无前后端分页；调用详情GET `/api/v1/external-api/calls?keyId=...&limit=50`，limit为1–100。调用IP异步批量写入，最多30天、每凭据1000条；删除只允许已撤销凭据，关联调用记录随之清理，安全审计保留。
 
 ## 11. 运维、备份、日志与数据视图
 
@@ -396,7 +396,7 @@ X-Requested-With: media-tool
 
 状态仍为preview/pending/running/unknown/completed/rolled_back/failed，返回backupSchema/programSchema、snapshotId/appliedBackup及阶段message。重复execute对pending/running返回202，对历史终态/unknown返回200原状态，不新建执行。
 
-前端传输仍统一由`web/src/api/client.ts`管理：SSE subscribeJobEvents、外部令牌testExternalToken（credentials:omit）。普通JSON API保持same-origin；index.html不注入业务数据，传输归属与调用路径守卫继续生效。
+前端传输仍统一由`web/src/api/client.ts`管理：SSE subscribeJobEvents、外部凭据经`web/src/api/external-credentials.ts`管理（删除专用验证表单；正式外部业务status.read保留）。普通JSON API保持same-origin；index.html不注入业务数据，传输归属与调用路径守卫继续生效。
 
 ### F5a 插件配置展示边界
 

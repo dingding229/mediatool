@@ -1,37 +1,47 @@
 package httpapi
 
 import (
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
+	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/modules/integrations"
+	"media-tool/internal/platform/auth"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestExternalKeyListWireContractNeverContainsCredentialMaterial(t *testing.T) {
 	ctx, s := pluginHTTPFixture(t)
 	manager := &integrations.Manager{Repository: integrations.Repository{DB: s.DB, Vault: s.Vault}}
-	api := &API{Deps: Dependencies{DB: s.DB, Integrations: manager}}
+	c := cfg()
+	signer, _ := externalapi.NewSigner(strings.Repeat("a", 64))
+	c.SecretKey = strings.Repeat("a", 64)
+	token := legacyAdminCookie(c.SessionKey, time.Now().Add(time.Hour))
+	if _, e := (accounts.Repository{DB: s.DB}).Register(ctx, "external_fixture", "synthetic-password", token); e != nil {
+		t.Fatal(e)
+	}
+	api := &API{Config: c, Auth: auth.Auth{Key: c.SessionKey}, Deps: Dependencies{DB: s.DB, Integrations: manager, ExternalSigner: signer}}
+	adminRequest := func(method, path, body string) *http.Request {
+		r := httptest.NewRequest(method, path, strings.NewReader(body)).WithContext(ctx)
+		r.AddCookie(&http.Cookie{Name: auth.CookieName, Value: token})
+		return r
+	}
 	created := httptest.NewRecorder()
-	api.createAPIKey(created, httptest.NewRequest("POST", "/api/v1/external-api/keys", strings.NewReader(`{"name":"Owned fixture","scopes":["status.read"],"confirm":true}`)).WithContext(ctx))
+	api.createAPIKey(created, adminRequest("POST", "/api/v1/external-api/keys", `{"name":"Owned fixture","scopes":["status.read"],"confirm":true}`))
 	if created.Code != 201 {
 		t.Fatal("creation status", created.Code, created.Body.String())
 	}
 	var receipt struct {
 		Data externalapi.Key `json:"data"`
 	}
-	if err := json.Unmarshal(created.Body.Bytes(), &receipt); err != nil || len(receipt.Data.Token) != 71 {
+	if err := json.Unmarshal(created.Body.Bytes(), &receipt); err != nil || strings.Count(receipt.Data.Token, ".") != 2 {
 		t.Fatal("missing one-time credential", err)
 	}
 	key := receipt.Data
-	var digest, cipher []byte
-	if err := s.DB.QueryRow(ctx, `SELECT token_digest,token_ciphertext FROM external_api_keys WHERE id=$1`, key.ID).Scan(&digest, &cipher); err != nil {
-		t.Fatal(err)
-	}
 	// A list must not depend on recovering or decrypting an existing credential.
 	manager.Repository.Vault = nil
 	checkList := func(revoked bool) {
@@ -41,7 +51,7 @@ func TestExternalKeyListWireContractNeverContainsCredentialMaterial(t *testing.T
 		if w.Code != 200 {
 			t.Fatal("list status", w.Code, w.Body.String())
 		}
-		for _, secret := range []string{key.Token, hex.EncodeToString(digest), base64.StdEncoding.EncodeToString(digest), hex.EncodeToString(cipher), base64.StdEncoding.EncodeToString(cipher)} {
+		for _, secret := range []string{key.Token} {
 			if strings.Contains(w.Body.String(), secret) {
 				t.Fatal("credential material leaked through HTTP list")
 			}
@@ -58,7 +68,7 @@ func TestExternalKeyListWireContractNeverContainsCredentialMaterial(t *testing.T
 				t.Fatal("secret field serialized", field)
 			}
 		}
-		if string(fields["id"]) != `"`+key.ID+`"` || string(fields["prefix"]) != `"`+key.Token[:15]+`"` || string(fields["scopes"]) != `["status.read"]` {
+		if string(fields["id"]) != `"`+key.ID+`"` || string(fields["scopes"]) != `["status.read"]` {
 			t.Fatal("metadata contract changed")
 		}
 		if (string(fields["revokedAt"]) != "null") != revoked {
@@ -67,7 +77,7 @@ func TestExternalKeyListWireContractNeverContainsCredentialMaterial(t *testing.T
 		assertExternalSummarySchema(t, fields)
 	}
 	checkList(false)
-	if _, _, err := (externalapi.Repository{DB: s.DB}).Admit(ctx, key.Token, "status.read", "GET", "/api/external/v1/status"); err != nil {
+	if _, _, err := (externalapi.Repository{DB: s.DB, Signer: signer}).Admit(ctx, key.Token, "status.read", "GET", "/api/external/v1/status"); err != nil {
 		t.Fatal("creation token unusable", err)
 	}
 	if err := (externalapi.Repository{DB: s.DB}).Revoke(ctx, key.ID); err != nil {

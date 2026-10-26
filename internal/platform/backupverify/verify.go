@@ -22,6 +22,8 @@ type Table struct {
 	Columns []string `json:"columns"`
 }
 type Report struct {
+	AuthorizedExternalJWTMigrationVerified   bool             `json:"authorizedExternalJWTMigrationVerified"`
+	ExternalCredentialsInvalidated           int64            `json:"externalCredentialsInvalidated"`
 	AuthorizedPermanentKeysMigrationVerified bool             `json:"authorizedPermanentKeysMigrationVerified"`
 	InitialTables                            map[string]Table `json:"initialTables"`
 
@@ -136,12 +138,8 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 			return r, e
 		}
 	}
-	var protected49 map[string]Table
-	if r.BaselineVersion < 49 {
-		protected49, e = permanentKeysProjection(ctx, db, before)
-		if e != nil {
-			return r, e
-		}
+	if r.BaselineVersion < 89 {
+		projection = externalJWTProjection(projection)
 	}
 	if e = schema.Up(ctx, dsn); e != nil {
 		return r, e
@@ -149,6 +147,13 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 	after, e := Inventory(ctx, db, projection)
 	if e != nil {
 		return r, e
+	}
+	if r.BaselineVersion < 89 {
+		r.ExternalCredentialsInvalidated, e = verifyExternalJWTMigration(ctx, db, before)
+		if e != nil {
+			return r, e
+		}
+		r.AuthorizedExternalJWTMigrationVerified = true
 	}
 	compareBefore, compareAfter := map[string]Table{}, map[string]Table{}
 	for n, v := range projection {
@@ -174,24 +179,7 @@ func Verify(ctx context.Context, db *pgxpool.Pool, dsn, expected, key string, te
 		}
 		r.AuthorizedSubscriptionMigrationVerified = true
 	}
-	if protected49 != nil {
-		actual49, err := permanentKeysProjection(ctx, db, before)
-		if err != nil {
-			return r, err
-		}
-		if !equal(protected49, actual49, false) {
-			return r, errors.New("unapproved API credential change")
-		}
-		var invalid int
-		if err = db.QueryRow(ctx, `SELECT count(*) FROM external_api_keys WHERE expires_at IS NOT NULL`).Scan(&invalid); err != nil || invalid != 0 {
-			return r, errors.New("API keys are not permanent")
-		}
-		for name := range protected49 {
-			delete(compareBefore, name)
-			delete(compareAfter, name)
-		}
-		r.AuthorizedPermanentKeysMigrationVerified = true
-	}
+
 	r.LegacyBusinessColumnsPreserved = equal(compareBefore, compareAfter, true)
 	if !r.LegacyBusinessColumnsPreserved {
 		return r, errors.New("legacy data changed during migration")

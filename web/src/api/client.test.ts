@@ -18,12 +18,10 @@ it('preserves structured recovery guidance without replaying an unknown effect',
  await expect(post('/pipeline/transfers/owned/retry',{})).rejects.toMatchObject({flow:{retryable:false,nextAction:'reconcile_upload'}})
  expect(fetch).toHaveBeenCalledTimes(1)
 })
-it('keeps external tokens cookie-free and closes SSE on error',async()=>{
- const {testExternalToken,subscribeJobEvents}=await import('./client')
+it('closes SSE on error',async()=>{
+ const {subscribeJobEvents}=await import('./client')
  const transport=vi.fn().mockResolvedValue({ok:true,status:200,json:async()=>({data:{}}),text:async()=> 'https://example.test/stable'})
  vi.stubGlobal('fetch',transport)
- await testExternalToken('owned-token')
- expect(transport).toHaveBeenCalledWith('/api/external/v1/status',{credentials:'omit',headers:{Authorization:'Bearer owned-token'}})
  const close=vi.fn(),tick=vi.fn();let stream:any
  vi.stubGlobal('EventSource',class{onerror:any;close=close;constructor(public path:string,public options:unknown){stream=this}addEventListener(event:string,fn:()=>void){expect(event).toBe('tick');fn()}})
  const subscription=subscribeJobEvents(tick)
