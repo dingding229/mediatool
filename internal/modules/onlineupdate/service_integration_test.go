@@ -46,7 +46,7 @@ func TestFreshReleaseHubMismatchIsAuditedBeforeDocker(t *testing.T) {
 	if _, e = db.Exec(t.Context(), `CREATE TABLE audit_logs(actor text,action text,details jsonb)`); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = db.Exec(t.Context(), `CREATE TABLE app_settings(LIKE public.app_settings INCLUDING ALL);INSERT INTO app_settings(key,value)VALUES('online_update.execution','true'::jsonb)`); e != nil {
+	if _, e = db.Exec(t.Context(), `CREATE TABLE app_settings(LIKE public.app_settings INCLUDING ALL);INSERT INTO app_settings(key,value)VALUES('online_update.execution','false'::jsonb)`); e != nil {
 		t.Fatal(e)
 	}
 	checker := updatecheck.New(db, nil)

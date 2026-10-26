@@ -3,35 +3,24 @@ package onlineupdate
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
 
-var ErrDisabled = errors.New("在线更新执行开关关闭")
-
-const executionKey = "online_update.execution"
 const recoveryPrefix = "online_update.recovery."
 
 type Control struct {
-	Enabled  bool     `json:"executionEnabled"`
 	Recovery []string `json:"recoveryRequired"`
 }
 
-// Both the latch and audit survive task-file removal. Old manual-recovery audit
+// Both the recovery latch and audit survive task-file removal. Old manual-recovery audit
 // records also interlock the first startup after upgrading from the old runner.
 func (s *Service) Control(ctx context.Context) (Control, error) {
 	c := Control{Recovery: []string{}}
 	if s.DB == nil {
 		return c, ErrUnsafe
 	}
-	var enabled bool
-	e := s.DB.QueryRow(ctx, `SELECT COALESCE((SELECT value='true'::jsonb FROM app_settings WHERE key=$1),false)`, executionKey).Scan(&enabled)
-	if e != nil {
-		return c, e
-	}
-	c.Enabled = enabled
 	rows, e := s.DB.Query(ctx, `SELECT DISTINCT id FROM (
  SELECT substring(key from length($1)+1) id FROM app_settings WHERE left(key,length($1))=$1 AND value='true'::jsonb
  UNION SELECT details->>'id' FROM audit_logs a WHERE action='online_update.manual_recovery' AND NOT EXISTS
@@ -73,32 +62,20 @@ func (s *Service) SetControl(ctx context.Context, actor, action, id string) erro
 	if e != nil {
 		return e
 	}
-	key, value, auditAction := executionKey, false, "online_update.execution_disabled"
-	details := map[string]any{}
-	switch action {
-	case "enable":
-		if len(c.Recovery) > 0 {
-			return ErrBusy
-		}
-		value = true
-		auditAction = "online_update.execution_enabled"
-	case "disable":
-	case "confirm_recovery":
-		found := false
-		for _, v := range c.Recovery {
-			if v == id {
-				found = true
-			}
-		}
-		if !found || !idPattern.MatchString(id) {
-			return ErrUnsafe
-		}
-		key = recoveryPrefix + id
-		auditAction = "online_update.recovery_confirmed"
-		details["id"] = id
-	default:
+	if action != "confirm_recovery" {
 		return ErrUnsafe
 	}
+	found := false
+	for _, v := range c.Recovery {
+		if v == id {
+			found = true
+		}
+	}
+	if !found || !idPattern.MatchString(id) {
+		return ErrUnsafe
+	}
+	key, value, auditAction := recoveryPrefix+id, false, "online_update.recovery_confirmed"
+	details := map[string]any{"id": id}
 	tx, e := s.DB.Begin(ctx)
 	if e != nil {
 		return e

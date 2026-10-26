@@ -57,7 +57,7 @@ func TestPersistedToggleChecksOneTimeNoticeAndUntrustedInvalidation(t *testing.T
 	if e != nil || !v.Enabled || v.IntervalHours != 12 {
 		t.Fatal(v, e)
 	}
-	if _, e = s.SetEnabled(ctx, false); e != nil {
+	if _, e = s.SetSettings(ctx, false, 12); e != nil {
 		t.Fatal(e)
 	}
 	v, e = s.Check(ctx)

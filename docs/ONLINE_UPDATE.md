@@ -1,10 +1,10 @@
-# 在线更新（F8b / v0.28.4 安全修复）
+# 在线更新（F8b 安全边界 / T13 常开与检查计划）
 
 ## 权限、凭据和默认状态
 
-- 只有管理员可访问检查、控制和执行接口。**执行开关默认关闭**，更新检查独立保留。开启执行、关闭执行、人工恢复确认都要求当前管理员密码复核、明确确认并写审计；真正更新还需再次确认目标与密码。
-- 控制状态保存在 PostgreSQL `app_settings`，与对应审计同事务提交，不增加迁移（schema 79）。执行 API 与 helper 启动准入检查开关，前端按钮同样禁止未开启的执行。
-- `manual_recovery` 写入数据库互锁及终态审计；兼容读取旧版未确认的 manual_recovery 审计。**删除 `/data` 任务文件不能解锁**。只有「任务已完成人工确认」显式操作（按任务 ID）可解除，且写 `online_update.recovery_confirmed`；确认不等于开启执行开关。不得以删除文件、重试更新代替恢复核查。
+- 只有管理员可访问检查、恢复确认和执行接口。在线更新常开，但仍要求 docker.sock、权限/GID、部署身份与白名单校验；环境缺失时显示明确原因并禁用一键更新，检查更新仍可用。真正更新始终要求当前密码复核与风险确认。
+- schema 87 废弃 `online_update.execution` 设置及 enable/disable 命令；检查设置使用 `system.update-check` 的 enabled / intervalHours（1–168 小时，默认12）。后台每分钟读取一次已保存设置，不改变已验证结果；手动检查仍有一分钟节流。Down 恢复旧执行键为安全关闭并删除 intervalHours，不修改任何凭据。
+- `manual_recovery` 写入数据库互锁及终态审计；兼容读取旧版未确认的 manual_recovery 审计。**删除 `/data` 任务文件不能解锁**。只有「任务已完成人工确认」显式操作（按任务 ID）可解除，且写 `online_update.recovery_confirmed`；确认只解除指定任务互锁，不触发更新。不得以删除文件、重试更新代替恢复核查。
 - socket 等同宿主机 root 权限；app 仍 UID/GID 65532，只追加批准的 GID 994，不修改 socket 属主或权限。白名单是正常代码路径限制，**不是应用被攻陷后的宿主机隔离边界**。
 - helper 使用**目标 Release 不可变 digest** 内的 updater，故修复逻辑可从目标镜像生效；目标供应链信任也等同 root。启动前检查 Release/Hub digest、AMD64、版本、commit、schema、仓库；helper 内及切换前重查 Release/Hub，拒绝可变 tag 或不一致结果。
 - 脱敏 plan、状态、stderr、日志、审计、API 均不保存 DATABASE_URL、密码、Token、Cookie。DSN 只从身份/配置指纹校验后的原容器 inspect 恢复到 helper 内存，用于备份、实际 schema、恢复和终态审计；失败时 app 用自身连接对账。
@@ -61,3 +61,7 @@ helper 始终使用目标 Release digest。本次从 v0.28.4 到 v0.28.5 的演�
 回归使用 config-only 的本地隔离派生镜像，逐项改变上述 Dockerfile 可表达的字段；test-only inspect 路由将目标 digest 的读取指向该真实派生镜像 ID，其余 helper 流程使用真实 Docker/PG。每项严格核对差异字段；CMD 构建同时显式产生 ArgsEscaped=false，两项都保留比较、没有排除。单元测试另外独立改变每个键。任务必须 failed、没有备份/停容器/改 Compose/回滚，原容器 ID 与 StartedAt 不变，并以同一 VM 时钟持续探测 readyz。派生镜像只用于测试，按本程序专属随机 tag 精确删除，不推送、不代替生产 Hub 镜像。
 
 本地定向运行：`bash scripts/test-updater-helper.sh startup-config`；Actions 默认不带参数，仍执行全部整链及新增守卫用例。所有改库操作限 media_tool_test，串行执行。
+
+## T13 版本更新卡片
+
+卡片只展示检查设置、可信最新版本与 Markdown 变更说明、一键更新和一行最近结果。风险、白名单、执行管理员、备份目录、阶段列表及人工恢复确认入口在“更新详情”弹窗内。移除开关不改变 F8b 的预检、替换、回滚、启动配置守卫、密码复核、人工恢复锁和审计。生产验收不实际启动一键更新。

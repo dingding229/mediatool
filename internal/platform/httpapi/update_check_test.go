@@ -72,8 +72,26 @@ func TestOnlineUpdateControlRequiresPasswordConfirmation(t *testing.T) {
 		}
 	}
 	w := httptest.NewRecorder()
-	a.controlOnlineUpdate(w, httptest.NewRequest("POST", "/", strings.NewReader(`{"action":"enable","password":"private-fixture","confirm":true}`)))
+	a.controlOnlineUpdate(w, httptest.NewRequest("POST", "/", strings.NewReader(`{"action":"confirm_recovery","password":"private-fixture","confirm":true}`)))
 	if w.Code != 401 {
 		t.Fatal(w.Code)
+	}
+}
+
+func TestT13UpdateSettingsRejectInvalidIntervals(t *testing.T) {
+	a := &API{}
+	for _, body := range []string{`{}`, `{"enabled":true}`, `{"enabled":true,"intervalHours":0}`, `{"enabled":false,"intervalHours":169}`, `{"enabled":true,"intervalHours":1.5}`, `{"enabled":true,"intervalHours":"12"}`} {
+		w := httptest.NewRecorder()
+		a.saveUpdateSettings(w, httptest.NewRequest("PUT", "/", strings.NewReader(body)))
+		if w.Code != 400 {
+			t.Fatal(body, w.Code)
+		}
+	}
+	for _, action := range []string{"enable", "disable", "unknown"} {
+		w := httptest.NewRecorder()
+		a.controlOnlineUpdate(w, httptest.NewRequest("POST", "/", strings.NewReader(`{"action":"`+action+`","password":"private-fixture","confirm":true}`)))
+		if w.Code != 400 || strings.Contains(w.Body.String(), "private-fixture") {
+			t.Fatal(action, w.Code)
+		}
 	}
 }

@@ -78,3 +78,5 @@ it('late user login detail reads cannot reopen a drawer after tab navigation',as
  late.resolve({ok:true,status:200,json:async()=>({data:{...user,id:'idle-user'}})});await pending;
  expect(s.open).toBe(false);expect(s.detail).toBe(null);
 });
+
+it('T13 UA pages keep a complete pagination shape before, during and after failed reads',async()=>{const pending=deferred();fetch.mockImplementation(async()=>pending.promise);const s=mount(Access);expect(s.records.data).toEqual({items:[],total:0});expect(s.visits.data).toEqual({items:[],total:0});pending.reject(Error('unavailable'));await flush();expect(s.records.error).toBeTruthy();expect(s.visits.error).toBeTruthy();expect(s.records.data.total).toBe(0);expect(s.visits.data.total).toBe(0)})

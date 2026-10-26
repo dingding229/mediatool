@@ -10630,6 +10630,41 @@
           "logs_unavailable"
         ]
       },
+      "HTTP400_cec28cf0d37d": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "invalid_json",
+                            "invalid_update_control",
+                            "update_confirmation_required"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "invalid_json",
+          "invalid_update_control",
+          "update_confirmation_required"
+        ]
+      },
       "HTTP400_d5cdd3dd1272": {
         "content": {
           "application/json": {
@@ -11827,43 +11862,6 @@
         "x-error-codes": [
           "csrf_rejected",
           "invalid_current_password",
-          "password_change_required"
-        ]
-      },
-      "HTTP403_98f6faabd6f9": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "csrf_rejected",
-                            "invalid_current_password",
-                            "online_update_disabled",
-                            "password_change_required"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "csrf_rejected",
-          "invalid_current_password",
-          "online_update_disabled",
           "password_change_required"
         ]
       },
@@ -28006,9 +28004,6 @@
       "modules_onlineupdate_Control": {
         "additionalProperties": false,
         "properties": {
-          "executionEnabled": {
-            "type": "boolean"
-          },
           "recoveryRequired": {
             "items": {
               "type": "string"
@@ -28020,7 +28015,6 @@
           }
         },
         "required": [
-          "executionEnabled",
           "recoveryRequired"
         ],
         "type": "object",
@@ -28119,9 +28113,6 @@
           "available": {
             "type": "boolean"
           },
-          "executionEnabled": {
-            "type": "boolean"
-          },
           "job": {
             "anyOf": [
               {
@@ -28153,7 +28144,6 @@
         },
         "required": [
           "available",
-          "executionEnabled",
           "job",
           "policyVerified",
           "reason",
@@ -82351,7 +82341,7 @@
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
           },
           "403": {
-            "$ref": "#/components/responses/HTTP403_98f6faabd6f9"
+            "$ref": "#/components/responses/HTTP403_886e140f7c73"
           },
           "409": {
             "$ref": "#/components/responses/HTTP409_5d6996c1ec1e"
@@ -82428,7 +82418,7 @@
             "$ref": "#/components/responses/HTTP200_8355c81e8935"
           },
           "400": {
-            "$ref": "#/components/responses/HTTP400_a013dc15908e"
+            "$ref": "#/components/responses/HTTP400_cec28cf0d37d"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -82870,6 +82860,17 @@
                     "anyOf": [
                       {
                         "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "intervalHours": {
+                    "anyOf": [
+                      {
+                        "format": "int64",
+                        "type": "integer"
                       },
                       {
                         "type": "null"

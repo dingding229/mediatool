@@ -49,8 +49,6 @@ func (a *API) executeOnlineUpdate(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	j, e := a.onlineUpdater().Start(ctx, actor, in.Version, in.Digest)
 	switch {
-	case errors.Is(e, onlineupdate.ErrDisabled):
-		fail(w, 403, "online_update_disabled", e.Error())
 	case errors.Is(e, onlineupdate.ErrBusy):
 		fail(w, 409, "online_update_busy", e.Error())
 	case errors.Is(e, updatecheck.ErrUntrusted):
@@ -102,6 +100,10 @@ func (a *API) controlOnlineUpdate(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
+	if in.Action != "confirm_recovery" {
+		fail(w, 400, "invalid_update_control", "仅支持确认已完成人工恢复的更新任务")
+		return
+	}
 	if !in.Confirm || in.Password == "" {
 		fail(w, 400, "update_confirmation_required", "请输入管理员密码并明确确认此操作")
 		return
@@ -117,7 +119,7 @@ func (a *API) controlOnlineUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if e != nil {
-		fail(w, 409, "online_update_control_rejected", "执行设置未变更，请读取当前状态")
+		fail(w, 409, "online_update_control_rejected", "人工恢复确认未完成，请读取当前状态")
 		return
 	}
 	write(w, 200, map[string]bool{"ok": true})

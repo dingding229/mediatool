@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func TestExecutionGateAndRecoveryLatchSurviveTaskRemoval(t *testing.T) {
+func TestAlwaysOnAdmissionAndRecoveryLatchSurviveTaskRemoval(t *testing.T) {
 	if os.Getenv("TEST_DATABASE_URL") == "" {
 		t.Skip("media_tool_test only")
 	}
@@ -34,14 +34,13 @@ func TestExecutionGateAndRecoveryLatchSurviveTaskRemoval(t *testing.T) {
 	}
 	s := &Service{Root: t.TempDir(), DB: db}
 	c, e := s.Control(t.Context())
-	if e != nil || c.Enabled || len(c.Recovery) != 0 {
+	if e != nil || len(c.Recovery) != 0 {
 		t.Fatal(e, c)
 	}
-	if _, e = s.Start(t.Context(), "admin", "0.28.5", "invalid"); !errors.Is(e, ErrDisabled) {
-		t.Fatal("default gate failed", e)
-	}
-	if e = s.SetControl(t.Context(), "admin", "enable", ""); e != nil {
-		t.Fatal(e)
+	for _, action := range []string{"enable", "disable"} {
+		if e = s.SetControl(t.Context(), "admin", action, ""); !errors.Is(e, ErrUnsafe) {
+			t.Fatal("obsolete control accepted", action, e)
+		}
 	}
 	j := Job{ID: id, Actor: "admin", Phase: "manual_recovery", CreatedAt: time.Now()}
 	if e = save(s.Root, j); e != nil {
@@ -57,7 +56,7 @@ func TestExecutionGateAndRecoveryLatchSurviveTaskRemoval(t *testing.T) {
 	if e != nil || len(c.Recovery) != 1 || c.Recovery[0] != id {
 		t.Fatal("task deletion unlocked recovery", e, c)
 	}
-	if e = s.SetControl(t.Context(), "admin", "enable", ""); !errors.Is(e, ErrBusy) {
+	if _, e = s.Start(t.Context(), "admin", "0.28.5", "invalid"); !errors.Is(e, ErrBusy) {
 		t.Fatal(e)
 	}
 	if e = s.SetControl(t.Context(), "admin", "confirm_recovery", id); e != nil {
@@ -73,12 +72,6 @@ func TestExecutionGateAndRecoveryLatchSurviveTaskRemoval(t *testing.T) {
 	}
 	if e = s.SetControl(t.Context(), "admin", "confirm_recovery", id); e == nil {
 		t.Fatal("duplicate confirmation accepted")
-	}
-	if e = s.SetControl(t.Context(), "admin", "disable", ""); e != nil {
-		t.Fatal(e)
-	}
-	if _, e = s.Start(t.Context(), "admin", "0.28.5", "invalid"); !errors.Is(e, ErrDisabled) {
-		t.Fatal(e)
 	}
 	var n int
 	if e = db.QueryRow(t.Context(), `SELECT count(*) FROM audit_logs WHERE action='online_update.recovery_confirmed' AND details->>'id'=$1`, id).Scan(&n); e != nil || n != 1 {

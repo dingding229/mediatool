@@ -8,7 +8,7 @@ describe('F8b execution contract',()=>{
 
 it('execution controls carry password only in JSON body',async()=>{
  const fetch=vi.fn().mockResolvedValue({ok:true,status:200,headers:new Headers(),json:async()=>({data:{ok:true}})});vi.stubGlobal('fetch',fetch);
- const {setOnlineUpdateControl}=await import('../api/updates');await setOnlineUpdateControl('confirm_recovery','fixture-job','fixture-secret',true);
+ const {confirmOnlineUpdateRecovery}=await import('../api/updates');await confirmOnlineUpdateRecovery('fixture-job','fixture-secret',true);
  expect(fetch.mock.calls[0][0]).toBe('/api/v1/system/online-update/control');expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({action:'confirm_recovery',jobId:'fixture-job',password:'fixture-secret',confirm:true});vi.unstubAllGlobals();
 });
 

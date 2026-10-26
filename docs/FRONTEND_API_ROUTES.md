@@ -691,13 +691,13 @@ F5b 图标：新增 `GET /pt/templates/{id}/favicon`，管理员会话保护，�
 
 | method | path | listener | 当前前端使用 | 证据（源码行） |
 |---|---|---|---|---|
-| GET | `/api/v1/system/version` | management | 前端经适配调用 | `web/src/api/updates.ts:5` |
-| GET | `/api/v1/system/updates` | management | 前端经适配调用 | `web/src/api/updates.ts:6` |
-| PUT | `/api/v1/system/updates/settings` | management | 前端经适配调用 | `web/src/api/updates.ts:8` |
-| POST | `/api/v1/system/updates/check` | management | 前端经适配调用 | `web/src/api/updates.ts:7` |
-| POST | `/api/v1/system/updates/notice` | management | 前端经适配调用 | `web/src/api/updates.ts:9` |
+| GET | `/api/v1/system/version` | management | 前端经适配调用 | `web/src/api/updates.ts:7` |
+| GET | `/api/v1/system/updates` | management | 前端经适配调用 | `web/src/api/updates.ts:8` |
+| PUT | `/api/v1/system/updates/settings` | management | 前端经适配调用 | `web/src/api/updates.ts:10` |
+| POST | `/api/v1/system/updates/check` | management | 前端经适配调用 | `web/src/api/updates.ts:9` |
+| POST | `/api/v1/system/updates/notice` | management | 前端经适配调用 | `web/src/api/updates.ts:11` |
 
-以上全部为管理员端接口，媒体用户令牌不可使用；没有部署/拉取镜像或 Docker API。GET 只读取缓存。手动检查最多每分钟一次网络检查，后台默认每 12 小时，可关闭。notice 对每个可信新版本原子认领一次。公开 API 固定 GitHub/Docker Hub 仓库，响应不可信或 digest 不匹配不提示更新；不接受自定义 URL。
+以上全部为管理员端接口，媒体用户令牌不可使用；没有部署/拉取镜像或 Docker API。GET 只读取缓存。手动检查最多每分钟一次网络检查，后台间隔可设置为 1–168 小时（默认12），可关闭。notice 对每个可信新版本原子认领一次。公开 API 固定 GitHub/Docker Hub 仓库，响应不可信或 digest 不匹配不提示更新；不接受自定义 URL。
 
 ## F8b 在线更新执行与状态
 
@@ -759,3 +759,5 @@ POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹�
 | POST | `/api/v1/player-access/ip-blocklist/check` | management | 前端直接调用 | `web/src/api/ip-blocklist.ts:8` |
 
 T12：`GET /api/v1/auth/sessions` 不分页，一次返回全部有效会话，仍排除过期、撤销、超过创建后30天、凭据版本失效及临时密码失效的会话；不读取历史无效会话。站点账号编辑的 `values` 沿用加密存储，允许管理员修改 `cookie` / `userAgent` / `passkey`，RSS 地址仍经已有站点验证；不写入审计明文。
+
+T13：`PUT /system/updates/settings` 同时要求 enabled 与 intervalHours（1–168 的整数）；保存不覆盖检查结果。在线更新常开，不再返回 executionEnabled；`POST /system/online-update/control` 仅接受 confirm_recovery，旧 enable/disable 返回400。更新执行及人工恢复确认仍要求当前管理员密码与 confirm=true；F8b 核心安全约束不变。

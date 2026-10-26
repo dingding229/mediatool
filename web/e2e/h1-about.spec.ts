@@ -10,7 +10,7 @@ for(const width of [1440,390])for(const theme of ['light','dark'])test(`H1 about
  await page.setViewportSize({width,height:950});await u5PlaybackFixture(page);await page.addInitScript(mode=>localStorage.setItem('media-tool:theme-mode:v1',mode),theme);
  await page.route('**/api/v1/system/version',r=>r.fulfill({json:{data:current}}));
  await page.route('**/api/v1/system/updates',r=>r.fulfill({json:{data:{enabled:true,current,hasUpdate:false,intervalHours:12,result:{status:'verified',checkedAt:'2026-10-24T09:00:00Z',latest}}}}));
- await page.route('**/api/v1/system/online-update',r=>r.fulfill({json:{data:{executionEnabled:true,recoveryRequired:[],available:true,reason:'',socketMounted:true,policyVerified:true,job:null}}}));
+ await page.route('**/api/v1/system/online-update',r=>r.fulfill({json:{data:{recoveryRequired:[],available:true,reason:'',socketMounted:true,policyVerified:true,job:null}}}));
  await page.route('**/api/v1/downloads?*',r=>r.fulfill({json:{data:{items:[{id:'h1-download',title:'分页验收任务',state:'imported',progress:1}],total:1,page:1,pageSize:25}}}));
  await page.goto('/settings?tab=about');await expect(page.getByRole('region',{name:'关于 Media Tool',exact:true})).toBeVisible();
  await expect(page.locator('.f8-about')).toContainText('0.29.0');
@@ -36,6 +36,6 @@ test('H1 older release notes stay collapsed without changing execution control',
  await u5PlaybackFixture(page);const older={...latest,version:'0.28.5',tag:'v0.28.5'};
  await page.route('**/api/v1/system/version',r=>r.fulfill({json:{data:current}}));
  await page.route('**/api/v1/system/updates',r=>r.fulfill({json:{data:{enabled:true,current,hasUpdate:false,intervalHours:12,result:{status:'verified',latest:older}}}}));
- await page.route('**/api/v1/system/online-update',r=>{expect(r.request().method()).toBe('GET');return r.fulfill({json:{data:{executionEnabled:true,recoveryRequired:[],available:true,socketMounted:true,policyVerified:true,job:null}}})});
- await page.goto('/settings?tab=about');await expect(page.locator('.release-notes summary')).toContainText('v0.28.5');await expect(page.locator('.release-notes-body')).not.toBeVisible();await expect(page.getByRole('button',{name:'一键更新',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'关闭执行',exact:true})).toBeEnabled();
+ await page.route('**/api/v1/system/online-update',r=>{expect(r.request().method()).toBe('GET');return r.fulfill({json:{data:{recoveryRequired:[],available:true,socketMounted:true,policyVerified:true,job:null}}})});
+ await page.goto('/settings?tab=about');await expect(page.locator('.release-notes summary')).toContainText('v0.28.5');await expect(page.locator('.release-notes-body')).not.toBeVisible();await expect(page.getByRole('button',{name:'一键更新',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'更新详情',exact:true})).toBeEnabled();await expect(page.getByRole('button',{name:/开启执行|关闭执行/})).toHaveCount(0);
 });

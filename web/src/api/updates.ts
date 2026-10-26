@@ -7,11 +7,11 @@ function state(value:UpdateState){if(!value||typeof value.enabled!=='boolean'||t
 export const getBuildInfo=()=>request<BuildInfo>('/system/version').then(build);
 export const getUpdateState=()=>request<UpdateState>('/system/updates').then(state);
 export const checkUpdates=()=>post<UpdateState>('/system/updates/check',{}).then(state);
-export const setUpdateChecks=(enabled:boolean)=>request<UpdateState>('/system/updates/settings',{method:'PUT',body:JSON.stringify({enabled})}).then(state);
+export const setUpdateChecks=(enabled:boolean,intervalHours:number)=>request<UpdateState>('/system/updates/settings',{method:'PUT',body:JSON.stringify({enabled,intervalHours})}).then(state);
 export const takeUpdateNotice=()=>post<{release:ReleaseInfo|null}>('/system/updates/notice',{});
 export interface OnlineUpdateJob{id:string;actor:string;fromVersion:string;fromImage:string;target:ReleaseInfo;phase:string;failure?:string;createdAt:string;updatedAt:string;backup:string;dumpSHA256:string;events:{at:string;phase:string}[]}
-export interface OnlineUpdateStatus{executionEnabled:boolean;recoveryRequired:string[];available:boolean;reason:string;socketMounted:boolean;policyVerified:boolean;job:OnlineUpdateJob|null}
+export interface OnlineUpdateStatus{recoveryRequired:string[];available:boolean;reason:string;socketMounted:boolean;policyVerified:boolean;job:OnlineUpdateJob|null}
 export const getOnlineUpdate=()=>request<OnlineUpdateStatus>('/system/online-update');
 export const executeOnlineUpdate=(version:string,digest:string,password:string,confirm:boolean)=>post<OnlineUpdateJob>('/system/online-update',{version,digest,password,confirm});
 
-export const setOnlineUpdateControl=(action:"enable"|"disable"|"confirm_recovery",jobId:string,password:string,confirm:boolean)=>post<{ok:boolean}>('/system/online-update/control',{action,jobId,password,confirm});
+export const confirmOnlineUpdateRecovery=(jobId:string,password:string,confirm:boolean)=>post<{ok:boolean}>('/system/online-update/control',{action:'confirm_recovery',jobId,password,confirm});

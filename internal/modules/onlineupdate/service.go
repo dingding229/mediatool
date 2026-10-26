@@ -139,8 +139,11 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 	if v.Available {
 		v.PolicyVerified = policyCheck(d)
 		v.Available = v.PolicyVerified
+		if !v.PolicyVerified {
+			v.Reason = "Docker API 白名单校验未通过，一键更新不可用；仍可检查更新"
+		}
 	} else {
-		v.Reason = "未挂载 docker.sock、权限不足或部署身份不符合安全要求；仍可检查更新"
+		v.Reason = availabilityReason(v.SocketMounted, e)
 	}
 	j, e := latest(s.Root)
 	if errors.Is(e, os.ErrNotExist) {
@@ -151,15 +154,22 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 		return v, e
 	}
 	v.Control, e = s.Control(ctx)
-	if !v.Enabled {
-		v.Available = false
-		v.Reason = "执行开关默认关闭；由管理员复核密码后开启"
-	}
 	if len(v.Recovery) > 0 {
 		v.Available = false
 		v.Reason = "存在未完成人工确认的更新任务"
 	}
 	return v, e
+}
+
+// Explain admission prerequisites without changing updater preflight or Docker policy.
+func availabilityReason(socketMounted bool, err error) string {
+	if !socketMounted {
+		return "未挂载 docker.sock，一键更新不可用；仍可检查更新"
+	}
+	if errors.Is(err, os.ErrPermission) {
+		return "docker.sock 权限不足，请由运维核对宿主机 Docker GID 与 app 附加组；仍可检查更新"
+	}
+	return "Docker 服务不可达或部署身份不符合安全要求（app身份、数据卷、Compose标签或网络）；仍可检查更新"
 }
 func (s *Service) Start(ctx context.Context, actor, version, digest string) (Job, error) {
 	var j Job
@@ -178,9 +188,6 @@ func (s *Service) Start(ctx context.Context, actor, version, digest string) (Job
 	control, e := s.Control(ctx)
 	if e != nil {
 		return j, e
-	}
-	if !control.Enabled {
-		return j, ErrDisabled
 	}
 	if len(control.Recovery) > 0 {
 		return j, ErrBusy
@@ -345,8 +352,8 @@ func (s *Service) launchDocker(ctx context.Context, d *docker, id string) {
 		return
 	}
 	control, controlErr := s.Control(ctx)
-	if controlErr != nil || !control.Enabled || len(control.Recovery) > 0 {
-		s.failQueued(ctx, id, "execution_disabled")
+	if controlErr != nil || len(control.Recovery) > 0 {
+		s.failQueued(ctx, id, "recovery_required")
 		return
 	}
 	if _, e = d.request(ctx, "POST", "/images/create?fromImage="+urlQuery(d.target)+"&platform=linux%2Famd64", nil); e != nil {

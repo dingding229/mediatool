@@ -19,10 +19,13 @@ import (
 const settingsKey = "system.update-check"
 const latestURL = "https://api.github.com/repos/" + Repository + "/releases/latest"
 const hubPrefix = "https://hub.docker.com/v2/namespaces/dingding229/repositories/mediatool/tags/"
-const Interval = 12 * time.Hour
+const DefaultIntervalHours = 12
+const MinIntervalHours = 1
+const MaxIntervalHours = 168
 
 var ErrBusy = errors.New("更新检查正在进行，请稍后读取结果")
 var ErrUnavailable = errors.New("更新检查暂不可用")
+var ErrInvalidSettings = errors.New("检查间隔必须是1–168小时的整数")
 
 type Result struct {
 	CheckedAt time.Time `json:"checkedAt"`
@@ -52,7 +55,7 @@ func New(db *pgxpool.Pool, logger *slog.Logger) *Service {
 	return &Service{DB: db, Logger: logger, Current: buildinfo.Current, Client: &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("release redirects are not allowed") }}}
 }
 func (s *Service) Get(ctx context.Context) (State, error) {
-	out := State{Enabled: true, Current: s.Current(), IntervalHours: 12}
+	out := State{Enabled: true, Current: s.Current(), IntervalHours: DefaultIntervalHours}
 	if s.DB == nil {
 		return out, ErrUnavailable
 	}
@@ -66,7 +69,12 @@ func (s *Service) Get(ctx context.Context) (State, error) {
 	}
 	// Persist only settings/results, never stale executable provenance or availability.
 	out.Current = s.Current()
-	out.IntervalHours = 12
+	if out.IntervalHours == 0 {
+		out.IntervalHours = DefaultIntervalHours
+	}
+	if out.IntervalHours < MinIntervalHours || out.IntervalHours > MaxIntervalHours {
+		return out, ErrUnavailable
+	}
 	out.HasUpdate = false
 	if out.Result.Status == "verified" && out.Result.Latest != nil {
 		if n, ok := buildinfo.Compare(strings.Split(out.Current.Version, "-dev+")[0], out.Result.Latest.Version); ok && n < 0 {
@@ -75,12 +83,18 @@ func (s *Service) Get(ctx context.Context) (State, error) {
 	}
 	return out, nil
 }
-func (s *Service) SetEnabled(ctx context.Context, enabled bool) (State, error) {
+
+// SetSettings changes only configuration keys: a racing check cannot overwrite
+// the enabled flag or interval, and saving settings never replaces its result.
+func (s *Service) SetSettings(ctx context.Context, enabled bool, intervalHours int) (State, error) {
+	if intervalHours < MinIntervalHours || intervalHours > MaxIntervalHours {
+		return State{}, ErrInvalidSettings
+	}
 	if s.DB == nil {
 		return State{}, ErrUnavailable
 	}
-	raw, _ := json.Marshal(map[string]bool{"enabled": enabled})
-	_, e := s.DB.Exec(ctx, `INSERT INTO app_settings(key,value)VALUES($1,$2) ON CONFLICT(key)DO UPDATE SET value=jsonb_set(app_settings.value,'{enabled}',$2::jsonb->'enabled'),updated_at=now()`, settingsKey, raw)
+	raw, _ := json.Marshal(map[string]any{"enabled": enabled, "intervalHours": intervalHours})
+	_, e := s.DB.Exec(ctx, `INSERT INTO app_settings(key,value)VALUES($1,$2) ON CONFLICT(key)DO UPDATE SET value=app_settings.value || $2::jsonb,updated_at=now()`, settingsKey, raw)
 	if e != nil {
 		return State{}, e
 	}
@@ -174,7 +188,7 @@ func (s *Service) Run(ctx context.Context) {
 	}
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
-	s.Logger.Info("release update checker registered", "module", "updatecheck", "intervalHours", 12)
+	s.Logger.Info("release update checker registered", "module", "updatecheck", "defaultIntervalHours", DefaultIntervalHours)
 	for {
 		v, e := s.Get(ctx)
 		if e == nil && shouldCheck(v, time.Now()) {
@@ -273,5 +287,9 @@ func (s *Service) fetch(ctx context.Context) (Release, error) {
 }
 
 func shouldCheck(v State, now time.Time) bool {
-	return v.Enabled && (v.Result.CheckedAt.IsZero() || now.Sub(v.Result.CheckedAt) >= Interval)
+	hours := v.IntervalHours
+	if hours == 0 {
+		hours = DefaultIntervalHours
+	}
+	return v.Enabled && hours >= MinIntervalHours && hours <= MaxIntervalHours && (v.Result.CheckedAt.IsZero() || now.Sub(v.Result.CheckedAt) >= time.Duration(hours)*time.Hour)
 }
