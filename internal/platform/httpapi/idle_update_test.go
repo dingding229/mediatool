@@ -2,17 +2,13 @@ package httpapi
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/auth"
 	"media-tool/internal/platform/updateidle"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -73,34 +69,16 @@ func TestT14ShortGateCoversNativeProxyResolverNotAdminHealth(t *testing.T) {
 	}
 }
 func TestT14IssuanceIsDurableAndIgnoresDeniedOrUnrelatedResponses(t *testing.T) {
-	dsn := os.Getenv("TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("media_tool_test required")
-	}
-	cfg, e := pgxpool.ParseConfig(dsn)
-	if e != nil || cfg.ConnConfig.Database != "media_tool_test" || os.Getenv("MEDIA_TOOL_TEST_LOCKED") != "1" {
-		t.Fatal("isolated serialized database required")
-	}
-	base, e := pgxpool.NewWithConfig(t.Context(), cfg)
-	if e != nil {
+	// The serial parent owns the DB lock. The native UID65532 HTTP test
+	// adapter intentionally does not preserve that parent-only environment flag.
+	// Reuse the existing fixture: it requires media_tool_test and a private schema.
+	ctx, store := pluginHTTPFixture(t)
+	db := store.DB
+	if _, e := db.Exec(ctx, `INSERT INTO idle_update_activity VALUES(true,'2000-01-01')`); e != nil {
 		t.Fatal(e)
 	}
-	defer base.Close()
-	name := "t14_http_" + strings.ReplaceAll(time.Now().Format("150405.000000000"), ".", "")
-	schema := pgx.Identifier{name}.Sanitize()
-	if _, e = base.Exec(t.Context(), `CREATE SCHEMA `+schema); e != nil {
-		t.Fatal(e)
-	}
-	defer base.Exec(context.Background(), `DROP SCHEMA `+schema+` CASCADE`)
-	cfg.ConnConfig.RuntimeParams["search_path"] = name
-	db, e := pgxpool.NewWithConfig(t.Context(), cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer db.Close()
-	if _, e = db.Exec(t.Context(), `CREATE TABLE idle_update_activity(singleton boolean,last_issued_at timestamptz);INSERT INTO idle_update_activity VALUES(true,'2000-01-01')`); e != nil {
-		t.Fatal(e)
-	}
+	var e error
+
 	for _, tc := range []struct {
 		path    string
 		code    int
