@@ -117,7 +117,8 @@ func TestT11SharedLiveCacheAdminPreviewMediaRoutesTrustAndCounterDeletion(t *tes
 	if e != nil {
 		t.Fatal(e)
 	}
-	for _, p := range []string{"/emby/System/Info/Public", strm.Endpoint} {
+	assert(call(main, "GET", "/emby/System/Info/Public", "203.0.113.9:1234", "", nil, false, false), 404) // T16: retired proxy, not a native protocol alias on this listener.
+	for _, p := range []string{strm.Endpoint} {
 		assert(call(main, "GET", p, "203.0.113.9:1234", "8.8.8.8", nil, false, false), 403)
 	}
 	for _, c := range []struct{ method, path string }{{"GET", "/System/Info/Public"}, {"POST", "/Users/AuthenticateByName"}, {"GET", "/Items/100001"}, {"GET", "/Items/100001/Images/Primary"}, {"POST", "/Items/100001/PlaybackInfo"}, {"GET", "/Videos/100001/stream.mkv"}, {"GET", "/emby/System/Info/Public"}, {"GET", "/mediabrowser/System/Info/Public"}} {
@@ -172,7 +173,7 @@ func TestT11SharedLiveCacheAdminPreviewMediaRoutesTrustAndCounterDeletion(t *tes
 	if protectedBefore["player_ip_block_rules"] != protectedAfter["player_ip_block_rules"] {
 		t.Fatal("statistics invalidated policy protection")
 	}
-	if n := f.integer(t, `SELECT hit_count FROM player_ip_block_rules`); n != int64(11+extraNative) {
+	if n := f.integer(t, `SELECT hit_count FROM player_ip_block_rules`); n != int64(10+extraNative) {
 		t.Fatal("exactly live requests counted", n)
 	}
 	p, e := repo.Load(ctx)
@@ -186,7 +187,7 @@ func TestT11SharedLiveCacheAdminPreviewMediaRoutesTrustAndCounterDeletion(t *tes
 			t.Fatal(e)
 		}
 	}
-	if n := f.integer(t, `SELECT hit_count FROM player_ip_block_rules`); n != int64(14+extraNative) {
+	if n := f.integer(t, `SELECT hit_count FROM player_ip_block_rules`); n != int64(13+extraNative) {
 		t.Fatal("same SQL batch double counted", n)
 	}
 	_, _ = gate.Evaluate(netip.MustParseAddr("203.0.113.9"), true)
