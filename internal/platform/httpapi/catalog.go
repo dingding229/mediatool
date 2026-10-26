@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 	"media-tool/internal/modules/catalog"
-	"media-tool/internal/modules/mediaserver"
+
 	"media-tool/internal/modules/playback"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	deferutil "media-tool/internal/platform/cleanup"
@@ -34,9 +34,7 @@ func (a *API) listCatalog(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	e := catalog.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations}
 	var items catalog.Page
-	if source == "emby" {
-		items, err = (mediaserver.EmbyAdapter{Catalog: e}).AdministrativeList(ctx, r.URL.Query().Get("q"), r.URL.Query().Get("mediaType"), r.URL.Query().Get("parentId"), p.Page, p.Limit)
-	} else if source == "managed" {
+	if source == "managed" {
 		items, err = e.ListClassified(ctx, r.URL.Query().Get("q"), r.URL.Query().Get("mediaType"), r.URL.Query().Get("parentId"), r.URL.Query().Get("categoryId"), p.Page, p.Limit)
 	} else {
 		items, err = e.ListParent(ctx, source, r.URL.Query().Get("q"), r.URL.Query().Get("mediaType"), r.URL.Query().Get("parentId"), p.Page, p.Limit)
@@ -46,37 +44,7 @@ func (a *API) listCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		fail(w, 503, "catalog_unavailable", "媒体库读取失败；Emby内容需配置并启用Emby连接和媒体库API Key")
-		return
-	}
-	write(w, 200, items)
-}
-func (a *API) catalogImage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-	defer cancel()
-	e := catalog.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations}
-	image, mime, err := e.ImageType(ctx, r.PathValue("id"), r.URL.Query().Get("type"))
-	if err != nil {
-		fail(w, 404, "image_unavailable", "海报不可用")
-		return
-	}
-	w.Header().Set("Content-Type", mime)
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(200)
-	if _, checkedErr := w.Write(image); checkedErr != nil {
-		deferutil.Report(checkedErr, "internal/platform/httpapi/catalog.go:catalogImage")
-		return
-	}
-}
-
-func (a *API) catalogHome(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-	sources := catalog.SourceRegistry{Store: pluginv2.Store{DB: a.Deps.DB}, Cache: a.Deps.Redis}
-	items, err := (catalog.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations, Sources: &sources}).Home(ctx, r.URL.Query().Get("userId"))
-	if err != nil {
-		fail(w, 503, "emby_home_unavailable", "Emby媒体库首页不可用，请检查已配置API Key、用户及媒体库")
+		fail(w, 503, "catalog_unavailable", "媒体库读取失败")
 		return
 	}
 	write(w, 200, items)
@@ -119,17 +87,6 @@ func (a *API) tmdbPoster(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-func (a *API) catalogItem(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-	defer cancel()
-	item, err := (catalog.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations}).Item(ctx, r.PathValue("id"))
-	if err != nil {
-		fail(w, 404, "media_unavailable", "媒体详情不可用")
-		return
-	}
-	write(w, 200, item)
-}
-
 func (a *API) catalogSources(w http.ResponseWriter, r *http.Request) {
 	page, size := 1, 20
 	for _, field := range []struct {

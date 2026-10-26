@@ -136,8 +136,6 @@
 | POST | `/api/v1/downloads/manual/{id}/retry` | management | 前端直接调用 | `web/src/acquisition/useManual.ts:143` |
 | POST | `/api/v1/downloads/manual/{id}/import` | management | 前端直接调用 | `web/src/acquisition/ManualWorkspace.vue:21` |
 | POST | `/api/v1/downloads/sync` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:74`、`web/src/acquisition/useManual.ts:49` |
-| POST | `/api/v1/emby/check` | management | 未检出静态使用 |  |
-| POST | `/api/v1/emby/test` | management | 前端直接调用 | `web/src/connections/GatewayDiagnostics.vue:21` |
 | GET | `/api/v1/external-api/calls` | management | 前端直接调用 | `web/src/api/external-credentials.ts:11` |
 | HEAD | `/api/v1/external-api/calls` | management | 未检出静态使用 |  |
 | GET | `/api/v1/external-api/keys` | management | 前端直接调用 | `web/src/api/external-credentials.ts:6` |
@@ -204,7 +202,6 @@
 | HEAD | `/api/v1/library/outputs` | management | 未检出静态使用 |  |
 | GET | `/api/v1/library/outputs/{id}/content` | management | 前端直接调用 | `web/src/files/ManagedSTRMPanel.vue:69` |
 | HEAD | `/api/v1/library/outputs/{id}/content` | management | 未检出静态使用 |  |
-| POST | `/api/v1/library/outputs/{id}/emby` | management | 前端直接调用 | `web/src/files/ManagedSTRMPanel.vue:90` |
 | GET | `/api/v1/library/scan-schedules` | management | 前端直接调用 | `web/src/organize/useOrganize.ts:20`、`web/src/organize/ScanPanel.vue:184`、`web/src/organize/ScanPanel.vue:202` |
 | HEAD | `/api/v1/library/scan-schedules` | management | 未检出静态使用 |  |
 | POST | `/api/v1/library/scan-schedules` | management | 前端直接调用 | `web/src/organize/ScanPanel.vue:172` |
@@ -268,14 +265,8 @@
 | POST | `/api/v1/media/assets/{id}/identity-preview` | management | 前端直接调用 | `web/src/organize/IdentityEditor.vue:154` |
 | GET | `/api/v1/media/assets/{id}/validation-ref` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/media/assets/{id}/validation-ref` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/emby/items/{id}` | management | 前端直接调用 | `web/src/media/useCatalog.ts:153` |
-| HEAD | `/api/v1/media/emby/items/{id}` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/library` | management | 前端直接调用 | `web/src/media/useCatalog.ts:28` |
 | HEAD | `/api/v1/media/library` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/library/emby/{id}/image` | management | 未检出静态使用 |  |
-| HEAD | `/api/v1/media/library/emby/{id}/image` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/library/emby/home` | management | 前端直接调用 | `web/src/media/useCatalog.ts:40` |
-| HEAD | `/api/v1/media/library/emby/home` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/library/sources` | management | 前端直接调用 | `web/src/acquisition/useDiscovery.ts:16` |
 | HEAD | `/api/v1/media/library/sources` | management | 未检出静态使用 |  |
 | GET | `/api/v1/media/organize-history` | management | 未检出静态使用 |  |
@@ -324,8 +315,6 @@
 | GET | `/api/v1/player-access/policy` | management | 前端直接调用 | `web/src/api/playerAccess.ts:6` |
 | HEAD | `/api/v1/player-access/policy` | management | 未检出静态使用 |  |
 | PUT | `/api/v1/player-access/policy` | management | 前端直接调用 | `web/src/api/playerAccess.ts:7` |
-| GET | `/api/v1/player-access/users` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:11` |
-| HEAD | `/api/v1/player-access/users` | management | 未检出静态使用 |  |
 | DELETE | `/api/v1/plugin/{instance}/{path}` | management | 未检出静态使用 |  |
 | GET | `/api/v1/plugin/{instance}/{path}` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/plugin/{instance}/{path}` | management | 未检出静态使用 |  |
@@ -455,30 +444,6 @@
 | GET | `/DisplayPreferences/{id}` | native-media | 未检出静态使用 |  |
 | HEAD | `/DisplayPreferences/{id}` | native-media | 未检出静态使用 |  |
 | OPTIONS | `/DisplayPreferences/{id}` | native-media | 未检出静态使用 |  |
-| DELETE | `/emby` | management | 未检出静态使用 |  |
-| GET | `/emby` | management | 未检出静态使用 |  |
-| HEAD | `/emby` | management | 未检出静态使用 |  |
-| OPTIONS | `/emby` | management | 未检出静态使用 |  |
-| PATCH | `/emby` | management | 未检出静态使用 |  |
-| POST | `/emby` | management | 未检出静态使用 |  |
-| PUT | `/emby` | management | 未检出静态使用 |  |
-| TRACE | `/emby` | management | 未检出静态使用 |  |
-| DELETE | `/emby/` | management | 未检出静态使用 |  |
-| GET | `/emby/` | management | 未检出静态使用 |  |
-| HEAD | `/emby/` | management | 未检出静态使用 |  |
-| OPTIONS | `/emby/` | management | 未检出静态使用 |  |
-| PATCH | `/emby/` | management | 未检出静态使用 |  |
-| POST | `/emby/` | management | 未检出静态使用 |  |
-| PUT | `/emby/` | management | 未检出静态使用 |  |
-| TRACE | `/emby/` | management | 未检出静态使用 |  |
-| DELETE | `/emby/{path}` | management | 未检出静态使用 |  |
-| GET | `/emby/{path}` | management | 未检出静态使用 |  |
-| HEAD | `/emby/{path}` | management | 未检出静态使用 |  |
-| OPTIONS | `/emby/{path}` | management | 未检出静态使用 |  |
-| PATCH | `/emby/{path}` | management | 未检出静态使用 |  |
-| POST | `/emby/{path}` | management | 未检出静态使用 |  |
-| PUT | `/emby/{path}` | management | 未检出静态使用 |  |
-| TRACE | `/emby/{path}` | management | 未检出静态使用 |  |
 | GET | `/Genres` | native-media | 未检出静态使用 |  |
 | HEAD | `/Genres` | native-media | 未检出静态使用 |  |
 | OPTIONS | `/Genres` | native-media | 未检出静态使用 |  |

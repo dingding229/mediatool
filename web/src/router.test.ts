@@ -5,7 +5,7 @@ import { installPageRedirects } from './router/redirects'
 import { primaryPages } from './navigation/pages'
 function getRouter() { const router = createRouter({ history: createMemoryHistory(), routes }); installPageRedirects(router); return router }
 const legacy = [
-  ['/emby','/connections','emby'], ['/mediaLibrary','/library','browse'], ['/media-server','/playback','settings'],
+  ['/mediaLibrary','/library','browse'], ['/media-server','/playback','settings'],
   ['/media-users','/playback','users'], ['/player-access','/playback','players'], ['/cloudStorage','/organize','assets'],
   ['/organize-history','/organize','history'], ['/classification','/settings','naming'], ['/cloud-connections','/connections','storage'],
   ['/strm','/files','strm'], ['/strm-tools','/files','tools'], ['/maintenance','/ops','maintenance'], ['/jobs','/ops','jobs'],
@@ -23,7 +23,7 @@ describe('canonical workflow routing', () => {
   it.each([['access','general'],['library','naming'],['automation','automation'],['account','security'],['mobile','mobile']])('migrates general section %s to %s', async (section,tab) => { const r=getRouter(); await r.push(`/settings?tab=general&section=${section}&keep=yes`); expect(r.currentRoute.value.query).toEqual({tab,keep:'yes'}); await r.push('/settings?tab=api'); await r.push(`/settings?tab=general&section=${section}&keep=second`); expect(r.currentRoute.value.query).toEqual({tab,keep:'second'}) })
   it('moves the obsolete cache settings to operations',async()=>{const r=getRouter();await r.push('/settings?tab=cache&keep=yes');expect(r.currentRoute.value.path).toBe('/ops');expect(r.currentRoute.value.query).toEqual({tab:'cache',keep:'yes'})})
   it.each([
-    ['emby','/connections','emby'], ['ptsite','/sites','accounts'], ['open115','/connections','storage'], ['clouddrive2','/connections','storage'],
+    ['ptsite','/sites','accounts'], ['open115','/connections','storage'], ['clouddrive2','/connections','storage'],
     ['qbittorrent','/connections','downloader'], ['tmdb','/connections','aux'], ['telegram','/connections','notifications'], ['local','/files','browser'], ['unknown','/connections','storage'],
   ])('keeps integrations/%s in its existing configuration owner', async (kind, path, tab) => { const r = getRouter(); await r.push(`/integrations/${kind}?keep=value`); expect(r.currentRoute.value.path).toBe(path); expect(r.currentRoute.value.query).toMatchObject({ tab, keep: 'value', connectionKind: kind }); if (kind === 'tmdb') expect(r.currentRoute.value.query.tab).toBe('aux') })
   it('does not rewrite standalone result and plugin detail URLs', async () => { const r = getRouter(); for (const path of ['/search/results/owned','/plugins/owned/pages/page']) { await r.push(path+'?keep=yes'); expect(r.currentRoute.value.path).toBe(path); expect(r.currentRoute.value.query).toEqual({ keep: 'yes' }) } })

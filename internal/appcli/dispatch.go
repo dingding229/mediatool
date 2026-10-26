@@ -16,7 +16,6 @@ import (
 	"media-tool/internal/appcli/playback"
 	"media-tool/internal/appcli/provider"
 	"media-tool/internal/appcli/rekey"
-	"media-tool/internal/appcli/session"
 	"media-tool/internal/appcli/sitesync"
 	"media-tool/internal/appcli/updater"
 	"media-tool/internal/platform/cliprocess"
@@ -40,7 +39,7 @@ func Dispatch(args []string) (bool, error) {
 		fmt.Println(key + ": owner-only process command; see docs/CLI_REFERENCE.md. No operation performed.")
 		return true, nil
 	}
-	commands := map[string]func(){"admin reset": adminreset.Main, "backup verify": backupverify.Main, "diagnose cloud-ua": cloudua.Main, "diagnose cloud-events": cloudevents.Main, "diagnose cloud-upload": cloudupload.Main, "diagnose cloud-security": cloudsecurity.Main, "diagnose emby-layout": embylayout.Main, "diagnose integrations": integrations.Main, "diagnose playback": playback.Main, "diagnose provider": provider.Main, "diagnose session": session.Main, "update-policy-check": updater.Policy, "updater": updater.Main, "migrate": migrate.Main, "ops": ops.Main, "secrets rekey": rekey.Main, "sites sync": sitesync.Main}
+	commands := map[string]func(){"admin reset": adminreset.Main, "backup verify": backupverify.Main, "diagnose cloud-ua": cloudua.Main, "diagnose cloud-events": cloudevents.Main, "diagnose cloud-upload": cloudupload.Main, "diagnose cloud-security": cloudsecurity.Main, "diagnose emby-layout": embylayout.Main, "diagnose integrations": integrations.Main, "diagnose playback": playback.Main, "diagnose provider": provider.Main, "update-policy-check": updater.Policy, "updater": updater.Main, "migrate": migrate.Main, "ops": ops.Main, "secrets rekey": rekey.Main, "sites sync": sitesync.Main}
 	if main, ok := commands[key]; ok {
 		cliprocess.Invoke(key, rest, main)
 		return true, nil

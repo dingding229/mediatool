@@ -6,7 +6,6 @@ package mediaserver
 import (
 	"context"
 	"errors"
-	"media-tool/internal/modules/catalog"
 )
 
 var (
@@ -115,39 +114,4 @@ func (r *Registry) Descriptions() []Description {
 		out = append(out, p.Describe())
 	}
 	return out
-}
-
-// EmbyAdapter exposes administrative catalog capability without delegating the
-// member realm to Emby's API Key. Member access is deliberately rejected.
-type EmbyAdapter struct{ Catalog catalog.Engine }
-
-func (EmbyAdapter) Describe() Description {
-	return Description{ID: "emby", Name: "Emby", Contract: ContractVersion, Runtime: "external", Stage: "external", Capabilities: Capabilities{Catalog: true}, Note: "现有外部媒体库保持不变；连接配置仍在媒体库页面。此适配器不转授Emby管理员密钥，也不提供媒体用户播放票据。"}
-}
-func (e EmbyAdapter) Libraries(ctx context.Context, a Access) ([]Library, error) {
-	return nil, ErrUnsupported
-}
-
-// AdministrativeList preserves the existing management DTO, including source
-// and parent pagination. It is called only by administrator-protected routes.
-func (e EmbyAdapter) AdministrativeList(ctx context.Context, text, kind, parent string, page, size int) (catalog.Page, error) {
-	return e.Catalog.ListParent(ctx, "emby", text, kind, parent, page, size)
-}
-
-func (e EmbyAdapter) List(ctx context.Context, a Access, q Query) (Page, error) {
-	if a.UserID != "" {
-		return Page{}, ErrDenied
-	}
-	p, err := e.AdministrativeList(ctx, q.Text, "", q.LibraryID, q.Page, q.PageSize)
-	if err != nil {
-		return Page{}, ErrUnavailable
-	}
-	out := Page{Items: []Item{}, Total: p.Total, Page: p.Page, PageSize: p.PageSize}
-	for _, i := range p.Items {
-		out.Items = append(out.Items, Item{ID: i.ID, Title: i.Title, Year: i.Year, MediaType: i.MediaType, Overview: i.Overview, Poster: i.Poster, Season: i.Season, Episode: i.Episode})
-	}
-	return out, nil
-}
-func (EmbyAdapter) Playback(context.Context, Access, PlaybackRequest) (PlaybackTicket, error) {
-	return PlaybackTicket{}, ErrUnsupported
 }

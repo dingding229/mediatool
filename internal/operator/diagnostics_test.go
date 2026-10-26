@@ -2,8 +2,7 @@ package operator
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
+
 	"fmt"
 	"io"
 	"media-tool/internal/modules/playback"
@@ -67,25 +66,6 @@ func TestOwnedOriginsRefuseCredentialExfiltration(t *testing.T) {
 	}
 	if _, e := origin("http://localhost:8080", true); e != nil {
 		t.Fatal(e)
-	}
-}
-func TestMissingProfilesReportNoPlaybackAndNoSecrets(t *testing.T) {
-	r := t.TempDir()
-	if e := playbackCheck(r, nil); !errors.Is(e, ErrNeedsConfiguration) {
-		t.Fatal(e)
-	}
-	b, e := os.ReadFile(filepath.Join(r, "data/diagnostics/playback-check.json"))
-	if e != nil {
-		t.Fatal(e)
-	}
-	var v map[string]any
-	json.Unmarshal(b, &v)
-	if v["status"] != "needs_configuration" || v["serverChainVerified"] != false || v["realPlayerVerified"] != false || strings.Contains(string(b), "PRIVATE-") {
-		t.Fatal(string(b))
-	}
-	st, _ := os.Stat(filepath.Join(r, "data/diagnostics/playback-check.json"))
-	if st.Mode().Perm() != 0600 {
-		t.Fatal(st.Mode())
 	}
 }
 func TestReadinessLoadIsBoundedAndNotMediaClaim(t *testing.T) {

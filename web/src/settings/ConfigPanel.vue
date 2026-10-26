@@ -33,7 +33,7 @@ function originValue(key:string){return touched.has(key)?domains.value?.[key]||'
 function setOrigin(key:string,value:string){touched.add(key);if(domains.value)domains.value[key]=value}
 watch(()=>access.baseline.value?.revision,()=>{if(!access.changed.value)touched.clear()});
 const effective = computed(() => access.latest.value?.effective ?? access.baseline.value?.effective);
-const fields = [['managementUrl', '后台访问域名'], ['playbackUrl', '播放链接域名'], ['memberUrl', '内置媒体库域名'], ['embyUrl', 'Emby 网关域名']] as const;
+const fields = [['managementUrl', '后台访问域名'], ['playbackUrl', '播放链接域名'], ['memberUrl', '内置媒体库域名']] as const;
 const scraping = [['movie', '电影', ['nfo', 'poster', 'backdrop', 'logo']], ['series', '剧集', ['nfo', 'poster', 'backdrop', 'logo']], ['season', '季', ['nfo', 'poster']], ['episode', '集', ['nfo', 'thumb']]] as const;
 const labels: Record<string, string> = { nfo: '媒体资料', poster: '海报', backdrop: '背景', logo: '标志', thumb: '缩略图' };
 const proxyText = computed({ get: () => a.value?.trustedProxyCidrs?.join('\n') || '', set: (s: string) => {

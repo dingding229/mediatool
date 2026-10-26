@@ -6,7 +6,6 @@
 
 - [OpenAPI](../api/openapi.yaml) 使用 OpenAPI **3.1 / JSON-compatible YAML 1.2**，可直接 JSON/YAML 解析；没有给运行时引入 YAML/生成器依赖。每个 operation 有稳定且唯一的 `operationId`、业务 tags、安全方式、参数和具体 wire schema，不再使用通用 `OK`。
 - **管理端 259 个实际注册 pattern**（包括 prefix/静态/兼容入口）；**原生媒体端 61 个实际注册项**。管理端 Go GET 隐含 HEAD，methodless mount 展开 OpenAPI 支持的八种标准方法；原生 GET 隐含 HEAD，已知 path 有 OPTIONS。展开后 **291 paths / 625 path-method operations**，其中管理端467、原生端158；这些不是625个独立业务功能。
-- `x-listener=management` 只属于管理端；`native-media` 的 operation-level `servers` 指向单独媒体地址。管理端 `/emby/{path}` 是外部 Emby 兼容网关；不是把 `/Users` 暴露到管理员端口。原生 `/emby`、`/mediabrowser` 前缀/大小写别名和 mount 内动态路径见第9、10节，不伪装为静态管理路由。
 - prefix 的 `{path}`、插件 `{path}` 与原生 `{wildcard}` 可覆盖多段路径；保留 `x-go-registration` 中的原始 pattern。methodless 的 `x-any-http-method` 表示 Go 无 method 限制，未被 OpenAPI 标准表达的 CONNECT 等方法不据此获得业务能力。未知 `/api/` 是404，旧 `/cloudStorage` prefix 是501；精确的 `strm302` 除外。
 - [逐接口前端使用清单](FRONTEND_API_ROUTES.md) 列出全部 path/method、调用痕迹及源文件。这里的“未检出”不等于死代码：原生播放器、外部API、HEAD、下载/图片URL、运行中插件均可能没有 Vue `request()` 调用。
 
@@ -54,7 +53,6 @@ Origin: https://admin.example.invalid
 
 - 搜索/订阅、手动下载、文件批次、扫描、115授权、jobs、插件snapshot/journal等宿主状态枚举也列在schema；qB/外部provider状态是开放值，不应把未知值强转“失败”。
 - `flow={phase,retryable,nextAction,reason}` 是**观察/指引**，不是操作授权。重试仍受服务端状态、lease、revision、digest、权限和确认约束。
-- 常见 phase：download、organize、strm、emby_refresh、emby_verify、complete、inspect，以及维护 preview/approve/execute/verify。`nextAction=verify` / `reconcile_upload` 不可映射成通用 retry。
 - 202/queued/approved 仅是排队/批准。请轮询原任务或读取 SSE 失效提示后GET；不要显示“已下载/已整理/已入库/已恢复”。SSE `/api/v1/jobs/events` 的 tick 不是持久事件总线，重连后GET对账。
 - 一般分页 `page/pageSize`；用户/部分列表用 `startIndex/limit`；数据视图等另有游标/offset。**具体默认值/上限看每个 operation**，不能全局硬编码同一上限。坏编码、重复、空字符串、负数、越界要保留服务端拒绝，禁止客户端悄悄折叠重复参数。
 - 标记 `revision` / `expectedRevision` / `fingerprint` / `digest` 的表单须保存读时基线；提交失败先读现状。确认参数默认false，不能在通用客户端自动补true。
@@ -171,8 +169,6 @@ HTTP202仅表示已创建评估；轮询run，不能立即显示订阅已下载�
 | local_complete | 查看transfer、确认目录/身份 | 不以本地文件存在当云端已上传 |
 | starting/uploading/uncertain | reconcile_upload，查看sessions绑定 | 不自动发起第二个上传 |
 | needs_output_reconciliation | GET output-preview，人工核对controlRevision/planDigest，再resume-import | 不跳过新预览/确认 |
-| strm_ready | emby_refresh阶段队列/失败可安全重试 | 不把STRM落盘当Emby可见 |
-| refresh_requested | emby_verify对账 | 刷新API接受不等于媒体入库 |
 | imported / complete | 显示已核验相应链路状态 | 不代表真实播放器解码/音轨/字幕验收 |
 
 - 首次下载POST `/downloads` 使用searchRunId/resourceId和选定TMDB身份。年份/身份修正要显式confirm，来源过期走 `/{id}/source-preview` → `reconfirm-source`，不是重建任务。

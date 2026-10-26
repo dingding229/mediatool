@@ -28,7 +28,7 @@
 - [日志与数据查看](deploy/logs-data.md)
 - [账号、安全与密码恢复](deploy/security.md)
 - [播放与 302](deploy/playback.md)
-- [Emby 客户端接入](deploy/emby.md)
+- [内置媒体客户端接入](NATIVE_EMBY_SERVER.md)
 - [命令参考](CLI_REFERENCE.md)
 
 ## 接口与扩展

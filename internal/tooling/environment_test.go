@@ -2,7 +2,7 @@ package tooling
 
 import (
 	"bytes"
-	"encoding/json"
+
 	"fmt"
 	"media-tool/internal/platform/auth"
 	"net/url"
@@ -236,19 +236,6 @@ func TestPluginNoRuntimeCompilerAndSharedReadyBarrier(t *testing.T) {
 		t.Fatal("insufficient real-worker suites", n)
 	}
 	has(t, source(t, "internal/platform/testworker/ready.go"), "runtime_state", "generation", "grant_revision", "lease_until", "Extensions.AuthProviders", "probe(bounded)")
-}
-func TestBrowserStartupNodeHarness(t *testing.T) {
-	cmd := exec.Command("node", filepath.Join(project(t), "scripts/browser_startup_guard_harness.cjs"), filepath.Join(project(t), "internal/modules/emby/browser_startup_guard.js"))
-	out, e := cmd.Output()
-	if e != nil {
-		t.Fatal("owned startup harness", e)
-	}
-	var v struct {
-		Cases int `json:"cases"`
-	}
-	if e = json.Unmarshal(out, &v); e != nil || v.Cases < 30 {
-		t.Fatal("guard cases", e, string(out))
-	}
 }
 func TestTestLockSerializesSeparateProcesses(t *testing.T) {
 	r := t.TempDir()

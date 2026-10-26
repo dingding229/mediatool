@@ -5,13 +5,13 @@ package tooling
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
+
 	"errors"
 	"fmt"
 	"io"
 	"media-tool/internal/buildcli"
 	"net"
-	"net/http"
+
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,7 +38,7 @@ func Root() (string, error) {
 }
 func Run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: media-tool-dev <test-lock|test-env|token|ports|fixture-emby|clean-web|init-env|ci-config>")
+		return errors.New("usage: media-tool-dev <test-lock|test-env|token|ports|clean-web|init-env|ci-config>")
 	}
 	if len(args) >= 2 && args[0] == "plugins" && args[1] == "matrix" {
 		args = args[1:]
@@ -54,6 +54,8 @@ func Run(args []string) error {
 		return releaseNotesCommand(root, args[1:])
 	case "test-lock":
 		return locked(root, args[1:])
+	case "fixture-downloader":
+		return downloaderFixture()
 	case "test-env":
 		if len(args) != 1 {
 			return errors.New("test-env accepts no arguments")
@@ -85,8 +87,6 @@ func Run(args []string) error {
 		return e
 	case "ports":
 		return ports(args[1:])
-	case "fixture-emby":
-		return embyFixture()
 	case "clean-web":
 		return cleanWeb(root)
 	case "init-env":
@@ -158,22 +158,6 @@ func ports(args []string) error {
 		}
 	}
 	return nil
-}
-func embyFixture() error {
-	s := &http.Server{Addr: "127.0.0.1:18086", ReadHeaderTimeout: 5e9, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		if r.Method != http.MethodGet {
-			w.WriteHeader(405)
-			return
-		}
-		if r.URL.Path != "/Users" || r.Header.Get("X-Emby-Token") != "PRIVATE-EMBY-ECHO-FIXTURE" {
-			w.WriteHeader(401)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "owned fixture authentication required"})
-			return
-		}
-		_ = json.NewEncoder(w).Encode([]map[string]string{{"Id": "owned-fixture-user", "Name": "Owned E2E fixture"}})
-	})}
-	return s.ListenAndServe()
 }
 func cleanWeb(root string) error {
 	base := filepath.Join(root, "internal/platform/webui/assets")

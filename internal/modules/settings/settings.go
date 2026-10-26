@@ -12,7 +12,7 @@ import (
 	dbutil "media-tool/internal/platform/database"
 	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/scheduling"
-	"regexp"
+
 	"strings"
 	"time"
 )
@@ -33,7 +33,6 @@ type Value struct {
 	TMDBCacheSeconds            int                   `json:"tmdbCacheSeconds"`
 	SubscriptionIntervalMinutes int                   `json:"-"`
 	SubscriptionCron            string                `json:"subscriptionCron"`
-	EmbyUserID                  string                `json:"embyUserId"`
 }
 type Record struct {
 	Value    Value `json:"value"`
@@ -79,7 +78,7 @@ func Validate(v Value) error {
 	if _, err := scheduling.Next(v.SubscriptionCron, time.Now(), 5*time.Minute); err != nil {
 		return ErrInvalid
 	}
-	if v.SearchCacheSeconds < 0 || v.SearchCacheSeconds > 86400 || v.TMDBCacheSeconds < 0 || v.TMDBCacheSeconds > 2592000 || len(v.EmbyUserID) > 100 || v.EmbyUserID != "" && !regexp.MustCompile(`^[A-Za-z0-9_-]+$`).MatchString(v.EmbyUserID) {
+	if v.SearchCacheSeconds < 0 || v.SearchCacheSeconds > 86400 || v.TMDBCacheSeconds < 0 || v.TMDBCacheSeconds > 2592000 {
 		return ErrInvalid
 	}
 	return nil

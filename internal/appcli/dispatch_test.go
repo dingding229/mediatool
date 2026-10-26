@@ -31,7 +31,7 @@ func TestAllApplicationLeavesHaveOfflineHelpAndOpsInfo(t *testing.T) {
 	if b, e := build.CombinedOutput(); e != nil {
 		t.Fatal(e, string(b))
 	}
-	for _, leaf := range [][]string{{"migrate"}, {"admin", "reset"}, {"backup", "verify"}, {"ops"}, {"secrets", "rekey"}, {"sites", "sync"}, {"diagnose", "cloud-ua"}, {"diagnose", "cloud-security"}, {"diagnose", "cloud-events"}, {"diagnose", "cloud-upload"}, {"diagnose", "emby-layout"}, {"diagnose", "integrations"}, {"diagnose", "playback"}, {"diagnose", "provider"}, {"diagnose", "session"}} {
+	for _, leaf := range [][]string{{"migrate"}, {"admin", "reset"}, {"backup", "verify"}, {"ops"}, {"secrets", "rekey"}, {"sites", "sync"}, {"diagnose", "cloud-ua"}, {"diagnose", "cloud-security"}, {"diagnose", "cloud-events"}, {"diagnose", "cloud-upload"}, {"diagnose", "emby-layout"}, {"diagnose", "integrations"}, {"diagnose", "playback"}, {"diagnose", "provider"}} {
 		t.Run(strings.Join(leaf, "/"), func(t *testing.T) {
 			cmd := exec.Command(bin, append(leaf, "--help")...)
 			cmd.Env = []string{"PATH=" + os.Getenv("PATH")}

@@ -2,13 +2,13 @@ package integrations
 
 import (
 	"context"
-	"encoding/json"
+
 	"errors"
-	"io"
+
 	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"os"
-	"strings"
+
 	"sync"
 	"time"
 
@@ -234,29 +234,6 @@ func (m *Manager) ProbeCredentials(ctx context.Context, c Credentials) (CheckRes
 		err = (telegram.Client{Token: c.Values["botToken"], ChatID: c.String("chatId")}).Probe(bounded)
 		if err == nil {
 			message = "Telegram 机器人和接收目标有效；本次检查未发送通知"
-		}
-	case "emby":
-		request, reqErr := http.NewRequestWithContext(bounded, "GET", strings.TrimRight(c.String("endpoint"), "/")+"/Users", nil)
-		err = reqErr
-		if err == nil {
-			request.Header.Set("X-Emby-Token", c.Values["apiKey"])
-			client := m.OutboundHTTP
-			if client == nil {
-				client = &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-			}
-			response, requestErr := client.Do(request)
-			err = requestErr
-			if err == nil {
-				defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
-				var info []struct {
-					ID string `json:"Id"`
-				}
-				if response.StatusCode != 200 || json.NewDecoder(io.LimitReader(response.Body, 64<<10)).Decode(&info) != nil || len(info) == 0 {
-					err = errors.New("invalid Emby response")
-				} else {
-					message = "Emby API Key 与用户列表可读取；真实播放需另行验收"
-				}
-			}
 		}
 	case "ptsite":
 		client, siteErr := m.siteCredentials(ctx, c)

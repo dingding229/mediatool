@@ -32,8 +32,6 @@ type Config struct {
 	AuthAllowedOrigins                                       []string
 	HostProcDir                                              string
 	LogLevel                                                 string
-	EmbyGatewayAddress                                       string
-	EmbyPublicURL                                            string
 	Environment, Address, PublicURL, SessionKey, STRMKey     string
 	SecretKey                                                string
 	DatabaseURL, RedisURL, STRMOutputDir                     string
@@ -46,12 +44,6 @@ type Config struct {
 	STRMProxyFallback, STRMForceProxy, PlaybackAllowHTTP     bool
 	LegacyPlaybackEnabled                                    bool
 	PlaybackAllowedHosts                                     []string
-	Emby302Enabled                                           bool
-	EmbyDirectPlayOnly                                       bool
-	EmbySTRMPathPrefix                                       string
-	EmbyResolverOrigins                                      []string
-	EmbyUpstream                                             string
-	EmbyProxyEnabled                                         bool
 	WorkerPollInterval, WorkerLease                          time.Duration
 }
 
@@ -82,12 +74,11 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		LogLevel:       get("LOG_LEVEL", "info"),
 		HostProcDir:    get("HOST_PROC_DIR", "/proc"),
 		MaintenanceDir: get("OPS_DATA_DIR", "/data/maintenance"),
-		EmbyPublicURL:  get("EMBY_PUBLIC_URL", ""), EmbyGatewayAddress: get("EMBY_GATEWAY_ADDR", "127.0.0.1:8091"), Environment: get("APP_ENV", "production"), Address: get("APP_ADDR", "127.0.0.1:8080"),
+		Environment:    get("APP_ENV", "production"), Address: get("APP_ADDR", "127.0.0.1:8080"),
 		PublicURL: get("APP_PUBLIC_URL", "http://localhost:8080"), SessionKey: secret("SESSION_SECRET_KEY"), STRMKey: get("STRM_API_KEY", ""),
 		SecretKey: secret("APP_SECRET_KEY"), DatabaseURL: get("DATABASE_URL", ""), RedisURL: get("REDIS_URL", ""), STRMOutputDir: get("STRM_OUTPUT_DIR", "./data/strm"),
-		CloudDriveEndpoint: get("CLOUDDRIVE_ENDPOINT", ""), CloudDriveToken: get("CLOUDDRIVE_TOKEN", ""), EmbyUpstream: get("EMBY_UPSTREAM_URL", ""),
+		CloudDriveEndpoint: get("CLOUDDRIVE_ENDPOINT", ""), CloudDriveToken: get("CLOUDDRIVE_TOKEN", ""),
 		CloudDriveUsername: get("CLOUDDRIVE_USERNAME", ""), CloudDrivePassword: secret("CLOUDDRIVE_PASSWORD"), CloudDriveCAFile: get("CLOUDDRIVE_CA_FILE", ""),
-		EmbySTRMPathPrefix: get("EMBY_STRM_PATH_PREFIX", ""),
 	}
 	if _, err := logging.ParseLevel(c.LogLevel); err != nil {
 		return c, err
@@ -99,7 +90,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		return c, errors.New("APP_ENV must be development or production")
 	}
 	if c.MemberAddress != "" {
-		if _, _, err := net.SplitHostPort(c.MemberAddress); err != nil || c.MemberAddress == c.Address || c.MemberAddress == c.EmbyGatewayAddress {
+		if _, _, err := net.SplitHostPort(c.MemberAddress); err != nil || c.MemberAddress == c.Address {
 			return c, errors.New("MEMBER_ADDR requires a separate valid host:port")
 		}
 	}
@@ -168,24 +159,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		}
 		c.STRMAllowedRoots = append(c.STRMAllowedRoots, path.Clean(r))
 	}
-	if c.EmbyPublicURL != "" {
-		if err := validURL(c.EmbyPublicURL); err != nil {
-			return c, fmt.Errorf("EMBY_PUBLIC_URL: %w", err)
-		}
-		u, _ := url.Parse(c.EmbyPublicURL)
-		if u.Path != "" && u.Path != "/" {
-			return c, errors.New("EMBY_PUBLIC_URL must be an origin")
-		}
-		if !c.Development() && u.Scheme != "https" {
-			return c, errors.New("production EMBY_PUBLIC_URL requires HTTPS")
-		}
-		c.EmbyPublicURL = strings.TrimRight(c.EmbyPublicURL, "/")
-	}
-	if c.EmbyUpstream != "" {
-		if err := validURL(c.EmbyUpstream); err != nil {
-			return c, fmt.Errorf("EMBY_UPSTREAM_URL: %w", err)
-		}
-	}
+
 	var err error
 	for _, flag := range []struct {
 		name     string
@@ -194,8 +168,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 	}{
 		{"STRM_LEGACY_KEY_ENABLED", &c.LegacyPlaybackEnabled, "true"},
 
-		{"EMBY_DIRECT_PLAY_ONLY", &c.EmbyDirectPlayOnly, "false"},
-		{"PLAYBACK_ALLOW_HTTP", &c.PlaybackAllowHTTP, "false"}, {"EMBY_302_ENABLED", &c.Emby302Enabled, "false"},
+		{"PLAYBACK_ALLOW_HTTP", &c.PlaybackAllowHTTP, "false"},
 	} {
 		*flag.target, err = strconv.ParseBool(get(flag.name, flag.fallback))
 		if err != nil {
@@ -243,23 +216,6 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		}
 		c.PlaybackAllowedHosts = append(c.PlaybackAllowedHosts, host)
 	}
-	for _, origin := range strings.Split(get("EMBY_STRM_RESOLVER_ORIGINS", ""), ",") {
-		origin = strings.TrimSpace(origin)
-		if origin == "" {
-			continue
-		}
-		if validURL(origin) != nil {
-			return c, errors.New("invalid EMBY_STRM_RESOLVER_ORIGINS")
-		}
-		parsed, _ := url.Parse(origin)
-		if parsed.Path != "" && parsed.Path != "/" {
-			return c, errors.New("resolver origins cannot contain paths")
-		}
-		c.EmbyResolverOrigins = append(c.EmbyResolverOrigins, strings.TrimRight(origin, "/"))
-	}
-	if c.EmbySTRMPathPrefix != "" && (!strings.HasPrefix(c.EmbySTRMPathPrefix, "/") || path.Clean(c.EmbySTRMPathPrefix) != c.EmbySTRMPathPrefix || strings.Contains(c.EmbySTRMPathPrefix, "\\")) {
-		return c, errors.New("EMBY_STRM_PATH_PREFIX must be a canonical absolute Emby STRM path")
-	}
 	if c.CloudDriveEndpoint != "" {
 		raw := c.CloudDriveEndpoint
 		if !strings.Contains(raw, "://") {
@@ -283,16 +239,6 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		}
 	}
 
-	c.EmbyProxyEnabled, err = strconv.ParseBool(get("EMBY_PROXY_ENABLED", "false"))
-	if err != nil {
-		return c, errors.New("EMBY_PROXY_ENABLED must be true or false")
-	}
-	if c.EmbyProxyEnabled && c.EmbyUpstream == "" {
-		return c, errors.New("EMBY_UPSTREAM_URL is required when proxy is enabled")
-	}
-	if c.Emby302Enabled && !c.EmbyProxyEnabled {
-		return c, errors.New("EMBY_302_ENABLED requires EMBY_PROXY_ENABLED")
-	}
 	c.WorkerPollInterval, err = time.ParseDuration(get("WORKER_POLL_INTERVAL", "2s"))
 	if err != nil || c.WorkerPollInterval < 100*time.Millisecond {
 		return c, errors.New("WORKER_POLL_INTERVAL must be >= 100ms")

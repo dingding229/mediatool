@@ -144,12 +144,6 @@ func TestPostgresUAAdminWorkflowCachedSTRMAndUnavailableDenial(t *testing.T) {
 		t.Fatal("denied cache request reached resolver")
 	}
 	// Header aliases/secondary public listener cannot evade the same policy.
-	root := EmbyHandler(h)
-	r = httptest.NewRequest("POST", "/Items/11/PlaybackInfo", strings.NewReader(`{}`))
-	r.Header.Set("User-Agent", ua)
-	bad = httptest.NewRecorder()
-	root.ServeHTTP(bad, r)
-	expect(bad, 403)
 	expect(call("GET", "/api/v1/player-access/observations?q=Owned-Player&filter=unlisted", "", nil, admin), 200)
 	// An unavailable policy/aggregate write is not permission to return a URL.
 	tx, err := db.Begin(ctx)
@@ -183,7 +177,7 @@ func TestPostgresUAAdminWorkflowCachedSTRMAndUnavailableDenial(t *testing.T) {
 	expect(w, 200)
 	json.Unmarshal(w.Body.Bytes(), &policy)
 	p = policy.Data
-	for _, path := range []string{linkTarget(), "/emby/Videos/11/original.mkv", "/emby/Items/11/PlaybackInfo"} {
+	for _, path := range []string{linkTarget()} {
 		reply := call("GET", path, ua, nil, nil)
 		expect(reply, 403)
 		if reply.Header().Get("Location") != "" || !strings.Contains(reply.Body.String(), "player_ua_denied") {
@@ -191,11 +185,6 @@ func TestPostgresUAAdminWorkflowCachedSTRMAndUnavailableDenial(t *testing.T) {
 		}
 	}
 	expect(call("HEAD", linkTarget(), ua, nil, nil), 403)
-	r = httptest.NewRequest("POST", "/Items/11/PlaybackInfo", strings.NewReader(`{}`))
-	r.Header.Set("User-Agent", ua)
-	bad = httptest.NewRecorder()
-	root.ServeHTTP(bad, r)
-	expect(bad, 403)
 	expect(call("GET", linkTarget(), "UnknownPlayer/blacklist-allowed", nil, nil), 302)
 	w = call("GET", "/api/v1/player-access/observations?filter=blacklisted", "", nil, admin)
 	expect(w, 200)

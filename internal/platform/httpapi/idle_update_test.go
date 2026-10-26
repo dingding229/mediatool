@@ -48,7 +48,7 @@ func TestT14ShortGateCoversNativeProxyResolverNotAdminHealth(t *testing.T) {
 		t.Fatal("close gate")
 	}
 	defer release()
-	for _, path := range []string{"/emby/Items/1/PlaybackInfo", "/api/v1/cloudStorage/strm302"} {
+	for _, path := range []string{"/api/v1/cloudStorage/strm302"} {
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 		if w.Code != 503 || !strings.Contains(w.Body.String(), "idle_update_admission") {

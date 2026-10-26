@@ -58,7 +58,10 @@ func (s Store) Refresh(ctx context.Context) error {
 	if e != nil {
 		return e
 	}
-	return s.refresh(ctx, defs)
+	if e = s.refresh(ctx, defs); e != nil {
+		return e
+	}
+	return s.retireExternalMediaConfigs(ctx)
 }
 func (s Store) refresh(ctx context.Context, defs []Definition) error {
 	compiled := map[string]Definition{}

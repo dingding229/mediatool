@@ -182,9 +182,6 @@ func Run(args []string) error {
 		}
 		return backupVerify(r, *archive)
 	}
-	if rest[0] == "playback-check" {
-		return playbackCheck(r, rest[1:])
-	}
 	if rest[0] == "load-check" {
 		return loadCheck(r, rest[1:])
 	}

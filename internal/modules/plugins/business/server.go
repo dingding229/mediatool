@@ -6,8 +6,7 @@ import (
 	"errors"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
-	"media-tool/internal/modules/catalog"
-	"media-tool/internal/modules/library"
+
 	"media-tool/internal/modules/mediaserver"
 	"media-tool/internal/modules/mediausers"
 	nativecatalog "media-tool/internal/modules/nativelibrary/catalog"
@@ -47,7 +46,7 @@ func safeUser(v mediausers.User) (b.ServerUser, error) {
 	return out, nil
 }
 func (h AcquisitionHost) serverCatalog() mediaserver.PluginCatalog {
-	registry, _ := mediaserver.NewRegistry(mediaserver.Builtin{DB: h.DB}, mediaserver.EmbyAdapter{Catalog: catalog.Engine{DB: h.DB, Connections: h.Connections}})
+	registry, _ := mediaserver.NewRegistry(mediaserver.Builtin{DB: h.DB})
 	return mediaserver.PluginCatalog{DB: h.DB, Registry: registry}
 }
 func (h AcquisitionHost) callServer(ctx context.Context, call contracts.HostCall, p contracts.Permission, admit func() error) (out any, err error) {
@@ -89,16 +88,14 @@ func (h AcquisitionHost) callServer(ctx context.Context, call contracts.HostCall
 		return out, nil
 	case "mediaserver.libraries", "mediaserver.items", "catalog.list", "catalog.item":
 		var in b.ServerQuery
-		if decodeBusiness(call.Args, &in) != nil || pageOK(in.PageRequest) != nil || in.Provider != "builtin" && in.Provider != "emby" || in.MediaType != "" && in.MediaType != "movie" && in.MediaType != "series" {
+		if decodeBusiness(call.Args, &in) != nil || pageOK(in.PageRequest) != nil || in.Provider != "builtin" || in.MediaType != "" && in.MediaType != "movie" && in.MediaType != "series" {
 			return nil, invalidBusiness()
 		}
 		if in.LibraryID != "" && strings.ContainsAny(in.LibraryID, "/\\.") {
 			return nil, invalidBusiness()
 		}
 		service := h.serverCatalog()
-		if in.Provider == "emby" && h.Connections == nil {
-			return nil, unsupportedBusiness()
-		}
+
 		if call.Method == "mediaserver.libraries" {
 			v, n, e := service.Libraries(ctx, in.Provider, (in.Page-1)*in.Size, in.Size)
 			if e != nil {
@@ -110,7 +107,7 @@ func (h AcquisitionHost) callServer(ctx context.Context, call contracts.HostCall
 			}
 			return out, nil
 		}
-		if call.Method == "catalog.item" && in.ID == "" || in.ID != "" && (in.Provider == "builtin" && !validUUID(in.ID) || in.Provider == "emby" && !serverID.MatchString(in.ID)) {
+		if call.Method == "catalog.item" && in.ID == "" || in.ID != "" && !validUUID(in.ID) {
 			return nil, invalidBusiness()
 		}
 		v, n, e := service.Items(ctx, in.Provider, in.LibraryID, in.ID, in.Query, in.MediaType, in.Page, in.Size)
@@ -130,7 +127,7 @@ func (h AcquisitionHost) callServer(ctx context.Context, call contracts.HostCall
 		return result, nil
 	case "mediaserver.refresh":
 		var in b.ServerRefresh
-		if decodeBusiness(call.Args, &in) != nil || !validUUID(in.AssetID) || in.Provider != "builtin" && in.Provider != "emby" {
+		if decodeBusiness(call.Args, &in) != nil || !validUUID(in.AssetID) || in.Provider != "builtin" {
 			return nil, invalidBusiness()
 		}
 		if h.Connections == nil {
@@ -151,8 +148,6 @@ func (h AcquisitionHost) callServer(ctx context.Context, call contracts.HostCall
 				return nil, err
 			}
 			e = (nativetmdb.Repository{DB: h.DB}).EnqueueAsset(guarded, in.AssetID, lang)
-		} else {
-			e = (library.Engine{DB: h.DB, Connections: h.Connections}).QueueRefresh(guarded, in.AssetID)
 		}
 		return b.Receipt{ID: in.AssetID, State: "requested"}, e
 	case "mediaserver.settings.get":

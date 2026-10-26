@@ -54,7 +54,7 @@ func TestUAAdmissionBeforeResolverCacheAndAllPublicPlaybackEntries(t *testing.T)
 	}
 	before := calls.Load()
 	policy.Store(true)
-	for _, c := range []struct{ method, path string }{{"GET", linkTarget()}, {"HEAD", linkTarget()}, {"GET", "/emby/Videos/11/original.mkv"}, {"POST", "/emby/Items/11/PlaybackInfo"}, {"GET", "/emby/Emby//videos/11/stream"}} {
+	for _, c := range []struct{ method, path string }{{"GET", linkTarget()}, {"HEAD", linkTarget()}} {
 		w := invokeUA(c.method, c.path, "OwnedPlayer/1")
 		if w.Code != 403 || w.Header().Get("Location") != "" || w.Header().Get("Cache-Control") != "no-store" {
 			t.Fatal(c, w.Code, w.Body.String())
@@ -63,15 +63,7 @@ func TestUAAdmissionBeforeResolverCacheAndAllPublicPlaybackEntries(t *testing.T)
 	if calls.Load() != before {
 		t.Fatal("denied request reached resolver")
 	}
-	root := EmbyHandler(h)
-	r := httptest.NewRequest("GET", "/Videos/11/original.mkv", nil)
-	r.Header.Set("User-Agent", "unknown")
-	w := httptest.NewRecorder()
-	root.ServeHTTP(w, r)
-	if w.Code != 403 {
-		t.Fatal("root listener bypass", w.Code)
-	}
-	w = invokeUA("GET", "/emby/Users/Me", "unknown")
+	w := invokeUA("GET", "/emby/Users/Me", "unknown")
 	if w.Code == 403 && strings.Contains(w.Body.String(), "player_ua_denied") {
 		t.Fatal("login/browse was blocked")
 	}
@@ -87,7 +79,7 @@ func TestUAAdmissionBeforeResolverCacheAndAllPublicPlaybackEntries(t *testing.T)
 		return playeraccess.Decision{}, errors.New("unexpected")
 	})})
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest("GET", linkTarget(), nil)
+	r := httptest.NewRequest("GET", linkTarget(), nil)
 	r.Header["User-Agent"] = []string{"one", "two"}
 	h.ServeHTTP(w, r)
 	if w.Code != 400 {

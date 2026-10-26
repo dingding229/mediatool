@@ -145,7 +145,6 @@ func TestResolveStageAccessLogsAreRequestCorrelatedAndNeverContainSecrets(t *tes
 	var logs bytes.Buffer
 	c := cfg()
 	c.PlaybackResolveTimeout = 25 * time.Millisecond
-	c.EmbyDirectPlayOnly = true
 	source := resolverFunc(func(ctx context.Context, _ storage.FileRef) (storage.DownloadLink, error) {
 		storage.ObserveResolve(ctx, storage.StageOfficialPath, time.Now(), errors.New("PRIVATE-TOKEN https://secret.test/?PRIVATE-SIGNATURE"))
 		storage.ObserveResolve(ctx, storage.ResolveStage("PRIVATE-PATH"), time.Now(), nil)
@@ -186,7 +185,6 @@ func TestResolveStageAccessLogsAreRequestCorrelatedAndNeverContainSecrets(t *tes
 func TestFixedSTRMDeadlineCanExceedManagementWriteTimeoutButRemainsBounded(t *testing.T) {
 	c := cfg()
 	c.PlaybackResolveTimeout = 200 * time.Millisecond
-	c.EmbyDirectPlayOnly = true
 	source := resolverFunc(func(ctx context.Context, _ storage.FileRef) (storage.DownloadLink, error) {
 		select {
 		case <-time.After(80 * time.Millisecond):

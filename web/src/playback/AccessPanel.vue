@@ -12,14 +12,14 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import {getUAPolicy,saveUAPolicy,addUAObservation,type RuleList,type AccessMode} from '../api/playerAccess';
 import { date, errorText } from '../workflows/readiness';
-const query = ref(''), filter = ref(''), page = usePageNumber(), visitPage = usePageNumber('visitPage'), embyUser = ref(''), policy = reactive(useResource<any>(async () => {const p=await getUAPolicy();return {...p,mode:p.mode||(p.enabled?'whitelist':'off'),blacklistRules:p.blacklistRules||[]}})), records = reactive(useResource<any>(() => request(`/player-access/observations?${new URLSearchParams({ q: query.value, filter: filter.value, page: String(page.value), pageSize: '25' })}`),{items:[],total:0})), visits = reactive(useResource<any>(() => request(`/player-access/events?page=${visitPage.value}&pageSize=25&q=${encodeURIComponent(query.value)}&embyUserId=${encodeURIComponent(embyUser.value)}`),{items:[],total:0})), embyUsers = reactive(useResource<any>(() => request('/player-access/users'), [])), op = reactive(useOperation('access')), editing = ref(false), form = reactive<any>({}), base = ref<any>(null), latest = ref<any>(null), confirm = ref(false), action = ref<any>(null), details = ref<any>(null), detailOpen = ref(false), notice = ref(''), copyNotice = ref('');
+const query = ref(''), filter = ref(''), page = usePageNumber(), visitPage = usePageNumber('visitPage'), policy = reactive(useResource<any>(async () => {const p=await getUAPolicy();return {...p,mode:p.mode||(p.enabled?'whitelist':'off'),blacklistRules:p.blacklistRules||[]}})), records = reactive(useResource<any>(() => request(`/player-access/observations?${new URLSearchParams({ q: query.value, filter: filter.value, page: String(page.value), pageSize: '25' })}`),{items:[],total:0})), visits = reactive(useResource<any>(() => request(`/player-access/events?page=${visitPage.value}&pageSize=25&q=${encodeURIComponent(query.value)}`),{items:[],total:0})), op = reactive(useOperation('access')), editing = ref(false), form = reactive<any>({}), base = ref<any>(null), latest = ref<any>(null), confirm = ref(false), action = ref<any>(null), details = ref<any>(null), detailOpen = ref(false), notice = ref(''), copyNotice = ref('');
 const list=ref<RuleList>('rules'),modeName=(mode:string)=>({off:'关闭（全部允许）',whitelist:'白名单（仅允许匹配规则）',blacklist:'黑名单（拒绝匹配规则）'}[mode]||'待核对');
 const listName=(key:RuleList)=>key==='blacklistRules'?'黑名单':'白名单';
 const rules=computed(()=>policy.data?.[list.value]||[]);
 const matchName=(kind:string)=>({exact:'完整匹配',prefix:'前缀匹配',contains:'包含匹配'}[kind]||'待核对');
 const ipSource = (s: string) => ({ direct: '直连', trusted_proxy: '可信反代', proxy_without_header: '代理未提供来源', trusted_chain_without_client: '代理链没有访客地址', invalid_forwarded_chain: '代理链无效', legacy_unknown: '历史来源未核验' } as Record<string, string>)[s] || '来源待核对', reason = (s: string) => ({ restriction_disabled: '限制关闭', whitelisted: '命中白名单', ua_not_whitelisted: '未匹配白名单', blacklisted:'命中黑名单',not_blacklisted:'未匹配黑名单' } as Record<string, string>)[s] || '原因待核对';
 async function load() {
-  await Promise.all([policy.load(), records.load(), visits.load(), embyUsers.load()]);
+  await Promise.all([policy.load(), records.load(), visits.load()]);
   if (op.pending && !policy.error) {
     const p = JSON.parse(op.pending.key);
     if (p.action === 'clear' && !records.error)
@@ -87,7 +87,7 @@ async function copyUA() {
   }
 }
 onMounted(load);
-defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, query, filter, page, visitPage, embyUser, form, base, latest, action, op, list });
+defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, query, filter, page, visitPage, form, base, latest, action, op, list });
 </script>
 <template>
   <div class="media-stack">
@@ -158,18 +158,9 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
     </section>
     <section class="media-surface">
       <h2>访问明细</h2>
-      <label class="u5-field">
-        Emby 用户
-        <select v-model="embyUser" aria-label="Emby访问用户筛选" @change="visitPage=1;visits.load()">
-          <option value="">全部 Emby 用户</option>
-          <option value="unknown">未核验用户</option>
-          <option v-for="user in embyUsers.data" :key="user.id" :value="user.id">{{ user.name }}</option>
-        </select>
-      </label>
-      <ResourceState :error="embyUsers.error" @reload="embyUsers.load"/>
       <ResourceState :stale="visits.loaded" :loading="visits.loading" :error="visits.error" :empty="!visits.data?.items.length" @reload="visits.load"/>
       <article v-for="visit in visits.data?.items||[]" :key="visit.id" class="organize-record">
-        <h3>{{ visit.embyVerified?visit.embyUserName||'已核验用户':'未核验用户' }}</h3>
+        <h3>访问记录</h3>
         <p>{{ visit.allowed?'准入通过':'准入拒绝' }} · HTTP {{ visit.status??'—' }} · {{ reason(visit.reason) }}</p>
         <p>访客地址 <IpAddress :ip="visit.clientIp"/> · {{ ipSource(visit.ipSource) }} · {{ visit.ipPublic?'公网地址':'非公网或未核验' }}</p>
         <p>连接地址 <IpAddress :ip="visit.connectionIp"/> · {{ visit.method||'—' }} · {{ date(visit.createdAt) }}</p>

@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"media-tool/internal/modules/accounts"
-	"media-tool/internal/modules/emby"
 	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/modules/idleupdate"
 	"media-tool/internal/modules/imageedit"
@@ -82,13 +81,11 @@ type Dependencies struct {
 	Playback          *playback.Engine
 }
 type API struct {
-	Config         config.Config
-	Deps           Dependencies
-	Auth           auth.Auth
-	Builder        strm.Builder
-	Engine         *playback.Engine
-	Gateway        *emby.Gateway
-	EmbyIdentities emby.IdentityStore
+	Config  config.Config
+	Deps    Dependencies
+	Auth    auth.Auth
+	Builder strm.Builder
+	Engine  *playback.Engine
 }
 type Envelope struct {
 	Data  any       `json:"data,omitempty"`
@@ -129,14 +126,10 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 		}
 		cancel()
 	}
-	a.EmbyIdentities = emby.NewMemoryIdentityStore()
-	if d.Redis != nil {
-		a.EmbyIdentities = &emby.RedisIdentityStore{Redis: d.Redis}
-	}
 	a.Engine = d.Playback
 	if a.Engine == nil {
 		blocked := []string{}
-		for _, raw := range []string{c.PublicURL, c.EmbyUpstream, c.CloudDriveEndpoint} {
+		for _, raw := range []string{c.PublicURL, c.CloudDriveEndpoint} {
 			parsed, err := url.Parse(raw)
 			if err == nil && parsed.Hostname() != "" {
 				blocked = append(blocked, parsed.Hostname())
@@ -148,14 +141,9 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 		}
 		a.Engine = playback.New(resolver, playback.Options{Policy: playback.Policy{BlockedHosts: blocked, AllowedHosts: c.PlaybackAllowedHosts, AllowHTTP: c.PlaybackAllowHTTP}, ResolveTimeout: c.PlaybackResolveTimeout})
 	}
-	if c.EmbyUpstream != "" {
-		target, _ := url.Parse(c.EmbyUpstream)
-		a.Gateway = emby.NewGateway(emby.GatewayOptions{Identities: a.EmbyIdentities, Upstream: target, PublicOrigin: embyPublicOrigin(c.EmbyPublicURL), Enable302: c.Emby302Enabled, DirectPlayOnly: c.EmbyDirectPlayOnly, LegacyEnabled: c.LegacyPlaybackEnabled, OwnedAsset: a.ownedAsset, Builder: a.Builder, STRMOutputDir: c.STRMOutputDir, STRMPathPrefix: c.EmbySTRMPathPrefix, ResolverOrigins: c.EmbyResolverOrigins, Playback: a.Engine})
-	}
+
 	mux.HandleFunc("GET /api/v1/media-server/native/sessions", a.protected(a.nativeSessions))
-	mux.HandleFunc("GET /api/v1/media/emby/items/{id}", a.protected(a.catalogItem))
 	mux.HandleFunc("GET /api/v1/media/tmdb/image", a.protected(a.tmdbPoster))
-	mux.HandleFunc("GET /api/v1/media/library/emby/home", a.protected(a.catalogHome))
 	mux.HandleFunc("/api/v1/plugin/{instance}/{path...}", a.pluginGateway)
 	mux.HandleFunc("POST /api/v1/plugins/agent/chat", a.protected(a.pluginAgentUnsupported))
 	mux.HandleFunc("POST /api/v1/plugins/agent/run", a.protected(a.pluginAgentUnsupported))
@@ -246,7 +234,6 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("GET /api/v1/media/library/managed/{id}/images/candidates", a.protected(a.mediaImageCandidates))
 	mux.HandleFunc("GET /api/v1/media/library/managed/{id}/images/{kind}", a.protected(a.mediaImage))
 	mux.HandleFunc("PATCH /api/v1/media/library/managed/{id}/metadata", a.protected(a.mediaMetadata))
-	mux.HandleFunc("GET /api/v1/media/library/emby/{id}/image", a.protected(a.catalogImage))
 	mux.HandleFunc("POST /api/v1/files/batches/preview", a.protected(a.previewFileBatch))
 	mux.HandleFunc("GET /api/v1/files/batches/{id}", a.protected(a.getFileBatch))
 	mux.HandleFunc("POST /api/v1/files/batches/{id}/approve", a.protected(a.approveFileBatch))
@@ -257,7 +244,6 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("GET /api/v1/library/activity", a.protected(a.libraryActivity))
 	mux.HandleFunc("GET /api/v1/library/outputs/{id}/content", a.protected(a.managedOutputContent))
 	mux.HandleFunc("GET /api/v1/library/outputs", a.protected(a.managedOutputs))
-	mux.HandleFunc("POST /api/v1/library/outputs/{id}/emby", a.protected(a.checkManagedEmby))
 	mux.HandleFunc("GET /api/v1/library/scans/{id}", a.protected(a.scanDetails))
 	mux.HandleFunc("POST /api/v1/library/scans/{id}/{action}", a.protected(a.controlScan))
 	mux.HandleFunc("GET /api/v1/files/roots", a.protected(a.listFileRoots))
@@ -277,8 +263,6 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	mux.HandleFunc("GET /api/v1/media/assets/{id}/validation-ref", a.protected(a.assetValidationRef))
 	mux.HandleFunc("POST /api/v1/cloudStorage/test", a.protected(a.testStorage))
 	mux.HandleFunc("POST /api/v1/cloudStorage/diagnose", a.protected(a.diagnoseStorage))
-	mux.HandleFunc("POST /api/v1/emby/test", a.protected(a.testEmby))
-	mux.HandleFunc("POST /api/v1/emby/check", a.protected(a.checkEmbyItem))
 	mux.HandleFunc("GET "+strm.Endpoint, a.resolve)
 	mux.HandleFunc("GET /api/v1/sites", a.protected(a.listDefinitions))
 	mux.HandleFunc("GET /api/v1/sites/metrics/schedule", a.protected(a.getSiteMetricSchedule))
@@ -367,18 +351,12 @@ func newWithMux(c config.Config, d Dependencies, mux routeRegistrar) http.Handle
 	ui := webui.Handler()
 	mux.HandleFunc("GET /watch", func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
 	mux.HandleFunc("GET /watch/{rest...}", func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
-	embyProxy := longStream(http.HandlerFunc(a.proxyEmby))
-	mux.Handle("/emby/", embyProxy)
-	mux.Handle("/emby", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !emby.IsRootOrigin(r.Context()) && (r.Method == "GET" || r.Method == "HEAD") {
-			// Vue history-mode hard refresh belongs to the management SPA.
-			// The dedicated Emby listener still proxies its actual server root.
-			ui.ServeHTTP(w, r)
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/emby" || strings.HasPrefix(r.URL.Path, "/emby/") {
+			http.NotFound(w, r)
 			return
 		}
-		embyProxy.ServeHTTP(w, r)
-	}))
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" && r.Method != "HEAD" {
 			fail(w, 405, "method_not_allowed", "不支持此方法")
 			return
@@ -487,7 +465,7 @@ func (a *API) middleware(next http.Handler) http.Handler {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			w.Header().Set("Cache-Control", "no-store")
 		}
-		if !strings.HasPrefix(r.URL.Path, "/emby") {
+		if true {
 			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
 		}
 		// Preserve Flusher/Hijacker/ReaderFrom and their exact availability;
@@ -516,7 +494,7 @@ func (a *API) middleware(next http.Handler) http.Handler {
 		metrics := httpsnoop.CaptureMetrics(guarded, w, r)
 		if visit, ok := r.Context().Value(playerVisitKey{}).(*playerVisit); ok && visit.ID != "" {
 			finish, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Second)
-			if err := a.playerAccessRepo().FinishEvent(finish, visit.ID, visit.UserID, visit.UserName, visit.Verified, metrics.Code); err != nil {
+			if err := a.playerAccessRepo().FinishEvent(finish, visit.ID, metrics.Code); err != nil {
 				a.Deps.Logger.Warn("playback event finalization unavailable", "eventId", visit.ID)
 			}
 			cancel()
@@ -605,7 +583,6 @@ func (a *API) dependencies(ctx context.Context) []DependencyStatus {
 		{"postgres", "PostgreSQL", "not_configured", "未配置 DATABASE_URL；持久化任务暂不可用"},
 		{"redis", "Redis", "not_configured", "未配置 REDIS_URL；后续可重建缓存使用此连接"},
 		{"clouddrive2", "CloudDrive2 / 115", "not_configured", "未配置 CloudDrive2；请填写地址和接入凭据"},
-		{"emby", "Emby", "disabled", "未配置或启用 Emby 连接"},
 	}
 	var wg sync.WaitGroup
 	if a.Deps.DB != nil {
@@ -657,13 +634,7 @@ func (a *API) dependencies(ctx context.Context) []DependencyStatus {
 		statuses[2].State = "unavailable"
 		statuses[2].Message = "存储客户端未初始化"
 	}
-	if gateway := a.gateway(ctx); gateway != nil {
-		statuses[3].State = "configured"
-		statuses[3].Message = "Emby反代已配置，真实客户端播放待验收"
-		if gateway.RedirectEnabled() {
-			statuses[3].Message = "静态流302网关已配置，真实客户端播放待验收"
-		}
-	}
+
 	wg.Wait()
 	return statuses
 }
@@ -680,7 +651,7 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 func (a *API) status(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{
 		"name": "Media Tool", "version": buildinfo.Version, "environment": a.Config.RuntimeEnvironment(), "dependencies": a.dependencies(r.Context()), "publicUrl": a.access(r.Context()).ManagementURL, "memberUrl": a.access(r.Context()).MemberURL, "playbackUrl": a.access(r.Context()).PlaybackURL, "strmEndpoint": strm.Endpoint, "allowedRoots": a.builder(r.Context()).AllowedRoots, "phase": "业务接入开发", "databaseConfigured": a.Deps.DB != nil,
-		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": false, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": false, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled, "emby302Enabled": a.Config.Emby302Enabled, "embyDirectPlayOnly": a.directPlayOnly(r.Context()),
+		"worker": a.workerStatus(r.Context()), "integrationsAvailable": a.Deps.Integrations != nil, "storageConfigured": a.storageConfigured(r.Context()), "proxyFallback": false, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "forceProxy": false, "legacyPlaybackEnabled": a.Config.LegacyPlaybackEnabled,
 	})
 }
 func (a *API) preview(w http.ResponseWriter, r *http.Request) {
@@ -741,11 +712,7 @@ func (a *API) resolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(requestbudget.FixedSTRMWrite(a.Engine.ResolveBudget())))
-	if a.directPlayOnly(r.Context()) {
-		a.Engine.ServeRedirect(w, r, ref)
-	} else {
-		a.Engine.Serve(w, r, ref)
-	}
+	a.Engine.ServeRedirect(w, r, ref)
 }
 func (a *API) listJobs(w http.ResponseWriter, r *http.Request) {
 	if a.Deps.DB == nil {

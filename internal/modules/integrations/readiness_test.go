@@ -27,8 +27,4 @@ func TestReadinessDoesNotAutoEnableOrPromisePlayback(t *testing.T) {
 	if f := ConnectionReadiness(r, now); f.State != "check_failed" {
 		t.Fatal(f)
 	}
-	r.Kind = "emby"
-	if f := ConnectionReadiness(r, now); f.NextAction != "configure_credentials" {
-		t.Fatal(f)
-	}
 }

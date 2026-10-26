@@ -18,7 +18,7 @@ func (a *API) workflowReadiness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := map[string]integrations.Readiness{}
-	for _, kind := range []string{"open115", "clouddrive2", "emby"} {
+	for _, kind := range []string{"open115", "clouddrive2"} {
 		current := integrations.Readiness{State: "not_configured", NextAction: "configure_" + kind, Reason: "connection_missing"}
 		// An enabled connection wins over disabled drafts; never auto-enable one.
 		for _, record := range records {

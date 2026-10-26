@@ -29,10 +29,7 @@ let hasLoaded=false;
       const fresh = items.value.find(a => a.id === asset.value.id);
       if (fresh) {
         asset.value = fresh;
-        if (['visible', 'failed', 'partial', 'unavailable'].includes(fresh.embyState)) {
-          writeIntent('emby-check:' + fresh.id, null);
-          phase.value = null;
-        }
+
       }
     }
   hasLoaded=true;
@@ -59,7 +56,6 @@ function inspect(row: any) {
   feedback.value = '';
   contentError.value = null;
   contentLoading.value = false;
-  phase.value = readIntent('emby-check:' + row.id)?.phase || null;
 }
 async function readContent(row: any, path: string) {
   if (!visible.value || asset.value?.id !== row.id)
@@ -83,26 +79,7 @@ async function readContent(row: any, path: string) {
       contentLoading.value = false;
   }
 }
-async function refreshEmby() {
-  if (!asset.value || phase.value || busy.value)
-    return;
-  const id = asset.value.id;
-  busy.value = true;
-  phase.value = 'reconciling';
-  writeIntent('emby-check:' + id, { phase: 'reconciling' });
-  try {
-    await post(`/library/outputs/${id}/emby`, {});
-    if (asset.value?.id === id)
-      phase.value = 'queued';
-    writeIntent('emby-check:' + id, { phase: 'queued' });
-  }
-  catch (e) {
-    error.value = e;
-  }
-  finally {
-    busy.value = false;
-  }
-}
+
 async function copy() {
   try {
     await navigator.clipboard.writeText(content.value.content);
@@ -181,13 +158,12 @@ defineExpose({ refresh: load });
     <h3>{{ asset?.title||'—' }}</h3>
     <img v-if="image(asset?.poster)" :src="image(asset.poster)" :alt="asset?.title" class="files-detail-poster"/>
     <p>{{ asset?.source||'—' }}</p>
-    <p>{{ label(asset?.cloudState) }} · {{ label(asset?.artifactsState) }} · Emby：{{ label(asset?.embyState) }}</p>
+    <p>{{ label(asset?.cloudState) }} · {{ label(asset?.artifactsState) }}</p>
     <p v-for="report in asset?.scrapeReport||[]" :key="report.kind">{{ report.kind }} · {{ label(report.state) }} · {{ report.message||'—' }}</p>
     <p v-for="out in asset?.outputs?.filter((o:any)=>o.kind==='strm')||[]" :key="out.path">
       {{ out.path }}
       <el-button @click="readContent(asset,out.path)">读取原文</el-button>
     </p>
-    <p v-for="path in asset?.embyPaths||[]" :key="path.path">{{ path.path }} · {{ path.visible?'Emby 已可见':'未确认可见' }} · {{ path.reason||'—' }}</p>
     <StateView v-if="contentLoading" state="loading" title="正在读取原文…"/>
     <StateView v-else-if="contentError" :state="sourceState(contentError)" title="原文读取失败" :description="errorText(contentError)" retry-text="重新读取原文" @retry="readContent(asset,contentPath)"/>
     <template v-else-if="content">
@@ -195,10 +171,7 @@ defineExpose({ refresh: load });
       <el-button @click="copy">复制原始内容</el-button>
       <p role="status">{{ feedback }}</p>
     </template>
-    <AsyncResultBanner v-if="phase" :status="phase" message="同步请求已排队或正在核对，尚未确认作品已出现在 Emby。" @refresh="load"/>
     <div class="media-actions">
-      <el-button :disabled="!asset||!!phase||busy||!!error" @click="refreshEmby">同步此作品到 Emby</el-button>
-      <el-button @click="load">核对 Emby 可见性</el-button>
     </div>
   </DetailDrawer>
 </template>

@@ -44,7 +44,7 @@ func (p managedParser) Parse(ctx context.Context, raw string) (storage.FileRef, 
 		return storage.FileRef{}, classify(ctx, err)
 	}
 	grants := playbackgrants.Service{DB: p.m.Repository.DB, Vault: p.m.Repository.Vault, PublicURL: c.PublicURL}
-	ref, err := strm.ParseStable(ctx, raw, strm.ParseOptions{Builder: builder, Origins: c.EmbyResolverOrigins, LegacyEnabled: c.LegacyPlaybackEnabled, ManagedURL: grants.VerifyManagedURL})
+	ref, err := strm.ParseStable(ctx, raw, strm.ParseOptions{Builder: builder, Origins: []string{c.PublicURL}, LegacyEnabled: c.LegacyPlaybackEnabled, ManagedURL: grants.VerifyManagedURL})
 	if err != nil {
 		if errors.Is(err, playbackgrants.ErrDenied) || errors.Is(err, storage.ErrUnavailable) || ctx.Err() != nil {
 			return ref, classify(ctx, err)

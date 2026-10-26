@@ -388,7 +388,6 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		w.Handlers["library.strm.repair"] = libraryEngine.ProcessSTRMRepair
 		fileEngine := filemanager.Engine{DB: db, Connections: manager}
 		w.Handlers["files.batch"] = fileEngine.ProcessBatch
-		w.Handlers["library.refresh"] = libraryEngine.Refresh
 		probeRepo := probequeue.Repository{DB: db}
 		assignmentEngine := catalog.Engine{DB: db}
 		detailsEngine := nativetmdb.Engine{DB: db, Connections: manager}
@@ -415,7 +414,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 			}
 			return nil // Provider unavailability must not fail asset assignment.
 		}
-		w.Handlers["library.emby.confirm"] = libraryEngine.CheckEmby
+		w.Handlers["library.refresh"] = libraryEngine.Refresh
 		downloader := acquisition.Engine{DB: db, Connections: manager, Search: engine}
 		w.Handlers["download.manual.import"] = (manualdownloads.Engine{DB: db, Connections: manager}).ProcessImport
 		w.Handlers["download.manual.add"] = (manualdownloads.Engine{DB: db, Connections: manager}).Process
@@ -423,8 +422,6 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		w.Handlers["download.cleanup"] = downloader.Cleanup
 		w.Handlers["transfer.upload"] = downloader.Transfer
 		w.Handlers["transfer.import.resume"] = downloader.RunOutputImport
-		w.Handlers["emby.refresh"] = downloader.RefreshEmby
-		w.Handlers["emby.confirm"] = downloader.ConfirmEmby
 		if queue == "default" {
 			watchCtx, watchCancel := context.WithCancel(ctx)
 			watchDone := make(chan struct{})
@@ -504,9 +501,7 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 					if err := (sourcecatalog.SourceRegistry{Store: pluginv2.Store{DB: db, Vault: manager.Repository.Vault}, Cache: rc}).Refresh(check); err != nil {
 						logger.Warn("plugin source cache refresh deferred", "module", "plugins")
 					}
-					if err := libraryEngine.ScheduleEmby(check); err != nil {
-						logger.Warn("automatic Emby refresh unavailable", "error", err)
-					}
+
 					if err := libraryEngine.Schedule(check); err != nil {
 						logger.Warn("library schedule unavailable", "error", err)
 					}
@@ -543,6 +538,15 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 }
 
 func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis.Client, manager *integrations.Manager, logger *slog.Logger, logStore *logging.Store, blocks *ipblock.Service, native ...*stillrunner.Service) error {
+	if rc != nil {
+		cleanup, done := context.WithTimeout(ctx, 3*time.Second)
+		err := retireExternalIdentityCache(cleanup, rc)
+		done()
+		if err != nil {
+			logger.Warn("retired external identity cleanup deferred", "error", err)
+		}
+	}
+
 	stats := playbackstats.New(db, logger)
 	statsCtx, statsCancel := context.WithCancel(ctx)
 	statsDone := make(chan struct{})
@@ -673,22 +677,6 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 			done <- memberServer.Serve(memberListener)
 		}()
 	}
-	var gatewayServer *http.Server
-	if c.EmbyGatewayAddress != "" {
-		gatewayListener, err := net.Listen("tcp", c.EmbyGatewayAddress)
-		if err != nil {
-			deferutil.Close(listener, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
-			if memberServer != nil {
-				deferutil.Close(memberServer, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
-			}
-			return errors.New("cannot bind EMBY_GATEWAY_ADDR")
-		}
-		gatewayServer = &http.Server{Handler: httpapi.EmbyHandler(handler), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
-		go func() {
-			logger.Info("Emby gateway listener started", "address", c.EmbyGatewayAddress)
-			done <- gatewayServer.Serve(gatewayListener)
-		}()
-	}
 
 	go func() {
 		logger.Info("HTTP server started", "address", c.Address, "environment", c.Environment)
@@ -702,11 +690,7 @@ func runServer(ctx context.Context, c config.Config, db *pgxpool.Pool, rc *redis
 				deferutil.Close(memberServer, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 			}
 		}
-		if gatewayServer != nil {
-			if gatewayServer.Shutdown(shutdown) != nil {
-				deferutil.Close(gatewayServer, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
-			}
-		}
+
 		if server.Shutdown(shutdown) != nil {
 			deferutil.Close(server, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 		}

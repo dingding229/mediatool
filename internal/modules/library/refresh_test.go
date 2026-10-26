@@ -4,7 +4,7 @@ import "testing"
 
 func TestRefreshKeyIsStablePerAssetRevision(t *testing.T) {
 	first := refreshKey("asset-1", 7)
-	if first != "library.refresh:asset-1:7" {
+	if first != "library.native.refresh:asset-1:7" {
 		t.Fatalf("unexpected refresh key: %s", first)
 	}
 	if first != refreshKey("asset-1", 7) {

@@ -27,7 +27,6 @@ export const kinds: Record<string, {
 }> = {
   open115: { name: '115 授权', fields: [{ key: 'appId', label: '自己的115开放平台 AppID', hint: '使用自己的开放平台应用，不借用其他服务凭据。' }, { key: 'cloudMountPrefix', label: 'CloudDrive2中的115挂载前缀' }, { key: 'accessToken', label: 'Access Token（可选手动录入）', secret: true }, { key: 'refreshToken', label: 'Refresh Token（可选手动录入）', secret: true }] },
   clouddrive2: { name: 'CloudDrive2', fields: [{ key: 'endpoint', label: '原生 gRPC 地址' }, { key: 'cloudRoot', label: '允许的网盘根目录' }, { key: 'token', label: 'CloudDrive2 API Token', secret: true }, { key: 'username', label: 'CloudDrive2 用户名（可选账号模式）', secret: true }, { key: 'password', label: 'CloudDrive2 密码', secret: true }, { key: 'caFile', label: '自定义 CA 文件路径（可选）' }] },
-  emby: { name: 'Emby', fields: [{ key: 'endpoint', label: 'Emby 服务地址' }, { key: 'apiKey', label: '媒体库刷新 API Key', secret: true }, { key: 'strmPathPrefix', label: 'Emby 看到的 STRM 目录' }] },
   telegram: { name: 'Telegram', fields: [{ key: 'botToken', label: 'Bot Token', secret: true }, { key: 'chatId', label: '接收 Chat ID' }] },
   tmdb: { name: 'TMDB', fields: [{ key: 'token', label: 'TMDB API Token', secret: true }, { key: 'language', label: '查询语言' }] },
   qbittorrent: { name: '下载器', fields: [{ key: 'endpoint', label: 'Web API 地址' }, { key: 'username', label: '用户名', secret: true }, { key: 'password', label: '密码', secret: true }, { key: 'downloadPath', label: '下载器看到的保存目录' }, { key: 'localPath', label: '本程序可读取的对应共享目录' }, { key: 'category', label: '任务分类' }] },

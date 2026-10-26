@@ -27,7 +27,7 @@ const { rows, loading, loadError, error, editing, saving, notice, conflict, save
 const reveal = useSecretReveal(() => ({ id: form.id, revision: form.revision }));
 watch(() => [editing.value, form.id, form.revision, saving.value], () => reveal.hideAll());
 const connectionPage=usePageNumber('connectionPage');
-const selectedKind = ref(props.allowedKinds[0] ?? 'emby'), visible = computed(() => rows.value.filter(r => props.allowedKinds.includes(r.kind)));
+const selectedKind = ref(props.allowedKinds[0] ?? 'clouddrive2'), visible = computed(() => rows.value.filter(r => props.allowedKinds.includes(r.kind)));
 async function approveRevision() {
   try {
     await ElMessageBox.confirm('将保留你的输入，并基于刚读取的最新修订保存。请先核对差异。', '确认采用最新修订', { confirmButtonText: '保留输入并确认', cancelButtonText: '取消', type: 'warning' });
@@ -102,11 +102,6 @@ usePageRefresh(load);
         </template>
         <el-input v-else v-model="form.settings[field.key]" :aria-label="field.label" />
         <small v-if="field.hint">{{ field.hint }}</small>
-      </div>
-      <div v-if="form.kind==='emby'">
-        <el-checkbox v-model="form.settings.gatewayEnabled">通过网关直接播放</el-checkbox>
-        <el-checkbox :model-value="true" disabled>只使用影片原格式，不中转或转码</el-checkbox>
-        <p>播放器需要支持文件的原始格式；服务器不会转换视频或音频格式。</p>
       </div>
       <el-checkbox v-model="form.enabled">启用连接</el-checkbox>
       <p v-if="form.kind==='open115'">扫码授权不会自动启用；授权后可回到编辑窗口明确启用。</p>

@@ -15,7 +15,6 @@ type Access struct {
 	ManagementURL string `json:"managementUrl"`
 	PlaybackURL   string `json:"playbackUrl"`
 	MemberURL     string `json:"memberUrl"`
-	EmbyURL       string `json:"embyUrl"`
 }
 
 var domainLabel = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
@@ -32,13 +31,11 @@ func OriginKey(raw string) string {
 	return raw
 }
 func ValidateAccess(v Access) error {
-	if v.MemberURL != "" && (OriginKey(v.MemberURL) == OriginKey(v.ManagementURL) || OriginKey(v.MemberURL) == OriginKey(v.PlaybackURL) || OriginKey(v.MemberURL) == OriginKey(v.EmbyURL)) {
-		return errors.New("内置媒体入口须使用不同域名或端口，根路径不能与后台或Emby共用")
+	if v.MemberURL != "" && (OriginKey(v.MemberURL) == OriginKey(v.ManagementURL) || OriginKey(v.MemberURL) == OriginKey(v.PlaybackURL)) {
+		return errors.New("内置媒体入口须使用不同域名或端口，根路径不能与后台共用")
 	}
-	if v.EmbyURL != "" && (OriginKey(v.EmbyURL) == OriginKey(v.ManagementURL) || OriginKey(v.EmbyURL) == OriginKey(v.PlaybackURL)) {
-		return errors.New("Emby网关须使用不同域名或端口")
-	}
-	for _, raw := range []string{v.ManagementURL, v.PlaybackURL, v.MemberURL, v.EmbyURL} {
+
+	for _, raw := range []string{v.ManagementURL, v.PlaybackURL, v.MemberURL} {
 		if raw == "" {
 			continue
 		}

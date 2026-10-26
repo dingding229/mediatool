@@ -52,7 +52,7 @@ func New(db *pgxpool.Pool, c config.Config, m *integrations.Manager, cache *redi
 		source = &linkcache.Cached{Source: source, Redis: cache, Version: version, ResolveTimeout: c.PlaybackResolveTimeout}
 	}
 	blocked := []string{}
-	for _, raw := range []string{c.PublicURL, c.MemberPublicURL, c.EmbyUpstream, c.CloudDriveEndpoint} {
+	for _, raw := range []string{c.PublicURL, c.MemberPublicURL, c.CloudDriveEndpoint} {
 		if u, e := url.Parse(raw); e == nil && u.Hostname() != "" {
 			blocked = append(blocked, u.Hostname())
 		}
@@ -111,7 +111,7 @@ func (r *Resolver) Resolve(parent context.Context, id, ua, ip string) (nativepla
 		return nativeplayback.RedirectTarget{}, nativeplayback.ErrUpstream
 	}
 	builder := strm.Builder{BaseURL: origin, APIKey: r.Config.STRMKey, AllowedRoots: r.Config.STRMAllowedRoots}
-	opts := strm.ParseOptions{Builder: builder, Origins: r.Config.EmbyResolverOrigins, LegacyEnabled: r.Config.LegacyPlaybackEnabled}
+	opts := strm.ParseOptions{Builder: builder, Origins: []string{r.Config.PublicURL}, LegacyEnabled: r.Config.LegacyPlaybackEnabled}
 	if r.Manager != nil {
 		profile, e := r.Manager.Repository.Default(ctx, "clouddrive2")
 		if e == nil {

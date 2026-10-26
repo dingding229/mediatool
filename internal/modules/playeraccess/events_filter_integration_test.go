@@ -26,18 +26,18 @@ func TestEventExactUserFilterAndAddressEcho(t *testing.T) {
 	db.Exec(ctx, "TRUNCATE player_access_events")
 	defer db.Exec(ctx, "TRUNCATE player_access_events")
 	r := Repository{DB: db}
-	for _, u := range []string{"user-a", "user-b", ""} {
+	for range 3 {
 		id, err := r.RecordEvent(ctx, Request{UserAgent: "Owned", Entry: "emby", ClientIP: "8.8.8.8", ConnectionIP: "10.0.0.2", IPSource: "trusted_proxy", IPPublic: true}, Decision{Allowed: true, PolicyRevision: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = r.FinishEvent(ctx, id, u, "same-name", u != "", 302); err != nil {
+		if err = r.FinishEvent(ctx, id, 302); err != nil {
 			t.Fatal(err)
 		}
 	}
-	for _, u := range []string{"user-a", "user-b", "unknown"} {
-		out, err := r.FilteredEvents(ctx, "", "", u, 1, 25)
-		if err != nil || out.Total != 1 || len(out.Items) != 1 {
+	for range 1 {
+		out, err := r.FilteredEvents(ctx, "", "", 1, 25)
+		if err != nil || out.Total != 3 || len(out.Items) != 3 {
 			t.Fatal(out, err)
 		}
 		e := out.Items[0]

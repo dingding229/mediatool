@@ -577,7 +577,7 @@ func (e Engine) finishTask(ctx context.Context, id string) error {
 	if err = tx.QueryRow(ctx, `SELECT download_state,details FROM download_tasks WHERE id=$1 FOR UPDATE`, id).Scan(&state, &raw); err != nil {
 		return err
 	}
-	if state == "imported" || state == "refresh_requested" {
+	if state == "imported" {
 		return nil
 	}
 	var total, pending, imported int
@@ -587,7 +587,7 @@ func (e Engine) finishTask(ctx context.Context, id string) error {
 	if total == 0 || pending > 0 || imported == 0 {
 		return nil
 	}
-	if state != "local_complete" && state != "strm_ready" {
+	if state != "local_complete" && state != "strm_ready" && state != "refresh_requested" {
 		return nil
 	}
 	if state == "local_complete" {
@@ -603,8 +603,7 @@ func (e Engine) finishTask(ctx context.Context, id string) error {
 			return err
 		}
 	}
-	payload, _ := json.Marshal(map[string]string{"taskId": id})
-	if _, err = tx.Exec(ctx, `INSERT INTO jobs(id,kind,payload,idempotency_key)VALUES($1,'emby.refresh',$2,$3)ON CONFLICT(idempotency_key)WHERE idempotency_key IS NOT NULL DO NOTHING`, jobs.UUID(), payload, "emby.refresh:"+id); err != nil {
+	if _, err = tx.Exec(ctx, `WITH done AS (UPDATE download_tasks d SET download_state='imported',updated_at=now() WHERE d.id=$1 AND `+ImportEvidenceSQL+` RETURNING id,details) INSERT INTO outbox_events(id,event_type,aggregate_id,payload) SELECT $2,'library.visible',id,details FROM done`, id, jobs.UUID()); err != nil {
 		return err
 	}
 	return dbutil.Commit(ctx, tx)

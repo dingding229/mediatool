@@ -1,52 +1,23 @@
 package httpapi
 
 import (
-	"errors"
-	"media-tool/internal/modules/integrations"
 	"net/http"
 )
 
 // Playback preflight reports effective runtime configuration, never credentials.
 func (a *API) playbackPreflight(w http.ResponseWriter, r *http.Request) {
-	cloud, embyReady := a.storageConfigured(r.Context()), false
-	cloudSource, embySource := "none", "none"
-	enabled := false
+	cloud := a.storageConfigured(r.Context())
+	source := "none"
 	if cloud {
-		cloudSource = "environment"
+		source = "environment"
 	}
 	if a.Deps.Integrations != nil {
 		if _, err := a.Deps.Integrations.Repository.Default(r.Context(), "clouddrive2"); err == nil {
-			cloudSource = "database"
-		}
-		_, err := a.Deps.Integrations.Repository.Default(r.Context(), "emby")
-		if err == nil {
-			embySource = "database"
-			embyReady = true
-		} else if !errors.Is(err, integrations.ErrNotFound) {
-			fail(w, 503, "preflight_unavailable", "无法读取有效服务配置")
-			return
-		} else {
-			var exists bool
-			if a.Deps.DB.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM integrations WHERE kind='emby')`).Scan(&exists) != nil {
-				fail(w, 503, "preflight_unavailable", "无法读取配置")
-				return
-			}
-			if !exists && a.Gateway != nil {
-				embySource = "environment"
-				embyReady = true
-			}
-		}
-	} else if a.Gateway != nil {
-		embySource = "environment"
-		embyReady = true
-	}
-	if embyReady {
-		if g := a.gateway(r.Context()); g != nil {
-			enabled = g.RedirectEnabled()
+			source = "database"
 		}
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	write(w, 200, map[string]any{"cloudConfigured": cloud, "cloudSource": cloudSource, "embyConfigured": embyReady, "embySource": embySource, "gatewayEnabled": enabled, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "legacyKeyEnabled": a.Config.LegacyPlaybackEnabled, "realPlayerVerified": false})
+	write(w, 200, map[string]any{"cloudConfigured": cloud, "cloudSource": source, "playbackResolveTimeoutMs": a.Engine.ResolveBudget().Milliseconds(), "legacyKeyEnabled": a.Config.LegacyPlaybackEnabled, "realPlayerVerified": false})
 }
 
 // Explicit authenticated download; listing assets never returns file keys.

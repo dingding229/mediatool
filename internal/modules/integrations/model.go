@@ -53,13 +53,12 @@ var publicKeys = map[string][]string{
 	"open115":     {"appId", "cloudMountPrefix"},
 	"local":       {"rootPath"},
 	"qbittorrent": {"endpoint", "downloadPath", "localPath", "category"},
-	"emby":        {"endpoint", "strmPathPrefix", "gatewayEnabled", "directPlayOnly"},
 	"tmdb":        {"language"},
 	"telegram":    {"chatId", "inboundEnabled", "allowedChatIds", "allowedUserIds"},
 	"ptsite":      {"definitionId", "endpoint", "userId", "userAgent", "rssState", "rssSource"},
 }
 var secretKeys = map[string][]string{
-	"local": {}, "open115": {"accessToken", "refreshToken"}, "clouddrive2": {"token", "username", "password"}, "qbittorrent": {"username", "password"}, "emby": {"apiKey"}, "tmdb": {"token"}, "telegram": {"botToken"}, "ptsite": {"cookie", "apiKey", "passkey", "rssUrl", "requestHeaders"},
+	"local": {}, "open115": {"accessToken", "refreshToken"}, "clouddrive2": {"token", "username", "password"}, "qbittorrent": {"username", "password"}, "tmdb": {"token"}, "telegram": {"botToken"}, "ptsite": {"cookie", "apiKey", "passkey", "rssUrl", "requestHeaders"},
 }
 
 func Validate(in Input) error {

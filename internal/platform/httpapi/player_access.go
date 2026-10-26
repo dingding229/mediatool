@@ -30,6 +30,10 @@ func playerAccessError(w http.ResponseWriter, err error) {
 	}
 }
 func (a *API) admitPlayer(w http.ResponseWriter, r *http.Request) bool {
+	if !mediaIPScope(r) {
+		return true
+	}
+
 	entry := playeraccess.Entry(r.URL.Path)
 	if entry == "" {
 		return true
@@ -170,7 +174,6 @@ func (a *API) clearPlayerObservations(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) registerPlayerAccess(mux routeRegistrar) {
 	mux.HandleFunc("GET /api/v1/player-access/events", a.protected(a.playerAccessEvents))
-	mux.HandleFunc("GET /api/v1/player-access/users", a.protected(a.playerAccessUsers))
 	mux.HandleFunc("GET /api/v1/player-access/policy", a.protected(a.getPlayerAccess))
 	mux.HandleFunc("PUT /api/v1/player-access/policy", a.protected(a.savePlayerAccess))
 	mux.HandleFunc("GET /api/v1/player-access/observations", a.protected(a.playerObservations))

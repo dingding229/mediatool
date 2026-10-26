@@ -6,7 +6,7 @@ import { stateFor, messageFor, type RevisionForm } from './revision';
 const props = defineProps<{
   form: RevisionForm;
 }>();
-const labels: Record<string, string> = { managementUrl: '后台访问域名', playbackUrl: '播放链接域名', memberUrl: '内置媒体库域名', embyUrl: 'Emby 网关域名', trustedProxyCidrs: '可信反代地址', movieTemplate: '电影命名模板', seriesTemplate: '剧集命名模板', scraping: '入库资料', cleanupAfterImport: '上传后清理', searchCacheSeconds: '站点搜索缓存（秒）', tmdbCacheSeconds: 'TMDB 缓存（秒）', subscriptionCron: '订阅调度', groups: '目录分类' };
+const labels: Record<string, string> = { managementUrl: '后台访问域名', playbackUrl: '播放链接域名', memberUrl: '内置媒体库域名', trustedProxyCidrs: '可信反代地址', movieTemplate: '电影命名模板', seriesTemplate: '剧集命名模板', scraping: '入库资料', cleanupAfterImport: '上传后清理', searchCacheSeconds: '站点搜索缓存（秒）', tmdbCacheSeconds: 'TMDB 缓存（秒）', subscriptionCron: '订阅调度', groups: '目录分类' };
 const differences = computed(() => Object.keys(props.form.draft.value || {}).filter(k => JSON.stringify(props.form.draft.value[k]) !== JSON.stringify(props.form.latest.value?.value[k])));
 function display(value: any, field?:string): string {
   if(field==='subscriptionCron')return scheduleLabel(value);

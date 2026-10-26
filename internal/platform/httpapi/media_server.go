@@ -3,7 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
-	"media-tool/internal/modules/catalog"
+
 	"media-tool/internal/modules/mediaserver"
 	"media-tool/internal/modules/mediausers"
 	nativecatalog "media-tool/internal/modules/nativelibrary/catalog"
@@ -19,11 +19,11 @@ func (a *API) mediaUsers() mediausers.Repository {
 func (a *API) mediaRegistry() *mediaserver.Registry {
 	// The set is server-owned; clients cannot register a provider or change the
 	// default backend. Future implementations plug into this explicit boundary.
-	registry, _ := mediaserver.NewRegistry(mediaserver.Builtin{DB: a.Deps.DB}, mediaserver.EmbyAdapter{Catalog: catalog.Engine{DB: a.Deps.DB, Connections: a.Deps.Integrations}})
+	registry, _ := mediaserver.NewRegistry(mediaserver.Builtin{DB: a.Deps.DB})
 	return registry
 }
 func (a *API) mediaProviders(w http.ResponseWriter, r *http.Request) {
-	write(w, 200, map[string]any{"contract": mediaserver.ContractVersion, "mediaUserModel": "builtin", "existingPlayback": "emby-strm302-unchanged", "providers": a.mediaRegistry().Descriptions()})
+	write(w, 200, map[string]any{"contract": mediaserver.ContractVersion, "mediaUserModel": "builtin", "existingPlayback": "native-strm302-unchanged", "providers": a.mediaRegistry().Descriptions()})
 }
 func (a *API) nativeLibraries(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
@@ -57,7 +57,7 @@ func mediaError(w http.ResponseWriter, err error) {
 	case errors.Is(err, mediaserver.ErrNotFound), errors.Is(err, mediausers.ErrNotFound):
 		fail(w, 404, "media_not_found", "媒体或用户不存在")
 	case errors.Is(err, mediaserver.ErrUnsupported):
-		fail(w, 501, "capability_reserved", "内置媒体库播放授权接口已预留，尚未实现；现有Emby播放不受影响")
+		fail(w, 501, "capability_reserved", "内置媒体库播放授权接口已预留，尚未实现；现有内置播放不受影响")
 	case errors.Is(err, mediausers.ErrUnavailable), errors.Is(err, mediaserver.ErrUnavailable):
 		fail(w, 503, "media_server_unavailable", "媒体服务暂不可用")
 	default:

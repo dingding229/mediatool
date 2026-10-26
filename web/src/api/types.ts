@@ -3,7 +3,7 @@
 export type Stage = 'planned' | 'partial' | 'foundation'
 export interface ModuleInfo { id:string; name:string; summary:string; stage:Stage; milestone:string; features:string[] }
 export interface Dependency { id:string; name:string; state:string; message:string }
-export interface SystemStatus { name:string; version:string; environment:string; phase:string; dependencies:Dependency[]; publicUrl:string; strmEndpoint:string; allowedRoots:string[]; databaseConfigured:boolean; storageConfigured:boolean; proxyFallback:boolean; forceProxy:boolean; emby302Enabled:boolean }
+export interface SystemStatus { name:string; version:string; environment:string; phase:string; dependencies:Dependency[]; publicUrl:string; strmEndpoint:string; allowedRoots:string[]; databaseConfigured:boolean; storageConfigured:boolean; proxyFallback:boolean; forceProxy:boolean; }
 export interface Job { id:string; kind:string; state:string; attempts:number; maxAttempts:number; createdAt:string; lastError?:string }
 export interface StrmPreview { url:string; content:string; warning:string }
 

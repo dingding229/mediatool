@@ -33,7 +33,7 @@ cleanup(){ for pid in "${pids[@]}";do kill "$pid" 2>/dev/null||true;done;for pid
 trap cleanup EXIT INT TERM
 export MEMBER_ADDR=127.0.0.1:18087
 export AUTH_ALLOWED_ORIGINS=https://proxy.fixture.invalid
-export APP_ENV=development APP_ADDR=127.0.0.1:18084 APP_PUBLIC_URL=http://localhost:18084 EMBY_GATEWAY_ADDR=127.0.0.1:18085
+export APP_ENV=development APP_ADDR=127.0.0.1:18084 APP_PUBLIC_URL=http://localhost:18084
 export PLUGIN_DATA_ROOT="$private/plugins"
 export NATIVE_STILLS_ROOT="$private/native-media/stills"
 export STRM_OUTPUT_DIR="$private/strm"
@@ -45,10 +45,10 @@ mkdir -p "$E2E_FILE_ROOT/Subdirectory"
 printf 'Owned local file fixture, not a real movie.\n' > "$E2E_FILE_ROOT/Owned Film.mkv"
 printf '1\n00:00:00,000 --> 00:00:01,000\nOwned subtitle fixture\n' > "$E2E_FILE_ROOT/Owned Film.zh-CN.srt"
 printf 'Independent file fixture.\n' > "$E2E_FILE_ROOT/Other.mkv"
-export CLOUDDRIVE_ENDPOINT='' CLOUDDRIVE_TOKEN='' CLOUDDRIVE_USERNAME='' CLOUDDRIVE_PASSWORD='' EMBY_UPSTREAM_URL='' EMBY_PROXY_ENABLED=false EMBY_302_ENABLED=false
+export CLOUDDRIVE_ENDPOINT='' CLOUDDRIVE_TOKEN='' CLOUDDRIVE_USERNAME='' CLOUDDRIVE_PASSWORD=''
 if [[ -n "${MEDIA_TOOL_DEV_BIN:-}" ]];then cp "$MEDIA_TOOL_DEV_BIN" "$private/media-tool-dev";else go build -o "$private/media-tool-dev" ./cmd/media-tool-dev;fi
-export E2E_EMBY_ENDPOINT=http://127.0.0.1:18086
-"$private/media-tool-dev" fixture-emby >"$private/provider.log" 2>&1 & pids+=("$!")
+export E2E_DOWNLOADER_ENDPOINT=http://127.0.0.1:18086
+"$private/media-tool-dev" fixture-downloader >"$private/provider.log" 2>&1 & pids+=("$!")
 eval "$(devtool build-meta env)"
 export E2E_BUILD_VERSION="$MEDIA_TOOL_BUILD_VERSION"
 export E2E_ISOLATED=1 E2E_BASE_URL=http://localhost:18084 E2E_ADMIN_USERNAME=e2e_admin

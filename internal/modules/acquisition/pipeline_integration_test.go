@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path"
+
 	"path/filepath"
 	"strings"
 	"sync"
@@ -123,8 +123,8 @@ func runFullPipeline(t *testing.T, manual bool) {
 	if databaseName != "media_tool_test" {
 		t.Fatal("pipeline test requires the isolated media_tool_test database")
 	}
-	db.Exec(ctx, `TRUNCATE notification_deliveries,notification_messages,outbox_events,jobs,media_asset_bindings,media_items,strm_entries,emby_item_mappings,media_assets,cloud_files,storage_connections,transfer_tasks,download_files,download_tasks,search_run_resources,resources,search_site_results,search_runs,integrations,site_definitions CASCADE`)
-	defer db.Exec(context.Background(), `TRUNCATE notification_deliveries,notification_messages,outbox_events,jobs,media_asset_bindings,media_items,strm_entries,emby_item_mappings,media_assets,cloud_files,storage_connections,transfer_tasks,download_files,download_tasks,search_run_resources,resources,search_site_results,search_runs,integrations,site_definitions CASCADE`)
+	db.Exec(ctx, `TRUNCATE notification_deliveries,notification_messages,outbox_events,jobs,media_asset_bindings,media_items,strm_entries,media_assets,cloud_files,storage_connections,transfer_tasks,download_files,download_tasks,search_run_resources,resources,search_site_results,search_runs,integrations,site_definitions CASCADE`)
+	defer db.Exec(context.Background(), `TRUNCATE notification_deliveries,notification_messages,outbox_events,jobs,media_asset_bindings,media_items,strm_entries,media_assets,cloud_files,storage_connections,transfer_tasks,download_files,download_tasks,search_run_resources,resources,search_site_results,search_runs,integrations,site_definitions CASCADE`)
 	local := t.TempDir()
 	strmDir := t.TempDir()
 	data := []byte("owned-test-video")
@@ -172,38 +172,7 @@ func runFullPipeline(t *testing.T, manual bool) {
 		}
 	}))
 	defer pt.Close()
-	emby := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("X-Emby-Token") != "emby-token" {
-			w.WriteHeader(403)
-			return
-		}
-		if r.URL.Path == "/Library/Media/Updated" {
-			var body struct{ Updates []struct{ Path string } }
-			if json.NewDecoder(r.Body).Decode(&body) != nil || len(body.Updates) != 1 || !strings.HasSuffix(body.Updates[0].Path, ".strm") {
-				t.Error("refresh lacks owned path evidence")
-			}
-			w.WriteHeader(204)
-			return
-		}
-		if r.URL.Path == "/Items" {
-			var asset string
-			if err := db.QueryRow(r.Context(), `SELECT asset_id::text FROM strm_entries LIMIT 1`).Scan(&asset); err != nil {
-				t.Error(err)
-				w.WriteHeader(500)
-				return
-			}
-			var relative string
-			if err := db.QueryRow(r.Context(), `SELECT output_path FROM strm_entries WHERE asset_id=$1 LIMIT 1`, asset).Scan(&relative); err != nil {
-				t.Fatal(err)
-			}
-			expected := path.Join("/strm", relative)
-			json.NewEncoder(w).Encode(map[string]any{"Items": []map[string]any{{"Id": "owned-library-item", "Path": expected, "MediaSources": []map[string]string{{"Id": "owned-source", "Path": expected}}}}})
-			return
-		}
 
-		w.WriteHeader(404)
-	}))
-	defer emby.Close()
 	cloud := &pipelineCloud{files: map[string]*pb.CloudDriveFile{"/115/Media": {Id: "root", Name: "Media", FullPathName: "/115/Media", IsDirectory: true}}, done: make(chan struct{})}
 	listener, _ := net.Listen("tcp", "127.0.0.1:0")
 	grpcServer := grpc.NewServer()
@@ -236,7 +205,6 @@ func runFullPipeline(t *testing.T, manual bool) {
 	save(integrations.Input{Kind: "qbittorrent", Name: "owned fixture downloader", Enabled: true, Settings: map[string]any{"endpoint": qb.URL, "downloadPath": "/downloads", "localPath": local}})
 	save(integrations.Input{Kind: "tmdb", Name: "owned fixture metadata", Enabled: true, Settings: map[string]any{"language": "zh-CN"}, Secrets: map[string]string{"token": "tmdb-token"}})
 	save(integrations.Input{Kind: "clouddrive2", Name: "owned fixture cloud", Enabled: true, Settings: map[string]any{"endpoint": "http://" + listener.Addr().String(), "cloudRoot": "/115/Media"}, Secrets: map[string]string{"token": "cloud-token"}})
-	save(integrations.Input{Kind: "emby", Name: "owned fixture library", Enabled: true, Settings: map[string]any{"endpoint": emby.URL, "strmPathPrefix": "/strm"}, Secrets: map[string]string{"apiKey": "emby-token"}})
 	definition := fmt.Sprintf(`{"templateVersion":1,"id":"owned_fixture","name":"Owned Fixture","schema":"NexusPHP","domain":%q,"requests":{"user_basic_info":{"parser":"XPath","method":"GET","path":"/","fields":{"is_login":{"selector":"//a[contains(@href,'logout')]","filters":[{"name":"not_blank"}]}}},"search":{"parser":"CssSelector","method":"GET","path":"/torrents.php","list":{"selector":"tr.resource"},"fields":{"id":{"selector":"a[data-id]","attribute":"data-id"},"title":{"selector":"a[data-id]"},"size":{"selector":"td.size","filters":[{"name":"byte_size"}]},"seeders":{"selector":"td.seeds"},"download":{"selector":"a.download","attribute":"href"}}}}}`, pt.URL)
 	if _, err = (sites.Repository{DB: db}).Save(ctx, []byte(definition), []byte(`{}`), "owned-test-fixture"); err != nil {
 		t.Fatal(err)
@@ -357,22 +325,10 @@ func runFullPipeline(t *testing.T, manual bool) {
 		t.Fatal("upload ranges not deduplicated", actualBytes, dedupBytes)
 	}
 	queue.Finish(ctx, *job, nil)
-	job, err = queue.Claim(ctx, "test-control", time.Minute)
-	if err != nil || job == nil || job.Kind != "emby.refresh" {
-		t.Fatal("library refresh missing", err)
+	var final string
+	if err = db.QueryRow(ctx, `SELECT download_state FROM download_tasks WHERE id=$1`, taskID).Scan(&final); err != nil || final != "imported" {
+		t.Fatal("native artifacts must finish without external Emby", final, err)
 	}
-	if err = engine.RefreshEmby(ctx, *job); err != nil {
-		t.Fatal(err)
-	}
-	queue.Finish(ctx, *job, nil)
-	job, err = queue.Claim(ctx, "test-control", time.Minute)
-	if err != nil || job == nil || job.Kind != "emby.confirm" {
-		t.Fatal("library confirmation missing", err)
-	}
-	if err = engine.ConfirmEmby(ctx, *job); err != nil {
-		t.Fatal(err)
-	}
-	queue.Finish(ctx, *job, nil)
 	var entries, assets int
 	db.QueryRow(ctx, `SELECT count(*) FROM strm_entries`).Scan(&entries)
 	db.QueryRow(ctx, `SELECT count(*) FROM media_assets`).Scan(&assets)

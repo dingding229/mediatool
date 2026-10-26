@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
-	"media-tool/internal/modules/emby"
 	"media-tool/internal/modules/ipblock"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/settings"
@@ -38,10 +37,6 @@ func newIPBlock(db *pgxpool.Pool, log *slog.Logger) *ipblock.Service {
 	defer cancel()
 	_ = s.Reload(ctx)
 	return s
-}
-func mediaIPScope(r *http.Request) bool {
-	p := r.URL.Path
-	return p == strm.Endpoint || strings.HasPrefix(p, "/emby/") || p == "/emby" && (emby.IsRootOrigin(r.Context()) || r.Method != "GET" && r.Method != "HEAD")
 }
 func checkMediaIP(ctx context.Context, s *ipblock.Service, db *pgxpool.Pool, r *http.Request) (bool, error) {
 	if s == nil {
@@ -247,3 +242,5 @@ func (a *API) registerIPBlock(m routeRegistrar) {
 	m.HandleFunc("DELETE /api/v1/player-access/ip-blocklist/{id}", a.protected(a.changeIPBlock))
 	m.HandleFunc("POST /api/v1/player-access/ip-blocklist/check", a.protected(a.checkIPBlock))
 }
+
+func mediaIPScope(r *http.Request) bool { return r.URL.Path == strm.Endpoint }

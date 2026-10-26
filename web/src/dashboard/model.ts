@@ -46,7 +46,6 @@ export function guideSteps(readiness: Readiness | null, integrations: any, class
   const needsCheck=(keys:string[])=>keys.some(k=>readiness?.components?.[k]?.state==='check_required');
   return [
     { label: '连接 115/CD2', done: connected('open115')&&connected('clouddrive2'), note:connected('open115')&&connected('clouddrive2')&&needsCheck(['open115','clouddrive2'])?'已连接，需要检测':'', path: '/connections', tab: 'storage' },
-    { label: '关联 Emby', done:connected('emby'), note:connected('emby')&&needsCheck(['emby'])?'已连接，需要检测':'', path: '/connections', tab: 'emby' },
     { label: '添加站点', done: list(integrations).some(r => r.kind === 'ptsite' && r.enabled), path: '/sites', tab: 'accounts' },
     { label: '设置分类规则', done: !!classification?.value?.groups?.some((g: any) => g.enabled && g.directory), path: '/settings', tab: 'naming' },
   ];

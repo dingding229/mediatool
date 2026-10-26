@@ -8,7 +8,7 @@ import (
 
 type downloadStage struct{ state, phase, prefix string }
 
-var downloadRetryStages = []downloadStage{{"pending", "download", "download.add:"}, {"strm_ready", "emby_refresh", "emby.refresh:"}, {"refresh_requested", "emby_verify", "emby.confirm:"}}
+var downloadRetryStages = []downloadStage{{"pending", "download", "download.add:"}}
 
 func retryStage(state string) (downloadStage, bool) {
 	for _, v := range downloadRetryStages {
@@ -64,8 +64,10 @@ func DownloadFlow(state string, sourceRequired bool, job string) flow.Status {
 		return retryFlow(v.phase, job)
 	}
 	switch state {
+	case "strm_ready", "refresh_requested":
+		return flow.Status{Phase: "inspect", NextAction: "inspect_task", Reason: "import_evidence_incomplete"}
 	case "imported":
-		return flow.Status{Phase: "complete", NextAction: "none", Reason: "emby_visible"}
+		return flow.Status{Phase: "complete", NextAction: "none", Reason: "artifacts_applied"}
 	case "local_complete":
 		return flow.Status{Phase: "organize", NextAction: "inspect_transfers", Reason: "download_complete"}
 	case "downloading", "added":

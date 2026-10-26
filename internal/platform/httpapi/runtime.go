@@ -3,13 +3,11 @@ package httpapi
 import (
 	"context"
 	"errors"
-	"media-tool/internal/modules/emby"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/settings"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/modules/strm"
-	"net/http"
-	"net/url"
+
 	"strings"
 	"time"
 )
@@ -46,42 +44,6 @@ func (a *API) storageConfigured(ctx context.Context) bool {
 	}
 	return a.Deps.Storage != nil
 }
-func (a *API) gateway(ctx context.Context) *emby.Gateway {
-	if a.Deps.Integrations != nil {
-		if c, err := a.Deps.Integrations.Repository.Default(ctx, "emby"); err == nil {
-			target, err := url.Parse(c.String("endpoint"))
-			if err != nil {
-				return nil
-			}
-			enabled, _ := c.Record.Settings["gatewayEnabled"].(bool)
-			return emby.NewGateway(emby.GatewayOptions{Identities: a.EmbyIdentities, Upstream: target, PublicOrigin: embyPublicOrigin(a.access(ctx).EmbyURL), Enable302: enabled, DirectPlayOnly: a.directPlayOnly(ctx), LegacyEnabled: a.Config.LegacyPlaybackEnabled, OwnedAsset: a.ownedAsset, Builder: a.builder(ctx), STRMOutputDir: a.Config.STRMOutputDir, STRMPathPrefix: c.String("strmPathPrefix"), ResolverOrigins: a.Config.EmbyResolverOrigins, Playback: a.Engine, ManagedURL: a.grants().VerifyManagedURL})
-		}
-		var exists bool
-		if a.Deps.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM integrations WHERE kind='emby')`).Scan(&exists) != nil || exists {
-			return nil
-		}
-	}
-	return a.Gateway
-}
-func (a *API) proxyEmby(w http.ResponseWriter, r *http.Request) {
-	gateway := a.gateway(r.Context())
-	if gateway == nil {
-		fail(w, 503, "emby_disabled", "请配置并启用 Emby 连接")
-		return
-	}
-	if visit, ok := r.Context().Value(playerVisitKey{}).(*playerVisit); ok && visit.ID != "" {
-		identity, cancel := context.WithTimeout(r.Context(), 3*time.Second)
-		id, name, err := gateway.VerifiedCaller(identity, r)
-		cancel()
-		if err == nil {
-			visit.UserID = id
-			visit.UserName = name
-			visit.Verified = true
-		}
-	}
-	gateway.ServeHTTP(w, r)
-}
-
 func (a *API) workerStatus(ctx context.Context) map[string]any {
 	if a.Deps.DB == nil {
 		return map[string]any{"state": "unavailable", "count": 0}
@@ -99,33 +61,7 @@ func (a *API) workerStatus(ctx context.Context) map[string]any {
 	return map[string]any{"state": state, "count": count}
 }
 
-// EmbyHandler serves the gateway at its own origin/root, leaving the management
 // SPA on a separate listener. Clone the URL before adding the internal mount.
-func EmbyHandler(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		copy := r.Clone(emby.WithRootOrigin(r.Context()))
-		u := *r.URL
-		u.Path = r.URL.Path
-		if !strings.HasPrefix(u.Path, "/emby/") && u.Path != "/emby" {
-			u.Path = "/emby" + u.Path
-		}
-		u.RawPath = ""
-		copy.URL = &u
-		handler.ServeHTTP(w, copy)
-	})
-}
-
-func embyPublicOrigin(raw string) *url.URL {
-	if raw == "" {
-		return nil
-	}
-	u, err := url.Parse(raw)
-	if err != nil {
-		return nil
-	}
-	return u
-}
-
 func (a *API) ownedAsset(ctx context.Context, id string) bool {
 	if a.Deps.DB == nil {
 		return false
@@ -142,5 +78,3 @@ func (a *API) playbackCacheVersion(ctx context.Context, ref storage.FileRef) (st
 	}
 	return a.Deps.Integrations.PlaybackVersion(ctx, ref)
 }
-
-func (a *API) directPlayOnly(context.Context) bool { return true }

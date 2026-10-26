@@ -92,7 +92,7 @@ defineExpose({ load, form, save, status, libraries, op });
     </section>
     <section class="media-surface">
       <h2>连接播放器</h2>
-      <p>使用下方服务地址和媒体用户账号，不是管理后台账号或外部 Emby 账号。</p>
+      <p>使用下方服务地址和媒体用户账号，不是管理后台账号。</p>
       <h3>Infuse 添加</h3>
       <p>在设置中添加共享，选择 Emby，输入服务地址、媒体用户名和密码，再选择已授权的媒体库。</p>
       <h3>SenPlayer 添加</h3>

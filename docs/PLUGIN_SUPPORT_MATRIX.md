@@ -265,7 +265,7 @@ SDK 提供51个 typed 标识（32广播/19链），其中 N/A 项不接受注册
 | ID | 版本 | 安全配置/使用范围 |
 |---|---|---|
 | `hello-go` | 1.9.0 | 人工调用示例；不自动运行业务 |
-| `library-refresh-notify` | 1.1.0 | active=false；7日原事实重投/8日完成账本滚动 |
+| `library-refresh-notify` | 1.2.0 | active=false；7日原事实重投/8日完成账本滚动 |
 | `seeding-cleanup` | 1.0.0 | active=false / execute=false / deleteFiles=false |
 | `site-checkin` | 1.0.0 | active=false；宿主持有凭据 |
 | `torrent-assistant` | 1.0.0 | active=false / write=false / recheck=false；活跃监控即使不写也可能通知 |

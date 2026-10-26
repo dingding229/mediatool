@@ -7,8 +7,7 @@ import (
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	b "github.com/dingding229/mediatool-plugin/sdk/host/business"
 	"github.com/jackc/pgx/v5"
-	"io"
-	"media-tool/internal/modules/integrations"
+
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/mediaprobe/admin"
 	"media-tool/internal/modules/mediaprobe/stillqueue"
@@ -17,8 +16,7 @@ import (
 	nativecatalog "media-tool/internal/modules/nativelibrary/catalog"
 	dbutil "media-tool/internal/platform/database"
 	"media-tool/internal/platform/pluginactor"
-	"net/http"
-	"net/http/httptest"
+
 	"path/filepath"
 	"strings"
 	"testing"
@@ -159,7 +157,7 @@ func TestServerCatalogTrustedActorLibraryIsolationAndNoPlaybackURLs(t *testing.T
 	if _, _, e = native.PluginItems(ctx, "", "", "", "", 0, 10); e == nil {
 		t.Fatal("no actor accepted")
 	}
-	for _, provider := range []string{"builtin", "emby"} {
+	for _, provider := range []string{"builtin"} {
 		requireServer[b.Receipt](t, h, "mediaserver.refresh", b.ServerRefresh{Provider: provider, AssetID: asset}, []string{lib})
 	}
 	_, e = serverCall(t, h, "mediaserver.refresh", b.ServerRefresh{Provider: "builtin", AssetID: asset}, []string{"g:other"})
@@ -348,41 +346,5 @@ func TestServerProcessingQueueOnlyGCAndNativeDetails(t *testing.T) {
 	absent := h
 	absent.Processing = nil
 	_, e = serverCall(t, absent, "mediaprobe.status", b.Empty{}, nil)
-	mediaCode(t, e, contracts.Unsupported)
-}
-
-func TestServerEmbyFacadeNoPlaybackClientAndScopedLookupFailsClosed(t *testing.T) {
-	h, ctx := serverFixture(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("X-Emby-Token") != "SECRET_CANARY" {
-			t.Error("host did not attach auth")
-		}
-		if strings.Contains(strings.ToLower(r.URL.Path), "playback") || strings.Contains(strings.ToLower(r.URL.Path), "image") || strings.Contains(strings.ToLower(r.URL.Path), "stream") {
-			t.Error("forbidden upstream endpoint", r.URL.Path)
-			w.WriteHeader(404)
-			return
-		}
-		body := `{"Items":[{"Id":"item-1","Name":"https://cdn.115cdn.net/?token=SECRET_CANARY","Type":"Movie","ProductionYear":2026,"Path":"/115/SECRET_CANARY","MediaSources":[{"Path":"https://cdn.115cdn.net/SECRET_CANARY"}]}],"TotalRecordCount":1}`
-		if strings.HasSuffix(r.URL.Path, "item-1") {
-			body = `{"Id":"item-1","Name":"Owned","Type":"Movie","Path":"/115/SECRET_CANARY","DirectStreamUrl":"https://cdn.115cdn.net/SECRET_CANARY"}`
-		}
-		w.Header().Set("Set-Cookie", "SECRET_CANARY")
-		_, _ = io.WriteString(w, body)
-	}))
-	defer server.Close()
-	_, e := h.Connections.Repository.Save(ctx, "", integrations.Input{Kind: "emby", Name: "fake", Enabled: true, Settings: map[string]any{"endpoint": server.URL}, Secrets: map[string]string{"apiKey": "SECRET_CANARY"}})
-	if e != nil {
-		t.Fatal(e)
-	}
-	q := b.ServerQuery{Provider: "emby", PageRequest: b.PageRequest{Page: 1, Size: 100}}
-	requireServer[b.Page[b.ServerItem]](t, h, "mediaserver.items", q, nil)
-	q.ID = "item-1"
-	requireServer[b.ServerItem](t, h, "catalog.item", q, nil)
-	_, e = serverCall(t, h, "catalog.item", q, []string{"emby-lib"})
-	mediaCode(t, e, contracts.Unsupported)
-	q.ID = ""
-	_, e = serverCall(t, h, "catalog.list", q, []string{"emby-lib"})
-	mediaCode(t, e, contracts.Unsupported)
-	_, e = serverCall(t, h, "mediaserver.libraries", q, nil)
 	mediaCode(t, e, contracts.Unsupported)
 }

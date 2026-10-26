@@ -9,7 +9,7 @@ func TestPipelineFlowNeverSuggestsBlindReplay(t *testing.T) {
 			t.Fatal(state, f)
 		}
 	}
-	for _, state := range []string{"pending", "strm_ready", "refresh_requested"} {
+	for _, state := range []string{"pending"} {
 		for _, job := range []string{"", "running", "pending", "succeeded", "paused", "cancelled", "failed"} {
 			f := DownloadFlow(state, false, job)
 			if f.Retryable != (job == "failed") || DownloadRetryKey(state, "owned") == "" {
@@ -34,7 +34,7 @@ func TestPipelineFlowNeverSuggestsBlindReplay(t *testing.T) {
 }
 
 func TestDownloadStageCatalogBuildsOnlyTrustedSQLAndMatchingRetryKeys(t *testing.T) {
-	expected := map[string]string{"pending": "download.add:", "strm_ready": "emby.refresh:", "refresh_requested": "emby.confirm:"}
+	expected := map[string]string{"pending": "download.add:"}
 	if len(downloadRetryStages) != len(expected) {
 		t.Fatal(downloadRetryStages)
 	}
@@ -48,5 +48,14 @@ func TestDownloadStageCatalogBuildsOnlyTrustedSQLAndMatchingRetryKeys(t *testing
 	}
 	if DownloadRetryKey("pending'; DROP TABLE jobs;--", "owned") != "" {
 		t.Fatal("request reached SQL catalog")
+	}
+}
+
+func TestT16IncompleteLegacyStageNeverAdvertisesExternalRetry(t *testing.T) {
+	for _, state := range []string{"strm_ready", "refresh_requested"} {
+		v := DownloadFlow(state, false, "failed")
+		if v.Retryable || v.NextAction != "inspect_task" || DownloadRetryKey(state, "id") != "" {
+			t.Fatal(state, v)
+		}
 	}
 }

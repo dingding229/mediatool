@@ -192,7 +192,7 @@ func (a *API) libraryActivity(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if f.Kind != "" && !strings.Contains("|file|batch|scan|transfer|output|emby|strmRepair|", "|"+f.Kind+"|") {
+	if f.Kind != "" && !strings.Contains("|file|batch|scan|transfer|output|strmRepair|", "|"+f.Kind+"|") {
 		fail(w, 400, "invalid_kind", "历史类型无效")
 		return
 	}
@@ -242,27 +242,6 @@ func (a *API) managedOutputs(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, map[string]any{"items": items, "total": total})
 }
-func (a *API) checkManagedEmby(w http.ResponseWriter, r *http.Request) {
-	e := a.library()
-	if e == nil {
-		fail(w, 503, "library_unavailable", "数据库不可用")
-		return
-	}
-	var in struct{}
-	if !decode(w, r, &in) {
-		return
-	}
-	if !isWorkbenchUUID(r.PathValue("id")) {
-		fail(w, 400, "invalid_id", "资产ID无效")
-		return
-	}
-	if err := e.QueueRefresh(r.Context(), r.PathValue("id")); err != nil {
-		fail(w, 503, "refresh_unavailable", "刷新请求无法排队")
-		return
-	}
-	write(w, 202, map[string]string{"state": "pending", "message": "已排队定向刷新；需逐路径可见性确认，不代表已入库或可解码"})
-}
-
 func isWorkbenchUUID(s string) bool {
 	if len(s) != 36 {
 		return false

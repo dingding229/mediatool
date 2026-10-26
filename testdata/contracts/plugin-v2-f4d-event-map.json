@@ -93,8 +93,7 @@
     "kind": "module",
     "scope": "module.mediaserver.refresh",
     "producer": [
-      "internal/modules/library/emby_check.go:Engine.Refresh",
-      "internal/modules/acquisition/emby.go:Engine.RefreshEmby"
+      "internal/modules/library/native_refresh.go:Engine.Refresh"
     ],
     "tests": [
       "TestBuiltinRefreshReceiptFencesUnknownAndRepeatedJob",

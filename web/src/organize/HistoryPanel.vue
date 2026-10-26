@@ -211,7 +211,6 @@ usePageRefresh(load, 'history');
     <RouterLink v-if="detail?.kind==='output'" :to="{path:'/organize',query:{tab:'recovery'}}" @click="open=false">进入输出恢复与归档</RouterLink>
     <RouterLink v-if="detail?.kind==='scan'" :to="{path:'/organize',query:{tab:'scans'}}" @click="open=false">进入扫描控制</RouterLink>
     <p v-if="detail?.details?.phase">阶段：{{ label(detail.details.phase) }}</p>
-    <p v-for="path in detail?.details?.paths||[]" :key="path.path">{{ path.path }} · {{ path.visible?'Emby 已可见':'未确认可见' }} · {{ path.reason||'—' }}</p>
     <el-button v-if="['batch','file'].includes(detail?.kind)&&['running','needs_reconcile'].includes(detail?.state)" :loading="busy" @click="reconcile">核对结果（不重放）</el-button>
   </DetailDrawer>
   <ConfirmAction v-model:visible="removeOpen" title="移除整理历史" description="仅从历史列表移除选中项，进行中或未知结果不能移除。" impact-scope="不删除媒体、STRM、审计或恢复证据。" confirm-text="明确移除历史" :loading="busy" class="media-dialog" @confirm="remove"/>

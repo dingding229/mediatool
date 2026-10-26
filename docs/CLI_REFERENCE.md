@@ -20,7 +20,6 @@ media-toolctl --root DIR [--archive FILE] COMMAND [ARGUMENT]
 | `register IMAGE` | 登记恢复/回滚可选镜像，不直接切换 |
 | `execute REQUEST_ID` | 执行已批准且有效的维护单，重新核对保护条件 |
 | `backup-verify` | 导出一致性快照，在专属临时库恢复核对；`--archive` 可选择私有归档 |
-| `playback-check` | 登录、输出、网关与 302 播放链路诊断 |
 | `load-check` | 有界并发读取就绪状态，不提交媒体任务 |
 
 ```sh
@@ -30,10 +29,8 @@ media-toolctl --root DIR [--archive FILE] COMMAND [ARGUMENT]
 ./media-toolctl --root "$PWD" --archive /私有备份目录/backup.dump backup-verify
 ```
 
-`playback-check` 参数：`--base-url` 管理地址、`--gateway-url` 网关地址、`--username` 管理员、`--password-file` 私有密码文件、`--asset-id` 资产、`--item-id` Emby 条目、`--path` 云盘路径、`--user-agent` 实际播放器 UA、`--report` 私有报告路径。
 
 ```sh
-./media-toolctl --root "$PWD" playback-check   --base-url 'https://<管理域名>' --gateway-url 'https://<网关域名>'   --username '<管理员账号>' --password-file /私有目录/password   --asset-id '<资产编号>' --item-id '<Emby条目编号>' --user-agent '<播放器UA>'
 ./media-toolctl --root "$PWD" load-check --requests 500 --concurrency 16
 ```
 
@@ -63,7 +60,6 @@ docker compose exec app /app/media-tool <子命令> [参数]
 | `diagnose cloud-upload` | 仅对自己的小文件做明确批准的上传诊断，保留私有记录，结果未知不重建会话 |
 | `diagnose cloud-security` | 默认只检查；`--apply` 才调整允许范围内的云盘下载配置 |
 | `diagnose emby-layout` | 检查布局；`--apply` 才执行受控调整 |
-| `diagnose session` | 从标准输入读取管理员已核对的现有会话；绑定需明确确认 |
 | `diagnose provider` | 提供方协议或回环诊断，不是媒体代理入口 |
 
 离线命令不得在服务仍处理任务时运行。配置、密码文件及诊断输出需私有保存；不要在命令行参数中直接传递密码。具体危险操作先阅读[备份恢复](deploy/backup.md)和[账号安全](deploy/security.md)。

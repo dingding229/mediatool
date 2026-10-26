@@ -14,7 +14,7 @@ import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { date, errorText } from '../workflows/readiness';
 const route = useRoute();
-const page = usePageNumber(), data = reactive(useResource(() => listNativeSessions((page.value - 1) * 50))), detail = ref<any>(null), open = ref(false), confirm = ref(false), op = reactive(useOperation('sessions')), notice = ref('');
+const page = usePageNumber(), data = reactive(useResource(() => listNativeSessions((page.value - 1) * 50), { items: [], total: 0, startIndex: 0, limit: 50 })), detail = ref<any>(null), open = ref(false), confirm = ref(false), op = reactive(useOperation('sessions')), notice = ref('');
 const account = reactive(useResource<any>(() => request(`/media-server/users/${encodeURIComponent(String(route.query.userId))}`)));
 async function accountEntry() {
   const id = route.query.userId;
@@ -75,7 +75,7 @@ defineExpose({ load, data, page, accountEntry, showSession });
   <section class="media-surface">
     <h2>在线会话</h2>
     <p>查看设备正在播放的内容与最近进度。</p>
-    <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="!data.data?.items.length" @reload="load"/>
+    <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="!data.data?.items?.length" @reload="load"/>
     <p>当前不支持单独结束一条会话。可在详情中明确撤销该用户的全部登录。</p>
     <article v-if="typeof route.query.userId==='string' && route.query.userId" class="organize-record">
       <h3>用户登录</h3>
@@ -92,7 +92,7 @@ defineExpose({ load, data, page, accountEntry, showSession });
       <p>最近进度 {{ date(session.lastProgressAt) }}</p>
       <el-button @click="showSession(session)">会话详情</el-button>
     </article>
-    <PagePagination v-model:current-page="page" :page-size="50" :total="data.data.total" layout="prev,pager,next,total" @current-change="load"/>
+    <PagePagination v-model:current-page="page" :page-size="50" :total="data.data?.total ?? 0" layout="prev,pager,next,total" @current-change="load"/>
   </section>
   <DetailDrawer v-model:visible="open" title="在线会话详情" :technical-data="detail" class="media-detail">
     <h3>{{mediaTitle({...detail,name:detail?.itemName})}}</h3>

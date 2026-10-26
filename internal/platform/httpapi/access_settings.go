@@ -12,7 +12,7 @@ import (
 )
 
 func (a *API) access(ctx context.Context) settings.Access {
-	v := settings.Access{ManagementURL: a.Config.PublicURL, PlaybackURL: a.Config.PublicURL, MemberURL: a.Config.MemberPublicURL, EmbyURL: a.Config.EmbyPublicURL}
+	v := settings.Access{ManagementURL: a.Config.PublicURL, PlaybackURL: a.Config.PublicURL, MemberURL: a.Config.MemberPublicURL}
 	if v.MemberURL == "" && a.Config.MemberAddress != "" {
 		u, _ := url.Parse(a.Config.PublicURL)
 		if u != nil {
@@ -35,9 +35,7 @@ func (a *API) access(ctx context.Context) settings.Access {
 	if c.MemberURL != "" {
 		v.MemberURL = c.MemberURL
 	}
-	if c.EmbyURL != "" {
-		v.EmbyURL = c.EmbyURL
-	}
+
 	return v
 }
 func (a *API) sameOrigin(r *http.Request) bool {
@@ -66,7 +64,7 @@ func (a *API) accessSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !a.Config.Development() {
-			for _, v := range []string{in.Value.ManagementURL, in.Value.PlaybackURL, in.Value.MemberURL, in.Value.EmbyURL} {
+			for _, v := range []string{in.Value.ManagementURL, in.Value.PlaybackURL, in.Value.MemberURL} {
 				if v != "" && !strings.HasPrefix(v, "https://") {
 					fail(w, 400, "https_required", "生产环境域名必须使用HTTPS")
 					return
@@ -91,12 +89,12 @@ func (a *API) accessSettings(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		a.Deps.Logger.Info("public domain settings updated", "managementUrl", in.Value.ManagementURL, "playbackUrl", in.Value.PlaybackURL, "memberUrl", in.Value.MemberURL, "embyUrl", in.Value.EmbyURL)
+		a.Deps.Logger.Info("public domain settings updated", "managementUrl", in.Value.ManagementURL, "playbackUrl", in.Value.PlaybackURL, "memberUrl", in.Value.MemberURL)
 	}
 	current, err := repo.Get(r.Context())
 	if err != nil {
 		fail(w, 503, "settings_unavailable", "设置不可用")
 		return
 	}
-	write(w, 200, map[string]any{"value": current.Value.Access, "revision": current.Revision, "effective": a.access(r.Context()), "listeners": map[string]string{"management": a.Config.Address, "member": a.Config.MemberAddress, "emby": a.Config.EmbyGatewayAddress}})
+	write(w, 200, map[string]any{"value": current.Value.Access, "revision": current.Revision, "effective": a.access(r.Context()), "listeners": map[string]string{"management": a.Config.Address, "member": a.Config.MemberAddress}})
 }

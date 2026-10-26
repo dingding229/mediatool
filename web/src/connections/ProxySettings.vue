@@ -116,7 +116,7 @@ usePageRefresh(()=>load(true));
     <el-checkbox v-model="clear">明确清除已保存的代理地址</el-checkbox>
     <el-checkbox v-model="tmdb">TMDB查询与海报使用代理</el-checkbox>
     <el-checkbox v-model="sites">PT站点搜索、RSS与站点请求使用代理</el-checkbox>
-    <p>不会影响 115、Emby、CloudDrive2 或下载器。关闭两个路由即可停用代理。</p>
+    <p>不会影响 115、CloudDrive2 或下载器。关闭两个路由即可停用代理。</p>
     <el-alert v-if="conflict" :title="`服务端最新路由：TMDB ${conflict.tmdb?'代理':'直连'}；PT ${conflict.sites?'代理':'直连'}。地址仅显示是否已设置：${conflict.url?'已设置':'未设置'}`" type="info" :closable="false" />
     <el-button v-if="conflict" @click="adopt">保留输入并采用最新修订</el-button>
     <el-button type="primary" native-type="submit" :loading="busy" :disabled="!!conflict||blocked" class="mt-save-button">保存代理设置</el-button>

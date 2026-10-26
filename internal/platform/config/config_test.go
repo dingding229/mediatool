@@ -22,7 +22,7 @@ func TestDefaults(t *testing.T) {
 	}
 }
 func TestRejectUnsafeConfig(t *testing.T) {
-	for _, tc := range []struct{ k, v string }{{"APP_ENV", "staging"}, {"STRM_API_KEY", strings.Repeat("a", 64)}, {"APP_PUBLIC_URL", "https://user:pass@example.com"}, {"APP_PUBLIC_URL", "https://example.com/base"}, {"STRM_ALLOWED_ROOTS", "/115/../secret"}, {"WORKER_LEASE", "0s"}, {"EMBY_PROXY_ENABLED", "true"}} {
+	for _, tc := range []struct{ k, v string }{{"APP_ENV", "staging"}, {"STRM_API_KEY", strings.Repeat("a", 64)}, {"APP_PUBLIC_URL", "https://user:pass@example.com"}, {"APP_PUBLIC_URL", "https://example.com/base"}, {"STRM_ALLOWED_ROOTS", "/115/../secret"}, {"WORKER_LEASE", "0s"}} {
 		t.Run(tc.k+tc.v, func(t *testing.T) {
 			env := validEnv()
 			env[tc.k] = tc.v
@@ -46,7 +46,7 @@ func TestProductionRequiresHTTPS(t *testing.T) {
 }
 
 func TestM0ConfigurationValidation(t *testing.T) {
-	for _, tc := range []struct{ k, v string }{{"CLOUDDRIVE_ENDPOINT", "http://user:password@host:19798"}, {"CLOUDDRIVE_ENDPOINT", "https://host/path"}, {"CLOUDDRIVE_ENDPOINT", "http://localhost:19798"}, {"PLAYBACK_ALLOWED_HOSTS", "https://evil.example.com"}, {"EMBY_302_ENABLED", "true"}, {"CLOUDDRIVE_REQUEST_TIMEOUT", "1ms"}, {"EMBY_STRM_RESOLVER_ORIGINS", "https://example.com/path"}} {
+	for _, tc := range []struct{ k, v string }{{"CLOUDDRIVE_ENDPOINT", "http://user:password@host:19798"}, {"CLOUDDRIVE_ENDPOINT", "https://host/path"}, {"CLOUDDRIVE_ENDPOINT", "http://localhost:19798"}, {"PLAYBACK_ALLOWED_HOSTS", "https://evil.example.com"}, {"CLOUDDRIVE_REQUEST_TIMEOUT", "1ms"}} {
 		env := validEnv()
 		env[tc.k] = tc.v
 		if _, err := FromLookup(lookup(env)); err == nil {
@@ -60,46 +60,6 @@ func TestM0ConfigurationValidation(t *testing.T) {
 	c, err := FromLookup(lookup(env))
 	if err != nil || c.CloudDrivePassword != " password " || c.STRMProxyFallback || c.STRMForceProxy {
 		t.Fatal(err)
-	}
-}
-
-func TestPublicGatewayOriginMustNotContainCredentialsOrPath(t *testing.T) {
-	for _, raw := range []string{"https://user:secret@gateway.example", "https://gateway.example/emby", "https://gateway.example?token=private", "http://gateway.example"} {
-		_, err := FromLookup(func(k string) (string, bool) {
-			switch k {
-			case "SESSION_SECRET_KEY":
-				return strings.Repeat("a", 64), true
-			case "STRM_API_KEY":
-				return strings.Repeat("b", 64), true
-			case "APP_ENV":
-				return "production", true
-			case "APP_PUBLIC_URL":
-				return "https://media.example", true
-			case "EMBY_PUBLIC_URL":
-				return raw, true
-			}
-			return "", false
-		})
-		if err == nil {
-			t.Fatal("unsafe public gateway origin accepted")
-		}
-	}
-}
-
-func TestDirectPlayOnlySwitchIsBooleanAndDefaultsCompatible(t *testing.T) {
-	env := validEnv()
-	c, err := FromLookup(lookup(env))
-	if err != nil || c.EmbyDirectPlayOnly {
-		t.Fatal("compatibility default changed", err)
-	}
-	env["EMBY_DIRECT_PLAY_ONLY"] = "true"
-	c, err = FromLookup(lookup(env))
-	if err != nil || !c.EmbyDirectPlayOnly {
-		t.Fatal("direct-only switch missing", err)
-	}
-	env["EMBY_DIRECT_PLAY_ONLY"] = "maybe"
-	if _, err = FromLookup(lookup(env)); err == nil {
-		t.Fatal("invalid direct-only switch accepted")
 	}
 }
 

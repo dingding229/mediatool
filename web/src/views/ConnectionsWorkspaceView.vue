@@ -11,12 +11,11 @@ import { pageById } from '../navigation/pages';
 import { bytes, date, services, stateFor, errorText, type Readiness } from '../workflows/readiness';
 import ConnectionManager from '../connections/ConnectionManager.vue';
 import ProxySettings from '../connections/ProxySettings.vue';
-import GatewayDiagnostics from '../connections/GatewayDiagnostics.vue';
 import NotificationHistory from '../connections/NotificationHistory.vue';
 import '../connections/connections.css';
 const route = useRoute(), tabs = pageById('connections').tabs;
 const tab = computed(() => tabs.some(t => t.id === route.query.tab) ? String(route.query.tab) : 'storage');
-const statusServices = computed(() => services.filter(s => tab.value === 'storage' ? s.tab === 'storage' : tab.value === 'emby' ? s.tab === 'emby' : false));
+const statusServices = computed(() => services.filter(s => tab.value === 'storage' ? s.tab === 'storage' : false));
 const readiness = ref<Readiness | null>(null), loading = ref(false), error = ref<unknown>(null), account = ref<any>(null), accountBusy = ref(false), accountError = ref<unknown>(null);
 async function load() {
   loading.value = !readiness.value;
@@ -94,15 +93,6 @@ usePageRefresh(() => Promise.all([load(), ...(tab.value === 'storage' ? [loadAcc
         </template>
         <p v-else>尚未取得账号信息，请先完成 115 授权。</p>
       </section>
-    </template>
-    <template v-else-if="tab==='emby'">
-      <ConnectionManager :allowed-kinds="['emby']" title="Emby媒体库连接" />
-      <GatewayDiagnostics />
-      <nav class="connection-actions" aria-label="播放相关管理">
-        <RouterLink to="/playback?tab=settings">本程序播放服务</RouterLink>
-        <RouterLink to="/playback?tab=players">播放器准入</RouterLink>
-        <RouterLink to="/playback?tab=users">本程序媒体用户</RouterLink>
-      </nav>
     </template>
     <template v-else-if="tab==='downloader'">
       <ConnectionManager :allowed-kinds="['qbittorrent']" title="下载器配置"/>

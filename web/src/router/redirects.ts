@@ -1,7 +1,6 @@
 import type { RouteLocationNormalized, RouteLocationRaw, Router } from 'vue-router'
 import { primaryPages } from '../navigation/pages'
 export const legacyDestinations: Record<string, { path: string; tab: string; query?: Record<string, string> }> = {
-  '/emby': { path: '/connections', tab: 'emby' },
   '/mediaLibrary': { path: '/library', tab: 'browse' },
   '/media-server': { path: '/playback', tab: 'settings' },
   '/media-users': { path: '/playback', tab: 'users' },
@@ -29,7 +28,7 @@ export function legacyLocation(path: string, to: Pick<RouteLocationNormalized, '
 }
 export function normalizePageLocation(to: Pick<RouteLocationNormalized, 'path' | 'query' | 'hash'>): RouteLocationRaw | undefined {
   if(to.path==='/library'&&to.query.source==='plugins')return {path:'/search',query:{...to.query,tab:'discover',kind:to.query.kind==='recommend.source'?'recommend.source':'discover.source',source:undefined},hash:to.hash,replace:true};
-  if ((to.path === '/settings' && (['tmdb','proxy'].includes(String(to.query.section)) || ['tmdb','proxy'].includes(String(to.query.tab)))) || (['/library','/settings'].includes(to.path) && to.query.connectionKind === 'emby')) return { path: '/connections', query: { ...to.query, tab: to.query.connectionKind === 'emby' ? 'emby' : 'aux' }, hash: to.hash }
+  if ((to.path === '/settings' && (['tmdb','proxy'].includes(String(to.query.section)) || ['tmdb','proxy'].includes(String(to.query.tab))))) return { path: '/connections', query: { ...to.query, tab: 'aux' }, hash: to.hash }
   if (to.path === '/organize' && (to.query.tab === 'library' || !to.query.tab && to.query.assetId)) return {path:'/organize',query:{...to.query,tab:to.query.assetId?'assets':'candidates'},hash:to.hash,replace:true}
   const page = primaryPages.find(page => to.path === `/${page.id}`)
   if (!page?.tabs[0]?.id) return

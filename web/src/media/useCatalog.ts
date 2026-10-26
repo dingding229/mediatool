@@ -3,48 +3,23 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { request } from '../api/client';
 import {managedCatalog,managedDetail,type Category} from '../api/mediaCatalog';
-import { rows, type Home, type MediaItem } from './model';
+import { rows, type MediaItem } from './model';
 export function useCatalog() {
-  const route = useRoute(), router = useRouter(), source = ref(route.query.source === 'emby' ? 'emby' : 'managed'), view = ref(route.query.view === 'all' ? 'all' : 'home'), page = usePageNumber(), query = ref(''), kind = ref(''), parentId = ref(String(route.query.parentId || '')), user = ref(''), items = ref<MediaItem[]>([]), total = ref<number | null>(null), home = ref<Home | null>(null), loading = ref(true), error = ref<unknown>(), embyConnected = ref<boolean | null>(null), connectionError = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>(), children = ref<MediaItem[]>([]), childTotal = ref(0), childPage = usePageNumber('childPage'), childError = ref<unknown>(), childLoading = ref(false), series = ref<MediaItem | null>(null), category=ref(''), categories=ref<Category[]>([]);
+  const route = useRoute(), router = useRouter(), source = ref('managed'), view = ref(route.query.view === 'all' ? 'all' : 'home'), page = usePageNumber(), query = ref(''), kind = ref(''), parentId = ref(String(route.query.parentId || '')), items = ref<MediaItem[]>([]), total = ref<number | null>(null), loading = ref(true), error = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>(), children = ref<MediaItem[]>([]), childTotal = ref(0), childPage = usePageNumber('childPage'), childError = ref<unknown>(), childLoading = ref(false), series = ref<MediaItem | null>(null), category=ref(''), categories=ref<Category[]>([]);
   let epoch = 0, detailEpoch = 0, childEpoch = 0, alive = true;
   const displayItems = computed(() => items.value);
-  const groups = computed(() => [{ key: 'libraries', title: '媒体库分类' }, { key: 'playing', title: '正在播放' }, { key: 'resume', title: '继续观看' }, { key: 'recent', title: '近期观看' }, { key: 'latest', title: '最新入库' }].map(g => ({ ...g, items: rows((home.value as any)?.[g.key]) })));
   const selectedSeason = ref<MediaItem | null>(null);
   const episodes = computed(() => children.value);
   async function chooseSeason(item: MediaItem | null) { selectedSeason.value=item; childPage.value=1; await readChildren(); }
-  const isSeries = (item: MediaItem) => !['Episode', 'Season'].includes(item.type || '') && (source.value === 'emby' || item.type === 'Series') && ['series', 'Series'].includes(item.mediaType || item.type || '') && item.episode == null;
-  async function connections() {
-    try {
-      const list = await request<any[]>('/integrations');
-      if (alive) {
-        embyConnected.value = rows(list).some(x => x.kind === 'emby' && x.enabled);
-        connectionError.value = undefined;
-      }
-    }
-    catch (e) {
-      if (alive) {
-        embyConnected.value = null;
-        connectionError.value = e;
-      }
-    }
-  }
-  const catalogPage = (parent: string, p: number, child = false) => source.value==='managed'?managedCatalog(child?'':query.value,parent,category.value,p):request<any>(`/media/library?source=${source.value}&q=${encodeURIComponent(child ? '' : query.value)}&mediaType=${child ? '' : kind.value}&page=${p}&pageSize=24&parentId=${encodeURIComponent(parent)}`);
+  const isSeries = (item: MediaItem) => !['Episode', 'Season'].includes(item.type || '') && item.type === 'Series' && ['series', 'Series'].includes(item.mediaType || item.type || '') && item.episode == null;
+  const catalogPage = (parent: string, p: number, child = false) => managedCatalog(child?'':query.value,parent,category.value,p);
   let hasLoaded=false;
   async function load() {
     const version = ++epoch;
     loading.value = !hasLoaded;
     error.value = undefined;
     try {
-      if (source.value === 'emby' && embyConnected.value === false)
-        return;
-      if (source.value === 'emby' && view.value === 'home') {
-        const out = await request<Home>(`/media/library/emby/home?userId=${encodeURIComponent(user.value)}`);
-        if (alive && version === epoch) {
-          home.value = out;
-          user.value = out.userId || '';
-        }
-      }
-      else {
+      {
         const out = await catalogPage(parentId.value, page.value);
         if (alive && version === epoch) {
           items.value = rows(out.items);
@@ -75,7 +50,7 @@ export function useCatalog() {
   }
   async function chooseSource(value: string) {
     category.value='';
-    if (!['managed', 'emby'].includes(value))
+    if (!['managed'].includes(value))
       return;
     close();
     source.value = value;
@@ -141,16 +116,8 @@ export function useCatalog() {
         const out=await managedDetail(item.id);
         if(alive&&version===detailEpoch)detail.value={...item,...out,source:'managed'};
       }
-      if (source.value === 'emby') {
-        const out = await request<MediaItem>(`/media/emby/items/${encodeURIComponent(item.id)}`);
-        if (alive && version === detailEpoch)
-          detail.value = { ...item, ...out, source: 'emby' };
-      }
-      if (source.value==='emby'&&item.tmdbId) {
-        const out = await request<any>(`/metadata/details?mediaType=${item.mediaType}&tmdbId=${item.tmdbId}`);
-        if (alive && version === detailEpoch)
-          detail.value = { ...detail.value!, overview: out.item?.overview || detail.value?.overview, genres: out.item?.genres || item.genres, episodeDetails: out.item?.episodeDetails || item.episodeDetails, poster: detail.value?.poster || out.item?.posterPath };
-      }
+
+
     }
     catch (e) {
       if (alive && version === detailEpoch)
@@ -161,22 +128,9 @@ export function useCatalog() {
         detailLoading.value = false;
     }
   }
-  function homeItem(group: string, item: MediaItem) {
-    if (group === 'libraries')
-      browse(item.id);
-    else
-      void inspect({ ...item, source: 'emby', mediaType: item.type === 'Movie' ? 'movie' : 'series', poster: item.image });
-  }
-  async function refresh() {
-    const checking = connections();
-    if (source.value === 'managed')
-      await load();
-    await checking;
-    if (source.value === 'emby')
-      await load();
-  }
+  async function refresh() { await load(); }
   watch(() => [route.query.source, route.query.view, route.query.parentId], () => {
-    const next = route.query.source === 'emby' ? 'emby' : 'managed';
+    const next = 'managed';
     const nextView = route.query.view === 'all' ? 'all' : 'home', parent = String(route.query.parentId || '');
     if (next !== source.value || nextView !== view.value || parent !== parentId.value) {
       close();
@@ -197,5 +151,5 @@ export function useCatalog() {
     epoch++;
     close();
   });
-  return { selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, user, items, total, home, groups, loading, error, embyConnected, connectionError, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, category, categories, load, search, chooseSource, all, browse, inspect, homeItem, refresh, readChildren };
+  return { selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, items, total, loading, error, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, category, categories, load, search, chooseSource, all, browse, inspect, refresh, readChildren };
 }

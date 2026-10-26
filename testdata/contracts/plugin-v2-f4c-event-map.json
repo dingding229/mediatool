@@ -68,8 +68,7 @@
     "kind": "chain",
     "scope": "events.chain.discover.source",
     "producer": [
-      "internal/modules/catalog/sources.go:SourceRegistry.Refresh",
-      "internal/modules/catalog/home.go:Engine.Home"
+      "internal/modules/catalog/sources.go:SourceRegistry.Refresh"
     ],
     "tests": [
       "TestF4CCachedSourcePaginationNeverInvokesWorkerAndRevokeHidesCache",
@@ -81,8 +80,7 @@
     "kind": "chain",
     "scope": "events.chain.recommend.source",
     "producer": [
-      "internal/modules/catalog/sources.go:SourceRegistry.Refresh",
-      "internal/modules/catalog/home.go:Engine.Home"
+      "internal/modules/catalog/sources.go:SourceRegistry.Refresh"
     ],
     "tests": [
       "TestF4CCachedSourcePaginationNeverInvokesWorkerAndRevokeHidesCache",

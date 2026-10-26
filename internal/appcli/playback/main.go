@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
+
 	"strings"
 	"time"
 )
@@ -82,7 +82,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	report := map[string]any{"assetId": assetID, "fileGrantValidated": reference.AssetID == assetID, "savedSTRMHasFixedAssetId": u.Query().Get("assetId") == assetID, "savedSTRMOriginMatchesCurrent": u.Scheme+"://"+u.Host == cfg.PublicURL, "embyUserAuthorizedGatewayVerified": false, "realPlayerDecoded": false}
+	report := map[string]any{"assetId": assetID, "fileGrantValidated": reference.AssetID == assetID, "savedSTRMHasFixedAssetId": u.Query().Get("assetId") == assetID, "savedSTRMOriginMatchesCurrent": u.Scheme+"://"+u.Host == cfg.PublicURL, "realPlayerDecoded": false}
 	noRedirect := http.Client{Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	request := func(method, target string) (*http.Response, error) {
 		r, err := http.NewRequestWithContext(ctx, method, target, nil)
@@ -166,65 +166,6 @@ func run() error {
 	if err == nil {
 		report["invalidFileKeyRejected"] = denied.StatusCode == 401 && denied.Header.Get("Location") == ""
 		deferutil.Close(denied.Body, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
-	}
-	emby, err := manager.Repository.Default(ctx, "emby")
-	if err != nil {
-		return err
-	}
-	expected := path.Join(emby.String("strmPathPrefix"), output)
-	foundID := ""
-	for start := 0; start < 1000 && foundID == ""; start += 200 {
-		query := url.Values{"Recursive": {"true"}, "Fields": {"Path,MediaSources"}, "Limit": {"200"}, "StartIndex": {fmt.Sprint(start)}}
-		r, _ := http.NewRequestWithContext(ctx, "GET", strings.TrimRight(emby.String("endpoint"), "/")+"/Items?"+query.Encode(), nil)
-		r.Header.Set("X-Emby-Token", emby.Values["apiKey"])
-		res, err := noRedirect.Do(r)
-		if err != nil {
-			return err
-		}
-		var page struct {
-			Items []struct {
-				ID      string `json:"Id"`
-				Path    string `json:"Path"`
-				Sources []struct {
-					Path string `json:"Path"`
-				} `json:"MediaSources"`
-			}
-			Total int `json:"TotalRecordCount"`
-		}
-		if res.StatusCode != 200 {
-			deferutil.Close(res.Body, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
-			return errors.New("Emby metadata refused")
-		}
-		err = json.NewDecoder(io.LimitReader(res.Body, 4<<20)).Decode(&page)
-		deferutil.Close(res.Body, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
-		if err != nil {
-			return err
-		}
-		for _, item := range page.Items {
-			if item.Path == expected {
-				foundID = item.ID
-			}
-			for _, source := range item.Sources {
-				if source.Path == expected {
-					foundID = item.ID
-				}
-			}
-		}
-		if start+len(page.Items) >= page.Total || len(page.Items) == 0 {
-			break
-		}
-	}
-	report["embyManagedSTRMVisible"] = foundID != ""
-	if foundID != "" {
-		report["embyItemId"] = foundID
-		r, _ := http.NewRequestWithContext(ctx, "GET", cfg.EmbyPublicURL+"/Videos/"+url.PathEscape(foundID)+"/stream?Static=true", nil)
-		r.Header.Set("X-Emby-Token", "invalid-diagnostic-user-token")
-		denied, err := noRedirect.Do(r)
-		if err == nil {
-			report["invalidEmbyUserRejected"] = denied.StatusCode == 401 || denied.StatusCode == 403
-			report["invalidEmbyUserStatus"] = denied.StatusCode
-			deferutil.Close(denied.Body, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
-		}
 	}
 	return json.NewEncoder(os.Stdout).Encode(report)
 }

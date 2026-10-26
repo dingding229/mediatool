@@ -11,7 +11,7 @@ import (
 )
 
 func refreshKey(assetID string, revision int64) string {
-	return "library.refresh:" + assetID + ":" + strconv.FormatInt(revision, 10)
+	return "library.native.refresh:" + assetID + ":" + strconv.FormatInt(revision, 10)
 }
 
 func (e Engine) QueueRefresh(ctx context.Context, assetID string) error {

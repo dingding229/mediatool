@@ -2,8 +2,10 @@
 
 - Preserve Go/Vue modular architecture and PostgreSQL/Redis persistence.
 - Official deployment uses only the root `docker-compose.yml` and exactly app,
-  postgres, redis. All application functions execute inside app. Emby/CloudDrive2
-  are existing external dependencies; do not delete their configuration/data.
+  postgres, redis. All application functions execute inside app. CloudDrive2 is the remaining external
+  media-service dependency. External Emby integration was removed per the owner’s
+  2026-10-25 instruction; the external Emby service/data are not removed by this change.
+  Preserve CloudDrive2 configuration/data and the built-in Emby-compatible protocol.
 - For every subsequent update: test, commit and push to dingding229/mediatool,
   wait for its Actions AMD64 Docker Hub publication, then update/test the owned
   server at /root/docker/mediatool using the published immutable Hub image.

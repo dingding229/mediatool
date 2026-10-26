@@ -39,37 +39,5 @@ func (s PluginCatalog) Items(ctx context.Context, provider, library, id, text, k
 		}
 		return out, n, err
 	}
-	if provider != "emby" || s.Registry == nil {
-		return nil, 0, ErrUnsupported
-	}
-	p, err := s.Registry.Provider(provider)
-	if err != nil {
-		return nil, 0, err
-	}
-	adapter, ok := p.(EmbyAdapter)
-	if !ok {
-		return nil, 0, ErrUnsupported
-	}
-	// Item has no authoritative library-membership evidence in this facade.
-	// Scoped item lookup must fail closed, not fall back to the admin key realm.
-	if id != "" {
-		if a.Restricted() {
-			return nil, 0, ErrUnsupported
-		}
-		v, err := adapter.AdministrativeItem(ctx, id)
-		return []Item{v}, 1, err
-	}
-	if a.Restricted() && library == "" {
-		return nil, 0, ErrUnsupported
-	}
-	v, err := adapter.AdministrativeList(ctx, text, kind, library, page, size)
-	out := []Item{}
-	for _, i := range v.Items {
-		out = append(out, Item{ID: i.ID, Title: i.Title, Year: i.Year, MediaType: i.MediaType, Overview: i.Overview, Season: i.Season, Episode: i.Episode})
-	}
-	return out, v.Total, err
-}
-func (e EmbyAdapter) AdministrativeItem(ctx context.Context, id string) (Item, error) {
-	v, err := e.Catalog.Item(ctx, id)
-	return Item{ID: v.ID, Title: v.Title, Year: v.Year, MediaType: v.MediaType, Overview: v.Overview, Season: v.Season, Episode: v.Episode}, err
+	return nil, 0, ErrUnsupported
 }

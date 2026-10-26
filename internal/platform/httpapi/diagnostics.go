@@ -2,13 +2,11 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
+
 	"errors"
-	"io"
-	deferutil "media-tool/internal/platform/cleanup"
+
 	"net/http"
-	"net/url"
-	"strings"
+
 	"time"
 
 	"media-tool/internal/modules/playback"
@@ -96,79 +94,4 @@ func cloudMessage(err error) string {
 	default:
 		return "CloudDrive2 不可达或响应无效，请检查原生 gRPC 地址与 TLS 配置"
 	}
-}
-func (a *API) testEmby(w http.ResponseWriter, r *http.Request) {
-	upstream := a.Config.EmbyUpstream
-	if a.Deps.Integrations != nil {
-		if c, err := a.Deps.Integrations.Repository.Default(r.Context(), "emby"); err == nil {
-			upstream = c.String("endpoint")
-		}
-	}
-	if upstream == "" {
-		fail(w, 503, "emby_not_configured", "请先配置 EMBY_UPSTREAM_URL")
-		return
-	}
-	var body struct{}
-	if !decode(w, r, &body) {
-		return
-	}
-	target, _ := url.Parse(upstream)
-	target.Path = strings.TrimRight(target.Path, "/") + "/System/Info/Public"
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	request, err := http.NewRequestWithContext(ctx, "GET", target.String(), nil)
-	if err != nil {
-		fail(w, 502, "emby_unavailable", "Emby 地址无效")
-		return
-	}
-	// No management cookie or API Key is forwarded. This is Emby's public info.
-	client := http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	response, err := client.Do(request)
-	if err != nil {
-		fail(w, 502, "emby_unavailable", "无法连接 Emby，请检查地址和 TLS")
-		return
-	}
-	defer deferutil.Close(response.Body, "Read/descriptor teardown only; primary operations handle their own I/O result")
-	if response.StatusCode != 200 {
-		fail(w, 502, "emby_unavailable", "Emby 公共信息接口不可用")
-		return
-	}
-	var info struct {
-		ID      string `json:"Id"`
-		Version string `json:"Version"`
-	}
-	if json.NewDecoder(io.LimitReader(response.Body, 64<<10)).Decode(&info) != nil || info.ID == "" {
-		fail(w, 502, "emby_invalid_response", "上游不是有效的 Emby 公共信息接口")
-		return
-	}
-	write(w, 200, map[string]any{"reachable": true, "version": info.Version, "clientPlaybackVerified": false, "note": "此检查仅验证 Emby 服务可达，不代表用户授权或播放通过"})
-}
-func (a *API) checkEmbyItem(w http.ResponseWriter, r *http.Request) {
-	gateway := a.gateway(r.Context())
-	if gateway == nil {
-		fail(w, 503, "emby_not_configured", "请先配置 EMBY_UPSTREAM_URL")
-		return
-	}
-	var body struct {
-		ItemID    string `json:"itemId"`
-		SourceID  string `json:"mediaSourceId"`
-		UserToken string `json:"userToken"`
-	}
-	if !decode(w, r, &body) {
-		return
-	}
-	if body.UserToken == "" || strings.ContainsAny(body.UserToken, "\r\n\x00") {
-		fail(w, 400, "invalid_emby_token", "需要 Emby 用户访问令牌，不能用服务管理 API Key 替代")
-		return
-	}
-	request, _ := http.NewRequest("GET", "http://diagnostic.invalid/", nil)
-	request.Header.Set("X-Emby-Token", body.UserToken)
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
-	defer cancel()
-	result, err := gateway.CheckItem(ctx, request, body.ItemID, body.SourceID)
-	if err != nil {
-		fail(w, 502, "emby_item_check_failed", "Emby 用户授权或媒体查询失败，请检查用户令牌和媒体 ID")
-		return
-	}
-	write(w, 200, result)
 }
