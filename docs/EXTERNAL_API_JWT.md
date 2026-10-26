@@ -1,4 +1,4 @@
-# 外部 API JWT（schema89 / v0.42.0）
+# 外部 API JWT（schema89 / v0.42.1）
 
 签名：APP_SECRET_KEY解码为32字节，经标准库HKDF-SHA256、nil salt、独立info `media-tool:external-api:jwt:hs256:v1` 得到32字节HS256密钥，仅驻内存。使用锁定的golang-jwt/jwt/v5 v5.3.1；WithValidMethods仅允许HS256，再显式检查算法对象。请求token最多2048字节，不接受none、其他算法、URL参数或管理员Cookie替代。
 
