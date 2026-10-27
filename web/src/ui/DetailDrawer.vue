@@ -77,6 +77,7 @@ const dialogWidth = computed(
   overflow: auto;
 }
 .detail-dialog .detail-footer {
+  width: 100%;
   display: flex;
   justify-content: flex-end;
   align-items: center;

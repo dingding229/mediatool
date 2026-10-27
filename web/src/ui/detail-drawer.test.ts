@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import { expect, it } from "vitest";
 import { createSSRApp, defineComponent, h } from "vue";
 import { renderToString } from "vue/server-renderer";
@@ -76,4 +77,9 @@ it("renders a supplied footer only when the caller supplies one", async () => {
   const html = await render({}, { footer: () => h("button", "保存") });
   expect(html).toContain("<footer");
   expect(html).toContain("保存");
+});
+
+it("keeps supplied footer actions anchored to the full footer row", () => {
+  const source=readFileSync(new URL('./DetailDrawer.vue',import.meta.url),'utf8');
+  expect(source).toMatch(/\.detail-dialog \.detail-footer\s*\{[^}]*width:\s*100%/);
 });

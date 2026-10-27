@@ -51,6 +51,11 @@ async function geometry(dialog:Locator,width:number,expected:number){
  if(width===390)expect(await panel.evaluate(el=>el.getBoundingClientRect().height)).toBe(1000);
 }
 
+async function checkFooterAlignment(dialog:Locator){
+ const footerRow=dialog.locator('.el-dialog__footer');
+ await expect.poll(()=>footerRow.evaluate(el=>{const style=getComputedStyle(el),row=el.getBoundingClientRect(),wrap=el.querySelector('.detail-footer')!.getBoundingClientRect(),button=el.querySelector('.detail-footer button:last-child')!.getBoundingClientRect(),left=row.left+el.clientLeft+parseFloat(style.paddingLeft),right=row.left+el.clientLeft+el.clientWidth-parseFloat(style.paddingRight);return Math.abs(wrap.left-left)<1&&Math.abs(wrap.right-right)<1&&Math.abs(button.right-right)<1})).toBe(true);
+}
+
 // One browser context/page and mocked authenticated session for the whole audit; no retries or timeout changes.
 let shared:Page;
 test.beforeAll(async({browser})=>{shared=await browser.newPage({viewport:{width:1440,height:1000}})});
@@ -61,7 +66,7 @@ for(const group of ['/search','/downloads','/files','/ops','/organize','/playbac
    const dialog=await navigate(shared,t);
    if(representative.has(t.id)){
     await geometry(dialog,1440,t.size==='default'?800:1000);
-    if(t.id==='external'){await expect(dialog.locator('.el-dialog__footer')).toBeVisible();await expect(dialog.getByRole('button',{name:'刷新记录',exact:true})).toBeVisible();await shared.mouse.click(2,2);await expect(dialog).toBeVisible()}
+    if(t.id==='external'){await checkFooterAlignment(dialog);await expect(dialog.locator('.el-dialog__footer')).toBeVisible();await expect(dialog.getByRole('button',{name:'刷新记录',exact:true})).toBeVisible();await shared.mouse.click(2,2);await expect(dialog).toBeVisible()}
     else await expect(dialog.locator('.el-dialog__footer')).toHaveCount(0);
    }
    await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(dialog).toBeHidden();
@@ -77,6 +82,7 @@ test('I3 behavior mobile representatives and footer',async()=>{
    const dialog=await navigate(shared,t);await geometry(dialog,390,t.size==='default'?800:1000);
    if(id==='external'){
     const footer=dialog.locator('.detail-footer');await expect(footer).toHaveCSS('justify-content','flex-end');
+    await checkFooterAlignment(dialog);
     const header=dialog.locator('.el-dialog__header'),body=dialog.locator('.el-dialog__body');
     const top=(await header.boundingBox())!.y,bottom=(await footer.boundingBox())!.y;
     expect(await body.evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
