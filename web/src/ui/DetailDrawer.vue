@@ -1,22 +1,32 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from "vue";
 
-defineProps<{
-  title: string
-  technicalData?: Record<string, any> | unknown
-}>()
+const props = withDefaults(
+  defineProps<{
+    title: string;
+    technicalData?: Record<string, any> | unknown;
+    size?: "small" | "default" | "large";
+  }>(),
+  { size: "default" },
+);
 
-const visible = defineModel<boolean>('visible', { default: false })
-const showTechnical = ref(false)
+const visible = defineModel<boolean>("visible", { default: false });
+const showTechnical = ref(false);
+const dialogWidth = computed(
+  () => ({ small: "560px", default: "800px", large: "1000px" })[props.size],
+);
 </script>
 
 <template>
-  <el-drawer
+  <el-dialog
     v-model="visible"
     :title="title"
-    size="min(600px, 94vw)"
-    direction="rtl"
-    class="detail-drawer"
+    :width="dialogWidth"
+    align-center
+    :close-on-click-modal="false"
+    :close-on-press-escape="true"
+    :show-close="true"
+    class="detail-drawer detail-dialog"
   >
     <div class="detail-body">
       <slot />
@@ -29,26 +39,53 @@ const showTechnical = ref(false)
           @click="showTechnical = !showTechnical"
         >
           <span>技术细节与原始记录</span>
-          <span>{{ showTechnical ? '收起 ▲' : '展开 ▼' }}</span>
+          <span>{{ showTechnical ? "收起 ▲" : "展开 ▼" }}</span>
         </button>
 
         <div v-if="showTechnical" class="technical-content">
-          <pre class="technical-json"><code>{{ JSON.stringify(technicalData, null, 2) }}</code></pre>
+          <pre
+            class="technical-json"
+          ><code>{{ JSON.stringify(technicalData, null, 2) }}</code></pre>
         </div>
       </div>
     </div>
 
-    <template #footer>
-      <slot name="footer">
-        <el-button @click="visible = false">关闭</el-button>
-      </slot>
+    <template v-if="$slots.footer" #footer>
+      <div class="detail-footer">
+        <slot name="footer" />
+      </div>
     </template>
-  </el-drawer>
+  </el-dialog>
 </template>
 
 <style scoped>
+:deep(.el-dialog) {
+  max-height: 85vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+:deep(.el-dialog__header) {
+  flex: 0 0 auto;
+}
+:deep(.el-dialog__body) {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+:deep(.el-dialog__footer) {
+  flex: 0 0 auto;
+}
+.detail-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .detail-body {
-  min-height: min(360px,60vh);
+  min-height: min(360px, 60vh);
   font-size: 14px;
   line-height: 1.6;
 }
@@ -87,5 +124,25 @@ const showTechnical = ref(false)
   font-size: 12px;
   white-space: pre-wrap;
   word-break: break-all;
+}
+@media (max-width: 600px) {
+  :deep(.el-overlay-dialog) {
+    display: flex;
+    align-items: stretch;
+  }
+  :deep(.el-dialog) {
+    width: 100vw !important;
+    max-width: none;
+    height: 100vh;
+    max-height: 100vh;
+    margin: 0;
+    border-radius: 0;
+  }
+  :deep(.el-dialog__body) {
+    padding-inline: 16px;
+  }
+  :deep(.el-dialog__footer) {
+    padding-inline: 16px;
+  }
 }
 </style>

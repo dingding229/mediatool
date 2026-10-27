@@ -41,3 +41,5 @@ it('resize returns to first page exactly once after both model updates',async()=
 it('disabled and unchanged sizes do not trigger reads and custom options win',()=>{
  const change=vi.fn();for(const props of [{disabled:true},{pageSizes:[25,50,200]}]){const v=setupComponent(Pagination,{pageSize:25,...props,onSizeChange:change});v.state.resize(25);v.state.resize(10);if(props.disabled)v.state.resize(50);else expect(v.state.sizeOptions).toEqual([25,50,200]);v.unmount()}expect(change).not.toHaveBeenCalled();
 });
+
+it('pagination count copy has no whitespace before the comma',async()=>{const {createSSRApp,h}=await import('vue');const {renderToString}=await import('vue/server-renderer');const app=createSSRApp(Pagination,{total:1});app.component('el-select',{setup:(_:unknown,ctx:any)=>()=>h('select',ctx.slots.default?.())});app.component('el-option',{setup:()=>()=>h('option')});const html=await renderToString(app);expect(html).toContain('条，共 1 条');expect(html).not.toContain('条 ，共 1 条')});

@@ -15,7 +15,7 @@ function resize(value:number){if(props.disabled||value===props.pageSize||!sizeOp
 <template>
  <nav class="mt-pagination" :aria-label="label">
   <div class="mt-page-summary">
-   <label>每页 <el-select :model-value="pageSize" :aria-label="label+'每页条数'" :disabled="disabled" @change="resize"><el-option v-for="n in sizeOptions" :key="n" :value="n" :label="String(n)"/></el-select> 条<span v-if="total!=null">，共 {{total}} 条</span></label>
+   <label>每页 <el-select :model-value="pageSize" :aria-label="label+'每页条数'" :disabled="disabled" @change="resize"><el-option v-for="n in sizeOptions" :key="n" :value="n" :label="String(n)"/></el-select><span v-if="total!=null">条，共 {{total}} 条</span><span v-else>条</span></label>
    <span v-if="status" class="mt-page-count" aria-live="polite">{{status==='loading'?'读取中':'读取失败'}}{{total==null?'，数量未知':''}}</span>
   </div>
   <div class="mt-page-actions"><button type="button" :disabled="disabled||currentPage<=1" @click="go(1)">首页</button><button type="button" :disabled="disabled||currentPage<=1" @click="go(currentPage-1)">上一页</button><span>{{pageLabel}}</span><button type="button" :disabled="disabled||!canNext" @click="go(currentPage+1)">下一页</button><button type="button" :disabled="disabled||!pages||currentPage>=pages" @click="pages&&go(pages)">末页</button></div>
