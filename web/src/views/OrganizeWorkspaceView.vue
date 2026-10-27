@@ -237,7 +237,7 @@ usePageRefresh(state.refresh,'*');
     <IdentityEditor ref="editor" @changed="state.changed" @editing="editing"/>
     <OutputRecoveryDialog ref="output" @completed="state.changed"/>
     <ConfirmAction v-model:visible="confirmOpen" :title="action?.type==='repair'?'重试输出恢复':action?.type==='rotate'?'轮换播放凭据':'撤销文件播放'" :description="action?.type==='repair'?'先核对权限，移开或回退手工修改的冲突文件；不覆盖其他内容。':action?.type==='rotate'?'旧凭据将失效，STRM 重写通过恢复日志执行，不覆盖手工文件。':'固定链接将失效；此前已签发的临时 CDN 链接可能短期仍有效。'" impact-scope="不删除云端媒体或本地做种源；后续结果以恢复记录和最新资产状态为准。" :loading="busy" class="media-dialog" @confirm="apply"/>
-    <DetailDrawer :key="assetDetail?.id" v-model:visible="detailsOpen" title="资产与输出详情" :technical-data="{asset:assetDetail,outputs,operations}" class="media-detail">
+    <DetailDrawer :key="assetDetail?.id" v-model:visible="detailsOpen" title="资产与输出详情" :technical-data="{asset:assetDetail,outputs,operations}" size="large" class="media-detail">
       <h3>{{ assetDetail?.title||'—' }}</h3>
  <ImageEditor v-if="assetDetail" :item-id="assetDetail.id" @saved="state.load('assets')"/>
       <p>{{ assetDetail?.path }}</p>

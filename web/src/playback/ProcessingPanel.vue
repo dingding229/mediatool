@@ -182,5 +182,5 @@ defineExpose({ load, save, ask, apply, form, filter, summary, tasks, op, action,
     </section>
   </div>
   <ConfirmAction v-model:visible="confirm" :title="action?.action==='gc'?'清理截图缓存':action?.id?'重试预处理任务':'确认批量重试'" :description="action?.action==='gc'?'按服务端限制分批检查并清理截图缓存。':`将处理 ${action?.kind==='probe'?'媒体探测':'单集截图'} / ${states[action?.state]||'全部状态'}，${action?.id?'仅所选任务':'本轮最多 500 条'}。`" impact-scope="只影响预处理任务或截图缓存，不修改媒体文件，不改变播放链路。" confirm-text="确认执行" :loading="op.busy" class="media-dialog" @confirm="apply"/>
-  <DetailDrawer v-model:visible="technical" title="预处理技术详情" :technical-data="{summary:summary.data,tasks:tasks.data}" class="media-detail"/>
+  <DetailDrawer v-model:visible="technical" title="预处理技术详情" :technical-data="{summary:summary.data,tasks:tasks.data}" size="large" class="media-detail"/>
 </template>

@@ -152,7 +152,7 @@ usePageRefresh(()=>refresh(),'uploads');
         <el-button :disabled="!sessionId" @click="askBinding">确认绑定并暂停</el-button>
       </div>
     </el-dialog>
-    <DetailDrawer v-model:visible="detailsOpen" title="任务详情" :technical-data="selectedTask||detail" class="acquire-detail">
+    <DetailDrawer v-model:visible="detailsOpen" title="任务详情" :technical-data="selectedTask||detail" size="large" class="acquire-detail">
       <h3>{{ selectedTask?.title||detail?.title||detail?.destination||'—' }}</h3>
       <p>{{ label(selectedTask?.state||detail?.state) }} · {{ selectedTask?.message||detail?.message||'—' }}</p>
       <p>下载进度：{{ progress(selectedTask?selectedTask.progress:detail?.progress) }}</p>

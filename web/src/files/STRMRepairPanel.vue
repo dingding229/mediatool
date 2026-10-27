@@ -225,7 +225,7 @@ defineExpose({ readback });
     </PreviewApprove>
   </section>
   <ConfirmAction v-model:visible="confirmOpen" :title="retry?'恢复 STRM 修复任务':'批准 STRM 修复'" :description="retry?'沿用已有批准与原始修复意图，需已读取当前批次状态。':'仅恢复本次预览中可证明原文的缺失文件。'" impact-scope="不覆盖手工文件、不重新上传源媒体、不生成新播放凭据、不处理 NFO。" :confirm-text="retry?'明确恢复任务':'明确批准修复'" :loading="busy" class="media-dialog" @confirm="apply"/>
-  <DetailDrawer v-model:visible="technical" title="修复技术详情" :technical-data="batch" class="media-detail">
+  <DetailDrawer v-model:visible="technical" title="修复技术详情" :technical-data="batch" size="large" class="media-detail">
     <p>用于核对当前批次与原始修复意图。</p>
   </DetailDrawer>
 </template>

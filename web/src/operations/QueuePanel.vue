@@ -114,7 +114,7 @@ defineExpose({ load, filter, jobs });
       </div>
       <PagePagination v-model:current-page="filter.page" :total="jobs.data?.total" v-model:page-size="filter.pageSize" layout="prev,pager,next,total" @current-change="changePage"/>
     </section>
-    <DetailDrawer v-model:visible="open" title="任务与运行技术详情" :technical-data="detail" class="media-detail">
+    <DetailDrawer v-model:visible="open" title="任务与运行技术详情" :technical-data="detail" size="large" class="media-detail">
       <el-button @click="copyOriginal(JSON.stringify(detail,null,2),s=>copyText=s).then(s=>copied=s)">复制原始记录</el-button>
       <p>{{ copied }}</p>
       <textarea v-if="copyText" class="u6-raw" :value="copyText" readonly aria-label="待复制任务记录"/>

@@ -208,7 +208,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <el-button :disabled="!!op.pending||!!latest" :loading="op.busy" @click="submit" type="primary" class="mt-save-button">保存规则</el-button>
     </template>
   </el-dialog>
-  <DetailDrawer v-model:visible="detailOpen" title="完整 UA 与访问详情" :technical-data="details" class="media-detail">
+  <DetailDrawer v-model:visible="detailOpen" title="完整 UA 与访问详情" :technical-data="details" size="large" class="media-detail">
     <label class="u5-field">
       实际收到的完整 UA
       <textarea :value="details?.userAgent||''" readonly rows="7" aria-label="实际收到的完整 UA"/>

@@ -249,7 +249,7 @@ usePageRefresh(load, 'recovery');
   </section>
   <ConfirmAction v-model:visible="confirmOpen" title="确认物理清理归档" description="物理删除已预览的过期托管归档，不能自动撤销。" impact-scope="不删除原媒体、做种源、当前输出或共享NFO。确认时重新检查归属、内容和保留期。" confirm-phrase="清理归档" confirm-text="确认物理清理" cancel-text="返回检查" danger-level="danger" :loading="busy" class="media-dialog" @confirm="apply"/>
   <ConfirmAction v-model:visible="retryOpen" title="继续已批准的归档清理" description="只继续此项已有批准，仍检查文件、归属、保留期和恢复状态。" impact-scope="不会重建清理计划，不覆盖或删除手工修改内容。" confirm-text="明确继续" :loading="busy" class="media-dialog" @confirm="retry"/>
-  <DetailDrawer v-model:visible="detailsOpen" title="归档清理技术详情" :technical-data="{requestId,plan,results}" class="media-detail">
+  <DetailDrawer v-model:visible="detailsOpen" title="归档清理技术详情" :technical-data="{requestId,plan,results}" size="large" class="media-detail">
     <p>请求与计划仅用于核对本次已批准的归档，不得公开分享。</p>
   </DetailDrawer>
 </template>

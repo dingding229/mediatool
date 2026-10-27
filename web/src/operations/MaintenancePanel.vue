@@ -230,7 +230,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       </PreviewApprove>
     </el-dialog>
     <ConfirmAction v-model:visible="approval" title="确认维护审批" description="确认预览范围后，批准管理员在服务器执行受控恢复或回滚。" :impact-scope="preview?.request.kind==='restore'?'审批不会立即执行；执行时走app内共享恢复器，成功后恢复调度，旧任务仍需核对。':'审批不会立即执行；镜像回滚执行后必须再核验，核验通过也不自动解除维护。'" :confirm-phrase="preview?.confirmText" confirm-text="审批维护单（不立即执行）" :loading="op.busy" class="media-dialog" @confirm="approve"/>
-    <DetailDrawer v-model:visible="detailOpen" title="维护技术详情" :technical-data="detail" class="media-detail">
+    <DetailDrawer v-model:visible="detailOpen" title="维护技术详情" :technical-data="detail" size="large" class="media-detail">
       <label v-if="detail?.command" class="u5-field">
         服务器受控执行命令
         <textarea :value="detail.command" rows="4" readonly aria-label="宿主受控执行命令"/>

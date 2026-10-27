@@ -109,7 +109,7 @@ defineExpose({ load, form, save, status, libraries, op });
       </article>
       <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="libraries.data.total" layout="prev,pager,next,total" @current-change="libraries.load"/>
     </section>
-    <DetailDrawer v-model:visible="technical" title="服务技术详情" :technical-data="{settings:status.data,services:providers.data,libraries:libraries.data}" class="media-detail">
+    <DetailDrawer v-model:visible="technical" title="服务技术详情" :technical-data="{settings:status.data,services:providers.data,libraries:libraries.data}" size="large" class="media-detail">
       <ResourceState :stale="providers.loaded" :loading="providers.loading" :error="providers.error" @reload="providers.load"/>
       <p>这里记录服务能力与地址配置；是否能正常观看仍以实际设备测试为准。</p>
     </DetailDrawer>

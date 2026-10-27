@@ -129,7 +129,7 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
     <PagePagination :status="data.loading&&!data.loaded?'loading':data.error&&!data.loaded?'error':''" v-model:current-page="filter.page" v-model:page-size="filter.pageSize" :page-sizes="[50,100,200]" :total="data.data?.total" label="日志分页" @current-change="load"/>
     <p v-if="data.data?.truncated">检索窗口已达上限，计数仅覆盖窗口内记录，请缩小时间范围。</p><span role="status">{{copied}}</span>
     <ConfirmAction v-model:visible="confirm" title="清理日志" description="清理全部程序文件日志？" impact-scope="不删除数据库审计或启动控制台日志，也不修改媒体；现有文件日志将不可恢复。" confirm-text="确认清理" danger-level="danger" :loading="op.busy" class="media-dialog" @confirm="clear"/>
-    <DetailDrawer v-model:visible="open" title="完整原始日志" class="media-detail">
+    <DetailDrawer v-model:visible="open" title="完整原始日志" size="large" class="media-detail">
       <template v-if="detail">
         <label v-if="detail.url" class="u5-field">
           完整请求 URL
@@ -148,7 +148,7 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
         <el-button @click="copy(JSON.stringify(detail,null,2))">复制原始记录</el-button>
       </template>
     </DetailDrawer>
-    <DetailDrawer v-model:visible="settings" title="日志设置" :technical-data="summary.data" class="media-detail">
+    <DetailDrawer v-model:visible="settings" title="日志设置" :technical-data="summary.data" size="large" class="media-detail">
       <ResourceState :error="summary.error" @reload="summary.load"/>
       <label class="u5-check"><input v-model="friendly" type="checkbox" aria-label="友好说明"/>详情中显示友好说明</label>
       <h2>日志大小</h2>

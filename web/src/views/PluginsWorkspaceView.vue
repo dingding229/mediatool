@@ -114,6 +114,6 @@ usePageRefresh(load,'*');
     <el-dialog v-model="automation" title="工作流管理" width="min(960px,94vw)" class="media-dialog" destroy-on-close>
       <PluginAutomation/>
     </el-dialog>
-    <DetailDrawer v-model:visible="tech" title="操作技术详情" :technical-data="op.technical" class="media-detail"/>
+    <DetailDrawer v-model:visible="tech" title="操作技术详情" :technical-data="op.technical" size="large" class="media-detail"/>
   </div>
 </template>

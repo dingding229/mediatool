@@ -42,7 +42,7 @@ usePageRefresh(()=>load());
   <el-button v-if="r.state==='unknown'" :disabled="busy" @click="reconcile(r.id)">核对中断结果</el-button>
   <el-button v-if="r.snapshotId&&['completed','rolled_back'].includes(r.state)" :disabled="busy||previewLoading||!!props.backupError||props.backupsLoading" @click="inspect(r.snapshotId)">预览回滚到恢复前</el-button>
  </article></template>
- <DetailDrawer v-model:visible="previewOpen" title="网页恢复预览">
+ <DetailDrawer v-model:visible="previewOpen" title="网页恢复预览" size="large">
   <ResourceState :loading="previewLoading" :error="previewError"/>
   <p v-if="writeError" role="alert">{{errorText(writeError)}}</p>
   <p v-if="writeError">先核对执行记录；需要重新登录时，登录后重新预览。</p>

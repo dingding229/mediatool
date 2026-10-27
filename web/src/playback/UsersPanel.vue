@@ -88,7 +88,7 @@ defineExpose({ load, create });
   <PagePagination v-model:current-page="page" :total="users.data.total" v-model:page-size="pageSize" @current-change="users.load"/>
   </section>
   <UserEditor ref="editor" :libraries="libraries.data" @saved="load"/>
-  <DetailDrawer v-model:visible="activityOpen" :title="(activity?.username||'媒体用户')+' · 用户详情'" class="media-detail">
+  <DetailDrawer v-model:visible="activityOpen" :title="(activity?.username||'媒体用户')+' · 用户详情'" size="large" class="media-detail">
     <dl v-if="activity" class="media-user-summary media-user-detail-summary">
       <div><dt>设备与登录</dt><dd>{{ activity.deviceCount??'—' }} 台设备 · {{ activity.activeSessions??'—' }} 个有效登录</dd></div>
       <div><dt>权限摘要</dt><dd>{{ permission(activity) }}</dd></div>

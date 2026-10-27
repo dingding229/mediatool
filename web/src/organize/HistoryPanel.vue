@@ -192,7 +192,7 @@ usePageRefresh(load, 'history');
     <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next,total" @current-change="load"/>
     <div class="media-actions history-danger-actions"><el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button></div>
   </section>
-  <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" :technical-data="detail" class="media-detail">
+  <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" :technical-data="detail" size="large" class="media-detail">
     <h3>{{ detail?.media?.title||kindLabels[detail?.kind]||'业务记录' }}</h3>
     <p>{{ label(detail?.state) }} · {{ detail?.message||'—' }}</p>
     <p>原位置：{{detail?.source||'—'}}</p><p>目标位置：{{detail?.destination||'—'}}</p><p>目录分类：{{detail?.category||'—'}}</p>

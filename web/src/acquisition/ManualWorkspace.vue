@@ -89,7 +89,7 @@ usePageRefresh(load,'manual');
     </form>
   </el-dialog>
   <ConfirmAction v-model:visible="confirmOpen" title="重试手动下载" :description="target?.state==='absent_confirmed'?'已核对未找到，但此前提交可能延迟接收；请确认接受重复风险。':'修复原因后，明确重新提交此任务。'" impact-scope="只重试原种子的投递；已明确启用后处理的任务完成后接入原流水线。未完成上传校验与入库不会删除本地文件。" confirm-text="确认重试" :loading="!!actionBusy" class="acquire-dialog" @confirm="approveRetry"/>
-  <DetailDrawer v-model:visible="detailsOpen" title="手动下载详情" :technical-data="detail" class="acquire-detail">
+  <DetailDrawer v-model:visible="detailsOpen" title="手动下载详情" :technical-data="detail" size="large" class="acquire-detail">
     <h3>{{ detail?.title }}</h3>
     <p>{{ label(detail?.state) }} · {{ progress(detail?.progress) }}</p>
     <p>保存路径：{{ detail?.savePath||'—' }}</p>
