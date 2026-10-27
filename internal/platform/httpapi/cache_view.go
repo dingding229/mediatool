@@ -31,14 +31,19 @@ func (a *API) viewCache(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	size, sizeErr := paginationSize(r, "pageSize", 30)
+	if sizeErr != nil {
+		fail(w, 400, "invalid_page_size", "缓存分页条数无效")
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	entries, total, truncated, e := s.List(ctx, r.PathValue("kind"), page, 30)
+	entries, total, truncated, e := s.List(ctx, r.PathValue("kind"), page, size)
 	if e != nil {
 		fail(w, 400, "cache_query_failed", "缓存查询失败或类型无效")
 		return
 	}
-	write(w, 200, map[string]any{"items": entries, "total": total, "page": page, "pageSize": 30, "truncated": truncated})
+	write(w, 200, map[string]any{"items": entries, "total": total, "page": page, "pageSize": size, "truncated": truncated})
 }
 func (a *API) cacheDetail(w http.ResponseWriter, r *http.Request) {
 	s, ok := a.cacheStore(w)

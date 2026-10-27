@@ -33,3 +33,11 @@ it.each([['0 */2 * * *','每 2 小时'],['*/15 * * * *','每 15 分钟'],['0 * *
 it.each([['*/15 * * * * *','每 15 秒'],['* * * * *','每分钟']])('human scheduler interval %s',(cron,label)=>expect(scheduleLabel(cron)).toBe(label));
 
 it.each([{total:0,label:'第 1 页 / 共 1 页'},{total:1,label:'第 1 页 / 共 1 页'},{total:26,label:'第 1 页 / 共 2 页'},{total:undefined,label:'第 1 页'}])('pagination copy for $total',({total,label})=>{const view=setupComponent(Pagination,{total});expect(view.state.pageLabel).toBe(label);view.unmount()});
+
+it('resize returns to first page exactly once after both model updates',async()=>{
+ const calls:string[]=[],size=vi.fn(),change=vi.fn(),v=setupComponent(Pagination,{currentPage:3,pageSize:25,total:100,'onUpdate:pageSize':()=>calls.push('size'),'onUpdate:currentPage':()=>calls.push('page'),onSizeChange:size,onCurrentChange:change});
+ expect(v.state.sizeOptions).toEqual([10,25,50,100]);v.state.resize(50);expect(calls).toEqual(['size','page']);expect(size).toHaveBeenCalledExactlyOnceWith(50);expect(change).toHaveBeenCalledExactlyOnceWith(1);v.unmount();
+});
+it('disabled and unchanged sizes do not trigger reads and custom options win',()=>{
+ const change=vi.fn();for(const props of [{disabled:true},{pageSizes:[25,50,200]}]){const v=setupComponent(Pagination,{pageSize:25,...props,onSizeChange:change});v.state.resize(25);v.state.resize(10);if(props.disabled)v.state.resize(50);else expect(v.state.sizeOptions).toEqual([25,50,200]);v.unmount()}expect(change).not.toHaveBeenCalled();
+});

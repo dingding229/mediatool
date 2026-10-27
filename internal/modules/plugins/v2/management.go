@@ -15,11 +15,18 @@ type WorkflowSummary struct {
 	Steps       int    `json:"steps"`
 }
 
-func (r WorkflowRunner) List(ctx context.Context, page int) ([]WorkflowSummary, error) {
+func (r WorkflowRunner) List(ctx context.Context, page int, sizes ...int) ([]WorkflowSummary, error) {
+	size := 20
+	if len(sizes) > 0 {
+		size = sizes[0]
+	}
+	if !workflowPageSize(size) {
+		return nil, ErrInvalid
+	}
 	if page < 1 || page > 1000 {
 		return nil, ErrInvalid
 	}
-	rows, e := r.Store.DB.Query(ctx, `SELECT value FROM app_settings WHERE key ~ '^plugins\.workflow\.[a-zA-Z0-9_-]{1,64}$' ORDER BY key LIMIT 20 OFFSET $1`, (page-1)*20)
+	rows, e := r.Store.DB.Query(ctx, `SELECT value FROM app_settings WHERE key ~ '^plugins\.workflow\.[a-zA-Z0-9_-]{1,64}$' ORDER BY key LIMIT $1 OFFSET $2`, size, (page-1)*size)
 	if e != nil {
 		return nil, e
 	}
@@ -64,11 +71,18 @@ type WorkflowRunView struct {
 	Reasons map[string]string `json:"reasons"`
 }
 
-func (r WorkflowRunner) Runs(ctx context.Context, id string, page int) ([]WorkflowRunView, error) {
+func (r WorkflowRunner) Runs(ctx context.Context, id string, page int, sizes ...int) ([]WorkflowRunView, error) {
+	size := 20
+	if len(sizes) > 0 {
+		size = sizes[0]
+	}
+	if !workflowPageSize(size) {
+		return nil, ErrInvalid
+	}
 	if !workflowID(id) || page < 1 || page > 1000 {
 		return nil, ErrInvalid
 	}
-	rows, e := r.Store.DB.Query(ctx, `SELECT value FROM app_settings WHERE key LIKE 'plugins.workflow.run.%' AND value->>'workflowId'=$1 ORDER BY updated_at DESC,key LIMIT 20 OFFSET $2`, id, (page-1)*20)
+	rows, e := r.Store.DB.Query(ctx, `SELECT value FROM app_settings WHERE key LIKE 'plugins.workflow.run.%' AND value->>'workflowId'=$1 ORDER BY updated_at DESC,key LIMIT $2 OFFSET $3`, id, size, (page-1)*size)
 	if e != nil {
 		return nil, e
 	}
@@ -164,3 +178,5 @@ func (b Broker) Status(ctx context.Context, instance string) ([]AuthProviderStat
 	}
 	return out, nil
 }
+
+func workflowPageSize(n int) bool { return n == 10 || n == 20 || n == 25 || n == 50 || n == 100 }

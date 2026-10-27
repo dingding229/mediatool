@@ -4,7 +4,7 @@ export interface MediaUser { lastPlayedAt?: string | null; lastIp?: string; devi
 export interface MediaLibrary { id: string; name: string; mediaType: string; canPlay: boolean }
 export interface MediaProvider { id: string; name: string; contract: string; runtime: string; stage: string; note: string; capabilities: Record<string, boolean> }
 export interface MediaItem { id: string; title: string; year: string; mediaType: string; overview: string; poster: string; season?: number; episode?: number }
-export const listMediaUsers = (page=1) => request<ListPage<MediaUser>>(`/media-server/users?page=${page}&pageSize=25`).then(checkedPage<MediaUser>)
+export const listMediaUsers = (page=1,pageSize=25) => request<ListPage<MediaUser>>(`/media-server/users?page=${page}&pageSize=${pageSize}`).then(checkedPage<MediaUser>)
 export const listNativeLibraries = () => request<MediaLibrary[]>('/media-server/libraries')
 export interface NativeTMDBTarget { type: 'movie' | 'series' | 'season'; tmdbId: number; season?: number }
 export const refreshNativeTMDB = (target: NativeTMDBTarget) => post<{ detailId: string; queued: boolean }>('/media-server/native/tmdb/refresh', target)

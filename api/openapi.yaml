@@ -7621,6 +7621,41 @@
           "not_media_file"
         ]
       },
+      "HTTP400_010044c8da0a": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "cache_query_failed",
+                            "invalid_page",
+                            "invalid_page_size"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "cache_query_failed",
+          "invalid_page",
+          "invalid_page_size"
+        ]
+      },
       "HTTP400_01413ea60600": {
         "content": {
           "application/json": {
@@ -8341,39 +8376,6 @@
         "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
         "x-error-codes": [
           "archive_page_invalid"
-        ]
-      },
-      "HTTP400_3e0d64c65763": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "cache_query_failed",
-                            "invalid_page"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "cache_query_failed",
-          "invalid_page"
         ]
       },
       "HTTP400_3eb1791c4d8d": {
@@ -9594,39 +9596,6 @@
           "search_create_failed"
         ]
       },
-      "HTTP400_960477a6f131": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "invalid_metadata",
-                            "invalid_metadata_page"
-                          ],
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "invalid_metadata",
-          "invalid_metadata_page"
-        ]
-      },
       "HTTP400_98c4fba78777": {
         "content": {
           "application/json": {
@@ -9759,6 +9728,39 @@
         "x-error-codes": [
           "invalid_catalog_query",
           "invalid_pagination"
+        ]
+      },
+      "HTTP400_9f38b32c648b": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "invalid_page_size",
+                            "invalid_plugin_request"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "invalid_page_size",
+          "invalid_plugin_request"
         ]
       },
       "HTTP400_9fa4027189eb": {
@@ -10901,6 +10903,41 @@
         "x-error-codes": [
           "confirmation_required",
           "invalid_json"
+        ]
+      },
+      "HTTP400_e5529aecc976": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "invalid_metadata",
+                            "invalid_metadata_page",
+                            "invalid_metadata_page_size"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "invalid_metadata",
+          "invalid_metadata_page",
+          "invalid_metadata_page_size"
         ]
       },
       "HTTP400_e885dfe87447": {
@@ -55653,6 +55690,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "enum": [
+                10,
+                25,
+                30,
+                50,
+                100
+              ],
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -55660,7 +55713,7 @@
             "$ref": "#/components/responses/HTTP200_064c4a4af625"
           },
           "400": {
-            "$ref": "#/components/responses/HTTP400_3e0d64c65763"
+            "$ref": "#/components/responses/HTTP400_010044c8da0a"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -55709,6 +55762,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "enum": [
+                10,
+                25,
+                30,
+                50,
+                100
+              ],
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -55716,7 +55785,7 @@
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
           },
           "400": {
-            "$ref": "#/components/responses/HTTP400_3e0d64c65763"
+            "$ref": "#/components/responses/HTTP400_010044c8da0a"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -70257,6 +70326,21 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "unmatchedPageSize",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "enum": [
+                10,
+                25,
+                50,
+                100
+              ],
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -70264,7 +70348,7 @@
             "$ref": "#/components/responses/HTTP200_2f8a3d91dfca"
           },
           "400": {
-            "$ref": "#/components/responses/HTTP400_960477a6f131"
+            "$ref": "#/components/responses/HTTP400_e5529aecc976"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -70319,6 +70403,21 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "unmatchedPageSize",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "enum": [
+                10,
+                25,
+                50,
+                100
+              ],
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -70326,7 +70425,7 @@
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
           },
           "400": {
-            "$ref": "#/components/responses/HTTP400_960477a6f131"
+            "$ref": "#/components/responses/HTTP400_e5529aecc976"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -76397,10 +76496,16 @@
           {
             "in": "query",
             "name": "pageSize",
+            "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
+              "default": 20,
+              "enum": [
+                10,
+                20,
+                25,
+                50,
+                100
+              ],
               "type": "integer"
             }
           },
@@ -76426,7 +76531,7 @@
             "$ref": "#/components/responses/HTTP200_73efe93b595d"
           },
           "400": {
-            "$ref": "#/components/responses/HTTP400_16ce9927f7b7"
+            "$ref": "#/components/responses/HTTP400_9f38b32c648b"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -76484,10 +76589,16 @@
           {
             "in": "query",
             "name": "pageSize",
+            "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
+              "default": 20,
+              "enum": [
+                10,
+                20,
+                25,
+                50,
+                100
+              ],
               "type": "integer"
             }
           },
@@ -76513,7 +76624,7 @@
             "$ref": "#/components/responses/HTTP200_3c96584e0154"
           },
           "400": {
-            "$ref": "#/components/responses/HTTP400_16ce9927f7b7"
+            "$ref": "#/components/responses/HTTP400_9f38b32c648b"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"

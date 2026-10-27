@@ -35,7 +35,12 @@ func (a *API) mediaMetadata(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		out, err = repo.ReadPage(ctx, r.PathValue("id"), page)
+		size, sizeErr := paginationSize(r, "unmatchedPageSize", 50)
+		if sizeErr != nil {
+			fail(w, 400, "invalid_metadata_page_size", "未匹配记录条数无效")
+			return
+		}
+		out, err = repo.ReadPage(ctx, r.PathValue("id"), page, size)
 	}
 	switch {
 	case errors.Is(err, metadataedit.ErrInvalid):

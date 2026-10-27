@@ -693,7 +693,7 @@ POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹�
 
 | GET | `/api/v1/media/library/managed/{id}` | management | 经适配调用；持久化详情聚合，不触发播放/探测 | `web/src/api/mediaCatalog.ts:5` |
 | HEAD | `/api/v1/media/library/managed/{id}` | management | 未检出静态使用 |  |
-| GET | `/api/v1/media/library/managed/{id}/metadata` | management | 经适配调用；元数据基础值、覆盖锁、修订号与未匹配编号 | `web/src/api/mediaMetadata.ts:9` |
+| GET | `/api/v1/media/library/managed/{id}/metadata` | management | 经适配调用；元数据基础值、覆盖锁、修订号与未匹配编号；unmatchedPageSize 可选10/25/50/100，缺省50 | `web/src/api/mediaMetadata.ts:9` |
 | HEAD | `/api/v1/media/library/managed/{id}/metadata` | management | 未检出静态使用 | |
 | PATCH | `/api/v1/media/library/managed/{id}/metadata` | management | 经适配调用；原子编辑／逐项恢复；修订冲突409 | `web/src/api/mediaMetadata.ts:9` |
 
@@ -743,3 +743,10 @@ T13：`PUT /system/updates/settings` 同时要求 enabled 与 intervalHours（1�
 | DELETE | `/api/v1/external-api/keys/{id}` | management | 前端直接调用 | `web/src/api/external-credentials.ts:10` |
 
 旧专用验证UI/客户端函数删除，status.read等十条正式业务路由不变。reveal动作仅view/copy；先提交披露审计再返回token。
+
+### I1 可选分页条数
+
+- `GET /api/v1/cache/{kind}`：`pageSize` 可选 10/25/30/50/100，缺省 30。
+- `GET /api/v1/plugins/workflows`（列表及 `view=runs`）：`pageSize` 可选 10/20/25/50/100，缺省 20。
+- `GET /api/v1/media/library/managed/{id}/metadata`：`unmatchedPageSize` 可选 10/25/50/100，缺省 50。
+- 上述参数非法、为空或重复时返回 400；GET 对应的 HEAD 采用相同契约。

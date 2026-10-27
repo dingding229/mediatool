@@ -29,6 +29,10 @@ func TestT3MetadataHTTPRevisionValidationAndAuthentication(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	_, e = s.DB.Exec(ctx, `INSERT INTO media_items(id,media_type,tmdb_id,title,metadata) VALUES('aaaaaaaa-1000-4000-8000-000000000005','series',934011,'I1 pagination','{}'); INSERT INTO media_metadata_overrides(media_id,entity_type,season_number,episode_number,overrides) SELECT 'aaaaaaaa-1000-4000-8000-000000000005','episode',1,n,'{"title":"I1 retained"}'::jsonb FROM generate_series(1,65)n`)
+	if e != nil {
+		t.Fatal(e)
+	}
 	c := cfg()
 	h := New(c, Dependencies{DB: s.DB, AuthSessions: testSessionReader{}})
 	path := "/api/v1/media/library/managed/movie_aaaaaaaa-1000-4000-8000-000000000004/metadata"
@@ -57,6 +61,35 @@ func TestT3MetadataHTTPRevisionValidationAndAuthentication(t *testing.T) {
 		w := invoke(h, "PATCH", path, body, c.SessionKey)
 		if w.Code != 400 || !strings.Contains(w.Body.String(), "元数据输入无效") {
 			t.Fatal(w.Code, w.Body.String())
+		}
+	}
+	for _, size := range []string{"", "0", "20", "200", "bad", "10&unmatchedPageSize=25"} {
+		if w := invoke(h, "GET", path+"?unmatchedPageSize="+size, "", c.SessionKey); w.Code != 400 {
+			t.Fatal(size, w.Code, w.Body.String())
+		}
+	}
+	for _, size := range []string{"10", "25", "50", "100"} {
+		if w := invoke(h, "GET", path+"?unmatchedPageSize="+size, "", c.SessionKey); w.Code != 200 {
+			t.Fatal(size, w.Code, w.Body.String())
+		}
+	}
+	orphanPath := "/api/v1/media/library/managed/series_aaaaaaaa-1000-4000-8000-000000000005/metadata"
+	for _, cse := range []struct {
+		query        string
+		count, first int
+	}{{"", 50, 1}, {"?unmatchedPage=2&unmatchedPageSize=10", 10, 11}, {"?unmatchedPage=3&unmatchedPageSize=25", 15, 51}, {"?unmatchedPageSize=100", 65, 1}} {
+		w := invoke(h, "GET", orphanPath+cse.query, "", c.SessionKey)
+		if w.Code != 200 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+		var got struct {
+			Data metadataedit.Record `json:"data"`
+		}
+		if e := json.Unmarshal(w.Body.Bytes(), &got); e != nil {
+			t.Fatal(e)
+		}
+		if len(got.Data.Unmatched) != cse.count || got.Data.Unmatched[0].Episode != cse.first || got.Data.UnmatchedTotal != 65 {
+			t.Fatal(cse, got.Data.Unmatched)
 		}
 	}
 	if w := invoke(h, "GET", path+"?unmatchedPage=0", "", c.SessionKey); w.Code != 400 {

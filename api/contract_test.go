@@ -963,6 +963,25 @@ func (s *source) build(t *testing.T) object {
 			if !strings.Contains(pattern, " ") {
 				op["x-any-http-method"] = true
 			}
+			if method == "get" || method == "head" {
+				sizeKey, initial := "", 0
+				switch path {
+				case "/api/v1/media/library/managed/{id}/metadata":
+					sizeKey, initial = "unmatchedPageSize", 50
+				case "/api/v1/cache/{kind}":
+					sizeKey, initial = "pageSize", 30
+				case "/api/v1/plugins/workflows":
+					sizeKey, initial = "pageSize", 20
+				}
+				if sizeKey != "" {
+					sizes := []int{10, 25, 50, 100}
+					if initial != 50 {
+						sizes = append(sizes, initial)
+						sort.Ints(sizes)
+					}
+					o.params[sizeKey] = object{"name": sizeKey, "in": "query", "required": false, "schema": object{"type": "integer", "enum": sizes, "default": initial}}
+				}
+			}
 			params := []any{}
 			for _, m := range regexp.MustCompile(`\{([^}]+)\}`).FindAllStringSubmatch(path, -1) {
 				params = append(params, object{"name": m[1], "in": "path", "required": true, "description": "服务端路由参数；不得二次URL解码或传入目录穿越。", "schema": object{"type": "string"}})

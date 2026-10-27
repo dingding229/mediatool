@@ -109,6 +109,10 @@ func read(ctx context.Context, q querier, t Target, orphanPages ...int) (r Recor
 	}
 	r.Effective = Merge(r.Base, r.Overrides)
 	r.Choices = []Target{t}
+	pageSize := 50
+	if len(orphanPages) > 1 {
+		pageSize = orphanPages[1]
+	}
 	r.UnmatchedPage = 1
 	if len(orphanPages) > 0 {
 		r.UnmatchedPage = orphanPages[0]
@@ -116,7 +120,7 @@ func read(ctx context.Context, q querier, t Target, orphanPages ...int) (r Recor
 	if err = q.QueryRow(ctx, `SELECT count(*) FROM media_metadata_overrides o WHERE media_id=$1 AND overrides<>'{}' AND NOT (`+matchedSQL+`)`, t.MediaID).Scan(&r.UnmatchedTotal); err != nil {
 		return r, err
 	}
-	rows, err := q.Query(ctx, `SELECT media_id::text,entity_type,season_number,episode_number FROM media_metadata_overrides o WHERE media_id=$1 AND overrides<>'{}' AND NOT (`+matchedSQL+`) ORDER BY entity_type,season_number,episode_number LIMIT 50 OFFSET $2`, t.MediaID, (r.UnmatchedPage-1)*50)
+	rows, err := q.Query(ctx, `SELECT media_id::text,entity_type,season_number,episode_number FROM media_metadata_overrides o WHERE media_id=$1 AND overrides<>'{}' AND NOT (`+matchedSQL+`) ORDER BY entity_type,season_number,episode_number LIMIT $2 OFFSET $3`, t.MediaID, pageSize, (r.UnmatchedPage-1)*pageSize)
 	if err != nil {
 		return r, err
 	}
@@ -133,7 +137,14 @@ func read(ctx context.Context, q querier, t Target, orphanPages ...int) (r Recor
 func (r Repository) Read(ctx context.Context, id string) (Record, error) {
 	return r.ReadPage(ctx, id, 1)
 }
-func (r Repository) ReadPage(ctx context.Context, id string, page int) (Record, error) {
+func (r Repository) ReadPage(ctx context.Context, id string, page int, sizes ...int) (Record, error) {
+	size := 50
+	if len(sizes) > 0 {
+		size = sizes[0]
+	}
+	if size != 10 && size != 25 && size != 50 && size != 100 {
+		return Record{}, invalid("未匹配记录每页条数必须为10、25、50或100")
+	}
 	if page < 1 || page > 10000 {
 		return Record{}, invalid("未匹配记录页码必须为1～10000")
 	}
@@ -144,7 +155,7 @@ func (r Repository) ReadPage(ctx context.Context, id string, page int) (Record, 
 	if e != nil {
 		return Record{}, e
 	}
-	out, e := read(ctx, r.DB, t, page)
+	out, e := read(ctx, r.DB, t, page, size)
 	if e != nil {
 		return out, e
 	}
