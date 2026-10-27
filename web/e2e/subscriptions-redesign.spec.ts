@@ -55,7 +55,7 @@ test('direct run URL opens inline decision review; raw JSON stays in a separate 
   await page.getByRole('button', { name: '完整运行详情', exact: true }).click(); const drawer = page.getByRole('dialog', { name: '运行详情', exact: true })
   await expect(drawer.locator('.technical-json')).toHaveCount(0); const technical = drawer.getByRole('button', { name: /技术细节与原始记录/ })
   expect(await technical.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44); await technical.click(); await expect(drawer.locator('.technical-json')).toContainText('trial-run')
-  await drawer.getByRole('button', { name: '关闭', exact: true }).click(); await tabs(page).getByRole('button', { name: '订阅列表', exact: true }).click(); await page.reload(); await expect(page.locator('.subscription-row')).toHaveCount(2)
+  await drawer.getByRole('button', { name: '关闭此对话框', exact: true }).click(); await tabs(page).getByRole('button', { name: '订阅列表', exact: true }).click(); await page.reload(); await expect(page.locator('.subscription-row')).toHaveCount(2)
 })
 test('202 stays queued, navigates to the accepted run and failed readback never repeats execution', async ({ page }) => {
   let posts = 0, reads = 0, fail = false

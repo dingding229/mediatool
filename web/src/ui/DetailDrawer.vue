@@ -58,43 +58,42 @@ const dialogWidth = computed(
   </el-dialog>
 </template>
 
-<style scoped>
-:deep(.el-dialog) {
+<style>
+/* Dialog content is teleported: scope these rules by our unique class, not a parent scope attribute. */
+.el-dialog.detail-dialog {
+  max-width: calc(100vw - 32px);
   max-height: 85vh;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-:deep(.el-dialog__header) {
-  flex: 0 0 auto;
-}
-:deep(.el-dialog__body) {
+.el-dialog.detail-dialog.is-align-center { margin: auto; }
+.detail-dialog > .el-dialog__header,
+.detail-dialog > .el-dialog__footer { flex: 0 0 auto; }
+.detail-dialog .el-dialog__headerbtn { min-width: 44px; min-height: 44px; }
+.detail-dialog > .el-dialog__body {
   min-height: 0;
   flex: 1 1 auto;
   overflow: auto;
 }
-:deep(.el-dialog__footer) {
-  flex: 0 0 auto;
-}
-.detail-footer {
+.detail-dialog .detail-footer {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
-.detail-body {
+.detail-dialog .detail-body {
   min-height: min(360px, 60vh);
   font-size: 14px;
   line-height: 1.6;
 }
-.technical-section {
+.detail-dialog .technical-section {
   margin-top: 24px;
   border-top: 1px dashed var(--border);
   padding-top: 16px;
 }
-.technical-toggle {
+.detail-dialog .technical-toggle {
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -107,14 +106,9 @@ const dialogWidth = computed(
   font-size: 13px;
   cursor: pointer;
 }
-.technical-toggle:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-.technical-content {
-  margin-top: 12px;
-}
-.technical-json {
+.detail-dialog .technical-toggle:hover { color: var(--text); border-color: var(--border-strong); }
+.detail-dialog .technical-content { margin-top: 12px; }
+.detail-dialog .technical-json {
   background: var(--mt-bg-canvas);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -125,24 +119,18 @@ const dialogWidth = computed(
   white-space: pre-wrap;
   word-break: break-all;
 }
-@media (max-width: 600px) {
-  :deep(.el-overlay-dialog) {
-    display: flex;
-    align-items: stretch;
-  }
-  :deep(.el-dialog) {
-    width: 100vw !important;
-    max-width: none;
+@media (max-width: 599.98px) {
+  .el-dialog.detail-dialog {
+    width: 100vw;
+    max-width: 100vw;
     height: 100vh;
+    height: 100dvh;
     max-height: 100vh;
-    margin: 0;
+    max-height: 100dvh;
     border-radius: 0;
   }
-  :deep(.el-dialog__body) {
-    padding-inline: 16px;
-  }
-  :deep(.el-dialog__footer) {
-    padding-inline: 16px;
-  }
+  .el-dialog.detail-dialog.is-align-center { margin: 0; }
+  .detail-dialog > .el-dialog__body,
+  .detail-dialog > .el-dialog__footer { padding-inline: 16px; }
 }
 </style>

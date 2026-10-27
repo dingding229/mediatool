@@ -20,7 +20,7 @@ test('T2 real detail mapping, configured category filter and one embedded subtit
   for(const value of [rating,size,dimensions,category])await expect(d.locator('dd').filter({hasText:value!})).toHaveCount(1);
   await expect(d.getByText('内嵌字幕随视频播放，仅编辑显示信息，不提供提取或删除。',{exact:true})).toHaveCount(1);
   await expect(d.getByRole('button',{name:/复制播放链接|获取播放链接/})).toHaveCount(0);
-  await expect(d.locator('video,audio,iframe')).toHaveCount(0);await d.getByRole('button',{name:'关闭',exact:true}).click();
+  await expect(d.locator('video,audio,iframe')).toHaveCount(0);await d.getByRole('button',{name:'关闭此对话框',exact:true}).click();
  }
  await page.locator('.catalog-filters .el-select').click();await page.getByRole('option',{name:'电影 / 欧美电影',exact:true}).click();
  await expect(page.locator('.catalog-poster')).toHaveCount(1);await expect(page.getByRole('button',{name:'大濛',exact:true})).toHaveCount(0);

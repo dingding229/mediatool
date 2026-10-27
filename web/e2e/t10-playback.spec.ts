@@ -31,7 +31,7 @@ test('T10 screenshots and geometry',async({page})=>{
 test('T10 sessions only open on explicit record selection, including retained userId',async({page})=>{
  await fixture(page);await page.goto('/playback?tab=users');await page.locator('.media-user-card').first().getByRole('button',{name:'用户详情',exact:true}).click();const userDetail=page.getByRole('dialog',{name:/用户详情/});await expect(userDetail).toBeVisible();await expect(userDetail).toContainText('权限摘要');await expect(userDetail).toContainText('同时播放上限');await userDetail.getByRole('link',{name:'查看会话与撤销登录'}).click();await expect(page.getByRole('heading',{name:'在线会话',exact:true})).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(0);
  await page.getByRole('button',{name:'媒体用户',exact:true}).click();await page.getByRole('button',{name:'在线会话',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
- await page.getByRole('button',{name:'会话详情',exact:true}).click();const detail=page.getByRole('dialog',{name:'在线会话详情',exact:true});await expect(detail).toBeVisible();await expect(detail).toContainText('测试影片');await detail.getByRole('button',{name:'关闭',exact:true}).click();
+ await page.getByRole('button',{name:'会话详情',exact:true}).click();const detail=page.getByRole('dialog',{name:'在线会话详情',exact:true});await expect(detail).toBeVisible();await expect(detail).toContainText('测试影片');await detail.getByRole('button',{name:'关闭此对话框',exact:true}).click();
  await page.getByRole('button',{name:'用户登录详情',exact:true}).click();await expect(detail).toContainText('有效登录 1');await page.keyboard.press('Escape');
  await page.reload();await expect(page.getByRole('button',{name:'用户登录详情',exact:true})).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(0);
 });
