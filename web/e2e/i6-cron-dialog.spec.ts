@@ -47,3 +47,9 @@ test.describe('I6 visual review @screenshots',()=>{
   if(!before){const d=await generator(page,label);await expect(d.getByRole('button',{name:'确定',exact:true})).toBeEnabled();await page.screenshot({path:resolve(dir,prefix+'-dialog.png'),animations:'disabled'});const rect=await d.boundingBox();writeFileSync(resolve(dir,prefix+'.json'),JSON.stringify({width,theme,dialog:rect},null,2));}
  });
 });
+for(const width of [1440,390])test(`I6 behavior compact feedback does not resize the settings card ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:1000});await fixture(page,'settings');let release!:()=>void;const gate=new Promise<void>(r=>release=r);
+ await page.route('**/api/v1/scheduling/cron/preview',async r=>{await gate;return fixtureFulfill(r,{json:{data:{}}})});
+ await open(page,'settings');const feedback=page.locator('.cron-input > .cron-feedback'),card=page.locator('.settings-card:visible').first();await expect(feedback).toContainText('正在校验');const before=(await card.boundingBox())!;
+ release();await expect(feedback).toContainText('校验通过');const after=(await card.boundingBox())!;expect(Math.abs(before.height-after.height)).toBeLessThanOrEqual(1);expect((await feedback.boundingBox())!.height).toBeLessThan(100);
+});
