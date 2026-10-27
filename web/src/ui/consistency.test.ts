@@ -56,3 +56,18 @@ it('form checkbox alignment keeps native control size and label hit area',async(
  const connection=readFileSync(new URL('../connections/ConnectionManager.vue',import.meta.url),'utf8');
  expect(connection).toContain('class="mt-form-checkbox"');
 });
+
+it('single-value native time fields use the shared cross-workspace contract without touching Cron or range pickers',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const read=(path:string)=>readFileSync(new URL(path,import.meta.url),'utf8');
+ const css=read('./consistency.css');
+ expect(css).toContain(':root input.mt-native-time-input:is([type=time],[type=datetime-local]){');
+ expect(css).toContain('height:44px;min-height:44px;box-sizing:border-box;padding:8px 12px');
+ expect(css).toContain(':root.dark input.mt-native-time-input{color-scheme:dark}');
+ for(const [file,count,type] of [['../settings/IdleUpdatePanel.vue',2,'time'],['../organize/HistoryPanel.vue',2,'datetime-local'],['../playback/UserEditor.vue',1,'datetime-local']] as const){
+  expect(read(file).match(new RegExp('class="mt-native-time-input" type="'+type+'"','g'))).toHaveLength(count);
+ }
+ for(const file of ['../media/media.css','../organize/workspaces.css'])expect(read(file)).not.toContain('input[type=datetime-local]');
+ expect(read('./CronInput.vue')).not.toContain('mt-native-time-input');
+ expect(read('../operations/LogsPanel.vue')).toContain('type="datetimerange"');
+});

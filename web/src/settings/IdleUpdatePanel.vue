@@ -20,8 +20,8 @@ onUnmounted(()=>{password.value=''});
   <p class="idle-hint">默认关闭。按服务器时区执行，时间段支持跨午夜；无人播放、安静时长及关键任务等条件全部通过才更新。失败自动关闭，需重新验密授权。</p>
   <form class="idle-form" @submit.prevent="save">
    <label class="idle-toggle">闲时自动更新 <el-switch v-model="enabled" aria-label="闲时自动更新" :disabled="busy||!policy"/></label>
-   <label class="settings-field">开始时间<input v-model="start" type="time" aria-label="开始时间" :disabled="busy||!policy"/></label>
-   <label class="settings-field">结束时间<input v-model="end" type="time" aria-label="结束时间" :disabled="busy||!policy"/></label>
+   <label class="settings-field">开始时间<input v-model="start" class="mt-native-time-input" type="time" aria-label="开始时间" :disabled="busy||!policy"/></label>
+   <label class="settings-field">结束时间<input v-model="end" class="mt-native-time-input" type="time" aria-label="结束时间" :disabled="busy||!policy"/></label>
    <label class="settings-field">安静时长（分钟）<input v-model="minutes" inputmode="numeric" aria-label="安静时长（分钟）" :aria-invalid="!valid" :disabled="busy||!policy"/></label>
    <el-button native-type="submit" :disabled="busy||!policy||!valid">保存闲时设置</el-button>
    <el-button :disabled="busy||!policy" :loading="busy" @click="evaluate">检查执行条件</el-button>
@@ -42,5 +42,5 @@ onUnmounted(()=>{password.value=''});
  </section>
 </template>
 <style scoped>
-.idle-update{margin-top:20px;padding-top:16px;border-top:1px solid var(--el-border-color-lighter);min-width:0}.idle-update h3{margin:0 0 8px}.idle-hint{color:var(--mt-text-muted);line-height:1.6;overflow-wrap:anywhere}.idle-form{display:flex;align-items:end;gap:12px;flex-wrap:wrap}.idle-form .settings-field{max-width:180px;min-width:0}.idle-form input{height:44px;min-width:0;width:100%;box-sizing:border-box}.idle-toggle{display:flex;align-items:center;gap:8px;min-height:44px}.idle-form .el-button+.el-button{margin-left:0}.idle-conditions{list-style:none;padding:0;margin:12px 0;display:grid;gap:8px}.idle-conditions li{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;line-height:1.6;overflow-wrap:anywhere}.idle-blocked{color:var(--mt-text-muted)}@media(max-width:600px){.idle-form .settings-field{flex:1 1 130px;max-width:none}.idle-toggle{flex-basis:100%}.idle-conditions li{grid-template-columns:105px minmax(0,1fr);gap:8px}}
+.idle-update{margin-top:20px;padding-top:16px;border-top:1px solid var(--el-border-color-lighter);min-width:0}.idle-update h3{margin:0 0 8px}.idle-hint{color:var(--mt-text-muted);line-height:1.6;overflow-wrap:anywhere}.idle-form{display:flex;align-items:end;gap:12px;flex-wrap:wrap}.idle-form .settings-field{max-width:180px;min-width:0}.idle-form input:not(.mt-native-time-input){height:44px;min-width:0;width:100%;box-sizing:border-box}.idle-toggle{display:flex;align-items:center;gap:8px;min-height:44px}.idle-form .el-button+.el-button{margin-left:0}.idle-conditions{list-style:none;padding:0;margin:12px 0;display:grid;gap:8px}.idle-conditions li{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;line-height:1.6;overflow-wrap:anywhere}.idle-blocked{color:var(--mt-text-muted)}@media(max-width:600px){.idle-form .settings-field{flex:1 1 130px;max-width:none}.idle-toggle{flex-basis:100%}.idle-conditions li{grid-template-columns:105px minmax(0,1fr);gap:8px}}
 </style>

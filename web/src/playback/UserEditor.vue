@@ -139,7 +139,7 @@ defineExpose({ open, save, reread, form, op, latest });
         </label>
         <label>
           有效期（留空不限）
-          <input v-model="form.expiry" type="datetime-local" aria-label="媒体用户有效期" :disabled="op.busy||!!op.pending"/>
+          <input v-model="form.expiry" class="mt-native-time-input" type="datetime-local" aria-label="媒体用户有效期" :disabled="op.busy||!!op.pending"/>
         </label>
         <fieldset>
           <legend>媒体库权限</legend>

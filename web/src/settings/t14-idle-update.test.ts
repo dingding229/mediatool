@@ -11,3 +11,11 @@ it('validates time and quiet interval boundaries without submitting invalid valu
 it('requires explicit authorization and clears password even when save fails',async()=>{await flush();const s=view.state;s.enabled=true;await s.save();expect(s.open).toBe(true);await s.save();expect(saveIdleUpdate).not.toHaveBeenCalled();s.password='fixture-private';s.confirm=true;vi.mocked(saveIdleUpdate).mockRejectedValue(new Error('密码错误'));await s.save();expect(s.password).toBe('');expect(s.error).toBe('密码错误');expect(saveIdleUpdate).toHaveBeenCalledWith({...policy,enabled:true},'fixture-private',true)});
 it('renders the backend condition model and only calls read-only check',async()=>{await flush();const result={ready:false,timezone:'Asia/Shanghai',checkedAt:'2026-10-26T12:00:00Z',conditions:[{key:'quiet',label:'近期播放请求',passed:false,reason:'安静时长不足'}]};vi.mocked(checkIdleUpdate).mockResolvedValue(result);await view.state.evaluate();expect(view.state.check).toEqual(result);expect(saveIdleUpdate).not.toHaveBeenCalled()});
 it('can close without a reusable password and preserves optimistic revision',async()=>{await flush();vi.mocked(saveIdleUpdate).mockResolvedValue({...policy,revision:2});await view.state.save();expect(saveIdleUpdate).toHaveBeenCalledWith(policy,'',false);expect(view.state.policy.revision).toBe(2)});
+
+it('keeps HH:mm validation and cross-midnight save values unchanged',async()=>{
+ await flush();const s=view.state;
+ for(const value of ['','24:00','12:60','9:00','09:0','09:00:00','no-time']){s.start=value;expect(s.valid).toBe(false);await s.save()}
+ expect(saveIdleUpdate).not.toHaveBeenCalled();
+ s.start='23:30';s.end='05:15';expect(s.valid).toBe(true);await s.save();
+ expect(saveIdleUpdate).toHaveBeenCalledWith({...policy,startTime:'23:30',endTime:'05:15'},'',false);
+});

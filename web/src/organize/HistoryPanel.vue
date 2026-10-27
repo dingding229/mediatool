@@ -162,11 +162,11 @@ usePageRefresh(load, 'history');
       </label>
       <label>
         开始时间
-        <input v-model="from" type="datetime-local" aria-label="历史开始时间"/>
+        <input v-model="from" class="mt-native-time-input" type="datetime-local" aria-label="历史开始时间"/>
       </label>
       <label>
         结束时间
-        <input v-model="to" type="datetime-local" aria-label="历史结束时间"/>
+        <input v-model="to" class="mt-native-time-input" type="datetime-local" aria-label="历史结束时间"/>
       </label>
       <el-button native-type="submit">筛选</el-button>
     </form>
