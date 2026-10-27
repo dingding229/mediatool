@@ -118,7 +118,7 @@ defineExpose({ refresh: browser.refresh });
         </el-dropdown>
       </li>
     </ul>
-    <PagePagination v-model:current-page="browser.page" :page-size="50" :total="browser.total" layout="prev,pager,next,total" @current-change="browser.selection=[];browser.load()"/>
+    <PagePagination v-model:current-page="browser.page" v-model:page-size="browser.pageSize" :total="browser.total" layout="prev,pager,next,total" @current-change="browser.selection=[];browser.load()"/>
   </section>
   <DetailDrawer v-model:visible="historyOpen" title="文件操作记录" :technical-data="browser.history" class="media-detail">
 

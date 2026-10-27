@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import { onMounted, reactive, ref } from 'vue';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
 import 'element-plus/es/components/dropdown/style/css'
@@ -18,7 +18,7 @@ import UserActivityPanel from './UserActivityPanel.vue';
 import IpAddress from '../ui/IpAddress.vue';
 import type {MediaUser} from '../api/mediaServer';
 import { errorText, date } from '../workflows/readiness';
-const page=usePageNumber(),users = reactive(useResource(()=>listMediaUsers(page.value), {items:[],total:0})), libraries = reactive(useResource(listNativeLibraries, [])), editor = ref<InstanceType<typeof UserEditor>>(), activity = ref<any>(null), activityOpen = ref(false), target = ref<any>(null), confirm = ref(false), op = reactive(useOperation('users'));
+const page=usePageNumber(),pageSize=usePageSize(25),users = reactive(useResource(()=>listMediaUsers(page.value,pageSize.value), {items:[],total:0})), libraries = reactive(useResource(listNativeLibraries, [])), editor = ref<InstanceType<typeof UserEditor>>(), activity = ref<any>(null), activityOpen = ref(false), target = ref<any>(null), confirm = ref(false), op = reactive(useOperation('users'));
 async function load() {
   await Promise.all([users.load(), libraries.load()]);
   if (op.pending && !users.error) {
@@ -85,7 +85,7 @@ defineExpose({ load, create });
       </div>
     </article>
     </div>
-  <PagePagination v-model:current-page="page" :total="users.data.total" :page-size="25" @current-change="users.load"/>
+  <PagePagination v-model:current-page="page" :total="users.data.total" v-model:page-size="pageSize" @current-change="users.load"/>
   </section>
   <UserEditor ref="editor" :libraries="libraries.data" @saved="load"/>
   <DetailDrawer v-model:visible="activityOpen" :title="(activity?.username||'媒体用户')+' · 用户详情'" class="media-detail">

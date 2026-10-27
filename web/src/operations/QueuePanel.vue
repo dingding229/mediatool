@@ -3,7 +3,7 @@ import {ElDropdown,ElDropdownMenu,ElDropdownItem} from 'element-plus';
 import 'element-plus/es/components/dropdown/style/css';
 import 'element-plus/es/components/dropdown-menu/style/css';
 import 'element-plus/es/components/dropdown-item/style/css';
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { subscribeJobEvents } from '../api/client';
 import StatusBadge from '../components/StatusBadge.vue';
@@ -18,7 +18,7 @@ import { stateLabel, queueLabel, kindLabel, taskTarget, copyOriginal } from './m
 import ResourceState from '../workflows/ResourceState.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 const route = useRoute();
-const filter = reactive({ state: '', kind: '', queue: '', q: typeof route.query.q === 'string' ? route.query.q : '', page: usePageNumber(), pageSize: 25 }), jobs = reactive(useResource<any>(() => request('/jobs/browse?' + new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])))).then(pageResult))), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), copied = ref(''), copyText = ref('');
+const filter = reactive({ state: '', kind: '', queue: '', q: typeof route.query.q === 'string' ? route.query.q : '', page: usePageNumber(), pageSize: usePageSize(25) }), jobs = reactive(useResource<any>(() => request('/jobs/browse?' + new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])))).then(pageResult))), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), copied = ref(''), copyText = ref('');
 async function load() { await jobs.load(); }
 async function inspect(id: string) {
   try {
@@ -112,7 +112,7 @@ defineExpose({ load, filter, jobs });
         </div>
       </article>
       </div>
-      <PagePagination v-model:current-page="filter.page" :total="jobs.data?.total" :page-size="25" layout="prev,pager,next,total" @current-change="changePage"/>
+      <PagePagination v-model:current-page="filter.page" :total="jobs.data?.total" v-model:page-size="filter.pageSize" layout="prev,pager,next,total" @current-change="changePage"/>
     </section>
     <DetailDrawer v-model:visible="open" title="任务与运行技术详情" :technical-data="detail" class="media-detail">
       <el-button @click="copyOriginal(JSON.stringify(detail,null,2),s=>copyText=s).then(s=>copied=s)">复制原始记录</el-button>

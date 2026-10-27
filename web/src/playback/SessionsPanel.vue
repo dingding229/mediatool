@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {mediaTitle} from '../utils/media-title';
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import { useRoute } from 'vue-router';
 import { onMounted, ref, reactive, watch } from 'vue';
@@ -14,7 +14,7 @@ import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { date, errorText } from '../workflows/readiness';
 const route = useRoute();
-const page = usePageNumber(), data = reactive(useResource(() => listNativeSessions((page.value - 1) * 50), { items: [], total: 0, startIndex: 0, limit: 50 })), detail = ref<any>(null), open = ref(false), confirm = ref(false), op = reactive(useOperation('sessions')), notice = ref('');
+const page = usePageNumber(), pageSize = usePageSize(50), data = reactive(useResource(() => listNativeSessions((page.value - 1) * pageSize.value,pageSize.value), { items: [], total: 0, startIndex: 0, limit: 50 })), detail = ref<any>(null), open = ref(false), confirm = ref(false), op = reactive(useOperation('sessions')), notice = ref('');
 const account = reactive(useResource<any>(() => request(`/media-server/users/${encodeURIComponent(String(route.query.userId))}`)));
 async function accountEntry() {
   const id = route.query.userId;
@@ -92,7 +92,7 @@ defineExpose({ load, data, page, accountEntry, showSession });
       <p>最近进度 {{ date(session.lastProgressAt) }}</p>
       <el-button @click="showSession(session)">会话详情</el-button>
     </article>
-    <PagePagination v-model:current-page="page" :page-size="50" :total="data.data?.total ?? 0" layout="prev,pager,next,total" @current-change="load"/>
+    <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="data.data?.total ?? 0" layout="prev,pager,next,total" @current-change="load"/>
   </section>
   <DetailDrawer v-model:visible="open" title="在线会话详情" :technical-data="detail" class="media-detail">
     <h3>{{mediaTitle({...detail,name:detail?.itemName})}}</h3>

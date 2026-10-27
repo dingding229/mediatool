@@ -1,10 +1,10 @@
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { request } from '../api/client';
 import { rows, type MediaItem } from '../media/model';
 export function useDiscovery() {
-  const route = useRoute(), router = useRouter(), kind = ref(route.query.kind === 'recommend.source' ? 'recommend.source' : 'discover.source'), page = usePageNumber(), items = ref<MediaItem[]>([]), hasMore = ref(false), truncated = ref(false), loading = ref(true), error = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>();
+  const route = useRoute(), router = useRouter(), kind = ref(route.query.kind === 'recommend.source' ? 'recommend.source' : 'discover.source'), page = usePageNumber(),pageSize=usePageSize(24), items = ref<MediaItem[]>([]), hasMore = ref(false), truncated = ref(false), loading = ref(true), error = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>();
   let epoch = 0, detailEpoch = 0, alive = true;
   let hasLoaded=false;
   async function load() {
@@ -12,7 +12,7 @@ export function useDiscovery() {
     loading.value = !hasLoaded;
     error.value = undefined;
     try {
-      const out = await request<any>(`/media/library/sources?kind=${kind.value}&page=${page.value}&limit=24`);
+      const out = await request<any>(`/media/library/sources?kind=${kind.value}&page=${page.value}&limit=${pageSize.value}`);
       const providers=await request<any[]>('/plugins?page=1&pageSize=200').catch(()=>[]);
       const names=new Map(rows(providers).map(p=>[p.id,p.metadata?.name||p.name||'已启用的插件']));
       if (alive && version === epoch) {
@@ -77,5 +77,5 @@ export function useDiscovery() {
     epoch++;
     detailEpoch++;
   });
-  return { kind, page, items, hasMore, truncated, loading, error, detail, detailOpen, detailLoading, detailError, load, inspect, change };
+  return { pageSize,kind, page, items, hasMore, truncated, loading, error, detail, detailOpen, detailLoading, detailError, load, inspect, change };
 }

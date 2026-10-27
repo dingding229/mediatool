@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import CronInput from '../ui/CronInput.vue';
 const cronValid=ref(false);
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import PathText from '../ui/PathText.vue';
 import ScanRecord from './ScanRecord.vue';
@@ -21,17 +21,17 @@ import { scanPercent } from '../files/workbench';
 import { label, rows, readPrivate, savePrivate } from './model';
 const props = defineProps<{
   scans: any[];
- page?:number;total?:number;
+ page?:number;pageSize?:number;total?:number;
   schedules: any[];
   scanError?: unknown;
   scheduleError?: unknown;
   scheduleLoading?: boolean;
   loading?: boolean;
-}>(), emit = defineEmits<{page:[number];
+}>(), emit = defineEmits<{page:[number];size:[number];
   changed: [
   ];
 }>();
-const remembered = readPrivate('media-tool:scan-create:v1'), root = ref(remembered?.root || ''), useDefault = ref(!remembered?.root), roots = ref<any[]>([]), connection = ref(''), rootError = ref<unknown>(null), preview = ref<any>(null), busy = ref(false), error = ref<unknown>(null), pending = ref<any>(remembered), approveOpen = ref(false), detailOpen = ref(false), detail = ref<any>(null), cursorPage = usePageNumber('cursorPage'), scanPage = computed({get:()=>props.page||1,set:(n:number)=>emit('page',n)}), step = ref(remembered ? 3 : 1), controlTarget = ref<any>(null), controlOpen = ref(false);
+const remembered = readPrivate('media-tool:scan-create:v1'), root = ref(remembered?.root || ''), useDefault = ref(!remembered?.root), roots = ref<any[]>([]), connection = ref(''), rootError = ref<unknown>(null), preview = ref<any>(null), busy = ref(false), error = ref<unknown>(null), pending = ref<any>(remembered), approveOpen = ref(false), detailOpen = ref(false), detail = ref<any>(null), cursorPage = usePageNumber('cursorPage'),cursorSize=usePageSize(25,'cursorPage'), scanPage = computed({get:()=>props.page||1,set:(n:number)=>emit('page',n)}), step = ref(remembered ? 3 : 1), controlTarget = ref<any>(null), controlOpen = ref(false);
 const scheduleOpen = ref(false), scheduleBusy = ref(false), conflict = ref<any>(null), form = ref<any>({ id: '', root: '', enabled: false, watchChanges: false, cron: '0 * * * *', revision: 0 });
 const controlPending = ref<any>(readPrivate('media-tool:scan-control:v1'));
 let version = 0, detailVersion = 0, disposed = false;
@@ -111,7 +111,7 @@ async function inspect(scan: any, reset = true) {
   detailOpen.value = true;
   error.value = null;
   try {
-    const out: any = await request(`/library/scans/${scan.id}?page=${cursorPage.value}&pageSize=25`);
+    const out: any = await request(`/library/scans/${scan.id}?page=${cursorPage.value}&pageSize=${cursorSize.value}`);
     if (disposed || current !== detailVersion)
       return;
     detail.value = out;
@@ -268,7 +268,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
         <TaskControl kind="scans" :id="scan.id" :state="scan.state" @changed="emit('changed')"/>
       </template>
     </ScanRecord>
-    <PagePagination v-model:current-page="scanPage" :page-size="8" :total="total??scans.length" layout="prev,pager,next"/>
+    <PagePagination v-model:current-page="scanPage" :page-size="pageSize??8" :page-sizes="[8,10,25,50,100]" @update:page-size="(n:number)=>emit('size',n)" :total="total??scans.length" layout="prev,pager,next"/>
     <p>扫描中断或云盘内容变化时，不会把未扫描到的文件直接标记为缺失；恢复后会重新检查。</p>
   </section>
   <section class="media-surface">
@@ -295,7 +295,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <ScanRecord v-for="directory in detail?.directories||[]" :key="directory.path" :path="directory.path" :state="directory.state" :time="directory.updatedAt">
       <template #details><details class="f5-directory-row"><summary>目录覆盖说明</summary><p>完整路径：{{directory.path}}</p><p>{{directory.lastError||directory.message||'—'}}</p></details></template>
     </ScanRecord>
-    <PagePagination v-if="detail" v-model:current-page="cursorPage" :page-size="25" :total="detail.scan.directories||0" layout="prev,pager,next" @current-change="inspect(detail.scan,false)"/>
+    <PagePagination v-if="detail" v-model:current-page="cursorPage" v-model:page-size="cursorSize" :total="detail.scan.directories||0" layout="prev,pager,next" @current-change="inspect(detail.scan,false)"/>
   </DetailDrawer>
   <ConfirmAction v-model:visible="approveOpen" title="开始目录扫描" :description="`将扫描「${preview?.root||'服务端默认目录'}」。`" impact-scope="更新索引、候选与缺失对账状态，不移动媒体或做种源；未完成覆盖不作为缺失证据。" confirm-text="确认开始扫描" :loading="busy" class="media-dialog" @confirm="create"/>
   <ConfirmAction v-model:visible="controlOpen" title="扫描控制" :description="controlTarget?.action==='resume'?'从根目录重新完整对账，不复用不完整覆盖。':'暂停或取消不会把未扫描目录标为缺失。'" impact-scope="只影响此扫描，不删除媒体或输出。" :loading="busy" class="media-dialog" @confirm="control"/>

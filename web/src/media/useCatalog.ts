@@ -1,18 +1,18 @@
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { request } from '../api/client';
 import {managedCatalog,managedDetail,type Category} from '../api/mediaCatalog';
 import { rows, type MediaItem } from './model';
 export function useCatalog() {
-  const route = useRoute(), router = useRouter(), source = ref('managed'), view = ref(route.query.view === 'all' ? 'all' : 'home'), page = usePageNumber(), query = ref(''), kind = ref(''), parentId = ref(String(route.query.parentId || '')), items = ref<MediaItem[]>([]), total = ref<number | null>(null), loading = ref(true), error = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>(), children = ref<MediaItem[]>([]), childTotal = ref(0), childPage = usePageNumber('childPage'), childError = ref<unknown>(), childLoading = ref(false), series = ref<MediaItem | null>(null), category=ref(''), categories=ref<Category[]>([]);
+  const route = useRoute(), router = useRouter(), source = ref('managed'), view = ref(route.query.view === 'all' ? 'all' : 'home'), page = usePageNumber(),pageSize=usePageSize(24), query = ref(''), kind = ref(''), parentId = ref(String(route.query.parentId || '')), items = ref<MediaItem[]>([]), total = ref<number | null>(null), loading = ref(true), error = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>(), children = ref<MediaItem[]>([]), childTotal = ref(0), childPage = usePageNumber('childPage'),childSize=usePageSize(24,'childPage'), childError = ref<unknown>(), childLoading = ref(false), series = ref<MediaItem | null>(null), category=ref(''), categories=ref<Category[]>([]);
   let epoch = 0, detailEpoch = 0, childEpoch = 0, alive = true;
   const displayItems = computed(() => items.value);
   const selectedSeason = ref<MediaItem | null>(null);
   const episodes = computed(() => children.value);
   async function chooseSeason(item: MediaItem | null) { selectedSeason.value=item; childPage.value=1; await readChildren(); }
   const isSeries = (item: MediaItem) => !['Episode', 'Season'].includes(item.type || '') && item.type === 'Series' && ['series', 'Series'].includes(item.mediaType || item.type || '') && item.episode == null;
-  const catalogPage = (parent: string, p: number, child = false) => managedCatalog(child?'':query.value,parent,category.value,p);
+  const catalogPage = (parent: string, p: number, child = false) => managedCatalog(child?'':query.value,parent,category.value,p,child?childSize.value:pageSize.value);
   let hasLoaded=false;
   async function load() {
     const version = ++epoch;
@@ -151,5 +151,5 @@ export function useCatalog() {
     epoch++;
     close();
   });
-  return { selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, items, total, loading, error, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, category, categories, load, search, chooseSource, all, browse, inspect, refresh, readChildren };
+  return { pageSize,childSize,selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, items, total, loading, error, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, category, categories, load, search, chooseSource, all, browse, inspect, refresh, readChildren };
 }

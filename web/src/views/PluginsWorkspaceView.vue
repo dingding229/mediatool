@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, reactive, ref } from 'vue';
@@ -19,7 +19,7 @@ import ResourceState from '../workflows/ResourceState.vue';
 import '../media/media.css';
 import '../workflows/u5.css';
 import '../operations/u6.css';
-const route = useRoute(), tab = computed(() => route.query.tab === 'catalog' ? 'catalog' : 'installed'), page = usePageNumber(), catalogPage = usePageNumber('catalogPage'), query = ref(''), list = reactive(useResource(() => instances(page.value), [])), directory = reactive(useResource(() => catalog(catalogPage.value))), op = reactive(usePluginOperation()), consent = ref<PluginDefinition | null>(null), confirmed = ref(false), automation = ref(false), tech = ref(false);
+const route = useRoute(), tab = computed(() => route.query.tab === 'catalog' ? 'catalog' : 'installed'), page = usePageNumber(),pageSize=usePageSize(50), catalogPage = usePageNumber('catalogPage'),catalogSize=usePageSize(200,'catalogPage'), query = ref(''), list = reactive(useResource(() => instances(page.value,pageSize.value), [])), directory = reactive(useResource(() => catalog(catalogPage.value,catalogSize.value))), op = reactive(usePluginOperation()), consent = ref<PluginDefinition | null>(null), confirmed = ref(false), automation = ref(false), tech = ref(false);
 const shown = computed(() => list.data.filter(i => (i.metadata?.name || i.pluginId).toLowerCase().includes(query.value.toLowerCase()))), definitions = computed(() => directory.data?.items.filter(d => (d.manifest.name + ' ' + d.manifest.description).toLowerCase().includes(query.value.toLowerCase())) || []);
 async function read() {
   await Promise.all([list.load(), directory.load()]);
@@ -78,7 +78,7 @@ usePageRefresh(load,'*');
             <RouterLink :to="'/plugins/'+encodeURIComponent(i.id)" class="el-button">管理插件</RouterLink>
           </article>
         </div>
-        </div><PagePagination :page-size="50" v-model:current-page="page" :has-next="list.data.length>=50" :disabled="list.loading" @current-change="load"/>
+        </div><PagePagination v-model:page-size="pageSize" v-model:current-page="page" :has-next="list.data.length>=pageSize" :disabled="list.loading" @current-change="load"/>
       </template>
       <template v-else><div class="f5-plugin-list-stage">
         <ResourceState :stale="directory.loaded" :loading="directory.loading" :error="safePluginError(directory.error)" :empty="!definitions.length" @reload="load"/>
@@ -89,7 +89,7 @@ usePageRefresh(load,'*');
             <el-button :disabled="!!op.pending||op.busy" @click="select(d)">{{ hasInstallIntent(d.manifest.id,d.fingerprint)?'核对上次安装':d.installedCount?'新增独立实例':'安装插件' }}</el-button>
           </article>
         </div>
-        </div><PagePagination v-model:current-page="catalogPage" :page-size="200" :total="directory.data?.total||0" :disabled="directory.loading" @current-change="load"/>
+        </div><PagePagination v-model:current-page="catalogPage" v-model:page-size="catalogSize" :page-sizes="[10,25,50,100,200]" :total="directory.data?.total||0" :disabled="directory.loading" @current-change="load"/>
       </template>
     </section>
     <el-dialog :model-value="!!consent" title="插件权限确认" width="min(700px,94vw)" class="media-dialog u5-dialog" :close-on-click-modal="false" @update:model-value="consent=null">

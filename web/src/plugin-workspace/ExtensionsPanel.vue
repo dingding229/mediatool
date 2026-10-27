@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import { safePluginError } from './model';
 import { computed, onMounted, reactive, ref } from 'vue';
@@ -14,7 +14,7 @@ import { date, errorText } from '../workflows/readiness';
 const props = defineProps<{
   id: string;
   running: boolean;
-}>(), page = usePageNumber(), read = reactive(useResource(() => Promise.all([extensions(props.id), runHistory(props.id, page.value)]))), op = reactive(useOperation('plugin-run')), selected = ref<any>(null), confirm = ref(false);
+}>(), page = usePageNumber(),pageSize=usePageSize(50), read = reactive(useResource(() => Promise.all([extensions(props.id), runHistory(props.id, page.value,pageSize.value)]))), op = reactive(useOperation('plugin-run')), selected = ref<any>(null), confirm = ref(false);
 const pendingInstance = computed(() => {
   try {
     return op.pending ? JSON.parse(op.pending.key).instanceId : '';
@@ -94,7 +94,7 @@ onMounted(load);
       <p>{{ r.reason?'请查看实例日志核对原因。':'—' }}</p>
       <RouterLink :to="{path:'/ops',query:{tab:'logs',module:'plugins',instance:id}}">查看运行日志</RouterLink>
     </article>
-    <PagePagination :page-size="50" v-model:current-page="page" :has-next="(read.data?.[1].length||0)>=50" @current-change="load"/>
+    <PagePagination v-model:page-size="pageSize" v-model:current-page="page" :has-next="(read.data?.[1].length||0)>=pageSize" @current-change="load"/>
     <ConfirmAction v-model:visible="confirm" title="执行插件扩展" :description="'将执行 '+(selected?.name||'此扩展')" impact-scope="可能产生插件权限范围内的业务变更；结果未知时先核对，不会自动重试。" confirm-text="确认执行" class="media-dialog" :loading="op.busy" @confirm="run"/>
   </section>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -13,7 +13,7 @@ const props = defineProps<{
   runs: Run[];
   runsError?: unknown;
 }>();
-const broken = ref(new Set<string>()), entries = ref<any[]>([]), total = ref(0), page = usePageNumber(), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), truncated = ref(false);
+const broken = ref(new Set<string>()), entries = ref<any[]>([]), total = ref(0), page = usePageNumber(), pageSize = usePageSize(25), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), truncated = ref(false);
 let epoch = 0, disposed = false;
 const rows = computed(() => {
   const combined = [...entries.value, ...(page.value === 1 ? props.runs : [])];
@@ -29,7 +29,7 @@ let hasLoaded=false;
       items: any[];
       total: number;
       truncated?: boolean;
-    }>(`/cache/search?page=${page.value}`);
+    }>(`/cache/search?page=${page.value}&pageSize=${pageSize.value}`);
     if (version === epoch && !disposed) {
       entries.value = out.items || [];
       total.value = out.total;
@@ -92,7 +92,7 @@ usePageRefresh(load, 'history');
       </article>
     </div>
     <StateView v-if="!loading&&!error&&!runsError&&!rows.length" state="empty" title="还没有搜索记录" description="先选择作品并发起站点搜索，记录会保存在这里。"/>
-    <PagePagination v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next" @current-change="load"/>
+    <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next" @current-change="load"/>
   </section>
   <DetailDrawer v-model:visible="open" title="搜索记录详情" :technical-data="detail">
     <h3>{{ detail?.query||detail?.keyword||'—' }}</h3>

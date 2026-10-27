@@ -164,10 +164,10 @@ usePageRefresh(state.refresh,'*');
         <el-button :disabled="!selectable(candidate)" @click="edit([candidate])">确认作品</el-button>
         <RouterLink v-if="candidate.assetId" :to="{path:'/organize',query:{tab:'assets',assetId:candidate.assetId}}">查看已有资产与输出</RouterLink>
       </article>
-      <PagePagination v-model:current-page="state.page.candidates" :page-size="50" :total="state.total.candidates" layout="prev,pager,next,total" @current-change="pageChange('candidates')"/>
+      <PagePagination v-model:current-page="state.page.candidates" v-model:page-size="state.sizes.candidates" :total="state.total.candidates" layout="prev,pager,next,total" @current-change="pageChange('candidates')"/>
     </section>
     <div v-show="tab==='scans'" class="media-stack">
-      <ScanPanel :page="state.page.scans" :total="state.total.scans" @page="(n:number)=>{state.page.scans=n;state.load('scans')}" :scans="state.data.scans" :schedules="state.data.schedules" :scan-error="state.errors.scans" :schedule-error="state.errors.schedules" :loading="state.loading.scans" :schedule-loading="state.loading.schedules" @changed="state.refresh"/>
+      <ScanPanel :page="state.page.scans" :page-size="state.sizes.scans" @size="n=>state.sizes.scans=n" :total="state.total.scans" @page="(n:number)=>{state.page.scans=n;state.load('scans')}" :scans="state.data.scans" :schedules="state.data.schedules" :scan-error="state.errors.scans" :schedule-error="state.errors.schedules" :loading="state.loading.scans" :schedule-loading="state.loading.schedules" @changed="state.refresh"/>
     </div>
     <section v-show="tab==='assets'" class="media-surface">
       <header class="media-section-heading">
@@ -208,7 +208,7 @@ usePageRefresh(state.refresh,'*');
  </div>
  </article>
  </div>
-      <PagePagination v-model:current-page="state.page.assets" :page-size="50" :total="state.total.assets" layout="prev,pager,next,total" @current-change="pageChange('assets')"/>
+      <PagePagination v-model:current-page="state.page.assets" v-model:page-size="state.sizes.assets" :total="state.total.assets" layout="prev,pager,next,total" @current-change="pageChange('assets')"/>
     </section>
     <div v-show="tab==='history'" class="organize-history-host">
       <HistoryPanel/>

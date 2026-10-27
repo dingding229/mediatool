@@ -14,7 +14,7 @@ import { image, mediaType, sourceState, displayRating, displayResolution, displa
 import { errorText } from '../workflows/readiness';
 import { formatBytes } from '../operations/model';
 import '../media/catalog.css';
-const { selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, items, total, loading, error, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, category, categories, load, search, all, browse, inspect, refresh, readChildren } = useCatalog();
+const { pageSize,childSize, selectedSeason, chooseSeason, displayItems, source, view, page, query, kind, parentId, items, total, loading, error, detail, detailOpen, detailLoading, detailError, children, childTotal, childPage, childError, childLoading, episodes, series, category, categories, load, search, all, browse, inspect, refresh, readChildren } = useCatalog();
 usePageRefresh(refresh,'*');
 async function metadataSaved(){await load();if(detail.value){try {const updated=await managedDetail(detail.value.id);detail.value={...detail.value,...updated};}catch(e){detailError.value=e;}}}
 </script>
@@ -46,7 +46,7 @@ async function metadataSaved(){await load();if(detail.value){try {const updated=
         </header>
         <PosterWall :items="displayItems" @select="inspect"/>
         <StateView v-if="!items.length" state="empty" title="暂无匹配作品" description="可调整标题或类型后再查看。"/>
-        <PagePagination v-model:current-page="page" :total="total??undefined" :page-size="24" layout="prev,pager,next" @current-change="load"/>
+        <PagePagination v-model:current-page="page" :total="total??undefined" v-model:page-size="pageSize" :page-sizes="[10,24,25,50,100]" layout="prev,pager,next" @current-change="load"/>
       </section>
     <DetailDrawer :key="detail?.id" v-model:visible="detailOpen" :title="detail?.title||'作品详情'" class="catalog-detail">
       <StateView v-if="detailLoading" state="loading" title="正在读取作品详情…"/>
@@ -93,7 +93,7 @@ async function metadataSaved(){await load();if(detail.value){try {const updated=
             </li>
           </ol>
           <StateView v-if="!children.length" state="empty" title="来源尚未返回季集内容"/>
-          <PagePagination v-model:current-page="childPage" :total="childTotal" :page-size="24" layout="prev,pager,next" @current-change="readChildren"/>
+          <PagePagination v-model:current-page="childPage" :total="childTotal" v-model:page-size="childSize" :page-sizes="[10,24,25,50,100]" layout="prev,pager,next" @current-change="readChildren"/>
         </template>
       </section>
       <section v-if="detail?.episodeDetails?.length">

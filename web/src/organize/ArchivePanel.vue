@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import PathText from '../ui/PathText.vue';
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import TaskControl from '../workflows/TaskControl.vue';
 import {usePageRefresh} from '../ui/page-refresh';
@@ -14,7 +14,7 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { sourceState } from '../media/model';
 import { eligible, label, rows, readPrivate, savePrivate } from './model';
-const stored = readPrivate('media-tool:archive-pending:v1'), items = ref<any[]>([]), page = usePageNumber(), total = ref(0), policy = ref<any>(null), days = ref(30), selected = ref<any[]>([]), loading = ref(true), busy = ref(false), error = ref<unknown>(null), conflict = ref<any>(null), plan = ref<any>(stored?.plan || null), requestId = ref(stored?.requestId || ''), phase = ref<'queued' | 'reconciling' | null>(stored ? 'reconciling' : null), confirmOpen = ref(false), retryOpen = ref(false), retryTarget = ref<any>(null), readbackMissing = ref(false), results = ref<any[]>([]), detailsOpen = ref(false);
+const stored = readPrivate('media-tool:archive-pending:v1'), items = ref<any[]>([]), page = usePageNumber(), pageSize = usePageSize(50), total = ref(0), policy = ref<any>(null), days = ref(30), selected = ref<any[]>([]), loading = ref(true), busy = ref(false), error = ref<unknown>(null), conflict = ref<any>(null), plan = ref<any>(stored?.plan || null), requestId = ref(stored?.requestId || ''), phase = ref<'queued' | 'reconciling' | null>(stored ? 'reconciling' : null), confirmOpen = ref(false), retryOpen = ref(false), retryTarget = ref<any>(null), readbackMissing = ref(false), results = ref<any[]>([]), detailsOpen = ref(false);
 const policyPending = ref(false), retryPending = ref(readPrivate('media-tool:archive-retry:v1'));
 let disposed = false, loadVersion = 0, previewVersion = 0;
 let hasLoaded=false;
@@ -23,7 +23,7 @@ let hasLoaded=false;
   loading.value = !hasLoaded;
   error.value = null;
   try {
-    const [out, current]: any = await Promise.all([request(`/library/archives?page=${page.value}&pageSize=50`), request('/library/archive-policy')]);
+    const [out, current]: any = await Promise.all([request(`/library/archives?page=${page.value}&pageSize=${pageSize.value}`), request('/library/archive-policy')]);
     if (!disposed && currentVersion === loadVersion) {
       items.value = rows(out.items);
       total.value = out.total;
@@ -232,7 +232,7 @@ usePageRefresh(load, 'recovery');
       <p>{{ item.message||'—' }}</p>
       <TaskControl v-if="item.cleanupId&&item.state!=='removed'" kind="archives" :id="item.cleanupId" state="unknown" @changed="load"/>
     </article>
-    <PagePagination v-model:current-page="page" :page-size="50" :total="total" layout="prev,pager,next,total" @current-change="load"/>
+    <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next,total" @current-change="load"/>
     <div class="media-actions archive-selection"><el-button :disabled="!selected.length||busy||!!phase" @click="preview">预览清理所选 {{ selected.length }}</el-button></div>
     <AsyncResultBanner v-if="phase" :status="phase" message="归档清理结果需核对，未确认前不更换请求或计划。" @refresh="reconcile"/>
     <div v-if="phase" class="media-actions">

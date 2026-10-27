@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import {beijingTime} from '../presentation/time';
 import {usePageRefresh} from '../ui/page-refresh';
 import './connections.css';
@@ -26,7 +26,7 @@ const props = defineProps<{
 const { rows, loading, loadError, error, editing, saving, notice, conflict, saved, blocked, form, load, create, edit, save, useRevision, test, testState, testing, reconcile, authorize, authOpen, authId, askRemove, removeOpen, removeTarget, removing, remove } = useConnections();
 const reveal = useSecretReveal(() => ({ id: form.id, revision: form.revision }));
 watch(() => [editing.value, form.id, form.revision, saving.value], () => reveal.hideAll());
-const connectionPage=usePageNumber('connectionPage');
+const connectionPage=usePageNumber('connectionPage'),connectionSize=usePageSize(10,'connectionPage');
 const selectedKind = ref(props.allowedKinds[0] ?? 'clouddrive2'), visible = computed(() => rows.value.filter(r => props.allowedKinds.includes(r.kind)));
 async function approveRevision() {
   try {
@@ -58,7 +58,7 @@ usePageRefresh(load);
   <AsyncResultBanner v-if="testState" :status="testState" :message="notice" @refresh="reconcile" />
 <div class="f5-connection-rows">
   <ResourceState :stale="visible.length>0" :loading="loading" :error="loadError" :empty="!visible.length&&!error" empty-title="尚未配置服务连接" @reload="load"/>
-  <article v-for="row in visible.slice((connectionPage-1)*10,connectionPage*10)" :key="row.id" class="saved-connection">
+  <article v-for="row in visible.slice((connectionPage-1)*connectionSize,connectionPage*connectionSize)" :key="row.id" class="saved-connection">
     <div>
       <h3>{{ row.name }}</h3>
       <p>{{ kinds[row.kind]?.name }} · {{ row.enabled?'已启用':'未启用' }}</p>
@@ -76,7 +76,7 @@ usePageRefresh(load);
 
 
 </div>
-<PagePagination label="服务连接分页" v-model:current-page="connectionPage" :page-size="10" :status="loading?'loading':loadError&&!visible.length?'error':''" :total="!loading&&(!loadError||visible.length)?visible.length:undefined"/>
+<PagePagination label="服务连接分页" v-model:current-page="connectionPage" v-model:page-size="connectionSize" :status="loading?'loading':loadError&&!visible.length?'error':''" :total="!loading&&(!loadError||visible.length)?visible.length:undefined"/>
 
   <el-dialog v-model="editing" :title="form.id?'编辑连接':'添加连接'" width="min(760px,94vw)" :close-on-click-modal="false" class="u2-connection-dialog" :show-close="!saving" :close-on-press-escape="!saving">
     <form class="connection-editor" @submit.prevent="save()">

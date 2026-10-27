@@ -12,7 +12,7 @@ import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { useManual, type ManualTask } from './useManual';
 import { label, progress, size } from './model';
 import { date, errorText, stateFor } from '../workflows/readiness';
-const {page,total, tasks, dialog, kind, url, file, busy, loading, error, listError, intent, confirmOpen, target, actionBusy, observed, load, create, submit, reconcile, retry, approveRetry, associate } = useManual();
+const {pageSize,page,total, tasks, dialog, kind, url, file, busy, loading, error, listError, intent, confirmOpen, target, actionBusy, observed, load, create, submit, reconcile, retry, approveRetry, associate } = useManual();
 const detail = ref<ManualTask | null>(null), detailsOpen = ref(false), selectedMedia=ref<Media|null>(null), importConfirm=ref(false), importOp=reactive(useOperation('manual-import'));
 watch(()=>detail.value?.id,()=>selectedMedia.value=null);
 watch(tasks,rows=>{const fresh=rows.find(t=>t.id===detail.value?.id);if(fresh)detail.value=fresh; if(importOp.pending){const id=JSON.parse(importOp.pending.key).id,row=rows.find(t=>t.id===id);if(row?.managedTaskId||row?.processingState==='needs_confirmation')importOp.clear();}});
@@ -59,7 +59,7 @@ usePageRefresh(load,'manual');
         <el-button v-if="['blocked','failed','absent_confirmed'].includes(task.state)&&(!task.submitAttempted||task.state==='absent_confirmed')" @click="retry(task)">确认后重试</el-button>
       </div>
     </article>
-    <PagePagination v-model:current-page="page" :total="total" :page-size="25" @current-change="load"/>
+    <PagePagination v-model:current-page="page" :total="total" v-model:page-size="pageSize" @current-change="load"/>
   </section>
   <el-dialog v-model="dialog" title="添加种子下载" width="min(650px,94vw)" :close-on-click-modal="false" :show-close="!busy" :close-on-press-escape="!busy" class="acquire-dialog">
     <form class="acquire-form" @submit.prevent="submit">

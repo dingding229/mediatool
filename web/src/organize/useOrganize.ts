@@ -1,8 +1,9 @@
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import { request } from '../api/client';
 export function useOrganize() {
+  const sizes=reactive({candidates:usePageSize(50,'candidatesPage'),assets:usePageSize(50,'assetsPage'),scans:usePageSize(8,'scansPage')});
   const data = reactive<Record<string, any>>({ candidates: [], assets: [], scans: [], schedules: [], repairs: [] }), errors = reactive<Record<string, unknown>>({}), loading = reactive<Record<string, boolean>>({}), total = reactive({ candidates: 0, assets: 0,scans:0 }), page = reactive({candidates:usePageNumber('candidatesPage'),assets:usePageNumber('assetsPage'),scans:usePageNumber('scansPage')}), filter = ref('needs_confirmation'), assetId = ref(''), selected = reactive<Record<string, any[]>>({ candidates: [], assets: [] }), editing = ref(false);
   let disposed = false;
   const versions: Record<string, number> = {};
@@ -14,11 +15,11 @@ export function useOrganize() {
     try {
       let out: any;
       if (key === 'candidates')
-        out = await request(`/library/candidates?page=${page.candidates}&pageSize=50&state=${filter.value}`);
+        out = await request(`/library/candidates?page=${page.candidates}&pageSize=${sizes.candidates}&state=${filter.value}`);
       else if (key === 'assets')
-        out = await request(`/media/assets?page=${page.assets}&pageSize=50${assetId.value ? '&assetId=' + encodeURIComponent(assetId.value) : ''}`);
+        out = await request(`/media/assets?page=${page.assets}&pageSize=${sizes.assets}${assetId.value ? '&assetId=' + encodeURIComponent(assetId.value) : ''}`);
       else if (key === 'scans')
-        out = await request(`/library/scans?page=${page.scans}&pageSize=8`);
+        out = await request(`/library/scans?page=${page.scans}&pageSize=${sizes.scans}`);
       else if (key === 'schedules')
         out = await request('/library/scan-schedules');
       else
@@ -58,5 +59,5 @@ export function useOrganize() {
   onUnmounted(() => {
     disposed = true;
   });
-  return { data, errors, loading, total, page, filter, assetId, selected, editing, load, refresh, toggle, changed };
+  return { sizes,data, errors, loading, total, page, filter, assetId, selected, editing, load, refresh, toggle, changed };
 }

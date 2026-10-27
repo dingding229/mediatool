@@ -4,7 +4,7 @@ import {useRoute,useRouter} from 'vue-router';
 import {getPlaybackStatistics,getPlaybackEvents,getPlaybackIPs,getDeviceIPHistory} from '../api/playback-statistics';
 import {listMediaUsers,listMediaDevices} from '../api/mediaServer';
 import {useResource} from '../workflows/useResource';
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import {mediaTitle,playbackDuration} from '../utils/media-title';
 import {date} from '../workflows/readiness';
 import ResourceState from '../workflows/ResourceState.vue';
@@ -16,13 +16,13 @@ import type {IPStatsPage} from '../api/playback-statistics';
 const blockEditor=ref<InstanceType<typeof IPBlockEditor>>();
 const route=useRoute(),router=useRouter();
 const props=defineProps<{userId?:string;onlyIPs?:boolean;initialDevice?:string}>(),days=ref([0,7,30,90].includes(Number(route.query.statsDays))?Number(route.query.statsDays):30),device=ref(props.initialDevice||String(route.query.statsDevice||'')),user=ref(props.userId||String(route.query.statsUser||'')),mode=ref(props.onlyIPs?'ips':'events'),query=ref(String(route.query.ipQuery||'')),searchInput=ref(query.value);
-const page=usePageNumber(props.userId?'activityStatsPage':'ipStatsPage'),size=ref(25),users=ref<any[]>([]),devices=ref<any[]>([]);
+const page=usePageNumber(props.userId?'activityStatsPage':'ipStatsPage'),size=usePageSize(25,props.userId?'activityStatsPage':'ipStatsPage',[25,50,100]),users=ref<any[]>([]),devices=ref<any[]>([]);
 const filter=()=>({userId:user.value,deviceId:device.value,days:days.value,startIndex:(page.value-1)*size.value,limit:size.value,q:query.value});
 const summary=reactive(useResource(()=>getPlaybackStatistics(filter()))),events=reactive(useResource(()=>getPlaybackEvents(filter()),{items:[],total:0,startIndex:0,limit:25})),ips=reactive(useResource<IPStatsPage>(()=>mode.value==='deviceIps'?getDeviceIPHistory(filter()):getPlaybackIPs(filter()),{items:[],total:0,startIndex:0,limit:25}));
 const chart=computed(()=>(summary.data?.trend||[]).map(r=>({...r,at:r.date+'T00:00:00+08:00'})));
 const current=computed(()=>mode.value!=='events'?ips:events);
 async function load(){await Promise.all([props.onlyIPs||mode.value!=='events'?Promise.resolve():summary.load(),mode.value!=='events'?ips.load():events.load()])}
-watch([days,user,device,mode,query,size],()=>{page.value=1;void router.replace({query:{...route.query,statsDays:String(days.value),statsUser:props.userId?undefined:user.value||undefined,statsDevice:device.value||undefined,statsGroup:undefined,ipQuery:query.value||undefined}});void load()});watch(page,load);
+watch([days,user,device,mode,query],()=>{page.value=1;void router.replace({query:{...route.query,statsDays:String(days.value),statsUser:props.userId?undefined:user.value||undefined,statsDevice:device.value||undefined,statsGroup:undefined,ipQuery:query.value||undefined}});void load()});watch([page,size],load);
 watch(user,async value=>{device.value='';if(mode.value==='deviceIps')mode.value='ips';devices.value=value?(await listMediaDevices(value,0,200)).items:[]});
 function search(){const value=searchInput.value.trim();if(value===query.value){page.value=1;void load()}else query.value=value}
 onMounted(async()=>{await load();if(!props.userId)users.value=(await listMediaUsers(1)).items;else devices.value=(await listMediaDevices(props.userId,0,200)).items});

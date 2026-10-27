@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import {useRefresh} from '../composables/useRefresh';
 import { pageResult } from './model';
@@ -17,7 +17,7 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 const notice = ref(''), posterErrors = ref(new Set<string>());
-const route = useRoute(), router = useRouter(), kind = computed<'tmdb' | 'search'>(() => route.query.cacheKind === 'search' ? 'search' : 'tmdb'), page = usePageNumber(), loadedAt = ref(Date.now()), now = ref(Date.now()), data = reactive(useResource<any>(() => request(`/cache/${kind.value}?page=${page.value}`).then(pageResult))), detail = ref<any>(null), open = ref(false), detailError = ref<unknown>(null), op = reactive(useOperation('cache')), confirm = ref(false), removeId = ref('');
+const route = useRoute(), router = useRouter(), kind = computed<'tmdb' | 'search'>(() => route.query.cacheKind === 'search' ? 'search' : 'tmdb'), page = usePageNumber(), pageSize = usePageSize(30), loadedAt = ref(Date.now()), now = ref(Date.now()), data = reactive(useResource<any>(() => request(`/cache/${kind.value}?page=${page.value}&pageSize=${pageSize.value}`).then(pageResult))), detail = ref<any>(null), open = ref(false), detailError = ref<unknown>(null), op = reactive(useOperation('cache')), confirm = ref(false), removeId = ref('');
 function setKind(value: string) {
   void router.replace({ query: { ...route.query, cacheKind: value } });
 }
@@ -109,7 +109,7 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
         </div>
       </article>
       </div>
-      <PagePagination v-model:current-page="page" :total="data.data?.total" :page-size="30" layout="prev,pager,next" @current-change="load"/>
+      <PagePagination v-model:current-page="page" :total="data.data?.total" v-model:page-size="pageSize" :page-sizes="[10,25,30,50,100]" layout="prev,pager,next" @current-change="load"/>
     </section>
     <p>
       缓存有效期统一在

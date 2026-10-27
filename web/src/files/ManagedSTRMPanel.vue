@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { request, post } from '../api/client';
@@ -10,7 +10,7 @@ import { readIntent, writeIntent } from '../workflows/intents';
 import { sourceState, image } from '../media/model';
 import { label, rows } from '../organize/model';
 import { errorText } from '../workflows/readiness';
-const items = ref<any[]>([]), page = usePageNumber(), total = ref(0), query = ref(''), kind = ref(''), directory = ref(''), loading = ref(true), error = ref<unknown>(null), asset = ref<any>(null), visible = ref(false), content = ref<any>(null), contentLoading = ref(false), contentError = ref<unknown>(null), feedback = ref(''), busy = ref(false), phase = ref<'queued' | 'reconciling' | null>(null);
+const items = ref<any[]>([]), page = usePageNumber(), pageSize = usePageSize(25), total = ref(0), query = ref(''), kind = ref(''), directory = ref(''), loading = ref(true), error = ref<unknown>(null), asset = ref<any>(null), visible = ref(false), content = ref<any>(null), contentLoading = ref(false), contentError = ref<unknown>(null), feedback = ref(''), busy = ref(false), phase = ref<'queued' | 'reconciling' | null>(null);
 const contentPath = ref('');
 let epoch = 0, contentEpoch = 0, disposed = false;
 const files = computed(() => items.value.flatMap(a => rows(a.outputs).filter(o => o.kind === 'strm').map(o => ({ ...o, asset: a }))).filter(o => !directory.value || o.path.startsWith(directory.value + '/'))), folders = computed(() => [...new Set(files.value.map(o => o.path.slice(directory.value ? directory.value.length + 1 : 0).split('/').slice(0, -1)[0]).filter(Boolean))]), directFiles = computed(() => files.value.filter(o => !o.path.slice(directory.value ? directory.value.length + 1 : 0).includes('/'))), crumbs = computed(() => [{ name: '本页受管目录', path: '' }, ...directory.value.split('/').filter(Boolean).map((name, i, a) => ({ name, path: a.slice(0, i + 1).join('/') }))]);
@@ -20,7 +20,7 @@ let hasLoaded=false;
   loading.value = !hasLoaded;
   error.value = null;
   try {
-    const out: any = await request(`/library/outputs?kind=strm&page=${page.value}&pageSize=25&mediaType=${kind.value}&q=${encodeURIComponent(query.value)}`);
+    const out: any = await request(`/library/outputs?kind=strm&page=${page.value}&pageSize=${pageSize.value}&mediaType=${kind.value}&q=${encodeURIComponent(query.value)}`);
     if (disposed || current !== epoch)
       return;
     items.value = rows(out.items);
@@ -151,7 +151,7 @@ defineExpose({ refresh: load });
           </div>
         </article>
       </details>
-      <PagePagination v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next,total" @current-change="directory='';load()"/>
+      <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next,total" @current-change="directory='';load()"/>
     </template>
   </section>
   <DetailDrawer v-model:visible="visible" title="受管 STRM 与媒体详情" :technical-data="{asset,content}" class="media-detail">

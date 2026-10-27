@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import IpAddress from '../ui/IpAddress.vue';
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import { computed, onMounted, reactive, ref } from 'vue';
 import { request, post } from '../api/client';
@@ -12,7 +12,7 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import {getUAPolicy,saveUAPolicy,addUAObservation,type RuleList,type AccessMode} from '../api/playerAccess';
 import { date, errorText } from '../workflows/readiness';
-const query = ref(''), filter = ref(''), page = usePageNumber(), visitPage = usePageNumber('visitPage'), policy = reactive(useResource<any>(async () => {const p=await getUAPolicy();return {...p,mode:p.mode||(p.enabled?'whitelist':'off'),blacklistRules:p.blacklistRules||[]}})), records = reactive(useResource<any>(() => request(`/player-access/observations?${new URLSearchParams({ q: query.value, filter: filter.value, page: String(page.value), pageSize: '25' })}`),{items:[],total:0})), visits = reactive(useResource<any>(() => request(`/player-access/events?page=${visitPage.value}&pageSize=25&q=${encodeURIComponent(query.value)}`),{items:[],total:0})), op = reactive(useOperation('access')), editing = ref(false), form = reactive<any>({}), base = ref<any>(null), latest = ref<any>(null), confirm = ref(false), action = ref<any>(null), details = ref<any>(null), detailOpen = ref(false), notice = ref(''), copyNotice = ref('');
+const query = ref(''), filter = ref(''), page = usePageNumber(),pageSize=usePageSize(25), visitPage = usePageNumber('visitPage'),visitSize=usePageSize(25,'visitPage'), policy = reactive(useResource<any>(async () => {const p=await getUAPolicy();return {...p,mode:p.mode||(p.enabled?'whitelist':'off'),blacklistRules:p.blacklistRules||[]}})), records = reactive(useResource<any>(() => request(`/player-access/observations?${new URLSearchParams({ q: query.value, filter: filter.value, page: String(page.value), pageSize: String(pageSize.value) })}`),{items:[],total:0})), visits = reactive(useResource<any>(() => request(`/player-access/events?page=${visitPage.value}&pageSize=${visitSize.value}&q=${encodeURIComponent(query.value)}`),{items:[],total:0})), op = reactive(useOperation('access')), editing = ref(false), form = reactive<any>({}), base = ref<any>(null), latest = ref<any>(null), confirm = ref(false), action = ref<any>(null), details = ref<any>(null), detailOpen = ref(false), notice = ref(''), copyNotice = ref('');
 const list=ref<RuleList>('rules'),modeName=(mode:string)=>({off:'关闭（全部允许）',whitelist:'白名单（仅允许匹配规则）',blacklist:'黑名单（拒绝匹配规则）'}[mode]||'待核对');
 const listName=(key:RuleList)=>key==='blacklistRules'?'黑名单':'白名单';
 const rules=computed(()=>policy.data?.[list.value]||[]);
@@ -154,7 +154,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
           <el-button :disabled="!record.userAgent||record.blacklisted||!!op.pending||!policy.data" @click="edit(null,record,'blacklistRules')">加入黑名单</el-button>
         </div>
       </article>
-      <PagePagination v-model:current-page="page" :page-size="25" :total="records.data.total" layout="prev,pager,next,total" @current-change="records.load"/>
+      <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="records.data.total" layout="prev,pager,next,total" @current-change="records.load"/>
     </section>
     <section class="media-surface">
       <h2>访问明细</h2>
@@ -167,7 +167,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
         <p class="u5-original">{{ visit.userAgent||'空 UA' }}</p>
         <el-button @click="details=visit;copyNotice='';detailOpen=true">访问详情</el-button>
       </article>
-      <PagePagination v-model:current-page="visitPage" :page-size="25" :total="visits.data.total" layout="prev,pager,next,total" @current-change="visits.load"/>
+      <PagePagination v-model:current-page="visitPage" v-model:page-size="visitSize" :total="visits.data.total" layout="prev,pager,next,total" @current-change="visits.load"/>
     </section>
   </div>
   <el-dialog v-model="editing" :title="form.observationId?'从访问记录加入'+listName(form.list):(form.id?'编辑':'添加')+listName(form.list)+'规则'" width="min(680px,94vw)" class="media-dialog u5-dialog" :close-on-click-modal="false">

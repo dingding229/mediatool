@@ -10,7 +10,7 @@ test('F5b SQL-page client restores URL before loading and keeps filters through 
  await page.route('**/api/v1/transfers?*',r=>r.fulfill({json:{data:{items:[],total:0}}}));
  await page.route('**/api/v1/library/activity?*',r=>r.fulfill({json:{data:{items:[],total:0}}}));
  await page.goto('/downloads?tab=tasks&downloadsPage=2&keep=owned');await expect(page.getByRole('heading',{name:'第 2 页任务'})).toBeVisible();expect(reads[0]).toBe(2);
- const pager=page.getByRole('navigation',{name:'下载任务分页',exact:true});await expect(pager).toContainText('26 – 50 / 53');await pager.getByRole('button',{name:'末页',exact:true}).click();await expect(page.getByRole('heading',{name:'第 3 页任务'})).toBeVisible();await expect(page).toHaveURL(/downloadsPage=3/);await expect(page).toHaveURL(/keep=owned/);
+ const pager=page.getByRole('navigation',{name:'下载任务分页',exact:true});await expect(pager).toContainText('每页 25 条，共 53 条');await pager.getByRole('button',{name:'末页',exact:true}).click();await expect(page.getByRole('heading',{name:'第 3 页任务'})).toBeVisible();await expect(page).toHaveURL(/downloadsPage=3/);await expect(page).toHaveURL(/keep=owned/);
  await page.reload();await expect(page.getByRole('heading',{name:'第 3 页任务'})).toBeVisible();await pager.getByRole('button',{name:'首页',exact:true}).click();await expect(page.getByRole('heading',{name:'第 1 页任务'})).toBeVisible();await f5bShots(page,'downloads');
 });
 

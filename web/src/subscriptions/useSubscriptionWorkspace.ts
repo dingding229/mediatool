@@ -1,4 +1,4 @@
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -9,7 +9,7 @@ import { asError, draftFor, failure, payloadFor, pendingStorageKey, restorePendi
 import type { Account, Draft, HistoryRun, Media, PendingRun, Run, Subscription } from './model'
 export function useSubscriptionWorkspace() {
   const route = useRoute(), router = useRouter()
- const page=usePageNumber('subscriptionsPage'),total=ref(0),historyPage=usePageNumber('historyPage'),historyTotal=ref(0)
+ const pageSize=usePageSize(25,'subscriptionsPage'),historySize=usePageSize(25,'historyPage'),page=usePageNumber('subscriptionsPage'),total=ref(0),historyPage=usePageNumber('historyPage'),historyTotal=ref(0)
   const tab = computed(() => route.query.tab === 'history' ? 'history' : 'list')
   const scope = computed(() => route.query.view === 'history' ? 'history' : 'current')
   const records = ref<Subscription[]>([]), accounts = ref<Account[]>([]), loading = ref(true)
@@ -35,7 +35,7 @@ export function useSubscriptionWorkspace() {
   function changeScope(value: string) { return location({ view: value, subscription: undefined, run: undefined }) }
   async function refresh() {
     const seq = ++listSeq; loading.value = records.value.length === 0; listError.value = null
-    const [list, sites] = await Promise.allSettled([request<ListPage<Subscription>>(`/subscriptions?view=${scope.value}&page=${page.value}&pageSize=25&q=${encodeURIComponent(search.value)}&status=${filter.value}`).then(checkedPage<Subscription>), request<Account[]>('/integrations')])
+    const [list, sites] = await Promise.allSettled([request<ListPage<Subscription>>(`/subscriptions?view=${scope.value}&page=${page.value}&pageSize=${pageSize.value}&q=${encodeURIComponent(search.value)}&status=${filter.value}`).then(checkedPage<Subscription>), request<Account[]>('/integrations')])
     if (disposed || seq !== listSeq) return
     if (list.status === 'fulfilled') {records.value = list.value.items;total.value=list.value.total;} else listError.value = asError(list.reason)
     if (sites.status === 'fulfilled') { accounts.value = sites.value.filter(a => a.kind === 'ptsite' && a.enabled); accountError.value = null } else accountError.value = asError(sites.reason)
@@ -99,7 +99,7 @@ export function useSubscriptionWorkspace() {
     historyError.value = null; historyLoading.value = !!id
     if (!id) { run.value = null; activeRunId.value = ''; return }
     try {
-      const rows = await request<ListPage<HistoryRun>>(`/subscriptions/${id}/history?page=${historyPage.value}&pageSize=25`).then(checkedPage<HistoryRun>)
+      const rows = await request<ListPage<HistoryRun>>(`/subscriptions/${id}/history?page=${historyPage.value}&pageSize=${historySize.value}`).then(checkedPage<HistoryRun>)
       if (disposed || seq !== historySeq) return
       history.value = rows.items;historyTotal.value=rows.total
       const queryId = typeof route.query.run === 'string' ? route.query.run : ''
@@ -180,7 +180,7 @@ export function useSubscriptionWorkspace() {
   })
   useRefresh(poll, {interval:5000, immediate:false})
   onUnmounted(() => { disposed = true })
-  return {page,total,historyPage,historyTotal, tab, scope, records, accounts, loading, listError, accountError, search, filter, visible, selected, detailOpen, inspect,
+  return {pageSize,historySize,page,total,historyPage,historyTotal, tab, scope, records, accounts, loading, listError, accountError, search, filter, visible, selected, detailOpen, inspect,
     history, historyLoading, historyError, historyId, activeRunId, run, runLoading, runError, runDetailOpen, readRun, chooseRun, showHistory, loadHistory,
     pending, evaluate, reconcile, refresh, changeScope, compose, draft, editorOpen, saving, saveError, save, reloadEditor,
     previewDraft, previewReady, previewRun, previewError, toggle, mutation, askDelete, deleteOpen, deleteTarget, deleting, confirmDelete }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { formatBytes as bytes } from './model';
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
@@ -20,7 +20,8 @@ import {useRoute} from 'vue-router';
 import WebRestorePanel from './WebRestorePanel.vue';
 import PolicyPanel from './PolicyPanel.vue';
 const recordPages=reactive({backups:usePageNumber('backupsPage'),drills:usePageNumber('drillsPage'),requests:usePageNumber('maintenanceRequestsPage'),alerts:usePageNumber('alertsPage')});
-function recordRows(kind:keyof typeof recordPages){return (data.data?.[kind]||[]).slice((recordPages[kind]-1)*25,recordPages[kind]*25)}
+const recordSizes=reactive({backups:usePageSize(25,'backupsPage'),drills:usePageSize(25,'drillsPage'),requests:usePageSize(25,'maintenanceRequestsPage'),alerts:usePageSize(25,'alertsPage')});
+function recordRows(kind:keyof typeof recordPages){return (data.data?.[kind]||[]).slice((recordPages[kind]-1)*recordSizes[kind],recordPages[kind]*recordSizes[kind])}
 const data = reactive(useResource<any>(() => request('/ops'))), hours = ref(24), trends = reactive(useResource<any[]>(() => request('/ops/trends?hours=' + hours.value), [])), op = reactive(useOperation('maintenance')), section = ref(useRoute().query.restore?'recovery':'backups'), confirm = ref(false), action = ref<any>(null), detail = ref<any>(null), detailOpen = ref(false), restoreID = ref(''), rollbackID = ref(''), preview = ref<any>(null), previewLoading = ref(false), previewError = ref<unknown>(null), previewDialog = ref(false), approval = ref(false), copied = ref(''), commandCopy = ref('');
 const gapMS = computed(() => Math.max(1, Math.ceil(hours.value * 60 / 500)) * 60000), trendRows = computed(() => trends.data.map(r => ({ ...r, processMiB: typeof r.processBytes === 'number' ? r.processBytes / 1048576 : null, successRate: typeof r.succeededJobs10m === 'number' && typeof r.failedJobs10m === 'number' && r.succeededJobs10m + r.failedJobs10m > 0 ? r.succeededJobs10m / (r.succeededJobs10m + r.failedJobs10m) * 100 : null })));
 const trendFields = [['memoryPercent', '内存使用率', '%'], ['diskFreeGB', '剩余空间', 'GiB'], ['load1', '系统负载', '1min'], ['loadPerCPU', '每CPU负载', ''], ['jobSeconds', '任务执行耗时', '秒'], ['pendingJobs', '待处理任务', '条'], ['processMiB', '应用堆内存', 'MiB'], ['failedJobs10m', '十分钟失败任务', '条'], ['successRate', '十分钟任务成功率', '%']];
@@ -131,7 +132,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
 
 
       </div>
-<PagePagination label="系统备份分页" v-model:current-page="recordPages.backups" :page-size="25" :total="data.data?.backups?.length"/>
+<PagePagination label="系统备份分页" v-model:current-page="recordPages.backups" v-model:page-size="recordSizes.backups" :total="data.data?.backups?.length"/>
 <h3>恢复演练记录</h3>
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.drills?.length" empty-title="暂无恢复演练记录"/>
       <article v-for="d in recordRows('drills')" :key="d.id" class="organize-record">
@@ -142,7 +143,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
           <el-button v-if="['failed','interrupted'].includes(d.state)" :disabled="!!op.pending" @click="ask('cleanup',d)">清理临时库</el-button>
         </div>
       </article>
-<PagePagination label="恢复演练分页" v-model:current-page="recordPages.drills" :page-size="25" :total="data.data?.drills?.length"/>
+<PagePagination label="恢复演练分页" v-model:current-page="recordPages.drills" v-model:page-size="recordSizes.drills" :total="data.data?.drills?.length"/>
 
     </section>
     <section v-else-if="section==='recovery'" class="media-surface">
@@ -179,7 +180,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
           <el-button v-if="r.state==='completed'&&!r.verifiedAt" :disabled="!!op.pending" @click="ask('verify',r)">执行后核验</el-button>
         </div>
       </article>
-<PagePagination label="维护单分页" v-model:current-page="recordPages.requests" :page-size="25" :total="data.data?.requests?.length"/>
+<PagePagination label="维护单分页" v-model:current-page="recordPages.requests" v-model:page-size="recordSizes.requests" :total="data.data?.requests?.length"/>
 
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.requests?.length" empty-title="暂无维护单"/>
     </section>
@@ -195,7 +196,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
           <span>确认告警不等于问题已解决</span>
         </div>
       </article>
-<PagePagination label="告警记录分页" v-model:current-page="recordPages.alerts" :page-size="25" :total="data.data?.alerts?.length"/>
+<PagePagination label="告警记录分页" v-model:current-page="recordPages.alerts" v-model:page-size="recordSizes.alerts" :total="data.data?.alerts?.length"/>
 
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.alerts?.length" empty-title="暂无告警记录"/>
     </section>

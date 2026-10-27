@@ -2,7 +2,7 @@
 import PlaybackStatistics from './PlaybackStatistics.vue';
 import IpAddress from '../ui/IpAddress.vue';
 import {mediaTitle,playbackDuration} from '../utils/media-title';
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import { onMounted, reactive, ref, watch } from 'vue';
 import { listMediaDevices, listMediaHistory, revokeMediaDevice } from '../api/mediaServer';
@@ -15,7 +15,7 @@ import { date, errorText } from '../workflows/readiness';
 const props = defineProps<{
   userId: string;
   userName: string;
-}>(), statsDevice=ref(''),tab = ref('devices'), page = usePageNumber(), data = reactive(useResource<any>(() => tab.value === 'devices' ? listMediaDevices(props.userId, (page.value - 1) * 50) : listMediaHistory(props.userId, (page.value - 1) * 50))), op = reactive(useOperation('devices')), confirm = ref(false), target = ref<any>(null);
+}>(), statsDevice=ref(''),tab = ref('devices'), page = usePageNumber('userActivityPage'),pageSize=usePageSize(50,'userActivityPage'), data = reactive(useResource<any>(() => tab.value === 'devices' ? listMediaDevices(props.userId, (page.value - 1) * pageSize.value,pageSize.value) : listMediaHistory(props.userId, (page.value - 1) * pageSize.value,pageSize.value))), op = reactive(useOperation('devices')), confirm = ref(false), target = ref<any>(null);
 async function load() {
   if(tab.value!=='statistics')await data.load();
   if (op.pending) {
@@ -67,7 +67,7 @@ defineExpose({ load, tab, page, data, changeTab, revoke, target, op });
     </template>
     <p v-else>观看 {{ row.playCount??'—' }} 次 · 累计播放 {{playbackDuration(row.durationSeconds)}} · {{ row.played?'已看完':'未看完' }} · {{ date(row.lastPlayedAt) }}</p>
   </article>
-  <PagePagination v-model:current-page="page" :page-size="50" :total="data.data?.total||0" layout="prev,pager,next,total" @current-change="load"/>
+  <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="data.data?.total||0" layout="prev,pager,next,total" @current-change="load"/>
   <p v-if="tab==='history'">次数按本功能启用后的播放会话计（未看完也计 1 次）；累计时长为有效进度增量，不是影片总时长。旧条目保留续播状态，不推算历史事件。</p>
 
  </template>

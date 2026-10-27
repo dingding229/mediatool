@@ -3,7 +3,7 @@ import PathText from '../ui/PathText.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import {beijingISO} from '../presentation/time';
 import {cachedTMDBImage} from '../api/images';
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import TaskControl from '../workflows/TaskControl.vue';
 import {usePageRefresh} from '../ui/page-refresh';
@@ -18,7 +18,7 @@ import { date, errorText } from '../workflows/readiness';
 import { sourceState } from '../media/model';
 import { label, removable, rows } from './model';
 const brokenPosters=ref(new Set<string>());
-const route = useRoute(), items = ref<any[]>([]), total = ref(0), page = usePageNumber(), kind = ref(String(route.query.kind || '')), state = ref(''), query = ref(String(route.query.q || '')), batchId = ref(String(route.query.batchId || '')), origin = ref(''), method = ref(''), from = ref(''), to = ref(''), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), selected = ref<any[]>([]), removeOpen = ref(false), busy = ref(false), uncertain = ref(false);
+const route = useRoute(), items = ref<any[]>([]), total = ref(0), page = usePageNumber(), pageSize = usePageSize(25), kind = ref(String(route.query.kind || '')), state = ref(''), query = ref(String(route.query.q || '')), batchId = ref(String(route.query.batchId || '')), origin = ref(''), method = ref(''), from = ref(''), to = ref(''), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), selected = ref<any[]>([]), removeOpen = ref(false), busy = ref(false), uncertain = ref(false);
 let epoch = 0, disposed = false;
 const summary = computed(() => ({ active: items.value.filter(r => ['pending', 'running', 'paused'].includes(r.state)).length, attention: items.value.filter(r => ['needs_reconcile', 'conflict', 'failed', 'partial'].includes(r.state)).length, done: items.value.filter(r => ['succeeded', 'imported', 'visible', 'applied', 'verified'].includes(r.state)).length }));
 let hasLoaded=false;
@@ -27,7 +27,7 @@ let hasLoaded=false;
   loading.value = !hasLoaded;
   error.value = null;
   try {
-    const p = new URLSearchParams({ page: String(page.value), pageSize: '25', kind: kind.value, state: state.value, q: query.value, batchId: batchId.value, origin: origin.value, method: method.value });
+    const p = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize.value), kind: kind.value, state: state.value, q: query.value, batchId: batchId.value, origin: origin.value, method: method.value });
     if (from.value)
       p.set('from', beijingISO(from.value));
     if (to.value)
@@ -189,7 +189,7 @@ usePageRefresh(load, 'history');
     </li>
     </ol>
     <StateView v-if="!loading&&!error&&!items.length" state="empty" title="暂无符合条件的历史"/>
-    <PagePagination v-model:current-page="page" :page-size="25" :total="total" layout="prev,pager,next,total" @current-change="load"/>
+    <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next,total" @current-change="load"/>
     <div class="media-actions history-danger-actions"><el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button></div>
   </section>
   <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" :technical-data="detail" class="media-detail">

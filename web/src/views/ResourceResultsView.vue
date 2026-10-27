@@ -14,7 +14,7 @@ import { sourceLabel, resourceSources } from '../utils/resource-source';
 import { size, label } from '../acquisition/model';
 import { errorText, stateFor } from '../workflows/readiness';
 import '../acquisition/acquisition.css';
-const { run, loading, error, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter, queueFilter, sort, persistMedia, openDownload, searchAgain } = useResults();
+const { pageSize, run, loading, error, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter, queueFilter, sort, persistMedia, openDownload, searchAgain } = useResults();
 const sitesOpen=ref(false);
 const siteCounts=computed(()=>({success:run.value?.sites.filter(s=>s.state==='succeeded').length||0,failed:run.value?.sites.filter(s=>['failed','partial'].includes(s.state)).length||0,running:run.value?.sites.filter(s=>['pending','running'].includes(s.state)).length||0}));
 const direction=(key:string)=>filters.sort.startsWith(key+'_')?(filters.sort.endsWith('_asc')?'ascending':'descending'):'none';
@@ -112,7 +112,7 @@ ownRefresh.register(()=>refresh(),()=>true);
         </article>
         <StateView v-if="!run.resources.length" :state="['pending','running'].includes(run.state)?'loading':'empty'" :title="['pending','running'].includes(run.state)?'站点正在查询…':'没有匹配资源'" description="若有站点失败或部分结果，请先核对上方原因。"/>
         </div>
-        <PagePagination v-model:current-page="page" :page-size="50" :total="run.total||0" layout="prev,pager,next" @current-change="refresh()"/>
+        <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="run.total||0" layout="prev,pager,next" @current-change="refresh()"/>
       </section>
     </template>
     <DownloadSubmission :model="delivery"/>

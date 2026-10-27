@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import IpAddress from '../ui/IpAddress.vue';
 import {beijingISO} from '../presentation/time';
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import {Refresh,Delete,Setting,CopyDocument,Download,DArrowLeft,ArrowLeft,ArrowRight,DArrowRight} from '@element-plus/icons-vue';
 import {useRevision} from '../settings/revision';
 import RevisionFeedback from '../settings/RevisionFeedback.vue';
@@ -20,7 +20,7 @@ import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-const route = useRoute(), filter = reactive({ page: usePageNumber(), pageSize: 200, level: '', module: String(route.query.module || ''), instance: String(route.query.instance || ''), keyword: '', before: '' }), from = ref(''), to = ref(''), clean = ref(false), friendly = ref(true), detail = ref<any>(null), open = ref(false), settings = ref(false), confirm = ref(false), copied = ref(''), copyContent = ref(''), copyOpen = ref(false), logLevel = ref(''), op = reactive(useOperation('logs')), data = reactive(useResource<any>(() => {
+const route = useRoute(), filter = reactive({ page: usePageNumber(), pageSize: usePageSize(200,'page',[50,100,200]), level: '', module: String(route.query.module || ''), instance: String(route.query.instance || ''), keyword: '', before: '' }), from = ref(''), to = ref(''), clean = ref(false), friendly = ref(true), detail = ref<any>(null), open = ref(false), settings = ref(false), confirm = ref(false), copied = ref(''), copyContent = ref(''), copyOpen = ref(false), logLevel = ref(''), op = reactive(useOperation('logs')), data = reactive(useResource<any>(() => {
   const q = new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])));
   if (!filter.instance)
     q.delete('instance');

@@ -3,12 +3,12 @@ import {reactive,ref} from 'vue';
 import {listIPBlocks,checkIPBlock,deleteIPBlock,type IPBlockPage,type IPBlockRule,type IPBlockCheck} from '../api/ip-blocklist';
 import {useRefresh} from '../composables/useRefresh';
 import {useResource} from '../workflows/useResource';
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import {errorText,date} from '../workflows/readiness';
 import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import IPBlockEditor from './IPBlockEditor.vue';
-const page=usePageNumber(),q=ref(''),query=ref(''),data=reactive(useResource<IPBlockPage>(()=>listIPBlocks(page.value,query.value),{items:[],total:0,revision:0,status:{available:false,retrySeconds:0,counterWarning:false},currentIp:'',maxRules:10000})),editor=ref<InstanceType<typeof IPBlockEditor>>();
+const page=usePageNumber(),pageSize=usePageSize(25),q=ref(''),query=ref(''),data=reactive(useResource<IPBlockPage>(()=>listIPBlocks(page.value,query.value,pageSize.value),{items:[],total:0,revision:0,status:{available:false,retrySeconds:0,counterWarning:false},currentIp:'',maxRules:10000})),editor=ref<InstanceType<typeof IPBlockEditor>>();
 const target=ref<IPBlockRule>(),targetRevision=ref(0),confirm=ref(false),busy=ref(false),error=ref(''),uncertain=ref(false),address=ref(''),result=ref<IPBlockCheck>(),checking=ref(false),checkError=ref('');
 async function load(){await data.load();if(result.value&&result.value.revision!==data.data.revision)result.value=undefined;if(!data.error)uncertain.value=false}
 const refresh=useRefresh(load,{interval:5000});
@@ -31,7 +31,7 @@ defineExpose({load:refresh.refresh});
   <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="data.data.status.available&&!data.data.items.length" empty-title="暂无 IP 拉黑规则" @reload="load"/>
   <el-alert v-if="error" :title="error" type="error" :closable="false"/>
   <div v-for="rule in data.data.items" :key="rule.id" class="organize-record ip-block-row"><div><h3 :title="rule.network">{{rule.network}}</h3><p>{{rule.note||'暂无备注'}}</p><p>创建 {{date(rule.createdAt)}} · 命中 {{rule.hitCount}} 次 · 最近命中 {{date(rule.lastHitAt||undefined)}}</p></div><div class="media-actions"><el-button :disabled="busy||uncertain||!!data.error||!data.data.status.available" @click="editor?.open('',rule,data.data.revision)">编辑</el-button><el-button :disabled="busy||uncertain||!!data.error" @click="askDelete(rule)">删除</el-button></div></div>
-  <PagePagination v-model:current-page="page" :total="data.data.total" :page-size="25" @current-change="load"/>
+  <PagePagination v-model:current-page="page" :total="data.data.total" v-model:page-size="pageSize" @current-change="load"/>
   <section class="ip-block-check"><h3>只读命中预检</h3><p>检查运行中规则缓存，不发送媒体请求，不增加命中次数。</p><form class="media-actions" @submit.prevent="check"><el-input v-model="address" aria-label="预检 IP 地址" placeholder="输入 IPv4 或 IPv6" maxlength="64" @input="invalidateCheck"/><el-button native-type="submit" :loading="checking" :disabled="!address.trim()||!data.data.status.available">检查是否命中</el-button></form><p v-if="result" role="status">{{result.matched?'已命中规则：'+result.network:'未命中拉黑规则'}} · 修订 {{result.revision}}</p><el-alert v-if="checkError" :title="checkError" type="error" :closable="false"/></section>
  </section>
  <IPBlockEditor ref="editor" @saved="load"/>

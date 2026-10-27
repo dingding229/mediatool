@@ -23,7 +23,7 @@ import { label, progress, size, qbLabel, seedingLabel } from '../acquisition/mod
 import { date, errorText, stateFor } from '../workflows/readiness';
 import '../acquisition/acquisition.css';
 const route = useRoute(), tabs = [{ id: 'tasks', label: '下载任务' }, { id: 'uploads', label: '上传入库' }, { id: 'manual', label: '手动添加' }], tab = computed(() => tabs.some(t => t.id === route.query.tab) ? String(route.query.tab) : 'tasks');
-const {pages,totals, tasks, transfers, batches, loading, errors, notice, message, busy, confirmOpen, confirmation, sessions, sessionBusy, sessionError, binding, sessionId, refresh, load, locked, ask, execute, inspectTransfer, reconcileCleanup, bind, askBinding } = useDownloads();
+const {sizes,pages,totals, tasks, transfers, batches, loading, errors, notice, message, busy, confirmOpen, confirmation, sessions, sessionBusy, sessionError, binding, sessionId, refresh, load, locked, ask, execute, inspectTransfer, reconcileCleanup, bind, askBinding } = useDownloads();
 const source = ref<InstanceType<typeof SourceRecoveryDialog>>(), detail = ref<any>(null), detailsOpen = ref(false), cleanup = computed(() => confirmation.value?.action === 'cleanup');
 const selectedTask=computed(()=>tasks.value.find(t=>t.id===detail.value?.id));
 const actionName = computed(() => ({ pause: '暂停上传', resume: '恢复上传', cancel: '取消上传', restart: '核对后重建', bind: '绑定既有上传会话', retry: '重新排队', cleanup: '清理本地下载与种子' } as Record<string, string>)[confirmation.value?.action] || '确认操作');
@@ -69,7 +69,7 @@ usePageRefresh(()=>refresh(),'uploads');
         </article>
         </div>
         <p>暂停、恢复或只移除任务，请在下载器里操作。这里的“清理”会同时删除本地文件。</p>
-      <PagePagination label="下载任务分页" v-model:current-page="pages.tasks" :total="totals.tasks" :page-size="25" @current-change="load('tasks')"/>
+      <PagePagination label="下载任务分页" v-model:current-page="pages.tasks" :total="totals.tasks" v-model:page-size="sizes.tasks" @current-change="load('tasks')"/>
       </section>
       <RouterLink to="/connections?tab=downloader">管理下载器</RouterLink>
     </template>
@@ -117,7 +117,7 @@ usePageRefresh(()=>refresh(),'uploads');
             </template>
           </div>
         </article>
-      <PagePagination label="上传任务分页" v-model:current-page="pages.transfers" :total="totals.transfers" :page-size="25" @current-change="load('transfers')"/>
+      <PagePagination label="上传任务分页" v-model:current-page="pages.transfers" :total="totals.transfers" v-model:page-size="sizes.transfers" @current-change="load('transfers')"/>
       </section>
       <section class="acquire-surface">
         <h2>需核对的批次</h2>
@@ -131,7 +131,7 @@ usePageRefresh(()=>refresh(),'uploads');
           </div>
           <RouterLink :to="{path:'/organize',query:{tab:'history',kind:batch.kind,batchId:batch.batchId||batch.id}}">查看步骤并核对</RouterLink>
         </article>
-      <PagePagination label="待核对批次分页" v-model:current-page="pages.batches" :total="totals.batches" :page-size="25" @current-change="load('batches')"/>
+      <PagePagination label="待核对批次分页" v-model:current-page="pages.batches" :total="totals.batches" v-model:page-size="sizes.batches" @current-change="load('batches')"/>
       </section>
     </template>
     <ManualWorkspace v-else/>

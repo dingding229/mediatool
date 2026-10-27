@@ -1,9 +1,9 @@
-import {usePageNumber} from '../ui/page-query';
+import {usePageNumber,usePageSize} from '../ui/page-query';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { request } from '../api/client';
 import type { FileRoot, FileEntry, FileResult, FileCapabilities } from './types';
 export function useBrowser() {
-  const roots = ref<FileRoot[]>([]), connection = ref(''), directory = ref('.'), page = usePageNumber(), total = ref(0), entries = ref<FileEntry[]>([]), filter = ref(''), selection = ref<FileEntry[]>([]), capability = ref<FileCapabilities | null>(null), loading = ref(true), rootsLoading = ref(true), error = ref<unknown>(null), rootError = ref<unknown>(null), history = ref<FileResult[]>([]), historyLoading = ref(false), historyError = ref<unknown>(null);
+  const roots = ref<FileRoot[]>([]), connection = ref(''), directory = ref('.'), page = usePageNumber(),pageSize=usePageSize(50), total = ref(0), entries = ref<FileEntry[]>([]), filter = ref(''), selection = ref<FileEntry[]>([]), capability = ref<FileCapabilities | null>(null), loading = ref(true), rootsLoading = ref(true), error = ref<unknown>(null), rootError = ref<unknown>(null), history = ref<FileResult[]>([]), historyLoading = ref(false), historyError = ref<unknown>(null);
   const root = computed(() => roots.value.find(r => r.id === connection.value)), shown = computed(() => entries.value.filter(f => f.name.toLocaleLowerCase().includes(filter.value.toLocaleLowerCase()))), crumbs = computed(() => [{ name: '根目录', path: '.' }, ...(directory.value === '.' ? [] : directory.value.split('/').map((name, index, all) => ({ name, path: all.slice(0, index + 1).join('/') })))]);
   let version = 0, historyVersion = 0, rootVersion = 0, disposed = false;
   let hasLoaded=false;
@@ -17,7 +17,7 @@ export function useBrowser() {
     loading.value = !hasLoaded;
     error.value = null;
     try {
-      const out: any = await request(`/files?connectionId=${encodeURIComponent(connection.value)}&path=${encodeURIComponent(directory.value)}&page=${page.value}&pageSize=50`);
+      const out: any = await request(`/files?connectionId=${encodeURIComponent(connection.value)}&path=${encodeURIComponent(directory.value)}&page=${page.value}&pageSize=${pageSize.value}`);
       if (current !== version || disposed)
         return;
       if (selection.value.length)
@@ -112,7 +112,7 @@ export function useBrowser() {
     historyVersion++;
     rootVersion++;
   });
-  return { roots, connection, directory, page, total, entries, filter, selection, capability, loading, rootsLoading, error, rootError, root, shown, crumbs, history, historyLoading, historyError, load, loadRoots, loadHistory, navigate, changeRoot, select, refresh };
+  return { pageSize,roots, connection, directory, page, total, entries, filter, selection, capability, loading, rootsLoading, error, rootError, root, shown, crumbs, history, historyLoading, historyError, load, loadRoots, loadHistory, navigate, changeRoot, select, refresh };
 }
 export function permission(operation: string, row?: FileEntry, cap?: FileCapabilities | null) {
   const c = row?.capabilities || cap;

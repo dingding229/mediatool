@@ -12,7 +12,7 @@ const emit = defineEmits<{
   select: [
     MediaItem
   ];
-}>(), { kind, page, items, hasMore, truncated, loading, error, detail, detailOpen, detailLoading, detailError, load, inspect, change } = useDiscovery();
+}>(), { pageSize,kind, page, items, hasMore, truncated, loading, error, detail, detailOpen, detailLoading, detailError, load, inspect, change } = useDiscovery();
 usePageRefresh(load, 'discover');
 </script>
 <template>
@@ -41,7 +41,7 @@ usePageRefresh(load, 'discover');
       </div>
       <StateView v-if="!items.length" state="empty" title="暂无发现推荐" description="已启用的服务尚未返回作品。"/>
       <p v-if="truncated" role="status">来源仅提供部分结果，未展示的作品不代表不存在。</p>
-      <PagePagination :page-size="24" v-model:current-page="page" :has-next="hasMore" :disabled="loading" @current-change="load"/>
+      <PagePagination v-model:page-size="pageSize" :page-sizes="[10,24,25,50,100]" v-model:current-page="page" :has-next="hasMore" :disabled="loading" @current-change="load"/>
     </template>
     <DetailDrawer v-model:visible="detailOpen" :title="detail?.title||'作品详情'" class="catalog-detail">
       <StateView v-if="detailLoading" state="loading"/>
