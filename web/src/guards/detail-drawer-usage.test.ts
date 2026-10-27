@@ -52,9 +52,10 @@ it('keeps the audited DetailDrawer size map explicit',()=>{
   for(const match of matches){
    const tag=match[0]
    if(large.has(name))expect(tag,`${name}: every audited instance must be large`).toContain('size="large"')
+   else if(name==='ui/CronInput.vue')expect(tag,'Cron generator uses the shared compact dialog').toContain('size="small"')
    else expect(tag,`${name}: default-sized instance must not opt into a different width`).not.toMatch(/\ssize=/)
   }
  }
- expect(fileCount).toBe(28)
- expect(instanceCount).toBe(30)
+ expect(fileCount).toBe(29)
+ expect(instanceCount).toBe(31)
 })
