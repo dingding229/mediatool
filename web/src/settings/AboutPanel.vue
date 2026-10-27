@@ -27,7 +27,7 @@ onMounted(()=>{updates.dismiss();void updates.refresh()});usePageRefresh(updates
   <section class="settings-card f8-update"><h2>版本更新</h2>
    <form class="f8-check-settings" @submit.prevent="saveSettings">
     <label class="f8-auto">自动检查更新 <el-switch v-model="enabled" :disabled="busy||!updates.state" aria-label="自动检查更新" @change="dirty=true"/></label>
-    <label class="settings-field">检查间隔（小时）<input v-model="hours" aria-label="检查间隔（小时）" inputmode="numeric" :disabled="busy||!updates.state" :aria-invalid="!intervalValid" aria-describedby="update-interval-help" @input="dirty=true"/></label>
+    <label class="settings-field">检查间隔（小时）<input v-model="hours" class="mt-native-form-input" aria-label="检查间隔（小时）" inputmode="numeric" :disabled="busy||!updates.state" :aria-invalid="!intervalValid" aria-describedby="update-interval-help" @input="dirty=true"/></label>
     <el-button native-type="submit" :disabled="busy||!updates.state||!intervalValid">保存检查设置</el-button><el-button :loading="busy" @click="check">检查更新</el-button>
    </form>
    <p id="update-interval-help" v-if="!intervalValid" role="alert">检查间隔必须是1–168小时的整数。</p><p v-if="error||updates.error" role="alert">{{error||updates.error}}</p>

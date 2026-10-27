@@ -19,9 +19,9 @@ input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-ou
 
 /* Native single-value time controls share the same field contract across settings,
    organize and playback; semantic input types and machine-readable values stay unchanged. */
-:root input.mt-native-time-input:is([type=time],[type=datetime-local]){display:block;width:100%;max-width:100%;min-width:0;height:44px;min-height:44px;box-sizing:border-box;padding:8px 12px;border:1px solid var(--mt-border-color);border-radius:var(--el-border-radius-base);background:var(--mt-bg-surface);color:var(--mt-text-primary);font:inherit;line-height:1.4;color-scheme:light}
-:root.dark input.mt-native-time-input{color-scheme:dark}
-.mt-native-time-input:disabled{cursor:not-allowed;opacity:.72}
+:root input.mt-native-time-input:is([type=time],[type=datetime-local]),:root input.mt-native-form-input{display:block;width:100%;max-width:100%;min-width:0;height:44px;min-height:44px;box-sizing:border-box;padding:8px 12px;border:1px solid var(--mt-border-color);border-radius:var(--el-border-radius-base);background:var(--mt-bg-surface);color:var(--mt-text-primary);font:inherit;line-height:1.4;color-scheme:light}
+:root.dark input.mt-native-time-input,:root.dark input.mt-native-form-input{color-scheme:dark}
+.mt-native-time-input:disabled,.mt-native-form-input:disabled{cursor:not-allowed;opacity:.72}
 
 
 /* Form checkboxes: keep the native control size, enlarge the label hit area,

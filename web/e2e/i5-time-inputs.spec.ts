@@ -4,7 +4,7 @@ import {resolve} from 'node:path';
 import {u7Fixture} from './u7-fixture';
 import {mediaUser} from './u5-fixture';
 const policy={enabled:false,startTime:'02:00',endTime:'05:00',quietMinutes:60,revision:1,reason:''};
-const root=resolve(import.meta.dirname,'../../scratchpad/i-phase/i5');
+const root=resolve(import.meta.dirname,'../../scratchpad/i-phase/i5b');
 async function fixture(page:Page,path:string){
  await u7Fixture(page,path);
  await page.route('**/api/v1/system/version',r=>r.fulfill({json:{data:{version:'UI fixture',commit:'a'.repeat(40),schema:90,minimumSchema:79}}}));
@@ -25,7 +25,7 @@ for(const width of [1440,390])for(const theme of ['light','dark'])test(`I5 behav
  for(const target of targets){
   await fixture(page,target.path);const scope=await target.open(page);await expect(scope).toBeVisible();
   for(const label of target.labels){const input=scope.getByLabel(label,{exact:true});await expect(input).toHaveClass(/mt-native-time-input/);const g=await geometry(input);expect(g.height).toBe(44);expect(g.width).toBeGreaterThan(80);expect(g.width).toBeLessThanOrEqual(g.parentWidth+1);expect(g.x).toBeGreaterThanOrEqual(0);expect(g.x+g.width).toBeLessThanOrEqual(width+1);expect(g.boxSizing).toBe('border-box');expect(g.type).toBe(target.id==='idle'?'time':'datetime-local');if(standard){expect(g.padding).toEqual(standard.padding);expect(g.border).toEqual(standard.border)}else standard=g;}
-  if(target.id==='idle'){const a=await geometry(scope.getByLabel('开始时间',{exact:true})),b=await geometry(scope.getByLabel('结束时间',{exact:true}));expect(a.width).toBe(b.width);await expect(scope.getByLabel('开始时间',{exact:true})).toHaveValue('02:00');await expect(scope.getByLabel('结束时间',{exact:true})).toHaveValue('05:00');}
+  if(target.id==='idle'){const a=await geometry(scope.getByLabel('开始时间',{exact:true})),b=await geometry(scope.getByLabel('结束时间',{exact:true})),m=await geometry(scope.getByLabel('安静时长（分钟）',{exact:true})),reference=await geometry(page.getByLabel('检查间隔（小时）',{exact:true}));expect(a.width).toBe(b.width);for(const g of [a,b,m]){expect(g.height).toBe(reference.height);expect(g.border).toEqual(reference.border);expect(parseFloat(g.border[2]!)).toBeGreaterThan(0);expect(g.padding).toEqual(reference.padding)}if(width===1440)for(const g of [a,b,m])expect(g.width).toBe(reference.width);await expect(scope.getByLabel('开始时间',{exact:true})).toHaveValue('02:00');await expect(scope.getByLabel('结束时间',{exact:true})).toHaveValue('05:00');}
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
  }
 });
@@ -45,7 +45,7 @@ test.describe('I5 visual comparison @screenshots',()=>{
  for(const target of targets)for(const width of [1440,390])for(const theme of ['light','dark'])test(`${target.id} ${width} ${theme}`,async({page})=>{
   await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);await fixture(page,target.path);const scope=await target.open(page);await expect(scope).toBeVisible();await scope.getByLabel(target.labels[0]!,{exact:true}).scrollIntoViewIfNeeded();
   const dir=resolve(root,'screens');mkdirSync(dir,{recursive:true});const name=`${before?'before':'after'}-${target.id}-${width}-${theme}`;
-  const measurements=[];for(const label of target.labels)measurements.push({label,...await geometry(scope.getByLabel(label,{exact:true}))});
-  await page.screenshot({path:resolve(dir,name+'.png'),animations:'disabled'});await scope.screenshot({path:resolve(dir,name+'-panel.png'),animations:'disabled'});writeFileSync(resolve(dir,name+'.json'),JSON.stringify(measurements,null,2));
+  const measurements=[];for(const label of target.id==='idle'?[...target.labels,'安静时长（分钟）']:target.labels)measurements.push({label,...await geometry(scope.getByLabel(label,{exact:true}))});
+  await page.screenshot({path:resolve(dir,name+'.png'),fullPage:true,animations:'disabled'});await scope.screenshot({path:resolve(dir,name+'-panel.png'),animations:'disabled'});writeFileSync(resolve(dir,name+'.json'),JSON.stringify(measurements,null,2));
  });
 });

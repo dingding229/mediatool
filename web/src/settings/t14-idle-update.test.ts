@@ -19,3 +19,13 @@ it('keeps HH:mm validation and cross-midnight save values unchanged',async()=>{
  s.start='23:30';s.end='05:15';expect(s.valid).toBe(true);await s.save();
  expect(saveIdleUpdate).toHaveBeenCalledWith({...policy,startTime:'23:30',endTime:'05:15'},'',false);
 });
+
+it('styles quiet minutes with the same rounded native input contract as the reference interval',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const idle=readFileSync(new URL('./IdleUpdatePanel.vue',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../ui/consistency.css',import.meta.url),'utf8');
+ expect(idle).toContain('<input v-model="minutes" class="mt-native-form-input" inputmode="numeric"');
+ expect(idle).toContain('.idle-form .settings-field{width:180px;max-width:100%;min-width:0}');
+ expect(css).toContain('height:44px;min-height:44px;box-sizing:border-box;padding:8px 12px');
+ expect(css).toContain('border-radius:var(--el-border-radius-base)');
+});
