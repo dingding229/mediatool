@@ -36,7 +36,7 @@ onUnmounted(()=>{password.value=''});
    <p>改密、管理员重置或恢复、主动关闭、更新失败会使授权失效；登录会话自然过期不会撤销这项独立授权。</p>
    <p v-if="error" role="alert">{{error}}</p>
    <label for="idle-update-password">当前管理员密码</label><el-input id="idle-update-password" v-model="password" type="password" autocomplete="current-password" :disabled="busy"/>
-   <el-checkbox v-model="confirm">我已了解无人值守更新及数据库恢复风险，确认授权</el-checkbox>
+   <el-checkbox class="mt-form-checkbox" v-model="confirm">我已了解无人值守更新及数据库恢复风险，确认授权</el-checkbox>
    <template #footer><el-button :disabled="busy" @click="open=false">取消</el-button><el-button type="primary" :disabled="!password||!confirm||!valid" :loading="busy" @click="save">确认授权</el-button></template>
   </el-dialog>
  </section>

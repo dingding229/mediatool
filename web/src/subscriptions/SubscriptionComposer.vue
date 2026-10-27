@@ -76,7 +76,7 @@ onUnmounted(() => { disposed = true; ++sequence })
             <legend>从哪些站点寻找</legend>
             <StateView v-if="accountError" :state="stateFor(accountError)" title="站点账号暂不可用" :description="accountError.message" @retry="emit('retryAccounts')" />
             <p v-else-if="!accounts.length">暂无可用账号，请先在站点页面添加并启用账号。</p>
-            <el-checkbox-group v-model="draft.accountIds" aria-label="PT账号"><el-checkbox v-for="a in accounts" :key="a.id" :value="a.id">{{ a.name }}{{ a.secretFields?.includes('rssUrl') ? ' · 已配RSS' : '' }}</el-checkbox></el-checkbox-group>
+            <el-checkbox-group v-model="draft.accountIds" aria-label="PT账号"><el-checkbox class="mt-form-checkbox mt-form-checkbox-inline" v-for="a in accounts" :key="a.id" :value="a.id">{{ a.name }}{{ a.secretFields?.includes('rssUrl') ? ' · 已配RSS' : '' }}</el-checkbox></el-checkbox-group>
           </fieldset>
           <div class="composer-fields">
             <label>发现方式<el-select v-model="draft.source" aria-label="发现方式"><el-option label="周期搜索" value="search" /><el-option label="RSS新条目" value="rss" /><el-option label="搜索 + RSS" value="both" /></el-select></label>
@@ -91,7 +91,7 @@ onUnmounted(() => { disposed = true; ++sequence })
             <label>资源来源<el-select v-model="draft.releaseSource" aria-label="订阅资源来源" placeholder="不限"><el-option label="不限" value="" /><el-option v-for="s in resourceSources" :key="s.value" :label="s.label" :value="s.value" /></el-select></label>
             <label>编码<el-select v-model="draft.codec" aria-label="订阅编码" placeholder="不限"><el-option label="不限" value="" /><el-option v-for="x in ['h264','h265','av1','mpeg2']" :key="x" :label="x" :value="x" /></el-select></label>
           </div>
-          <el-checkbox v-model="draft.regexKeywords">使用正则匹配包含／排除关键词</el-checkbox>
+          <el-checkbox class="mt-form-checkbox" v-model="draft.regexKeywords">使用正则匹配包含／排除关键词</el-checkbox>
           <div class="composer-fields">
             <label>包含关键词（每行一条）<el-input v-model="draft.includeText" type="textarea" :rows="3" aria-label="订阅包含关键词" /></label>
             <label>排除关键词（每行一条）<el-input v-model="draft.excludeText" type="textarea" :rows="3" aria-label="订阅排除关键词" /></label>
@@ -102,11 +102,11 @@ onUnmounted(() => { disposed = true; ++sequence })
           </div>
           <fieldset class="composer-safeguards">
             <legend>下载保护</legend>
-            <el-checkbox v-model="draft.freeOnly">只下载已确认免费资源</el-checkbox>
-            <el-checkbox v-model="draft.rejectHR">拒绝下载H&amp;R资源</el-checkbox>
-            <p>H&amp;R 信息未知时始终拒绝自动下载。关闭此项只允许已明确标记的 H&amp;R 资源，请承担相应做种义务。</p>
-            <el-checkbox v-model="draft.includeHistory">允许首次RSS历史补抓</el-checkbox>
-            <p>RSS 缺少促销数据时无法满足免费限制；已入库或正在下载的季集不会重复申请，原做种文件不受影响。</p>
+            <el-checkbox class="mt-form-checkbox" v-model="draft.freeOnly">只下载已确认免费资源</el-checkbox>
+            <el-checkbox class="mt-form-checkbox" v-model="draft.rejectHR">拒绝下载H&amp;R资源</el-checkbox>
+            <p class="mt-form-checkbox-help">H&amp;R 信息未知时始终拒绝自动下载。关闭此项只允许已明确标记的 H&amp;R 资源，请承担相应做种义务。</p>
+            <el-checkbox class="mt-form-checkbox" v-model="draft.includeHistory">允许首次RSS历史补抓</el-checkbox>
+            <p class="mt-form-checkbox-help">RSS 缺少促销数据时无法满足免费限制；已入库或正在下载的季集不会重复申请，原做种文件不受影响。</p>
           </fieldset>
         </template>
         <template v-else-if="step === 2">
@@ -126,7 +126,7 @@ onUnmounted(() => { disposed = true; ++sequence })
             <div><dt>{{ draft.regexKeywords ? '正则筛选' : '关键词筛选' }}</dt><dd>包含：{{ draft.includeText || '—' }}<br />排除：{{ draft.excludeText || '—' }}</dd></div>
             <div v-if="draft.media?.mediaType === 'series'"><dt>跟进范围</dt><dd>第 {{ draft.season }} 季 · {{ draft.episodeText || '已播集' }}</dd></div>
           </dl>
-          <div class="composer-enable"><el-checkbox v-model="draft.enabled" :disabled="previewRun?.state !== 'succeeded'">保存后启用自动下载</el-checkbox><p>{{ draft.enabled ? '你已选择直接启用。请确认以上匹配规则与下载保护符合预期。' : '预演已完成。可以保持停用；确认匹配结果后，也可显式启用。' }}</p></div>
+          <div class="composer-enable"><el-checkbox class="mt-form-checkbox" v-model="draft.enabled" :disabled="previewRun?.state !== 'succeeded'">保存后启用自动下载</el-checkbox><p class="mt-form-checkbox-help">{{ draft.enabled ? '你已选择直接启用。请确认以上匹配规则与下载保护符合预期。' : '预演已完成。可以保持停用；确认匹配结果后，也可显式启用。' }}</p></div>
         </template>
         <el-alert v-if="validation || error" :title="error || validation" type="error" :closable="false" />
         <el-button v-if="error.includes('刷新列表')" @click="emit('reload')">核对结果</el-button>

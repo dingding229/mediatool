@@ -127,7 +127,7 @@ ownRefresh.register(load,()=>true);
    <section v-for="(label,key) in {added:'新增访问',removed:'移除访问',changed:'范围变化'}" :key="key"><h3>{{label}}</h3><p v-for="scope in plan.data?.[key]||[]" :key="scope">{{permissionName(scope)}}</p><p v-if="!plan.data?.[key].length">无</p></section>
    <Permissions :permissions="plan.data?.current.permissions||[]"/>
    <p v-if="plan.data?.availability!=='available'">当前定义不可用，已有配置和数据保留。</p>
-   <label class="u5-check"><input v-model="confirmed" type="checkbox"/>我已阅读并同意以上访问范围</label>
+   <label class="u5-check mt-form-checkbox"><input v-model="confirmed" type="checkbox"/>我已阅读并同意以上访问范围</label>
    <template #footer><el-button @click="consent=false">取消</el-button><el-button @click="review">核对结果</el-button><el-button :disabled="!confirmed||!plan.data?.needsReview||plan.data?.availability!=='available'||!!op.pending" @click="approve">确认权限并保持停用</el-button></template>
   </el-dialog>
  </div>

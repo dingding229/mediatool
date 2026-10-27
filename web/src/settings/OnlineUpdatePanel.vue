@@ -37,7 +37,7 @@ onUnmounted(()=>{password.value=''});
    <p v-if="recoveryId" role="alert">只有确认旧 app、数据库和业务数据已由运维检查恢复完成，才能解除此任务互锁；此操作写入审计，不会触发更新。</p><ReleaseNotes v-if="!recoveryId&&target" :notes="target.notes" :tag="target.tag"/>
    <p v-if="!recoveryId" role="alert">更新会短暂中断播放。失败时启动保留的旧容器；仅实际 schema 变化时恢复数据库，届时备份后产生的业务变更可能丢失。</p>
    <label for="online-update-password">当前管理员密码</label><el-input id="online-update-password" v-model="password" type="password" autocomplete="current-password" :disabled="busy" @input="error=''"/>
-   <el-checkbox v-model="confirmed">{{recoveryId?'我已核对上述风险，确认此操作':'我已了解播放中断及数据库恢复风险，确认更新'}}</el-checkbox>
+   <el-checkbox class="mt-form-checkbox" v-model="confirmed">{{recoveryId?'我已核对上述风险，确认此操作':'我已了解播放中断及数据库恢复风险，确认更新'}}</el-checkbox>
    <template #footer><el-button :disabled="busy" @click="open=false">取消</el-button><el-button type="primary" :disabled="!confirmed||!password||(!recoveryId&&!ready)" :loading="busy" @click="execute">{{recoveryId?'确认变更':'确认并执行更新'}}</el-button></template>
   </el-dialog>
  </section>

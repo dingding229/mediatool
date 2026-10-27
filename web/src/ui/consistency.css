@@ -16,3 +16,16 @@
    keyboard semantics while removing browser-provided increment/decrement UI. */
 input[type="number"]{appearance:textfield;-moz-appearance:textfield}
 input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;appearance:none;margin:0}
+
+
+/* Form checkboxes: keep the native control size, enlarge the label hit area,
+   and align the label text with any following explanatory copy. */
+.mt-form-checkbox.mt-form-checkbox{display:flex;align-items:flex-start;gap:8px;width:100%;max-width:100%;margin-right:0;min-height:44px;height:auto;box-sizing:border-box;white-space:normal;cursor:pointer}
+.mt-form-checkbox.mt-form-checkbox .el-checkbox__input{flex:0 0 20px;margin-top:2px}
+.mt-form-checkbox.mt-form-checkbox .el-checkbox__label{padding-left:0;min-width:0;line-height:1.6;white-space:normal;overflow-wrap:anywhere}
+label.mt-form-checkbox{line-height:1.6}
+label.mt-form-checkbox:not(.el-checkbox)>input[type=checkbox]{width:20px;height:20px;flex:0 0 20px;margin:2px 0 0;accent-color:var(--mt-color-primary)}
+.mt-form-checkbox-help.mt-form-checkbox-help{margin:0 0 8px var(--mt-checkbox-text-offset,28px);color:var(--mt-text-muted);line-height:1.7;overflow-wrap:anywhere}
+.mt-form-checkbox.mt-form-checkbox-inline{display:inline-flex;width:auto;vertical-align:top;margin-right:30px}
+
+.mt-form-checkbox.is-disabled,.mt-form-checkbox:has(>input[type=checkbox]:disabled){cursor:not-allowed}

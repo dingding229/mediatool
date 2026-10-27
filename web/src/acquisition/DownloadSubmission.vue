@@ -40,7 +40,7 @@ defineProps<{
       <p>下载使用打开弹窗时选中的搜索快照；过期或站点配置变化时请重新搜索。</p>
       <el-alert v-if="model.error" :title="errorText(model.error)" type="error" :closable="false"/>
       <p v-if="model.yearWarning" role="alert">{{ model.yearWarning }}</p>
-      <el-checkbox v-if="model.yearWarning" v-model="model.yearConfirmed" :disabled="!!model.intent">我已核对资源年份/季年份与所选TMDB剧集身份，确认继续下载</el-checkbox>
+      <el-checkbox class="mt-form-checkbox" v-if="model.yearWarning" v-model="model.yearConfirmed" :disabled="!!model.intent">我已核对资源年份/季年份与所选TMDB剧集身份，确认继续下载</el-checkbox>
       <AsyncResultBanner v-if="model.intent" :status="model.intent.phase" :message="model.intent.phase==='queued'?'下载已排队，尚未确认下载器接收。':'投递回执未知，先核对下载任务，不重复提交。'" @refresh="model.reconcile"/>
       <RouterLink v-if="model.intent" :to="{path:'/downloads',query:{tab:'tasks',taskId:model.intent.id}}">前往下载任务核对</RouterLink>
       <el-button v-else type="primary" :loading="model.busy" :disabled="!model.chosen||(!!model.yearWarning&&!model.yearConfirmed)" @click="model.submit">创建下载任务</el-button>

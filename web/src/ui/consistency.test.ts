@@ -43,3 +43,16 @@ it('disabled and unchanged sizes do not trigger reads and custom options win',()
 });
 
 it('pagination count copy has no whitespace before the comma',async()=>{const {createSSRApp,h}=await import('vue');const {renderToString}=await import('vue/server-renderer');const app=createSSRApp(Pagination,{total:1});app.component('el-select',{setup:(_:unknown,ctx:any)=>()=>h('select',ctx.slots.default?.())});app.component('el-option',{setup:()=>()=>h('option')});const html=await renderToString(app);expect(html).toContain('条，共 1 条');expect(html).not.toContain('条 ，共 1 条')});
+
+it('form checkbox alignment keeps native control size and label hit area',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const css=readFileSync(new URL('./consistency.css',import.meta.url),'utf8');
+ expect(css).toContain('.mt-form-checkbox.mt-form-checkbox{display:flex;align-items:flex-start');
+ expect(css).toContain('.mt-form-checkbox.mt-form-checkbox .el-checkbox__input{flex:0 0 20px');
+ expect(css).toContain('margin:0 0 8px var(--mt-checkbox-text-offset,28px)');
+ expect(css).not.toMatch(/\.mt-form-checkbox[^\{]*input[^\{]*width:\s*44px/);
+ const proxy=readFileSync(new URL('../connections/ProxySettings.vue',import.meta.url),'utf8');
+ expect(proxy.match(/mt-form-checkbox/g)?.length).toBeGreaterThanOrEqual(4);
+ const connection=readFileSync(new URL('../connections/ConnectionManager.vue',import.meta.url),'utf8');
+ expect(connection).toContain('class="mt-form-checkbox"');
+});

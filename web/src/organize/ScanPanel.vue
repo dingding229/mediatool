@@ -233,7 +233,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
             <el-option v-for="entry in roots" :key="entry.id" :value="entry.id" :label="entry.name+' · '+entry.path"/>
           </el-select>
         </label>
-        <el-checkbox v-model="useDefault" :disabled="!!pending">使用服务端默认云盘根目录</el-checkbox>
+        <el-checkbox class="mt-form-checkbox" v-model="useDefault" :disabled="!!pending">使用服务端默认云盘根目录</el-checkbox>
         <label v-if="!useDefault">
           扫描路径
           <el-input v-model="root" aria-label="扫描路径" :disabled="!!pending"/>

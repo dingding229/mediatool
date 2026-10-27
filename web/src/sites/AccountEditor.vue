@@ -158,7 +158,7 @@ defineExpose({ open, load, save, form, current, latest, op });
         订阅密钥
         <input v-model="form.passkey" type="text" aria-label="站点订阅密钥" autocomplete="off" spellcheck="false" :disabled="loading||op.busy||!!op.pending"/>
       </label>
-      <label class="u5-check">
+      <label class="u5-check mt-form-checkbox">
         <input v-model="form.rediscover" type="checkbox" :disabled="op.busy||!!op.pending"/>
         重新获取订阅地址
       </label>

@@ -251,7 +251,7 @@ defineExpose({ open, inspect });
             <el-input v-model="form.resolution" aria-label="分辨率" :disabled="busy"/>
           </label>
         </template>
-        <el-checkbox v-model="form.includeSidecars" :disabled="busy">同时处理同名侧车文件</el-checkbox>
+        <el-checkbox class="mt-form-checkbox" v-model="form.includeSidecars" :disabled="busy">同时处理同名侧车文件</el-checkbox>
         <p v-if="form.operation==='trash'">删除会移入此目录内的回收区，不是永久删除；下载做种源和托管输出不允许直接修改。</p>
         <el-button type="primary" :loading="busy" :disabled="identity?.loading" @click="preview">预览变更</el-button>
       </div>

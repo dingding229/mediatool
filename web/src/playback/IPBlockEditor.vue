@@ -34,7 +34,7 @@ defineExpose({open});
   <p>将{{form.id?'修改':'添加'}}规则：<strong class="ip-block-network">{{canonical}}</strong></p>
   <p>全部媒体用户从此 IP 或网段访问媒体均返回 403；管理后台仍可删除规则。此操作不改账号、网盘文件或 STRM。</p>
   <el-alert v-if="impact" title="此规则覆盖当前管理员访问 IP，也会限制你从此地址访问媒体服务。" type="warning" :closable="false"/>
-  <el-checkbox v-if="impact" v-model="ack">我已确认自身媒体访问将受限，仍要拉黑</el-checkbox>
+  <el-checkbox class="mt-form-checkbox" v-if="impact" v-model="ack">我已确认自身媒体访问将受限，仍要拉黑</el-checkbox>
   <template #footer><el-button :disabled="busy" @click="confirm=false">返回修改</el-button><el-button type="danger" :loading="busy" :disabled="impact&&!ack" @click="save">确认保存拉黑规则</el-button></template>
  </el-dialog>
 </template>

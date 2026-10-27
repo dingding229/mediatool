@@ -98,13 +98,13 @@ usePageRefresh(load);
               <el-button :aria-label="`复制${field.label}`" @click="reveal.copy(field.key)">复制</el-button>
             </template>
           </div>
-          <el-checkbox v-if="saved?.secretFields.includes(field.key)" v-model="form.clear" :value="field.key">明确清除{{ field.label }}</el-checkbox>
+          <el-checkbox class="mt-form-checkbox" v-if="saved?.secretFields.includes(field.key)" v-model="form.clear" :value="field.key">明确清除{{ field.label }}</el-checkbox>
         </template>
         <el-input v-else v-model="form.settings[field.key]" :aria-label="field.label" />
         <small v-if="field.hint">{{ field.hint }}</small>
       </div>
-      <el-checkbox v-model="form.enabled">启用连接</el-checkbox>
-      <p v-if="form.kind==='open115'">扫码授权不会自动启用；授权后可回到编辑窗口明确启用。</p>
+      <el-checkbox class="mt-form-checkbox" v-model="form.enabled">启用连接</el-checkbox>
+      <p class="mt-form-checkbox-help" v-if="form.kind==='open115'">扫码授权不会自动启用；授权后可回到编辑窗口明确启用。</p>
       <p v-if="reveal.message.value" role="status">{{ reveal.message.value }}</p>
       <el-alert v-if="error" :title="error" type="warning" :closable="false" />
       <section v-if="conflict" class="connection-conflict">

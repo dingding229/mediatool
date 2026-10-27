@@ -125,7 +125,7 @@ defineExpose({ open, save, reread, form, op, latest });
           显示名称
           <input v-model="form.displayName" aria-label="媒体用户显示名称" :disabled="op.busy||!!op.pending"/>
         </label>
-        <label class="u5-check">
+        <label class="u5-check mt-form-checkbox">
           <input v-model="form.enabled" type="checkbox" :disabled="op.busy||!!op.pending"/>
           启用媒体用户
         </label>
@@ -175,11 +175,11 @@ defineExpose({ open, save, reread, form, op, latest });
           <input v-model="form.confirm" type="password" :aria-label="resetMode?'确认新初始密码':'确认初始密码'" autocomplete="new-password" :disabled="op.busy||!!op.pending"/>
         </label>
       </template>
-      <label class="u5-check">
+      <label class="u5-check mt-form-checkbox">
         <input v-model="form.mustChangePassword" type="checkbox" :disabled="op.busy||!!op.pending"/>
         要求先修改密码
       </label>
-      <p v-if="form.mustChangePassword">勾选后，播放器暂不能登录，需要管理员完成密码修改。</p>
+      <p class="mt-form-checkbox-help" v-if="form.mustChangePassword">勾选后，播放器暂不能登录，需要管理员完成密码修改。</p>
       <p v-if="notice" role="status">{{ notice }}</p>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <section v-if="latest">

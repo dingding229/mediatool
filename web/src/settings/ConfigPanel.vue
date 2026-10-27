@@ -187,7 +187,7 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
             <input v-model="a.cleanupAfterImport" type="checkbox"/>
             <span>新任务上传校验并入库后，清理本地文件和下载种子</span>
           </label>
-          <p>有做种要求或要求未知时仍需人工确认。共用文件、缺少校验或归属信息时不自动删除；不追溯历史任务。</p>
+          <p class="mt-form-checkbox-help" style="--mt-checkbox-text-offset:30px">有做种要求或要求未知时仍需人工确认。共用文件、缺少校验或归属信息时不自动删除；不追溯历史任务。</p>
         </template>
         <template v-else>
           <div class="settings-grid">

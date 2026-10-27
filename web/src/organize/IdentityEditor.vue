@@ -291,8 +291,8 @@ defineExpose({ open });
           <el-input v-model="coverage" aria-label="修正实际覆盖集" placeholder="逗号分隔，如 1,3" :disabled="!!phase||saving"/>
         </label>
         <p v-if="coverage.includes(',')">每个条目播放同一个完整源文件，不切片、不按单集跳转。</p>
-        <el-checkbox v-model="migrate" :disabled="!!phase||saving">同时迁移Movies/TV输出目录（先预览）</el-checkbox>
-        <p>不勾选时只修正身份，不变更文件、输出位置或固定播放链接。</p>
+        <el-checkbox class="mt-form-checkbox" v-model="migrate" :disabled="!!phase||saving">同时迁移Movies/TV输出目录（先预览）</el-checkbox>
+        <p class="mt-form-checkbox-help">不勾选时只修正身份，不变更文件、输出位置或固定播放链接。</p>
       </template>
       <template v-else>
         <article v-for="row in batch" :key="row.candidate.id" class="organize-file-draft">
