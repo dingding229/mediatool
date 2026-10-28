@@ -1076,7 +1076,7 @@ test('STRM directory has posters and no NFO collection while tools persist repai
 
 test('UA visits expose IP and status without external server identity',async({page})=>{
  await page.route('**/api/v1/player-access/events?*',r=>fixtureFulfill(r,{json:{data:{items:[{id:'owned-visit',userAgent:'Owned-Player/1',clientIp:'192.0.2.50',entry:'emby',method:'GET',allowed:true,reason:'restriction_disabled',status:302,embyUserId:'actual-user',embyUserName:'已核验用户',embyVerified:true,createdAt:'2026-10-14T00:00:00Z'},{id:'unknown-visit',userAgent:'Owned-Player/1',clientIp:'192.0.2.51',entry:'strm',method:'HEAD',allowed:true,reason:'restriction_disabled',status:401,embyVerified:false,createdAt:'2026-10-14T00:00:01Z'}],total:2}}}))
- await fixtureLogin(page);await page.goto('/player-access');await expect(page.getByRole('heading',{name:'访问记录',exact:true})).toHaveCount(2);await expect(page.getByText(/访客地址 局域网\/保留地址/)).toHaveCount(2);await expect(page.getByLabel('Emby访问用户筛选')).toHaveCount(0)
+ await fixtureLogin(page);await page.goto('/player-access');const visits=page.getByRole('list',{name:'访问明细列表',exact:true}).getByRole('listitem');await expect(visits).toHaveCount(2);await expect(visits.nth(0).getByRole('heading')).toHaveText('准入通过 · HTTP 302');await expect(visits.nth(1).getByRole('heading')).toHaveText('准入通过 · HTTP 401');await expect(page.getByText(/访客地址 局域网\/保留地址/)).toHaveCount(2);await expect(page.getByLabel('Emby访问用户筛选')).toHaveCount(0)
 })
 
 test('search promotion header sorts full results and history evidence starts folded',async({page})=>{
