@@ -34,7 +34,7 @@ async function checkGeometry(dialog:Locator,width:number,expectedWidth:number){
 
 // Fast behavior gate, with no screenshot calls, artificial sleeps, retries or forced clicks.
 for(const width of [1440,390])for(const target of targets)test(`I2 behavior ${target.name} ${width}`,async({page})=>{
- const {dialog,trigger}=await open(page,target,width);const panel=await checkGeometry(dialog,width,target.name==='media-library'?800:1000);
+ const {dialog,trigger}=await open(page,target,width);const panel=await checkGeometry(dialog,width,1000);
  const close=panel.locator('.el-dialog__headerbtn');await close.focus();
  await page.keyboard.press('Shift+Tab');await expect.poll(()=>panel.evaluate(el=>el.contains(document.activeElement))).toBe(true);
  if(width===1440){await page.mouse.click(2,2);await expect(dialog).toBeVisible();}
@@ -55,7 +55,7 @@ test.describe('I2 visual review @screenshots',()=>{
  test.skip(!localScreenshots,'Opt in locally with I2_SCREENSHOTS=1; screenshots are excluded from CI.');
  for(const width of [1440,390])for(const theme of ['light','dark'])for(const target of targets)test(`${target.name} ${width} ${theme}`,async({page})=>{
   const {dialog}=await open(page,target,width,theme);
-  if(!before)await checkGeometry(dialog,width,target.name==='media-library'?800:1000);
+  if(!before)await checkGeometry(dialog,width,1000);
   const output=resolve(import.meta.dirname,'../../scratchpad/i-phase/i2/screens');mkdirSync(output,{recursive:true});
   await page.screenshot({path:resolve(output,`${before?'before':'after'}-${target.name}-${width}-${theme}.png`),animations:'disabled'});
  });

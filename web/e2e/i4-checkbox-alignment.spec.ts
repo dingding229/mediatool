@@ -65,7 +65,7 @@ for(const width of [1440,390])for(const theme of ['light','dark'])test(`I4 behav
  await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);
  for(const target of targets)await test.step(target.id,async()=>{
   const scope=await target.open(page);await expect(scope).toBeVisible();const boxes=scope.getByRole('checkbox');
-  expect(await boxes.count()).toBeGreaterThan(0);
+  await expect(boxes).not.toHaveCount(0);
   for(const input of await boxes.all())if(await input.locator('xpath=ancestor::label[1]').isVisible())await check(input);
   const helper=scope.locator('.mt-form-checkbox-help').first();
   if(target.id==='115')await checkHelp(scope.getByRole('checkbox',{name:'启用连接',exact:true}),helper);

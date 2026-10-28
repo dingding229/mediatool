@@ -594,6 +594,8 @@ test('local file management previews organize, keeps sidecars and uses reversibl
 })
 
 test('media catalog browses builtin content without exposing playback credentials (fixture)',async({page})=>{
+ const item={id:'owned-catalog',source:'managed',title:'自有影片验证样本',year:'2026',mediaType:'movie',overview:'用于界面验收的明确测试内容，不是实际影片入库记录。',poster:'',state:'present',filePath:'/115/Owned/Owned.mkv'}
+ await page.route('**/api/v1/media/library/managed/owned-catalog',r=>fixtureFulfill(r,{json:{data:item}}))
  await page.route('**/api/v1/integrations',r=>fixtureFulfill(r,{json:{data:[{kind:'emby',enabled:true}]}}));await fixtureLogin(page)
  await page.route('**/api/v1/media/library?**',route=>{const query=new URL(route.request().url()).searchParams;const source=query.get('source')??'managed';return fixtureFulfill(route,{status:200,contentType:'application/json',body:JSON.stringify({data:{items:[{id:'owned-catalog',source,title:'自有影片验证样本',year:'2026',mediaType:'movie',overview:'用于界面验收的明确测试内容，不是实际影片入库记录。',poster:'',state:'present',filePath:'/115/Owned/Owned.mkv'}],total:1,page:1,pageSize:24,source}})})})
  await page.goto('/mediaLibrary')
