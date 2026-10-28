@@ -21,7 +21,7 @@ async function applyDelete(){if(!remove.value)return;const row=remove.value,targ
 </script>
 <template>
 <section class="subtitle-panel" aria-label="字幕管理">
- <h3>字幕</h3><p>按物理版本管理。自动字幕仍使用网盘直链；上传副本仅保存在本程序数据卷，不写媒体或 STRM 目录。</p>
+ <h3>字幕</h3><p>按物理版本管理；自动字幕走直链，上传副本仅存本程序，不改媒体或 STRM。</p>
  <label class="subtitle-field">物理版本<select v-model="asset" aria-label="字幕物理版本" :disabled="!!op.pending"><option v-for="v in data.data.versions" :key="v.id" :value="v.id">{{v.name}}</option></select></label>
  <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" @reload="load"/>
  <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>

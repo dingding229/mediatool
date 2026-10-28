@@ -3,7 +3,7 @@ import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {i3Fixture} from './i3-fixture';
 
-type Target={id:string;file:string;path:string;title:string;size?:'default';open:(p:Page)=>Promise<void>};
+type Target={id:string;file:string;path:string;title:string;size?:'default'|'large';open:(p:Page)=>Promise<void>};
 const button=(name:string)=>(p:Page)=>p.getByRole('button',{name,exact:true}).first().click();
 const summary=async(p:Page,text:string)=>{const s=p.locator('summary').filter({hasText:text}).first();await s.click()};
 export const targets:Target[]=[
@@ -32,7 +32,7 @@ export const targets:Target[]=[
  {id:'processing',file:'playback/ProcessingPanel.vue',path:'/playback?tab=processing',title:'预处理技术详情',open:button('技术详情')},
  {id:'accounts',file:'sites/AccountsPanel.vue',path:'/sites?tab=accounts',title:'站点数据与趋势',open:p=>p.locator('.f5-site-name').first().click()},
  {id:'templates',file:'sites/TemplatesPanel.vue',path:'/sites?tab=templates',title:'内置模板详情',size:'default',open:button('模板详情')},
- {id:'media',file:'views/MediaWorkspaceView.vue',path:'/library',title:'海边的故事',size:'default',open:p=>p.locator('.catalog-poster').first().click()},
+ {id:'media',file:'views/MediaWorkspaceView.vue',path:'/library',title:'海边的故事',size:'large',open:p=>p.locator('.catalog-poster').first().click()},
  {id:'plugin',file:'views/PluginsWorkspaceView.vue',path:'/plugins?tab=catalog',title:'操作技术详情',open:async p=>{await button('新增独立实例')(p);const consent=p.getByRole('dialog',{name:'插件权限确认',exact:true});await consent.getByRole('checkbox').check();await consent.getByRole('button',{name:'确认安装插件',exact:true}).click();await expect(consent.locator('details')).toBeVisible();await consent.getByRole('button',{name:'取消',exact:true}).click();await button('查看技术详情')(p)}},
  {id:'subscription',file:'views/SubscriptionWorkspaceView.vue',path:'/subscriptions?tab=list',title:'订阅详情',open:p=>p.locator('.subscription-title').first().click()},
  {id:'subscription-run',file:'views/SubscriptionWorkspaceView.vue',path:'/subscriptions?tab=history&run=i3-run',title:'运行详情',open:button('完整运行详情')},

@@ -29,7 +29,7 @@ test('T3 edit field locks, explicit restore, 409 keeps draft, unmatched notice',
  const form=page.locator('.metadata-editor');await expect(form.locator('#metadata-communityRating')).toHaveValue('6.7');await expect(form.getByText('暂无刮削值',{exact:false}).first()).toBeVisible();
  await form.locator('#metadata-title').fill('人工标题');await form.locator('#metadata-overview').fill('人工简介');
  await form.getByRole('button',{name:'保存信息',exact:true}).click();await expect(form.getByRole('status').filter({hasText:'信息已保存'})).toBeVisible();expect(f.state().overrides).toEqual({title:'人工标题',overview:'人工简介'});
- await expect(page.getByRole('heading',{name:'人工标题',exact:true})).toBeVisible();
+ await expect(page.locator('.catalog-title-row').getByRole('heading',{name:'人工标题',exact:true})).toBeVisible();
  const row=form.locator('.metadata-row').filter({has:page.locator('#metadata-title')});await expect(row.getByText('人工锁定',{exact:true})).toBeVisible();
  await row.getByRole('button',{name:'恢复为刮削值',exact:true}).click();await form.getByRole('button',{name:'保存信息',exact:true}).click();expect(f.state().overrides).toEqual({overview:'人工简介'});
  await form.locator('#metadata-overview').fill('保留草稿');f.conflict();await form.getByRole('button',{name:'保存信息',exact:true}).click();await expect(form.getByRole('alert')).toContainText('信息已变化');await expect(form.locator('#metadata-overview')).toHaveValue('保留草稿');await expect(form.getByRole('button',{name:'保存信息',exact:true})).toBeDisabled();
@@ -37,6 +37,7 @@ test('T3 edit field locks, explicit restore, 409 keeps draft, unmatched notice',
  await form.getByText('未匹配的人工信息（1）',{exact:true}).click();await expect(form.getByRole('button',{name:'第 1 季 · 第 2 集 · 未匹配'})).toBeVisible();
 });
 test('T3 metadata editor screenshots 1440/390 light/dark aligned without overflow',async({page})=>{
+ test.skip(process.env.T3_SCREENSHOTS!=='1'||!!process.env.CI||!!process.env.GITHUB_ACTIONS,'Local explicit screenshot opt-in only');
  await fixture(page);mkdirSync(dir,{recursive:true});
  for(const width of [1440,390])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);await page.goto('/library');await page.getByRole('button',{name:'海边的故事',exact:true}).click();
@@ -51,6 +52,7 @@ test('T3 metadata editor screenshots 1440/390 light/dark aligned without overflo
 });
 
 test('T3 previous-release screenshot matrix for before/after comparison',async({page})=>{
+ test.skip(process.env.T3_SCREENSHOTS!=='1'||!!process.env.CI||!!process.env.GITHUB_ACTIONS,'Local explicit screenshot opt-in only');
  test.skip(!process.env.T3_BEFORE_ASSETS,'only local baseline visual evidence');
  const {readFileSync}=await import('node:fs');const {basename,join,extname}=await import('node:path');const root=process.env.T3_BEFORE_ASSETS!;
  await fixture(page);

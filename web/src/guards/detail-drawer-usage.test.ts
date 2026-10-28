@@ -42,7 +42,7 @@ it('keeps the audited DetailDrawer size map explicit',()=>{
   'operations/CachePanel.vue','operations/LogsPanel.vue','operations/MaintenancePanel.vue','operations/QueuePanel.vue','operations/WebRestorePanel.vue',
   'organize/ArchivePanel.vue','organize/HistoryPanel.vue','organize/ScanPanel.vue',
   'playback/AccessPanel.vue','playback/ProcessingPanel.vue','playback/ServicePanel.vue','playback/SessionsPanel.vue','playback/UsersPanel.vue',
-  'settings/ExternalAccessPanel.vue','sites/AccountsPanel.vue','views/DownloadsWorkspaceView.vue','views/OrganizeWorkspaceView.vue','views/PluginsWorkspaceView.vue','views/SubscriptionWorkspaceView.vue',
+  'settings/ExternalAccessPanel.vue','sites/AccountsPanel.vue','views/DownloadsWorkspaceView.vue','views/MediaWorkspaceView.vue','views/OrganizeWorkspaceView.vue','views/PluginsWorkspaceView.vue','views/SubscriptionWorkspaceView.vue',
  ])
  let fileCount=0,instanceCount=0
  for(const file of sources(root)){

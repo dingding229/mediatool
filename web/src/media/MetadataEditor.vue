@@ -7,7 +7,7 @@ import {metadataFields,readMediaMetadata,saveMediaMetadata,metadataTargetID,type
 import {inputValue,metadataLabels,metadataPatch} from './metadata-form';
 import {errorText} from '../workflows/readiness';
 const unmatchedPage=usePageNumber('unmatchedPage'),unmatchedSize=usePageSize(50,'unmatchedPage');
-const props=defineProps<{itemId:string}>(),emit=defineEmits<{saved:[]}>();
+const props=withDefaults(defineProps<{itemId:string;hideTrigger?:boolean}>(),{hideTrigger:false}),emit=defineEmits<{saved:[]}>();
 const opened=ref(false),busy=ref(false),record=ref<MetadataRecord>(),draft=reactive(Object.fromEntries(metadataFields.map(k=>[k,''])) as Record<MetadataField,string>),restore=ref(new Set<MetadataField>()),error=ref(''),notice=ref(''),blocked=ref(false),activeID=ref(props.itemId),choices=ref<MetadataTarget[]>([]);
 let epoch=0;
 const patch=computed(()=>record.value?metadataPatch(record.value,draft,restore.value):undefined);
@@ -24,7 +24,11 @@ async function load(keep=false,page=unmatchedPage.value){
   if(activeID.value===props.itemId)choices.value=out.choices||[out.target];blocked.value=false;if(keep)notice.value='已读取当前版本并保留修改草稿，未改字段使用当前值，请比较后再保存。';
  }catch(e){if(version===epoch)error.value=errorText(e);}finally{if(version===epoch)busy.value=false;}
 }
-function open(){opened.value=true;activeID.value=props.itemId;notice.value='';blocked.value=false;void load();}
+// External title actions resume the mounted draft when switching between editors.
+function open(){if(opened.value)return;opened.value=true;if(props.hideTrigger&&record.value)return;activeID.value=props.itemId;notice.value='';blocked.value=false;void load();}
+function close(){opened.value=false;}
+function isOpen(){return opened.value;}
+defineExpose({open,close,isOpen,busy});
 function stageRestore(key:MetadataField){restore.value.add(key);draft[key]=inputValue(record.value?.base[key],key);notice.value='恢复操作尚未保存。';}
 function changed(key:MetadataField){restore.value.delete(key);}
 async function choose(id:string){activeID.value=id;notice.value='';await load();}
@@ -32,9 +36,9 @@ async function save(){if(!patch.value||!dirty.value||blocked.value)return;const 
 watch(()=>props.itemId,()=>{epoch++;opened.value=false;record.value=undefined;activeID.value=props.itemId;busy.value=false;blocked.value=false;});
 </script>
 <template>
-<section class="metadata-editor" aria-label="元数据信息">
- <el-button v-if="!opened" @click="open">编辑信息</el-button>
- <template v-else>
+<section v-if="opened||!props.hideTrigger" class="metadata-editor" aria-label="元数据信息">
+ <el-button v-if="!opened&&!props.hideTrigger" @click="open">编辑信息</el-button>
+ <template v-if="opened">
   <div class="metadata-heading"><h3>编辑信息</h3><el-button :disabled="busy" @click="opened=false">收起编辑</el-button></div>
   <p class="metadata-note">修改过的字段将逐项锁定，不会被后续刮削覆盖。同一作品或单集的物理版本共用文字信息，不改文件与目录分类。</p>
   <label v-if="choices.length>1" class="metadata-field">选择单集<select :value="record?metadataTargetID(record.target):activeID" :disabled="busy||dirty" @change="choose(($event.target as HTMLSelectElement).value)"><option v-for="t in choices" :key="metadataTargetID(t)" :value="metadataTargetID(t)">{{targetLabel(t)}}</option></select></label>

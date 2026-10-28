@@ -4,7 +4,7 @@ import {APIError} from '../api/client';
 import {readMediaImages,readImageCandidates,uploadMediaImage,changeMediaImage,imageKinds,type ImageKind,type ImageRecord,type ImageCandidates} from '../api/mediaImages';
 import {metadataTargetID,type MetadataTarget} from '../api/mediaMetadata';
 import {errorText} from '../workflows/readiness';
-const props=defineProps<{itemId:string}>(),emit=defineEmits<{saved:[]}>();
+const props=withDefaults(defineProps<{itemId:string;hideTrigger?:boolean}>(),{hideTrigger:false}),emit=defineEmits<{saved:[]}>();
 const open=ref(false),record=ref<ImageRecord>(),target=ref(''),busy=ref(false),error=ref(''),notice=ref(''),blocked=ref(false),picker=ref<ImageKind>(),candidates=ref<ImageCandidates>(),broken=ref(new Set<string>());
 let generation=0;
 const selectedId=computed(()=>target.value||props.itemId);
@@ -15,6 +15,10 @@ watch(()=>props.itemId,()=>{generation++;busy.value=false;open.value=false;recor
 function failed(e:unknown){error.value=errorText(e);if(e instanceof APIError&&e.status===409)blocked.value=true;}
 async function load(){const version=++generation,id=selectedId.value;busy.value=true;error.value='';picker.value=undefined;candidates.value=undefined;try{const out=await readMediaImages(id);if(version!==generation)return;record.value=out;blocked.value=false;}catch(e){if(version===generation)failed(e)}finally{if(version===generation)busy.value=false}}
 async function toggle(){open.value=!open.value;if(open.value&&!record.value)await load()}
+async function openEditor(){if(!open.value)await toggle()}
+function close(){open.value=false;}
+function isOpen(){return open.value;}
+defineExpose({open:openEditor,close,isOpen,busy});
 async function chooseScope(id:string){target.value=id;await load()}
 function change(kind:ImageKind){return {kind,targetKey:record.value!.targetKey,revision:record.value!.revision}}
 async function upload(kind:ImageKind,event:Event){const input=event.target as HTMLInputElement,file=input.files?.[0];if(!file||!record.value)return;input.value='';if(file.size>10*1024*1024){error.value='图片不能超过10MB';return}await save(()=>uploadMediaImage(selectedId.value,change(kind),file));}
@@ -22,8 +26,8 @@ async function save(action:()=>Promise<ImageRecord>){const version=++generation;
 async function showCandidates(kind:ImageKind){const version=++generation,id=selectedId.value;picker.value=kind;busy.value=true;error.value='';try{const out=await readImageCandidates(id);if(version===generation)candidates.value=out}catch(e){if(version===generation)failed(e)}finally{if(version===generation)busy.value=false}}
 </script>
 <template>
-<section class="image-editor">
- <header><h3>图片</h3><el-button :aria-expanded="open" :disabled="busy" @click="toggle">{{open?'收起图片编辑':'编辑图片'}}</el-button></header>
+<section v-if="open||!props.hideTrigger" class="image-editor">
+ <header v-if="open||!props.hideTrigger"><h3>图片</h3><el-button :aria-expanded="open" :disabled="busy" @click="toggle">{{open?'收起图片编辑':'编辑图片'}}</el-button></header>
  <template v-if="open">
   <p class="image-note">支持 JPG、PNG、WebP，最大10MB。人工图片单独锁定，恢复后使用当前刮削值，不修改网盘、STRM 或 NFO。</p>
   <p v-if="error" role="alert" class="image-error">{{error}} <el-button :disabled="busy" @click="load">重新读取并核对</el-button></p><p v-if="notice" role="status">{{notice}}</p>

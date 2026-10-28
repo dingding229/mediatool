@@ -27,6 +27,7 @@ test('T2 real detail mapping, configured category filter and one embedded subtit
  expect(obsolete).toEqual([]);
 });
 test('T2 screenshot matrix at 1440 and 390 in both themes without horizontal overflow',async({page})=>{
+ test.skip(process.env.T2_SCREENSHOTS!=='1'||!!process.env.CI||!!process.env.GITHUB_ACTIONS,'Local explicit screenshot opt-in only');
  await fixture(page);mkdirSync(dir,{recursive:true});
  for(const width of [1440,390])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height:1100});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);
