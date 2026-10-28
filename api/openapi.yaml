@@ -2569,6 +2569,55 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
+      "HTTP200_71f6ef5b92f2": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "affectsCurrent": {
+                      "type": "boolean"
+                    },
+                    "candidateNetwork": {
+                      "type": "string"
+                    },
+                    "coveredBy": {
+                      "type": "string"
+                    },
+                    "matched": {
+                      "type": "boolean"
+                    },
+                    "network": {
+                      "type": "string"
+                    },
+                    "revision": {
+                      "format": "int64",
+                      "type": "integer"
+                    },
+                    "ruleId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "affectsCurrent",
+                    "matched",
+                    "revision"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
       "HTTP200_7340bf18e44d": {
         "content": {
           "image/jpeg": {
@@ -2838,52 +2887,6 @@
                     "array",
                     "null"
                   ]
-                }
-              },
-              "required": [
-                "data"
-              ],
-              "type": "object"
-            }
-          }
-        },
-        "description": "实际业务响应；排队/批准不等于执行完成。"
-      },
-      "HTTP200_7f393a6961d1": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "additionalProperties": false,
-              "properties": {
-                "data": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "affectsCurrent": {
-                      "type": "boolean"
-                    },
-                    "candidateNetwork": {
-                      "type": "string"
-                    },
-                    "matched": {
-                      "type": "boolean"
-                    },
-                    "network": {
-                      "type": "string"
-                    },
-                    "revision": {
-                      "format": "int64",
-                      "type": "integer"
-                    },
-                    "ruleId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "affectsCurrent",
-                    "matched",
-                    "revision"
-                  ],
-                  "type": "object"
                 }
               },
               "required": [
@@ -73687,7 +73690,7 @@
         "x-go-handler": "listIPBlock",
         "x-go-registration": "GET /api/v1/player-access/ip-blocklist",
         "x-listener": "management",
-        "x-source": "ip_block.go:239"
+        "x-source": "ip_block.go:250"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -73754,7 +73757,7 @@
         "x-go-handler": "listIPBlock",
         "x-go-registration": "GET /api/v1/player-access/ip-blocklist",
         "x-listener": "management",
-        "x-source": "ip_block.go:239"
+        "x-source": "ip_block.go:250"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -73840,7 +73843,7 @@
         "x-go-handler": "changeIPBlock",
         "x-go-registration": "POST /api/v1/player-access/ip-blocklist",
         "x-listener": "management",
-        "x-source": "ip_block.go:240"
+        "x-source": "ip_block.go:251"
       }
     },
     "/api/v1/player-access/ip-blocklist/check": {
@@ -73869,6 +73872,9 @@
                   "address": {
                     "type": "string"
                   },
+                  "excludeId": {
+                    "type": "string"
+                  },
                   "network": {
                     "type": "string"
                   }
@@ -73881,7 +73887,7 @@
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_7f393a6961d1"
+            "$ref": "#/components/responses/HTTP200_71f6ef5b92f2"
           },
           "400": {
             "$ref": "#/components/responses/HTTP400_3359b4c4cf0f"
@@ -73917,7 +73923,7 @@
         "x-go-handler": "checkIPBlock",
         "x-go-registration": "POST /api/v1/player-access/ip-blocklist/check",
         "x-listener": "management",
-        "x-source": "ip_block.go:243"
+        "x-source": "ip_block.go:254"
       }
     },
     "/api/v1/player-access/ip-blocklist/{id}": {
@@ -74014,7 +74020,7 @@
         "x-go-handler": "changeIPBlock",
         "x-go-registration": "DELETE /api/v1/player-access/ip-blocklist/{id}",
         "x-listener": "management",
-        "x-source": "ip_block.go:242"
+        "x-source": "ip_block.go:253"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -74109,7 +74115,7 @@
         "x-go-handler": "changeIPBlock",
         "x-go-registration": "PUT /api/v1/player-access/ip-blocklist/{id}",
         "x-listener": "management",
-        "x-source": "ip_block.go:241"
+        "x-source": "ip_block.go:252"
       }
     },
     "/api/v1/player-access/observations": {

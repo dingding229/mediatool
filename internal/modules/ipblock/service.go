@@ -124,7 +124,7 @@ func (s *Service) Evaluate(ip netip.Addr, count bool, fields ...any) (Match, err
 				}
 				d := s.hits[r.ID]
 				if d.Count == 0 {
-					s.log.Warn("媒体请求命中 IP 拉黑规则", append([]any{"module", "ipblock", "ruleId", r.ID, "network", r.Network, "clientIp", ip.String()}, fields...)...)
+					s.log.Warn("媒体请求命中 IP 黑名单规则", append([]any{"module", "ipblock", "ruleId", r.ID, "network", r.Network, "clientIp", ip.String()}, fields...)...)
 				}
 				d.Count++
 				d.Last = time.Now().UTC()
@@ -152,7 +152,7 @@ func (s *Service) Change(ctx context.Context, m Mutation) (Policy, error) {
 		}
 		if errors.Is(e, ErrCommitUnknown) {
 			s.current.Store(nil)
-			s.log.Warn("IP 拉黑规则修改结果待核对，媒体请求返回 503，后台将重载数据库策略", "module", "ipblock")
+			s.log.Warn("IP 黑名单规则修改结果待核对，媒体请求返回 503，后台将重载数据库策略", "module", "ipblock")
 		}
 		return p, ErrUnavailable
 	}
@@ -227,7 +227,7 @@ func (s *Service) Suspend() func() {
 			e := s.reload(ctx)
 			s.suspended.Store(false)
 			if e != nil {
-				s.log.Warn("恢复后 IP 拉黑策略重载失败，媒体请求未放行，正在自动重试", "module", "ipblock")
+				s.log.Warn("恢复后 IP 黑名单策略重载失败，媒体请求未放行，正在自动重试", "module", "ipblock")
 			}
 		})
 	}
@@ -253,12 +253,12 @@ func (s *Service) Run(ctx context.Context) error {
 				cancel()
 				if e != nil {
 					s.retrySeconds.Store(int64(delay / time.Second))
-					s.log.Warn("IP 拉黑策略加载失败，媒体请求返回 503，将自动重试", "module", "ipblock", "retrySeconds", int64(delay/time.Second))
+					s.log.Warn("IP 黑名单策略加载失败，媒体请求返回 503，将自动重试", "module", "ipblock", "retrySeconds", int64(delay/time.Second))
 					timer.Reset(delay)
 					delay = min(delay*2, time.Minute)
 					continue
 				}
-				s.log.Info("IP 拉黑策略已加载，媒体准入自动恢复", "module", "ipblock")
+				s.log.Info("IP 黑名单策略已加载，媒体准入自动恢复", "module", "ipblock")
 				delay = time.Second
 			}
 			timer.Reset(time.Second)
@@ -267,8 +267,35 @@ func (s *Service) Run(ctx context.Context) error {
 			e := s.Flush(c)
 			cancel()
 			if e != nil {
-				s.log.Warn("IP 拉黑命中计数刷盘失败，保留增量重试；阻断不受影响", "module", "ipblock")
+				s.log.Warn("IP 黑名单命中计数刷盘失败，保留增量重试；阻断不受影响", "module", "ipblock")
 			}
 		}
 	}
+}
+
+// CoveredBy previews complete network coverage without counting hits or changing policy.
+// Change rechecks this under the database policy lock; preview is never write authority.
+func (s *Service) CoveredBy(candidate netip.Prefix, excludeID string) (string, error) {
+	if s == nil || !s.Status().Available {
+		return "", ErrUnavailable
+	}
+	v := s.current.Load()
+	if v == nil {
+		return "", ErrUnavailable
+	}
+	for p, r := range v.entries {
+		if r.ID == excludeID && p == candidate {
+			return "", nil
+		}
+	}
+	var covering netip.Prefix
+	for p, r := range v.entries {
+		if r.ID != excludeID && p.Addr().BitLen() == candidate.Addr().BitLen() && p.Bits() <= candidate.Bits() && p.Contains(candidate.Addr()) && (!covering.IsValid() || p.Bits() < covering.Bits()) {
+			covering = p
+		}
+	}
+	if covering.IsValid() {
+		return covering.String(), nil
+	}
+	return "", nil
 }

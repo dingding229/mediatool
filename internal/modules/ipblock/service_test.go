@@ -101,7 +101,7 @@ func testService(t *testing.T) (*Service, *memoryStore) {
 	return s, m
 }
 func TestNetworkAndMatching(t *testing.T) {
-	for _, raw := range []string{"", "broken", "203.0.113.4/24", "0.0.0.0/0", "::/0", "fe80::1%eth0", "224.0.0.1"} {
+	for _, raw := range []string{"", "broken", "::ffff:203.0.113.9/120", "0.0.0.0/0", "::/0", "fe80::1%eth0", "224.0.0.1"} {
 		if _, e := Network(raw); e == nil {
 			t.Fatal(raw)
 		}
@@ -288,5 +288,52 @@ func TestAmbiguousCommitsNeverDoubleCountOrKeepAStaleAllowSnapshot(t *testing.T)
 	}
 	if v, e := s.Evaluate(netip.MustParseAddr("1.1.1.1"), false); e != nil || !v.Matched {
 		t.Fatal(v, e)
+	}
+}
+
+func TestI11NetworkExpansionAndExplicitCIDR(t *testing.T) {
+	for raw, want := range map[string]string{
+		"192.0.2.199": "192.0.2.0/24", "2001:db8:abcd:12::9": "2001:db8:abcd:12::/64",
+		"::ffff:192.0.2.199": "192.0.2.0/24", "192.0.2.199/32": "192.0.2.199/32",
+		"192.0.2.199/24": "192.0.2.0/24", "2001:db8::9/48": "2001:db8::/48",
+		"2001:db8::9/128": "2001:db8::9/128",
+	} {
+		p, e := Network(raw)
+		if e != nil || p.String() != want {
+			t.Fatalf("%s: %s %v", raw, p, e)
+		}
+		again, e := Network(p.String())
+		if e != nil || again != p {
+			t.Fatal("not idempotent", raw)
+		}
+	}
+}
+func TestI11WholePrefixCoverage(t *testing.T) {
+	s, _ := testService(t)
+	for _, c := range []struct{ network, id, want string }{
+		{"8.8.8.9/32", "", "8.8.8.0/24"}, {"8.8.8.0/24", "", "8.8.8.0/24"},
+		{"8.8.0.0/16", "", ""}, {"8.8.9.0/24", "", ""}, {"8.8.8.8/32", "exact", ""},
+		{"2001:db8:1::/64", "", "2001:db8::/32"}, {"2001:db9::/64", "", ""},
+	} {
+		got, e := s.CoveredBy(netip.MustParsePrefix(c.network), c.id)
+		if e != nil || got != c.want {
+			t.Fatalf("%+v: %q %v", c, got, e)
+		}
+	}
+	if !errors.Is(CoveredError{Network: "192.0.2.0/24"}, ErrDuplicate) {
+		t.Fatal("duplicate classification lost")
+	}
+	// Live matching still unmapped IPv6, inside/outside and longest-prefix wins.
+	p, _ := Network("192.0.2.199")
+	p6, _ := Network("2001:db8:1:2::99")
+	s.current.Store(&snapshot{entries: map[netip.Prefix]Rule{p: {ID: "expanded", Network: p.String()}, p6: {ID: "expanded6", Network: p6.String()}}, lengths: []int{64, 24}})
+	for _, c := range []struct {
+		ip      string
+		matched bool
+	}{{"192.0.2.1", true}, {"192.0.2.254", true}, {"::ffff:192.0.2.3", true}, {"192.0.3.1", false}, {"2001:db8:1:2::1", true}, {"2001:db8:1:3::1", false}} {
+		m, e := s.Evaluate(netip.MustParseAddr(c.ip), false)
+		if e != nil || m.Matched != c.matched {
+			t.Fatal(c, m, e)
+		}
 	}
 }

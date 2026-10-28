@@ -713,7 +713,9 @@ POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹�
 |---|---|---|---|---|
 | POST | `/api/v1/scheduling/cron/preview` | management | 前端直接调用：Cron实时校验与接下来5次预览（只读） | `web/src/api/scheduling.ts:4` |
 
-## T11 IP 拉黑（管理端）
+## T11 IP 黑名单（管理端）
+
+单 IP 预检自动扩为 IPv4 /24、IPv6 /64；显式 CIDR 规范化后保留前缀。check 可传 excludeId，返回 candidateNetwork、affectsCurrent、coveredBy；完整覆盖新增由写事务再次校验，备注限制仍为 500 字符。
 | 方法 | 路径 | listener | 使用 | 证据 |
 |---|---|---|---|---|
 | GET | `/api/v1/player-access/ip-blocklist` | management | 前端直接调用 | `web/src/api/ip-blocklist.ts:7` |

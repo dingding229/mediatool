@@ -84,7 +84,7 @@ func (a *API) admitIP(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if !ok {
 		w.Header().Set("Cache-Control", "no-store")
-		fail(w, 403, "player_ip_denied", "当前 IP 已被拉黑，请联系管理员")
+		fail(w, 403, "player_ip_denied", "当前 IP 已在 IP 黑名单中，请联系管理员")
 	}
 	return ok
 }
@@ -121,7 +121,7 @@ func (a *API) listIPBlock(w http.ResponseWriter, r *http.Request) {
 	p, e := a.Deps.IPBlock.Policy(ctx)
 	if e != nil {
 		if out.Status.Available {
-			fail(w, 503, "player_ip_list_unavailable", "暂时无法读取 IP 拉黑列表；已加载的阻断规则仍然生效")
+			fail(w, 503, "player_ip_list_unavailable", "暂时无法读取 IP 黑名单列表；已加载的阻断规则仍然生效")
 			return
 		}
 		write(w, 200, out)
@@ -194,10 +194,15 @@ func (a *API) changeIPBlock(w http.ResponseWriter, r *http.Request) {
 }
 func (a *API) checkIPBlock(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Address string `json:"address"`
-		Network string `json:"network"`
+		Address   string `json:"address"`
+		Network   string `json:"network"`
+		ExcludeID string `json:"excludeId,omitempty"`
 	}
 	if !decodeLimit(w, r, &in, 1024) {
+		return
+	}
+	if in.ExcludeID != "" && !isWorkbenchUUID(in.ExcludeID) {
+		fail(w, 400, "invalid_player_ip", "规则 ID 无效")
 		return
 	}
 	ip, e := netip.ParseAddr(strings.TrimSpace(in.Address))
@@ -216,6 +221,7 @@ func (a *API) checkIPBlock(w http.ResponseWriter, r *http.Request) {
 		Network          string `json:"network,omitempty"`
 		Revision         int64  `json:"revision"`
 		CandidateNetwork string `json:"candidateNetwork,omitempty"`
+		CoveredBy        string `json:"coveredBy,omitempty"`
 		AffectsCurrent   bool   `json:"affectsCurrent"`
 	}{Matched: m.Matched, RuleID: m.RuleID, Network: m.Network, Revision: m.Revision}
 	if in.Network != "" {
@@ -225,6 +231,11 @@ func (a *API) checkIPBlock(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		out.CandidateNetwork = p.String()
+		out.CoveredBy, e = a.Deps.IPBlock.CoveredBy(p, in.ExcludeID)
+		if e != nil {
+			ipBlockError(w, e)
+			return
+		}
 		prefs, e := (settings.Repository{DB: a.Deps.DB}).Get(r.Context())
 		if e != nil {
 			ipBlockError(w, ipblock.ErrUnavailable)

@@ -86,12 +86,25 @@ func (r Repository) Change(ctx context.Context, m Mutation) (Policy, error) {
 			return Policy{}, e
 		}
 	} else {
-		var duplicate bool
-		if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM player_ip_block_rules WHERE network=$1::cidr AND id::text<>$2)`, m.Network, m.ID).Scan(&duplicate); e != nil {
-			return Policy{}, e
+		// The policy row lock serializes preview/write races. Note-only edits are
+		// allowed even when another rule now covers the existing network.
+		var oldNetwork string
+		if m.ID != "" {
+			if e = tx.QueryRow(ctx, `SELECT network::text FROM player_ip_block_rules WHERE id=$1`, m.ID).Scan(&oldNetwork); errors.Is(e, pgx.ErrNoRows) {
+				return Policy{}, ErrNotFound
+			} else if e != nil {
+				return Policy{}, e
+			}
 		}
-		if duplicate {
-			return Policy{}, ErrDuplicate
+		if oldNetwork != m.Network {
+			var coveredBy string
+			e = tx.QueryRow(ctx, `SELECT network::text FROM player_ip_block_rules WHERE network >>= $1::cidr AND id::text<>$2 ORDER BY masklen(network),network LIMIT 1`, m.Network, m.ID).Scan(&coveredBy)
+			if e == nil {
+				return Policy{}, CoveredError{Network: coveredBy}
+			}
+			if !errors.Is(e, pgx.ErrNoRows) {
+				return Policy{}, e
+			}
 		}
 		if m.ID == "" {
 			var n int

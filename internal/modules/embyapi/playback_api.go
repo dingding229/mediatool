@@ -270,7 +270,7 @@ func (s *Server) playbackError(w http.ResponseWriter, err error) {
 	case errors.Is(err, nativeplayback.ErrForbidden):
 		message = "权限不足，无法播放或下载此媒体库"
 	case errors.Is(err, nativeplayback.ErrIPDenied):
-		message = "当前 IP 已被拉黑，请联系管理员"
+		message = "当前 IP 已在 IP 黑名单中，请联系管理员"
 	case errors.Is(err, nativeplayback.ErrUADenied):
 		message = "当前播放器UA未通过准入策略，请联系管理员"
 	case errors.Is(err, nativeplayback.ErrStreamLimit):

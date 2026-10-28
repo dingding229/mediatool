@@ -52,7 +52,7 @@ defineExpose({load});
   <div v-if="mode==='ips'" class="ip-report-shell" :aria-busy="ips.loading"><ResourceState overlay :stale="ips.loaded" :loading="ips.loading" :error="ips.error" @reload="load"/><IPStatisticsReport @block="blockEditor?.open($event)" v-show="!ips.error||ips.loaded" :rows="ips.data?.items||[]" :summary="ips.data?.summary" :user-scoped="Boolean(user)"/></div>
   <div v-else class="f7-results" :aria-busy="current.loading">
    <template v-if="mode==='events'"><article v-for="row in events.data?.items||[]" :key="row.id" class="organize-record"><h3>{{mediaTitle(row)}}</h3><p>{{date(row.startedAt)}} · {{row.userName}} / {{row.deviceName||row.client}} · {{playbackDuration(row.durationSeconds)}}</p><p><IpAddress :ip="row.ip"/> · {{row.state==='stopped'?'已结束':row.state==='paused'?'暂停':'播放中'}} · 302 {{row.redirectCount}} 次</p></article></template>
-   <template v-else><article v-for="row in ips.data?.items||[]" :key="row.ip" class="organize-record"><h3><IpAddress :ip="row.ip"/></h3><p>{{row.count}} 次已鉴权请求</p><el-button class="ip-block-quick-button" @click="blockEditor?.open(row.ip)">拉黑此 IP</el-button><p>首次 {{date(row.firstSeenAt)}} · 最近 {{date(row.lastSeenAt)}}</p></article></template>
+   <template v-else><article v-for="row in ips.data?.items||[]" :key="row.ip" class="organize-record"><h3><IpAddress :ip="row.ip"/></h3><p>{{row.count}} 次已鉴权请求</p><el-button class="ip-block-quick-button" @click="blockEditor?.open(row.ip)">加入 IP 黑名单</el-button><p>首次 {{date(row.firstSeenAt)}} · 最近 {{date(row.lastSeenAt)}}</p></article></template>
   </div>
   <PagePagination v-model:current-page="page" v-model:page-size="size" :total="current.data?.total||0" :page-sizes="[25,50,100]" label="播放统计分页"/>
 

@@ -14,7 +14,7 @@ import ProcessingPanel from '../playback/ProcessingPanel.vue';
 import '../media/media.css';
 import '../workflows/u5.css';
 const blocklist=ref<InstanceType<typeof IPBlockPanel>>();
-const route = useRoute(), tabs = [{ id: 'settings', label: '服务设置' }, { id: 'users', label: '媒体用户' }, { id: 'players', label: '播放器准入' }, { id: 'sessions', label: '在线会话' }, { id: 'processing', label: '预处理' }, {id:'ips',label:'IP 统计'}, {id:'ip-blocklist',label:'IP 拉黑'}], tab = computed(() => String(route.query.tab || 'settings')), visited = ref(new Set([tab.value])), service = ref<InstanceType<typeof ServicePanel>>(), users = ref<InstanceType<typeof UsersPanel>>(), access = ref<InstanceType<typeof AccessPanel>>(), sessions = ref<InstanceType<typeof SessionsPanel>>(), processing = ref<InstanceType<typeof ProcessingPanel>>(), ipStats=ref<InstanceType<typeof PlaybackStatistics>>();
+const route = useRoute(), tabs = [{ id: 'settings', label: '服务设置' }, { id: 'users', label: '媒体用户' }, { id: 'players', label: '播放器准入' }, { id: 'sessions', label: '在线会话' }, { id: 'processing', label: '预处理' }, {id:'ips',label:'IP 统计'}, {id:'ip-blocklist',label:'IP 黑名单'}], tab = computed(() => String(route.query.tab || 'settings')), visited = ref(new Set([tab.value])), service = ref<InstanceType<typeof ServicePanel>>(), users = ref<InstanceType<typeof UsersPanel>>(), access = ref<InstanceType<typeof AccessPanel>>(), sessions = ref<InstanceType<typeof SessionsPanel>>(), processing = ref<InstanceType<typeof ProcessingPanel>>(), ipStats=ref<InstanceType<typeof PlaybackStatistics>>();
 watch(tab, async (v) => {
   const existed = visited.value.has(v);
   visited.value = new Set([...visited.value, v]);

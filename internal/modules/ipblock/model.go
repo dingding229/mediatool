@@ -3,6 +3,7 @@ package ipblock
 
 import (
 	"errors"
+	"fmt"
 	"net/netip"
 	"strings"
 	"time"
@@ -12,13 +13,19 @@ import (
 const MaxRules = 10000
 
 var (
-	ErrCommitUnknown = errors.New("IP 拉黑规则提交结果待核对")
-	ErrUnavailable   = errors.New("IP 拉黑策略暂不可用，媒体请求未放行；正在自动重试")
-	ErrConflict      = errors.New("IP 拉黑规则已修改，请刷新后重试")
-	ErrNotFound      = errors.New("IP 拉黑规则不存在，请刷新后重试")
-	ErrLimit         = errors.New("IP 拉黑规则最多 10000 条，请先删除不需要的规则")
-	ErrDuplicate     = errors.New("该 IP 或网段已在拉黑列表中")
+	ErrCommitUnknown = errors.New("IP 黑名单规则提交结果待核对")
+	ErrUnavailable   = errors.New("IP 黑名单策略暂不可用，媒体请求未放行；正在自动重试")
+	ErrConflict      = errors.New("IP 黑名单规则已修改，请刷新后重试")
+	ErrNotFound      = errors.New("IP 黑名单规则不存在，请刷新后重试")
+	ErrLimit         = errors.New("IP 黑名单规则最多 10000 条，请先删除不需要的规则")
+	ErrDuplicate     = errors.New("该 IP 或网段已在 IP 黑名单中")
 )
+
+// CoveredError identifies a whole-prefix duplicate, not a partial overlap.
+type CoveredError struct{ Network string }
+
+func (e CoveredError) Error() string { return fmt.Sprintf("已在 %s 中", e.Network) }
+func (e CoveredError) Unwrap() error { return ErrDuplicate }
 
 type Rule struct {
 	ID        string     `json:"id"`
@@ -67,21 +74,25 @@ func Network(raw string) (netip.Prefix, error) {
 	if a, e := netip.ParseAddr(raw); e == nil && a.Zone() == "" {
 		a = a.Unmap()
 		if !a.IsUnspecified() && !a.IsMulticast() {
-			return netip.PrefixFrom(a, a.BitLen()), nil
+			bits := 64
+			if a.Is4() {
+				bits = 24
+			}
+			return netip.PrefixFrom(a, bits).Masked(), nil
 		}
 	}
 	p, e := netip.ParsePrefix(raw)
-	if e != nil || p.Bits() == 0 || p.Addr().Is4In6() || p != p.Masked() || p.Addr().IsMulticast() {
-		return netip.Prefix{}, errors.New("请填写有效 IP 或主机位为零的 CIDR 网段，不允许 /0、组播或带 zone 的地址")
+	if e != nil || p.Bits() == 0 || p.Addr().Is4In6() || p.Addr().IsMulticast() {
+		return netip.Prefix{}, errors.New("请填写有效 IP 或 CIDR 网段，不允许 /0、组播或带 zone 的地址")
 	}
-	return p, nil
+	return p.Masked(), nil
 }
 func (m *Mutation) Validate() error {
 	if m.Revision < 1 {
 		return ErrConflict
 	}
 	if !m.Confirm {
-		return errors.New("请先确认 IP 拉黑操作")
+		return errors.New("请先确认 IP 黑名单操作")
 	}
 	if m.Delete {
 		return nil
