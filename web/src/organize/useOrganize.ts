@@ -4,7 +4,7 @@ import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import { request } from '../api/client';
 export function useOrganize() {
   const sizes=reactive({candidates:usePageSize(50,'candidatesPage'),assets:usePageSize(50,'assetsPage'),scans:usePageSize(8,'scansPage')});
-  const data = reactive<Record<string, any>>({ candidates: [], assets: [], scans: [], schedules: [], repairs: [] }), errors = reactive<Record<string, unknown>>({}), loading = reactive<Record<string, boolean>>({}), total = reactive({ candidates: 0, assets: 0,scans:0 }), page = reactive({candidates:usePageNumber('candidatesPage'),assets:usePageNumber('assetsPage'),scans:usePageNumber('scansPage')}), filter = ref('needs_confirmation'), assetId = ref(''), selected = reactive<Record<string, any[]>>({ candidates: [], assets: [] }), editing = ref(false);
+  const data = reactive<Record<string, any>>({ candidates: [], assets: [], scans: [], schedules: [] }), errors = reactive<Record<string, unknown>>({}), loading = reactive<Record<string, boolean>>({}), total = reactive({ candidates: 0, assets: 0,scans:0 }), page = reactive({candidates:usePageNumber('candidatesPage'),assets:usePageNumber('assetsPage'),scans:usePageNumber('scansPage')}), filter = ref('needs_confirmation'), assetId = ref(''), selected = reactive<Record<string, any[]>>({ candidates: [], assets: [] }), editing = ref(false);
   let disposed = false;
   const versions: Record<string, number> = {};
   const ready = new Set<string>();
@@ -23,7 +23,7 @@ export function useOrganize() {
       else if (key === 'schedules')
         out = await request('/library/scan-schedules');
       else
-        out = await request('/library/artifact-repairs');
+        return;
       if (disposed || version !== versions[key])
         return;
       if (['candidates', 'assets','scans'].includes(key)) {
@@ -43,7 +43,7 @@ export function useOrganize() {
     }
   }
   async function refresh() {
-    await Promise.all(['candidates', 'assets', 'scans', 'schedules', 'repairs'].map(load));
+    await Promise.all(['candidates', 'assets', 'scans', 'schedules'].map(load));
   }
   function toggle(kind: string, row: any, checked: boolean) {
     selected[kind] = selected[kind]!.filter(r => r.id !== row.id);

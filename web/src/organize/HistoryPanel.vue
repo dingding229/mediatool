@@ -17,8 +17,9 @@ import { kindLabels, stepState } from '../files/workbench';
 import { date, errorText } from '../workflows/readiness';
 import { sourceState } from '../media/model';
 import { label, removable, rows } from './model';
+const retryOpen=ref(false),retryPending=ref('');
 const brokenPosters=ref(new Set<string>());
-const route = useRoute(), items = ref<any[]>([]), total = ref(0), page = usePageNumber(), pageSize = usePageSize(25), kind = ref(String(route.query.kind || '')), state = ref(''), query = ref(String(route.query.q || '')), batchId = ref(String(route.query.batchId || '')), origin = ref(''), method = ref(''), from = ref(''), to = ref(''), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), selected = ref<any[]>([]), removeOpen = ref(false), busy = ref(false), uncertain = ref(false);
+const route = useRoute(), items = ref<any[]>([]), total = ref(0), page = usePageNumber(), pageSize = usePageSize(25), kind = ref(String(route.query.kind || '')), state = ref(String(route.query.state || '')), query = ref(String(route.query.q || '')), batchId = ref(String(route.query.batchId || '')), origin = ref(''), method = ref(''), from = ref(''), to = ref(''), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), selected = ref<any[]>([]), removeOpen = ref(false), busy = ref(false), uncertain = ref(false);
 let epoch = 0, disposed = false;
 const summary = computed(() => ({ active: items.value.filter(r => ['pending', 'running', 'paused'].includes(r.state)).length, attention: items.value.filter(r => ['needs_reconcile', 'conflict', 'failed', 'partial'].includes(r.state)).length, done: items.value.filter(r => ['succeeded', 'imported', 'visible', 'applied', 'verified'].includes(r.state)).length }));
 let hasLoaded=false;
@@ -38,6 +39,8 @@ let hasLoaded=false;
       total.value = out.total;
       selected.value = [];
       uncertain.value = false;
+      if(retryPending.value&&detail.value?.kind==='output'){const current=items.value.find(r=>r.kind==='output'&&r.id===detail.value.id);if(current)detail.value=current;else open.value=false}
+      retryPending.value = '';
     }
   hasLoaded=true;
  }
@@ -96,8 +99,17 @@ async function reconcile() {
     busy.value = false;
   }
 }
-watch(() => [route.query.kind, route.query.batchId, route.query.q], () => {
+function filterOutputs(value:string){kind.value='output';state.value=value;origin.value='';method.value='';batchId.value='';query.value='';from.value='';to.value='';apply()}
+async function retryOutput(){
+ if(busy.value||retryPending.value||detail.value?.kind!=='output'||!['pending','conflict'].includes(detail.value.state))return;
+ busy.value=true;retryPending.value=detail.value.id;error.value=null;
+ try{await post(`/library/artifact-repairs/${detail.value.id}/retry`,{});retryOpen.value=false;open.value=false;await load()}
+ catch(e){retryOpen.value=false;error.value=e}
+ finally{busy.value=false}
+}
+watch(() => [route.query.kind, route.query.batchId, route.query.q, route.query.state], () => {
   kind.value = String(route.query.kind || '');
+  state.value = String(route.query.state || '');
   batchId.value = String(route.query.batchId || '');
   query.value = String(route.query.q || '');
   apply();
@@ -120,6 +132,10 @@ usePageRefresh(load, 'history');
     </header>
     <nav class="media-actions mt-segments" aria-label="历史阶段快捷筛选">
       <el-button v-for="(text,value) in Object.fromEntries(Object.entries(kindLabels).filter(([key])=>key!=='cleanup'))" :key="value" :aria-pressed="kind===value" @click="kind=value;apply()">{{ text }}</el-button>
+    </nav>
+    <nav class="media-actions" aria-label="输出恢复快捷筛选">
+      <el-button :aria-pressed="kind==='output'&&state==='pending'" @click="filterOutputs('pending')">待恢复输出</el-button>
+      <el-button :aria-pressed="kind==='output'&&state==='conflict'" @click="filterOutputs('conflict')">冲突输出</el-button>
     </nav>
     <form class="media-form organize-history-filters" @submit.prevent="apply">
       <label>
@@ -149,7 +165,7 @@ usePageRefresh(load, 'history');
         状态
         <el-select v-model="state" aria-label="历史状态" @change="apply">
           <el-option value="" label="全部状态"/>
-          <el-option v-for="v in ['pending','running','paused','needs_reconcile','failed','partial','succeeded','imported','applied','verified','visible','cancelled']" :key="v" :value="v" :label="label(v)"/>
+          <el-option v-for="v in ['pending','conflict','running','paused','needs_reconcile','failed','partial','succeeded','imported','applied','verified','visible','cancelled']" :key="v" :value="v" :label="kind==='output'&&v==='pending'?'待恢复':label(v)"/>
         </el-select>
       </label>
       <label>
@@ -208,10 +224,16 @@ usePageRefresh(load, 'history');
       <RouterLink :to="{path:'/downloads',query:{tab:'uploads'}}" @click="open=false">查看上传入库与批准</RouterLink>
     </section>
     <RouterLink v-if="detail?.kind==='strmRepair'" :to="{path:'/files',query:{tab:'tools',repairId:detail.id}}" @click="open=false">查看 STRM 修复批次</RouterLink>
-    <RouterLink v-if="detail?.kind==='output'" :to="{path:'/organize',query:{tab:'recovery'}}" @click="open=false">进入输出恢复与归档</RouterLink>
+    <section v-if="detail?.kind==='output'&&['pending','conflict'].includes(detail?.state)">
+      <p>核对权限及手工冲突文件后，重试原输出记录；不覆盖其他内容，不重新上传。</p>
+      <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
+      <p v-if="retryPending" role="status">恢复结果需核对，请先刷新历史，不重复提交。</p>
+      <el-button :disabled="busy||!!retryPending" @click="retryOpen=true">重试恢复</el-button>
+    </section>
     <RouterLink v-if="detail?.kind==='scan'" :to="{path:'/organize',query:{tab:'scans'}}" @click="open=false">进入扫描控制</RouterLink>
     <p v-if="detail?.details?.phase">阶段：{{ label(detail.details.phase) }}</p>
     <el-button v-if="['batch','file'].includes(detail?.kind)&&['running','needs_reconcile'].includes(detail?.state)" :loading="busy" @click="reconcile">核对结果（不重放）</el-button>
   </DetailDrawer>
+  <ConfirmAction v-model:visible="retryOpen" title="重试输出恢复" description="先核对权限，移开或回退手工修改的冲突文件；不覆盖其他内容。" impact-scope="仅重试当前 journal 输出记录，保留原媒体、STRM 固定链接和退役副本。" confirm-text="确认重试恢复" :loading="busy" @confirm="retryOutput"/>
   <ConfirmAction v-model:visible="removeOpen" title="移除整理历史" description="仅从历史列表移除选中项，进行中或未知结果不能移除。" impact-scope="不删除媒体、STRM、审计或恢复证据。" confirm-text="明确移除历史" :loading="busy" class="media-dialog" @confirm="remove"/>
 </template>

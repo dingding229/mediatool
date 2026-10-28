@@ -28,13 +28,13 @@ import (
 func mediaFixture(t *testing.T) (AcquisitionHost, context.Context) {
 	t.Helper()
 	h, ctx := hostFixture(t)
-	tables := []string{"storage_connections", "cloud_files", "media_assets", "media_items", "media_asset_bindings", "strm_entries", "playback_grants", "managed_media_artifacts", "media_artifact_journal", "media_archive_policy", "media_archive_cleanup_requests", "media_archive_cleanup_operations", "directory_classification", "native_server_settings", "media_user_library_grants", "native_item_ids", "native_libraries", "native_asset_libraries", "native_tmdb_details", "library_candidates", "library_hidden_history", "library_scans", "library_scan_seen", "library_scan_directories", "file_operations", "file_batches", "file_batch_items", "file_batch_parents", "strm_repair_batches", "strm_repair_items"}
+	tables := []string{"storage_connections", "cloud_files", "media_assets", "media_items", "media_asset_bindings", "strm_entries", "playback_grants", "managed_media_artifacts", "media_artifact_journal", "directory_classification", "native_server_settings", "media_user_library_grants", "native_item_ids", "native_libraries", "native_asset_libraries", "native_tmdb_details", "library_candidates", "library_hidden_history", "library_scans", "library_scan_seen", "library_scan_directories", "file_operations", "file_batches", "file_batch_items", "file_batch_parents", "strm_repair_batches", "strm_repair_items"}
 	for _, table := range tables {
 		if _, e := h.DB.Exec(ctx, `CREATE TABLE `+pgx.Identifier{table}.Sanitize()+`(LIKE public.`+pgx.Identifier{table}.Sanitize()+` INCLUDING ALL)`); e != nil {
 			t.Fatal(table, e)
 		}
 	}
-	for _, sql := range []string{`INSERT INTO directory_classification(singleton)VALUES(true)`, `INSERT INTO media_archive_policy(singleton)VALUES(true)`, `INSERT INTO native_server_settings(server_id)VALUES('00000000000000000000000000000000')`} {
+	for _, sql := range []string{`INSERT INTO directory_classification(singleton)VALUES(true)`, `INSERT INTO native_server_settings(server_id)VALUES('00000000000000000000000000000000')`} {
 		if _, e := h.DB.Exec(ctx, sql); e != nil {
 			t.Fatal(e)
 		}
@@ -226,7 +226,6 @@ func TestMediaLibrarySnapshotsRepairAndSTRMImmutability(t *testing.T) {
 	for _, method := range []string{"library.assets", "strm.entries", "library.scans"} {
 		requireMedia[json.RawMessage](t, h, method, page)
 	}
-	requireMedia[json.RawMessage](t, h, "library.archive.list", b.PageRequest{Page: 1, Size: 100})
 	for _, method := range []string{"library.candidates", "library.history"} {
 		requireMedia[json.RawMessage](t, h, method, b.LibraryPage{PageRequest: page})
 	}
@@ -284,9 +283,9 @@ func TestMediaLibrarySnapshotsRepairAndSTRMImmutability(t *testing.T) {
 
 }
 
-func TestMediaScanControlHistoryAndArchiveApproval(t *testing.T) {
+func TestMediaScanControlAndHistory(t *testing.T) {
 	h, ctx := mediaFixture(t)
-	asset, _ := seedMedia(t, &h, ctx)
+	seedMedia(t, &h, ctx)
 	cloud, e := h.Connections.Repository.Save(ctx, "", integrations.Input{Kind: "clouddrive2", Name: "primary", Enabled: true, Settings: map[string]any{"endpoint": "http://127.0.0.1:9", "cloudRoot": "/115/Media"}, Secrets: map[string]string{"token": "CLOUD_SECRET"}})
 	if e != nil {
 		t.Fatal(e)
@@ -303,56 +302,6 @@ func TestMediaScanControlHistoryAndArchiveApproval(t *testing.T) {
 		t.Fatal(e)
 	}
 	requireMedia[b.Receipt](t, h, "library.history.hide", b.HistorySelections{Items: []b.HistorySelection{{ID: scan.ID, Kind: "scan", UpdatedAt: scan.UpdatedAt}}})
-	journal := library.Journal{DB: h.DB, Vault: h.Vault}
-	root := h.Connections.Config.STRMOutputDir
-	// Create a managed, unchanged active STRM and an obsolete generated NFO.
-	if e = journal.Write(ctx, root, "Owned.strm", asset, "asset:"+asset, "strm", []byte("https://stable.fixture/resolve\n")); e != nil {
-		t.Fatal(e)
-	}
-	if _, e = h.DB.Exec(ctx, `INSERT INTO strm_entries(id,asset_id,output_path,key_reference)VALUES($1,$2,'Owned.strm','fixture-reference')`, jobs.UUID(), asset); e != nil {
-		t.Fatal(e)
-	}
-	if e = journal.Write(ctx, root, "Old.nfo", asset, "asset:"+asset, "nfo", []byte("owned")); e != nil {
-		t.Fatal(e)
-	}
-	tx, e := h.DB.Begin(ctx)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	write, e := journal.Stage(ctx, tx, root, "New.nfo", asset, "asset:"+asset, "nfo", []byte("replacement"))
-	if e != nil {
-		t.Fatal(e)
-	}
-	archive, e := journal.StageArchive(ctx, tx, root, "Old.nfo", asset, "nfo", []string{write})
-	if e != nil {
-		t.Fatal(e)
-	}
-	if e = tx.Commit(ctx); e != nil {
-		t.Fatal(e)
-	}
-	for _, id := range []string{write, archive} {
-		if e = journal.Apply(ctx, id); e != nil {
-			t.Fatal(e)
-		}
-	}
-	if _, e = h.DB.Exec(ctx, `UPDATE media_artifact_journal SET updated_at=now()-interval '40 days'WHERE id=$1`, archive); e != nil {
-		t.Fatal(e)
-	}
-	plan := requireMedia[b.ArchivePlan](t, h, "library.archive.preview", b.IDs{IDs: []string{archive}})
-	if len(plan.Items) != 1 || !plan.PhysicalDeletion {
-		t.Fatal(plan)
-	}
-	if _, e = mediaCall(t, h, "library.archive.confirmCleanup", b.ArchiveApproval{IDs: []string{archive}, PlanDigest: strings.Repeat("b", 64)}); e == nil {
-		t.Fatal("changed cleanup evidence")
-	}
-	result := requireMedia[[]b.CleanupResult](t, h, "library.archive.confirmCleanup", b.ArchiveApproval{IDs: []string{archive}, PlanDigest: plan.PlanDigest})
-	if len(result) != 1 || result[0].State != "removed" {
-		t.Fatal(result)
-	}
-	if raw, e := os.ReadFile(filepath.Join(root, "Owned.strm")); e != nil || string(raw) != "https://stable.fixture/resolve\n" {
-		t.Fatal("active STRM changed", e)
-	}
 }
 
 func TestMediaOrganizeAndCorrectPreserveNativeIdentityEvidence(t *testing.T) {

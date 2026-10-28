@@ -330,69 +330,7 @@ test('episode metadata preview is read-only, explicit and cleared when season co
  expect(writes).toBe(0)
 })
 
-test('expired archive cleanup is preview-only until typed explicit confirmation (fixture)',async({page})=>{
- // Public HTTP lacks crypto.randomUUID; the browser still provides getRandomValues.
- await page.addInitScript(()=>Object.defineProperty(window.crypto,'randomUUID',{value:undefined,configurable:true}))
- const archive='00000000-0000-4000-8000-000000000098'
- const entry={id:archive,assetId:'owned-fixture',originalPath:'Movies/自有样本/旧输出.strm',archivePath:'.media-tool-retired/owned/旧输出.strm.retired',kind:'strm',archivedAt:'2020-01-01T00:00:00Z',eligibleAfter:'2020-02-01T00:00:00Z',state:'retained',message:'',deletedAt:undefined as string|undefined}
- let confirmations:Array<Record<string,unknown>>=[]
- await page.route('**/api/v1/library/archive-policy',route=>fixtureFulfill(route,{json:{data:{retentionDays:30,revision:1,automaticCleanup:false}}}))
- await page.route('**/api/v1/library/archives?page=*',route=>fixtureFulfill(route,{json:{data:{items:[entry],total:1,page:1,pageSize:50}}}))
- await page.route('**/api/v1/library/archives/cleanup-preview',route=>fixtureFulfill(route,{json:{data:{planDigest:'b'.repeat(64),policy:{retentionDays:30,revision:1,automaticCleanup:false},items:[entry],sourceFilesUntouched:true,physicalDeletion:true}}}))
- await page.route('**/api/v1/library/archives/cleanup-confirm',async route=>{confirmations.push(route.request().postDataJSON());entry.state='removed';entry.deletedAt='2026-10-10T00:00:00Z';await fixtureFulfill(route,{json:{data:[{id:'owned-cleanup',archiveId:archive,state:'removed',message:''}]}})})
- await fixtureLogin(page);await navigate(page,'云盘索引')
- await page.locator('.media-workspace .page-tabs').getByRole('button',{name:'恢复与归档',exact:true}).click();await expect(page.getByRole('heading',{name:'旧输出归档',exact:false})).toBeVisible()
- const row=page.locator('.organize-record').filter({hasText:'旧输出.strm'})
- // Element Plus hides native selection checkbox: click its visible label.
- await row.getByRole('checkbox').check()
- await page.getByRole('button',{name:'预览清理所选 1',exact:true}).click()
- await page.getByRole('region',{name:'归档清理计划',exact:true}).getByRole('button',{name:'确认物理清理',exact:true}).click();const dialog=page.getByRole('dialog',{name:'确认物理清理归档',exact:true})
- await expect(dialog).toBeVisible();expect(confirmations).toHaveLength(0)
- const apply=dialog.getByRole('button',{name:'确认物理清理',exact:true});await expect(apply).toBeDisabled()
- await dialog.getByRole('button',{name:'返回检查',exact:true}).click();await expect(dialog).toBeHidden();expect(confirmations).toHaveLength(0)
- await page.getByRole('region',{name:'归档清理计划',exact:true}).getByRole('button',{name:'确认物理清理',exact:true}).click()
- await dialog.getByPlaceholder('请输入上方确认短语',{exact:true}).fill('清理归档')
- await expect(apply).toBeEnabled()
- await dialog.screenshot({path:resolve(screenshots,'archive-cleanup-confirmation.png'),animations:'disabled'})
- await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
- await expect(apply).toBeInViewport()
- await dialog.screenshot({path:resolve(screenshots,'archive-cleanup-confirmation-mobile.png'),animations:'disabled'})
- await apply.click()
- await expect.poll(()=>confirmations.length).toBe(1)
- expect(confirmations[0]?.archiveIds).toEqual([archive]);expect(confirmations[0]?.planDigest).toBe('b'.repeat(64));expect(confirmations[0]?.requestId).toMatch(/^[a-f0-9-]{36}$/)
- await expect(page.getByText('已清理（审计保留） · —',{exact:true})).toBeVisible()
- await expect(row.getByText(/已清理（审计保留）/)).toBeVisible()
-})
 
-test('unknown archive response retains its request and needs explicit reconciliation (fixture)',async({page})=>{
- const archive='00000000-0000-4000-8000-000000000099'
- const entry={id:archive,assetId:'owned-fixture',originalPath:'Movies/自有样本/待核对.strm',archivePath:'.media-tool-retired/owned/待核对.strm.retired',kind:'strm',archivedAt:'2020-01-01T00:00:00Z',eligibleAfter:'2020-02-01T00:00:00Z',state:'retained',message:''}
- const confirmations:Array<Record<string,unknown>>=[]
- await page.route('**/api/v1/library/archive-policy',route=>fixtureFulfill(route,{json:{data:{retentionDays:30,revision:1,automaticCleanup:false}}}))
- await page.route('**/api/v1/library/archives?page=*',route=>fixtureFulfill(route,{json:{data:{items:[entry],total:1,page:1,pageSize:50}}}))
- await page.route('**/api/v1/library/archives/cleanup-preview',route=>fixtureFulfill(route,{json:{data:{planDigest:'c'.repeat(64),policy:{retentionDays:30,revision:1,automaticCleanup:false},items:[entry],sourceFilesUntouched:true,physicalDeletion:true}}}))
- await page.route('**/api/v1/library/archives/cleanup-confirm',async route=>{confirmations.push(route.request().postDataJSON());await fixtureFulfill(route,{json:{data:confirmations.length===1?[]:[{id:'owned-cleanup',archiveId:archive,state:'conflict',message:'needs manual recovery'}]}})})
- await page.route('**/api/v1/library/archive-cleanups/*',route=>fixtureFulfill(route,{json:{data:[]}}))
- await fixtureLogin(page);await navigate(page,'云盘索引')
- await page.locator('.media-workspace .page-tabs').getByRole('button',{name:'恢复与归档',exact:true}).click();await page.locator('.organize-record').filter({hasText:'待核对.strm'}).getByRole('checkbox').check()
- await page.getByRole('button',{name:'预览清理所选 1',exact:true}).click()
- await page.getByRole('region',{name:'归档清理计划',exact:true}).getByRole('button',{name:'确认物理清理',exact:true}).click();const dialog=page.getByRole('dialog',{name:'确认物理清理归档',exact:true})
- await dialog.getByPlaceholder('请输入上方确认短语',{exact:true}).fill('清理归档')
- const apply=dialog.getByRole('button',{name:'确认物理清理',exact:true})
- await apply.click()
- await expect(page.getByText('清理结果不完整，请核对已有请求结果；不换请求重复提交。',{exact:true})).toBeVisible()
- await expect(dialog).toBeHidden();expect(confirmations).toHaveLength(1)
- await page.getByRole('button',{name:'核对已有请求结果',exact:true}).click()
- await expect(page.getByText('尚未确认批准记录，只能保留同一请求和计划再次明确确认。',{exact:true})).toBeVisible()
- await expect(dialog).toBeHidden();expect(confirmations).toHaveLength(1)
- // A second submit is a new explicit click, never a background retry or a new ID.
- await page.getByRole('button',{name:'使用原请求继续确认',exact:true}).click();await dialog.getByPlaceholder('请输入上方确认短语').fill('清理归档');await apply.click()
- await expect.poll(()=>confirmations.length).toBe(2)
- expect(confirmations[1]?.requestId).toBe(confirmations[0]?.requestId)
- expect(confirmations[1]?.planDigest).toBe(confirmations[0]?.planDigest)
- await expect(page.getByText('冲突 · needs manual recovery',{exact:true})).toBeVisible()
- await expect(page.getByText('已清理（审计保留） · —',{exact:true})).toHaveCount(0)
-})
 
 test('sparse episode migration previews explicit aliases and whole-file playback (fixture)',async({page})=>{
  const asset='00000000-0000-4000-8000-000000000100'
@@ -433,14 +371,14 @@ test('blocked legacy imports require read-only review before import-only approva
  await fixtureLogin(page);await navigate(page,'下载与传输')
  const row=page.locator('.acquire-task').filter({hasText:'Owned.S01E01E03.mkv'})
  await expect(row.getByRole('button',{name:'恢复',exact:true})).toHaveCount(0)
- await row.getByRole('link',{name:'核对入库恢复',exact:true}).click();await page.getByRole('button',{name:'核对入库恢复',exact:true}).click()
+ await row.getByRole('button',{name:'核对入库恢复',exact:true}).click()
  const dialog=page.getByRole('dialog',{name:'核对并恢复已有入库',exact:true})
  const resume=dialog.getByRole('button',{name:'明确恢复入库（不重新上传）',exact:true})
  await expect(resume).toBeDisabled();expect(approvals).toHaveLength(0)
  const link=dialog.getByRole('link',{name:'前往云盘索引核对该资产、恢复已有输出并明确预览迁移',exact:true})
  await expect(link).toHaveAttribute('href',`/organize?tab=assets&assetId=${asset}`)
  await dialog.getByRole('button',{name:'关闭',exact:true}).click();expect(approvals).toHaveLength(0)
- migrated=true;await page.goto('/downloads?tab=uploads');await row.getByRole('link',{name:'核对入库恢复',exact:true}).click();await page.getByRole('button',{name:'核对入库恢复',exact:true}).click()
+ migrated=true;await page.goto('/downloads?tab=uploads');await row.getByRole('button',{name:'核对入库恢复',exact:true}).click()
  await expect(resume).toBeEnabled()
  await dialog.screenshot({path:resolve(screenshots,'output-import-recovery-preview.png'),animations:'disabled'})
  await page.setViewportSize({width:375,height:812});await expect(resume).toBeInViewport({ratio:1})

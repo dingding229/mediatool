@@ -15,11 +15,9 @@ import StateView from '../ui/StateView.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-import OutputRecoveryDialog from '../workflows/OutputRecoveryDialog.vue';
 import IdentityEditor from '../organize/IdentityEditor.vue';
 import ScanPanel from '../organize/ScanPanel.vue';
 import HistoryPanel from '../organize/HistoryPanel.vue';
-import ArchivePanel from '../organize/ArchivePanel.vue';
 import { useOrganize } from '../organize/useOrganize';
 import { label, selectable, rows } from '../organize/model';
 import { sourceState,image } from '../media/model';
@@ -29,12 +27,8 @@ import '../media/catalog.css';
 import { errorText } from '../workflows/readiness';
 import { readIntent, writeIntent, size } from '../acquisition/model';
 import '../media/media.css';
-const route = useRoute(), router = useRouter(), state = reactive(useOrganize()), tabs = [{ id: 'candidates', label: '待确认' }, { id: 'scans', label: '扫描' }, { id: 'assets', label: '已入库' }, { id: 'history', label: '整理历史' }, { id: 'recovery', label: '恢复与归档' }], tab = computed(() => tabs.some(t => t.id === route.query.tab) ? String(route.query.tab) : 'candidates');
-const editor = ref<InstanceType<typeof IdentityEditor>>(), output = ref<InstanceType<typeof OutputRecoveryDialog>>(), detailsOpen = ref(false), assetDetail = ref<any>(null), outputs = ref<any>(null), operations = ref<any[]>([]), detailError = ref<unknown>(null), confirmOpen = ref(false), action = ref<any>(null), busy = ref(false), phase = ref<'queued' | 'reconciling' | null>(null), actionError = ref<unknown>(null);
-watch(() => route.query.transferId, value => {
-  if (typeof value === 'string')
-    state.data.transferId = value;
-}, { immediate: true });
+const route = useRoute(), router = useRouter(), state = reactive(useOrganize()), tabs = [{ id: 'candidates', label: '待确认' }, { id: 'scans', label: '扫描' }, { id: 'assets', label: '已入库' }, { id: 'history', label: '整理历史' }], tab = computed(() => tabs.some(t => t.id === route.query.tab) ? String(route.query.tab) : 'candidates');
+const editor = ref<InstanceType<typeof IdentityEditor>>(), detailsOpen = ref(false), assetDetail = ref<any>(null), outputs = ref<any>(null), operations = ref<any[]>([]), detailError = ref<unknown>(null), confirmOpen = ref(false), action = ref<any>(null), busy = ref(false), phase = ref<'queued' | 'reconciling' | null>(null), actionError = ref<unknown>(null);
 const assetView=ref<'wall'|'list'>(readAssetView());
 function readAssetView():'wall'|'list'{try{return localStorage.getItem('media-tool:asset-view:v1')==='list'?'list':'wall'}catch{return 'wall'}}
 function setAssetView(view:'wall'|'list'){assetView.value=view;try{localStorage.setItem('media-tool:asset-view:v1',view)}catch{/* View preference is optional. */}}
@@ -90,9 +84,7 @@ async function apply() {
   phase.value = 'reconciling';
   writeIntent(key, { phase: 'reconciling' });
   try {
-    if (type === 'repair')
-      await post(`/library/artifact-repairs/${row.id}/retry`, {});
-    else if (type === 'rotate')
+    if (type === 'rotate')
       await post(`/media/assets/${row.id}/grant/rotate`, {});
     else
       await post(`/media/assets/${row.id}/grant/revoke`, {});
@@ -213,30 +205,10 @@ usePageRefresh(state.refresh,'*');
     <div v-show="tab==='history'" class="organize-history-host">
       <HistoryPanel/>
     </div>
-    <div v-show="tab==='recovery'" class="media-stack t7-recovery">
-      <section class="media-surface">
-        <h2>输出与入库恢复</h2>
-        <p v-if="state.loading.repairs&&!state.data.repairs.length" role="status">正在读取恢复记录…</p>
-        <StateView v-else-if="state.errors.repairs" :state="sourceState(state.errors.repairs)" title="恢复记录读取失败" @retry="state.load('repairs')"/>
-        <p v-else-if="!state.data.repairs.length">暂无待恢复输出</p>
-        <article v-for="repair in state.data.repairs" :key="repair.id" class="organize-record recovery-record">
-          <h3><PathText :path="repair.path"/></h3>
-          <p>{{ repair.operation==='archive'?'归档':'写入' }} · {{ repair.kind||'—' }} · {{ label(repair.state) }}</p>
-          <div class="media-actions"><el-button @click="ask(repair,'repair')">重试恢复</el-button></div>
-        </article>
-        <div class="recovery-lookup"><label>
-          已有上传记录的入库恢复
-          <el-input v-model="state.data.transferId" aria-label="待恢复上传任务ID" placeholder="填写需核对的上传任务ID"/>
-        </label>
-        <el-button :disabled="!state.data.transferId" @click="output?.open(state.data.transferId)">核对入库恢复</el-button></div>
-      </section>
-      <ArchivePanel/>
-    </div>
     <el-alert v-if="actionError" :title="errorText(actionError)" type="error" :closable="false"/>
     <AsyncResultBanner v-if="phase" :status="phase" message="操作结果需重新读取核对，不重复提交同一操作。" @refresh="state.refresh"/>
     <IdentityEditor ref="editor" @changed="state.changed" @editing="editing"/>
-    <OutputRecoveryDialog ref="output" @completed="state.changed"/>
-    <ConfirmAction v-model:visible="confirmOpen" :title="action?.type==='repair'?'重试输出恢复':action?.type==='rotate'?'轮换播放凭据':'撤销文件播放'" :description="action?.type==='repair'?'先核对权限，移开或回退手工修改的冲突文件；不覆盖其他内容。':action?.type==='rotate'?'旧凭据将失效，STRM 重写通过恢复日志执行，不覆盖手工文件。':'固定链接将失效；此前已签发的临时 CDN 链接可能短期仍有效。'" impact-scope="不删除云端媒体或本地做种源；后续结果以恢复记录和最新资产状态为准。" :loading="busy" class="media-dialog" @confirm="apply"/>
+    <ConfirmAction v-model:visible="confirmOpen" :title="action?.type==='rotate'?'轮换播放凭据':'撤销文件播放'" :description="action?.type==='rotate'?'旧凭据将失效，STRM 重写通过恢复日志执行，不覆盖手工文件。':'固定链接将失效；此前已签发的临时 CDN 链接可能短期仍有效。'" impact-scope="不删除云端媒体或本地做种源；后续结果以恢复记录和最新资产状态为准。" :loading="busy" class="media-dialog" @confirm="apply"/>
     <DetailDrawer :key="assetDetail?.id" v-model:visible="detailsOpen" title="资产与输出详情" :technical-data="{asset:assetDetail,outputs,operations}" size="large" class="media-detail">
       <h3>{{ assetDetail?.title||'—' }}</h3>
  <ImageEditor v-if="assetDetail" :item-id="assetDetail.id" @saved="state.load('assets')"/>

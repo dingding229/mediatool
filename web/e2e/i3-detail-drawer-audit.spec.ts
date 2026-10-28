@@ -24,7 +24,6 @@ export const targets:Target[]=[
  {id:'asset',file:'views/OrganizeWorkspaceView.vue',path:'/organize?tab=assets',title:'资产与输出详情',open:button('查看资产详情')},
  {id:'scan',file:'organize/ScanPanel.vue',path:'/organize?tab=scans',title:'扫描目录覆盖',open:button('查看目录记录')},
  {id:'history',file:'organize/HistoryPanel.vue',path:'/organize?tab=history',title:'整理步骤详情',open:button('查看步骤详情')},
- {id:'archive',file:'organize/ArchivePanel.vue',path:'/organize?tab=recovery',title:'归档清理技术详情',open:async p=>{await p.locator('.archive-record input').first().check();await button('预览清理所选 1')(p);await p.getByRole('region',{name:'归档清理计划',exact:true}).getByRole('button',{name:'技术详情',exact:true}).click()}},
  {id:'service',file:'playback/ServicePanel.vue',path:'/playback?tab=settings',title:'服务技术详情',open:button('技术详情')},
  {id:'users',file:'playback/UsersPanel.vue',path:'/playback?tab=users',title:'family · 用户详情',open:button('用户详情')},
  {id:'access',file:'playback/AccessPanel.vue',path:'/playback?tab=players',title:'完整 UA 与访问详情',open:button('查看完整 UA')},

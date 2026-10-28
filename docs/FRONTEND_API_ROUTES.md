@@ -179,19 +179,7 @@
 | GET | `/api/v1/library/activity` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:35`、`web/src/organize/HistoryPanel.vue:26`、`web/src/views/OrganizeWorkspaceView.vue:51` |
 | HEAD | `/api/v1/library/activity` | management | 未检出静态使用 |  |
 | POST | `/api/v1/library/activity/remove` | management | 前端直接调用 | `web/src/organize/HistoryPanel.vue:57` |
-| GET | `/api/v1/library/archive-cleanups/{id}` | management | 前端直接调用 | `web/src/organize/ArchivePanel.vue:125`、`web/src/organize/ArchivePanel.vue:150` |
-| HEAD | `/api/v1/library/archive-cleanups/{id}` | management | 未检出静态使用 |  |
-| POST | `/api/v1/library/archive-cleanups/{id}/retry` | management | 前端直接调用 | `web/src/organize/ArchivePanel.vue:173` |
-| GET | `/api/v1/library/archive-policy` | management | 前端直接调用 | `web/src/organize/ArchivePanel.vue:21`、`web/src/organize/ArchivePanel.vue:57` |
-| HEAD | `/api/v1/library/archive-policy` | management | 未检出静态使用 |  |
-| POST | `/api/v1/library/archive-policy` | management | 前端直接调用 | `web/src/organize/ArchivePanel.vue:48` |
-| GET | `/api/v1/library/archives` | management | 前端直接调用 | `web/src/organize/ArchivePanel.vue:21` |
-| HEAD | `/api/v1/library/archives` | management | 未检出静态使用 |  |
-| POST | `/api/v1/library/archives/cleanup-confirm` | management | 前端直接调用 | `web/src/organize/ArchivePanel.vue:112` |
-| POST | `/api/v1/library/archives/cleanup-preview` | management | 前端直接调用 | `web/src/organize/ArchivePanel.vue:86` |
-| GET | `/api/v1/library/artifact-repairs` | management | 前端直接调用 | `web/src/organize/useOrganize.ts:22` |
-| HEAD | `/api/v1/library/artifact-repairs` | management | 未检出静态使用 |  |
-| POST | `/api/v1/library/artifact-repairs/{id}/retry` | management | 前端直接调用 | `web/src/views/OrganizeWorkspaceView.vue:83` |
+| POST | `/api/v1/library/artifact-repairs/{id}/retry` | management | 前端直接调用 | `web/src/organize/HistoryPanel.vue:105` |
 | GET | `/api/v1/library/candidates` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/organize/useOrganize.ts:14`、`web/src/organize/IdentityEditor.vue:231` |
 | HEAD | `/api/v1/library/candidates` | management | 未检出静态使用 |  |
 | POST | `/api/v1/library/candidates/{id}/confirm` | management | 未检出静态使用 |  |

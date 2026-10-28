@@ -3,7 +3,6 @@ package httpapi
 import (
 	"media-tool/internal/modules/library"
 	"net/http"
-	"time"
 )
 
 func (a *API) library() *library.Engine {
@@ -180,32 +179,6 @@ func (a *API) correctAssetIdentity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, map[string]bool{"corrected": true})
-}
-func (a *API) listArtifactRepairs(w http.ResponseWriter, r *http.Request) {
-	if !a.integrationReady(w) {
-		return
-	}
-	rows, err := a.Deps.DB.Query(r.Context(), `SELECT id::text,relative_path,artifact_kind,state,updated_at,operation FROM media_artifact_journal WHERE state IN ('pending','conflict')ORDER BY updated_at DESC LIMIT 100`)
-	if err != nil {
-		fail(w, 503, "repairs_unavailable", "输出恢复清单不可用")
-		return
-	}
-	defer rows.Close()
-	out := []map[string]any{}
-	for rows.Next() {
-		var id, path, kind, state, operation string
-		var updated time.Time
-		if err = rows.Scan(&id, &path, &kind, &state, &updated, &operation); err != nil {
-			fail(w, 503, "repairs_unavailable", "恢复记录读取失败")
-			return
-		}
-		out = append(out, map[string]any{"id": id, "path": path, "kind": kind, "state": state, "updatedAt": updated, "operation": operation})
-	}
-	if rows.Err() != nil {
-		fail(w, 503, "repairs_unavailable", "恢复记录读取失败")
-		return
-	}
-	write(w, 200, out)
 }
 func (a *API) retryArtifactRepair(w http.ResponseWriter, r *http.Request) {
 	if !a.integrationReady(w) {

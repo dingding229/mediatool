@@ -26,9 +26,6 @@ func safeRecognition(v library.Recognition) b.Recognition {
 	}
 	return out
 }
-func safeArchive(v library.RetiredArchive) b.Archive {
-	return b.Archive{ID: v.ID, AssetID: v.AssetID, Kind: v.Kind, State: v.State, EligibleAfter: v.EligibleAfter}
-}
 func safeRepair(v library.STRMRepairBatch) (b.RepairPlan, error) {
 	out := b.RepairPlan{ID: v.ID, Digest: v.Digest, State: v.State, ExpiresAt: v.ExpiresAt, Items: []b.RepairItem{}}
 	if len(v.Items) > 100 {
@@ -252,53 +249,6 @@ func (h AcquisitionHost) callLibrary(ctx context.Context, call contracts.HostCal
 			return nil, err
 		}
 		return b.Receipt{State: "hidden"}, e.HideHistory(ctx, v, true)
-	case "library.archive.list":
-		var in b.PageRequest
-		if decodeBusiness(call.Args, &in) != nil || pageOK(in) != nil || in.Size > 100 {
-			return nil, invalidBusiness()
-		}
-		if in.Query != "" {
-			return nil, unsupportedBusiness()
-		}
-		v, total, err := e.Archives(ctx, in.Size, (in.Page-1)*in.Size)
-		if err != nil {
-			return nil, err
-		}
-		out := b.Page[b.Archive]{Items: []b.Archive{}, HasMore: total > in.Page*in.Size}
-		for _, v := range v {
-			out.Items = append(out.Items, safeArchive(v))
-		}
-		return out, nil
-	case "library.archive.preview":
-		v, err := ids(call.Args, 20)
-		if err != nil {
-			return nil, err
-		}
-		plan, err := e.PreviewArchiveCleanup(ctx, v)
-		out := b.ArchivePlan{PlanDigest: plan.PlanDigest, PhysicalDeletion: plan.PhysicalDeletion, Items: []b.Archive{}}
-		for _, v := range plan.Items {
-			out.Items = append(out.Items, safeArchive(v))
-		}
-		return out, err
-	case "library.archive.confirmCleanup":
-		var in b.ArchiveApproval
-		if decodeBusiness(call.Args, &in) != nil || len(in.IDs) < 1 || len(in.IDs) > 20 || len(in.PlanDigest) != 64 {
-			return nil, invalidBusiness()
-		}
-		for _, id := range in.IDs {
-			if !validUUID(id) {
-				return nil, invalidBusiness()
-			}
-		}
-		if err := admit(); err != nil {
-			return nil, err
-		}
-		v, err := e.ConfirmArchiveCleanup(ctx, library.ArchiveCleanupRequest{RequestID: operationUUID(call.OperationKey), ArchiveIDs: in.IDs, PlanDigest: in.PlanDigest})
-		out := []b.CleanupResult{}
-		for _, v := range v {
-			out = append(out, b.CleanupResult{ID: v.ID, ArchiveID: v.ArchiveID, State: v.State})
-		}
-		return out, err
 	case "strm.diagnostics":
 		id, err := businessID(call.Args)
 		if err != nil {

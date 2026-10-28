@@ -7,7 +7,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.4
 	github.com/antchfx/htmlquery v1.3.7
 	github.com/antchfx/xmlquery v1.5.2
-	github.com/dingding229/mediatool-plugin v0.0.0-20261028083254-e6bb1482306a
+	github.com/dingding229/mediatool-plugin v0.0.0-20261028132231-ff3dc35bb375
 	github.com/dingding229/mediatool-site v0.0.0-20261013180133-7dfba442a392
 	github.com/felixge/httpsnoop v1.1.0
 	github.com/golang-jwt/jwt/v5 v5.3.1

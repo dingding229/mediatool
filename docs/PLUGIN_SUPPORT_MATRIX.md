@@ -1,12 +1,12 @@
 # 插件能力表
 
 - contractVersion：2。
-- 契约摘要：`5fb1a7fcf7fbf87a232793570f5fda45616f1f36e2b6062f188cbd2012f3c90c`。
+- 契约摘要：`310d7eb2d8a96cdd2a3b9dd8f765a0fd24afe759b766b9b93f937ebcdfbc748d`。
 - 读取/生成：`go run ./cmd/media-tool-dev plugins matrix [--check]`；读取编译期元数据，不执行工厂。
 - `registered` 只表示存在窄门面，不保证任意环境可用；actor、adapter、owner、selector、revision 和实时 scope 不满足时 fail-closed。
 - 表中的 supported=false 为固定 unsupported；其他条件性 unsupported 见下文。
 
-## 业务 Host RPC（157 项）
+## 业务 Host RPC（154 项）
 
 | RPC | scope | 级别 | 注册能力 |
 |---|---|---|---|
@@ -70,15 +70,12 @@
 | `library.suggest` | `library.recognize` | R | registered |
 | `library.organize.preview` | `library.organize` | D | registered |
 | `library.correct.preview` | `library.organize` | D | registered |
-| `library.archive.list` | `library.archive.read` | R | registered |
-| `library.archive.preview` | `library.archive.read` | R | registered |
 | `library.scan.start` | `library.scan` | W | registered |
 | `library.scan.control` | `library.scan` | W | registered |
 | `library.organize.confirm` | `library.organize` | D | registered |
 | `library.correct.apply` | `library.organize` | D | registered |
 | `library.refresh` | `library.refresh` | W | registered |
 | `library.history.hide` | `library.history.write` | W | registered |
-| `library.archive.confirmCleanup` | `library.archive.delete` | D | registered |
 | `fs.media.roots` | `fs.media:read` | R | registered |
 | `fs.media.list` | `fs.media:read` | R | registered |
 | `fs.media.stat` | `fs.media:read` | R | registered |

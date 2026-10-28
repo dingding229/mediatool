@@ -10,7 +10,6 @@ const at='2026-10-25T00:00:00Z';
 const asset={...libraryItem,path:'/115/电影/海边的故事.mkv',source:'cloud',cloudState:'present',artifactsState:'ready',revision:1,outputs:[{kind:'strm',path:'海边的故事.strm'}]};
 const history={id:'i3-history',kind:'file',state:'succeeded',source:asset.path,destination:'/媒体/电影/海边的故事.mkv',createdAt:at,updatedAt:at,media:{title:asset.title,year:'2026'},details:{plan:{steps:Array.from({length:30},(_,i)=>({action:'mkdir',target:`/电影/核对目录 ${i+1}`}))}}};
 const job={id:'11111111-1111-4111-8111-111111111112',kind:'system.check',queue:'default',state:'succeeded',attempts:1,maxAttempts:3,createdAt:at,updatedAt:at,payload:{}};
-const archive={id:'i3-archive',originalPath:'电影/旧输出.strm',archivePath:'archive/旧输出.strm',state:'retained',eligibleAfter:'2020-01-01T00:00:00Z'};
 const key={id:'11111111-2222-4333-8444-555555555555',name:'只读核验凭据',scopes:['status.read','library.read'],createdAt:at,revokedAt:null};
 const subscription={id:'i3-sub',title:asset.title,media:u3Media,enabled:true,revision:1,source:'both',rules:{accountIds:[],include:[],exclude:[],freeOnly:true,rejectHR:true},lastState:'succeeded',lastMessage:'等待下次检查'};
 const run={id:'i3-run',subscriptionId:subscription.id,state:'succeeded',preview:true,decisions:[],createdAt:at};
@@ -32,8 +31,6 @@ export async function i3Fixture(page:Page,base:string){
    '/files/operations':[{id:'file-op-owned',state:'succeeded',kind:'rename',source:asset.path,destination:'/115/电影/海边的故事 (2026).mkv',createdAt:at,updatedAt:at}],
    '/library/outputs':pageOf([asset]),
    '/library/outputs/owned-asset/content':{content:'http://resolver.example.test/stable-fixture',path:'海边的故事.strm'},
-   '/library/archives':pageOf([archive]),
-   '/library/archives/cleanup-preview':{items:[archive],sourceFilesUntouched:true,physicalDeletion:true,planDigest:'fixture-plan',expiresAt:'2099-01-01T00:00:00Z'},
    '/library/activity':pageOf([history]),
    '/library/scans/scan-owned':{scan:{id:'scan-owned',root:'/115/媒体',state:'running',files:24,directories:1,completedDirectories:1,updatedAt:at},directories:[{path:'/115/媒体/电影',state:'completed',updatedAt:at}]},
    '/media/assets':pageOf([asset]),

@@ -43,7 +43,7 @@ func (a *API) taskControl(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_task", "任务ID无效")
 		return
 	}
-	if kind == "archives" || kind == "ops" {
+	if kind == "ops" {
 		a.directTaskControl(w, r, kind, id)
 		return
 	}
@@ -215,32 +215,19 @@ func (a *API) verifyTask(ctx context.Context, j jobs.Job) (jobs.Verification, er
 			return jobs.Verification{}, errors.New("修复服务不可用")
 		}
 		return e.VerifyRepairJob(ctx, p.BatchID)
-	case "library.archive.cleanup":
-		e := a.library()
-		if e == nil {
-			return jobs.Verification{}, errors.New("归档服务不可用")
-		}
-		return jobs.Verification{Complete: true, Reason: "已核对并继续原批准范围的归档清理"}, e.ApplyArchiveCleanup(ctx, p.CleanupID)
 	default:
 		return jobs.Verification{}, errors.New("此任务不能证明可安全重放；保留未知状态，请使用原业务核对/预览入口")
 	}
 }
 
-// Host maintenance and human-approved archive removal are synchronous ledgers,
-// not queue jobs. Preserve their approval boundary rather than inventing a job.
+// Host maintenance remains a synchronous ledger, not a queue job.
 func (a *API) directTaskControl(w http.ResponseWriter, r *http.Request, kind, id string) {
 	var state string
-	var err error
-	if kind == "ops" {
-		err = a.Deps.DB.QueryRow(r.Context(), `SELECT state FROM ops_requests WHERE id=$1`, id).Scan(&state)
-	} else {
-		err = a.Deps.DB.QueryRow(r.Context(), `SELECT state FROM media_archive_cleanup_operations WHERE id=$1`, id).Scan(&state)
-	}
-	if err != nil {
+	if err := a.Deps.DB.QueryRow(r.Context(), `SELECT state FROM ops_requests WHERE id=$1`, id).Scan(&state); err != nil {
 		fail(w, 404, "task_not_found", "操作记录不存在")
 		return
 	}
-	result := jobs.ControlResult{ID: id, State: state, Revision: 1, Reason: "同步操作仅沿原批准范围核对", ExternalEffects: "已发生的文件删除或宿主操作不能撤销"}
+	result := jobs.ControlResult{ID: id, State: state, Revision: 1, Reason: "同步操作仅沿原批准范围核对", ExternalEffects: "已发生的宿主操作不能撤销"}
 	if r.Method == http.MethodGet {
 		write(w, 200, result)
 		return
@@ -260,22 +247,10 @@ func (a *API) directTaskControl(w http.ResponseWriter, r *http.Request, kind, id
 	defer stop()
 	r = r.WithContext(bounded)
 	if r.PathValue("action") == "cancel" {
-		if kind == "ops" {
-			tag, e := a.Deps.DB.Exec(r.Context(), `UPDATE ops_requests SET state='cancelled',message='管理员取消' WHERE id=$1 AND state IN('preview','approved','cancelled')`, id)
-			if e != nil || tag.RowsAffected() != 1 {
-				fail(w, 409, "task_not_cancellable", "宿主已执行的维护操作不能由应用撤回；请核对原维护单")
-				return
-			}
-		} else {
-			e := a.library()
-			if e == nil {
-				fail(w, 503, "archives_unavailable", "归档服务不可用")
-				return
-			}
-			if err = e.CancelArchiveCleanup(r.Context(), id); err != nil {
-				fail(w, 409, "task_not_cancellable", err.Error())
-				return
-			}
+		tag, e := a.Deps.DB.Exec(r.Context(), `UPDATE ops_requests SET state='cancelled',message='管理员取消' WHERE id=$1 AND state IN('preview','approved','cancelled')`, id)
+		if e != nil || tag.RowsAffected() != 1 {
+			fail(w, 409, "task_not_cancellable", "宿主已执行的维护操作不能由应用撤回；请核对原维护单")
+			return
 		}
 		result.State = "cancelled"
 		result.Reason = "已取消尚未执行的批准"
@@ -286,23 +261,7 @@ func (a *API) directTaskControl(w http.ResponseWriter, r *http.Request, kind, id
 		fail(w, 400, "invalid_task_action", "操作无效")
 		return
 	}
-	if kind == "ops" {
-		fail(w, 409, "host_verification_required", "宿主维护必须先使用原维护单核验，不通过通用接口重放")
-		return
-	}
-	if a.library() == nil {
-		fail(w, 503, "archives_unavailable", "归档连接不可用，尚未确认执行")
-		return
-	}
-	if e := a.library().ApplyArchiveCleanup(r.Context(), id); e != nil {
-		result.State = "unknown"
-		result.Reason = e.Error()
-		write(w, 200, result)
-		return
-	}
-	result.State = "succeeded"
-	result.Reason = "已核对原批准范围并确认归档清理完成"
-	write(w, 200, result)
+	fail(w, 409, "host_verification_required", "宿主维护必须先使用原维护单核验，不通过通用接口重放")
 }
 
 func (a *API) registerAccountTasks(mux routeRegistrar) {

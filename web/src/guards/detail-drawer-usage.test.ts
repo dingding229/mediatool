@@ -40,7 +40,7 @@ it('keeps the audited DetailDrawer size map explicit',()=>{
  const large=new Set([
   'acquisition/ManualWorkspace.vue','files/BrowserPanel.vue','files/ManagedSTRMPanel.vue','files/STRMRepairPanel.vue',
   'operations/CachePanel.vue','operations/LogsPanel.vue','operations/MaintenancePanel.vue','operations/QueuePanel.vue','operations/WebRestorePanel.vue',
-  'organize/ArchivePanel.vue','organize/HistoryPanel.vue','organize/ScanPanel.vue',
+  'organize/HistoryPanel.vue','organize/ScanPanel.vue',
   'playback/AccessPanel.vue','playback/ProcessingPanel.vue','playback/ServicePanel.vue','playback/SessionsPanel.vue','playback/UsersPanel.vue',
   'settings/ExternalAccessPanel.vue','sites/AccountsPanel.vue','views/DownloadsWorkspaceView.vue','views/MediaWorkspaceView.vue','views/OrganizeWorkspaceView.vue','views/PluginsWorkspaceView.vue','views/SubscriptionWorkspaceView.vue',
  ])
@@ -56,6 +56,6 @@ it('keeps the audited DetailDrawer size map explicit',()=>{
    else expect(tag,`${name}: default-sized instance must not opt into a different width`).not.toMatch(/\ssize=/)
   }
  }
- expect(fileCount).toBe(29)
- expect(instanceCount).toBe(31)
+ expect(fileCount).toBe(28)
+ expect(instanceCount).toBe(30)
 })

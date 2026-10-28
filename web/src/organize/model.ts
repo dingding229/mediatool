@@ -9,7 +9,6 @@ export function episodes(text: string, series: boolean) {
   return out;
 }
 export const removable = (row: any) => ['file', 'batch', 'scan', 'transfer'].includes(row.kind) && ['succeeded', 'partial', 'failed', 'cancelled', 'expired', 'imported'].includes(row.state) && !(row.kind === 'transfer' && !['imported', 'cancelled'].includes(row.state));
-export const eligible = (row: any) => row.state === 'retained' && !row.deletedAt && Number.isFinite(Date.parse(row.eligibleAfter)) && Date.parse(row.eligibleAfter) <= Date.now();
 export function savePrivate(key: string, value: unknown) {
   try {
     if (value == null)

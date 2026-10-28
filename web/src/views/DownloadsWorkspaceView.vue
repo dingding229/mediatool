@@ -16,6 +16,7 @@ import StateView from '../ui/StateView.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
+import OutputRecoveryDialog from '../workflows/OutputRecoveryDialog.vue';
 import SourceRecoveryDialog from '../acquisition/SourceRecoveryDialog.vue';
 import ManualWorkspace from '../acquisition/ManualWorkspace.vue';
 import { useDownloads } from '../acquisition/useDownloads';
@@ -24,7 +25,7 @@ import { date, errorText, stateFor } from '../workflows/readiness';
 import '../acquisition/acquisition.css';
 const route = useRoute(), tabs = [{ id: 'tasks', label: '下载任务' }, { id: 'uploads', label: '上传入库' }, { id: 'manual', label: '手动添加' }], tab = computed(() => tabs.some(t => t.id === route.query.tab) ? String(route.query.tab) : 'tasks');
 const {sizes,pages,totals, tasks, transfers, batches, loading, errors, notice, message, busy, confirmOpen, confirmation, sessions, sessionBusy, sessionError, binding, sessionId, refresh, load, locked, ask, execute, inspectTransfer, reconcileCleanup, bind, askBinding } = useDownloads();
-const source = ref<InstanceType<typeof SourceRecoveryDialog>>(), detail = ref<any>(null), detailsOpen = ref(false), cleanup = computed(() => confirmation.value?.action === 'cleanup');
+const output = ref<InstanceType<typeof OutputRecoveryDialog>>(), source = ref<InstanceType<typeof SourceRecoveryDialog>>(), detail = ref<any>(null), detailsOpen = ref(false), cleanup = computed(() => confirmation.value?.action === 'cleanup');
 const selectedTask=computed(()=>tasks.value.find(t=>t.id===detail.value?.id));
 const actionName = computed(() => ({ pause: '暂停上传', resume: '恢复上传', cancel: '取消上传', restart: '核对后重建', bind: '绑定既有上传会话', retry: '重新排队', cleanup: '清理本地下载与种子' } as Record<string, string>)[confirmation.value?.action] || '确认操作');
 function show(row: any) {
@@ -99,7 +100,7 @@ usePageRefresh(()=>refresh(),'uploads');
           <div class="acquire-actions">
             <el-button @click="show(transfer)">查看详情</el-button>
             <TaskControl kind="transfers" :id="transfer.id" :state="transfer.state" @changed="load('transfers')"/>
-            <RouterLink v-if="['needs_output_reconciliation','output_resume_approved'].includes(transfer.state)" :to="{path:'/organize',query:{tab:'recovery',transferId:transfer.id}}">核对入库恢复</RouterLink>
+            <el-button v-if="['needs_output_reconciliation','output_resume_approved'].includes(transfer.state)" @click="output?.open(transfer.id)">核对入库恢复</el-button>
             <template v-else>
               <el-button :disabled="busy" @click="inspectTransfer(transfer)">核对</el-button>
               <el-dropdown trigger="click" popper-class="acquire-dropdown">
@@ -179,6 +180,7 @@ usePageRefresh(()=>refresh(),'uploads');
           </div>
       </template>
     </DetailDrawer>
+    <OutputRecoveryDialog ref="output" @completed="refresh()"/>
     <SourceRecoveryDialog ref="source" @completed="refresh()"/>
   </div>
 </template>
