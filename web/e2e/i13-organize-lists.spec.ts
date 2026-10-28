@@ -1,7 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {resolve,join,basename,extname} from 'node:path';
-import {i13Fixture,i13AccessFixture} from './i13-fixture';
+import {at,i13Fixture,i13AccessFixture} from './i13-fixture';
 const dir=resolve(import.meta.dirname,'../../scratchpad/i-phase/i13/screens');
 const capture=process.env.I13_SCREENSHOTS==='1'&&!process.env.CI&&!process.env.GITHUB_ACTIONS;
 const labels={candidates:'待确认文件列表',scans:'扫描任务列表',assets:'已入库资产列表'};
@@ -14,6 +14,7 @@ for(const tab of ['candidates','scans','assets']as const)test(`I13 ${tab} preser
  }else if(tab==='scans'){
   await expect(first.getByRole('button',{name:'取消后台任务',exact:true})).toBeVisible();await first.getByRole('button',{name:'暂停扫描',exact:true}).click();const dialog=page.getByRole('dialog',{name:'扫描控制',exact:true});expect(f.writes).toHaveLength(0);await dialog.getByRole('button',{name:'确认执行',exact:true}).click();await expect.poll(()=>f.writes.includes('/api/v1/library/scans/scan-0/pause')).toBe(true);
  }else{
+  await expect(page.locator('.organize-asset-columns')).toContainText('入库时间');await expect(first.locator('time')).toHaveAttribute('datetime',at);await expect(first.locator('time')).toContainText('2026');
   await first.getByRole('checkbox').check();await expect(page.getByRole('link',{name:'在文件页批量整理 · 1',exact:true})).toBeVisible();await first.getByRole('button',{name:'查看资产详情',exact:true}).click();const dialog=page.getByRole('dialog',{name:'资产与输出详情',exact:true});await expect(dialog).toBeVisible();await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();
  }
  const surface=page.locator(tab==='scans'?'.media-surface:has([aria-label="扫描任务列表"])':`.media-surface:has([aria-label="${labels[tab]}"])`),nav=surface.getByRole('navigation',{name:'分页',exact:true});await nav.getByRole('button',{name:'下一页',exact:true}).click();const key=tab==='assets'?'media/assets':`library/${tab}`;await expect.poll(()=>f.reads.some(u=>u.pathname.endsWith(key)&&u.searchParams.get('page')==='2')).toBe(true);
@@ -29,6 +30,10 @@ test.describe('I13 local screenshots @screenshots',()=>{
   mkdirSync(dir,{recursive:true});await i13Fixture(page);const before=process.env.I13_BEFORE==='1';if(before)await beforeAssets(page);await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);await page.goto('/organize?tab='+tab);
   await expect(page.getByRole('heading',{name:tab==='candidates'?'待确认文件':tab==='scans'?'扫描目录':'已入库资产',exact:true})).toBeVisible();const row=page.locator(before?tab==='assets'?'.asset-card':tab==='scans'?'.f5-scan-row':'.organize-record:visible':tab==='assets'?'.organize-asset-row':tab==='scans'?'.organize-scan-row':'.organize-candidate-row');await expect(row).toHaveCount(2);
   if(!before){for(const action of await row.first().getByRole('button').all()){const r=await action.boundingBox();if(r)expect(r.height).toBeGreaterThanOrEqual(width<1241?44:32)}}
+  if(tab==='assets'&&!before){
+   const time=row.first().locator('time');await expect(time).toHaveAttribute('datetime',at);await expect(time).toBeVisible();await expect(time).toContainText('2026');
+   if(width===390){const path=await row.first().locator('.organize-list-path').boundingBox(),stamp=await time.boundingBox();expect(stamp!.y).toBeGreaterThanOrEqual(path!.y+path!.height);expect(Math.abs(stamp!.x-path!.x)).toBeLessThan(1)}
+  }
   if(tab==='assets')await expect.poll(()=>row.first().locator('img').evaluate(img=>(img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:join(dir,`${before?'before':'after'}-${tab}-${width}-${theme}.png`),fullPage:true,animations:'disabled'});
  });
  for(const width of [1440,390])for(const theme of ['light','dark'])test(`AccessPanel pixel regression ${width}-${theme}`,async({page})=>{

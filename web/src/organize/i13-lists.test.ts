@@ -10,7 +10,7 @@ it('uses the I9 shared row/action classes rather than independent card styles',(
 it('retains selection limits and page query defaults and uses only supplied timestamps',()=>{
  const view=read('../views/OrganizeWorkspaceView.vue'),sizes=read('./useOrganize.ts');expect(view).toContain('state.selected.candidates.length>=20');expect(view).toContain('state.selected.assets.length>=20');expect(view).toContain("state.toggle('candidates'");expect(view).toContain("state.toggle('assets'");expect(view).toContain('待核对作品');expect(view).toContain('date(candidate.updatedAt)');
  expect(sizes).toContain("candidates:usePageSize(50,'candidatesPage'),assets:usePageSize(50,'assetsPage'),scans:usePageSize(8,'scansPage')");
- const assets=view.slice(view.indexOf('aria-label="已入库资产列表"'),view.indexOf("v-show=\"tab==='history'\""));expect(assets).not.toMatch(/<time|date\(|接口未提供/);expect(read('./ScanPanel.vue')).toContain('date(scan.updatedAt||scan.createdAt)');
+ const assets=view.slice(view.indexOf('aria-label="已入库资产列表"'),view.indexOf("v-show=\"tab==='history'\""));expect(assets).toContain(':datetime="asset.createdAt"');expect(assets).toContain('date(asset.createdAt)');expect(view).toContain('<span>入库时间</span>');expect(assets).not.toMatch(/updatedAt|接口未提供/);expect(read('./ScanPanel.vue')).toContain('date(scan.updatedAt||scan.createdAt)');
 });
 it('keeps I9 page-specific columns and mobile layout after extracting common declarations',()=>{
  const access=read('../playback/AccessPanel.vue');expect(access).toContain('.ua-rule-columns,.ua-rule-row{grid-template-columns:');expect(access).toContain('grid-template-areas:"identity identity state" "value actions actions"');expect(access).not.toContain('.ua-row-actions :deep(.el-button)');

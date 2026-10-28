@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 func (a *API) grants() playbackgrants.Service {
@@ -37,7 +38,7 @@ func (a *API) listAssets(w http.ResponseWriter, r *http.Request) {
 	if !p.Paged {
 		limit = 500
 	}
-	rows, err := a.Deps.DB.Query(r.Context(), `SELECT a.id::text,a.revision,a.artifacts_state,m.title,m.media_type,f.full_path,f.state,coalesce(g.revoked_at IS NOT NULL,false),g.id IS NOT NULL,coalesce(m.metadata->>'posterPath','') FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id LEFT JOIN media_asset_bindings b ON b.asset_id=a.id LEFT JOIN media_items m ON m.id=b.media_id LEFT JOIN playback_grants g ON g.asset_id=a.id WHERE ($3='' OR a.id::text=$3) ORDER BY a.created_at DESC,a.id DESC LIMIT $1 OFFSET $2`, limit, p.Offset, strings.ToLower(assetFilter))
+	rows, err := a.Deps.DB.Query(r.Context(), `SELECT a.id::text,a.revision,a.artifacts_state,m.title,m.media_type,f.full_path,f.state,coalesce(g.revoked_at IS NOT NULL,false),g.id IS NOT NULL,coalesce(m.metadata->>'posterPath',''),a.created_at FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id LEFT JOIN media_asset_bindings b ON b.asset_id=a.id LEFT JOIN media_items m ON m.id=b.media_id LEFT JOIN playback_grants g ON g.asset_id=a.id WHERE ($3='' OR a.id::text=$3) ORDER BY a.created_at DESC,a.id DESC LIMIT $1 OFFSET $2`, limit, p.Offset, strings.ToLower(assetFilter))
 	if err != nil {
 		fail(w, 503, "assets_unavailable", "媒体文件暂不可用")
 		return
@@ -46,15 +47,16 @@ func (a *API) listAssets(w http.ResponseWriter, r *http.Request) {
 	out := []map[string]any{}
 	for rows.Next() {
 		var revision int64
+		var createdAt time.Time
 		var artifactsState, poster string
 		var id, cloudPath, state string
 		var title, kind *string
 		var revoked, scoped bool
-		if err = rows.Scan(&id, &revision, &artifactsState, &title, &kind, &cloudPath, &state, &revoked, &scoped, &poster); err != nil {
+		if err = rows.Scan(&id, &revision, &artifactsState, &title, &kind, &cloudPath, &state, &revoked, &scoped, &poster, &createdAt); err != nil {
 			fail(w, 503, "assets_unavailable", "媒体文件读取失败")
 			return
 		}
-		out = append(out, map[string]any{"id": id, "revision": revision, "artifactsState": artifactsState, "title": title, "mediaType": kind, "path": cloudPath, "state": state, "revoked": revoked, "fileScoped": scoped, "poster": func() string {
+		out = append(out, map[string]any{"id": id, "revision": revision, "createdAt": createdAt, "artifactsState": artifactsState, "title": title, "mediaType": kind, "path": cloudPath, "state": state, "revoked": revoked, "fileScoped": scoped, "poster": func() string {
 			if validTMDBImagePath(poster) {
 				return "/api/v1/media/tmdb/image?path=" + url.QueryEscape(poster)
 			}

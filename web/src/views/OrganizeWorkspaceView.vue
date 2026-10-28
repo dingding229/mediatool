@@ -177,13 +177,14 @@ usePageRefresh(state.refresh,'*');
       <StateView v-if="state.loading.assets&&!state.data.assets.length" state="loading" title="正在读取资产…"/>
       <StateView v-else-if="state.errors.assets" :state="sourceState(state.errors.assets)" title="资产读取失败，旧数据待核对" :description="errorText(state.errors.assets)" @retry="state.load('assets')"/>
       <StateView v-else-if="!state.data.assets.length" state="empty" title="尚无已确认资产"/>
-      <div class="mt-list-columns organize-list-columns organize-asset-columns" aria-hidden="true"><span>选择</span><span>作品 / 识别结果</span><span>来源路径</span><span>状态</span><span>操作</span></div>
+      <div class="mt-list-columns organize-list-columns organize-asset-columns" aria-hidden="true"><span>选择</span><span>作品 / 识别结果</span><span>来源路径</span><span>状态</span><span>入库时间</span><span>操作</span></div>
       <div class="mt-list" role="list" aria-label="已入库资产列表">
       <article v-for="asset in state.data.assets" :key="asset.id" class="organize-record mt-list-row organize-list-row organize-asset-row" role="listitem">
         <label class="media-consent organize-list-selection"><input :id="'asset-'+asset.id" type="checkbox" :aria-label="'选择 '+(asset.title||'资产')" :checked="state.selected.assets.some(r=>r.id===asset.id)" :disabled="state.selected.assets.length>=20&&!state.selected.assets.some(r=>r.id===asset.id)" @change="state.toggle('assets',asset,($event.target as HTMLInputElement).checked)"/></label>
         <div class="organize-list-identity"><button class="organize-list-thumb" :aria-label="'查看'+(asset.title||'资产')+'详情'" @click="inspect(asset)"><PosterArtwork :src="image(asset.poster)" :title="asset.title||'资产'"/></button><div><h3><label :for="'asset-'+asset.id">{{ asset.title||'—' }}</label></h3><p>{{ asset.mediaType==='series'?'剧集':asset.mediaType==='movie'?'电影':'类型待核对' }}</p></div></div>
         <div class="organize-list-path"><PathText :path="asset.path"/><p>{{ asset.revoked?'文件播放已撤销':'文件播放未撤销' }}</p></div>
         <div class="organize-list-state"><StatusBadge :state="asset.artifactsState" :label="label(asset.artifactsState)"/><p>云端：{{ label(asset.state) }}</p></div>
+        <time class="organize-list-time" :datetime="asset.createdAt" aria-label="入库时间">{{ date(asset.createdAt) }}</time>
         <div class="media-actions mt-list-actions organize-list-actions">
           <el-button aria-label="查看资产详情" title="查看资产详情" @click="inspect(asset)"><el-icon class="mt-list-action-icon"><Document/></el-icon><span class="mt-list-action-text">查看资产详情</span></el-button>
           <el-button aria-label="修正身份 / 季集" title="修正身份 / 季集" @click="edit([],asset)"><el-icon class="mt-list-action-icon"><Edit/></el-icon><span class="mt-list-action-text">修正身份 / 季集</span></el-button>

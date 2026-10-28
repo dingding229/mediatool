@@ -7,7 +7,7 @@
 
 /* Only column/cell arrangement is page-specific; row/action geometry is shared. */
 .organize-candidate-columns,.organize-candidate-row{grid-template-columns:44px minmax(150px,1.2fr) minmax(170px,1.5fr) 108px 136px minmax(110px,auto)}
-.organize-asset-columns,.organize-asset-row{grid-template-columns:44px minmax(170px,1.2fr) minmax(200px,1.5fr) 124px 290px}
+.organize-asset-columns,.organize-asset-row{grid-template-columns:44px minmax(150px,1.2fr) minmax(170px,1.5fr) 108px 136px 290px}
 .organize-scan-columns,.organize-scan-row{grid-template-columns:minmax(150px,1fr) minmax(220px,1.5fr) 96px 136px minmax(230px,auto)}
 .organize-list-selection{display:flex;align-items:center;justify-content:center;min-height:44px;margin:0;cursor:pointer}
 .organize-list-identity{display:flex;align-items:center;gap:10px;min-width:0}.organize-list-identity>div{min-width:0}
@@ -26,6 +26,5 @@ button.organize-list-thumb{cursor:pointer}button.organize-list-thumb:focus-visib
  .organize-list-selection{grid-area:selection}.organize-list-identity{grid-area:identity}.organize-list-state{grid-area:state;justify-self:end}
  .organize-list-path{grid-area:path}.organize-list-time{grid-area:time}.organize-list-actions{grid-area:actions;align-self:center}
  .organize-scan-row.organize-scan-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"identity state" "path actions" "time actions"}
- .organize-asset-row.organize-asset-row{grid-template-areas:"selection identity state" "path path actions"}
  .organize-list-path>.mt-path{max-width:100%}
 }
