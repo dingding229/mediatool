@@ -45,22 +45,22 @@ usePageRefresh(refresh,'*');
     <PageTabs :tabs="tabs" default-tab="list" />
     <AsyncResultBanner v-if="pending" :status="pending.status" :can-refresh="pending.status !== 'locked'" :message="pending.status === 'locked' ? '正在提交运行请求，已锁定重复提交；尚未确认排队。' : pending.status === 'queued' ? (pending.preview ? '规则预演已排队，不创建下载。请等待运行结果。' : '运行已排队，尚未完成；只有已启用的订阅才会自动下载。') : '上次运行回执尚未确认。已锁定重复提交，请读取状态或核对运行记录。'" @refresh="reconcile" />
     <FlowHint v-if="pending?.status === 'reconciling'" reason="没有运行编号时不会猜测任务归属，也不会重新发起运行。" next-action="查看运行记录" clickable @action="showHistory(pending.subscriptionId)" />
-    <section class="subscription-list-section subscription-workbench" :class="{'subscription-history-section':tab==='history'}" aria-label="订阅工作区">
+    <section class="subscription-list-section subscription-workbench" :class="{'subscription-history-section':tab==='history','subscription-follow-section':tab==='list'}" aria-label="订阅工作区">
       <header class="subscription-commandbar">
         <div><h2>{{ tab === 'list' ? '我的跟进清单' : '跟进记录' }}</h2><p v-if="tab === 'history'">记录不会因订阅归档而丢失。选择一次运行，逐条核对决策。</p></div>
         <label class="subscription-scope">查看范围<el-select :model-value="scope" aria-label="订阅范围" @change="changeScope"><el-option label="当前" value="current" /><el-option label="已归档" value="history" /></el-select></label>
       </header>
-      <div class="f5-subscription-results">
-      <StateView v-if="loading" state="loading" title="正在读取订阅…" />
-      <StateView v-else-if="listError" :state="stateFor(listError)" :title="stateTitle(listError, '订阅列表')" :description="listError.message" @retry="refresh" />
-      <template v-else-if="tab === 'list'">
-        <div class="subscription-findbar">
+        <div v-if="tab==='list'" class="subscription-findbar">
           <el-input v-model="search" :prefix-icon="Search" clearable aria-label="搜索订阅" placeholder="搜索影视名称" />
           <div class="subscription-state-filters" aria-label="订阅状态">
             <button v-for="f in [{id:'all',label:'全部'},{id:'enabled',label:'已启用'},{id:'paused',label:'已停用'}]" :key="f.id" type="button" :aria-pressed="filter === f.id" @click="filter = f.id">{{ f.label }}</button>
           </div>
           <span>{{ visible.length }} 条订阅</span>
         </div>
+      <div class="f5-subscription-results">
+      <StateView v-if="loading" state="loading" title="正在读取订阅…" />
+      <StateView v-else-if="listError" :state="stateFor(listError)" :title="stateTitle(listError, '订阅列表')" :description="listError.message" @retry="refresh" />
+      <template v-else-if="tab === 'list'">
         <StateView v-if="!visible.length" state="empty" :title="records.length ? '没有符合筛选条件的订阅' : scope === 'history' ? '暂无已归档订阅' : '还没有订阅，从一部想看的影视开始'" description="点击右上角新建订阅，选影视、设规则、核对后保存。新订阅默认停用。" />
         <div v-else class="subscription-ledger">
           <div class="subscription-columns" aria-hidden="true"><span>跟进对象</span><span>站点与质量要求</span><span>最近结果 / 下一次</span><span>操作</span></div>
@@ -94,7 +94,6 @@ usePageRefresh(refresh,'*');
             </div>
           </article>
         </div>
-        <footer class="subscription-list-footer"><FlowHint reason="停用只停止后续自动下载；归档会保留下载、文件和运行历史。" /></footer>
       </template>
       <template v-else>
         <div class="history-subject-picker">
@@ -117,6 +116,7 @@ usePageRefresh(refresh,'*');
         </div>
       </template>
       </div>
+        <footer v-if="tab==='list'" class="subscription-list-footer"><FlowHint reason="停用只停止后续自动下载；归档会保留下载、文件和运行历史。" /></footer>
     <PagePagination v-if="tab==='list'" label="订阅列表分页" v-model:current-page="page" :total="total" v-model:page-size="pageSize" @current-change="refresh"/>
       <PagePagination label="订阅运行历史分页" v-if="tab==='history'" v-model:current-page="historyPage" :total="historyTotal" v-model:page-size="historySize" @current-change="loadHistory"/>
       </section>

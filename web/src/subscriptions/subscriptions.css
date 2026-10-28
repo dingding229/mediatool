@@ -201,3 +201,11 @@
 
 /* Run history must not inherit the list stage cap and clip its only pager. */
 .subscription-workbench.subscription-history-section{max-height:none}
+
+/* Follow-list content and its pager share the card, without a fixed scroller. */
+.subscription-workbench.subscription-follow-section{min-height:0;max-height:none;overflow:hidden;scrollbar-gutter:auto}
+.subscription-follow-section .f5-subscription-results{min-height:0}
+.subscription-follow-section .state-view{min-height:260px;padding:16px 24px}
+.subscription-follow-section .subscription-list-footer{padding-block:12px}
+.subscription-follow-section>.mt-pagination{margin:0;padding:16px 24px;box-sizing:border-box;border-top:1px solid var(--mt-border-color)}
+@media(max-width:700px){.subscription-follow-section .state-view{min-height:280px;padding-inline:16px}.subscription-follow-section>.mt-pagination{padding:16px}}
