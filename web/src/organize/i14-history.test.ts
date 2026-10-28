@@ -29,4 +29,5 @@ it('uses shared list geometry, no timeline or stage navigation, and preserves re
  expect(source.indexOf('移除所选历史')).toBeLessThan(source.indexOf('<ol class="mt-list'));expect(source).toContain('control.canCancel');expect(source).toContain('control.canRetry');
  expect(source).toContain('待恢复输出');expect(source).toContain('冲突输出');expect(source).toContain('@confirm="retryOutput"');expect(css).not.toContain('organize-history-timeline');
  expect(source).toContain("usePageNumber('historyPage')");expect(source).toContain("usePageSize(25,'historyPage')");
+ expect(source.indexOf('history-list-columns')).toBeLessThan(source.indexOf('<StateView v-if="loading"'));expect(source).toContain('<PagePagination v-if="hasLoaded"');
 });

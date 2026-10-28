@@ -79,6 +79,16 @@ test('I14 history pagination stays independent when another organize tab mounted
  await pager.getByRole('button',{name:'下一页',exact:true}).click();await expect.poll(()=>new URL(page.url()).searchParams.get('historyPage')).toBe('3');await expect.poll(()=>f.reads.at(-1)?.searchParams.get('page')).toBe('3');expect(f.reads.at(-1)?.searchParams.get('pageSize')).toBe('10');
  expect(new URL(page.url()).searchParams.get('candidatesPage')).toBe('1');expect(new URL(page.url()).searchParams.get('candidatesPageSize')).toBe('50');
 });
+test('I14 first history read keeps controls stable with delayed populated results',async({page})=>{
+ const f=await fixture(page);
+ await page.route('**/api/v1/library/activity?*',async r=>{await new Promise(resolve=>setTimeout(resolve,180));return fixtureFulfill(r,{json:{data:{items:f.items,total:f.items.length}}})});
+ await page.addInitScript(()=>{(window as any).__i14cls=0;new PerformanceObserver(list=>{for(const row of list.getEntries() as any[])if(!row.hadRecentInput)(window as any).__i14cls+=row.value}).observe({type:'layout-shift',buffered:true})});
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.goto('/organize?tab=history');await expect(page.locator('.f5-history-row')).toHaveCount(4);
+  await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+  expect(await page.evaluate(()=>(window as any).__i14cls)).toBeLessThan(.01);
+ }
+});
 test.describe('I14 local screenshots @screenshots',()=>{
  test.skip(!capture,'Explicit I14_SCREENSHOTS=1, never CI');
  for(const width of [1440,390])for(const theme of ['light','dark'])test(`history-${width}-${theme}`,async({page})=>{

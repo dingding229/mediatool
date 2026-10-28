@@ -195,11 +195,11 @@ usePageRefresh(load, 'history');
       <div class="media-actions history-filter-actions"><el-button native-type="submit">筛选</el-button><el-button @click="resetFilters">重置</el-button></div>
     </form>
     <p v-if="error&&hasLoaded" class="f3-stale-warning" role="status">刷新失败，保留上次内容。<button @click="load">重试</button></p>
-    <StateView v-if="loading" state="loading" title="正在读取历史…"/>
-    <StateView v-else-if="error&&!hasLoaded" :state="sourceState(error)" title="历史读取或核对失败" :description="errorText(error)" @retry="load"/>
     <p v-if="uncertain">移除回执未知，请先重新读取，不重复提交。</p>
     <div class="media-actions history-list-toolbar"><el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button></div>
     <div class="mt-list-columns history-list-columns" aria-hidden="true"><span>选择</span><span>海报</span><span>处理记录</span><span>操作</span></div>
+    <StateView v-if="loading" state="loading" title="正在读取历史…"/>
+    <StateView v-else-if="error&&!hasLoaded" :state="sourceState(error)" title="历史读取或核对失败" :description="errorText(error)" @retry="load"/>
     <ol class="mt-list organize-history-list" aria-label="整理历史列表">
     <li v-for="item in items" :key="item.kind+item.id" class="organize-record f5-history-row mt-list-row organize-history-row">
       <label v-if="removable(item)" class="media-consent f5-history-check"><input type="checkbox" aria-label="选择此历史" :checked="selected.some(r=>r.id===item.id&&r.kind===item.kind)" :disabled="uncertain" @change="toggle(item,($event.target as HTMLInputElement).checked)"/></label>
@@ -221,7 +221,7 @@ usePageRefresh(load, 'history');
     </li>
     </ol>
     <StateView v-if="!loading&&!error&&!items.length" state="empty" title="暂无符合条件的历史"/>
-    <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next,total" @current-change="load"/>
+    <PagePagination v-if="hasLoaded" v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next,total" @current-change="load"/>
   </section>
   <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" :technical-data="detail" size="large" class="media-detail">
     <h3>{{ detail?.media?.title||stageLabel(detail?.kind) }}</h3>
