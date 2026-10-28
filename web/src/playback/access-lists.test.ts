@@ -1,0 +1,11 @@
+import {afterEach,beforeEach,expect,it,vi} from 'vitest';
+import {setupComponent,flush} from '../test/setup-component';
+import Access from './AccessPanel.vue';
+import {readFileSync} from 'node:fs';
+let view:ReturnType<typeof setupComponent>;
+const policy={enabled:true,mode:'whitelist',revision:3,rules:[{id:'white',userAgent:'Family/',matchType:'prefix',enabled:true}],blacklistRules:[{id:'black',userAgent:'Crawler',matchType:'contains',enabled:false}]};
+beforeEach(()=>vi.stubGlobal('fetch',vi.fn(async(url:string)=>({ok:true,status:200,json:async()=>({data:url.endsWith('/policy')?policy:{items:[],total:0}})}))));
+afterEach(()=>{view?.unmount();vi.unstubAllGlobals()});
+it('keeps whitelist/blacklist selection independent from policy mode without a write',async()=>{view=setupComponent(Access);await flush();view.state.list='blacklistRules';expect(view.state.rules).toEqual(policy.blacklistRules);expect(view.state.policy.data.mode).toBe('whitelist');expect(vi.mocked(fetch).mock.calls.every(([,o])=>!o?.method||o.method==='GET')).toBe(true)});
+it('keeps independent 25-row summary and event reads and resets both on search',async()=>{view=setupComponent(Access);await flush();expect(fetch).toHaveBeenCalledWith('/api/v1/player-access/observations?q=&filter=&page=1&pageSize=25',expect.anything());expect(fetch).toHaveBeenCalledWith('/api/v1/player-access/events?page=1&pageSize=25&q=',expect.anything());view.state.page=2;view.state.visitPage=3;view.state.query='Family';view.state.search();await flush();expect(view.state.page).toBe(1);expect(view.state.visitPage).toBe(1);expect(fetch).toHaveBeenCalledWith('/api/v1/player-access/events?page=1&pageSize=25&q=Family',expect.anything())});
+it('renders three locally scoped lists and retains accessible names on icon-only controls',()=>{const text=readFileSync(new URL('./AccessPanel.vue',import.meta.url),'utf8');for(const label of ['编辑规则','删除规则','查看完整 UA','加入白名单','加入黑名单','访问详情'])expect(text).toContain(`aria-label="${label}"`);expect(text.match(/role="listitem"/g)).toHaveLength(3);expect(text).toContain('实际收到的完整 UA');expect(text).toContain('copyUA');expect(text).toContain('visitSize');expect(text).toContain('访问明细列表')});
