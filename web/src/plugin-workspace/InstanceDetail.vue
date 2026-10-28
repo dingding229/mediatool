@@ -99,7 +99,7 @@ ownRefresh.register(load,()=>true);
   <AsyncResultBanner v-if="op.phase" :status="op.phase" message="上次操作结果尚未确认，先核对原请求，不重复提交。" @refresh="load"/>
   <RouterLink v-if="op.pending?.input.instanceId&&op.pending.input.instanceId!==id" :to="'/plugins/'+encodeURIComponent(op.pending.input.instanceId)">返回待核对插件</RouterLink>
   <el-button v-if="op.canReconcile&&op.pending?.input.kind!=='configure'" :disabled="op.busy" @click="op.replay(read).then(load)">核对原请求</el-button>
-  <section v-if="row" class="media-surface">
+  <section v-if="row" class="media-surface plugin-status">
    <header class="media-section-heading"><div><h2>插件状态</h2><p>{{pluginState(row)}}</p></div><el-switch :model-value="row.desiredState==='enabled'" :disabled="!!op.pending||op.busy||!!unavailable||row.reason==='permission_review_required'" aria-label="启用插件" active-text="启用" :before-change="()=>{ask(row.desiredState==='enabled'?'disable':'enable');return false}"/></header>
    <p v-if="row.reason">{{reasonName(row.reason)}}</p>
    <p v-if="unavailable">此插件当前不可用，已有配置和数据仍保留。</p>
@@ -110,12 +110,14 @@ ownRefresh.register(load,()=>true);
     <el-dropdown trigger="click"><el-button aria-label="更多插件操作">更多</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item :disabled="!!op.pending||!!unavailable" @click="ask('clone')">创建分身</el-dropdown-item><el-dropdown-item :disabled="!!op.pending" @click="ask('remove')">卸载插件</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
    </div>
   </section>
-  <section v-if="row" class="media-surface">
+  <section v-if="row" class="media-surface plugin-config" aria-label="插件配置">
    <h2>插件配置</h2>
    <PluginForm v-model="config" :plugin-id="row.pluginId" :readonly="!!op.pending||op.busy" @valid="formValid=$event"/>
    <p v-if="latest" role="status">配置已在其他页面修改；你的输入仍保留。请重新载入，或确认采用当前修订后保存。</p>
    <div v-if="latest" class="media-actions"><el-button @click="draftLoaded=false;latest=false;load()">重新载入配置</el-button><el-button @click="draftRevision=data.data!.instance.revision;latest=false">保留输入并采用最新修订</el-button></div>
-   <el-button :disabled="!formValid||!!op.pending||op.busy||latest||!!data.error" @click="ask('configure')" type="primary">保存插件配置</el-button>
+   <div class="plugin-config-actions">
+    <el-button :disabled="!formValid||!!op.pending||op.busy||latest||!!data.error" @click="ask('configure')" type="primary">保存插件配置</el-button>
+   </div>
   </section>
   <InstanceDashboards v-if="row" :instance-id="id" :plugin-id="row.pluginId" :running="row.state==='running'"/>
   <section v-if="row?.state==='running'" class="media-surface"><ExtensionsPanel :id="id" :running="row.state==='running'"/></section>
@@ -132,3 +134,14 @@ ownRefresh.register(load,()=>true);
   </el-dialog>
  </div>
 </template>
+<style scoped>
+/* Host configuration only: plugin definitions, runtime UI and payloads are unchanged. */
+.f5-plugin-detail .plugin-status,.f5-plugin-detail .plugin-config{min-height:0}
+.plugin-config h2{margin:0}
+.f5-plugin-detail .plugin-config :deep(.plugin-json){grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;align-items:start;margin-block:20px}
+.plugin-config :deep(.plugin-json-field){align-content:start}
+.plugin-config :deep(.plugin-json-field>.el-input),
+.plugin-config :deep(.plugin-json-field>.el-select){width:100%}
+.plugin-config-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+@media(max-width:700px){.f5-plugin-detail .plugin-config :deep(.plugin-json){grid-template-columns:minmax(0,1fr)}}
+</style>
