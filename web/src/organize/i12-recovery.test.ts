@@ -3,7 +3,7 @@ import {readFileSync,existsSync} from 'node:fs';
 import {setupComponent,flush} from '../test/setup-component';
 import History from './HistoryPanel.vue';
 import {post,request} from '../api/client';
-vi.mock('vue-router',()=>({useRoute:()=>({query:{tab:'history'}})}));
+vi.mock('vue-router',()=>({useRoute:()=>({query:{tab:'history'}}),useRouter:()=>({replace:vi.fn()})}));
 vi.mock('../api/client',async original=>({...await original<typeof import('../api/client')>(),post:vi.fn(),request:vi.fn()}));
 let view:ReturnType<typeof setupComponent>;
 const row={id:'12121212-0000-4000-8000-000000000004',kind:'output',state:'pending',source:'Movie.strm',details:{operation:'write'}};

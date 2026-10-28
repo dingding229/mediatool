@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import PathText from '../ui/PathText.vue';
 import StatusBadge from '../components/StatusBadge.vue';
+import {Document,Close,Refresh} from '@element-plus/icons-vue';
 import {beijingISO} from '../presentation/time';
 import {cachedTMDBImage} from '../api/images';
 import {usePageNumber,usePageSize} from '../ui/page-query';
@@ -8,7 +9,7 @@ import {usePageNumber,usePageSize} from '../ui/page-query';
 import TaskControl from '../workflows/TaskControl.vue';
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { post, request } from '../api/client';
 import StateView from '../ui/StateView.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
@@ -19,7 +20,10 @@ import { sourceState } from '../media/model';
 import { label, removable, rows } from './model';
 const retryOpen=ref(false),retryPending=ref('');
 const brokenPosters=ref(new Set<string>());
-const route = useRoute(), items = ref<any[]>([]), total = ref(0), page = usePageNumber(), pageSize = usePageSize(25), kind = ref(String(route.query.kind || '')), state = ref(String(route.query.state || '')), query = ref(String(route.query.q || '')), batchId = ref(String(route.query.batchId || '')), origin = ref(''), method = ref(''), from = ref(''), to = ref(''), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), selected = ref<any[]>([]), removeOpen = ref(false), busy = ref(false), uncertain = ref(false);
+const router=useRouter();
+const stageOptions=Object.fromEntries(Object.entries(kindLabels).filter(([key])=>key!=='cleanup'));
+const stageLabel=(value?:string)=>kindLabels[value||'']||'其他/历史阶段';
+const route = useRoute(), items = ref<any[]>([]), total = ref(0), page = usePageNumber('historyPage'), pageSize = usePageSize(25,'historyPage'), kind = ref(String(route.query.kind || '')), state = ref(String(route.query.state || '')), query = ref(String(route.query.q || '')), batchId = ref(String(route.query.batchId || '')), origin = ref(''), method = ref(''), from = ref(''), to = ref(''), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), selected = ref<any[]>([]), removeOpen = ref(false), busy = ref(false), uncertain = ref(false);
 let epoch = 0, disposed = false;
 const summary = computed(() => ({ active: items.value.filter(r => ['pending', 'running', 'paused'].includes(r.state)).length, attention: items.value.filter(r => ['needs_reconcile', 'conflict', 'failed', 'partial'].includes(r.state)).length, done: items.value.filter(r => ['succeeded', 'imported', 'visible', 'applied', 'verified'].includes(r.state)).length }));
 let hasLoaded=false;
@@ -56,6 +60,13 @@ let hasLoaded=false;
 function apply() {
   page.value = 1;
   void load();
+}
+function resetFilters(){
+  kind.value='';state.value='';query.value='';batchId.value='';origin.value='';method.value='';from.value='';to.value='';
+  const next={...route.query};
+  for(const key of ['kind','state','q','batchId','origin','method','from','to'])delete next[key];
+  apply();
+  if(Object.keys(next).length!==Object.keys(route.query).length)void router.replace({query:{...next,historyPage:'1'}});
 }
 function toggle(row: any, checked: boolean) {
   selected.value = selected.value.filter(r => r.id !== row.id || r.kind !== row.kind);
@@ -107,7 +118,7 @@ async function retryOutput(){
  catch(e){retryOpen.value=false;error.value=e}
  finally{busy.value=false}
 }
-watch(() => [route.query.kind, route.query.batchId, route.query.q, route.query.state], () => {
+watch([() => route.query.kind, () => route.query.batchId, () => route.query.q, () => route.query.state], () => {
   kind.value = String(route.query.kind || '');
   state.value = String(route.query.state || '');
   batchId.value = String(route.query.batchId || '');
@@ -130,13 +141,6 @@ usePageRefresh(load, 'history');
       </div>
 
     </header>
-    <nav class="media-actions mt-segments" aria-label="历史阶段快捷筛选">
-      <el-button v-for="(text,value) in Object.fromEntries(Object.entries(kindLabels).filter(([key])=>key!=='cleanup'))" :key="value" :aria-pressed="kind===value" @click="kind=value;apply()">{{ text }}</el-button>
-    </nav>
-    <nav class="media-actions" aria-label="输出恢复快捷筛选">
-      <el-button :aria-pressed="kind==='output'&&state==='pending'" @click="filterOutputs('pending')">待恢复输出</el-button>
-      <el-button :aria-pressed="kind==='output'&&state==='conflict'" @click="filterOutputs('conflict')">冲突输出</el-button>
-    </nav>
     <form class="media-form organize-history-filters" @submit.prevent="apply">
       <label>
         来源
@@ -158,7 +162,7 @@ usePageRefresh(load, 'history');
         阶段
         <el-select v-model="kind" aria-label="历史阶段" @change="apply">
           <el-option value="" label="全部阶段"/>
-          <el-option v-for="(text,value) in Object.fromEntries(Object.entries(kindLabels).filter(([key])=>key!=='cleanup'))" :key="value" :value="value" :label="text"/>
+          <el-option v-for="(text,value) in stageOptions" :key="value" :value="value" :label="text"/>
         </el-select>
       </label>
       <label>
@@ -168,6 +172,10 @@ usePageRefresh(load, 'history');
           <el-option v-for="v in ['pending','conflict','running','paused','needs_reconcile','failed','partial','succeeded','imported','applied','verified','visible','cancelled']" :key="v" :value="v" :label="kind==='output'&&v==='pending'?'待恢复':label(v)"/>
         </el-select>
       </label>
+      <nav class="media-actions history-output-filters" aria-label="输出恢复快捷筛选">
+        <el-button :aria-pressed="kind==='output'&&state==='pending'" @click="filterOutputs('pending')">待恢复输出</el-button>
+        <el-button :aria-pressed="kind==='output'&&state==='conflict'" @click="filterOutputs('conflict')">冲突输出</el-button>
+      </nav>
       <label>
         关键词
         <el-input v-model="query" aria-label="历史关键词"/>
@@ -176,40 +184,47 @@ usePageRefresh(load, 'history');
         批次
         <el-input v-model="batchId" aria-label="历史批次ID"/>
       </label>
-      <label>
+      <label class="history-date-filter">
         开始时间
         <input v-model="from" class="mt-native-time-input" type="datetime-local" aria-label="历史开始时间"/>
       </label>
-      <label>
+      <label class="history-date-filter">
         结束时间
         <input v-model="to" class="mt-native-time-input" type="datetime-local" aria-label="历史结束时间"/>
       </label>
-      <el-button native-type="submit">筛选</el-button>
+      <div class="media-actions history-filter-actions"><el-button native-type="submit">筛选</el-button><el-button @click="resetFilters">重置</el-button></div>
     </form>
     <p v-if="error&&hasLoaded" class="f3-stale-warning" role="status">刷新失败，保留上次内容。<button @click="load">重试</button></p>
     <StateView v-if="loading" state="loading" title="正在读取历史…"/>
     <StateView v-else-if="error&&!hasLoaded" :state="sourceState(error)" title="历史读取或核对失败" :description="errorText(error)" @retry="load"/>
     <p v-if="uncertain">移除回执未知，请先重新读取，不重复提交。</p>
-    <ol class="organize-history-timeline" aria-label="整理处理时间线">
-    <li v-for="item in items" :key="item.kind+item.id" class="organize-record f5-history-row">
+    <div class="media-actions history-list-toolbar"><el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button></div>
+    <div class="mt-list-columns history-list-columns" aria-hidden="true"><span>选择</span><span>海报</span><span>处理记录</span><span>操作</span></div>
+    <ol class="mt-list organize-history-list" aria-label="整理历史列表">
+    <li v-for="item in items" :key="item.kind+item.id" class="organize-record f5-history-row mt-list-row organize-history-row">
       <label v-if="removable(item)" class="media-consent f5-history-check"><input type="checkbox" aria-label="选择此历史" :checked="selected.some(r=>r.id===item.id&&r.kind===item.kind)" :disabled="uncertain" @change="toggle(item,($event.target as HTMLInputElement).checked)"/></label>
       <span v-else class="f5-history-check"/>
       <span class="f5-history-cover"><img v-if="cachedTMDBImage(item.poster||item.media?.posterPath)&&!brokenPosters.has(item.id)" :src="cachedTMDBImage(item.poster||item.media?.posterPath)" alt="作品海报" width="44" height="66" loading="lazy" @error="brokenPosters.add(item.id)"/><span v-else aria-label="暂无海报">暂无海报</span></span>
       <div class="f5-row-summary">
-        <h3>{{kindLabels[item.kind]||'业务记录'}}</h3>
+        <h3>{{stageLabel(item.kind)}}</h3>
         <div class="history-paths"><div><small>源文件</small><PathText :path="item.source"/></div><span aria-hidden="true">→</span><div><small>目标路径</small><PathText :path="item.destination"/></div></div>
         <p>识别结果：{{item.media?.title?item.media.title+(item.media.year?' ('+item.media.year+')':''):'暂无识别结果'}}<span v-if="item.category"> · {{item.category}}</span></p>
         <div class="history-record-meta"><StatusBadge :state="item.state" :label="label(item.state)"/><time>{{date(item.updatedAt||item.createdAt)}}</time></div>
       </div>
-      <div class="media-actions"><el-button @click="detail=item;open=true">查看步骤详情</el-button><TaskControl v-if="item.kind==='batch'" kind="organize" :id="item.batchId||item.id" :state="item.state" @changed="load"/></div>
+      <div class="media-actions mt-list-actions history-row-actions">
+        <el-button aria-label="查看步骤详情" title="查看步骤详情" @click="detail=item;open=true"><el-icon class="mt-list-action-icon"><Document/></el-icon><span class="mt-list-action-text">查看步骤详情</span></el-button>
+        <TaskControl v-if="item.kind==='batch'" kind="organize" :id="item.batchId||item.id" :state="item.state" @changed="load"><template #default="control">
+          <el-button v-if="control.canCancel" aria-label="取消后台任务" title="取消后台任务" :disabled="control.disabled" @click="control.ask('cancel')"><el-icon class="mt-list-action-icon"><Close/></el-icon><span class="mt-list-action-text">取消后台任务</span></el-button>
+          <el-button v-if="control.canRetry" aria-label="核对后重试" title="核对后重试" :disabled="control.disabled" @click="control.ask('retry')"><el-icon class="mt-list-action-icon"><Refresh/></el-icon><span class="mt-list-action-text">核对后重试</span></el-button>
+        </template></TaskControl>
+      </div>
     </li>
     </ol>
     <StateView v-if="!loading&&!error&&!items.length" state="empty" title="暂无符合条件的历史"/>
     <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next,total" @current-change="load"/>
-    <div class="media-actions history-danger-actions"><el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button></div>
   </section>
   <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" :technical-data="detail" size="large" class="media-detail">
-    <h3>{{ detail?.media?.title||kindLabels[detail?.kind]||'业务记录' }}</h3>
+    <h3>{{ detail?.media?.title||stageLabel(detail?.kind) }}</h3>
     <p>{{ label(detail?.state) }} · {{ detail?.message||'—' }}</p>
     <p>原位置：{{detail?.source||'—'}}</p><p>目标位置：{{detail?.destination||'—'}}</p><p>目录分类：{{detail?.category||'—'}}</p>
     <article v-for="(step,index) in detail?.details?.plan?.steps||[]" :key="index">
