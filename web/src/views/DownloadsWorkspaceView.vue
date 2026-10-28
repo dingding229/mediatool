@@ -72,7 +72,6 @@ usePageRefresh(()=>refresh(),'uploads');
         <p>暂停、恢复或只移除任务，请在下载器里操作。这里的“清理”会同时删除本地文件。</p>
       <PagePagination label="下载任务分页" v-model:current-page="pages.tasks" :total="totals.tasks" v-model:page-size="sizes.tasks" @current-change="load('tasks')"/>
       </section>
-      <RouterLink to="/connections?tab=downloader">管理下载器</RouterLink>
     </template>
     <template v-else-if="tab==='uploads'">
       <section class="acquire-surface">
