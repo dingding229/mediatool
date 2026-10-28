@@ -99,7 +99,7 @@ func TestNativePlaybackParametersCaseVariantsEmpty302AndDenials(t *testing.T) {
 			t.Fatal("transcoding allowed", path, w.Code)
 		}
 	}
-	for _, denied := range []error{nativeplayback.ErrForbidden, nativeplayback.ErrUADenied, nativeplayback.ErrStreamLimit, nativeplayback.ErrParentalDenied} {
+	for _, denied := range []error{nativeplayback.ErrForbidden, nativeplayback.ErrUADenied, nativeplayback.ErrStreamLimit} {
 		play.err = denied
 		w := call("GET", "/Videos/100031/stream", "")
 		var out struct{ ErrorCode, Message string }

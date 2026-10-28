@@ -131,7 +131,7 @@ func TestAllDomainErrorsMapToFixedEmbyResponses(t *testing.T) {
 	}{
 		{ErrInvalid, 400}, {contracts.ErrUnauthenticated, 401},
 		{nativeplayback.ErrForbidden, 403}, {nativeplayback.ErrUADenied, 403}, {contracts.ErrForbidden, 404},
-		{nativeplayback.ErrStreamLimit, 403}, {contracts.ErrStreamLimit, 404}, {contracts.ErrParentalDenied, 404}, {nativeplayback.ErrParentalDenied, 403},
+		{nativeplayback.ErrStreamLimit, 403}, {contracts.ErrStreamLimit, 404},
 		{nativeplayback.ErrNotFound, 404}, {nativelibrary.ErrNotFound, 404},
 		{nativeplayback.ErrUpstream, 503}, {contracts.ErrUnavailable, 503},
 		{nativeplayback.ErrNotImplemented, 501}, {nativelibrary.ErrNotImplemented, 501}, {contracts.ErrNotImplemented, 501},

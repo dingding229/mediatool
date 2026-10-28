@@ -12,7 +12,6 @@ import (
 var (
 	ErrNotImplemented = errors.New("native playback not implemented")
 	ErrForbidden      = errors.New("native playback permission denied")
-	ErrParentalDenied = errors.New("native playback parental rating denied")
 	ErrIPDenied       = errors.New("native playback IP denied")
 	ErrUADenied       = errors.New("native playback UA denied")
 	ErrStreamLimit    = errors.New("native playback stream limit exceeded")
@@ -42,8 +41,6 @@ func PermissionError(err error) error {
 	switch {
 	case err == nil:
 		return nil
-	case errors.Is(err, contracts.ErrParentalDenied):
-		return ErrParentalDenied
 	case errors.Is(err, contracts.ErrStreamLimit):
 		return ErrStreamLimit
 	case errors.Is(err, contracts.ErrForbidden), errors.Is(err, contracts.ErrUnauthenticated):

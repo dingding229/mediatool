@@ -36,12 +36,12 @@ type Store struct {
 
 var _ contracts.AccountService = (*Store)(nil)
 
-const profileColumns = `replace(u.id::text,'-',''),u.username,u.enabled,u.credential_version,u.max_streams,u.max_parental_rating,u.expires_at,
+const profileColumns = `replace(u.id::text,'-',''),u.username,u.enabled,u.credential_version,u.max_streams,u.expires_at,
  EXISTS(SELECT 1 FROM media_user_library_grants g JOIN native_libraries l ON l.id=g.library_id WHERE g.user_id=u.id AND g.can_play AND NOT l.hidden),
  EXISTS(SELECT 1 FROM media_user_library_grants g JOIN native_libraries l ON l.id=g.library_id WHERE g.user_id=u.id AND g.can_play AND g.can_download AND NOT l.hidden)`
 
 func profileDest(u *contracts.User) []any {
-	return []any{&u.ID, &u.Name, &u.Enabled, &u.CredentialVersion, &u.MaxStreams, &u.MaxParentalRating, &u.ExpiresAt, &u.CanPlay, &u.CanDownload}
+	return []any{&u.ID, &u.Name, &u.Enabled, &u.CredentialVersion, &u.MaxStreams, &u.ExpiresAt, &u.CanPlay, &u.CanDownload}
 }
 func safeText(s string, limit int) bool {
 	return len(s) <= limit && utf8.ValidString(s) && !strings.ContainsFunc(s, unicode.IsControl)

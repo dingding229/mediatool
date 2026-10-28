@@ -99,7 +99,7 @@ func TestNativePermissionsVisibleLibrariesComposeWithMovieAndHierarchy(t *testin
 	}
 }
 
-func TestNativePermissionsDefenseParentalAndStreamSlotBoundaries(t *testing.T) {
+func TestNativePermissionsAllRatingsAndStreamSlotBoundaries(t *testing.T) {
 	f, store, account := authFixture(t)
 	login, err := store.Login(f.ctx, account.Username, "Original-密码123", contracts.DeviceInfo{DeviceID: "slot-device"})
 	if err != nil {
@@ -139,14 +139,14 @@ func TestNativePermissionsDefenseParentalAndStreamSlotBoundaries(t *testing.T) {
 	if err != nil || slots.InUse != 1 {
 		t.Fatal(slots, err)
 	}
-	f.exec(t, `UPDATE media_users SET max_streams=1,max_parental_rating=65 WHERE id=$1`, account.ID)
+	f.exec(t, `UPDATE media_users SET max_streams=1 WHERE id=$1`, account.ID)
 	slots, err = nativepermissions.New(store.DB).StreamSlots(ctx, u)
 	if slots.Limit != 1 || !errors.Is(err, contracts.ErrStreamLimit) {
 		t.Fatal("stale client limits trusted", slots, err)
 	}
 	for _, rating := range []string{"G", "PG-13", "R", "", "unknown"} {
 		err := nativepermissions.New(store.DB).ItemAllowed(ctx, u, contracts.ItemAccess{LibraryIDs: []string{"g:other", "g:slots"}, OfficialRating: rating})
-		if (err == nil) != (rating == "G" || rating == "PG-13") {
+		if err != nil {
 			t.Fatal("rating", rating, err)
 		}
 	}

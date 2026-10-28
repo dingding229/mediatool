@@ -11,7 +11,6 @@ import (
 var (
 	ErrNotImplemented         = errors.New("native authentication not implemented")
 	ErrUnauthenticated        = errors.New("native token rejected")
-	ErrParentalDenied         = errors.New("native parental rating denied")
 	ErrForbidden              = errors.New("native permission denied")
 	ErrStreamLimit            = errors.New("native stream limit exceeded")
 	ErrUnavailable            = errors.New("native authentication unavailable")
@@ -28,7 +27,6 @@ type User struct {
 	CredentialVersion    int64
 	Enabled              bool
 	MaxStreams           int
-	MaxParentalRating    *int
 	ExpiresAt            *time.Time
 }
 type Device struct{ ID, UserID, DeviceKey string }
@@ -42,7 +40,6 @@ type ItemAccess struct {
 	ID, LibraryID  string
 	LibraryIDs     []string
 	OfficialRating string
-	ParentalRating *int // Reserved legacy placeholder; never bypasses OfficialRating checks.
 }
 type StreamCapacity struct{ Limit, InUse int }
 type TokenAuthenticator interface {
@@ -78,7 +75,6 @@ type PermissionChecker interface {
 	CanBrowse(context.Context, User, string) error
 	CanPlay(context.Context, User, string) error
 	CanDownload(context.Context, User, string) error
-	ParentalAllowed(context.Context, User, ItemAccess) error
 	StreamSlots(context.Context, User) (StreamCapacity, error)
 }
 type empty struct{}
@@ -88,10 +84,9 @@ func NewPermissionChecker() PermissionChecker   { return empty{} }
 func (empty) Authenticate(context.Context, string, DeviceInfo) (User, Device, Token, error) {
 	return User{}, Device{}, Token{}, ErrNotImplemented
 }
-func (empty) CanBrowse(context.Context, User, string) error           { return ErrNotImplemented }
-func (empty) CanPlay(context.Context, User, string) error             { return ErrNotImplemented }
-func (empty) CanDownload(context.Context, User, string) error         { return ErrNotImplemented }
-func (empty) ParentalAllowed(context.Context, User, ItemAccess) error { return ErrNotImplemented }
+func (empty) CanBrowse(context.Context, User, string) error   { return ErrNotImplemented }
+func (empty) CanPlay(context.Context, User, string) error     { return ErrNotImplemented }
+func (empty) CanDownload(context.Context, User, string) error { return ErrNotImplemented }
 func (empty) StreamSlots(context.Context, User) (StreamCapacity, error) {
 	return StreamCapacity{}, ErrNotImplemented
 }

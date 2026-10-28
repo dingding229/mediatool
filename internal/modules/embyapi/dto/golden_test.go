@@ -29,7 +29,7 @@ func fixtures(t *testing.T) []fixture {
 	t.Helper()
 	stamp := dto.NewUTCDateTime(time.Date(2026, 10, 16, 8, 9, 10, 123456700, time.FixedZone("synthetic", 8*3600)))
 	public := dto.PublicSystemInfo{Id: strings.Repeat("a", 32), ServerName: "Synthetic Media", Version: "4.8.10.0", ProductName: "Emby Server", LocalAddress: "https://media.synthetic.invalid", OperatingSystem: "Linux", StartupWizardCompleted: true}
-	policy := dto.UserPolicy{EnableMediaPlayback: true, EnableContentDownloading: true, EnabledFolders: dto.Array[string]{"100000"}, MaxParentalRating: ptr(0), SimultaneousStreamLimit: ptr(2)}
+	policy := dto.UserPolicy{EnableMediaPlayback: true, EnableContentDownloading: true, EnabledFolders: dto.Array[string]{"100000"}, SimultaneousStreamLimit: ptr(2)}
 	configuration := dto.UserConfiguration{AudioLanguagePreference: "zho", SubtitleLanguagePreference: "eng", SubtitleMode: "Default", PlayDefaultAudioTrack: true, EnableNextEpisodeAutoPlay: true}
 	user := dto.UserDto{Id: strings.Repeat("b", 32), Name: "Synthetic User", ServerId: public.Id, HasPassword: true, HasConfiguredPassword: true, LastLoginDate: &stamp, LastActivityDate: &stamp, Policy: policy, Configuration: configuration}
 	pair := dto.NameIdPair{Name: "Synthetic Actor", Id: "900001"}

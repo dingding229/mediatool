@@ -6,7 +6,6 @@
     "mustChangePassword": false,
     "revision": 1,
     "maxStreams": 3,
-    "maxParentalRating": 65,
     "expiresAt": "2030-01-01T00:00:00Z",
     "grants": [
       {
@@ -23,7 +22,6 @@
     "mustChangePassword": false,
     "revision": 2,
     "maxStreams": 3,
-    "maxParentalRating": 65,
     "expiresAt": "2030-01-01T00:00:00Z",
     "grants": [
       {
@@ -64,7 +62,6 @@
         "canDownload": true
       }
     ],
-    "maxParentalRating": null,
     "expiresAt": null
   }
 }

@@ -196,9 +196,9 @@ func TestServerUserManagementRevocationSummariesAndSensitiveProjection(t *testin
 	h, ctx := serverFixture(t)
 	_, lib := seedServerCatalog(t, &h, ctx)
 	r := mediausers.Repository{DB: h.DB}
-	rating, streams := 18, 2
+	streams := 2
 	expiry := time.Now().Add(time.Hour).UTC()
-	u, e := r.Save(ctx, "", mediausers.Input{Username: "fixture_user", DisplayName: "Owned", Password: "Fixture-2026!", Enabled: true, MaxStreams: &streams, MaxParentalRating: &rating, ExpiresAt: &expiry, Grants: []mediausers.Grant{{LibraryID: lib, CanPlay: true}}})
+	u, e := r.Save(ctx, "", mediausers.Input{Username: "fixture_user", DisplayName: "Owned", Password: "Fixture-2026!", Enabled: true, MaxStreams: &streams, ExpiresAt: &expiry, Grants: []mediausers.Grant{{LibraryID: lib, CanPlay: true}}})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -267,11 +267,11 @@ func TestServerUserManagementRevocationSummariesAndSensitiveProjection(t *testin
 	}
 	name := "Updated"
 	updated := requireServer[b.ServerUser](t, h, "mediausers.update", b.UserPatch{ID: u.ID, Revision: u.Revision, DisplayName: &name}, nil, u.Revision)
-	if updated.ExpiresAt == nil || updated.MaxParentalRating == nil || updated.MaxStreams != 2 || len(updated.Grants) != 1 {
+	if updated.ExpiresAt == nil || updated.MaxStreams != 2 || len(updated.Grants) != 1 {
 		t.Fatal("omitted patch cleared data", updated)
 	}
-	cleared := requireServer[b.ServerUser](t, h, "mediausers.update", b.UserPatch{ID: u.ID, Revision: updated.Revision, ClearExpiry: true, ClearParentalRating: true}, nil, updated.Revision)
-	if cleared.ExpiresAt != nil || cleared.MaxParentalRating != nil {
+	cleared := requireServer[b.ServerUser](t, h, "mediausers.update", b.UserPatch{ID: u.ID, Revision: updated.Revision, ClearExpiry: true}, nil, updated.Revision)
+	if cleared.ExpiresAt != nil {
 		t.Fatal("clear semantics", cleared)
 	}
 	var passwordAfter string

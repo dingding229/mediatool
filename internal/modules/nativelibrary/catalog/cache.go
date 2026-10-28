@@ -80,14 +80,13 @@ func (r *CachedRepository) key(ctx context.Context, u contracts.User, p contract
 		return "", "", err
 	}
 	raw, err := json.Marshal(struct {
-		Version            int
-		User               string
-		Credential         int64
-		Libraries, Ratings []string
-		Unrated            bool
-		Fence              string
-		Request            any
-	}{2, u.ID, u.CredentialVersion, scope.ids, scope.codes, scope.unrated, stamp, request})
+		Version    int
+		User       string
+		Credential int64
+		Libraries  []string
+		Fence      string
+		Request    any
+	}{3, u.ID, u.CredentialVersion, scope.ids, stamp, request})
 	if err != nil {
 		return "", "", nativelibrary.ErrInvalidQuery
 	}

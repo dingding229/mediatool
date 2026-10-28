@@ -234,11 +234,10 @@ func TestNativePersonalVisibleEpisodeAggregationAndSpecials(t *testing.T) {
 	if !d.Played || *d.UnplayedItemCount != 0 || f.integer(t, `SELECT count(*) FROM media_user_item_data d JOIN native_item_ids n ON n.id=d.item_id WHERE n.internal_key='tmdb:3536002:s1e2'`) != 0 {
 		t.Fatal("bulk crossed visibility boundary", d)
 	}
-	// A title with no permitted rating is hidden before user-data writes and counts.
-	f.exec(t, `UPDATE media_users SET max_parental_rating=0 WHERE id=$1::uuid`, f.user.ID)
+	// Rating metadata does not block user-data writes on an authorized title.
 	f.exec(t, `UPDATE media_items SET metadata='{"officialRating":"R"}' WHERE id=$1`, m)
-	if w = reportHTTP(f, "POST", "/Users/"+f.user.ID+"/PlayedItems/"+show, ""); w.Code != 404 {
-		t.Fatal("parental write bypass", w.Code)
+	if w = reportHTTP(f, "POST", "/Users/"+f.user.ID+"/PlayedItems/"+show, ""); w.Code != 200 {
+		t.Fatal("rated title write rejected", w.Code)
 	}
 }
 

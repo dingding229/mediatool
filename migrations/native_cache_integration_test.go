@@ -98,12 +98,10 @@ func TestNativeCacheTenThousandColdProcessAndWriteFences(t *testing.T) {
 		t.Fatal("probe write did not invalidate", err)
 	}
 	f.exec(t, `UPDATE media_items SET metadata=metadata||'{"officialRating":"R"}'::jsonb WHERE media_type='movie'`)
-	f.exec(t, `UPDATE media_users SET max_parental_rating=0 WHERE id=$1`, f.user.ID)
 	items, n, err = r.Query(f.ctx, f.user, f.permissions(), q)
-	if err != nil || n != 0 || len(items) != 0 {
-		t.Fatal("stale parental scope", err, n)
+	if err != nil || n != 10000 || len(items) != q.Limit {
+		t.Fatal("rating metadata hid cached items", err, n)
 	}
-	f.exec(t, `UPDATE media_users SET max_parental_rating=NULL WHERE id=$1`, f.user.ID)
 	f.exec(t, `UPDATE cloud_files SET state='missing' WHERE id=(SELECT a.cloud_file_id FROM media_assets a JOIN media_asset_bindings b ON b.asset_id=a.id JOIN media_items m ON m.id=b.media_id JOIN native_item_ids i ON i.internal_key='tmdb:'||m.tmdb_id WHERE i.id=$1::bigint LIMIT 1)`, id)
 	items, n, err = r.Query(f.ctx, f.user, f.permissions(), q)
 	if err != nil || n != 9999 || items[0].Id == id {

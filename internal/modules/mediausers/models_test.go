@@ -34,6 +34,9 @@ func TestNativePermissionInputValidation(t *testing.T) {
 		`{"username":"member","revision":1,"maxStreams":21}`,
 		`{"username":"member","revision":1,"maxParentalRating":-1}`,
 		`{"username":"member","revision":1,"maxParentalRating":101}`,
+		`{"username":"member","revision":1,"maxParentalRating":null}`,
+		`{"username":"member","revision":1,"MaxParentalRating":65}`,
+		`{"username":"member","revision":1,"BlockUnratedItems":[]}`,
 		`{"username":"member","revision":1,"grants":[{"libraryId":"g:test","canDownload":true}]}`,
 		`{"username":"member","revision":1,"expiresAt":"invalid-date"}`,
 		`{"username":"member","revision":1,"unknown":true}`,
@@ -47,10 +50,10 @@ func TestNativePermissionInputValidation(t *testing.T) {
 	if err := json.Unmarshal([]byte(`{"username":"member","revision":1}`), &omitted); err != nil {
 		t.Fatal(err)
 	}
-	if err := json.Unmarshal([]byte(`{"username":"member","revision":1,"maxParentalRating":null,"expiresAt":null}`), &cleared); err != nil {
+	if err := json.Unmarshal([]byte(`{"username":"member","revision":1,"expiresAt":null}`), &cleared); err != nil {
 		t.Fatal(err)
 	}
-	if omitted.parentalSet || omitted.expirySet || !cleared.parentalSet || !cleared.expirySet {
+	if omitted.expirySet || !cleared.expirySet {
 		t.Fatal("nullable update semantics lost")
 	}
 }

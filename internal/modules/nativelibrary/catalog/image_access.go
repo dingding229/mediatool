@@ -6,7 +6,7 @@ import (
 	"media-tool/internal/modules/nativelibrary"
 )
 
-// ImageVisible applies the same live library and parental scope as browsing,
+// ImageVisible applies the same live library scope as browsing,
 // before consulting even a cached image or answering a conditional request.
 func (r BrowseRepository) ImageVisible(ctx context.Context, u contracts.User, p contracts.PermissionChecker, id string) (bool, error) {
 	q := nativelibrary.ItemQuery{IDs: []string{id}}
@@ -20,9 +20,9 @@ func (r BrowseRepository) ImageVisible(ctx context.Context, u contracts.User, p 
 	return visible, err
 }
 
-// ImageScope reuses browse's live grant and parental normalization. Filtering
+// ImageScope reuses browse's live grant scope. Filtering
 // happens before any bounded person-candidate page, not after truncating titles.
-func ImageScope(ctx context.Context, u contracts.User, p contracts.PermissionChecker) (libraries, codes []string, unrated bool, err error) {
+func ImageScope(ctx context.Context, u contracts.User, p contracts.PermissionChecker) (libraries []string, err error) {
 	s, err := scope(ctx, u, p)
-	return s.ids, s.codes, s.unrated, err
+	return s.ids, err
 }

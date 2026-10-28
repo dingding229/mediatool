@@ -16,7 +16,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/embyapi/dto"
 	"media-tool/internal/modules/mediausers/contracts"
-	"media-tool/internal/modules/mediausers/nativepermissions"
 	"media-tool/internal/modules/nativelibrary"
 )
 
@@ -49,8 +48,7 @@ type browseRow struct {
 }
 type browseScope struct {
 	user       string
-	ids, codes []string
-	unrated    bool
+	ids        []string
 	library    string
 	parentKind string
 }
@@ -63,19 +61,6 @@ func scope(ctx context.Context, u contracts.User, p contracts.PermissionChecker)
 	var err error
 	s.ids, err = p.VisibleLibraries(ctx, u)
 	if err != nil {
-		return s, err
-	}
-	for _, code := range nativepermissions.RatingCodes() {
-		err = p.ParentalAllowed(ctx, u, contracts.ItemAccess{OfficialRating: code})
-		if err == nil {
-			s.codes = append(s.codes, code)
-		} else if !errors.Is(err, contracts.ErrParentalDenied) {
-			return s, err
-		}
-	}
-	err = p.ParentalAllowed(ctx, u, contracts.ItemAccess{})
-	s.unrated = err == nil
-	if err != nil && !errors.Is(err, contracts.ErrParentalDenied) {
 		return s, err
 	}
 	return s, nil
@@ -133,8 +118,8 @@ func (r BrowseRepository) Views(ctx context.Context, u contracts.User, p contrac
 
 // conditions contains only fixed expressions. Every request value is a bind.
 func conditions(q nativelibrary.ItemQuery, s browseScope) (string, []any) {
-	args := []any{s.ids, s.codes, s.unrated, s.library, s.user}
-	where := []string{`(kind='library' OR $3::boolean OR btrim(regexp_replace(upper(btrim(rating)),'^(CN:|US:)\s*',''))=ANY($2::text[]))`}
+	args := []any{s.ids, s.library, s.user}
+	where := []string{"true"}
 	add := func(expr string, v any) { args = append(args, v); where = append(where, fmt.Sprintf(expr, len(args))) }
 	types := []string{}
 	for _, v := range q.IncludeItemTypes {

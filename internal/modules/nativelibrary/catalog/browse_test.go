@@ -40,7 +40,7 @@ func TestStandardUnstoredTypesRemainBoundFilters(t *testing.T) {
 		t.Fatal(err)
 	}
 	where, args := conditions(q, browseScope{})
-	if !strings.Contains(where, "kind=ANY($6::text[])") || !strings.Contains(where, "NOT(kind=ANY($7::text[]))") || strings.Join(args[5].([]string), ",") != "movie,video,musicvideo,musicalbum" {
+	if !strings.Contains(where, "kind=ANY($4::text[])") || !strings.Contains(where, "NOT(kind=ANY($5::text[]))") || strings.Join(args[3].([]string), ",") != "movie,video,musicvideo,musicalbum" {
 		t.Fatalf("filter dropped or expanded: %s %+v", where, args)
 	}
 	if browseSorts["DateLastContentAdded"] != "latest_created" {
@@ -59,7 +59,7 @@ func TestF2DomainQueryToleratesUnknownValuesWithoutSQLExpansion(t *testing.T) {
 			t.Fatalf("%+v %v", q, e)
 		}
 		w, args := conditions(q, browseScope{})
-		if !strings.Contains(w, "kind=ANY($6::text[])") || strings.Join(args[5].([]string), ",") != "__unsupported__,__unsupported__,__unsupported__" {
+		if !strings.Contains(w, "kind=ANY($4::text[])") || strings.Join(args[3].([]string), ",") != "__unsupported__,__unsupported__,__unsupported__" {
 			t.Fatalf("filter widened: %s %+v", w, args)
 		}
 	}

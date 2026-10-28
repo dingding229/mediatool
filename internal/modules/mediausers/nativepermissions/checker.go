@@ -47,9 +47,9 @@ func New(db *pgxpool.Pool) *Checker {
 		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 		defer cancel()
 		var raw []byte
-		err := db.QueryRow(ctx, `SELECT replace(u.id::text,'-',''),u.enabled,u.must_change_password,u.credential_version,u.max_streams,u.max_parental_rating,u.expires_at,
+		err := db.QueryRow(ctx, `SELECT replace(u.id::text,'-',''),u.enabled,u.must_change_password,u.credential_version,u.max_streams,u.expires_at,
    coalesce((SELECT jsonb_agg(row_to_json(g)) FROM (SELECT l.id AS "ID",g.can_play AS "Play",g.can_download AS "Download" FROM media_user_library_grants g JOIN native_libraries l ON l.id=g.library_id WHERE g.user_id=u.id AND NOT l.hidden ORDER BY l.id LIMIT 201) g),'[]'::jsonb)
-   FROM media_users u WHERE u.id=$1::uuid`, u.ID).Scan(&out.User.ID, &out.User.Enabled, &out.User.MustChangePassword, &out.User.CredentialVersion, &out.User.MaxStreams, &out.User.MaxParentalRating, &out.User.ExpiresAt, &raw)
+   FROM media_users u WHERE u.id=$1::uuid`, u.ID).Scan(&out.User.ID, &out.User.Enabled, &out.User.MustChangePassword, &out.User.CredentialVersion, &out.User.MaxStreams, &out.User.ExpiresAt, &raw)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return out, contracts.ErrForbidden
 		}
@@ -131,23 +131,6 @@ func (c *Checker) CanPlay(ctx context.Context, u contracts.User, id string) erro
 func (c *Checker) CanDownload(ctx context.Context, u contracts.User, id string) error {
 	return c.allowed(ctx, u, id, 2)
 }
-func parental(u contracts.User, item contracts.ItemAccess) error {
-	if u.MaxParentalRating == nil {
-		return nil
-	}
-	level, known := RatingLevel(item.OfficialRating)
-	if !known || level > *u.MaxParentalRating {
-		return contracts.ErrParentalDenied
-	}
-	return nil
-}
-func (c *Checker) ParentalAllowed(ctx context.Context, u contracts.User, item contracts.ItemAccess) error {
-	s, err := c.get(ctx, u)
-	if err != nil {
-		return err
-	}
-	return parental(s.User, item)
-}
 func (c *Checker) ItemAllowed(ctx context.Context, u contracts.User, item contracts.ItemAccess) error {
 	s, err := c.get(ctx, u)
 	if err != nil {
@@ -155,11 +138,11 @@ func (c *Checker) ItemAllowed(ctx context.Context, u contracts.User, item contra
 	}
 	for _, g := range s.Grants {
 		if g.ID == item.LibraryID {
-			return parental(s.User, item)
+			return nil
 		}
 		for _, id := range item.LibraryIDs {
 			if g.ID == id {
-				return parental(s.User, item)
+				return nil
 			}
 		}
 	}

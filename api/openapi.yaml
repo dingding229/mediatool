@@ -23147,17 +23147,6 @@
           "IsHidden": {
             "type": "boolean"
           },
-          "MaxParentalRating": {
-            "anyOf": [
-              {
-                "format": "int64",
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "SimultaneousStreamLimit": {
             "anyOf": [
               {
@@ -26940,17 +26929,6 @@
               "null"
             ]
           },
-          "maxParentalRating": {
-            "anyOf": [
-              {
-                "format": "int64",
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "maxStreams": {
             "anyOf": [
               {
@@ -26988,7 +26966,6 @@
           "enabled",
           "expiresAt",
           "grants",
-          "maxParentalRating",
           "password",
           "revision",
           "username"
@@ -27167,17 +27144,6 @@
               }
             ]
           },
-          "maxParentalRating": {
-            "anyOf": [
-              {
-                "format": "int64",
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "maxStreams": {
             "format": "int64",
             "type": "integer"
@@ -27209,7 +27175,6 @@
           "lastIp",
           "lastPlayedAt",
           "lockedUntil",
-          "maxParentalRating",
           "maxStreams",
           "mustChangePassword",
           "revision",
@@ -67164,17 +67129,6 @@
                       "null"
                     ]
                   },
-                  "maxParentalRating": {
-                    "anyOf": [
-                      {
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
                   "maxStreams": {
                     "anyOf": [
                       {
@@ -67532,17 +67486,6 @@
                     "type": [
                       "array",
                       "null"
-                    ]
-                  },
-                  "maxParentalRating": {
-                    "anyOf": [
-                      {
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      {
-                        "type": "null"
-                      }
                     ]
                   },
                   "maxStreams": {

@@ -273,8 +273,6 @@ func (s *Server) playbackError(w http.ResponseWriter, err error) {
 		message = "当前 IP 已被拉黑，请联系管理员"
 	case errors.Is(err, nativeplayback.ErrUADenied):
 		message = "当前播放器UA未通过准入策略，请联系管理员"
-	case errors.Is(err, nativeplayback.ErrParentalDenied):
-		message = "分级限制，不允许播放此内容"
 	case errors.Is(err, nativeplayback.ErrStreamLimit):
 		message = "超过同时播放数限制，请先停止其他播放"
 	}

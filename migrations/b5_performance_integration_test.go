@@ -319,12 +319,10 @@ func TestB5SearchHundredThousand(t *testing.T) {
 		t.Fatal("large search bypassed library revocation")
 	}
 	f.exec(t, `INSERT INTO media_user_library_grants(user_id,library_id,can_play)VALUES($1,'g:test-a',true)`, f.user.ID)
-	f.exec(t, `UPDATE media_users SET max_parental_rating=0 WHERE id=$1`, f.user.ID)
 	f.exec(t, `UPDATE media_items SET metadata=metadata||'{"officialRating":"R"}'::jsonb WHERE tmdb_id=1089999`)
-	if search("B5 unique late match") != 0 {
-		t.Fatal("large search bypassed parental filter")
+	if search("B5 unique late match") != 1 {
+		t.Fatal("rating metadata hid large search result")
 	}
-	f.exec(t, `UPDATE media_users SET max_parental_rating=NULL WHERE id=$1`, f.user.ID)
 	f.exec(t, `UPDATE cloud_files f SET state='missing'FROM media_assets a JOIN media_asset_bindings b ON b.asset_id=a.id JOIN media_items m ON m.id=b.media_id WHERE f.id=a.cloud_file_id AND m.tmdb_id=1089999`)
 	if search("B5 unique late match") != 0 {
 		t.Fatal("large search exposed missing file")

@@ -41,7 +41,7 @@ func (r BrowseRepository) moviePage(ctx context.Context, u contracts.User, p con
 	}
 	sql := `WITH eligible_movies AS MATERIALIZED(
  SELECT DISTINCT e.media_id FROM (` + ExposableAssetsSQL + `)e JOIN native_asset_libraries al ON al.asset_id=e.asset_id JOIN native_libraries l ON l.id=al.library_id
- WHERE e.media_type='movie' ` + rootFilter + ` AND NOT l.hidden AND l.collection_type='movies' AND l.id=ANY($1::text[]) AND ($4::text='' OR l.id=$4)
+ WHERE e.media_type='movie' ` + rootFilter + ` AND NOT l.hidden AND l.collection_type='movies' AND l.id=ANY($1::text[]) AND ($2::text='' OR l.id=$2)
  ),roots AS NOT MATERIALIZED(
  SELECT m.id media_id,m.tmdb_id,m.title,m.release_year,m.metadata,n.id::text id FROM eligible_movies k JOIN media_items m ON m.id=k.media_id
  LEFT JOIN LATERAL(SELECT id FROM native_item_ids WHERE entity_type='movie' AND internal_key='tmdb:'||m.tmdb_id LIMIT 1)n ON true
@@ -53,7 +53,7 @@ func (r BrowseRepository) moviePage(ctx context.Context, u contracts.User, p con
  ),item_rows AS NOT MATERIALIZED(
  SELECT 'movie'::text kind,'tmdb:'||h.tmdb_id internal_key,h.id,-1 s,-1 e,coalesce(h.meta->>'title',h.title) name,CASE WHEN h.meta?'year' THEN coalesce(h.meta->>'year','') ELSE h.release_year END item_year,h.meta,coalesce(h.meta->>'officialRating','') rating,coalesce(h.meta->>'premiereDate','') premiere,
  coalesce(d.played,false)user_played,coalesce(d.position_ticks,0)user_position,coalesce(d.play_count,0)user_count,coalesce(d.favorite,false)user_favorite,d.last_played_at user_last_played
- FROM headers h LEFT JOIN media_user_item_data d ON d.user_id=$5::uuid AND d.item_id=h.id::bigint
+ FROM headers h LEFT JOIN media_user_item_data d ON d.user_id=$3::uuid AND d.item_id=h.id::bigint
  ),filtered AS MATERIALIZED(SELECT ` + strings.Join(cols, ",") + ` FROM item_rows WHERE ` + where + cap + `)`
 	source, offset, anchor := "filtered", "", "true"
 	if o.startID != "" {

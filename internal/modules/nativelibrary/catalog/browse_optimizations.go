@@ -28,7 +28,7 @@ func numericIDs(ids []string) []int64 {
 
 // Keep ALL eligible keys for parent user-data aggregation, but do not construct
 // metadata headers for invisible types/IDs. Root pruning never replaces the
-// outer library/parent/parental predicates or the final live permission check.
+// outer library/parent predicates or the final live permission check.
 func pruneHeadersSQL(sql string, q nativelibrary.ItemQuery, args []any) (string, []any) {
 	predicates := []string{}
 	if len(q.IncludeItemTypes) > 0 {

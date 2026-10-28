@@ -10,9 +10,9 @@ import (
 )
 
 // A person has no global/public image entitlement. At least one live, visible,
-// parental-allowed title containing this person must evidence its profile path.
+// visible title containing this person must evidence its profile path.
 func (r *NativeImageResolver) lookupPerson(ctx context.Context, id int64, req embyapi.ImageRequest) (imageMeta, error) {
-	libraries, codes, unrated, err := catalog.ImageScope(ctx, *req.User, req.Permissions)
+	libraries, err := catalog.ImageScope(ctx, *req.User, req.Permissions)
 	if err != nil {
 		return imageMeta{}, embyapi.ErrImageUnavailable
 	}
@@ -23,10 +23,9 @@ func (r *NativeImageResolver) lookupPerson(ctx context.Context, id int64, req em
  JOIN native_tmdb_details d ON d.tmdb_id=e.tmdb_id AND (d.tmdb_type=e.media_type OR e.media_type='series' AND d.tmdb_type='season' AND d.season_number=e.season)
  LEFT JOIN native_tmdb_details rd ON rd.tmdb_id=e.tmdb_id AND rd.tmdb_type=e.media_type AND rd.fetched_at IS NOT NULL AND rd.language=d.language
  CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(d.payload->'people')='array' THEN d.payload->'people' ELSE '[]'::jsonb END) p
- WHERE NOT l.hidden AND e.media_type=CASE l.collection_type WHEN 'movies' THEN 'movie' ELSE 'series' END AND l.id=ANY($1::text[]) AND p->>'id'=$2::text AND p->>'imagePath'~$5::text AND d.fetched_at IS NOT NULL
+ WHERE NOT l.hidden AND e.media_type=CASE l.collection_type WHEN 'movies' THEN 'movie' ELSE 'series' END AND l.id=ANY($1::text[]) AND p->>'id'=$2::text AND p->>'imagePath'~$3::text AND d.fetched_at IS NOT NULL
  AND d.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN')
- AND ($3::boolean OR btrim(regexp_replace(upper(btrim(coalesce(nullif(rd.payload->>'officialRating',''),m.metadata->>'officialRating',''))),'^(CN:|US:)\s*',''))=ANY($4::text[]))
- ORDER BY 1,2,3 LIMIT 200`, libraries, strconv.FormatInt(id, 10), unrated, codes, nativelibrary.TMDBImageSourcePattern)
+ ORDER BY 1,2,3 LIMIT 200`, libraries, strconv.FormatInt(id, 10), nativelibrary.TMDBImageSourcePattern)
 	if err != nil {
 		return imageMeta{}, embyapi.ErrImageUnavailable
 	}
@@ -38,7 +37,7 @@ func (r *NativeImageResolver) lookupPerson(ctx context.Context, id int64, req em
 			return imageMeta{}, embyapi.ErrImageUnavailable
 		}
 		err := req.Permissions.ItemAllowed(ctx, *req.User, contracts.ItemAccess{LibraryID: library, OfficialRating: rating})
-		if err == contracts.ErrForbidden || err == contracts.ErrParentalDenied {
+		if err == contracts.ErrForbidden {
 			continue
 		}
 		if err != nil {

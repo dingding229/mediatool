@@ -32,7 +32,6 @@ type User struct {
 	DeviceCount        int        `json:"deviceCount"`
 	LockedUntil        *time.Time `json:"lockedUntil"`
 	MaxStreams         int        `json:"maxStreams"`
-	MaxParentalRating  *int       `json:"maxParentalRating"`
 	ExpiresAt          *time.Time `json:"expiresAt"`
 	ID                 string     `json:"id"`
 	Username           string     `json:"username"`
@@ -46,20 +45,19 @@ type User struct {
 	UpdatedAt          time.Time  `json:"updatedAt"`
 }
 type Input struct {
-	MaxStreams             *int       `json:"maxStreams,omitempty"`
-	MaxParentalRating      *int       `json:"maxParentalRating"`
-	ExpiresAt              *time.Time `json:"expiresAt"`
-	parentalSet, expirySet bool
-	Username               string  `json:"username"`
-	DisplayName            string  `json:"displayName"`
-	Password               string  `json:"password"`
-	Enabled                bool    `json:"enabled"`
-	Revision               int64   `json:"revision"`
-	Grants                 []Grant `json:"grants"`
-	MustChangePassword     *bool   `json:"mustChangePassword,omitempty"`
+	MaxStreams         *int       `json:"maxStreams,omitempty"`
+	ExpiresAt          *time.Time `json:"expiresAt"`
+	expirySet          bool
+	Username           string  `json:"username"`
+	DisplayName        string  `json:"displayName"`
+	Password           string  `json:"password"`
+	Enabled            bool    `json:"enabled"`
+	Revision           int64   `json:"revision"`
+	Grants             []Grant `json:"grants"`
+	MustChangePassword *bool   `json:"mustChangePassword,omitempty"`
 }
 
-// Preserve omitted nullable limits on PUT, while explicit null clears them.
+// Preserve omitted nullable expiration on PUT, while explicit null clears them.
 func (in *Input) UnmarshalJSON(raw []byte) error {
 	type alias Input
 	var value alias
@@ -74,9 +72,6 @@ func (in *Input) UnmarshalJSON(raw []byte) error {
 	}
 	*in = Input(value)
 	for key := range fields {
-		if strings.EqualFold(key, "maxParentalRating") {
-			in.parentalSet = true
-		}
 		if strings.EqualFold(key, "expiresAt") {
 			in.expirySet = true
 		}
@@ -84,7 +79,7 @@ func (in *Input) UnmarshalJSON(raw []byte) error {
 	return nil
 }
 func (in *Input) Validate(create bool) error {
-	if in.MaxStreams != nil && (*in.MaxStreams < 1 || *in.MaxStreams > 20) || in.MaxParentalRating != nil && (*in.MaxParentalRating < 0 || *in.MaxParentalRating > 100) {
+	if in.MaxStreams != nil && (*in.MaxStreams < 1 || *in.MaxStreams > 20) {
 		return ErrInvalid
 	}
 	if in.ExpiresAt != nil {

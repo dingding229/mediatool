@@ -21,19 +21,15 @@ func TestPermissionMatrix(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now()
 	expired := now.Add(-time.Second)
-	limit := 65
 	for _, mode := range []string{"none", "browse", "play", "download", "invalid-download"} {
 		for _, hidden := range []bool{false, true} {
-			for _, restricted := range []bool{false, true} {
+			{
 				for _, rating := range []string{"G", "R", ""} {
 					for _, state := range []string{"enabled", "disabled", "expired", "must-change"} {
-						name := fmt.Sprintf("%s/hidden=%v/restricted=%v/rating=%s/%s", mode, hidden, restricted, rating, state)
+						name := fmt.Sprintf("%s/hidden=%v/rating=%s/%s", mode, hidden, rating, state)
 						t.Run(name, func(t *testing.T) {
 							u := contracts.User{ID: "user", Enabled: true, CredentialVersion: 1, MaxStreams: 2}
 							stored := u
-							if restricted {
-								stored.MaxParentalRating = &limit
-							}
 							switch state {
 							case "disabled":
 								stored.Enabled = false
@@ -50,7 +46,7 @@ func TestPermissionMatrix(t *testing.T) {
 							browse := mode != "none" && !hidden && state == "enabled"
 							play := browse && (mode == "play" || mode == "download")
 							download := play && mode == "download"
-							item := browse && (!restricted || rating == "G")
+							item := browse
 							for _, check := range []struct {
 								name string
 								err  error
@@ -122,22 +118,7 @@ func TestRequestSnapshotOnceAndFreshRequestImmediatelySeesChange(t *testing.T) {
 		t.Fatal("context account defense", err)
 	}
 }
-func TestRatingMappingAndSlots(t *testing.T) {
-	for _, v := range []struct {
-		raw   string
-		level int
-		known bool
-	}{{"US:pg-13", 65, true}, {" CN:12+ ", 60, true}, {"TV-MA", 90, true}, {"全年龄", 0, true}, {"", 0, false}, {"NR", 0, false}, {"unknown", 0, false}} {
-		got, ok := RatingLevel(v.raw)
-		if got != v.level || ok != v.known {
-			t.Fatal(v, got, ok)
-		}
-	}
-	for k, v := range ratingLevels {
-		if v < 0 || v > 100 {
-			t.Fatal(k, v)
-		}
-	}
+func TestStreamSlotsAndLiveIdentity(t *testing.T) {
 	u := contracts.User{ID: "u", Enabled: true, MaxStreams: 2}
 	c := checker(snapshot{User: u})
 	ctx := context.Background()

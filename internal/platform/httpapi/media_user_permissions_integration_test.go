@@ -85,28 +85,50 @@ func TestNativeMediaUserPermissionGetPutContractAndNullableUpdates(t *testing.T)
 		t.Fatal(err)
 	}
 	path := "/api/v1/media-server/users/" + created.ID
+	for _, field := range []string{"maxParentalRating", "MaxParentalRating", "BlockUnratedItems"} {
+		for _, v := range []any{nil, 65} {
+			for _, method := range []string{"POST", "PUT"} {
+				target := path
+				if method == "POST" {
+					target = "/api/v1/media-server/users"
+				}
+				rejected := call(method, target, map[string]any{"username": created.Username, "revision": 1, field: v}, admin)
+				expect(rejected, 400)
+				if !bytes.Contains(rejected.Body.Bytes(), []byte(`"invalid_json"`)) {
+					t.Fatal(rejected.Body.String())
+				}
+			}
+		}
+	}
+	unchanged, e := (mediausers.Repository{DB: db}).Get(ctx, created.ID)
+	if e != nil || unchanged.Revision != created.Revision {
+		t.Fatal("retired-field requests mutated user", e)
+	}
 	expect(call("GET", path, nil, nil), 401)
 	expect(call("PUT", path, fixture.Update, admin), 200)
 	w = call("GET", path, nil, admin)
 	expect(w, 200)
+	if bytes.Contains(w.Body.Bytes(), []byte("maxParentalRating")) {
+		t.Fatal("retired response field")
+	}
 	var got struct {
 		Data mediausers.User `json:"data"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Data.MaxStreams != fixture.Response.MaxStreams || !reflect.DeepEqual(got.Data.MaxParentalRating, fixture.Response.MaxParentalRating) || (got.Data.ExpiresAt == nil || !got.Data.ExpiresAt.Equal(*fixture.Response.ExpiresAt)) || !reflect.DeepEqual(got.Data.Grants, fixture.Response.Grants) {
+	if got.Data.MaxStreams != fixture.Response.MaxStreams || (got.Data.ExpiresAt == nil || !got.Data.ExpiresAt.Equal(*fixture.Response.ExpiresAt)) || !reflect.DeepEqual(got.Data.Grants, fixture.Response.Grants) {
 		t.Fatal("HTTP permission readback drift", got.Data)
 	}
 	// Omitted fields preserve restrictions. Explicit null clears them.
 	expect(call("PUT", path, map[string]any{"username": created.Username, "enabled": true, "revision": 2, "grants": fixture.Update.Grants}, admin), 200)
 	u, err := (mediausers.Repository{DB: db}).Get(ctx, created.ID)
-	if err != nil || u.MaxStreams != 3 || u.MaxParentalRating == nil || u.ExpiresAt == nil {
+	if err != nil || u.MaxStreams != 3 || u.ExpiresAt == nil {
 		t.Fatal("omitted limits were reset", u, err)
 	}
-	expect(call("PUT", path, map[string]any{"username": created.Username, "enabled": true, "revision": 3, "grants": fixture.Update.Grants, "maxParentalRating": nil, "expiresAt": nil}, admin), 200)
+	expect(call("PUT", path, map[string]any{"username": created.Username, "enabled": true, "revision": 3, "grants": fixture.Update.Grants, "expiresAt": nil}, admin), 200)
 	u, err = (mediausers.Repository{DB: db}).Get(ctx, created.ID)
-	if err != nil || u.MaxStreams != 3 || u.MaxParentalRating != nil || u.ExpiresAt != nil {
+	if err != nil || u.MaxStreams != 3 || u.ExpiresAt != nil {
 		t.Fatal("null did not clear restrictions", u, err)
 	}
 	expect(call("GET", "/api/v1/media-server/users/aaaaaaaa-0000-4000-8000-000000000000", nil, admin), 404)

@@ -89,7 +89,7 @@ for(const[kind,path,name]of pages)test(`F3 desktop and narrow review: ${name}`,a
 
 test('F3 newly visible libraries default to play without rewriting existing browse-only grants',async({page})=>{
  await u5PlaybackFixture(page);let writes=0;
- const original={id:'u5-user',username:'family',displayName:'家庭成员',enabled:true,mustChangePassword:false,revision:1,grants:[{libraryId:'f:series',canPlay:false,canDownload:false}],maxStreams:2,maxParentalRating:null,expiresAt:null,activeSessions:1};
+ const original={id:'u5-user',username:'family',displayName:'家庭成员',enabled:true,mustChangePassword:false,revision:1,grants:[{libraryId:'f:series',canPlay:false,canDownload:false}],maxStreams:2,expiresAt:null,activeSessions:1};
  await page.route('**/api/v1/media-server/users{,?*}',r=>{if(r.request().method()!=='GET')writes++;return fixtureFulfill(r,{json:{data:[original]}})});
  await page.route('**/api/v1/media-server/libraries',r=>fixtureFulfill(r,{json:{data:[{id:'f:series',name:'已有剧集库',mediaType:'series'},{id:'g:movie',name:'新增电影库',mediaType:'movie'}]}}));
  await page.goto('/playback?tab=users');await page.getByRole('button',{name:'编辑用户',exact:true}).click();

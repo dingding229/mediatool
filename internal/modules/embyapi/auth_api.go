@@ -21,7 +21,7 @@ func authUserDTO(u contracts.User, serverID string) dto.UserDto {
 	if limit < 1 {
 		limit = 2
 	}
-	return dto.UserDto{Id: u.ID, Name: u.Name, ServerId: serverID, HasPassword: true, HasConfiguredPassword: true, Policy: dto.UserPolicy{IsAdministrator: false, IsDisabled: !u.Enabled, EnableMediaPlayback: u.CanPlay, EnableContentDownloading: u.CanDownload, EnabledFolders: dto.Array[string]{}, SimultaneousStreamLimit: &limit, MaxParentalRating: u.MaxParentalRating}, Configuration: dto.UserConfiguration{SubtitleMode: "Default"}}
+	return dto.UserDto{Id: u.ID, Name: u.Name, ServerId: serverID, HasPassword: true, HasConfiguredPassword: true, Policy: dto.UserPolicy{IsAdministrator: false, IsDisabled: !u.Enabled, EnableMediaPlayback: u.CanPlay, EnableContentDownloading: u.CanDownload, EnabledFolders: dto.Array[string]{}, SimultaneousStreamLimit: &limit}, Configuration: dto.UserConfiguration{SubtitleMode: "Default"}}
 }
 func (s *Server) authLogin(w http.ResponseWriter, r *http.Request, info RequestContext, value nativelibrary.ServerSettings) {
 	var in struct {

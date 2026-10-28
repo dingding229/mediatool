@@ -1,18 +1,13 @@
 package catalog
 
-import "media-tool/internal/modules/metadataedit"
-
-// $1..$4 are T17 visibility; $5 is the authenticated user. All other values
-// remain binds. Parental filtering precedes parent aggregation, not pagination.
+// $1 is visible libraries, $2 is the selected library, $3 is the authenticated user.
+// Scope applies before parent aggregation and pagination.
 var personalCTE = `,visible_episode_data AS (
  SELECT g.tmdb_id,g.s,coalesce(d.played,false) played,coalesce(d.play_count,0) play_count,d.last_played_at
- FROM keyed g JOIN media_items b ON b.tmdb_id=g.tmdb_id AND b.media_type='series'
+ FROM keyed g
  LEFT JOIN LATERAL(SELECT id FROM native_item_ids WHERE entity_type='episode' AND internal_key=g.internal_key LIMIT 1)n ON true
- LEFT JOIN media_user_item_data d ON d.item_id=n.id AND d.user_id=$5::uuid
- LEFT JOIN native_tmdb_details td ON td.tmdb_type='series' AND td.tmdb_id=g.tmdb_id AND td.season_number IS NULL AND td.fetched_at IS NOT NULL
- AND td.language=coalesce((SELECT nullif(settings->>'language','') FROM integrations WHERE kind='tmdb' AND enabled ORDER BY created_at LIMIT 1),'zh-CN')
- ` + metadataedit.Join("eo", "b.id", "'episode'", "g.s", "g.e") + `
- WHERE g.kind='episode' AND ($3::boolean OR btrim(regexp_replace(upper(btrim(coalesce(eo.overrides->>'officialRating',nullif(td.payload->>'officialRating',''),b.metadata->>'officialRating',''))),'^(CN:|US:)\s*',''))=ANY($2::text[]))
+ LEFT JOIN media_user_item_data d ON d.item_id=n.id AND d.user_id=$3::uuid
+ WHERE g.kind='episode'
 ),episode_user_totals AS MATERIALIZED (
  SELECT tmdb_id,scope_s,count(*) total,count(*) FILTER(WHERE NOT played) unplayed,sum(play_count) play_count,max(last_played_at) last_played_at
  FROM visible_episode_data CROSS JOIN LATERAL(VALUES(-1),(s)) scopes(scope_s) GROUP BY tmdb_id,scope_s
@@ -24,12 +19,12 @@ var personalCTE = `,visible_episode_data AS (
  CASE WHEN m.kind IN('series','season') THEN greatest(t.last_played_at,d.last_played_at) ELSE d.last_played_at END user_last_played,
  CASE WHEN m.kind IN('series','season') THEN coalesce(t.unplayed,0) END user_unplayed,
  CASE WHEN m.kind IN('series','season') THEN coalesce(100.0*(t.total-t.unplayed)/nullif(t.total,0),0) END user_percentage
- FROM raw_item_rows m LEFT JOIN media_user_item_data d ON d.item_id=m.id::bigint AND d.user_id=$5::uuid
+ FROM raw_item_rows m LEFT JOIN media_user_item_data d ON d.item_id=m.id::bigint AND d.user_id=$3::uuid
  LEFT JOIN episode_user_totals t ON m.kind IN('series','season') AND t.tmdb_id=m.tmdb_id AND t.scope_s=m.s
 ) `
 
 // Window ranking operates only on permission-filtered episodes. Both the
-// completion frontier and next candidate ignore hidden/missing/unrated assets.
+// completion frontier and next candidate ignore hidden/missing assets.
 func nextUpCTE(where string) string {
 	return `,personal_visible AS MATERIALIZED(SELECT kind,internal_key,id,tmdb_id,s,e,user_played,user_last_played FROM item_rows WHERE ` + where + `),recent_shows AS (
  SELECT tmdb_id,max(user_last_played) last_watch FROM personal_visible GROUP BY tmdb_id

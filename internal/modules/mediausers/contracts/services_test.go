@@ -15,7 +15,7 @@ func TestEmptyNativeAuthenticationAndPermissionsFailClosed(t *testing.T) {
 			t.Fatal("empty auth returned identity", err)
 		}
 		permissions := NewPermissionChecker()
-		for _, err := range []error{permissions.CanBrowse(ctx, user, "g:synthetic"), permissions.CanPlay(ctx, user, "g:synthetic"), permissions.CanDownload(ctx, user, "g:synthetic"), permissions.ParentalAllowed(ctx, user, ItemAccess{}), permissions.ItemAllowed(ctx, user, ItemAccess{})} {
+		for _, err := range []error{permissions.CanBrowse(ctx, user, "g:synthetic"), permissions.CanPlay(ctx, user, "g:synthetic"), permissions.CanDownload(ctx, user, "g:synthetic"), permissions.ItemAllowed(ctx, user, ItemAccess{})} {
 			if !errors.Is(err, ErrNotImplemented) {
 				t.Fatal("empty permission succeeded", err)
 			}

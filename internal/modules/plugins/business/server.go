@@ -36,7 +36,7 @@ func serverItem(v mediaserver.Item) b.ServerItem {
 	return b.ServerItem{ID: v.ID, Title: serverLabel(v.Title), Year: serverLabel(v.Year), MediaType: safeState(v.MediaType), Overview: serverLabel(v.Overview), Season: v.Season, Episode: v.Episode}
 }
 func safeUser(v mediausers.User) (b.ServerUser, error) {
-	out := b.ServerUser{ID: v.ID, Username: serverLabel(v.Username), DisplayName: serverLabel(v.DisplayName), Enabled: v.Enabled, Revision: v.Revision, MaxStreams: v.MaxStreams, MaxParentalRating: v.MaxParentalRating, ExpiresAt: v.ExpiresAt, Grants: []b.ServerGrant{}}
+	out := b.ServerUser{ID: v.ID, Username: serverLabel(v.Username), DisplayName: serverLabel(v.DisplayName), Enabled: v.Enabled, Revision: v.Revision, MaxStreams: v.MaxStreams, ExpiresAt: v.ExpiresAt, Grants: []b.ServerGrant{}}
 	if len(v.Grants) > 200 {
 		return out, contracts.NewError(contracts.PayloadTooLarge)
 	}
@@ -295,7 +295,7 @@ func (h AcquisitionHost) callUsers(ctx context.Context, call contracts.HostCall,
 		return nil, unsupportedBusiness()
 	}
 	var in b.UserPatch
-	if decodeBusiness(call.Args, &in) != nil || !validUUID(in.ID) || call.ExpectedRevision == nil || *call.ExpectedRevision != in.Revision || in.ClearExpiry && in.ExpiresAt != nil || in.ClearParentalRating && in.MaxParentalRating != nil {
+	if decodeBusiness(call.Args, &in) != nil || !validUUID(in.ID) || call.ExpectedRevision == nil || *call.ExpectedRevision != in.Revision || in.ClearExpiry && in.ExpiresAt != nil {
 		return nil, invalidBusiness()
 	}
 	current, e := r.Get(ctx, in.ID)
@@ -305,7 +305,7 @@ func (h AcquisitionHost) callUsers(ctx context.Context, call contracts.HostCall,
 	if current.Revision != in.Revision {
 		return nil, contracts.NewError(contracts.Conflict)
 	}
-	native := mediausers.Input{Username: current.Username, DisplayName: current.DisplayName, Enabled: current.Enabled, Revision: current.Revision, Grants: current.Grants, MaxStreams: &current.MaxStreams, MaxParentalRating: current.MaxParentalRating, ExpiresAt: current.ExpiresAt}
+	native := mediausers.Input{Username: current.Username, DisplayName: current.DisplayName, Enabled: current.Enabled, Revision: current.Revision, Grants: current.Grants, MaxStreams: &current.MaxStreams, ExpiresAt: current.ExpiresAt}
 	if in.DisplayName != nil {
 		native.DisplayName = *in.DisplayName
 	}
@@ -317,9 +317,6 @@ func (h AcquisitionHost) callUsers(ctx context.Context, call contracts.HostCall,
 	}
 	if in.Grants != nil {
 		native.Grants = copyDTO[[]mediausers.Grant](*in.Grants)
-	}
-	if in.MaxParentalRating != nil || in.ClearParentalRating {
-		native.MaxParentalRating = in.MaxParentalRating
 	}
 	if in.ExpiresAt != nil || in.ClearExpiry {
 		native.ExpiresAt = in.ExpiresAt

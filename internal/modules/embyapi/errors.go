@@ -29,8 +29,6 @@ func WriteDomainError(w http.ResponseWriter, err error) error {
 	}
 	message := ""
 	switch {
-	case errors.Is(err, nativeplayback.ErrParentalDenied):
-		message = "分级限制，不允许播放此内容"
 	case errors.Is(err, nativeplayback.ErrStreamLimit):
 		message = "超过同时播放数限制，请先停止其他播放"
 	case errors.Is(err, nativeplayback.ErrForbidden):

@@ -28,7 +28,7 @@ var nextUpLightCTE = `,personal_series_ratings AS MATERIALIZED(
  FROM keyed g JOIN personal_series_ratings r ON r.tmdb_id=g.tmdb_id
  ` + metadataedit.Join("o", "r.media_id", "g.kind", "g.s", "g.e") + `
  LEFT JOIN LATERAL(SELECT id FROM native_item_ids WHERE entity_type=g.kind AND internal_key=g.internal_key LIMIT 1)n ON true
- LEFT JOIN media_user_item_data d ON d.item_id=n.id AND d.user_id=$5::uuid
+ LEFT JOIN media_user_item_data d ON d.item_id=n.id AND d.user_id=$3::uuid
  WHERE g.kind IN('series','season','episode')
 ) `
 
@@ -75,9 +75,9 @@ func (r BrowseRepository) nextUpPage(ctx context.Context, u contracts.User, p co
 		return []dto.BaseItemDto{}, total, nil
 	}
 	// Restrict BEFORE metadata/episode JSON expansion, not after a heavy join.
-	pageSQL := strings.Replace(strings.Replace(strings.Replace(browseCTE, headerMetadata, fullPageMetadata+`||`+parentTextMetadata, 1), "WHERE NOT l.hidden", "WHERE e.media_type='series' AND NOT l.hidden", 1), "FROM keyed g JOIN media_items b", "FROM (SELECT * FROM keyed WHERE kind='episode' AND internal_key=ANY($6::text[])) g JOIN media_items b", 1)
-	pageSQL += ` SELECT coalesce(jsonb_agg(row_to_json(page)),'[]') FROM (SELECT ` + browseColumns + ` FROM item_rows WHERE kind='episode' AND ($3::boolean OR btrim(regexp_replace(upper(btrim(rating)),'^(CN:|US:)\s*',''))=ANY($2::text[])))page`
-	if err = r.DB.QueryRow(ctx, pageSQL, visible.ids, visible.codes, visible.unrated, visible.library, visible.user, keys).Scan(&raw); err != nil {
+	pageSQL := strings.Replace(strings.Replace(strings.Replace(browseCTE, headerMetadata, fullPageMetadata+`||`+parentTextMetadata, 1), "WHERE NOT l.hidden", "WHERE e.media_type='series' AND NOT l.hidden", 1), "FROM keyed g JOIN media_items b", "FROM (SELECT * FROM keyed WHERE kind='episode' AND internal_key=ANY($4::text[])) g JOIN media_items b", 1)
+	pageSQL += ` SELECT coalesce(jsonb_agg(row_to_json(page)),'[]') FROM (SELECT ` + browseColumns + ` FROM item_rows WHERE kind='episode')page`
+	if err = r.DB.QueryRow(ctx, pageSQL, visible.ids, visible.library, visible.user, keys).Scan(&raw); err != nil {
 		return nil, 0, contracts.ErrUnavailable
 	}
 	var records []browseRow
@@ -106,7 +106,7 @@ func (r BrowseRepository) nextUpPage(ctx context.Context, u contracts.User, p co
 	return out, total, nil
 }
 
-// Parent validation uses the SAME eligible keys and rating policy but never
+// Parent validation uses the SAME eligible keys and library scope but never
 // hydrates a whole series/season merely to check existence for NextUp.
 func (r BrowseRepository) nextUpScope(ctx context.Context, u contracts.User, p contracts.PermissionChecker, parent, series string) (s browseScope, kind, key, seriesKey string, err error) {
 	s, err = scope(ctx, u, p)
@@ -193,7 +193,7 @@ func (r BrowseRepository) nextUpScope(ctx context.Context, u contracts.User, p c
 		return
 	}
 	var count int
-	e = r.DB.QueryRow(ctx, browseKeysCTE+nextUpLightCTE+` SELECT count(*) FROM item_rows WHERE internal_key=ANY($6::text[]) AND ($3::boolean OR btrim(regexp_replace(upper(btrim(rating)),'^(CN:|US:)\s*',''))=ANY($2::text[]))`, s.ids, s.codes, s.unrated, s.library, s.user, wanted).Scan(&count)
+	e = r.DB.QueryRow(ctx, browseKeysCTE+nextUpLightCTE+` SELECT count(*) FROM item_rows WHERE internal_key=ANY($4::text[])`, s.ids, s.library, s.user, wanted).Scan(&count)
 	if e != nil {
 		err = contracts.ErrUnavailable
 		return

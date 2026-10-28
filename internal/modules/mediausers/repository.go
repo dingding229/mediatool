@@ -35,10 +35,10 @@ func dbError(err error) error {
 }
 func validID(s string) bool { return uuidcheck.UUID(s) }
 
-const userColumns = `id::text,username,display_name,enabled,must_change_password,credential_version,created_at,updated_at,max_streams,max_parental_rating,expires_at`
+const userColumns = `id::text,username,display_name,enabled,must_change_password,credential_version,created_at,updated_at,max_streams,expires_at`
 
 func userDest(u *User) []any {
-	return []any{&u.ID, &u.Username, &u.DisplayName, &u.Enabled, &u.MustChangePassword, &u.Revision, &u.CreatedAt, &u.UpdatedAt, &u.MaxStreams, &u.MaxParentalRating, &u.ExpiresAt}
+	return []any{&u.ID, &u.Username, &u.DisplayName, &u.Enabled, &u.MustChangePassword, &u.Revision, &u.CreatedAt, &u.UpdatedAt, &u.MaxStreams, &u.ExpiresAt}
 }
 func scanUser(row pgx.Row) (u User, err error) {
 	u.Grants = []Grant{}
@@ -96,9 +96,9 @@ func (r Repository) Save(ctx context.Context, id string, in Input) (User, error)
 	if id == "" {
 		id = jobs.UUID()
 		action = "media_user.created"
-		u, err = scanUser(tx.QueryRow(ctx, `INSERT INTO media_users(id,username,display_name,password_hash,enabled,must_change_password,max_streams,max_parental_rating,expires_at)VALUES($1,$2,$3,$4,$5,coalesce($6,false),coalesce($7,2),$8,$9)RETURNING `+userColumns, id, in.Username, in.DisplayName, hash, in.Enabled, in.MustChangePassword, in.MaxStreams, in.MaxParentalRating, in.ExpiresAt))
+		u, err = scanUser(tx.QueryRow(ctx, `INSERT INTO media_users(id,username,display_name,password_hash,enabled,must_change_password,max_streams,expires_at)VALUES($1,$2,$3,$4,$5,coalesce($6,false),coalesce($7,2),$8)RETURNING `+userColumns, id, in.Username, in.DisplayName, hash, in.Enabled, in.MustChangePassword, in.MaxStreams, in.ExpiresAt))
 	} else {
-		u, err = scanUser(tx.QueryRow(ctx, `UPDATE media_users SET username=$2,display_name=$3,enabled=$4,must_change_password=coalesce($6,must_change_password),max_streams=coalesce($7,max_streams),max_parental_rating=CASE WHEN $10 THEN $8 ELSE max_parental_rating END,expires_at=CASE WHEN $11 THEN $9 ELSE expires_at END,credential_version=credential_version+1,updated_at=now() WHERE id=$1 AND credential_version=$5 RETURNING `+userColumns, id, in.Username, in.DisplayName, in.Enabled, in.Revision, in.MustChangePassword, in.MaxStreams, in.MaxParentalRating, in.ExpiresAt, in.parentalSet || in.MaxParentalRating != nil, in.expirySet || in.ExpiresAt != nil))
+		u, err = scanUser(tx.QueryRow(ctx, `UPDATE media_users SET username=$2,display_name=$3,enabled=$4,must_change_password=coalesce($6,must_change_password),max_streams=coalesce($7,max_streams),expires_at=CASE WHEN $9 THEN $8 ELSE expires_at END,credential_version=credential_version+1,updated_at=now() WHERE id=$1 AND credential_version=$5 RETURNING `+userColumns, id, in.Username, in.DisplayName, in.Enabled, in.Revision, in.MustChangePassword, in.MaxStreams, in.ExpiresAt, in.expirySet || in.ExpiresAt != nil))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return User{}, ErrConflict
 		}

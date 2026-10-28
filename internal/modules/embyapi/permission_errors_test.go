@@ -17,7 +17,7 @@ func TestPermissionErrorsAreOpaqueForBrowseAndReadableForPlay(t *testing.T) {
 	for _, tc := range []struct {
 		err     error
 		message string
-	}{{contracts.ErrForbidden, "权限不足"}, {contracts.ErrParentalDenied, "分级限制"}, {contracts.ErrStreamLimit, "同时播放数"}} {
+	}{{contracts.ErrForbidden, "权限不足"}, {contracts.ErrStreamLimit, "同时播放数"}} {
 		wrapped := fmt.Errorf("synthetic-private-path SQL: %w", tc.err)
 		w := httptest.NewRecorder()
 		if err := WriteDomainError(w, wrapped); err != nil {

@@ -60,7 +60,7 @@ func readPermissionContract(t *testing.T) permissionContract {
 }
 func TestMediaUserPermissionContract(t *testing.T) {
 	f := readPermissionContract(t)
-	if f.Update.MaxStreams == nil || *f.Update.MaxStreams != f.Response.MaxStreams || f.Update.MaxParentalRating == nil || *f.Update.MaxParentalRating != *f.Response.MaxParentalRating || len(f.Update.Grants) != 1 || !f.Update.Grants[0].CanDownload {
+	if f.Update.MaxStreams == nil || *f.Update.MaxStreams != f.Response.MaxStreams || len(f.Update.Grants) != 1 || !f.Update.Grants[0].CanDownload {
 		t.Fatal("permission contract drift")
 	}
 }

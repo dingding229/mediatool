@@ -97,7 +97,6 @@ defineExpose({ load, create });
       <div><dt>设备与登录</dt><dd>{{ activity.deviceCount??'—' }} 台设备 · {{ activity.activeSessions??'—' }} 个有效登录</dd></div>
       <div><dt>权限摘要</dt><dd>{{ permission(activity) }}</dd></div>
       <div><dt>同时播放上限</dt><dd>{{ activity.maxStreams??'—' }}</dd></div>
-      <div><dt>年龄分级上限</dt><dd>{{ activity.maxParentalRating??'不限' }}</dd></div>
       <div><dt>到期</dt><dd>{{ date(activity.expiresAt||undefined) }}</dd></div>
       <div><dt>账号状态</dt><dd>{{ statusHint(activity) }}</dd></div>
     </dl>

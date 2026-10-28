@@ -1376,25 +1376,28 @@ test('P4 native settings, media user limits, device revoke and history (isolated
   await expect(page.getByText('已重新读取当前设置',{exact:true})).toBeVisible()
   await expect.poll(async()=>{const info=await page.request.get('http://127.0.0.1:18087/System/Info/Public');expect(info.status()).toBe(200);return(await info.json()).ServerName}).toBe('P4 Synthetic Living Room')
   await page.locator('.u5-workspace .page-tabs').getByRole('button',{name:'在线会话',exact:true}).click();await expect(page.getByRole('heading',{name:'在线会话',exact:true})).toBeVisible()
+  const librariesReady=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/media-server/libraries')
   await page.goto('/media-users')
+  expect((await librariesReady).status()).toBe(200)
   await page.getByRole('button',{name:'新建媒体用户',exact:true}).click()
   let dialog=page.getByRole('dialog',{name:'新建媒体用户',exact:true})
   await dialog.getByLabel('媒体用户名',{exact:true}).fill(username)
   await dialog.getByLabel('初始密码',{exact:true}).fill('Fixture123')
   await dialog.getByLabel('确认初始密码',{exact:true}).fill('Fixture123')
   await dialog.getByRole('spinbutton',{name:'同时播放上限',exact:true}).fill('3')
-  await dialog.getByRole('spinbutton',{name:'年龄分级上限',exact:true}).fill('65')
+  await expect(dialog.getByRole('spinbutton',{name:'年龄分级上限',exact:true})).toHaveCount(0)
   await dialog.getByLabel('媒体用户有效期',{exact:true}).fill('2030-01-01T12:00')
   await dialog.getByRole('button',{name:'保存媒体用户',exact:true}).click()
   await expect(dialog).not.toBeVisible()
   let users=(await (await page.request.get('/api/v1/media-server/users')).json()).data
   const user=users.find((u:any)=>u.username===username);expect(user).toBeTruthy();userId=user.id
-  expect(user.maxStreams).toBe(3);expect(user.maxParentalRating).toBe(65);expect(user.expiresAt).toBeTruthy()
+  expect(user.maxStreams).toBe(3);expect(user).not.toHaveProperty('maxParentalRating');expect(user.expiresAt).toBeTruthy()
   const login=async(device:string)=>{
    const response=await page.request.post('http://127.0.0.1:18087/Users/AuthenticateByName',{data:{Username:username,Pw:'Fixture123'},headers:{'X-Emby-Authorization':`MediaBrowser Client="Infuse", Device="P4 iPad", DeviceId="${device}", Version="8.0"`}})
    expect(response.status()).toBe(200);return await response.json()
   }
   const token=await login('p4-first'), other=await login('p4-other')
+  for(const result of [token,other]){expect(result.User.Policy).not.toHaveProperty('MaxParentalRating');expect(result.User.Policy).not.toHaveProperty('BlockUnratedItems')}
   await page.reload()
   const row=page.locator('.media-user-row').filter({hasText:username})
   await row.getByRole('button',{name:'用户详情',exact:true}).click()
@@ -1417,13 +1420,13 @@ test('P4 native settings, media user limits, device revoke and history (isolated
   await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click()
   await row.getByRole('button',{name:'编辑用户',exact:true}).click()
   dialog=page.getByRole('dialog',{name:'编辑媒体用户',exact:true})
-  await dialog.getByRole('spinbutton',{name:'年龄分级上限',exact:true}).fill('')
+  await expect(dialog.getByRole('spinbutton',{name:'年龄分级上限',exact:true})).toHaveCount(0)
   await dialog.getByLabel('媒体用户有效期',{exact:true}).fill('')
   await dialog.getByRole('button',{name:'保存媒体用户',exact:true}).click()
   await expect(dialog).not.toBeVisible()
   users=(await (await page.request.get('/api/v1/media-server/users')).json()).data
   const cleared=users.find((u:any)=>u.id===userId)
-  expect(cleared.maxStreams).toBe(3);expect(cleared.maxParentalRating).toBeNull();expect(cleared.expiresAt).toBeNull()
+  expect(cleared.maxStreams).toBe(3);expect(cleared).not.toHaveProperty('maxParentalRating');expect(cleared.expiresAt).toBeNull()
   for(const width of [375,1440]){
    await page.setViewportSize({width,height:1000});await page.goto('/media-server')
    await expect(page.getByRole('heading',{name:'服务设置',exact:true})).toBeVisible()

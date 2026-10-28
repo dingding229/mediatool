@@ -101,7 +101,7 @@ type browseFixture struct {
 }
 
 func newBrowseFixture(t *testing.T, versions ...int64) browseFixture {
-	target := int64(84)
+	target := int64(91)
 	if len(versions) > 0 {
 		target = versions[0]
 	}
@@ -285,19 +285,18 @@ func TestNativeBrowseCrossLibraryHierarchyAndMixedIDs(t *testing.T) {
 		}
 	}
 	f.exec(t, `UPDATE media_items SET metadata=jsonb_set(metadata,'{officialRating}','"R"') WHERE id=$1`, show)
-	f.exec(t, `UPDATE media_users SET max_parental_rating=65 WHERE id=$1::uuid`, f.user.ID)
 	_, _, err = f.repo.Query(f.ctx, f.user, f.permissions(), nativelibrary.ItemQuery{ParentID: seriesID, Limit: 200})
-	if !errors.Is(err, nativelibrary.ErrNotFound) {
-		t.Fatal("restricted series parent", err)
+	if err != nil {
+		t.Fatal("rated series parent unavailable", err)
 	}
 	restricted, n := f.query(t, nativelibrary.ItemQuery{IDs: []string{seriesID, seasons[1].Id, specialID}, Limit: 200})
-	if len(restricted) != 0 || n != 0 {
-		t.Fatal("restricted hierarchy leaked")
+	if len(restricted) != 3 || n != 3 {
+		t.Fatal("rated hierarchy hidden")
 	}
 
 }
 
-func TestNativeBrowseParentalSQLFiltersAndExactPagination(t *testing.T) {
+func TestNativeBrowseAllRatingsAndExactPagination(t *testing.T) {
 	f := newBrowseFixture(t)
 	now := time.Now()
 	for i, rating := range []string{"G", "R", "PG-13", "", "G", "PG", "G"} {
@@ -311,24 +310,20 @@ func TestNativeBrowseParentalSQLFiltersAndExactPagination(t *testing.T) {
 	}
 	// Persisted TMDB regional rating wins over stored show metadata.
 	f.exec(t, `INSERT INTO native_tmdb_details(tmdb_type,tmdb_id,language,payload,state,fetched_at)VALUES('movie',982001,'zh-CN','{"officialRating":"US:PG-13","genres":["Drama"]}','ready',now())`)
-	f.exec(t, `UPDATE media_users SET max_parental_rating=65 WHERE id=$1::uuid`, f.user.ID)
 	q := nativelibrary.ItemQuery{Limit: 2, Recursive: boolPtr(true), IncludeItemTypes: []string{"Movie"}, Genres: []string{"drama"}, Years: []string{"2025"}, SortBy: []string{"SortName"}}
 	ids := []string{}
 	for _, offset := range []int64{0, 2, 4, 6} {
 		q.StartIndex = offset
 		page, total := f.query(t, q)
-		if total != 5 {
+		if total != 6 {
 			t.Fatal("filter count differs from page", total)
 		}
-		want := min(2, max(0, 5-int(offset)))
+		want := min(2, max(0, 6-int(offset)))
 		if len(page) != want {
 			t.Fatal("last page", offset, len(page), want)
 		}
 		for _, v := range page {
 			ids = append(ids, v.Id)
-			if v.OfficialRating == "" || v.OfficialRating == "R" {
-				t.Fatal("rating leaked")
-			}
 		}
 	}
 	for i := 1; i < len(ids); i++ {
@@ -372,15 +367,15 @@ func TestNativeBrowseParentalSQLFiltersAndExactPagination(t *testing.T) {
 	q.SortBy = []string{"Random"}
 	q.SortOrder = []string{"Descending"}
 	page, total = f.query(t, q)
-	if total != 5 || page[0].Id != ids[0] {
+	if total != 6 || page[0].Id != ids[0] {
 		t.Fatal("Random not ignored")
 	}
 	counts, err := f.repo.Counts(f.ctx, f.user, f.permissions())
-	if err != nil || counts.MovieCount != 6 {
-		t.Fatal("same parental predicate for counts", counts, err)
+	if err != nil || counts.MovieCount != 7 {
+		t.Fatal("all-rating count drift", counts, err)
 	}
 	filtered, err := f.repo.Counts(f.ctx, f.user, f.permissions(), q)
-	if err != nil || filtered.MovieCount != 5 {
+	if err != nil || filtered.MovieCount != 6 {
 		t.Fatal("counts/query filter drift", filtered, err)
 	}
 	f.exec(t, `DELETE FROM media_user_library_grants WHERE user_id=$1::uuid`, f.user.ID)

@@ -22,7 +22,6 @@ type UserPolicy struct {
 	EnableMediaPlayback      bool          `json:"EnableMediaPlayback"`
 	EnableContentDownloading bool          `json:"EnableContentDownloading"`
 	EnabledFolders           Array[string] `json:"EnabledFolders"`
-	MaxParentalRating        *int          `json:"MaxParentalRating,omitempty"`
 	SimultaneousStreamLimit  *int          `json:"SimultaneousStreamLimit,omitempty"`
 }
 type UserConfiguration struct {

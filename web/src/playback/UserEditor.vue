@@ -23,7 +23,7 @@ function open(user: any = null, reset = false) {
   latest.value = null;
   op.error = null;
   notice.value = '';
-  Object.assign(form, { id: user?.id || '', username: user?.username || '', displayName: user?.displayName || '', password: '', confirm: '', enabled: user?.enabled ?? true, mustChangePassword: reset ? false : user?.mustChangePassword ?? false, revision: user?.revision || 0, maxStreams: user?.maxStreams ?? 2, maxParentalRating: user?.maxParentalRating ?? null, expiry: localTime(user?.expiresAt), grants: JSON.parse(JSON.stringify(user?.grants || [])) });
+  Object.assign(form, { id: user?.id || '', username: user?.username || '', displayName: user?.displayName || '', password: '', confirm: '', enabled: user?.enabled ?? true, mustChangePassword: reset ? false : user?.mustChangePassword ?? false, revision: user?.revision || 0, maxStreams: user?.maxStreams ?? 2, expiry: localTime(user?.expiresAt), grants: JSON.parse(JSON.stringify(user?.grants || [])) });
   visible.value = true;
 }
 function grant(id: string) {
@@ -68,7 +68,7 @@ async function save() {
   }
   let body: any;
   try {
-    body = { username: form.username, displayName: form.displayName, enabled: form.enabled, mustChangePassword: form.mustChangePassword, revision: form.revision, grants: form.grants.map((g: any) => ({ ...g, canDownload: g.canPlay && g.canDownload })), maxStreams: form.maxStreams, maxParentalRating: form.maxParentalRating, expiresAt: form.expiry ? new Date(form.expiry).toISOString() : null, ...(!form.id ? { password: form.password } : {}) };
+    body = { username: form.username, displayName: form.displayName, enabled: form.enabled, mustChangePassword: form.mustChangePassword, revision: form.revision, grants: form.grants.map((g: any) => ({ ...g, canDownload: g.canPlay && g.canDownload })), maxStreams: form.maxStreams, expiresAt: form.expiry ? new Date(form.expiry).toISOString() : null, ...(!form.id ? { password: form.password } : {}) };
   }
   catch {
     op.error = Error('有效期无效');
@@ -77,8 +77,6 @@ async function save() {
   if (original.value && !resetMode.value) {
     if (form.maxStreams === original.value.maxStreams)
       delete body.maxStreams;
-    if (form.maxParentalRating === original.value.maxParentalRating)
-      delete body.maxParentalRating;
     if (form.expiry === localTime(original.value.expiresAt))
       delete body.expiresAt;
   }
@@ -132,10 +130,6 @@ defineExpose({ open, save, reread, form, op, latest });
         <label>
           同时播放上限
           <input v-model.number="form.maxStreams" type="number" min="1" max="20" aria-label="同时播放上限" :disabled="op.busy||!!op.pending"/>
-        </label>
-        <label>
-          年龄分级上限（留空不限）
-          <input :value="form.maxParentalRating??''" type="number" min="0" max="100" aria-label="年龄分级上限" :disabled="op.busy||!!op.pending" @input="form.maxParentalRating=($event.target as HTMLInputElement).value===''?null:Number(($event.target as HTMLInputElement).value)"/>
         </label>
         <label>
           有效期（留空不限）

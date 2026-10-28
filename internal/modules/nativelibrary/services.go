@@ -28,7 +28,7 @@ type Item struct {
 	Hierarchy
 	ID, LibraryID, Title, OriginalTitle, Overview string
 	Type                                          EntityType
-	Year, ParentalRating                          *int
+	Year                                          *int
 	RuntimeTicks                                  *int64
 	Genres                                        []string
 }
@@ -38,7 +38,7 @@ type ItemQuery struct {
 	StartIndex                                                         int64
 	Limit                                                              int
 	SortBy, SortOrder, Fields, IDs, IncludeItemTypes, ExcludeItemTypes []string
-	ParentID, SeriesID, SeasonID string
+	ParentID, SeriesID, SeasonID                                       string
 	Genres, Years                                                      []string
 	SearchTerm                                                         string
 	Recursive, IsFolder, IsPlayed, IsFavorite, IsResumable             *bool

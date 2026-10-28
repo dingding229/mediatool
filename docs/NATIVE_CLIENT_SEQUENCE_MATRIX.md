@@ -136,14 +136,14 @@ Private captures, original URLs and screenshots are not committed.
 | Views → series library → series → season → episode, ParentBackdrop/ParentLogo/SeriesPrimary | same integration sequence; projection goldens |
 | No index = index 0; out-of-range, missing Art/Banner and unknown person return 404 | integration sequence and image endpoint tests |
 | SenPlayer / Infuse / generic UA; header token, Emby authorization, MediaBrowser authorization and api_key; GET/HEAD | `TestF4ImageAuthenticationTransportsAndClientSequence` |
-| Missing/invalid credentials → 401 before cache/304; revoked/hidden/parental-denied title or person → 404 before provider | endpoint + integration tests |
+| Missing/invalid credentials → 401 before cache/304; revoked/hidden title or person → 404 before provider | endpoint + integration tests |
 | Missing/NULL/unsafe person portrait source has no advertised tag and returns 404 (not a SQL NULL/503); source filtering precedes the candidate bound | isolated integration sequence |
 | Source change changes ImageTag; stale tag gets current ETag without immutable cache | integration + fixed-path table tests |
 | Single TMDB filename only, no user-provided origin/URL, no redirects, bounded image bytes, no forwarding credentials | image resolver tests; fixed-path table tests |
 
 Person IDs use a deterministic 32-hex protocol namespace distinct from decimal
 catalog IDs; every read still requires association with a currently visible,
-parental-allowed title. No database migration or extension is required. SVG
+authorized visible title. No database migration or extension is required. SVG
 logo references use TMDB's PNG rendition through the existing image cache.
 No fabricated Banner/Art tags are emitted. Episode detail People inherits the stored series cast when requested, so its Person image links use the same scoped resolver. Episode stills retain the existing
 local-still cache, retirement and fallback behavior. Background TMDB enrichment

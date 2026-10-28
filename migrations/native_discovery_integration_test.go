@@ -32,7 +32,9 @@ func TestNativeDiscoveryHTTPHierarchyLatestSearchFacetsSimilar(t *testing.T) {
 	f.asset(t, other, "g:test-b", time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "mkv")
 	only := f.media(t, 988003, "Synthetic Action", "2023", `{"officialRating":"G","genres":["Action"]}`)
 	f.asset(t, only, "g:test-a", time.Now(), "mkv")
-	for i, lib := range []string{"g:discover-private", "g:test-a"} {
+	f.library(t, "g:discover-hidden", "movies", true, true)
+	f.library(t, "g:discover-private-tv", "tvshows", false, false)
+	for i, lib := range []string{"g:discover-private", "g:discover-hidden"} {
 		m := f.media(t, 988010+int64(i), "SecretMovie", "2099", `{"officialRating":"R","genres":["SecretGenre"]}`)
 		f.asset(t, m, lib, time.Now(), "mkv")
 	}
@@ -45,7 +47,7 @@ func TestNativeDiscoveryHTTPHierarchyLatestSearchFacetsSimilar(t *testing.T) {
 	f.exec(t, `UPDATE media_assets SET created_at='2026-06-01T00:00:00Z' WHERE id=$1`, ep.asset)
 	invisibleShow := jobs.UUID()
 	f.exec(t, `INSERT INTO media_items(id,media_type,tmdb_id,title,metadata)VALUES($1,'series',988005,'Secret Show','{"officialRating":"R","genres":["SecretGenre"]}')`, invisibleShow)
-	f.episode(t, invisibleShow, "g:discover-tv", 1, 1, 1)
+	f.episode(t, invisibleShow, "g:discover-private-tv", 1, 1, 1)
 	for {
 		n, err := catalog.PreallocateIDBatch(f.ctx, f.pool)
 		if err != nil {
@@ -63,7 +65,6 @@ func TestNativeDiscoveryHTTPHierarchyLatestSearchFacetsSimilar(t *testing.T) {
 	secretID := id("series", "tmdb:988005")
 	season1, season2 := id("season", "tmdb:988004:s1"), id("season", "tmdb:988004:s2")
 	ep1 := id("episode", "tmdb:988004:s1e1")
-	f.exec(t, `UPDATE media_users SET max_parental_rating=65 WHERE id=$1::uuid`, f.user.ID)
 	f.exec(t, `UPDATE native_server_settings SET enabled=true,revision=revision+1`)
 	var logs bytes.Buffer
 	handler, err := httpapi.NativeMediaHandler(config.Config{SessionKey: "synthetic-discovery-key", MemberPublicURL: "https://native.synthetic.invalid"}, httpapi.Dependencies{IPBlock: fixtureIPBlock(t), DB: f.pool, Logger: slog.New(slog.NewTextHandler(&logs, nil))})
@@ -218,7 +219,7 @@ func TestNativeDiscoveryHTTPHierarchyLatestSearchFacetsSimilar(t *testing.T) {
 	}
 	var absent dto.SearchHintResult
 	if err := json.Unmarshal(call("GET", "/Search/Hints?SearchTerm=Secret", "", 200), &absent); err != nil || absent.TotalRecordCount != 0 {
-		t.Fatal("private/rated search leak", absent, err)
+		t.Fatal("private/hidden search leak", absent, err)
 	}
 	var genres dto.QueryResult[dto.NameIdPair]
 	if err := json.Unmarshal(call("GET", "/Genres", "", 200), &genres); err != nil || genres.TotalRecordCount != 2 {

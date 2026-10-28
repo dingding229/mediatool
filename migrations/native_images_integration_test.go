@@ -163,11 +163,9 @@ func TestF4NativeClientImagesMovieSeriesSeasonEpisodePeople(t *testing.T) {
 	if w.Header().Get("ETag") != "\""+nativelibrary.ImageTag("/movie-new.jpg")+"\"" || strings.Contains(w.Header().Get("Cache-Control"), "immutable") {
 		t.Fatal(w.Header())
 	}
-	// Parental restrictions also scope Person images, not just title images.
-	f.exec(t, `UPDATE media_users SET max_parental_rating=65 WHERE id=$1::uuid`, user)
+	// Rating metadata no longer restricts Person images; library checks still do.
 	f.exec(t, `UPDATE native_tmdb_details SET payload=jsonb_set(payload,'{officialRating}','"R"') WHERE tmdb_id=940001`)
-	call("GET", "/Items/"+nativelibrary.PersonID(1392137)+"/Images/Primary", true, "", 404)
-	f.exec(t, `UPDATE media_users SET max_parental_rating=NULL WHERE id=$1::uuid`, user)
+	call("GET", "/Items/"+nativelibrary.PersonID(1392137)+"/Images/Primary", true, "", 200)
 	// Live grant checks run even for an otherwise cached/304 image.
 	f.exec(t, `DELETE FROM media_user_library_grants WHERE user_id=$1::uuid AND library_id='g:test-a'`, user)
 	before := len(requests)

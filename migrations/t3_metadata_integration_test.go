@@ -255,11 +255,10 @@ func TestT3UnmatchedMetadataPagination(t *testing.T) {
 	}
 }
 
-func TestT3EffectiveRatingUsedBeforePagination(t *testing.T) {
+func TestT3EffectiveRatingIsMetadataNotUserRestriction(t *testing.T) {
 	f := newBrowseFixture(t)
 	m := f.media(t, 934012, "Rating", "2025", `{"officialRating":"G"}`)
 	a := f.asset(t, m, "g:test-a", time.Now(), "mkv")
-	f.exec(t, `UPDATE media_users SET max_parental_rating=65 WHERE id=$1`, f.user.ID)
 	q := nativelibrary.ItemQuery{Recursive: boolPtr(true), IncludeItemTypes: []string{"Movie"}, Limit: 1}
 	items, total := f.query(t, q)
 	if len(items) != 1 || total != 1 {
@@ -275,7 +274,7 @@ func TestT3EffectiveRatingUsedBeforePagination(t *testing.T) {
 		t.Fatal(e)
 	}
 	items, total = f.query(t, q)
-	if len(items) != 0 || total != 0 {
-		t.Fatal("effective rating leaked restricted item", items, total)
+	if len(items) != 1 || total != 1 || items[0].OfficialRating != "R" {
+		t.Fatal("effective rating changed visibility or metadata", items, total)
 	}
 }

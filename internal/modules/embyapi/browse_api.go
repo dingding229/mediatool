@@ -81,7 +81,7 @@ func (s *Server) browseError(w http.ResponseWriter, err error) {
 	s.router.fail(w, status)
 }
 
-// Called only after the browse repository has applied user visibility/parental
+// Called only after the browse repository has applied user visibility
 // grants. The native stream handler independently checks play permission.
 func (s *Server) sourcePaths(r *http.Request, items []dto.BaseItemDto) error {
 	for i := range items {

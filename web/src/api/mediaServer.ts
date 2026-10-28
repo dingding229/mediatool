@@ -1,6 +1,6 @@
 import {request,post,checkedPage,type ListPage} from './client'
 export interface MediaGrant { libraryId: string; canPlay: boolean; canDownload: boolean }
-export interface MediaUser { lastPlayedAt?: string | null; lastIp?: string; deviceCount?: number; lockedUntil?: string | null; maxStreams: number; maxParentalRating: number | null; expiresAt: string | null; id: string; username: string; displayName: string; enabled: boolean; mustChangePassword: boolean; revision: number; grants: MediaGrant[]; activeSessions: number; createdAt: string; updatedAt: string }
+export interface MediaUser { lastPlayedAt?: string | null; lastIp?: string; deviceCount?: number; lockedUntil?: string | null; maxStreams: number; expiresAt: string | null; id: string; username: string; displayName: string; enabled: boolean; mustChangePassword: boolean; revision: number; grants: MediaGrant[]; activeSessions: number; createdAt: string; updatedAt: string }
 export interface MediaLibrary { id: string; name: string; mediaType: string; canPlay: boolean }
 export interface MediaProvider { id: string; name: string; contract: string; runtime: string; stage: string; note: string; capabilities: Record<string, boolean> }
 export interface MediaItem { id: string; title: string; year: string; mediaType: string; overview: string; poster: string; season?: number; episode?: number }
@@ -40,7 +40,7 @@ export const listMediaDevices = (id: string, startIndex = 0, limit = 50) => requ
 export const revokeMediaDevice = (id: string, deviceId: string) => request<{ revoked: boolean }>(userPath(id) + '/devices/' + encodeURIComponent(deviceId) + '/revoke', { method: 'POST' })
 export const listMediaHistory = (id: string, startIndex = 0, limit = 50) => request<ManagementPage<MediaHistory>>(userPath(id) + '/history' + pageQuery(startIndex, limit))
 export const listNativeSessions = (startIndex = 0, limit = 50) => request<ManagementPage<NativeSession>>('/media-server/native/sessions' + pageQuery(startIndex, limit))
-export interface MediaUserInput { username: string; displayName: string; enabled: boolean; mustChangePassword: boolean; revision: number; grants: MediaGrant[]; password?: string; maxStreams?: number; maxParentalRating?: number | null; expiresAt?: string | null }
+export interface MediaUserInput { username: string; displayName: string; enabled: boolean; mustChangePassword: boolean; revision: number; grants: MediaGrant[]; password?: string; maxStreams?: number; expiresAt?: string | null }
 export const saveMediaUser = (id: string, input: MediaUserInput) => request<MediaUser>(id ? userPath(id) : '/media-server/users', { method: id ? 'PUT' : 'POST', body: JSON.stringify(input) })
 export interface NativeServerInput { serverName: string; enabled: boolean; revision: number }
 export interface NativeServerSettings extends NativeServerInput { publicUrl: string; listenPort: string; addressSource: string }

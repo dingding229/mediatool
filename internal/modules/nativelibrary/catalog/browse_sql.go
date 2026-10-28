@@ -13,7 +13,7 @@ const browseExpandedCTE = `WITH eligible AS NOT MATERIALIZED (` + ExposableAsset
  SELECT e.*,al.library_id,l.item_id::text library_item,l.sort_order,
  CASE WHEN e.media_type='series' THEN coalesce((SELECT min(value::int) FROM jsonb_array_elements_text(e.episodes) WHERE value~'^[0-9]+$'),e.episode) END first_episode
  FROM eligible e JOIN native_asset_libraries al ON al.asset_id=e.asset_id JOIN native_libraries l ON l.id=al.library_id
- WHERE NOT l.hidden AND l.id=ANY($1::text[]) AND ($4::text='' OR l.id=$4)
+ WHERE NOT l.hidden AND l.id=ANY($1::text[]) AND ($2::text='' OR l.id=$2)
  AND e.media_type=CASE l.collection_type WHEN 'movies' THEN 'movie' ELSE 'series' END
 ), members AS NOT MATERIALIZED (
  SELECT * FROM bound WHERE media_type='movie' OR season>=0 AND first_episode>0
@@ -66,7 +66,7 @@ var browseCTE = browseKeysCTE + `,episode_metadata AS MATERIALIZED (
 ), raw_item_rows AS NOT MATERIALIZED (
  SELECT * FROM media_rows UNION ALL
  SELECT 'library',l.id,0::bigint,-1,-1,l.created_at,ARRAY[l.id],'',l.name,'{}'::jsonb,'{}'::jsonb,0,0,l.item_id::text,l.name,'','','',l.sort_order,l.collection_type,l.created_at
- FROM native_libraries l WHERE l.id=ANY($1::text[]) AND NOT l.hidden AND ($4::text='' OR l.id=$4)
+ FROM native_libraries l WHERE l.id=ANY($1::text[]) AND NOT l.hidden AND ($2::text='' OR l.id=$2)
  AND (l.id NOT IN('f:movie','f:series') OR EXISTS(SELECT 1 FROM members m WHERE m.library_id=l.id))
 ) ` + personalCTE
 

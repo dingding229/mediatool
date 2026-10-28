@@ -22,7 +22,7 @@ func (r BrowseRepository) PersonalData(parent context.Context, u contracts.User,
 	}
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
-	// Query performs identical SQL visibility/parental filtering to all browsing.
+	// Query performs identical SQL library visibility to all browsing.
 	items, e := r.personalItems(ctx, u, p, id)
 	if e != nil {
 		return out, e
@@ -45,15 +45,14 @@ func (r BrowseRepository) PersonalData(parent context.Context, u contracts.User,
 		if e != nil {
 			return out, e
 		}
-		// T15 episodes inherit their series rating. The authoritative parent
+		// The authoritative parent
 		// was checked above. Reuse the same keys/visibility definition without
 		// hydrating names, episode JSON, streams or personal aggregates here.
 		rows, e := r.DB.Query(ctx, browseKeysCTE+` SELECT n.id::text FROM keyed k
-          JOIN native_item_ids parent ON parent.id=$5::bigint
+          JOIN native_item_ids parent ON parent.id=$3::bigint
           LEFT JOIN native_item_ids n ON n.entity_type='episode' AND n.internal_key=k.internal_key
           WHERE k.kind='episode' AND k.internal_key LIKE parent.internal_key||CASE WHEN parent.entity_type='series' THEN ':s%' ELSE 'e%' END
-          AND ($3::boolean OR btrim(regexp_replace(upper(btrim($6::text)),'^(CN:|US:)\s*',''))=ANY($2::text[]))
-          ORDER BY n.id NULLS LAST LIMIT 5001`, visible.ids, visible.codes, visible.unrated, visible.library, id, items[0].OfficialRating)
+          ORDER BY n.id NULLS LAST LIMIT 5001`, visible.ids, visible.library, id)
 		if e != nil {
 			return out, contracts.ErrUnavailable
 		}
@@ -221,10 +220,9 @@ func (r BrowseRepository) personalItems(ctx context.Context, u contracts.User, p
 	var libraries []string
 	sql := browseKeysCTE + nextUpLightCTE + ` SELECT k.rating,k.libraries,jsonb_strip_nulls(jsonb_build_object('Played',coalesce(stats.total>0 AND stats.unplayed=0,false),'PlayCount',coalesce(stats.count,0),'IsFavorite',k.user_favorite,'LastPlayedDate',greatest(k.user_last_played,stats.last_played),'UnplayedItemCount',coalesce(stats.unplayed,0),'PlayedPercentage',coalesce(100.0*(stats.total-stats.unplayed)/nullif(stats.total,0),0)))
  FROM item_rows k LEFT JOIN LATERAL(SELECT count(*) total,count(*) FILTER(WHERE NOT e.user_played) unplayed,sum(e.user_count) count,max(e.user_last_played) last_played FROM item_rows e
- WHERE e.kind='episode' AND e.internal_key LIKE k.internal_key||CASE WHEN k.kind='series' THEN ':s%' ELSE 'e%' END
- AND ($3::boolean OR btrim(regexp_replace(upper(btrim(e.rating)),'^(CN:|US:)\s*',''))=ANY($2::text[])))stats ON true
- WHERE k.id=$6::text AND ($3::boolean OR btrim(regexp_replace(upper(btrim(k.rating)),'^(CN:|US:)\s*',''))=ANY($2::text[])) LIMIT 1`
-	e = r.DB.QueryRow(ctx, sql, s.ids, s.codes, s.unrated, s.library, s.user, id).Scan(&rating, &libraries, &raw)
+ WHERE e.kind='episode' AND e.internal_key LIKE k.internal_key||CASE WHEN k.kind='series' THEN ':s%' ELSE 'e%' END )stats ON true
+ WHERE k.id=$4::text LIMIT 1`
+	e = r.DB.QueryRow(ctx, sql, s.ids, s.library, s.user, id).Scan(&rating, &libraries, &raw)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return nil, nativelibrary.ErrNotFound
 	}
