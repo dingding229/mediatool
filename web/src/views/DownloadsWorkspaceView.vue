@@ -69,8 +69,10 @@ usePageRefresh(()=>refresh(),'uploads');
           <div class="download-row-detail"><el-button @click="show(task)">查看详情</el-button></div>
         </article>
         </div>
+        <div class="download-list-footer" :class="{'is-loading':loading.tasks}" :inert="loading.tasks" :aria-hidden="loading.tasks">
         <p>暂停、恢复或只移除任务，请在下载器里操作。这里的“清理”会同时删除本地文件。</p>
       <PagePagination label="下载任务分页" v-model:current-page="pages.tasks" :total="totals.tasks" v-model:page-size="sizes.tasks" @current-change="load('tasks')"/>
+        </div>
       </section>
     </template>
     <template v-else-if="tab==='uploads'">
