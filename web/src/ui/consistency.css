@@ -35,3 +35,26 @@ label.mt-form-checkbox:not(.el-checkbox)>input[type=checkbox]{width:20px;height:
 .mt-form-checkbox.mt-form-checkbox-inline{display:inline-flex;width:auto;vertical-align:top;margin-right:30px}
 
 .mt-form-checkbox.is-disabled,.mt-form-checkbox:has(>input[type=checkbox]:disabled){cursor:not-allowed}
+
+/* I9 shared list geometry. Repeated classes preserve scoped-selector specificity
+   regardless of route CSS chunk order; column definitions stay with each page. */
+.mt-list.mt-list{min-width:0;width:100%}
+.mt-list-columns.mt-list-columns,.mt-list-row.mt-list-row{display:grid;align-items:center;gap:16px;min-width:0}
+.mt-list-columns.mt-list-columns{padding:8px 0;font-size:13px;color:var(--mt-text-muted)}
+.mt-list-columns.mt-list-columns>span:last-child{text-align:right}
+.mt-list-row.mt-list-row{box-sizing:border-box;min-height:56px;padding:10px 0;margin:0;border-top:1px solid var(--mt-border-color)}
+.mt-list-row.mt-list-row>*{min-width:0}
+.mt-list-row.mt-list-row h3{margin:0;font-size:14px;line-height:1.6;overflow-wrap:anywhere}
+.mt-list-row.mt-list-row p{margin:0;font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+.mt-list-row>.mt-list-actions.mt-list-actions{margin:0}
+.mt-list-actions.mt-list-actions{justify-content:flex-end;align-items:center;gap:8px;flex-wrap:nowrap}
+.mt-list-actions.mt-list-actions .el-button{height:32px;min-height:32px;min-width:32px;padding:6px 10px;margin:0}
+.mt-list-action-icon.mt-list-action-icon{display:none}
+.mt-list-actions .mt-list-action-text.mt-list-action-text{margin-left:0}
+@media(max-width:1240px){
+ .mt-list-columns.mt-list-columns{display:none}
+ .mt-list-actions.mt-list-actions{gap:4px}
+ .mt-list-actions.mt-list-actions .el-button{width:44px;height:44px;min-width:44px;min-height:44px;padding:0}
+ .mt-list-action-icon.mt-list-action-icon{display:inline-flex;font-size:18px}
+ .mt-list-action-text.mt-list-action-text{display:none}
+}

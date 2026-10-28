@@ -111,15 +111,15 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <p>{{ listName(list) }}规则只在对应模式生效。</p>
       <el-alert v-if="op.error&&!editing" :title="errorText(op.error)" type="error" :closable="false"/>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>
-      <div class="ua-columns ua-rule-columns" aria-hidden="true"><span>名称</span><span>匹配方式</span><span>规则值</span><span>状态</span><span>操作</span></div>
-      <div class="ua-list" role="list" :aria-label="listName(list)+'规则列表'">
-      <article v-for="rule in rules" :key="rule.id" class="organize-record ua-list-row ua-rule-row" role="listitem">
+      <div class="ua-columns ua-rule-columns mt-list-columns" aria-hidden="true"><span>名称</span><span>匹配方式</span><span>规则值</span><span>状态</span><span>操作</span></div>
+      <div class="ua-list mt-list" role="list" :aria-label="listName(list)+'规则列表'">
+      <article v-for="rule in rules" :key="rule.id" class="organize-record ua-list-row ua-rule-row mt-list-row" role="listitem">
         <header class="ua-rule-identity"><h3>{{ rule.label||'—' }}</h3><span class="ua-match">{{ matchName(rule.matchType) }}</span></header>
         <p class="u5-original ua-rule-value">{{ rule.userAgent }}</p>
         <div class="ua-rule-state"><el-tag disable-transitions :type="rule.enabled?'success':'info'">{{ rule.enabled?'启用':'停用' }}</el-tag></div>
-        <div class="media-actions ua-row-actions" role="group" :aria-label="(rule.label||'规则')+' 的操作'">
-          <el-button size="small" aria-label="编辑规则" title="编辑规则" :disabled="!!op.pending" @click="edit(rule)"><el-icon class="ua-action-icon" aria-hidden="true"><Edit/></el-icon><span class="ua-action-text">编辑规则</span></el-button>
-          <el-button size="small" aria-label="删除规则" title="删除规则" :disabled="!!op.pending" @click="ask('remove',rule)"><el-icon class="ua-action-icon" aria-hidden="true"><Delete/></el-icon><span class="ua-action-text">删除规则</span></el-button>
+        <div class="media-actions ua-row-actions mt-list-actions" role="group" :aria-label="(rule.label||'规则')+' 的操作'">
+          <el-button size="small" aria-label="编辑规则" title="编辑规则" :disabled="!!op.pending" @click="edit(rule)"><el-icon class="ua-action-icon mt-list-action-icon" aria-hidden="true"><Edit/></el-icon><span class="ua-action-text mt-list-action-text">编辑规则</span></el-button>
+          <el-button size="small" aria-label="删除规则" title="删除规则" :disabled="!!op.pending" @click="ask('remove',rule)"><el-icon class="ua-action-icon mt-list-action-icon" aria-hidden="true"><Delete/></el-icon><span class="ua-action-text mt-list-action-text">删除规则</span></el-button>
         </div>
       </article>
       </div>
@@ -148,18 +148,18 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
         <el-button native-type="submit">搜索记录</el-button>
       </form>
       <ResourceState :stale="records.loaded" :loading="records.loading" :error="records.error" :empty="!records.data?.items.length" @reload="records.load"/>
-      <div class="ua-columns ua-observation-columns" aria-hidden="true"><span>UA</span><span>访问统计 / 名单状态</span><span>最近访问</span><span>操作</span></div>
-      <div class="ua-list" role="list" aria-label="播放器访问汇总列表">
-      <article v-for="record in records.data?.items||[]" :key="record.id" class="organize-record u5-ua-record ua-list-row ua-observation-row" role="listitem">
+      <div class="ua-columns ua-observation-columns mt-list-columns" aria-hidden="true"><span>UA</span><span>访问统计 / 名单状态</span><span>最近访问</span><span>操作</span></div>
+      <div class="ua-list mt-list" role="list" aria-label="播放器访问汇总列表">
+      <article v-for="record in records.data?.items||[]" :key="record.id" class="organize-record u5-ua-record ua-list-row ua-observation-row mt-list-row" role="listitem">
         <header class="ua-observation-identity">
           <p class="u5-original ua-summary-value" :title="record.userAgent||'空 UA'">{{ record.userAgent||'空 UA' }}</p>
           <div class="ua-counts"><p>访问 {{ record.requestCount??'—' }} · 通过 {{ record.allowedCount??'—' }} · 拒绝 {{ record.deniedCount??'—' }}</p><p class="ua-secondary">{{ record.whitelisted?'已在白名单':'未在白名单' }} · {{ record.blacklisted?'已在黑名单':'未在黑名单' }}</p></div>
         </header>
         <div class="ua-recent"><p><IpAddress :ip="record.lastClientIp"/></p><p class="ua-secondary">{{ date(record.lastSeenAt) }} · {{ reason(record.lastReason) }}</p></div>
-        <div class="media-actions ua-row-actions" role="group" aria-label="UA 汇总操作">
-          <el-button size="small" aria-label="查看完整 UA" title="查看完整 UA" @click="details=record;copyNotice='';detailOpen=true"><el-icon class="ua-action-icon" aria-hidden="true"><View/></el-icon><span class="ua-action-text">查看完整 UA</span></el-button>
-          <el-button size="small" aria-label="加入白名单" title="加入白名单" :disabled="!record.userAgent||record.whitelisted||!!op.pending||!policy.data" @click="edit(null,record,'rules')"><el-icon class="ua-action-icon" aria-hidden="true"><CirclePlus/></el-icon><span class="ua-action-text">加入白名单</span></el-button>
-          <el-button size="small" aria-label="加入黑名单" title="加入黑名单" :disabled="!record.userAgent||record.blacklisted||!!op.pending||!policy.data" @click="edit(null,record,'blacklistRules')"><el-icon class="ua-action-icon" aria-hidden="true"><Remove/></el-icon><span class="ua-action-text">加入黑名单</span></el-button>
+        <div class="media-actions ua-row-actions mt-list-actions" role="group" aria-label="UA 汇总操作">
+          <el-button size="small" aria-label="查看完整 UA" title="查看完整 UA" @click="details=record;copyNotice='';detailOpen=true"><el-icon class="ua-action-icon mt-list-action-icon" aria-hidden="true"><View/></el-icon><span class="ua-action-text mt-list-action-text">查看完整 UA</span></el-button>
+          <el-button size="small" aria-label="加入白名单" title="加入白名单" :disabled="!record.userAgent||record.whitelisted||!!op.pending||!policy.data" @click="edit(null,record,'rules')"><el-icon class="ua-action-icon mt-list-action-icon" aria-hidden="true"><CirclePlus/></el-icon><span class="ua-action-text mt-list-action-text">加入白名单</span></el-button>
+          <el-button size="small" aria-label="加入黑名单" title="加入黑名单" :disabled="!record.userAgent||record.blacklisted||!!op.pending||!policy.data" @click="edit(null,record,'blacklistRules')"><el-icon class="ua-action-icon mt-list-action-icon" aria-hidden="true"><Remove/></el-icon><span class="ua-action-text mt-list-action-text">加入黑名单</span></el-button>
         </div>
       </article>
       </div>
@@ -168,12 +168,12 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
     <section class="media-surface">
       <h2>访问明细</h2>
       <ResourceState :stale="visits.loaded" :loading="visits.loading" :error="visits.error" :empty="!visits.data?.items.length" @reload="visits.load"/>
-      <div class="ua-columns ua-visit-columns" aria-hidden="true"><span>访问结果 / 时间</span><span>访客与连接地址</span><span>UA</span><span>操作</span></div>
-      <div class="ua-list" role="list" aria-label="访问明细列表">
-      <article v-for="visit in visits.data?.items||[]" :key="visit.id" class="organize-record ua-list-row ua-visit-row" role="listitem">
+      <div class="ua-columns ua-visit-columns mt-list-columns" aria-hidden="true"><span>访问结果 / 时间</span><span>访客与连接地址</span><span>UA</span><span>操作</span></div>
+      <div class="ua-list mt-list" role="list" aria-label="访问明细列表">
+      <article v-for="visit in visits.data?.items||[]" :key="visit.id" class="organize-record ua-list-row ua-visit-row mt-list-row" role="listitem">
         <div class="ua-visit-result"><h3>{{ visit.allowed?'准入通过':'准入拒绝' }} · HTTP {{ visit.status??'—' }}</h3><p class="ua-secondary">{{ reason(visit.reason) }} · {{ visit.method||'—' }} · {{ date(visit.createdAt) }}</p></div>
         <div class="ua-visit-context"><div class="ua-addresses"><p>访客地址 <IpAddress :ip="visit.clientIp"/></p><p>连接地址 <IpAddress :ip="visit.connectionIp"/></p><p class="ua-secondary">{{ ipSource(visit.ipSource) }} · {{ visit.ipPublic?'公网地址':'非公网或未核验' }}</p></div><p class="u5-original ua-summary-value" :title="visit.userAgent||'空 UA'">{{ visit.userAgent||'空 UA' }}</p></div>
-        <div class="media-actions ua-row-actions" role="group" aria-label="访问明细操作"><el-button size="small" aria-label="访问详情" title="访问详情" @click="details=visit;copyNotice='';detailOpen=true"><el-icon class="ua-action-icon" aria-hidden="true"><View/></el-icon><span class="ua-action-text">访问详情</span></el-button></div>
+        <div class="media-actions ua-row-actions mt-list-actions" role="group" aria-label="访问明细操作"><el-button size="small" aria-label="访问详情" title="访问详情" @click="details=visit;copyNotice='';detailOpen=true"><el-icon class="ua-action-icon mt-list-action-icon" aria-hidden="true"><View/></el-icon><span class="ua-action-text mt-list-action-text">访问详情</span></el-button></div>
       </article>
       </div>
       <PagePagination v-model:current-page="visitPage" v-model:page-size="visitSize" :total="visits.data.total" layout="prev,pager,next,total" @current-change="visits.load"/>
@@ -245,29 +245,15 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
 .ua-filters{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:20px 0}
 .ua-filters>label{flex:1;min-width:160px}
 .ua-policy-summary{margin:0 0 12px}
-.ua-list{min-width:0;width:100%}
-.ua-columns,.ua-list-row{display:grid;align-items:center;gap:16px;min-width:0}
-.ua-columns{padding:8px 0;font-size:13px;color:var(--mt-text-muted)}
-.ua-columns>span:last-child{text-align:right}
 .ua-rule-columns,.ua-rule-row{grid-template-columns:minmax(120px,1fr) 104px minmax(180px,2fr) 64px 172px}
 .ua-observation-columns,.ua-observation-row{grid-template-columns:minmax(150px,1.2fr) minmax(160px,1fr) minmax(180px,1.2fr) 320px}
 .ua-visit-columns,.ua-visit-row{grid-template-columns:minmax(180px,1.1fr) minmax(220px,1.4fr) minmax(180px,1.3fr) 82px}
-.ua-list-row{box-sizing:border-box;min-height:56px;padding:10px 0;margin:0;border-top:1px solid var(--mt-border-color)}
-.ua-list-row>*{min-width:0}
 .ua-rule-identity,.ua-observation-identity,.ua-visit-context{display:contents}
-.ua-list-row h3{margin:0;font-size:14px;line-height:1.6;overflow-wrap:anywhere}
-.ua-list-row p{margin:0;font-size:13px;line-height:1.7;overflow-wrap:anywhere}
 .ua-list-row .ua-secondary,.ua-match{color:var(--mt-text-muted);font-size:13px}
 .ua-counts,.ua-recent,.ua-addresses{display:grid;gap:4px;min-width:0}
 .ua-list-row .ua-rule-value{max-width:100%;word-break:break-word;white-space:pre-wrap}
 .ua-summary-value{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;word-break:break-word}
-.ua-list-row>.ua-row-actions{margin:0}
-.ua-row-actions{justify-content:flex-end;align-items:center;gap:8px;flex-wrap:nowrap}
-.ua-row-actions :deep(.el-button){height:32px;min-height:32px;min-width:32px;padding:6px 10px;margin:0}
-.ua-action-icon{display:none}
-.ua-row-actions .ua-action-text{margin-left:0}
 @media(max-width:1240px){
- .ua-columns{display:none}
  .ua-rule-row{grid-template-columns:minmax(0,1fr) 44px 44px;grid-template-areas:"identity identity state" "value actions actions";gap:12px}
  .ua-rule-identity{grid-area:identity;display:grid;gap:4px}
  .ua-rule-value{grid-area:value}
@@ -281,10 +267,6 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
  .ua-visit-result{grid-area:result}
  .ua-visit-context{grid-area:context;display:grid;gap:8px}
  .ua-visit-row>.ua-row-actions{grid-area:actions}
- .ua-row-actions{gap:4px}
- .ua-row-actions :deep(.el-button){width:44px;height:44px;min-width:44px;min-height:44px;padding:0}
- .ua-action-icon{display:inline-flex;font-size:18px}
- .ua-action-text{display:none}
 }
 @media(max-width:700px){.ua-filters{display:grid;grid-template-columns:minmax(0,1fr)}.ua-filters>label{min-width:0}}
 @media(max-width:600px){.ua-policy-actions{width:100%}.ua-policy-actions .ua-filter-field{flex:1}}

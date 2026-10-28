@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import StatusBadge from '../components/StatusBadge.vue';
+import {Folder,Document,VideoPause,Refresh,Close} from '@element-plus/icons-vue';
 import CronInput from '../ui/CronInput.vue';
 const cronValid=ref(false);
 import {usePageNumber,usePageSize} from '../ui/page-query';
@@ -259,15 +261,21 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <StateView v-if="scanError" :state="sourceState(scanError)" title="扫描记录读取失败" @retry="emit('changed')"/>
     <p v-else-if="loading&&!scans.length">正在读取扫描记录…</p>
     <p v-else-if="!scans.length">尚无扫描记录</p>
-    <ScanRecord v-for="scan in scans" :key="scan.id" class="f5-scan-row" :path="scan.root" :state="scan.state" :time="scan.updatedAt||scan.createdAt" :percent="scan.directories>0?scanPercent(scan.completedDirectories||0,scan.directories):undefined">
-      <span>{{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</span>
-      <template #actions>
-        <el-button @click="inspect(scan)">查看目录记录</el-button>
-        <el-button v-if="['pending','running'].includes(scan.state)" :disabled="!!scanError||busy" @click="askControl(scan,'pause')">暂停扫描</el-button>
-        <el-button v-if="['paused','failed'].includes(scan.state)" :disabled="!!scanError||busy" @click="askControl(scan,'resume')">重新完整对账</el-button>
-        <TaskControl kind="scans" :id="scan.id" :state="scan.state" @changed="emit('changed')"/>
-      </template>
-    </ScanRecord>
+    <div class="mt-list-columns organize-list-columns organize-scan-columns" aria-hidden="true"><span>目录 / 任务</span><span>来源路径 / 进度</span><span>状态</span><span>更新时间</span><span>操作</span></div>
+    <div class="mt-list" role="list" aria-label="扫描任务列表">
+    <article v-for="scan in scans" :key="scan.id" class="organize-record mt-list-row organize-list-row organize-scan-row f5-scan-row" role="listitem">
+      <div class="organize-list-identity"><el-icon class="organize-list-folder" aria-hidden="true"><Folder/></el-icon><div><h3>{{ scan.root?.split('/').filter(Boolean).pop()||'根目录' }}</h3><p>目录扫描</p></div></div>
+      <div class="organize-list-path"><PathText :path="scan.root"/><p>{{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</p><div v-if="scan.directories>0" class="scan-record-progress"><el-progress :show-text="false" :stroke-width="4" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/><span>{{ scanPercent(scan.completedDirectories||0,scan.directories) }}%</span></div></div>
+      <div class="organize-list-state"><StatusBadge :state="scan.state" :label="label(scan.state)"/></div>
+      <time class="organize-list-time">{{ date(scan.updatedAt||scan.createdAt) }}</time>
+      <div class="media-actions mt-list-actions organize-list-actions">
+        <el-button aria-label="查看目录记录" title="查看目录记录" @click="inspect(scan)"><el-icon class="mt-list-action-icon"><Document/></el-icon><span class="mt-list-action-text">查看目录记录</span></el-button>
+        <el-button v-if="['pending','running'].includes(scan.state)" aria-label="暂停扫描" title="暂停扫描" :disabled="!!scanError||busy" @click="askControl(scan,'pause')"><el-icon class="mt-list-action-icon"><VideoPause/></el-icon><span class="mt-list-action-text">暂停扫描</span></el-button>
+        <el-button v-if="['paused','failed'].includes(scan.state)" aria-label="重新完整对账" title="重新完整对账" :disabled="!!scanError||busy" @click="askControl(scan,'resume')"><el-icon class="mt-list-action-icon"><Refresh/></el-icon><span class="mt-list-action-text">重新完整对账</span></el-button>
+        <TaskControl kind="scans" :id="scan.id" :state="scan.state" @changed="emit('changed')"><template #default="control"><el-button v-if="control.canCancel" aria-label="取消后台任务" title="取消后台任务" :disabled="control.disabled" @click="control.ask('cancel')"><el-icon class="mt-list-action-icon"><Close/></el-icon><span class="mt-list-action-text">取消后台任务</span></el-button><el-button v-if="control.canRetry" aria-label="核对后重试" title="核对后重试" :disabled="control.disabled" @click="control.ask('retry')"><el-icon class="mt-list-action-icon"><Refresh/></el-icon><span class="mt-list-action-text">核对后重试</span></el-button></template></TaskControl>
+      </div>
+    </article>
+    </div>
     <PagePagination v-model:current-page="scanPage" :page-size="pageSize??8" :page-sizes="[8,10,25,50,100]" @update:page-size="(n:number)=>emit('size',n)" :total="total??scans.length" layout="prev,pager,next"/>
     <p>扫描中断或云盘内容变化时，不会把未扫描到的文件直接标记为缺失；恢复后会重新检查。</p>
   </section>
