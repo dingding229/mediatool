@@ -1395,7 +1395,7 @@ test('P4 native settings, media user limits, device revoke and history (isolated
   }
   const token=await login('p4-first'), other=await login('p4-other')
   await page.reload()
-  const row=page.locator('.organize-record').filter({hasText:username})
+  const row=page.locator('.media-user-row').filter({hasText:username})
   await row.getByRole('button',{name:'用户详情',exact:true}).click()
   dialog=page.getByRole('dialog',{name:username+' · 用户详情',exact:true})
   const deviceRow=dialog.locator('.organize-record').first()

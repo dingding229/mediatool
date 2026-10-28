@@ -2,6 +2,7 @@
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { onMounted, reactive, ref } from 'vue';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
+import { Edit, Document, MoreFilled } from '@element-plus/icons-vue';
 import 'element-plus/es/components/dropdown/style/css'
 import 'element-plus/es/components/dropdown-menu/style/css'
 import 'element-plus/es/components/dropdown-item/style/css'
@@ -59,22 +60,25 @@ defineExpose({ load, create });
     <ResourceState :error="libraries.error" @reload="libraries.load"/>
     <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>
-    <div class="media-user-grid">
-    <article v-for="user in users.data.items" :key="user.id" class="organize-record media-user-card">
+    <div class="media-user-columns" aria-hidden="true">
+      <span>用户</span><span>状态</span><span>最近播放</span><span>最近 IP 归属地</span><span>操作</span>
+    </div>
+    <div class="media-user-list" role="list" aria-label="媒体用户列表">
+    <article v-for="user in users.data.items" :key="user.id" class="media-user-row" role="listitem">
       <header class="media-user-identity">
         <span class="media-user-avatar" aria-hidden="true">{{ Array.from(user.displayName||user.username)[0]?.toLocaleUpperCase()||'用' }}</span>
         <div class="media-user-name"><h3 :title="user.displayName||user.username">{{ user.displayName||user.username }}</h3><p :title="user.username">{{ user.username }}</p></div>
-        <el-tag disable-transitions :type="status(user)==='启用'?'success':status(user)==='停用'?'info':'warning'" :title="statusHint(user)">{{ status(user) }}</el-tag>
       </header>
-      <dl class="media-user-summary">
+      <div class="media-user-state"><el-tag disable-transitions :type="status(user)==='启用'?'success':status(user)==='停用'?'info':'warning'" :title="statusHint(user)">{{ status(user) }}</el-tag></div>
+      <dl class="media-user-summary media-user-recent">
         <div><dt>最近播放</dt><dd>{{ user.lastPlayedAt?date(user.lastPlayedAt):'暂无播放' }}</dd></div>
         <div><dt>最近 IP 归属地</dt><dd><IpAddress v-if="user.lastIp" :ip="user.lastIp"/><span v-else>暂无公网记录</span></dd></div>
       </dl>
-      <div class="media-actions media-user-actions" :aria-label="user.username+' 的操作'">
-        <el-button :disabled="!!users.error||!!libraries.error" @click="editor?.open(user)">编辑用户</el-button>
-        <el-button @click="activity=user;activityOpen=true">用户详情</el-button>
+      <div class="media-actions media-user-actions" role="group" :aria-label="user.username+' 的操作'">
+        <el-button aria-label="编辑用户" title="编辑用户" :disabled="!!users.error||!!libraries.error" @click="editor?.open(user)"><el-icon class="media-user-action-icon" aria-hidden="true"><Edit/></el-icon><span class="media-user-action-text">编辑用户</span></el-button>
+        <el-button aria-label="用户详情" title="用户详情" @click="activity=user;activityOpen=true"><el-icon class="media-user-action-icon" aria-hidden="true"><Document/></el-icon><span class="media-user-action-text">用户详情</span></el-button>
         <el-dropdown trigger="click" popper-class="media-dropdown">
-          <el-button>更多</el-button>
+          <el-button aria-label="更多" title="更多"><el-icon class="media-user-action-icon" aria-hidden="true"><MoreFilled/></el-icon><span class="media-user-action-text">更多</span></el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item @click="editor?.open(user,true)">重置密码</el-dropdown-item>
@@ -106,21 +110,43 @@ defineExpose({ load, create });
 
 <style scoped>
 .media-users-panel{min-width:0;max-width:100%;box-sizing:border-box}
-.media-user-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:16px}
-.media-user-card{padding:16px;min-width:0;margin:0;display:flex;flex-direction:column;gap:16px}
-.media-user-identity{display:flex;gap:12px;align-items:center}
+.media-user-list{width:100%;min-width:0}
+.media-user-columns,.media-user-row{display:grid;grid-template-columns:minmax(160px,1.1fr) 64px minmax(145px,.9fr) minmax(180px,1.3fr) 234px;gap:16px;align-items:center}
+.media-user-columns{padding:12px 0;color:var(--mt-text-muted);font-size:13px}
+.media-user-columns>span:last-child{text-align:right}
+.media-user-row{padding:16px 0;min-width:0;margin:0;border-top:1px solid var(--mt-border-color)}
+.media-user-identity{display:flex;gap:12px;align-items:center;min-width:0}
 .media-user-avatar{display:grid;place-items:center;flex:0 0 40px;height:40px;border-radius:50%;background:var(--el-color-primary-light-9);color:var(--el-color-primary);font-size:1.1rem;font-weight:600}
 .media-user-name{min-width:0;width:0;flex:1}
 .media-user-name h3,.media-user-name p{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.media-user-name p{color:var(--el-text-color-secondary);font-size:.85rem;margin-top:4px}
+.media-user-name p{color:var(--mt-text-muted);font-size:13px;margin-top:4px}
 .media-user-summary{display:grid;gap:10px;margin:0}
 .media-user-summary>div{display:grid;grid-template-columns:7.5em minmax(0,1fr);gap:8px;align-items:baseline}
 .media-user-summary dt{color:var(--el-text-color-secondary);font-size:.85rem}
 .media-user-summary dd{margin:0;overflow-wrap:anywhere}
-.media-user-actions{padding-top:12px;border-top:1px solid var(--el-border-color-lighter);align-items:center;margin-top:auto;gap:8px}
-.media-user-actions :deep(.el-button){height:44px;margin:0;padding:8px 12px;text-decoration:none}
+.media-user-recent{display:contents}
+.media-user-recent>div{display:block;min-width:0}
+.media-user-recent dd{min-width:0}
+.media-user-recent dt{color:var(--mt-text-muted);position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.media-user-actions{justify-content:flex-end;align-items:center;gap:8px;flex-wrap:nowrap}
+.media-user-actions :deep(.el-button){height:44px;min-width:44px;margin:0;padding:8px 12px;text-decoration:none}
 .media-user-actions :deep(.el-dropdown){display:inline-flex}
+.media-user-action-icon{display:none}
+.media-user-actions .media-user-action-text{margin-left:0}
 .media-user-detail-summary{margin-bottom:16px}
 .media-user-session-link{color:var(--el-button-text-color);text-decoration:none;min-height:44px}
 .media-user-session-link:hover,.media-user-session-link:focus-visible{color:var(--el-button-hover-text-color)}
+@media(max-width:1240px){
+ .media-user-columns{display:none}
+ .media-user-row{grid-template-columns:minmax(0,1fr) 84px 44px;grid-template-areas:"identity identity state" "recent actions actions";gap:12px}
+ .media-user-identity{grid-area:identity}
+ .media-user-state{grid-area:state;justify-self:end}
+ .media-user-recent{grid-area:recent;display:grid;gap:6px;min-width:0}
+ .media-user-recent dt{position:static;width:auto;height:auto;padding:0;overflow:visible;clip-path:none;white-space:normal;font-size:12px}
+ .media-user-recent dd{font-size:13px;line-height:1.6}
+ .media-user-actions{grid-area:actions;gap:4px;align-self:center}
+ .media-user-actions :deep(.el-button){width:44px;padding:0}
+ .media-user-action-icon{display:inline-flex;font-size:18px}
+ .media-user-action-text{display:none}
+}
 </style>
