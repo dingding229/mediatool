@@ -11,7 +11,7 @@ test('T13 update presentation and UA page before/after at both widths and themes
  test.setTimeout(180000);mkdirSync(dir,{recursive:true});await fixture(page);const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  for(const width of [1440,390])for(const theme of ['light','dark'])for(const kind of ['about','confirm','ua',...(!before?['details']:[])]){
   await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);await page.goto(kind==='ua'?'/playback?tab=players':'/settings?tab=about');
-  if(kind==='ua')await expect(page.getByLabel('UA 策略模式')).toBeEnabled();else await expect(page.getByRole('region',{name:'关于 Media Tool',exact:true})).toBeVisible();
+  if(kind==='ua')await expect(page.getByRole('combobox',{name:'UA 策略模式',exact:true})).toBeEnabled();else await expect(page.getByRole('region',{name:'关于 Media Tool',exact:true})).toBeVisible();
   if(kind==='confirm')await page.getByRole('button',{name:'一键更新',exact:true}).click();
   if(kind==='details')await page.getByRole('button',{name:'更新详情',exact:true}).click();
   if(!before&&kind==='about'){await expect(page.getByRole('button',{name:/开启执行|关闭执行/})).toHaveCount(0);await expect(page.locator('.f8-about')).not.toContainText(job.backup);await expect(page.getByLabel('检查间隔（小时）')).toHaveValue('12')}

@@ -21,10 +21,10 @@ test('T10 screenshots and geometry @screenshots',async({page})=>{
   await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);await page.goto('/playback?tab='+kind);await expect(page.getByRole('heading',{name:kind==='users'?'媒体用户':kind==='players'?'播放器准入':'在线会话',exact:true})).toBeVisible();await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
   if(kind==='users')await expect(page.locator(usersSelector)).toHaveCount(4);
   if(kind==='sessions')await expect(page.getByRole('button',{name:'会话详情',exact:true})).toBeVisible();
-  if(kind==='players')await expect(page.getByLabel('UA 策略模式')).toBeEnabled();
+  if(kind==='players')await expect(page.getByRole('combobox',{name:'UA 策略模式',exact:true})).toBeEnabled();
   const geometry=await page.evaluate(selector=>({width:innerWidth,scroll:document.documentElement.scrollWidth,cards:[...document.querySelectorAll(selector)].map(e=>{const b=e.getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height}})}),usersSelector);
   if(!before){expect(geometry.scroll).toBeLessThanOrEqual(width);if(kind==='users'&&width===1440){expect(geometry.cards[1]!.y).toBeGreaterThanOrEqual(geometry.cards[0]!.y+geometry.cards[0]!.height);expect(geometry.cards[0]!.width).toBe(geometry.cards[1]!.width)}
-   if(kind==='players'){const boxes=await page.locator('.ua-policy-actions').evaluate(e=>[...e.querySelectorAll('select,button')].map(n=>{const r=n.getBoundingClientRect();return {bottom:r.bottom,height:r.height}}));expect(boxes).toHaveLength(2);expect(Math.abs(boxes[0]!.bottom-boxes[1]!.bottom)).toBeLessThanOrEqual(1);expect(boxes[0]!.height).toBe(boxes[1]!.height)}
+   if(kind==='players'){const boxes=await page.locator('.ua-policy-actions').evaluate(e=>[...e.querySelectorAll('.el-select__wrapper,.el-button')].map(n=>{const r=n.getBoundingClientRect();return {bottom:r.bottom,height:r.height}}));expect(boxes).toHaveLength(2);expect(Math.abs(boxes[0]!.bottom-boxes[1]!.bottom)).toBeLessThanOrEqual(1);expect(boxes[0]!.height).toBe(boxes[1]!.height)}
   }
   await page.screenshot({path:join(dir,`${before?'before':'after'}-${kind}-${width}-${theme}.png`),fullPage:true,animations:'disabled'});writeFileSync(join(dir,`${before?'before':'after'}-${kind}-${width}-${theme}.json`),JSON.stringify(geometry));
  }

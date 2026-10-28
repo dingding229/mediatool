@@ -1,3 +1,4 @@
+import {chooseUASelect,expectUASelect} from './ua-select';
 import {fixtureFulfill} from './collection-fixture'
 import { test,expect } from '@playwright/test'
 import { mkdirSync,readFileSync,writeFileSync,existsSync } from 'node:fs'
@@ -989,7 +990,7 @@ test('player UA observations enforce resolver whitelist and blacklist while reti
  expect(observed.status()).toBe(401)
  await page.goto('/player-access')
  await expect(page.getByRole('heading',{name:'播放器准入',exact:true})).toBeVisible()
- await expect(page.getByRole('combobox',{name:'UA 策略模式',exact:true})).toHaveValue('off')
+ await expectUASelect(page,'UA 策略模式','off')
  await page.getByLabel('搜索UA记录',{exact:true}).fill(ua)
  await page.getByRole('button',{name:'搜索记录',exact:true}).click()
  const row=page.locator('.u5-ua-record').filter({hasText:ua})
@@ -1004,9 +1005,9 @@ test('player UA observations enforce resolver whitelist and blacklist while reti
  await dialog.getByLabel('播放器备注',{exact:true}).fill('Owned E2E player')
  await dialog.getByRole('button',{name:'保存规则',exact:true}).click()
  await expect(page.getByText('Owned E2E player',{exact:true})).toBeVisible()
- await page.getByRole('combobox',{name:'UA 策略模式',exact:true}).selectOption('whitelist')
+ await chooseUASelect(page,'UA 策略模式','whitelist')
  await page.getByRole('dialog',{name:'切换 UA 策略为白名单（仅允许匹配规则）',exact:true}).getByRole('button',{name:'确认切换',exact:true}).click()
- await expect(page.getByRole('combobox',{name:'UA 策略模式',exact:true})).toHaveValue('whitelist')
+ await expectUASelect(page,'UA 策略模式','whitelist')
  try{
   const blocked=await page.request.get('/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key',{headers:{'User-Agent':'Unknown-E2E-Player/2'},maxRedirects:0})
   expect(blocked.status()).toBe(403);expect(blocked.headers().location).toBeUndefined();expect((await blocked.json()).error.code).toBe('player_ua_denied')
@@ -1018,16 +1019,16 @@ test('player UA observations enforce resolver whitelist and blacklist while reti
   for(const width of [375,768,1440]){
    await page.setViewportSize({width,height:900});await page.getByRole('button',{name:'刷新',exact:true}).click()
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
-   await page.screenshot({path:resolve(screenshots,`player-ua-access-${width}.png`),fullPage:true})
+   if(process.env.I9_SCREENSHOTS==='1'&&!process.env.CI&&!process.env.GITHUB_ACTIONS)await page.screenshot({path:resolve(screenshots,`player-ua-access-${width}.png`),fullPage:true})
   }
   await row.getByRole('button',{name:'加入黑名单',exact:true}).click()
   dialog=page.getByRole('dialog',{name:'从访问记录加入黑名单',exact:true})
   await dialog.getByLabel('播放器备注',{exact:true}).fill('Owned E2E blocked player')
   await dialog.getByRole('button',{name:'保存规则',exact:true}).click()
   await expect(dialog).toBeHidden()
-  await page.getByRole('combobox',{name:'UA 策略模式',exact:true}).selectOption('blacklist')
+  await chooseUASelect(page,'UA 策略模式','blacklist')
   await page.getByRole('dialog').getByRole('button',{name:'确认切换',exact:true}).click()
-  await expect(page.getByRole('combobox',{name:'UA 策略模式',exact:true})).toHaveValue('blacklist')
+  await expectUASelect(page,'UA 策略模式','blacklist')
   for(const path of ['/api/v1/cloudStorage/strm302?apiKey=owned-invalid-fixture-key']){
    const reply=await page.request.get(path,{headers:{'User-Agent':ua},maxRedirects:0});expect(reply.status()).toBe(403);expect((await reply.json()).error.code).toBe('player_ua_denied');expect(reply.headers().location).toBeUndefined()
   }
