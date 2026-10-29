@@ -1,7 +1,8 @@
 export interface PageTab { id: string; label: string; keywords?: string }
-export interface PrimaryPage { id: string; name: string; group: string; description: string; tabs: PageTab[] }
+export interface PrimaryPage { id: string; name: string; group: string; description: string; keywords?: string; tabs: PageTab[] }
 export const primaryPages: PrimaryPage[] = [
   { id: 'dashboard', name: '首页', group: '', description: '查看运行概况与服务状态。', tabs: [{ id: '', label: '首页' }] },
+  { id:'trends',name:'运行趋势',group:'',description:'查看系统采样与任务执行趋势。',keywords:'趋势 运行趋势 CPU 系统负载 内存 磁盘 空间 任务耗时 成功率 采样',tabs:[{id:'',label:'运行趋势'}] },
   { id: 'search', name: '搜索', group: '获取', description: '发现资源，或从搜索历史继续查看结果。', tabs: [{ id: 'query', label: '搜索', keywords: 'TMDB 站点 资源' }, { id: 'history', label: '搜索历史', keywords: '站点缓存 历史记录' },{id:'discover',label:'发现推荐',keywords:'插件 来源 发现 推荐'}] },
   { id: 'subscriptions', name: '订阅', group: '获取', description: '管理订阅规则与自动跟进。', tabs: [{ id: '', label: '订阅' }] },
   { id: 'downloads', name: '下载', group: '获取', description: '跟进下载、做种、上传与手动入库。', tabs: [{ id: 'tasks', label: '下载任务', keywords: '下载器 qBittorrent 做种' }, {id:'uploads',label:'上传入库',keywords:'上传 核对 批次 115'}, {id:'manual',label:'手动添加',keywords:'种子 磁力 手动下载'}] },
@@ -12,7 +13,7 @@ export const primaryPages: PrimaryPage[] = [
   { id: 'connections', name: '连接', group: '系统', description: '检查依赖状态，管理云盘与通知渠道。', tabs: [{ id: 'storage', label: '115/CD2', keywords: '云盘连接 115 授权 CloudDrive2 配额' }, {id:'downloader',label:'下载器',keywords:'qBittorrent 下载器配置'}, { id: 'notifications', label: '通知渠道', keywords: '通知中心 Telegram Bark 投递' }, { id: 'aux', label: 'TMDB/代理', keywords: 'TMDB 元数据 网络代理' }] },
   { id: 'sites', name: '站点', group: '系统', description: '维护 PT 账号与选用的站点模板。', tabs: [{ id: 'accounts', label: '站点账号', keywords: 'PT HDSKY Cookie 分享率' }, { id: 'templates', label: '站点模板', keywords: '规则 内置 加载' }] },
   { id: 'plugins', name: '插件', group: '系统', description: '管理内置插件、实例配置与授权。', tabs: [{ id: 'installed', label: '已安装' }, { id: 'catalog', label: '插件目录' }] },
-  { id: 'ops', name: '运维', group: '系统', description: '查看后台任务、备份、日志和运行检查。', tabs: [{ id: 'jobs', label: '任务列表', keywords: 'Worker Cron 重试' }, {id:'attention',label:'检测与待处理',keywords:'就绪 引导 失败任务 介入 数据库 PostgreSQL Redis 执行器'}, { id: 'maintenance', label: '备份与告警', keywords: '维护 恢复 告警 趋势' }, { id: 'logs', label: '日志', keywords: '程序日志 debug info warn error' }, { id: 'cache', label: '缓存', keywords: 'TMDB 缓存 TTL 清理' }] },
+  { id: 'ops', name: '运维', group: '系统', description: '查看后台任务、备份、日志和运行检查。', tabs: [{ id: 'jobs', label: '任务列表', keywords: 'Worker Cron 重试' }, {id:'attention',label:'检测与待处理',keywords:'就绪 引导 失败任务 介入 数据库 PostgreSQL Redis 执行器'}, { id: 'maintenance', label: '备份与告警', keywords: '维护 恢复 告警' }, { id: 'logs', label: '日志', keywords: '程序日志 debug info warn error' }, { id: 'cache', label: '缓存', keywords: 'TMDB 缓存 TTL 清理' }] },
   { id: 'settings', name: '设置', group: '系统', description: '按分区管理配置、命名分类和账号安全。', tabs: [{ id: 'general', label: '通用与访问', keywords: '域名 端口 反代 IP' }, { id: 'naming', label: '命名与分类', keywords: '命名模板 动漫 国家 题材 刮削 分类规则' }, { id: 'automation', label: '搜索订阅', keywords: 'RSS Cron 调度 缓存' }, { id: 'api', label: '外部 API', keywords: '开放接口 凭据 权限 验证' }, { id: 'mobile', label: '移动端', keywords: 'PWA 安装' }, { id: 'security', label: '账号安全', keywords: '管理员 密码 会话 引导' },{id:'about',label:'关于',keywords:'版本 更新 commit schema 插件 pin'}] },
 ]
 export const pageById = (id: string) => primaryPages.find(page => page.id === id)!

@@ -26,12 +26,13 @@ async function ensureRegisteredAndLogin(page: import('@playwright/test').Page) {
   await expect(page.getByRole('heading', { name: '首页' })).toBeVisible()
 }
 
-test('U1 navigation, theme toggle, and 13 primary routes', async ({ page }) => {
+test('U1 navigation, theme toggle, and 14 primary routes', async ({ page }) => {
   await ensureRegisteredAndLogin(page)
 
-  // 1. 验证 13 个主路由直接可达，无水平溢出
+  // 1. 验证 14 个主路由直接可达，无水平溢出
   const primaryRoutes = [
     '/dashboard',
+    '/trends',
     '/search',
     '/subscriptions',
     '/downloads',
@@ -73,11 +74,11 @@ test('U1 navigation, theme toggle, and 13 primary routes', async ({ page }) => {
   }
 })
 
-test('U1 sidebar contains exactly thirteen primary entries without current badges or accordion controls', async ({ page }) => {
+test('U1 sidebar contains exactly fourteen primary entries without current badges or accordion controls', async ({ page }) => {
   await ensureRegisteredAndLogin(page)
   const nav = page.getByRole('navigation', { name: '功能导航', exact: true })
-  await expect(nav.getByRole('link')).toHaveCount(13)
-  expect(await nav.getByRole('link').allTextContents()).toEqual(['首页','搜索','订阅','下载','媒体库','入库整理','文件','播放服务','连接','站点','插件','运维','设置'])
+  await expect(nav.getByRole('link')).toHaveCount(14)
+  expect(await nav.getByRole('link').allTextContents()).toEqual(['首页','运行趋势','搜索','订阅','下载','媒体库','入库整理','文件','播放服务','连接','站点','插件','运维','设置'])
   await expect(nav.getByRole('button')).toHaveCount(0)
   await expect(nav.getByText('当前', { exact: true })).toHaveCount(0)
   for (const group of ['获取','媒体','系统']) await expect(nav.getByRole('heading', { name: group, exact: true })).toBeVisible()

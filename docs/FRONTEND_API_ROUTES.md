@@ -274,7 +274,7 @@
 | POST | `/api/v1/notification-deliveries/{id}/retry` | management | 前端直接调用 | `web/src/connections/NotificationHistory.vue:42` |
 | GET | `/api/v1/notifications` | management | 前端直接调用 | `web/src/connections/NotificationHistory.vue:23` |
 | HEAD | `/api/v1/notifications` | management | 未检出静态使用 |  |
-| GET | `/api/v1/ops` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/operations/MaintenancePanel.vue:17`、`web/src/operations/PolicyPanel.vue:12` |
+| GET | `/api/v1/ops` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/views/TrendsWorkspaceView.vue:16`、`web/src/operations/PolicyPanel.vue:12` |
 | HEAD | `/api/v1/ops` | management | 未检出静态使用 |  |
 | POST | `/api/v1/ops/alerts/{code}/ack` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
 | POST | `/api/v1/ops/backups` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
@@ -290,7 +290,7 @@
 | POST | `/api/v1/ops/requests/{id}/verify` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
 | POST | `/api/v1/ops/requests/preview` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:57` |
 | POST | `/api/v1/ops/resume` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:41` |
-| GET | `/api/v1/ops/trends` | management | 前端直接调用 | `web/src/operations/MaintenancePanel.vue:17` |
+| GET | `/api/v1/ops/trends` | management | 前端直接调用 | `web/src/views/TrendsWorkspaceView.vue:16` |
 | HEAD | `/api/v1/ops/trends` | management | 未检出静态使用 |  |
 | POST | `/api/v1/pipeline/{kind}/{id}/retry` | management | 前端直接调用 | `web/src/acquisition/useDownloads.ts:114` |
 | GET | `/api/v1/player-access/events` | management | 前端直接调用 | `web/src/playback/AccessPanel.vue:11` |

@@ -22,11 +22,21 @@ export const legacyDestinations: Record<string, { path: string; tab: string; que
   '/search-cache': { path: '/search', tab: 'history' },
   '/site-templates': { path: '/sites', tab: 'templates' },
 }
+// The old maintenance subsection was local state; also accept bookmarked selectors.
+export function trendLocation(to: Pick<RouteLocationNormalized,'path'|'query'|'hash'>): RouteLocationRaw | undefined {
+ if (!['/ops','/maintenance'].includes(to.path) || !(to.query.tab==='trends'||to.query.section==='trends'||to.query.view==='trends'||['#trends','#runtime-trends'].includes(to.hash))) return;
+ const query={...to.query};delete query.tab;
+ if(query.section==='trends')delete query.section;
+ if(query.view==='trends')delete query.view;
+ return {path:'/trends',query,hash:to.hash,replace:true};
+}
 export function legacyLocation(path: string, to: Pick<RouteLocationNormalized, 'query' | 'hash'>): RouteLocationRaw {
+  const trends=trendLocation({...to,path});if(trends)return trends;
   const target = legacyDestinations[path]!
   return { path: target.path, query: { ...target.query, ...to.query, tab: path === '/cloudStorage' && to.query.assetId ? 'assets' : target.tab }, hash: to.hash }
 }
 export function normalizePageLocation(to: Pick<RouteLocationNormalized, 'path' | 'query' | 'hash'>): RouteLocationRaw | undefined {
+  const trends=trendLocation(to);if(trends)return trends;
   if(to.path==='/library'&&to.query.source==='plugins')return {path:'/search',query:{...to.query,tab:'discover',kind:to.query.kind==='recommend.source'?'recommend.source':'discover.source',source:undefined},hash:to.hash,replace:true};
   if ((to.path === '/settings' && (['tmdb','proxy'].includes(String(to.query.section)) || ['tmdb','proxy'].includes(String(to.query.tab))))) return { path: '/connections', query: { ...to.query, tab: 'aux' }, hash: to.hash }
   if (to.path === '/organize' && (to.query.tab === 'library' || !to.query.tab && to.query.assetId)) return {path:'/organize',query:{...to.query,tab:to.query.assetId?'assets':'candidates'},hash:to.hash,replace:true}

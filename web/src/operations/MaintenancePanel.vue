@@ -2,7 +2,7 @@
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { formatBytes as bytes } from './model';
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { request, post } from '../api/client';
 import { useResource } from '../workflows/useResource';
 import { useOperation } from '../workflows/useOperation';
@@ -15,18 +15,15 @@ import ConfirmAction from '../ui/ConfirmAction.vue';
 import PreviewApprove from '../ui/PreviewApprove.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-import TrendChart from './TrendChart.vue';
 import {useRoute} from 'vue-router';
 import WebRestorePanel from './WebRestorePanel.vue';
 import PolicyPanel from './PolicyPanel.vue';
 const recordPages=reactive({backups:usePageNumber('backupsPage'),drills:usePageNumber('drillsPage'),requests:usePageNumber('maintenanceRequestsPage'),alerts:usePageNumber('alertsPage')});
 const recordSizes=reactive({backups:usePageSize(25,'backupsPage'),drills:usePageSize(25,'drillsPage'),requests:usePageSize(25,'maintenanceRequestsPage'),alerts:usePageSize(25,'alertsPage')});
 function recordRows(kind:keyof typeof recordPages){return (data.data?.[kind]||[]).slice((recordPages[kind]-1)*recordSizes[kind],recordPages[kind]*recordSizes[kind])}
-const data = reactive(useResource<any>(() => request('/ops'))), hours = ref(24), trends = reactive(useResource<any[]>(() => request('/ops/trends?hours=' + hours.value), [])), op = reactive(useOperation('maintenance')), section = ref(useRoute().query.restore?'recovery':'backups'), confirm = ref(false), action = ref<any>(null), detail = ref<any>(null), detailOpen = ref(false), restoreID = ref(''), rollbackID = ref(''), preview = ref<any>(null), previewLoading = ref(false), previewError = ref<unknown>(null), previewDialog = ref(false), approval = ref(false), copied = ref(''), commandCopy = ref('');
-const gapMS = computed(() => Math.max(1, Math.ceil(hours.value * 60 / 500)) * 60000), trendRows = computed(() => trends.data.map(r => ({ ...r, processMiB: typeof r.processBytes === 'number' ? r.processBytes / 1048576 : null, successRate: typeof r.succeededJobs10m === 'number' && typeof r.failedJobs10m === 'number' && r.succeededJobs10m + r.failedJobs10m > 0 ? r.succeededJobs10m / (r.succeededJobs10m + r.failedJobs10m) * 100 : null })));
-const trendFields = [['memoryPercent', '内存使用率', '%'], ['diskFreeGB', '剩余空间', 'GiB'], ['load1', '系统负载', '1min'], ['loadPerCPU', '每CPU负载', ''], ['jobSeconds', '任务执行耗时', '秒'], ['pendingJobs', '待处理任务', '条'], ['processMiB', '应用堆内存', 'MiB'], ['failedJobs10m', '十分钟失败任务', '条'], ['successRate', '十分钟任务成功率', '%']];
+const data = reactive(useResource<any>(() => request('/ops'))), op = reactive(useOperation('maintenance')), section = ref(useRoute().query.restore?'recovery':'backups'), confirm = ref(false), action = ref<any>(null), detail = ref<any>(null), detailOpen = ref(false), restoreID = ref(''), rollbackID = ref(''), preview = ref<any>(null), previewLoading = ref(false), previewError = ref<unknown>(null), previewDialog = ref(false), approval = ref(false), copied = ref(''), commandCopy = ref('');
 async function load() {
-  await Promise.all([data.load(),...(section.value==='trends'?[trends.load()]:[])]);
+  await data.load();
   if (preview.value && !data.error) {
     const current = data.data?.requests?.find((r: any) => r.id === preview.value.request.id);
     if (current)
@@ -85,8 +82,7 @@ function inspect(value: any) {
   detailOpen.value = true;
 }
 useRefresh(load, {interval:30000, active:()=>!op.busy&&!confirm.value&&!approval.value});
-watch(section,value=>{if(value==='trends')void trends.load()});
-defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, section, trends, trendRows, inspect });
+defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, section, inspect });
 </script>
 <template>
   <div class="media-stack">
@@ -107,7 +103,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <AsyncResultBanner v-if="op.phase" :status="op.phase" message="维护请求尚未核验完成；请先查看当前结果，不重复执行。" @refresh="load"/>
       </div>
       <nav class="media-actions mt-segments" aria-label="备份与告警功能">
-        <el-button v-for="(name,key) in {backups:'备份管理',recovery:'恢复与回滚',alerts:'运维告警',trends:'运行趋势',policy:'维护策略'}" :key="key" :aria-pressed="section===key" @click="section=String(key)">{{ name }}</el-button>
+        <el-button v-for="(name,key) in {backups:'备份管理',recovery:'恢复与回滚',alerts:'运维告警',policy:'维护策略'}" :key="key" :aria-pressed="section===key" @click="section=String(key)">{{ name }}</el-button>
       </nav>
     </section>
     <div class="ops-content-stage" :aria-busy="data.loading||data.refreshing">
@@ -199,20 +195,6 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
 <PagePagination label="告警记录分页" v-model:current-page="recordPages.alerts" v-model:page-size="recordSizes.alerts" :total="data.data?.alerts?.length"/>
 
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.alerts?.length" empty-title="暂无告警记录"/>
-    </section>
-    <section v-else-if="section==='trends'" class="media-surface">
-      <h3>运行趋势</h3>
-      <label class="u5-field">
-        趋势时间范围
-        <select v-model.number="hours" aria-label="趋势时间范围" @change="trends.load">
-          <option v-for="h in [1,24,168,720]" :key="h" :value="h">最近 {{ h }} 小时</option>
-        </select>
-      </label>
-      <ResourceState :stale="trends.loaded" :loading="trends.loading" :error="trends.error" @reload="trends.load"/>
-      <div class="u6-trends">
-        <TrendChart v-for="[metric,title,unit] in trendFields" :key="metric" :title="title!" :unit="unit!" :metric="metric!" :rows="trendRows" :gap-ms="gapMS"/>
-      </div>
-      <el-button @click="inspect(trends.data)">查看原始采样记录</el-button>
     </section>
     <PolicyPanel v-else/>
       </template>

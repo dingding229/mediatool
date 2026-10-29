@@ -2,6 +2,7 @@ import { defineAsyncComponent, markRaw, type Component } from 'vue';
 const view = (loader: () => Promise<any>) => markRaw(defineAsyncComponent(loader));
 export const workspaceViews: Record<string, Component> = {
   dashboard: view(() => import('../views/DashboardWorkspaceView.vue')),
+  trends:view(()=>import('../views/TrendsWorkspaceView.vue')),
   search: view(() => import('../views/SearchWorkspaceView.vue')),
   subscriptions: view(() => import('../views/SubscriptionWorkspaceView.vue')),
   downloads: view(() => import('../views/DownloadsWorkspaceView.vue')),

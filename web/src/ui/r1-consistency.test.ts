@@ -6,7 +6,7 @@ import {primaryPages} from '../navigation/pages';
 import {stateFor} from '../workflows/readiness';
 import {APIError} from '../api/client';
 const read=(p:string)=>readFileSync(resolve(__dirname,'..',p),'utf8');
-const views=['Dashboard','Search','Subscription','Downloads','Media','Organize','Files','Playback','Connections','Sites','Plugins','Ops','Settings'];
+const views=['Dashboard','Trends','Search','Subscription','Downloads','Media','Organize','Files','Playback','Connections','Sites','Plugins','Ops','Settings'];
 it.each(primaryPages.map((p,i)=>[p.id,p.name,views[i]]))('%s heading matches navigation name %s',(_id,name,view)=>{expect(read(`views/${view}WorkspaceView.vue`)).toMatch(new RegExp(`PageHeader[^>]*title="${name}"`))});
 it('search segments wrap search modes only, never the workspace shell',()=>{const template=parse(read('views/SearchWorkspaceView.vue')).descriptor.template!.content;expect(template.trim()).toMatch(/^<div class="acquire-workspace">/);expect(template).toContain('class="acquire-mode mt-segments"');expect(template.indexOf('<PageHeader')).toBeLessThan(template.indexOf('<PageTabs'))});
 it('connection configuration has one owner and no duplicate overview',()=>{const page=read('views/ConnectionsWorkspaceView.vue'),downloads=read('views/DownloadsWorkspaceView.vue');expect(primaryPages.find(p=>p.id==='connections')!.tabs.map(t=>t.id)).toEqual(['storage','downloader','notifications','aux']);expect(page).toContain(":allowed-kinds=\"['qbittorrent']\"");expect(downloads).not.toContain('ConnectionManager');expect(downloads).not.toContain('管理下载器');expect(page).toContain('title="下载器配置"');expect(page).not.toContain('<ServiceReadiness')});

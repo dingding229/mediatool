@@ -39,3 +39,11 @@ it('moves the former library plugin source into discovery without dropping other
 it('redirects the removed overview to storage without dropping other query or hash',async()=>{const r=getRouter();await r.push('/connections?tab=overview&keep=yes#form');expect(r.currentRoute.value.path).toBe('/connections');expect(r.currentRoute.value.query).toEqual({tab:'storage',keep:'yes'});expect(r.currentRoute.value.hash).toBe('#form')});
 
 it("keeps the build/update about tab",async()=>{const r=getRouter();await r.push("/settings?tab=about&keep=yes");expect(r.currentRoute.value.query).toEqual({tab:"about",keep:"yes"})});
+
+it.each(['/ops?tab=trends','/ops?tab=maintenance&section=trends','/ops?view=trends','/maintenance?section=trends','/maintenance?tab=trends','/ops?tab=maintenance#trends'])('I18 legacy trend %s retains bookmark filters',async from=>{
+ const r=getRouter(),u=new URL(from,'http://fixture');u.searchParams.set('hours','168');u.searchParams.set('keep','yes');if(!u.hash)u.hash='#sample';
+ await r.push(u.pathname+u.search+u.hash);expect(r.currentRoute.value.path).toBe('/trends');expect(r.currentRoute.value.query).toEqual({hours:'168',keep:'yes'});expect(r.currentRoute.value.hash).toBe(u.hash);
+});
+it('I18 same-path query navigation redirects, ordinary maintenance stays intact',async()=>{
+ const r=getRouter();await r.push('/ops?tab=maintenance&keep=yes');expect(r.currentRoute.value.path).toBe('/ops');await r.push({query:{tab:'maintenance',section:'trends',hours:'1',keep:'yes'},hash:'#sample'});expect(r.currentRoute.value.path).toBe('/trends');expect(r.currentRoute.value.query).toEqual({hours:'1',keep:'yes'});
+});
