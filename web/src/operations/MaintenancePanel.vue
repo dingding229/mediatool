@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Check } from '@element-plus/icons-vue';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { formatBytes as bytes } from './model';
@@ -105,6 +106,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <nav class="media-actions mt-segments" aria-label="备份与告警功能">
         <el-button v-for="(name,key) in {backups:'备份管理',recovery:'恢复与回滚',alerts:'运维告警',policy:'维护策略'}" :key="key" :aria-pressed="section===key" @click="section=String(key)">{{ name }}</el-button>
       </nav>
+      <p v-if="section==='alerts'" class="ops-alert-warning" role="note">确认告警不等于问题已解决</p>
     </section>
     <div class="ops-content-stage" :aria-busy="data.loading||data.refreshing">
       <StateView v-if="!data.loaded&&!data.error" state="loading" title="正在读取备份与告警…"/>
@@ -180,16 +182,16 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
 
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.requests?.length" empty-title="暂无维护单"/>
     </section>
-    <section v-else-if="section==='alerts'" class="media-surface">
-      <h3>阈值告警</h3>
-      <RouterLink to="/connections?tab=notifications">查看通知投递记录</RouterLink>
-      <article v-for="a in recordRows('alerts')" :key="a.code" class="organize-record">
-        <h3>{{ a.message||a.code }} · {{ stateLabel(a.state) }}</h3>
-        <p>当前 {{ a.value??'—' }} · 连续 {{ a.hits??'—' }} 次 · {{ date(a.last_seen_at) }}</p>
-        <div class="media-actions">
-          <el-button v-if="a.state==='active'&&!a.acknowledged_at" :disabled="!!op.pending" @click="ask('ack',a)">确认告警</el-button>
+    <section v-else-if="section==='alerts'" class="media-surface ops-alerts-panel">
+      <header class="media-section-heading"><h3>阈值告警</h3><RouterLink to="/connections?tab=notifications">查看通知投递记录</RouterLink></header>
+      <div v-if="data.data?.alerts?.length" class="mt-list-columns ops-alert-columns" aria-hidden="true"><span>告警 / 状态</span><span>当前值</span><span>连续次数 / 最近发生</span><span>操作</span></div>
+      <article v-for="a in recordRows('alerts')" :key="a.code" class="mt-list-row ops-alert-row">
+        <div class="ops-alert-name"><h3>{{ a.message||a.code }}</h3><p>{{ stateLabel(a.state) }}</p></div>
+        <p class="ops-alert-value"><span class="ops-mobile-label">当前 </span>{{ a.value??'—' }}</p>
+        <div class="ops-alert-time"><p>连续 {{ a.hits??'—' }} 次</p><p>{{ date(a.last_seen_at) }}</p></div>
+        <div class="media-actions mt-list-actions">
+          <el-button size="small" aria-label="确认告警" v-if="a.state==='active'&&!a.acknowledged_at" :disabled="!!op.pending" @click="ask('ack',a)"><el-icon class="mt-list-action-icon"><Check/></el-icon><span class="mt-list-action-text">确认告警</span></el-button>
           <span v-else-if="a.acknowledged_at">已确认</span>
-          <span>确认告警不等于问题已解决</span>
         </div>
       </article>
 <PagePagination label="告警记录分页" v-model:current-page="recordPages.alerts" v-model:page-size="recordSizes.alerts" :total="data.data?.alerts?.length"/>
