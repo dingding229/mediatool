@@ -104,7 +104,6 @@ usePageRefresh(() => Promise.all([load(), ...(tab.value === 'storage' ? [loadAcc
     <template v-else-if="tab==='aux'">
       <ConnectionManager :allowed-kinds="['tmdb']" title="TMDB配置" />
       <ProxySettings />
-      <RouterLink class="connection-link" to="/sites?tab=accounts">管理站点账号</RouterLink>
     </template>
   </div>
 </template>

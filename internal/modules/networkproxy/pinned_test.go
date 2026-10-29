@@ -45,7 +45,7 @@ func TestPinnedHTTPProxyPreservesHostWithoutRemoteDNSOrCredentialLeak(t *testing
 		_, _ = io.WriteString(c, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nok")
 	}))
 	defer proxy.Close()
-	client, e := Client(Record{URL: strings.Replace(proxy.URL, "://", "://test:private@", 1)}, "plugin")
+	client, e := Client(recordAt(strings.Replace(proxy.URL, "://", "://test:private@", 1)), "plugin")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -81,7 +81,7 @@ func TestProxyRebindingMixedDNSAndConnectRefusalNeverFallBack(t *testing.T) {
 			if e := p.Check(context.Background(), "http://public.fixture"); e != nil {
 				t.Fatal(e)
 			}
-			client, _ := Client(Record{URL: proxy.URL}, "plugin")
+			client, _ := Client(recordAt(proxy.URL), "plugin")
 			tr := client.Transport.(*http.Transport)
 			defer tr.CloseIdleConnections()
 			if e := pinHostTransport(tr, p, proxy.URL); e != nil {
@@ -95,7 +95,7 @@ func TestProxyRebindingMixedDNSAndConnectRefusalNeverFallBack(t *testing.T) {
 	if hits.Load() != 0 {
 		t.Fatal("proxy used before DNS fence", hits.Load())
 	}
-	client, _ := Client(Record{URL: proxy.URL}, "plugin")
+	client, _ := Client(recordAt(proxy.URL), "plugin")
 	tr := client.Transport.(*http.Transport)
 	defer tr.CloseIdleConnections()
 	_ = pinHostTransport(tr, playback.Policy{Lookup: publicTestDNS, AllowHTTP: true}, proxy.URL)
@@ -103,8 +103,8 @@ func TestProxyRebindingMixedDNSAndConnectRefusalNeverFallBack(t *testing.T) {
 		t.Fatal("CONNECT refusal bypassed", e, hits.Load())
 	}
 }
-func TestSOCKS5AndSOCKS5HReceiveOnlyPinnedIPAddress(t *testing.T) {
-	for _, scheme := range []string{"socks5", "socks5h"} {
+func TestSOCKS5ReceivesOnlyPinnedIPAddress(t *testing.T) {
+	for _, scheme := range []string{"socks5"} {
 		t.Run(scheme, func(t *testing.T) {
 			listener, e := net.Listen("tcp", "127.0.0.1:0")
 			if e != nil {
@@ -153,7 +153,7 @@ func TestSOCKS5AndSOCKS5HReceiveOnlyPinnedIPAddress(t *testing.T) {
 				done <- e
 			}()
 			raw := scheme + "://" + listener.Addr().String()
-			client, _ := Client(Record{URL: raw}, "plugin")
+			client, _ := Client(recordAt(raw), "plugin")
 			tr := client.Transport.(*http.Transport)
 			defer tr.CloseIdleConnections()
 			_ = pinHostTransport(tr, playback.Policy{Lookup: publicTestDNS, AllowHTTP: true}, raw)
@@ -187,7 +187,7 @@ func TestProxyHandshakeIsBoundedAndHonorsCancellation(t *testing.T) {
 				_, _ = c.Read(buf)
 			}))
 			defer proxy.Close()
-			client, _ := Client(Record{URL: proxy.URL}, "plugin")
+			client, _ := Client(recordAt(proxy.URL), "plugin")
 			tr := client.Transport.(*http.Transport)
 			defer tr.CloseIdleConnections()
 			_ = pinHostTransport(tr, playback.Policy{Lookup: publicTestDNS, AllowHTTP: true}, proxy.URL)
@@ -207,7 +207,7 @@ func TestProxyHandshakeIsBoundedAndHonorsCancellation(t *testing.T) {
 }
 
 func TestFaviconPublicClientPinsDirectAndProxyTargetDNS(t *testing.T) {
-	for _, config := range []Record{{}, {URL: "http://127.0.0.1:9", Sites: true}} {
+	for _, config := range []Record{{}, {Fields: Fields{Protocol: "http", Host: "127.0.0.1", Port: 9}, Sites: true}} {
 		p := playback.Policy{AllowHTTP: true, Lookup: func(context.Context, string) ([]net.IPAddr, error) {
 			return []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}, nil
 		}}

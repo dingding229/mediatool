@@ -22,7 +22,7 @@ func (a *API) networkProxy(w http.ResponseWriter, r *http.Request) {
 		write(w, 200, out)
 		return
 	}
-	var in networkproxy.Record
+	var in networkproxy.Update
 	if !decode(w, r, &in) {
 		return
 	}

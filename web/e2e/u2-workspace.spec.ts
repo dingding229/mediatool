@@ -16,7 +16,7 @@ async function fixture(page:Page){
  await page.route('**/api/v1/ops',r=>r.fulfill({json:{data:{alerts:[]}}}))
  await page.route('**/api/v1/search',r=>r.fulfill({json:{data:[{id:'search',keyword:'近期影视搜索',total:12,state:'succeeded'}]}}))
  await page.route('**/api/v1/cloud/accounts/info',r=>r.fulfill({json:{data:{info:{userName:'测试账号',checkedAt:'2026-10-21T00:00:00Z',space:{total:214748364800,used:107374182400,free:107374182400},memberships:[]},note:'仅使用官方返回的信息'}}}))
- await page.route('**/api/v1/settings/network-proxy',r=>r.fulfill({json:{data:{url:'http://user:private@proxy.invalid:7890',tmdb:false,sites:false,revision:2}}}))
+ await page.route('**/api/v1/settings/network-proxy',r=>r.fulfill({json:{data:{protocol:'http',host:'proxy.invalid',port:7890,username:'user',configured:true,hasPassword:true,needsInput:false,tmdb:false,sites:false,revision:2}}}))
 }
 test.beforeEach(async({page})=>fixture(page))
 test('dashboard keeps configured STRM pending player verification and isolates one inbox failure',async({page})=>{
@@ -43,7 +43,7 @@ test('202 connection test is only queued and further POST stays locked pending r
 })
 test('settings auxiliary destinations point to the new connection tabs',async({page})=>{
  for(const [from,tab] of [['/settings?section=tmdb','aux'],['/settings?tab=general&section=proxy','aux'],['/integrations/tmdb','aux']]){await page.goto(from!);await expect.poll(()=>new URL(page.url()).pathname).toBe('/connections');expect(new URL(page.url()).searchParams.get('tab')).toBe(tab)}
- await expect(page.getByLabel('代理地址',{exact:true})).toHaveValue('');await expect(page.locator('body')).not.toContainText('user:private')
+ await expect(page.getByLabel('代理密码',{exact:true})).toHaveValue('');await expect(page.locator('body')).not.toContainText('user:private')
 })
 test('alert acknowledgement stays explicitly separate from resolving the underlying issue',async({page})=>{
  let ack=0;await page.route('**/api/v1/ops',r=>r.fulfill({json:{data:{alerts:[{code:'disk',state:'active',acknowledged_at:ack?'now':null,message:'空间不足'}]}}}));await page.route('**/api/v1/ops/alerts/disk/ack',r=>{ack++;expect(r.request().postDataJSON()).toEqual({confirm:true});return r.fulfill({json:{data:{acknowledged:true}}})})

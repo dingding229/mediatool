@@ -823,7 +823,14 @@ test('cache maintenance links to settings-owned TTL while search history stays r
 });
 
 test('acquisition: proxy settings are scoped, validated and persisted in isolated database',async({page})=>{
- await fixtureLogin(page);await page.goto('/settings?tab=proxy');await expect(page.getByRole('heading',{name:'网络代理',exact:true})).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('http://127.0.0.1:7890');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();await page.reload();await expect(page.getByLabel('代理地址',{exact:true})).toHaveValue('');await expect(page.getByRole('checkbox',{name:'TMDB查询与海报使用代理',exact:true})).not.toBeChecked();await page.getByLabel('代理地址',{exact:true}).fill('file:///unsafe');await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText(/代理地址须使用/)).toBeVisible();await page.getByLabel('代理地址',{exact:true}).fill('');await page.getByText('明确清除已保存的代理地址',{exact:true}).click();await expect(page.getByRole('checkbox',{name:'明确清除已保存的代理地址',exact:true})).toBeChecked();await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();
+ await fixtureLogin(page);await page.goto('/settings?tab=proxy');await expect(page.getByRole('heading',{name:'网络代理',exact:true})).toBeVisible();
+ await page.getByLabel('代理主机',{exact:true}).fill('127.0.0.1');await page.getByLabel('代理端口',{exact:true}).fill('7890');
+ await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();
+ await page.reload();await expect(page.getByLabel('代理主机',{exact:true})).toHaveValue('127.0.0.1');await expect(page.getByLabel('代理密码',{exact:true})).toHaveValue('');
+ await expect(page.getByRole('checkbox',{name:'TMDB查询与海报使用代理',exact:true})).not.toBeChecked();
+ await page.getByLabel('代理主机',{exact:true}).fill('file:///unsafe');await expect(page.getByRole('button',{name:'保存代理设置',exact:true})).toBeDisabled();await expect(page.getByText('请填写合法主机和 1–65535 的端口。',{exact:true})).toBeVisible();
+ await page.getByText('明确清除已保存的代理地址',{exact:true}).click();await page.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect(page.getByText('代理设置已保存，新的请求使用所选路由。',{exact:true})).toBeVisible();
+
 });
 
 test('acquisition: subscriptions reject HR without unknown override and expose history (fixture)',async({page})=>{

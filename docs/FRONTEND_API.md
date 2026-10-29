@@ -78,6 +78,7 @@ GET /api/v1/auth/setup
 ## 3. 系统设置、命名与网络代理
 
 1. GET `/settings/application`、`/settings/access`、`/settings/network-proxy`，按各自 revision 编辑；PUT 后以回读为准。管理/成员/播放地址有不同用途，不能只改可见URL而破坏已有STRM。
+   网络代理使用 protocol（http/socks5）、host、port、username、password；GET 不返回密码。空 password 保留原值，clearPassword 明确清除；更换端点或用户名须重填密码或明确清除。clear 清除整个配置前须关闭两个路由。旧格式 payload 保留密文并返回 needsInput，已选代理失败不回退直连；旧 url 请求字段严格返回 400 invalid_json。schema 保持 93。
 2. POST `/settings/naming-preview` 是纯预览；没有写配置。分类 GET/PUT `/classification` 与命名/目录预览配合；不要因预览成功自动保存。
 3. 代理URL是私有配置，TMDB/站点开关分开；保存/探测失败保留草稿。SSRF 校验和已验证目标IP pin由后端执行，不应向用户提供“关闭安全校验”选项。
 4. 保存返回 `validation_record_failed` 等未知回执时，先GET revision与探测记录，不能再POST创建第二份连接。

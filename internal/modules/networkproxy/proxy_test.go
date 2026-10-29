@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -19,7 +21,8 @@ func TestProxyScopeAndNoSilentFallback(t *testing.T) {
 		io.WriteString(w, "proxied")
 	}))
 	defer proxy.Close()
-	r := Record{URL: proxy.URL, TMDB: true}
+	r := recordAt(proxy.URL)
+	r.TMDB = true
 	client, err := Client(r, "tmdb")
 	if err != nil {
 		t.Fatal(err)
@@ -43,17 +46,9 @@ func TestProxyScopeAndNoSilentFallback(t *testing.T) {
 	if hits != 1 {
 		t.Fatal("scope leaked")
 	}
-	for _, value := range []string{"file:///tmp/proxy", "http://proxy/path", "http://proxy?q=1", "http://proxy#frag", "http://proxy:0", "socks4://proxy:1080", "\nhttp://proxy"} {
-		if Validate(Record{URL: value}) == nil {
-			t.Fatal(value)
-		}
-	}
-	for _, value := range []string{"http://user:pass@proxy:7890", "https://proxy:8443", "socks5://proxy:1080", "socks5h://proxy:1080"} {
-		if Validate(Record{URL: value}) != nil {
-			t.Fatal(value)
-		}
-	}
-	bad, _ := Client(Record{URL: "http://127.0.0.1:1", TMDB: true}, "tmdb")
+	badRecord := recordAt("http://127.0.0.1:1")
+	badRecord.TMDB = true
+	bad, _ := Client(badRecord, "tmdb")
 	req, _ := http.NewRequestWithContext(context.Background(), "GET", target.URL, nil)
 	if _, err = bad.Do(req); err == nil {
 		t.Fatal("fell back to direct")
@@ -61,4 +56,20 @@ func TestProxyScopeAndNoSilentFallback(t *testing.T) {
 	if strings.Contains(ErrInvalid.Error(), "pass") {
 		t.Fatal("secret leakage")
 	}
+}
+
+// Test listeners return URLs; production accepts only structured fields.
+func recordAt(raw string) Record {
+	u, e := url.Parse(raw)
+	if e != nil {
+		panic(e)
+	}
+	port, _ := strconv.Atoi(u.Port())
+	r := Record{Fields: Fields{Protocol: u.Scheme, Host: u.Hostname(), Port: port}, Configured: true}
+	if u.User != nil {
+		r.Username = u.User.Username()
+		r.Password, _ = u.User.Password()
+		r.HasPassword = r.Password != ""
+	}
+	return r
 }

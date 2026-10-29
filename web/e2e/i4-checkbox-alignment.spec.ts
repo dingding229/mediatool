@@ -12,7 +12,7 @@ const connections=[
 ].map(r=>({...r,enabled:true,revision:1,lastCheckState:'ready'}));
 async function fixture(page:Page,path:string){
  await u7Fixture(page,path.startsWith('/plugins/')?'/plugins':path.split('?')[0]);
- await page.route('**/api/v1/settings/network-proxy',r=>r.fulfill({json:{data:{url:'http://proxy.fixture:7890',tmdb:false,sites:false,revision:1}}}));
+ await page.route('**/api/v1/settings/network-proxy',r=>r.fulfill({json:{data:{protocol:'http',host:'proxy.fixture',port:7890,username:'',configured:true,hasPassword:false,needsInput:false,tmdb:false,sites:false,revision:1}}}));
  await page.route('**/api/v1/integrations',r=>r.fulfill({json:{data:[...connections,siteAccount]}}));
  await page.route('**/api/v1/cloud/accounts/info',r=>r.fulfill({json:{data:{info:null}}}));
  await page.route('**/api/v1/media-server/users/'+mediaUser.id,r=>r.fulfill({json:{data:mediaUser}}));

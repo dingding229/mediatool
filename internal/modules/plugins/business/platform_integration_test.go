@@ -258,7 +258,7 @@ func TestPlatformHostHTTPExactOriginProxyNoBodyAndSSRF(t *testing.T) {
 		_, _ = fmt.Fprintf(c, "HTTP/1.1 %d Status\r\n%sContent-Type: text/plain\r\nContent-Length: %d\r\nSet-Cookie: SECRET_CANARY\r\n\r\n%s", status, location, len(body), body)
 	}))
 	defer proxy.Close()
-	_, e := (networkproxy.Repository{DB: h.DB, Vault: h.Vault}).Save(ctx, networkproxy.Record{URL: strings.Replace(proxy.URL, "://", "://proxyuser:SECRET_CANARY@", 1), Revision: 1})
+	_, e := (networkproxy.Repository{DB: h.DB, Vault: h.Vault}).Save(ctx, networkproxy.Update{Fields: networkproxy.Fields{Protocol: "http", Host: "127.0.0.1", Port: proxy.Listener.Addr().(*net.TCPAddr).Port, Username: "proxyuser"}, Password: "SECRET_CANARY", Revision: 1})
 	if e != nil {
 		t.Fatal(e)
 	}

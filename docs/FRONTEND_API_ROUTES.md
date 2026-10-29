@@ -371,9 +371,9 @@
 | HEAD | `/api/v1/settings/application` | management | 未检出静态使用 |  |
 | PUT | `/api/v1/settings/application` | management | 前端直接调用 | `web/src/settings/ConfigPanel.vue:11`、`web/src/settings/revision.ts:93` |
 | POST | `/api/v1/settings/naming-preview` | management | 前端直接调用 | `web/src/settings/ConfigPanel.vue:40` |
-| GET | `/api/v1/settings/network-proxy` | management | 前端直接调用 | `web/src/connections/ProxySettings.vue:22`、`web/src/connections/ProxySettings.vue:60` |
+| GET | `/api/v1/settings/network-proxy` | management | 前端直接调用 | `web/src/api/networkProxy.ts:5` |
 | HEAD | `/api/v1/settings/network-proxy` | management | 未检出静态使用 |  |
-| PUT | `/api/v1/settings/network-proxy` | management | 前端直接调用 | `web/src/connections/ProxySettings.vue:51` |
+| PUT | `/api/v1/settings/network-proxy` | management | 前端直接调用 | `web/src/api/networkProxy.ts:6` |
 | GET | `/api/v1/sites` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/sites` | management | 未检出静态使用 |  |
 | GET | `/api/v1/sites/definitions` | management | 未检出静态使用 |  |

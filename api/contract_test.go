@@ -1311,6 +1311,7 @@ func generatedContract(t *testing.T) (*source, object) {
 
 	}
 	annotateStateContracts(s.schemas)
+	annotateProxyContract(want)
 	compactResponses(want)
 	return s, want
 }

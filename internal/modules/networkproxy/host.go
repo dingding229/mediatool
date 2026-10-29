@@ -88,7 +88,7 @@ func (h *HostClient) Request(ctx context.Context, instance, profile, origin, pat
 	}
 	client.Timeout = 10 * time.Second
 	transport := client.Transport.(*http.Transport)
-	if e = pinHostTransport(transport, h.Policy, config.URL); e != nil {
+	if e = pinHostTransport(transport, h.Policy, config.proxyURL()); e != nil {
 		return out, e
 	}
 	defer transport.CloseIdleConnections()

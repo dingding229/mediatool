@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"media-tool/internal/modules/playback"
+	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/secrets"
 	"net/http"
 	"net/url"
@@ -14,46 +15,24 @@ import (
 	"time"
 )
 
-var ErrInvalid = errors.New("代理地址须使用 http/https/socks5/socks5h，不含路径、查询或片段")
 var ErrRevision = errors.New("代理设置已变更，请刷新")
 
-type Record struct {
-	URL      string `json:"url"`
-	TMDB     bool   `json:"tmdb"`
-	Sites    bool   `json:"sites"`
-	Revision int64  `json:"revision"`
-}
 type Repository struct {
 	DB    *pgxpool.Pool
 	Vault *secrets.Vault
 }
 
-func Validate(r Record) error {
-	if r.URL == "" {
-		if r.TMDB || r.Sites {
-			return ErrInvalid
-		}
-		return nil
+func (r Repository) open(out Record, raw []byte) Record {
+	if len(raw) == 0 {
+		return out
 	}
-	if len(r.URL) > 4096 || strings.ContainsAny(r.URL, "\r\n\x00") {
-		return ErrInvalid
+	values, err := r.Vault.Open("network-proxy:main", raw)
+	if err != nil {
+		out.Configured = true
+		out.NeedsInput = true
+		return out
 	}
-	u, e := url.Parse(r.URL)
-	if e != nil || u.Hostname() == "" || u.Opaque != "" || u.RawQuery != "" || u.Fragment != "" || u.Path != "" && u.Path != "/" {
-		return ErrInvalid
-	}
-	switch u.Scheme {
-	case "http", "https", "socks5", "socks5h":
-	default:
-		return ErrInvalid
-	}
-	if p := u.Port(); p != "" {
-		n, e := strconv.Atoi(p)
-		if e != nil || n < 1 || n > 65535 {
-			return ErrInvalid
-		}
-	}
-	return nil
+	return decodePayload(out, values)
 }
 func (r Repository) Get(ctx context.Context) (Record, error) {
 	out := Record{Revision: 1}
@@ -64,46 +43,87 @@ func (r Repository) Get(ctx context.Context) (Record, error) {
 	if e := r.DB.QueryRow(ctx, `SELECT tmdb_enabled,sites_enabled,url_ciphertext,revision FROM network_proxy_settings WHERE id='main'`).Scan(&out.TMDB, &out.Sites, &raw, &out.Revision); e != nil {
 		return out, e
 	}
-	if len(raw) > 0 {
-		values, e := r.Vault.Open("network-proxy:main", raw)
-		if e != nil {
-			return out, e
-		}
-		out.URL = values["url"]
-	}
-	return out, Validate(out)
+	return r.open(out, raw), nil
 }
-func (r Repository) Save(ctx context.Context, in Record) (Record, error) {
-	if e := Validate(in); e != nil {
-		return in, e
-	}
-	var raw []byte
-	var e error
-	if in.URL != "" {
-		raw, e = r.Vault.Seal("network-proxy:main", map[string]string{"url": in.URL})
-		if e != nil {
-			return in, e
+func (r Repository) prepare(old Record, raw []byte, in Update) ([]byte, error) {
+	if in.Clear {
+		if in.TMDB || in.Sites {
+			return nil, ErrInvalid
 		}
-	} else {
-		raw = []byte{}
+		return []byte{}, nil
 	}
-	tag, e := r.DB.Exec(ctx, `UPDATE network_proxy_settings SET tmdb_enabled=$1,sites_enabled=$2,url_ciphertext=$3,revision=revision+1,updated_at=now() WHERE id='main' AND revision=$4`, in.TMDB, in.Sites, raw, in.Revision)
-	if e != nil {
-		return in, e
+	if in.Protocol != "" && in.Protocol != "http" && in.Protocol != "socks5" {
+		return nil, ErrInvalid
 	}
-	if tag.RowsAffected() != 1 {
-		return in, ErrRevision
+	if old.NeedsInput && empty(in.Fields) && in.Password == "" && !in.ClearPassword {
+		return raw, nil
 	}
-	return r.Get(ctx)
+	if strings.HasPrefix(in.Host, "[") && strings.HasSuffix(in.Host, "]") {
+		in.Host = in.Host[1 : len(in.Host)-1]
+	}
+	in.Host = strings.ToLower(in.Host)
+	if in.ClearPassword && in.Password != "" {
+		return nil, ErrInvalid
+	}
+	if in.Password == "" && !in.ClearPassword {
+		if old.NeedsInput {
+			return nil, ErrNeedsInput
+		}
+		if old.HasPassword && in.Fields != old.Fields {
+			return nil, ErrPassword
+		}
+		in.Password = old.Password
+	}
+	next := Record{Fields: in.Fields, Password: in.Password, TMDB: in.TMDB, Sites: in.Sites}
+	if err := Validate(next); err != nil {
+		return nil, err
+	}
+	if empty(next.Fields) {
+		return []byte{}, nil
+	}
+	return r.Vault.Seal("network-proxy:main", map[string]string{"v": "2", "protocol": in.Protocol, "host": in.Host, "port": strconv.Itoa(in.Port), "username": in.Username, "password": in.Password})
+}
+func (r Repository) Save(ctx context.Context, in Update) (Record, error) {
+	out := Record{}
+	var raw []byte
+	tx, err := r.DB.Begin(ctx)
+	if err != nil {
+		return out, err
+	}
+	defer deferutil.Rollback(ctx, tx)
+	if err = tx.QueryRow(ctx, `SELECT tmdb_enabled,sites_enabled,url_ciphertext,revision FROM network_proxy_settings WHERE id='main' FOR UPDATE`).Scan(&out.TMDB, &out.Sites, &raw, &out.Revision); err != nil {
+		return out, err
+	}
+	if out.Revision != in.Revision {
+		return out, ErrRevision
+	}
+	raw, err = r.prepare(r.open(out, raw), raw, in)
+	if err != nil {
+		return Record{}, err
+	}
+	_, err = tx.Exec(ctx, `UPDATE network_proxy_settings SET tmdb_enabled=$1,sites_enabled=$2,url_ciphertext=$3,revision=revision+1,updated_at=now() WHERE id='main'`, in.TMDB, in.Sites, raw)
+	if err != nil {
+		return Record{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return Record{}, err
+	}
+	out.TMDB = in.TMDB
+	out.Sites = in.Sites
+	out.Revision++
+	return r.open(out, raw), nil
 }
 func Client(r Record, scope string) (*http.Client, error) {
-	if e := Validate(r); e != nil {
-		return nil, e
-	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
-	if (scope == "tmdb" && r.TMDB) || (scope == "ptsite" && r.Sites) || (scope == "plugin" && r.URL != "") {
-		u, _ := url.Parse(r.URL)
+	if (scope == "tmdb" && r.TMDB) || (scope == "ptsite" && r.Sites) || (scope == "plugin" && (r.Configured || r.NeedsInput || !empty(r.Fields))) {
+		if e := Validate(r); e != nil {
+			return nil, e
+		}
+		if empty(r.Fields) {
+			return nil, ErrInvalid
+		}
+		u, _ := url.Parse(r.proxyURL())
 		transport.Proxy = http.ProxyURL(u)
 	}
 	return &http.Client{Transport: transport, Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, nil
@@ -128,7 +148,7 @@ func PublicClient(r Record, scope string, policy playback.Policy) (*http.Client,
 	transport := client.Transport.(*http.Transport)
 	raw := ""
 	if transport.Proxy != nil {
-		raw = r.URL
+		raw = r.proxyURL()
 	}
 	if err = pinHostTransport(transport, policy, raw); err != nil {
 		return nil, err

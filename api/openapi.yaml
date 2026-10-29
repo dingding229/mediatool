@@ -27186,9 +27186,64 @@
         "type": "object",
         "x-go-type": "media-tool/internal/modules/nativetmdb.Target"
       },
+      "modules_networkproxy_Fields": {
+        "additionalProperties": false,
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "description": "已配置代理端口 1–65535；未配置时为 0。",
+            "format": "int64",
+            "type": "integer"
+          },
+          "protocol": {
+            "enum": [
+              "http",
+              "socks5"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "host",
+          "port",
+          "protocol",
+          "username"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/networkproxy.Fields"
+      },
       "modules_networkproxy_Record": {
         "additionalProperties": false,
         "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "hasPassword": {
+            "type": "boolean"
+          },
+          "host": {
+            "type": "string"
+          },
+          "needsInput": {
+            "type": "boolean"
+          },
+          "port": {
+            "description": "已配置代理端口 1–65535；未配置时为 0。",
+            "format": "int64",
+            "type": "integer"
+          },
+          "protocol": {
+            "enum": [
+              "http",
+              "socks5"
+            ],
+            "type": "string"
+          },
           "revision": {
             "format": "int64",
             "type": "integer"
@@ -27199,18 +27254,83 @@
           "tmdb": {
             "type": "boolean"
           },
-          "url": {
+          "username": {
             "type": "string"
           }
         },
         "required": [
+          "configured",
+          "hasPassword",
+          "host",
+          "needsInput",
+          "port",
+          "protocol",
           "revision",
           "sites",
           "tmdb",
-          "url"
+          "username"
         ],
         "type": "object",
         "x-go-type": "media-tool/internal/modules/networkproxy.Record"
+      },
+      "modules_networkproxy_Update": {
+        "additionalProperties": false,
+        "properties": {
+          "clear": {
+            "type": "boolean"
+          },
+          "clearPassword": {
+            "description": "明确清除已保存密码；不得与非空 password 同传。",
+            "type": "boolean"
+          },
+          "host": {
+            "type": "string"
+          },
+          "password": {
+            "description": "留空保留密码；更换端点或用户名须重填或明确 clearPassword。",
+            "type": "string",
+            "writeOnly": true
+          },
+          "port": {
+            "description": "已配置代理端口 1–65535；未配置时为 0。",
+            "format": "int64",
+            "type": "integer"
+          },
+          "protocol": {
+            "enum": [
+              "http",
+              "socks5"
+            ],
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sites": {
+            "type": "boolean"
+          },
+          "tmdb": {
+            "type": "boolean"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "clear",
+          "clearPassword",
+          "host",
+          "password",
+          "port",
+          "protocol",
+          "revision",
+          "sites",
+          "tmdb",
+          "username"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/networkproxy.Update"
       },
       "modules_onlineupdate_Control": {
         "additionalProperties": false,
@@ -78568,8 +78688,35 @@
             "application/json": {
               "schema": {
                 "additionalProperties": false,
-                "description": "字段级与条件必填校验由业务规则决定；确认字段只在明确批准时传true，不能自动补全。",
+                "description": "schema 93；仅支持结构化字段。旧 url 请求字段严格返回 400 invalid_json。旧格式密文保留并返回 needsInput，已选代理失败不回退直连。",
                 "properties": {
+                  "clear": {
+                    "type": "boolean"
+                  },
+                  "clearPassword": {
+                    "description": "明确清除已保存密码；不得与非空 password 同传。",
+                    "type": "boolean"
+                  },
+                  "host": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "description": "留空保留密码；更换端点或用户名须重填或明确 clearPassword。",
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "port": {
+                    "description": "已配置代理端口 1–65535；未配置时为 0。",
+                    "format": "int64",
+                    "type": "integer"
+                  },
+                  "protocol": {
+                    "enum": [
+                      "http",
+                      "socks5"
+                    ],
+                    "type": "string"
+                  },
                   "revision": {
                     "format": "int64",
                     "type": "integer"
@@ -78580,12 +78727,16 @@
                   "tmdb": {
                     "type": "boolean"
                   },
-                  "url": {
+                  "username": {
                     "type": "string"
                   }
                 },
+                "required": [
+                  "username",
+                  "password"
+                ],
                 "type": "object",
-                "x-go-type": "media-tool/internal/modules/networkproxy.Record"
+                "x-go-type": "media-tool/internal/modules/networkproxy.Update"
               }
             }
           },
