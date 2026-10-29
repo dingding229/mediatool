@@ -10,8 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"media-tool/internal/adapters/open115"
 	"media-tool/internal/modules/jobs"
-	"media-tool/internal/modules/maintenance"
 	deferutil "media-tool/internal/platform/cleanup"
+	"media-tool/internal/platform/workgate"
 )
 
 func heartbeatKind(kind string) bool {
@@ -72,15 +72,28 @@ func healthDelay(kind string, failures int, err error) time.Duration {
 }
 
 // ScheduleHealth preserves persistent cooldowns; only a new config revision is due immediately.
+// The upsert must not shorten an unchanged revision: EXCLUDED may reflect a pre-completion snapshot
+// after waiting for the probe transaction to release the schedule row.
 func (m *Manager) ScheduleHealth(ctx context.Context) error {
 	_, err := m.Repository.DB.Exec(ctx, `INSERT INTO integration_health_schedule(integration_id,config_revision,next_check_at)
  SELECT id,revision,CASE WHEN last_check_state='ready' AND last_checked_at>=updated_at THEN last_checked_at+CASE WHEN kind='open115' THEN interval '70 minutes' ELSE interval '75 seconds' END ELSE clock_timestamp() END
  FROM integrations WHERE enabled AND kind IN('open115','clouddrive2','qbittorrent')
  ON CONFLICT(integration_id) DO UPDATE SET config_revision=EXCLUDED.config_revision,
- next_check_at=CASE WHEN integration_health_schedule.config_revision<>EXCLUDED.config_revision THEN clock_timestamp() ELSE least(integration_health_schedule.next_check_at,EXCLUDED.next_check_at) END,
- failures=CASE WHEN integration_health_schedule.config_revision<>EXCLUDED.config_revision THEN 0 ELSE integration_health_schedule.failures END
- WHERE coalesce(integration_health_schedule.lease_until,'epoch')<clock_timestamp() AND
- (integration_health_schedule.config_revision<>EXCLUDED.config_revision OR (integration_health_schedule.failures=0 AND integration_health_schedule.next_check_at>EXCLUDED.next_check_at))`)
+ next_check_at=clock_timestamp(),failures=0
+ WHERE coalesce(integration_health_schedule.lease_until,'epoch')<clock_timestamp()
+ AND integration_health_schedule.config_revision<>EXCLUDED.config_revision`)
+	if err != nil {
+		return err
+	}
+	// Normalize only obsolete success cadences beyond the current maximum. A
+	// freshly completed probe is always inside this bound, even if i was read
+	// before completion; failure backoff and active leases are never shortened.
+	_, err = m.Repository.DB.Exec(ctx, `UPDATE integration_health_schedule h SET
+ next_check_at=CASE WHEN i.last_check_state='ready' AND i.last_checked_at>=i.updated_at THEN i.last_checked_at+CASE WHEN i.kind='open115' THEN interval '70 minutes' ELSE interval '75 seconds' END ELSE clock_timestamp() END
+ FROM integrations i WHERE i.id=h.integration_id AND i.enabled
+ AND i.kind IN('open115','clouddrive2','qbittorrent') AND h.config_revision=i.revision
+ AND h.failures=0 AND coalesce(h.lease_until,'epoch')<clock_timestamp()
+ AND h.next_check_at>clock_timestamp()+CASE WHEN i.kind='open115' THEN interval '70 minutes' ELSE interval '75 seconds' END`)
 	return err
 }
 
@@ -90,7 +103,7 @@ func (m *Manager) RunHealth(ctx context.Context, logger *slog.Logger) {
 	defer ticker.Stop()
 	var lastWarning time.Time
 	for {
-		release, err := maintenance.BeginWork(ctx, m.Repository.DB)
+		release, err := workgate.BeginWork(ctx, m.Repository.DB)
 		if err == nil {
 			err = m.ScheduleHealth(ctx)
 			if err == nil {

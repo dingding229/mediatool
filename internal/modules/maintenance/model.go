@@ -18,11 +18,12 @@ import (
 	"github.com/redis/go-redis/v9"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/scheduling"
+	"media-tool/internal/platform/workgate"
 )
 
 const SchemaSQL = `SELECT coalesce(max(version_id),0) FROM(SELECT DISTINCT ON(version_id)version_id,is_applied FROM goose_db_version ORDER BY version_id,id DESC)v WHERE is_applied`
 
-var ErrConflict = errors.New("维护状态已变化，请刷新后重新预览")
+var ErrConflict = workgate.ErrConflict
 var ErrUnsafe = errors.New("维护请求未通过安全检查")
 var UUID = regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`)
 var SHA = regexp.MustCompile(`^[a-f0-9]{40}$`)
