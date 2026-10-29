@@ -9,13 +9,13 @@ it.each([
  ['CachePanel.vue',"import { View, Delete, Search, Picture } from '@element-plus/icons-vue';\n",'625731510885bdb7c078ab84960db3b9b0e1382c7ea8c0c3db2df0d6a473fc1b'],
  ['MaintenancePanel.vue',"import { Check } from '@element-plus/icons-vue';\n",'066abaf4ed9170367364422285f013914a52ac86946f198e92fa23ece8a93f8e'],
 ])('I19-3 preserves all request/state/confirmation/paging code in %s',(file,icons,hash)=>{
- const script=read('operations/'+file).match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace(icons,'');expect(sha(script)).toBe(hash);
+ const script=read('operations/'+file).match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { Check, View, Refresh, Download, Lock, Unlock, Delete, Close } from '@element-plus/icons-vue';\n","import { Check } from '@element-plus/icons-vue';\n").replace(icons,'');expect(sha(script)).toBe(hash);
 });
-it('I19-3 leaves other maintenance sections and dangerous confirmations byte-identical',()=>{
- let template=read('operations/MaintenancePanel.vue').split('<template>')[1]!;
- template=template.replace('      <p v-if="section===\'alerts\'" class="ops-alert-warning" role="note">确认告警不等于问题已解决</p>\n','');
- template=template.replace(/    <section v-else-if="section==='alerts'"[\s\S]*?<\/section>/,'ALERTS_SECTION');
- expect(sha('<template>'+template)).toBe('8e01c87470593577d7ea3bd8492c61b0f852a4c718c22c8017986919b7fa950b');
+it('I19-3 keeps its alert section and all shared dangerous confirmation markup unchanged after approved D/F layout work',()=>{
+ const template=read('operations/MaintenancePanel.vue');
+ const a=template.indexOf("    <section v-else-if=\"section==='alerts'\""),b=template.indexOf('    <PolicyPanel v-else/>',a);
+ expect(sha(template.slice(a,b))).toBe('50c6775cc7584833d422a123ffb1df3c1c5db3ac79ba7375a9c3237d01253058');
+ expect(sha(template.slice(template.indexOf('    <ConfirmAction v-model:visible="confirm"')))).toBe('67264737fd68b758a325374b56bb1cbaf6c20d4506c185a8d7636893a44d8cc9');
 });
 it('I19-3 keeps exact time semantics, including no expiry, elapsed TTL and historical results',()=>{
  expect(sha(read('utils/cache-time.ts'))).toBe('7765233cad54bf3968df481283684152b7c12db19be53a387247a418b378b628');

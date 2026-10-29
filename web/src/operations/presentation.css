@@ -219,3 +219,33 @@
  .t8-ops .f3-log-console .f3-log-row>[role=cell]:last-child{grid-column:1/-1;grid-row:3;min-width:0}
  .t8-ops .f3-log-console .f3-log-source{display:block;width:100%;min-height:44px;padding:4px 0;box-sizing:border-box}
 }
+
+/* I19-6: backup/drill lists and the CLI area only; no shared confirmation changes. */
+.t8-ops .ops-content-stage:has(>.ops-backups-panel),.t8-ops .ops-backups-panel .f5-backups-region{min-height:0}
+.t8-ops .ops-backups-panel>.media-section-heading>h3{margin:0}
+.t8-ops .ops-backups-panel>p,.t8-ops .ops-cli-maintenance>p{font-size:13px;line-height:1.7;color:var(--mt-text-muted)}
+.t8-ops .ops-backup-columns,.t8-ops .ops-backup-row.mt-list-row{grid-template-columns:200px minmax(0,1fr) 402px}
+.t8-ops .ops-drill-columns,.t8-ops .ops-drill-row.mt-list-row{grid-template-columns:200px minmax(0,1fr) 176px}
+.t8-ops .ops-request-columns,.t8-ops .ops-request-row.mt-list-row{grid-template-columns:200px minmax(0,1fr) 288px}
+.t8-ops .ops-backup-row.mt-list-row,.t8-ops .ops-drill-row.mt-list-row,.t8-ops .ops-request-row.mt-list-row{min-height:64px;padding:8px 0;overflow-wrap:anywhere}
+.t8-ops .ops-record-meta{color:var(--mt-text-muted)}
+.t8-ops .ops-backup-row .mt-list-actions,.t8-ops .ops-drill-row .mt-list-actions,.t8-ops .ops-request-row .mt-list-actions{display:flex}
+.t8-ops .ops-maint-link.mt-link-button{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;height:32px;min-height:32px;padding:6px 10px;font-size:12px;line-height:1;border:1px solid var(--mt-border-color);border-radius:var(--el-border-radius-base);color:var(--mt-color-primary);text-decoration:none}
+.t8-ops .ops-maint-link:hover{background:var(--mt-color-primary-light)}
+.t8-ops .ops-backups-panel>.ops-drill-heading{margin:24px 0 8px}
+.t8-ops .ops-backups-panel .state-view,.t8-ops .ops-cli-maintenance>.state-view{min-height:0;padding:12px 0}
+.t8-ops .ops-backups-panel .state-empty .el-empty,.t8-ops .ops-cli-maintenance .state-empty .el-empty{padding:8px 0}
+.t8-ops .ops-cli-maintenance{min-width:0;margin-top:24px;padding-top:20px;border-top:1px solid var(--mt-border-color)}
+.t8-ops .ops-cli-maintenance>h3{margin:0 0 8px}
+.t8-ops .ops-cli-maintenance>.el-button{min-height:44px;margin:0 0 16px;white-space:normal}
+.t8-ops .u5-filters.ops-cli-filters{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;gap:12px;margin:16px 0}
+.t8-ops .ops-cli-filters .el-select{width:100%;min-width:0}
+@media(max-width:1240px){
+ .t8-ops .ops-backup-row.mt-list-row,.t8-ops .ops-drill-row.mt-list-row,.t8-ops .ops-request-row.mt-list-row{grid-template-columns:minmax(0,1fr);gap:4px}
+ .t8-ops .ops-backup-row .mt-list-actions,.t8-ops .ops-drill-row .mt-list-actions,.t8-ops .ops-request-row .mt-list-actions{justify-self:end;margin-top:4px}
+ .t8-ops .ops-maint-link.mt-link-button{width:44px;height:44px;min-height:44px;padding:0}
+}
+@media(max-width:700px){
+ .t8-ops .u5-filters.ops-cli-filters{grid-template-columns:minmax(0,1fr) auto;gap:12px 8px}
+ .t8-ops .ops-cli-filters>.el-button{padding-inline:12px}
+}

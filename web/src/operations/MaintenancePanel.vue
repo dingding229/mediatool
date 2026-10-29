@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check } from '@element-plus/icons-vue';
+import { Check, View, Refresh, Download, Lock, Unlock, Delete, Close } from '@element-plus/icons-vue';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { formatBytes as bytes } from './model';
@@ -90,7 +90,6 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     <section class="media-surface ops-panel-header">
       <header class="media-section-heading">
         <h2>备份与告警</h2>
-        <el-button :disabled="!!op.pending||!!data.error||data.loading||!data.data?.toolsReady" @click="ask('backup')">创建系统备份</el-button>
       </header>
       <ResourceState :stale="data.loaded" :error="data.error" @reload="load"/>
       <div class="f5-maint-summary">
@@ -111,34 +110,36 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     <div class="ops-content-stage" :aria-busy="data.loading||data.refreshing">
       <StateView v-if="!data.loaded&&!data.error" state="loading" title="正在读取备份与告警…"/>
       <template v-else>
-    <section v-if="section==='backups'" class="media-surface">
-      <h3>系统备份</h3>
+    <section v-if="section==='backups'" class="media-surface ops-backups-panel">
+      <header class="media-section-heading"><h3>系统备份</h3><el-button :disabled="!!op.pending||!!data.error||data.loading||!data.data?.toolsReady" @click="ask('backup')">创建系统备份</el-button></header>
       <p>保留最近两份成功备份，固定及维护单使用中的备份不参与自动清理；最多显示最近200条。</p>
       <div class="f5-backups-region">
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.backups?.length" empty-title="尚无系统备份"/>
-      <article v-for="b in recordRows('backups')" :key="b.id" class="organize-record">
-        <h3>{{ date(b.createdAt) }} · {{ stateLabel(b.state) }}</h3>
-        <p>{{ bytes(b.bytes) }} · {{ b.pinned?'已固定':'未固定' }} · {{ b.message||'—' }}</p>
-        <div class="media-actions">
-          <el-button @click="inspect(b)">备份详情</el-button>
-          <el-button v-if="b.state==='ready'" :disabled="!!op.pending||!!data.error||data.loading||!data.data?.toolsReady" @click="ask('drill',b)">恢复演练</el-button>
-          <a class="mt-link-button" v-if="b.state==='ready'" :href="`/api/v1/ops/backups/${b.id}/download`">下载备份</a>
-          <el-button v-if="canPinBackup(b.state)" :disabled="!!op.pending" @click="ask('pin',b)">{{ b.pinned?'取消固定':'固定备份' }}</el-button>
-          <el-button v-if="canDeleteBackup(b.state)" :disabled="!!op.pending||b.pinned" @click="ask('delete',b)">删除备份</el-button>
+      <div v-if="data.data?.backups?.length" class="mt-list-columns ops-backup-columns" aria-hidden="true"><span>备份时间 / 状态</span><span>大小 / 固定 / 说明</span><span>操作</span></div>
+      <article v-for="b in recordRows('backups')" :key="b.id" class="mt-list-row ops-backup-row">
+        <div class="ops-backup-name"><h3>{{ date(b.createdAt) }}</h3><p>{{ stateLabel(b.state) }}</p></div>
+        <div class="ops-record-meta"><p>{{ bytes(b.bytes) }} · {{ b.pinned?'已固定':'未固定' }}</p><p>{{ b.message||'—' }}</p></div>
+        <div class="media-actions mt-list-actions">
+          <el-button size="small" aria-label="备份详情" @click="inspect(b)"><el-icon class="mt-list-action-icon"><View/></el-icon><span class="mt-list-action-text">备份详情</span></el-button>
+          <el-button size="small" aria-label="恢复演练" v-if="b.state==='ready'" :disabled="!!op.pending||!!data.error||data.loading||!data.data?.toolsReady" @click="ask('drill',b)"><el-icon class="mt-list-action-icon"><Refresh/></el-icon><span class="mt-list-action-text">恢复演练</span></el-button>
+          <a class="mt-link-button ops-maint-link" aria-label="下载备份" v-if="b.state==='ready'" :href="`/api/v1/ops/backups/${b.id}/download`"><el-icon class="mt-list-action-icon"><Download/></el-icon><span class="mt-list-action-text">下载备份</span></a>
+          <el-button size="small" :aria-label="b.pinned?'取消固定':'固定备份'" v-if="canPinBackup(b.state)" :disabled="!!op.pending" @click="ask('pin',b)"><el-icon class="mt-list-action-icon"><Unlock v-if="b.pinned"/><Lock v-else/></el-icon><span class="mt-list-action-text">{{ b.pinned?'取消固定':'固定备份' }}</span></el-button>
+          <el-button size="small" aria-label="删除备份" v-if="canDeleteBackup(b.state)" :disabled="!!op.pending||b.pinned" @click="ask('delete',b)"><el-icon class="mt-list-action-icon"><Delete/></el-icon><span class="mt-list-action-text">删除备份</span></el-button>
         </div>
       </article>
 
 
       </div>
 <PagePagination label="系统备份分页" v-model:current-page="recordPages.backups" v-model:page-size="recordSizes.backups" :total="data.data?.backups?.length"/>
-<h3>恢复演练记录</h3>
+<h3 class="ops-drill-heading">恢复演练记录</h3>
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.drills?.length" empty-title="暂无恢复演练记录"/>
-      <article v-for="d in recordRows('drills')" :key="d.id" class="organize-record">
-        <h3>{{ stateLabel(d.state) }} · {{ date(d.createdAt) }}</h3>
-        <p>{{ d.message||'—' }}</p>
-        <div class="media-actions">
-          <el-button @click="inspect(d)">演练详情</el-button>
-          <el-button v-if="['failed','interrupted'].includes(d.state)" :disabled="!!op.pending" @click="ask('cleanup',d)">清理临时库</el-button>
+      <div v-if="data.data?.drills?.length" class="mt-list-columns ops-drill-columns" aria-hidden="true"><span>状态 / 时间</span><span>说明</span><span>操作</span></div>
+      <article v-for="d in recordRows('drills')" :key="d.id" class="mt-list-row ops-drill-row">
+        <div><h3>{{ stateLabel(d.state) }}</h3><p>{{ date(d.createdAt) }}</p></div>
+        <p class="ops-record-meta">{{ d.message||'—' }}</p>
+        <div class="media-actions mt-list-actions">
+          <el-button size="small" aria-label="演练详情" @click="inspect(d)"><el-icon class="mt-list-action-icon"><View/></el-icon><span class="mt-list-action-text">演练详情</span></el-button>
+          <el-button size="small" aria-label="清理临时库" v-if="['failed','interrupted'].includes(d.state)" :disabled="!!op.pending" @click="ask('cleanup',d)"><el-icon class="mt-list-action-icon"><Delete/></el-icon><span class="mt-list-action-text">清理临时库</span></el-button>
         </div>
       </article>
 <PagePagination label="恢复演练分页" v-model:current-page="recordPages.drills" v-model:page-size="recordSizes.drills" :total="data.data?.drills?.length"/>
@@ -147,40 +148,43 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     <section v-else-if="section==='recovery'" class="media-surface">
       <h3>受控恢复与回滚</h3>
       <WebRestorePanel :backups="data.data?.backups||[]" :backup-error="data.error" :backups-loading="data.loading"/>
+      <section class="ops-cli-maintenance" aria-label="命令行维护与维护单">
       <h3>命令行维护</h3>
       <p>以下保留原命令行审批流程；网页恢复请使用上方的预览与确认。</p>
-      <div class="u5-filters">
+      <div class="u5-filters ops-cli-filters">
         <label>
           选择备份
-          <select v-model="restoreID" aria-label="选择待恢复备份">
-            <option value="">请选择</option>
-            <option v-for="b in data.data?.backups.filter((b:any)=>b.state==='ready')||[]" :key="b.id" :value="b.id">{{ date(b.createdAt) }} · {{ bytes(b.bytes) }}</option>
-          </select>
+          <el-select v-model="restoreID" aria-label="选择待恢复备份" placeholder="请选择">
+            <el-option value="" label="请选择"/>
+            <el-option v-for="b in data.data?.backups.filter((b:any)=>b.state==='ready')||[]" :key="b.id" :value="b.id" :label="date(b.createdAt)+' · '+bytes(b.bytes)"/>
+          </el-select>
         </label>
         <el-button :disabled="!restoreID||!!op.pending" @click="showPreview('restore',restoreID)">预览恢复</el-button>
         <label>
           选择已登记版本
-          <select v-model="rollbackID" aria-label="选择回滚版本">
-            <option value="">请选择</option>
-            <option v-for="r in data.data?.releases.filter((r:any)=>!r.current&&r.verified)||[]" :key="r.revision" :value="r.revision">{{ r.revision.slice(0,12) }} · 数据结构 {{ r.schema }}</option>
-          </select>
+          <el-select v-model="rollbackID" aria-label="选择回滚版本" placeholder="请选择">
+            <el-option value="" label="请选择"/>
+            <el-option v-for="r in data.data?.releases.filter((r:any)=>!r.current&&r.verified)||[]" :key="r.revision" :value="r.revision" :label="r.revision.slice(0,12)+' · 数据结构 '+r.schema"/>
+          </el-select>
         </label>
         <el-button :disabled="!rollbackID||!!op.pending" @click="showPreview('rollback',rollbackID)">预览回滚</el-button>
       </div>
       <el-button @click="inspect({releases:data.data?.releases,register:'media-toolctl --root /root/docker/mediatool register dingding229/mediatool:sha-完整SHA'})">查看登记与版本技术详情</el-button>
       <h3>维护单</h3>
-      <article v-for="r in recordRows('requests')" :key="r.id" class="organize-record">
-        <h3>{{ r.kind==='restore'?'备份恢复':'版本回滚' }} · {{ ticketLabel(r) }}</h3>
-        <p>有效至 {{ date(r.expiresAt) }} · {{ r.message||'—' }}</p>
-        <div class="media-actions">
-          <el-button @click="inspect({...r,command:r.state==='approved'&&r.flow?.reason!=='approval_expired'?'media-toolctl --root /root/docker/mediatool execute '+r.id:undefined})">维护详情与执行命令</el-button>
-          <el-button v-if="['preview','approved'].includes(r.state)" :disabled="!!op.pending" @click="ask('cancel',r)">取消维护单</el-button>
-          <el-button v-if="r.state==='completed'&&!r.verifiedAt" :disabled="!!op.pending" @click="ask('verify',r)">执行后核验</el-button>
+      <div v-if="data.data?.requests?.length" class="mt-list-columns ops-request-columns" aria-hidden="true"><span>类型 / 状态</span><span>有效期 / 说明</span><span>操作</span></div>
+      <article v-for="r in recordRows('requests')" :key="r.id" class="mt-list-row ops-request-row">
+        <div><h3>{{ r.kind==='restore'?'备份恢复':'版本回滚' }}</h3><p>{{ ticketLabel(r) }}</p></div>
+        <div class="ops-record-meta"><p>有效至 {{ date(r.expiresAt) }}</p><p>{{ r.message||'—' }}</p></div>
+        <div class="media-actions mt-list-actions">
+          <el-button size="small" aria-label="维护详情与执行命令" @click="inspect({...r,command:r.state==='approved'&&r.flow?.reason!=='approval_expired'?'media-toolctl --root /root/docker/mediatool execute '+r.id:undefined})"><el-icon class="mt-list-action-icon"><View/></el-icon><span class="mt-list-action-text">维护详情与执行命令</span></el-button>
+          <el-button size="small" aria-label="取消维护单" v-if="['preview','approved'].includes(r.state)" :disabled="!!op.pending" @click="ask('cancel',r)"><el-icon class="mt-list-action-icon"><Close/></el-icon><span class="mt-list-action-text">取消维护单</span></el-button>
+          <el-button size="small" aria-label="执行后核验" v-if="r.state==='completed'&&!r.verifiedAt" :disabled="!!op.pending" @click="ask('verify',r)"><el-icon class="mt-list-action-icon"><Check/></el-icon><span class="mt-list-action-text">执行后核验</span></el-button>
         </div>
       </article>
 <PagePagination label="维护单分页" v-model:current-page="recordPages.requests" v-model:page-size="recordSizes.requests" :total="data.data?.requests?.length"/>
 
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.requests?.length" empty-title="暂无维护单"/>
+      </section>
     </section>
     <section v-else-if="section==='alerts'" class="media-surface ops-alerts-panel">
       <header class="media-section-heading"><h3>阈值告警</h3><RouterLink to="/connections?tab=notifications">查看通知投递记录</RouterLink></header>
