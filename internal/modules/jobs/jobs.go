@@ -159,9 +159,6 @@ func (r Repository) Finish(ctx context.Context, j Job, workErr error) error {
 				delay = 0
 			}
 		}
-		if j.Kind == "emby.confirm" {
-			delay = min(delay, 60)
-		}
 	}
 	tx, err := r.DB.Begin(ctx)
 	if err != nil {

@@ -59,7 +59,6 @@ docker compose exec app /app/media-tool <子命令> [参数]
 | `diagnose cloud-ua` | 查看云盘 UA；明确 `--apply` 才变更 |
 | `diagnose cloud-upload` | 仅对自己的小文件做明确批准的上传诊断，保留私有记录，结果未知不重建会话 |
 | `diagnose cloud-security` | 默认只检查；`--apply` 才调整允许范围内的云盘下载配置 |
-| `diagnose emby-layout` | 检查布局；`--apply` 才执行受控调整 |
 | `diagnose provider` | 提供方协议或回环诊断，不是媒体代理入口 |
 
 离线命令不得在服务仍处理任务时运行。配置、密码文件及诊断输出需私有保存；不要在命令行参数中直接传递密码。具体危险操作先阅读[备份恢复](deploy/backup.md)和[账号安全](deploy/security.md)。

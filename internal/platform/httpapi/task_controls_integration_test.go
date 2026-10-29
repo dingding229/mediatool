@@ -92,3 +92,26 @@ func TestTaskControlNoCredentialsAndMissingAdaptersRemainUnknown(t *testing.T) {
 		}
 	}
 }
+
+func TestDownloadTaskControlDoesNotRouteToRetiredEmbyJobs(t *testing.T) {
+	ctx, s := pluginHTTPFixture(t)
+	a := API{Deps: Dependencies{DB: s.DB}}
+	for _, state := range []string{"downloading", "strm_ready", "refresh_requested", "imported"} {
+		task, active := jobs.UUID(), jobs.UUID()
+		if _, err := s.DB.Exec(ctx, `INSERT INTO download_tasks(id,download_state)VALUES($1,$2)`, task, state); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.DB.Exec(ctx, `INSERT INTO jobs(id,kind,state,idempotency_key)VALUES($1,'download.add','succeeded',$2)`, active, "download.add:"+task); err != nil {
+			t.Fatal(err)
+		}
+		for _, kind := range []string{"emby.refresh", "emby.confirm"} {
+			if _, err := s.DB.Exec(ctx, `INSERT INTO jobs(id,kind,state,idempotency_key)VALUES($1,$2,'succeeded',$3)`, jobs.UUID(), kind, kind+":"+task); err != nil {
+				t.Fatal(err)
+			}
+		}
+		got, err := a.taskJob(ctx, "downloads", task)
+		if err != nil || got != active {
+			t.Fatal("download mapped to retired job", state, got, err)
+		}
+	}
+}

@@ -181,3 +181,48 @@ func TestGenericCrashLeaseDoesNotReplayAndInspectionSingleOwner(t *testing.T) {
 		t.Fatal("retry has multiple owners", calls.Load())
 	}
 }
+
+// These retired kinds have no producers/handlers. Their succeeded history is
+// still readable, never claimed/recovered/retried, and never rewritten by I27.
+func TestRetiredEmbySucceededHistoryIsUnchanged(t *testing.T) {
+	ctx, r := controlFixture(t)
+	for _, kind := range []string{"emby.refresh", "emby.confirm", "library.emby.refresh"} {
+		t.Run(kind, func(t *testing.T) {
+			if NeedsVerification(kind) {
+				t.Fatal("retired verification branch remains", kind)
+			}
+			j := controlJob(t, r, kind, "succeeded")
+			snapshot := func() string {
+				t.Helper()
+				var value string
+				if err := r.DB.QueryRow(ctx, `SELECT row_to_json(j)::text FROM jobs j WHERE id=$1`, j.ID).Scan(&value); err != nil {
+					t.Fatal(err)
+				}
+				return value
+			}
+			before := snapshot()
+			if err := r.recoverControlled(ctx); err != nil {
+				t.Fatal(err)
+			}
+			out, err := r.ControlStatus(ctx, j.ID)
+			if err != nil || out.State != "succeeded" || out.Queued {
+				t.Fatal(out, err)
+			}
+			verified := false
+			out, err = r.Retry(ctx, j.ID, out.Revision, func(context.Context, Job) (Verification, error) {
+				verified = true
+				return Verification{}, errors.New("must not verify succeeded history")
+			})
+			if err != nil || out.State != "succeeded" || verified {
+				t.Fatal("history replayed", out, err, verified)
+			}
+			var runnable bool
+			if err = r.DB.QueryRow(ctx, `SELECT state IN('pending','retry') FROM jobs WHERE id=$1`, j.ID).Scan(&runnable); err != nil || runnable {
+				t.Fatal("history became runnable", err)
+			}
+			if after := snapshot(); after != before {
+				t.Fatal("terminal historical row changed", kind)
+			}
+		})
+	}
+}

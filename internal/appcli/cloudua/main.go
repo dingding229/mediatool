@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"media-tool/internal/appcli/diagnosticpolicy"
 	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"os"
@@ -17,7 +18,6 @@ import (
 	"time"
 
 	"media-tool/internal/modules/integrations"
-	"media-tool/internal/modules/playback"
 	"media-tool/internal/modules/storage"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/database"
@@ -67,7 +67,7 @@ func run(agent string) error {
 	if err = db.QueryRow(ctx, `SELECT a.id::text,f.full_path FROM media_assets a JOIN cloud_files f ON f.id=a.cloud_file_id JOIN strm_entries s ON s.asset_id=a.id WHERE f.state='present' AND f.storage_id=$1 ORDER BY s.updated_at DESC LIMIT 1`, connection.Record.ID).Scan(&ref.AssetID, &ref.Path); err != nil {
 		return err
 	}
-	policy := playback.Policy{BlockedHosts: []string{"185.99.135.205", "localhost", "server", "emby", "clouddrive2"}}
+	policy := diagnosticpolicy.New(cfg.PublicURL, cfg.MemberPublicURL, connection.String("endpoint"))
 	client := http.Client{Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }, Transport: &http.Transport{Proxy: nil, DialContext: policy.DialContext, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, DisableCompression: true}}
 	verified := false
 	changed, err := adapter.TryDownloadUserAgent(ctx, ref.Path, agent, func(check context.Context) error {

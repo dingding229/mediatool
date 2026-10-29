@@ -70,7 +70,7 @@ func Validate(in Input) error {
 		if !contains(keys, k) {
 			return errors.New("unsupported public setting: " + k)
 		}
-		if k == "directPlayOnly" || k == "inboundEnabled" {
+		if k == "inboundEnabled" {
 			if _, ok := v.(bool); !ok {
 				return ErrInvalid
 			}
@@ -81,7 +81,7 @@ func Validate(in Input) error {
 				return ErrInvalid
 			}
 		case bool:
-			if k != "gatewayEnabled" && k != "directPlayOnly" && k != "inboundEnabled" {
+			if k != "inboundEnabled" {
 				return ErrInvalid
 			}
 		default:

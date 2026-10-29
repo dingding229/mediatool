@@ -10,10 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"media-tool/internal/appcli/diagnosticpolicy"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/playback"
 	"media-tool/internal/modules/storage"
-	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/database"
 	"media-tool/internal/platform/mediaext"
@@ -77,7 +77,7 @@ func run() error {
 	}
 	manager := integrations.NewManager(integrations.Repository{DB: db, Vault: vault}, c)
 	defer manager.Close()
-	report := map[string]any{"checkedAt": time.Now().UTC().Format(time.RFC3339), "passwordResetPerformed": false, "strmGenerated": false, "embyClientPlaybackVerified": false}
+	report := map[string]any{"checkedAt": time.Now().UTC().Format(time.RFC3339), "passwordResetPerformed": false, "strmGenerated": false}
 	cloud, err := manager.Repository.Default(ctx, "clouddrive2")
 	if err != nil {
 		return err
@@ -143,7 +143,7 @@ func run() error {
 			report["cloudLinkCapabilitiesReadable"] = false
 		}
 
-		engine := playback.New(integrations.DynamicStorage{Manager: manager}, playback.Options{Policy: playback.Policy{BlockedHosts: []string{"localhost", "server", "clouddrive2", "emby", "185.99.135.205"}}})
+		engine := playback.New(integrations.DynamicStorage{Manager: manager}, playback.Options{Policy: diagnosticpolicy.New(c.PublicURL, c.MemberPublicURL, cloud.String("endpoint"))})
 		inspection, inspectErr := engine.Inspect(ctx, ref, "MediaTool-IntegrationCheck")
 		report["linkPolicyValidated"] = inspectErr == nil && inspection.TargetValidated
 		if inspectErr != nil {
@@ -165,7 +165,7 @@ func run() error {
 				parsed, parseErr := url.Parse(link.URL)
 				if parseErr == nil {
 					report["returnedLinkScheme"] = parsed.Scheme
-					policy := playback.Policy{BlockedHosts: []string{"localhost", "server", "clouddrive2", "emby", "185.99.135.205"}}
+					policy := diagnosticpolicy.New(c.PublicURL, c.MemberPublicURL, cloud.String("endpoint"))
 					_, syntaxErr := policy.Syntax(link.URL)
 					report["returnedLinkSyntaxAllowed"] = syntaxErr == nil
 					report["returnedLinkTargetAllowed"] = policy.Check(ctx, link.URL) == nil
@@ -185,47 +185,6 @@ func run() error {
 			report["mediaBytesReadable"] = (sink.status == 200 || sink.status == 206) && sink.bytes > 0
 		}
 	}
-	emby, err := manager.Repository.Default(ctx, "emby")
-	if err != nil {
-		return err
-	}
-	report["embyRefreshKeyPresent"] = emby.Values["apiKey"] != ""
-	report["configuredSTRMPathPrefix"] = emby.String("strmPathPrefix")
-	report["gatewayEnabled"] = emby.Record.Settings["gatewayEnabled"] == true
-	httpClient := &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	get := func(endpoint string, target any) (int, error) {
-		req, err := http.NewRequestWithContext(ctx, "GET", strings.TrimRight(emby.String("endpoint"), "/")+endpoint, nil)
-		if err != nil {
-			return 0, err
-		}
-		req.Header.Set("X-Emby-Token", emby.Values["apiKey"])
-		res, err := httpClient.Do(req)
-		if err != nil {
-			return 0, err
-		}
-		defer deferutil.Close(res.Body, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
-		if res.StatusCode != 200 {
-			return res.StatusCode, errors.New("provider rejected")
-		}
-		return res.StatusCode, json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(target)
-	}
-	var users []struct {
-		ID string `json:"Id"`
-	}
-	status, authErr := get("/Users", &users)
-	report["embyKeyAuthorized"] = authErr == nil
-	report["embyAuthenticatedStatus"] = status
-	var libraries []struct {
-		Name      string   `json:"Name"`
-		Locations []string `json:"Locations"`
-	}
-	_, libraryErr := get("/Library/VirtualFolders", &libraries)
-	report["embyLibrariesReadable"] = libraryErr == nil
-	locations := []string{}
-	for _, library := range libraries {
-		locations = append(locations, library.Locations...)
-	}
-	report["embyLibraryLocations"] = locations
 	if checkedErr := json.NewEncoder(os.Stdout).Encode(report); checkedErr != nil {
 		return checkedErr
 	}

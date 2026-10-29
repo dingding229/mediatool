@@ -19,3 +19,15 @@ func TestConnectionRevisionsDoNotRequireRestart(t *testing.T) {
 		t.Fatal("retained every revision")
 	}
 }
+
+func TestExternalEmbyKindAndSettingsRemainRejected(t *testing.T) {
+	for _, in := range []Input{
+		{Kind: "emby", Name: "retired", Settings: map[string]any{"endpoint": "https://retired.invalid"}},
+		{Kind: "open115", Name: "owned", Settings: map[string]any{"gatewayEnabled": true}},
+		{Kind: "clouddrive2", Name: "owned", Settings: map[string]any{"directPlayOnly": true}},
+	} {
+		if Validate(in) == nil {
+			t.Fatal("external Emby setting accepted", in.Kind)
+		}
+	}
+}

@@ -19,7 +19,7 @@ func (a *API) taskJob(ctx context.Context, kind, id string) (string, error) {
 	case "jobs":
 		return id, nil
 	case "downloads":
-		err = a.Deps.DB.QueryRow(ctx, `SELECT j.id::text FROM download_tasks d JOIN jobs j ON j.idempotency_key=CASE d.download_state WHEN 'strm_ready' THEN 'emby.refresh:'||d.id::text WHEN 'refresh_requested' THEN 'emby.confirm:'||d.id::text ELSE 'download.add:'||d.id::text END WHERE d.id=$1`, id).Scan(&job)
+		err = a.Deps.DB.QueryRow(ctx, `SELECT j.id::text FROM download_tasks d JOIN jobs j ON j.idempotency_key='download.add:'||d.id::text WHERE d.id=$1`, id).Scan(&job)
 	case "transfers":
 		err = a.Deps.DB.QueryRow(ctx, `SELECT id::text FROM jobs WHERE idempotency_key=$1`, "transfer:"+id).Scan(&job)
 	case "scans":

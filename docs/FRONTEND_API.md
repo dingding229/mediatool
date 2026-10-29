@@ -96,12 +96,12 @@ X-Requested-With: media-tool
 
 输出为格式示意，具体占位符/格式是否合法由预览器裁决；前端不自行拼接媒体路径，也不把预览当真实资产名称。
 
-## 4. 115 / CloudDrive2 / Emby 连接、授权与 readiness
+## 4. 115 / CloudDrive2 / 下载器连接、授权与 readiness
 
 1. GET `/integrations`；创建/编辑指定 kind 的连接，保留secretFields所表示的已有秘密。未重新输入不等于清除秘密，清除/替换须按请求契约明确处理。
 2. 115：POST `/integrations/{id}/115/auth/start`（JSON `{}`）→ 显示该 sessionId 对应二维码 → poll（同sessionId）→ waiting/scanned → exchanging → authorized/expired/cancelled/failed；离开/取消只取消该会话。不要丢失session后不断start，更不要从其它项目借授权。
 3. POST `/integrations/{id}/test` → 回读连接 readiness；授权、保存、连接probe和显式启用是不同步骤，授权成功不自动enable。
-4. GET `/readiness` 汇总 open115 / clouddrive2 / strm / emby。not_configured → configure；authorization_required → authorize/configure_credentials；disabled → enable；check_required → test；check_failed → inspect；ready 仅指新鲜保存probe。STRM configured 的下一步仍是实际播放器302验证。
+4. GET `/readiness` 汇总 open115 / clouddrive2 / qbittorrent / strm。not_configured → configure；authorization_required → authorize/configure_credentials；disabled → enable；check_required → test；check_failed → inspect；ready 仅指新鲜保存probe。STRM configured 的下一步仍是实际播放器302验证。
 5. `revision`变化使旧probe过期；24小时陈旧probe需重新测试。不能把CD2根目录可读等同115取链可用，更不能把HTTP健康等同播放器实际播放和拖动成功。
 6. 私有管理员 reveal 需明确confirm、revision和字段；仅展示给已认证管理员，不复制到公开截图、遥测、Actions。保留115授权、主密钥和现有账号。
 
@@ -161,7 +161,7 @@ X-Requested-With: media-tool
 
 HTTP202仅表示已创建评估；轮询run，不能立即显示订阅已下载。
 
-## 7. 下载 → 整理/上传 → STRM → Emby 链路
+## 7. 下载 → 整理/上传 → STRM → 内置媒体库链路
 
 | 观察 | UI可提供动作 | 禁止推断 |
 |---|---|---|
@@ -198,7 +198,7 @@ X-Requested-With: media-tool
 
 1. GET `/files/roots` → `/files` 受控浏览；文件操作走batch-preview →读batch →approve(digest+confirm) →轮询/reconcile。路径只编码一次，服务端根目录与符号链接保护不可被前端normalize替代。
 2. 扫描POST `/library/scans` → GET扫描/候选列表 → recognize/confirm（支持明确批量确认）。目录变更、归档清理、STRM输出修复均先预览范围，再按digest审批。
-3. GET `/media/library/sources` 选择managed/Emby/插件来源 → `/media/library` 列表 →条目详情；source错误是错误，不伪装空库。poster/STRM content走二进制专门请求。
+3. GET `/media/library/sources` 选择managed/插件来源 → `/media/library` 列表 →条目详情；source错误是错误，不伪装空库。poster/STRM content走二进制专门请求。
 4. `/library/outputs/{id}/content` 与资产STRM下载含稳定授权URL，仅私有管理员可查看，不能把原文放普通公共缩略图/统计埋点。
 5. artifact repair、cleanup可能needs_reconcile/unknown，操作结果不明应inspect原batch；不得自动重放rename/move/delete。
 
@@ -236,7 +236,7 @@ X-Requested-With: media-tool
 - `/System/Info/Public` → `/Users/AuthenticateByName`（Username/Pw或Password）→返回AccessToken →Views/Items →PlaybackInfo →Videos/stream严格302 →Sessions/Playing/Progress/Stopped上报。详情/列表/进度等DTO为PascalCase，列表是QueryResult或指定数组，不能泛用管理data解包。
 - token可从X-Emby-Token、X-MediaBrowser-Token、Emby/MediaBrowser Authorization字段或兼容query api_key读取；冲突token拒绝。优先header，不把媒体token放日志/公开URL。
 - 原生服务只接受自己的路由；管理 `/api/v1/*`、PWA/admin路径在媒体端404。GET包含HEAD；已知path OPTIONS只返回静态Allow，不授予任意Origin/Credentials跨域权限。
-- `/socket` 明确501（没有WebSocket实现）；内嵌字幕stream明确404（STRM原媒体由播放器从CDN处理）；媒体转码/HLS参数被拒绝。外部Emby网关可以代理元数据/图片/登录，媒体仍只允许受管原始源302，不重开fallback。
+- `/socket` 明确501（没有WebSocket实现）；内嵌字幕stream明确404（STRM原媒体由播放器从CDN处理）；媒体转码/HLS参数被拒绝。
 
 ```http
 POST /Users/AuthenticateByName
@@ -370,7 +370,6 @@ X-Requested-With: media-tool
   `parentId=series_<作品UUID>` 返回按季号排序的季列表；
   `parentId=season_<作品UUID>_<季号>` 返回季内按集号排序的物理文件列表。
   各层独立使用 `page/pageSize/total`。季/作品没有原始 STRM 文件链接。
-  Emby 来源使用真实 ParentId，非递归读取 Season/Episode。
 - 原生 Emby GET `/Items` 同时校验 ParentId、SeriesId、SeasonId；
   `/Shows/{id}/Seasons` 和 `/Shows/{id}/Episodes?SeasonId=...` 保留分页和跨作品校验。
 - 原生 PlaybackInfo 中，外挂字幕 MediaStreams 返回 `IsExternal=true`、

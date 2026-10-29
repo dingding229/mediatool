@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"media-tool/internal/appcli/diagnosticpolicy"
 	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"os"
@@ -162,7 +163,7 @@ func run(source, report string, resume bool) (result error) {
 		if j.SessionID == "" {
 			return errors.New("destination already exists; not overwriting")
 		}
-		return verifyUploaded(ctx, client, file, report, &j, existing)
+		return verifyUploaded(ctx, client, file, report, &j, existing, diagnosticpolicy.New(cfg.PublicURL, cfg.MemberPublicURL, connection.String("endpoint")))
 	}
 	if !errors.Is(lookupErr, storage.ErrNotFound) {
 		return lookupErr
@@ -191,7 +192,7 @@ func run(source, report string, resume bool) (result error) {
 	if err != nil {
 		return err
 	}
-	return verifyUploaded(ctx, client, file, report, &j, remote)
+	return verifyUploaded(ctx, client, file, report, &j, remote, diagnosticpolicy.New(cfg.PublicURL, cfg.MemberPublicURL, connection.String("endpoint")))
 }
 
 func sourceIdentity(file *os.File) (int64, string, string, error) {
@@ -305,7 +306,7 @@ func (s *hashSink) Write(data []byte) (int, error) {
 	s.bytes += int64(n)
 	return n, err
 }
-func verifyUploaded(ctx context.Context, client *clouddrive2.Adapter, file *os.File, report string, j *journal, remote storage.File) error {
+func verifyUploaded(ctx context.Context, client *clouddrive2.Adapter, file *os.File, report string, j *journal, remote storage.File, policy playback.Policy) error {
 	j.RemoteSize = remote.Size
 	j.RemoteHashMatched = strings.EqualFold(remote.Hashes[uint32(2)], j.SourceSHA1)
 	if remote.IsDirectory || remote.Size != j.SourceSize || remote.Hashes[uint32(2)] != "" && !j.RemoteHashMatched {
@@ -315,7 +316,7 @@ func verifyUploaded(ctx context.Context, client *clouddrive2.Adapter, file *os.F
 	// self-owned file via the same public-target/TLS checked download engine.
 	bounded, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	engine := playback.New(client, playback.Options{Policy: playback.Policy{BlockedHosts: []string{"localhost", "server", "clouddrive2", "emby", "185.99.135.205"}}})
+	engine := playback.New(client, playback.Options{Policy: policy})
 	req, _ := http.NewRequestWithContext(bounded, "GET", "http://diagnostic.invalid/media", nil)
 	req.Header.Set("Range", fmt.Sprintf("bytes=0-%d", j.SourceSize-1))
 	req.Header.Set("User-Agent", "MediaTool-OwnedUploadCheck/1.0")

@@ -186,7 +186,7 @@ func (r Repository) cancellationRequested(ctx context.Context, j Job) (bool, err
 // Side-effecting handlers cannot use lease expiry as permission to replay.
 func NeedsVerification(kind string) bool {
 	switch kind {
-	case "files.batch", "download.add", "download.manual.add", "download.cleanup", "transfer.upload", "transfer.import.resume", "library.strm.repair", "library.artifacts.repair", "library.archive.cleanup", "emby.refresh", "library.refresh", "library.emby.refresh", "ops.backup", "ops.drill":
+	case "files.batch", "download.add", "download.manual.add", "download.cleanup", "transfer.upload", "transfer.import.resume", "library.strm.repair", "library.artifacts.repair", "library.archive.cleanup", "library.refresh", "ops.backup", "ops.drill":
 		return true
 	}
 	return false
@@ -195,6 +195,6 @@ func (r Repository) recoverControlled(ctx context.Context) error {
 	if _, err := r.DB.Exec(ctx, `WITH stale AS(SELECT id FROM jobs WHERE state='checking' AND updated_at<clock_timestamp()-interval '2 minutes' FOR UPDATE SKIP LOCKED LIMIT 100) UPDATE jobs j SET state='unknown',last_error='核对执行器失联，外部状态仍未知',updated_at=clock_timestamp() FROM stale s WHERE j.id=s.id`); err != nil {
 		return err
 	}
-	_, err := r.DB.Exec(ctx, `WITH expired AS(SELECT id FROM jobs WHERE state='running' AND lease_until<clock_timestamp() AND (cancel_requested_at IS NOT NULL OR kind IN('files.batch','download.add','download.manual.add','download.cleanup','transfer.upload','transfer.import.resume','library.strm.repair','library.artifacts.repair','library.archive.cleanup','emby.refresh','library.refresh','library.emby.refresh','ops.backup','ops.drill')) ORDER BY lease_until FOR UPDATE SKIP LOCKED LIMIT 100) UPDATE jobs j SET state='unknown',last_error='执行器租约已失效；外部状态待核对，不自动重放',cancel_acknowledged_at=CASE WHEN cancel_requested_at IS NOT NULL THEN clock_timestamp() END,lease_until=NULL,lease_token=NULL,locked_by=NULL,updated_at=clock_timestamp() FROM expired e WHERE j.id=e.id`)
+	_, err := r.DB.Exec(ctx, `WITH expired AS(SELECT id FROM jobs WHERE state='running' AND lease_until<clock_timestamp() AND (cancel_requested_at IS NOT NULL OR kind IN('files.batch','download.add','download.manual.add','download.cleanup','transfer.upload','transfer.import.resume','library.strm.repair','library.artifacts.repair','library.archive.cleanup','library.refresh','ops.backup','ops.drill')) ORDER BY lease_until FOR UPDATE SKIP LOCKED LIMIT 100) UPDATE jobs j SET state='unknown',last_error='执行器租约已失效；外部状态待核对，不自动重放',cancel_acknowledged_at=CASE WHEN cancel_requested_at IS NOT NULL THEN clock_timestamp() END,lease_until=NULL,lease_token=NULL,locked_by=NULL,updated_at=clock_timestamp() FROM expired e WHERE j.id=e.id`)
 	return err
 }

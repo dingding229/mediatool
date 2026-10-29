@@ -10,11 +10,11 @@
 | 获取 | [搜索](guide/search.md) | 搜索、搜索历史、发现推荐、结果投递 |
 | 获取 | [订阅](guide/subscriptions.md) | 订阅列表、运行记录、预演与归档 |
 | 获取 | [下载](guide/downloads.md) | 下载任务、上传入库、手动添加 |
-| 媒体 | [媒体库](guide/library.md) | 内置/Emby 海报浏览、季集与详情 |
+| 媒体 | [媒体库](guide/library.md) | 内置媒体库海报浏览、季集与详情 |
 | 媒体 | [入库整理](guide/organize.md) | 待确认、扫描、已入库、整理历史、恢复与归档 |
 | 媒体 | [文件](guide/files.md) | 文件浏览、STRM 目录、STRM 工具 |
 | 媒体 | [播放服务](guide/playback.md) | 服务设置、媒体用户、播放器准入、在线会话、预处理 |
-| 系统 | [连接](guide/connections.md) | 115/CD2、Emby、下载器、通知渠道、TMDB/代理 |
+| 系统 | [连接](guide/connections.md) | 115/CD2、下载器、通知渠道、TMDB/代理 |
 | 系统 | [站点](guide/sites.md) | 站点账号、站点模板 |
 | 系统 | [插件](guide/plugins.md) | 已安装、插件目录、实例详情与插件页面 |
 | 系统 | [运维](guide/ops.md) | 任务队列、备份与告警、日志、数据浏览、缓存 |

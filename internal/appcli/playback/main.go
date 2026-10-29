@@ -10,8 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"media-tool/internal/appcli/diagnosticpolicy"
 	"media-tool/internal/modules/integrations"
-	"media-tool/internal/modules/playback"
 	"media-tool/internal/modules/playbackgrants"
 	"media-tool/internal/modules/storage"
 	deferutil "media-tool/internal/platform/cleanup"
@@ -110,7 +110,7 @@ func run() error {
 			if err == nil {
 				report["compatibleUserAgentStatus"] = compatibleResponse.StatusCode
 				report["compatibleRequestRedirected"] = compatibleResponse.StatusCode == 302
-				report["compatibleRedirectTargetValidated"] = compatibleResponse.StatusCode == 302 && (playback.Policy{BlockedHosts: []string{"185.99.135.205", "localhost", "server", "emby", "clouddrive2"}}).Check(ctx, compatibleResponse.Header.Get("Location")) == nil
+				report["compatibleRedirectTargetValidated"] = compatibleResponse.StatusCode == 302 && (diagnosticpolicy.New(cfg.PublicURL, cfg.MemberPublicURL, cfg.CloudDriveEndpoint)).Check(ctx, compatibleResponse.Header.Get("Location")) == nil
 				deferutil.Close(compatibleResponse.Body, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
 			}
 		}
@@ -136,7 +136,7 @@ func run() error {
 	var media *http.Response
 	if response.StatusCode == 302 {
 		deferutil.Close(response.Body, "Process teardown only; business results are already checked and OS releases remaining descriptors on exit")
-		policy := playback.Policy{BlockedHosts: []string{"185.99.135.205", "localhost", "server", "emby", "clouddrive2"}}
+		policy := diagnosticpolicy.New(cfg.PublicURL, cfg.MemberPublicURL, cfg.CloudDriveEndpoint)
 		validErr := policy.Check(ctx, location)
 		report["redirectTargetValidated"] = validErr == nil
 		if validErr == nil {
