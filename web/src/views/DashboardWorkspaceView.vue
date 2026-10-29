@@ -20,7 +20,7 @@ const probe=useReadinessTest(()=>slots.accounts?.error?null:slots.accounts?.data
 usePageRefresh(refresh,props.attention?'attention':'*');
 </script>
 <template>
-  <div class="dashboard-workspace">
+  <div class="dashboard-workspace" :class="{'ops-attention-dashboard':attention}">
     <PageHeader v-if="!attention" title="首页" description="常用业务概览与最近搜索。">
       <template #actions>
 
@@ -31,8 +31,8 @@ usePageRefresh(refresh,props.attention?'attention':'*');
     <p v-if="attention&&probe.message.value&&!probe.phase.value" role="status">{{probe.message.value}}</p>
     <section v-if="attention" class="dashboard-inbox u2-surface" aria-label="待处理收件箱">
       <header v-if="visibleGroups.length"><h2>待处理</h2></header>
-      <StateView v-if="!visibleGroups.length&&inboxLoading" state="loading" title="正在读取待处理事项…"/>
-      <StateView v-else-if="!visibleGroups.length" state="empty" title="暂无待处理事项"/>
+      <StateView v-if="!visibleGroups.length&&inboxLoading" compact state="loading" title="正在读取待处理事项…"/>
+      <StateView v-else-if="!visibleGroups.length" compact state="empty" title="暂无待处理事项"/>
       <div v-if="visibleGroups.length" class="inbox-grid">
         <article v-for="group in visibleGroups" :key="group.id" :aria-label="group.title">
           <h3>{{ group.title }}</h3>
