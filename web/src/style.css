@@ -72,6 +72,7 @@ html, body {
   --el-border-color-light: var(--mt-border-color);
   --el-border-color-lighter: #edf0f2;
   --el-border-radius-base: var(--radius-sm);
+  --mt-field-padding: 8px 12px;
   --el-font-size-base: 14px;
   --el-bg-color-page: var(--mt-bg-canvas);
   --el-bg-color: var(--mt-bg-surface);

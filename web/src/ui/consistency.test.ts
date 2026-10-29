@@ -62,7 +62,7 @@ it('single-value native time fields use the shared cross-workspace contract with
  const read=(path:string)=>readFileSync(new URL(path,import.meta.url),'utf8');
  const css=read('./consistency.css');
  expect(css).toContain(':root input.mt-native-time-input:is([type=time],[type=datetime-local]),:root input.mt-native-form-input{');
- expect(css).toContain('height:44px;min-height:44px;box-sizing:border-box;padding:8px 12px');
+ expect(css).toContain('height:44px;min-height:44px;box-sizing:border-box;padding:var(--mt-field-padding)');
  expect(css).toContain(':root.dark input.mt-native-time-input,:root.dark input.mt-native-form-input{color-scheme:dark}');
  expect(read('../settings/IdleUpdatePanel.vue').match(/class="mt-native-form-input/g)).toHaveLength(1);
  expect(read('../settings/AboutPanel.vue')).toContain('class="mt-native-form-input" aria-label="检查间隔（小时）"');

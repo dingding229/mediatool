@@ -1,5 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 import {cacheAlertFixture} from './i19-3-fixture';
+import {waitForLayout} from './layout-stability';
 async function openAlerts(page:Page){await page.goto('/ops?tab=maintenance');await page.getByRole('navigation',{name:'备份与告警功能'}).getByRole('button',{name:'运维告警',exact:true}).click()}
 for(const kind of ['tmdb','search'])test(`I19-3 ${kind} preserves default 30, paging, details, time semantics and all links`,async({page})=>{
  const f=await cacheAlertFixture(page,true);await page.goto('/ops?tab=cache&cacheKind='+kind);await expect(page.locator('.ops-cache-row')).toHaveCount(30);expect(f.cacheReads[0]!.get('pageSize')).toBe('30');
@@ -14,7 +15,7 @@ for(const kind of ['tmdb','search'])test(`I19-3 ${kind} preserves default 30, pa
 for(const kind of ['tmdb','search'])test(`I19-3 ${kind} compact rows and pagination/notes stay inside the card in both widths`,async({page})=>{
  await cacheAlertFixture(page);await page.goto('/ops?tab=cache&cacheKind='+kind);await expect(page.locator('.ops-cache-row')).toHaveCount(4);
  for(const width of [1440,390]){
-  await page.setViewportSize({width,height:1000});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  await page.setViewportSize({width,height:1000});await waitForLayout(page,'.ops-cache-panel');expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   const card=await page.locator('.ops-cache-panel').boundingBox();for(const e of await page.locator('.ops-cache-panel .mt-pagination,.ops-cache-ttl').all()){const b=await e.boundingBox();expect(b!.x-card!.x).toBeGreaterThanOrEqual(16);expect(card!.x+card!.width-b!.x-b!.width).toBeGreaterThanOrEqual(16);expect(card!.y+card!.height-b!.y-b!.height).toBeGreaterThanOrEqual(16)}
   const stage=await page.locator('.ops-cache-stage').evaluate(el=>{const b=el.getBoundingClientRect(),last=el.querySelector('.ops-cache-row:last-child')!.getBoundingClientRect();return b.bottom-last.bottom});expect(stage).toBeLessThanOrEqual(1);
   const row=await page.locator('.ops-cache-row').first().boundingBox();if(width===1440)expect(row!.height).toBeLessThanOrEqual(72);

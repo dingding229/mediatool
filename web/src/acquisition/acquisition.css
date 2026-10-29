@@ -55,3 +55,6 @@
 
 .acquire-output-paths {max-height:30vh;overflow:auto;display:grid;gap:12px}
 @media(max-width:700px){.acquire-workspace>.page-heading{flex-direction:column;align-items:stretch}.acquire-workspace>.page-heading .heading-actions{flex-wrap:wrap;gap:8px}}
+
+/* I26b: compact history rows only; keep the existing desktop alignment/actions. */
+@media(max-width:700px){.acquire-history article{padding-block:8px}}

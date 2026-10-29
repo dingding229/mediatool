@@ -102,12 +102,12 @@ defineExpose({ load, form, save, status, libraries, op });
     <section class="media-surface">
       <h2>媒体库目录</h2>
       <p>目录名称来自分类规则；新媒体库默认未授权，请在媒体用户中分配。</p>
-      <ResourceState :stale="libraries.loaded" :loading="libraries.loading" :error="libraries.error" :empty="!libraries.data?.items.length" @reload="libraries.load"/>
+      <ResourceState :stale="libraries.loaded" :loading="libraries.loading" :error="libraries.error" :empty="!libraries.data?.items?.length" empty-title="暂无媒体库目录" @reload="libraries.load"/>
       <article v-for="library in libraries.data?.items||[]" :key="library.id" class="organize-record">
         <h3>{{ library.name||'—' }}</h3>
         <p>{{ library.groupName||'—' }} / {{ library.ruleName||'—' }} · {{ library.hidden?'已隐藏':'可见' }} · {{ library.assetCount??'—' }} 项</p>
       </article>
-      <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="libraries.data.total" layout="prev,pager,next,total" @current-change="libraries.load"/>
+      <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="libraries.data?.total??0" layout="prev,pager,next,total" @current-change="libraries.load"/>
     </section>
     <DetailDrawer v-model:visible="technical" title="服务技术详情" :technical-data="{settings:status.data,services:providers.data,libraries:libraries.data}" size="large" class="media-detail">
       <ResourceState :stale="providers.loaded" :loading="providers.loading" :error="providers.error" @reload="providers.load"/>

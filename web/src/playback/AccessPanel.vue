@@ -269,5 +269,9 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
  .ua-visit-row>.ua-row-actions{grid-area:actions}
 }
 @media(max-width:700px){.ua-filters{display:grid;grid-template-columns:minmax(0,1fr)}.ua-filters>label{min-width:0}}
+@media(max-width:700px){
+ .ua-observation-row.mt-list-row,.ua-visit-row.mt-list-row{padding-block:8px;gap:8px}
+ .ua-observation-identity,.ua-visit-context{gap:4px}
+}
 @media(max-width:600px){.ua-policy-actions{width:100%}.ua-policy-actions .ua-filter-field{flex:1}}
 </style>

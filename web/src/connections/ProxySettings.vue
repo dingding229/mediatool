@@ -74,6 +74,8 @@ usePageRefresh(()=>load(true));
 </section>
 </template>
 <style scoped>
+.proxy-options :deep(.mt-form-checkbox){align-items:center}
+.proxy-options :deep(.el-checkbox__input){margin-top:0}
 .proxy-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.proxy-password{grid-column:1/-1}.proxy-fields .el-input-number{width:100%}.proxy-options{display:grid;gap:0}.proxy-settings .proxy-options>p{margin-block:0 8px;font-size:12px;line-height:1.7;color:var(--mt-text-muted)}.proxy-fields .el-select{width:100%}
 @media(max-width:600px){.proxy-fields{grid-template-columns:minmax(0,1fr)}}
 </style>

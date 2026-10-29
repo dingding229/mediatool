@@ -26,6 +26,6 @@ it('styles quiet minutes with the same rounded native input contract as the refe
  const css=readFileSync(new URL('../ui/consistency.css',import.meta.url),'utf8');
  expect(idle).toContain('<input v-model="minutes" class="mt-native-form-input" inputmode="numeric"');
  expect(idle).toContain('.idle-form .settings-field{width:180px;max-width:100%;min-width:0}');
- expect(css).toContain('height:44px;min-height:44px;box-sizing:border-box;padding:8px 12px');
+ expect(css).toContain('height:44px;min-height:44px;box-sizing:border-box;padding:var(--mt-field-padding)');
  expect(css).toContain('border-radius:var(--el-border-radius-base)');
 });

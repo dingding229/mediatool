@@ -30,7 +30,7 @@ defineExpose({open});
   </div>
   <template #footer><el-button :disabled="busy" @click="visible=false">取消</el-button><el-button v-if="unknown||!form.revision" :disabled="busy" @click="visible=false;emit('saved')">关闭并核对列表</el-button><el-button v-else type="primary" :loading="busy" :disabled="unknown||!!error" @click="prepare">核对并继续</el-button></template>
  </el-dialog>
- <el-dialog v-model="confirm" title="确认 IP 黑名单范围" width="min(520px,94vw)" class="media-dialog" append-to-body :close-on-click-modal="false" :show-close="!busy" :close-on-press-escape="!busy">
+ <el-dialog v-model="confirm" title="确认 IP 黑名单范围" width="min(520px,94vw)" class="media-dialog ip-block-confirm" append-to-body :close-on-click-modal="false" :show-close="!busy" :close-on-press-escape="!busy">
   <p>将拉黑网段：<strong class="ip-block-network">{{canonical}}</strong></p>
   <p>全部媒体用户从此 IP 或网段访问媒体均返回 403；管理后台仍可删除规则。此操作不改账号、网盘文件或 STRM。</p>
   <el-alert v-if="impact" title="此规则覆盖当前管理员访问 IP，也会限制你从此地址访问媒体服务。" type="warning" :closable="false"/>
@@ -38,4 +38,7 @@ defineExpose({open});
   <template #footer><el-button :disabled="busy" @click="confirm=false">返回修改</el-button><el-button type="danger" :loading="busy" :disabled="impact&&!ack" @click="save">确认保存黑名单规则</el-button></template>
  </el-dialog>
 </template>
+<style>
+.el-dialog.ip-block-confirm>.el-dialog__body{min-height:0}
+</style>
 <style scoped>.ip-block-form{display:grid;gap:16px}.ip-block-form label{display:grid;gap:8px}.ip-block-network{overflow-wrap:anywhere}.ip-block-form :deep(.el-input__wrapper){min-height:44px;box-sizing:border-box}</style>

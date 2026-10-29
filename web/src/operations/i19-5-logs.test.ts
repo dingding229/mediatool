@@ -19,4 +19,12 @@ it.each([
  ['logs/format.ts','55b8c1f115e293fdd87c02807cdaf1b2ea805c43b1192bb671d92b710e7a56e8'],
  ['ui/stability.css','9d8f48ec8b03126f4a0f655f02182da6d6a7d19bbf860fab495c1c37132d27d6'],
  ['api/client.ts','bca6d6605ca0a9507b6f9975a05f388031da8b705df6896bddf81432052b42e4'],
-])('I19-5 leaves component, API transport/SSE, full-original formatter and shared CSS unchanged: %s',(file,hash)=>expect(sha(read(file))).toBe(hash));
+])('I19-5 preserves console/transport; normalize only I26b approved settings and field tokens: %s',(file,hash)=>{
+ let source=read(file);
+ if(file==='operations/LogsPanel.vue')source=source.replace('<label class="u5-field ops-log-friendly">详情中显示友好说明<ElSwitch v-model="friendly" aria-label="友好说明"/></label>','<label class="u5-check"><input v-model="friendly" type="checkbox" aria-label="友好说明"/>详情中显示友好说明</label>');
+ if(file==='ui/stability.css')for(const [selector,radius,padding] of [['.f3-log-filters>label>input','7px','8px'],['.f3-log-footer select','6px','4px']]){
+  const start=source.indexOf(selector+'{'),end=source.indexOf('}',start),rule=source.slice(start,end);
+  source=source.slice(0,start)+rule.replace('border-radius:var(--el-border-radius-base)','border-radius:'+radius).replace('padding:var(--mt-field-padding)','padding:'+padding)+source.slice(end);
+ }
+ expect(sha(source)).toBe(hash);
+});

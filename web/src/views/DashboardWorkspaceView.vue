@@ -115,7 +115,7 @@ usePageRefresh(refresh,props.attention?'attention':'*');
         </div>
       </dl>
     </section>
-    <section v-if="!attention" class="u2-surface dashboard-searches" aria-label="最近搜索">
+    <section v-if="!attention" class="u2-surface dashboard-searches" :class="{'has-searches':recent.length>0}" aria-label="最近搜索">
       <header>
         <h2>最近搜索</h2>
         <RouterLink to="/search?tab=history">查看搜索记录</RouterLink>
@@ -264,6 +264,7 @@ header>span,small,.setup-guide p,.dashboard-empty {
   border-top:1px solid var(--mt-border-color);
   font-size:13px
 }
+.dashboard-searches.has-searches{min-height:0}
 .dashboard-searches header a {
   min-height:44px;
   display:inline-flex;
@@ -291,6 +292,9 @@ header>span,small,.setup-guide p,.dashboard-empty {
   }
 }
 @media(max-width:768px){
+  .dashboard-server dl{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+  .dashboard-server dl>div{min-width:0}
+  .dashboard-server dd{font-size:22px;white-space:normal;overflow-wrap:anywhere}
   .dashboard-counters{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .dashboard-counters a{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;min-height:52px;box-sizing:border-box}
   .dashboard-counters a:last-child:nth-child(odd){grid-column:1/-1}

@@ -123,7 +123,7 @@ defineExpose({ open, save, reread, form, op, latest });
           显示名称
           <input v-model="form.displayName" aria-label="媒体用户显示名称" :disabled="op.busy||!!op.pending"/>
         </label>
-        <label class="u5-check mt-form-checkbox">
+        <label class="u5-check mt-form-checkbox user-enabled">
           <input v-model="form.enabled" type="checkbox" :disabled="op.busy||!!op.pending"/>
           启用媒体用户
         </label>
@@ -191,3 +191,8 @@ defineExpose({ open, save, reread, form, op, latest });
     </template>
   </el-dialog>
 </template>
+<style scoped>
+/* Keep the 44px hit area without adding its 12px inner blank to the next field gap. */
+.u5-form .user-enabled{align-items:center;margin-bottom:-12px}
+.u5-form .user-enabled>input[type=checkbox]{margin:0}
+</style>

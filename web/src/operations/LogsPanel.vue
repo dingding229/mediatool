@@ -150,7 +150,7 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
     </DetailDrawer>
     <DetailDrawer v-model:visible="settings" title="日志设置" :technical-data="summary.data" size="large" class="media-detail ops-log-settings">
       <ResourceState :error="summary.error" @reload="summary.load"/>
-      <label class="u5-check"><input v-model="friendly" type="checkbox" aria-label="友好说明"/>详情中显示友好说明</label>
+      <label class="u5-field ops-log-friendly">详情中显示友好说明<ElSwitch v-model="friendly" aria-label="友好说明"/></label>
       <h2>日志大小</h2>
       <p>{{ bytes(summary.data?.totalBytes) }} · 上限 {{ bytes(summary.data?.limitBytes) }}</p>
       <RevisionFeedback :form="policy"/>
