@@ -25,7 +25,7 @@ it('I19-4 retains native numeric validation and all original operation guards',(
  const files=logs.split('aria-label="日志文件列表"')[1]!.split('</section>')[0]!;expect(files).not.toMatch(/@click|el-button|<a |RouterLink/);
 });
 it('I19-4 styles are policy-scoped or use the unique teleported log-settings class, not global modal rules',()=>{
- const css=read('operations/presentation.css').split('/* I19-4:')[1]!;
+ const css=read('operations/presentation.css').split('/* I19-4:')[1]!.split('/* I19-5:')[0]!;
  postcss.parse('/* I19-4:'+css).walkRules(rule=>{for(const s of rule.selector.split(/,(?![^()]*\))/))expect(s.trim()).toMatch(/^\.t8-ops\s\.ops-policy|^\.el-dialog\.ops-log-settings\s/)});
  expect(css).not.toMatch(/\.detail-body\s*\{|max-height|\.el-dialog__body|\.el-dialog__footer/);
 });

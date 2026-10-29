@@ -181,3 +181,41 @@
  .el-dialog.ops-log-settings .ops-log-file-row{grid-template-columns:minmax(0,1fr);gap:4px}
  .el-dialog.ops-log-settings .ops-log-mobile-label{display:inline}
 }
+
+/* I19-5: log console only; retain the full record and existing transport/actions. */
+.t8-ops .f3-log-console>.media-section-heading{margin-bottom:12px}
+.t8-ops .f3-log-console .f3-log-filters{align-items:end;gap:8px 12px;margin-block:12px}
+.t8-ops .f3-log-console .f4-log-time-range{min-height:0}
+.t8-ops .f3-log-console .f3-log-privacy,.t8-ops .f3-log-console .f5-debug-status{margin:8px 0}
+.t8-ops .f3-log-console .f3-log-table{block-size:auto;max-block-size:clamp(25rem,62vh,42rem);min-block-size:0;background:var(--mt-bg-surface);color:var(--mt-text-primary);border-color:var(--mt-border-color)}
+/* Only the first read reserves space. Refresh keeps the original rows in place. */
+.t8-ops .f3-log-console .f3-log-table:has(>.state-loading){block-size:clamp(25rem,62vh,42rem)}
+.t8-ops .f3-log-console .f3-log-table>.state-view{min-height:0;padding:16px 10px}
+.t8-ops .f3-log-console .f3-log-table>.f3-stale-warning{position:static;max-width:none;margin:0;border:0;border-bottom:1px solid var(--mt-border-color);background:var(--mt-bg-canvas);color:var(--mt-text-primary)}
+.t8-ops .f3-log-console .f3-log-table .state-empty .el-empty{padding:8px 0}
+.t8-ops .f3-log-console .f3-log-table .el-empty__image{width:64px!important;height:64px}
+.t8-ops .f3-log-console .f3-log-table .f3-log-row{border-color:var(--mt-border-color)}
+.t8-ops .f3-log-console .f3-log-table .f3-log-row:last-child{border-bottom:0}
+.t8-ops .f3-log-console .f3-log-table .f3-log-head{background:var(--mt-bg-canvas);color:var(--mt-text-muted)}
+.t8-ops .f3-log-console .f3-log-table .u6-raw{color:var(--mt-text-primary)}
+.t8-ops .f3-log-console .f3-log-message{min-width:0}
+.t8-ops .f3-log-console .f3-log-message small,.t8-ops .f3-log-console .f3-log-source{color:var(--mt-text-muted)}
+.t8-ops .f3-log-console .f3-log-source{min-height:32px;max-width:100%;line-height:1.5}
+.t8-ops .f3-log-console .f3-log-level{color:var(--mt-text-muted)}
+.t8-ops .f3-log-console .f3-log-level[data-level=info]{color:var(--mt-color-primary)}
+.t8-ops .f3-log-console .f3-log-level[data-level=warn],.t8-ops .f3-log-console .f3-log-level[data-level=warning]{color:var(--mt-color-warning)}
+.t8-ops .f3-log-console .f3-log-level[data-level=error]{color:var(--mt-color-danger)}
+@media(max-width:700px){
+ .t8-ops .f3-log-console>.media-section-heading{display:grid;grid-template-columns:repeat(5,minmax(44px,1fr));gap:8px}
+ .t8-ops .f3-log-console>.media-section-heading>h2{grid-column:1/4;grid-row:1;margin:0}
+ .t8-ops .f3-log-console .f3-log-tools{display:contents}
+ .t8-ops .f3-log-console .f3-log-tools>.el-switch{grid-column:4/6;grid-row:1;justify-self:end;margin:0}
+ .t8-ops .f3-log-console .f3-log-tools>.el-button{grid-row:2;justify-self:center;width:44px;height:44px;min-height:44px}
+ .t8-ops .f3-log-console .f3-log-filters>label:first-child{grid-column:1/-1}
+ .t8-ops .f3-log-console .f3-log-table .f3-log-row{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 8px;padding:8px 10px}
+ .t8-ops .f3-log-console .f3-log-row>time{grid-column:1;grid-row:1}
+ .t8-ops .f3-log-console .f3-log-row>.f3-log-level{grid-column:2;grid-row:1}
+ .t8-ops .f3-log-console .f3-log-row>.f3-log-message{grid-column:1/-1;grid-row:2;width:100%}
+ .t8-ops .f3-log-console .f3-log-row>[role=cell]:last-child{grid-column:1/-1;grid-row:3;min-width:0}
+ .t8-ops .f3-log-console .f3-log-source{display:block;width:100%;min-height:44px;padding:4px 0;box-sizing:border-box}
+}
