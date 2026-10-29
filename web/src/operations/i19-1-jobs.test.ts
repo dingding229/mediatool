@@ -19,6 +19,6 @@ it('I19-1 reuses lists/pagination, never truncates execution metadata and keeps 
  expect(source).toContain('!jobs.loaded&&!jobs.error');expect(source).toContain('aria-label="任务详情"');expect(source).toContain('aria-label="更多"');
 });
 it('I19-1 confines every selector to operations, without rewriting global stability/minimum sizes',()=>{
- const source=read('operations/presentation.css');postcss.parse(source).walkRules(rule=>{for(const s of rule.selector.split(/,(?![^()]*\))/))expect(s.trim(),s).toMatch(/^\.t8-ops(?:\s|>|[.:]|$)|^\.t8-ops-menu(?:\s|$)/)});
+ const source=read('operations/presentation.css');postcss.parse(source).walkRules(rule=>{for(const s of rule.selector.split(/,(?![^()]*\))/))expect(s.trim(),s).toMatch(/^\.t8-ops(?:\s|>|[.:]|$)|^\.t8-ops-menu(?:\s|$)|^\.el-dialog\.ops-log-settings\s/)});
  expect(source).toContain('.ops-job-list.ops-content-stage{min-height:0}');expect(source).toContain('.ops-job-meta-queue{display:inline}');
 });

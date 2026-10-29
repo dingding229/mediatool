@@ -51,11 +51,11 @@ defineExpose({ load, reloadPolicy, save, form, revision, latest, op, read });
 usePageRefresh(load,'maintenance');
 </script>
 <template>
-  <section class="media-surface">
+  <section class="media-surface ops-policy-panel">
     <h2>备份、采样与告警策略</h2>
     <ResourceState :stale="read.loaded" :loading="read.loading" :error="read.error" @reload="load"/>
     <form v-if="form" class="u5-form" @submit.prevent="save">
-      <div class="u6-policy">
+      <div class="u6-policy ops-policy-grid">
         <label class="u5-check">
           <input v-model="form.backupEnabled" type="checkbox"/>
           启用定时备份

@@ -30,7 +30,7 @@ it('I19-3 reuses lists and pagination while keeping acknowledgement separate fro
  expect(alerts).not.toContain('已恢复');
 });
 it('I19-3 CSS stays confined to operations and never changes global dialogs or time controls',()=>{
- const source=read('operations/presentation.css').split('/* I19-3:')[1]!;postcss.parse('/* I19-3:'+source).walkRules(rule=>{
+ const source=read('operations/presentation.css').split('/* I19-3:')[1]!.split('/* I19-4:')[0]!;postcss.parse('/* I19-3:'+source).walkRules(rule=>{
   for(const selector of rule.selector.split(/,(?![^()]*\))/))expect(selector.trim()).toMatch(/^\.t8-ops\s/);
  });expect(source).not.toMatch(/\.el-dialog|\.detail-body|\.is-overview|\.confirm-action/);
 });

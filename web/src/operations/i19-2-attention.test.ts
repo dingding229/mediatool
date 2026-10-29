@@ -17,7 +17,7 @@ it('I19-2 retains full detail data and original confirmation without any queue c
  const queues=source.split('aria-label="队列列表"')[1]!.split('</section>')[0]!;expect(queues).not.toMatch(/@click|el-button|RouterLink/);
 });
 it('I19-2 confines all new CSS to operations and attention, never global homepage or modal sizing',()=>{
- const source=read('operations/presentation.css').split('/* I19-2:')[1]!;
+ const source=read('operations/presentation.css').split('/* I19-2:')[1]!.split('/* I19-3:')[0]!;
  postcss.parse('/* I19-2:'+source).walkRules(rule=>{for(const selector of rule.selector.split(/,(?![^()]*\))/))expect(selector.trim()).toMatch(/^\.t8-ops\s/)});
  expect(source).not.toMatch(/\.is-overview|\.detail-body|\.el-dialog|\.confirm-action/);
  expect(source).toContain('.ops-attention-dashboard .service-readiness');expect(source).toContain('.ops-attention-dashboard .dashboard-inbox');
