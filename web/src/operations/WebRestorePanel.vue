@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { View, Refresh } from '@element-plus/icons-vue';
 import { useRefresh } from '../composables/useRefresh';
 import {pendingRestore,rememberRestore,clearRestore} from '../workflows/restore-session';
 import {onMounted,onUnmounted,ref} from 'vue';
@@ -22,25 +23,32 @@ onUnmounted(()=>{alive=false;++epoch});
 usePageRefresh(()=>load());
 </script>
 <template>
-<section aria-label="网页备份恢复" class="media-surface">
+<section aria-label="网页备份恢复" class="media-surface ops-web-restore">
  <h2>网页备份恢复</h2>
+ <div class="ops-web-restore-risk" role="note">
  <p>先预览校验，再输入备份确认短语。确认需10分钟内的新近登录；执行前自动保留恢复前快照。</p>
  <p>账号、115授权、连接、设置、媒体记录、插件配置及KV全部随备份回退；不覆盖现存播放文件。数据库恢复后旧任务暂停，需逐项核对。</p>
+ </div>
  <p v-if="notice" role="status">{{notice}}</p>
  <ResourceState :loading="props.backupsLoading" :error="props.backupError"/>
- <article v-for="b in (props.backupError?[]:props.backups).filter(b=>b.state==='ready')" :key="b.id" class="organize-record">
-  <h3>{{b.id}}</h3><p>来源 {{b.origin}} · {{date(b.createdAt)}} · 数据结构 {{b.manifest?.schema??'—'}} · {{formatBytes(b.bytes)}}</p>
-  <p>SHA256 {{b.digest}} · 完整性：{{records.some(r=>r.backupId===b.id&&r.digest===b.digest)?'上次预览校验通过；再次执行前会重检':'尚未校验，请先预览'}} · 包含数据库、清单和登记的受管输出</p>
-  <el-button :disabled="busy||previewLoading||!!props.backupError||props.backupsLoading" @click="inspect(b.id)">{{b.origin==='pre-restore'?'预览回滚到恢复前':'预览网页恢复'}}</el-button>
+ <p class="ops-web-restore-scope">包含数据库、清单和登记的受管输出</p>
+ <div v-if="!props.backupError&&props.backups.some(b=>b.state==='ready')" class="mt-list-columns ops-web-restore-columns" aria-hidden="true"><span>备份 / 来源 / 时间</span><span>SHA256 / 完整性</span><span>操作</span></div>
+ <article v-for="b in (props.backupError?[]:props.backups).filter(b=>b.state==='ready')" :key="b.id" class="mt-list-row ops-web-backup-row">
+  <div class="ops-web-backup-name"><h3>{{b.id}}</h3><p>来源 {{b.origin}} · {{date(b.createdAt)}}</p><p>数据结构 {{b.manifest?.schema??'—'}} · {{formatBytes(b.bytes)}}</p></div>
+  <div class="ops-web-restore-meta"><p class="ops-web-restore-digest">SHA256 {{b.digest}}</p><p>完整性：{{records.some(r=>r.backupId===b.id&&r.digest===b.digest)?'上次预览校验通过；再次执行前会重检':'尚未校验，请先预览'}}</p></div>
+  <div class="media-actions mt-list-actions"><el-button size="small" :aria-label="b.origin==='pre-restore'?'预览回滚到恢复前':'预览网页恢复'" :disabled="busy||previewLoading||!!props.backupError||props.backupsLoading" @click="inspect(b.id)"><el-icon class="mt-list-action-icon"><Refresh v-if="b.origin==='pre-restore'"/><View v-else/></el-icon><span class="mt-list-action-text">{{b.origin==='pre-restore'?'预览回滚到恢复前':'预览网页恢复'}}</span></el-button></div>
  </article>
  <ResourceState :empty="!props.backupsLoading&&!props.backupError&&!props.backups.some(b=>b.state==='ready')" empty-title="暂无可恢复备份"/>
- <h3>网页恢复执行记录</h3>
+ <h3 class="ops-web-restore-record-heading">网页恢复执行记录</h3>
  <ResourceState :loading="loading" :error="error" :empty="!loading&&!error&&!records.length" empty-title="暂无网页恢复记录" @reload="load"/>
- <template v-if="!error"><article v-for="r in records" :key="r.id" class="organize-record">
-  <h3>{{label(r.state)}}</h3><p>备份 {{r.backupId}} · {{date(r.createdAt)}}</p><p>{{r.message||'—'}}</p>
-  <p v-if="r.snapshotId">恢复前快照 {{r.snapshotId}}</p>
-  <el-button v-if="r.state==='unknown'" :disabled="busy" @click="reconcile(r.id)">核对中断结果</el-button>
-  <el-button v-if="r.snapshotId&&['completed','rolled_back'].includes(r.state)" :disabled="busy||previewLoading||!!props.backupError||props.backupsLoading" @click="inspect(r.snapshotId)">预览回滚到恢复前</el-button>
+ <template v-if="!error">
+ <div v-if="records.length" class="mt-list-columns ops-web-restore-columns" aria-hidden="true"><span>状态 / 备份 / 时间</span><span>说明 / 恢复前快照</span><span>操作</span></div>
+ <article v-for="r in records" :key="r.id" class="mt-list-row ops-web-record-row">
+  <div><h3>{{label(r.state)}}</h3><p>备份 {{r.backupId}}</p><p>{{date(r.createdAt)}}</p></div><div class="ops-web-restore-meta"><p>{{r.message||'—'}}</p><p v-if="r.snapshotId">恢复前快照 {{r.snapshotId}}</p></div>
+  <div class="media-actions mt-list-actions">
+   <el-button size="small" aria-label="核对中断结果" v-if="r.state==='unknown'" :disabled="busy" @click="reconcile(r.id)"><el-icon class="mt-list-action-icon"><Refresh/></el-icon><span class="mt-list-action-text">核对中断结果</span></el-button>
+   <el-button size="small" aria-label="预览回滚到恢复前" v-if="r.snapshotId&&['completed','rolled_back'].includes(r.state)" :disabled="busy||previewLoading||!!props.backupError||props.backupsLoading" @click="inspect(r.snapshotId)"><el-icon class="mt-list-action-icon"><Refresh/></el-icon><span class="mt-list-action-text">预览回滚到恢复前</span></el-button>
+  </div>
  </article></template>
  <DetailDrawer v-model:visible="previewOpen" title="网页恢复预览" size="large">
   <ResourceState :loading="previewLoading" :error="previewError"/>

@@ -2,6 +2,7 @@ import {test,expect} from '@playwright/test'
 import {mkdirSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {u6OpsFixture,opsSnapshot} from './u6-fixture'
+const capture=process.env.I197_SCREENSHOTS==='1'&&!process.env.CI&&!process.env.GITHUB_ACTIONS
 const backup='11111111-0000-4000-8000-000000000075',id='22222222-0000-4000-8000-000000000075',snapshot='33333333-0000-4000-8000-000000000075',digest='a'.repeat(64)
 const receipt={id,backupSchema:75,programSchema:75,backupId:backup,digest,state:'preview',createdAt:'2026-10-22T00:00:00Z',expiresAt:'2099-10-22T00:10:00Z',message:''}
 const preview={restore:receipt,confirmText:'恢复 '+backup,includes:['数据库、登记的缺失播放文件'],excludes:['主密钥、115媒体、现存STRM、Emby和CloudDrive2数据'],message:'SHA256、密文与向上迁移校验通过。'}
@@ -28,8 +29,8 @@ test('B4 unknown is read back without replay; loading, failure and empty are dis
  await page.route('**/api/v1/ops/restores',r=>r.fulfill({status:503,json:{error:{message:'恢复记录读取失败'}}}));await page.getByRole('button',{name:'刷新',exact:true}).click();await expect(page.getByText('恢复记录读取失败',{exact:true})).toBeVisible();await expect(page.getByText('暂无网页恢复记录',{exact:true})).toHaveCount(0)
 })
 test('B4 restore screenshots at desktop and narrow dark layout',async({page})=>{
- await page.route('**/api/v1/ops/restores/preview',r=>r.fulfill({json:{data:preview}}));const dir=resolve('test-results/b4');mkdirSync(dir,{recursive:true})
- for(const [width,theme] of [[1440,'light'],[375,'dark']] as const){await page.setViewportSize({width,height:950});await page.addInitScript(theme=>localStorage.setItem('media-tool:theme-mode:v1',theme),theme);await open(page);await page.evaluate(()=>window.scrollTo(0,0));await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(dir,`restore-${width}-${theme}.png`),fullPage:true,animations:'disabled'});await page.getByRole('button',{name:'预览网页恢复',exact:true}).click();await expect(page.getByRole('dialog',{name:'网页恢复预览',exact:true})).toBeVisible();await page.getByRole('dialog',{name:'网页恢复预览',exact:true}).screenshot({path:resolve(dir,`preview-${width}-${theme}.png`),animations:'disabled'});await page.getByRole('dialog',{name:'网页恢复预览',exact:true}).getByRole('button',{name:'关闭此对话框',exact:true}).click()}
+ await page.route('**/api/v1/ops/restores/preview',r=>r.fulfill({json:{data:preview}}));const dir=resolve('test-results/b4');if(capture)mkdirSync(dir,{recursive:true})
+ for(const [width,theme] of [[1440,'light'],[375,'dark']] as const){await page.setViewportSize({width,height:950});await page.addInitScript(theme=>localStorage.setItem('media-tool:theme-mode:v1',theme),theme);await open(page);await page.evaluate(()=>window.scrollTo(0,0));await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);if(capture)await page.screenshot({path:resolve(dir,`restore-${width}-${theme}.png`),fullPage:true,animations:'disabled'});await page.getByRole('button',{name:'预览网页恢复',exact:true}).click();await expect(page.getByRole('dialog',{name:'网页恢复预览',exact:true})).toBeVisible();if(capture)await page.getByRole('dialog',{name:'网页恢复预览',exact:true}).screenshot({path:resolve(dir,`preview-${width}-${theme}.png`),animations:'disabled'});await page.getByRole('dialog',{name:'网页恢复预览',exact:true}).getByRole('button',{name:'关闭此对话框',exact:true}).click()}
 })
 test('B4 restore list loading is not rendered as empty',async({page})=>{
  let release!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve})

@@ -24,10 +24,9 @@ it('I19-6 preserves every original action guard and all safety text, including r
  expect(source).toContain('<el-option value="" label="请选择"/>');expect(source.match(/<el-option value="" label="请选择"\/>/g)).toHaveLength(2);
 });
 it.each([
- ['operations/WebRestorePanel.vue','1d30029347e9ed932361e83cdeefbc6f7b0d401eb26301b314b74fc843bab585'],
  ['ui/ConfirmAction.vue','abb54b05b33a408a385aef0ad5d32b311be6d7b77ab7125c481cd10f8773278b'],
  ['ui/PreviewApprove.vue','e015b8824bee6d214b2638323540119416d7b69c82ac07a318577189b88c629a'],
-])('I19-6 leaves shared confirmation/workflow and I19-7 web recovery unchanged: %s',(file,hash)=>expect(sha(read(file))).toBe(hash));
+])('I19-6 leaves shared confirmation/workflow unchanged: %s',(file,hash)=>expect(sha(read(file))).toBe(hash));
 it.each([
  ['maintenance.go','de9ddec5d94e80116c797070b28a6a58483a47c9ba51d88e37d2196106193f4e'],
  ['web_restore.go','e74e964aece0b1ccad84a687fac4206f83e86d0edcfc9eaa19e16c17d15bbb10'],
@@ -41,6 +40,6 @@ it.each([
  expect(sha(readFileSync(new URL('../../../internal/modules/maintenance/'+file,import.meta.url),'utf8'))).toBe(hash);
 });
 it('I19-6 style selectors affect only the named backup/CLI lists and preserve all shared modal sizing',()=>{
- const css=read('operations/presentation.css').split('/* I19-6:')[1]!;postcss.parse('/* I19-6:'+css).walkRules(rule=>{for(const s of rule.selector.split(/,(?![^()]*\))/))expect(s.trim()).toMatch(/^\.t8-ops\s/)});
+ const css=read('operations/presentation.css').split('/* I19-6:')[1]!.split('/* I19-7:')[0]!;postcss.parse('/* I19-6:'+css).walkRules(rule=>{for(const s of rule.selector.split(/,(?![^()]*\))/))expect(s.trim()).toMatch(/^\.t8-ops\s/)});
  expect(css).not.toMatch(/\.el-dialog|\.detail-body|\.confirm-action|\.preview-approve|\.web-restore/);
 });

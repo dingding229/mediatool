@@ -249,3 +249,22 @@
  .t8-ops .u5-filters.ops-cli-filters{grid-template-columns:minmax(0,1fr) auto;gap:12px 8px}
  .t8-ops .ops-cli-filters>.el-button{padding-inline:12px}
 }
+
+/* I19-7: web restore lists only. Shared risk/confirmation dialogs stay unchanged. */
+.t8-ops .ops-web-restore>h2{font-size:16px;margin:0 0 12px}
+.t8-ops .ops-web-restore-risk{padding:8px 12px;border-left:3px solid var(--el-color-warning);background:var(--mt-bg-canvas);margin:0 0 12px}
+.t8-ops .ops-web-restore-risk>p{margin:4px 0;font-size:13px;line-height:1.7}
+.t8-ops .ops-web-restore-scope{font-size:13px;color:var(--mt-text-muted);margin:8px 0}
+.t8-ops .ops-web-restore-columns,.t8-ops .ops-web-backup-row.mt-list-row,.t8-ops .ops-web-record-row.mt-list-row{grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) 156px}
+.t8-ops .ops-web-backup-row.mt-list-row,.t8-ops .ops-web-record-row.mt-list-row{padding:10px 0;min-height:64px;overflow-wrap:anywhere}
+.t8-ops .ops-web-restore-meta,.t8-ops .ops-web-backup-name>p{color:var(--mt-text-muted)}
+.t8-ops .ops-web-restore-digest{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px!important;word-break:break-all}
+.t8-ops .ops-web-backup-row .mt-list-actions,.t8-ops .ops-web-record-row .mt-list-actions{display:flex}
+.t8-ops .ops-web-restore>.ops-web-restore-record-heading{margin:24px 0 8px}
+.t8-ops .ops-web-restore>.state-view{min-height:0;padding:12px 0}
+.t8-ops .ops-web-restore .state-empty .el-empty{padding:8px 0}
+@media(max-width:1240px){
+ .t8-ops .ops-web-backup-row.mt-list-row,.t8-ops .ops-web-record-row.mt-list-row{grid-template-columns:minmax(0,1fr) 44px;gap:6px 8px}
+ .t8-ops .ops-web-backup-row .ops-web-restore-meta,.t8-ops .ops-web-record-row .ops-web-restore-meta{grid-column:1/-1;grid-row:2}
+ .t8-ops .ops-web-backup-row .mt-list-actions,.t8-ops .ops-web-record-row .mt-list-actions{grid-column:2;grid-row:1;align-self:start}
+}
