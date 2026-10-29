@@ -228,19 +228,35 @@ func (e Engine) History(ctx context.Context, hours int) ([]map[string]any, error
 	}
 	return out, rows.Err()
 }
-func (e Engine) Alerts(ctx context.Context) ([]json.RawMessage, error) {
-	rows, err := e.DB.Query(ctx, `SELECT to_jsonb(a) FROM ops_alerts a ORDER BY code`)
+func (e Engine) Alerts(ctx context.Context) ([]Alert, error) {
+	rows, err := e.DB.Query(ctx, `SELECT a.code,a.state,a.hits,a.value,a.first_seen_at,a.last_seen_at,a.last_sent_at,a.acknowledged_at,a.message,p.value
+ FROM ops_alerts a CROSS JOIN ops_policy p WHERE p.singleton ORDER BY a.code`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []json.RawMessage{}
+	out := []Alert{}
 	for rows.Next() {
-		var raw json.RawMessage
-		if err = rows.Scan(&raw); err != nil {
+		var a Alert
+		var policyRaw []byte
+		if err = rows.Scan(&a.Code, &a.State, &a.Hits, &a.Value, &a.FirstSeenAt, &a.LastSeenAt, &a.LastSentAt, &a.AcknowledgedAt, &a.Message, &policyRaw); err != nil {
 			return nil, err
 		}
-		out = append(out, raw)
+		policy := Defaults()
+		if err = json.Unmarshal(policyRaw, &policy); err != nil {
+			return nil, err
+		}
+		for _, rule := range alertRules(policy) {
+			if rule.code == a.Code {
+				a.Threshold = &rule.threshold
+				a.Unit, a.Comparison = rule.unit, ">="
+				if rule.below {
+					a.Comparison = "<="
+				}
+				break
+			}
+		}
+		out = append(out, a)
 	}
 	return out, rows.Err()
 }

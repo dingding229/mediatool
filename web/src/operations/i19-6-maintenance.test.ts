@@ -6,7 +6,7 @@ const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it('I19-6 leaves all maintenance request/paging/reconciliation functions byte-identical, apart from icon imports',()=>{
  const script=read('operations/MaintenancePanel.vue').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { Check, View, Refresh, Download, Lock, Unlock, Delete, Close } from '@element-plus/icons-vue';\n",'');
- expect(sha(script)).toBe('066abaf4ed9170367364422285f013914a52ac86946f198e92fa23ece8a93f8e');
+ expect(sha(script)).toBe('e89b4dd415f0c5e806223d8002798f1e0360ec334c9144860131a40a66b437fa');
  const source=read('operations/MaintenancePanel.vue');expect(sha(source.slice(source.indexOf('    <ConfirmAction v-model:visible="confirm"')))).toBe('67264737fd68b758a325374b56bb1cbaf6c20d4506c185a8d7636893a44d8cc9');
 });
 it('I19-6 preserves every original action guard and all safety text, including recent-two backup protection',()=>{
@@ -35,7 +35,7 @@ it.each([
  expect(sha(readFileSync(new URL('../../../internal/platform/httpapi/'+file,import.meta.url),'utf8'))).toBe(hash);
 });
 it.each([
- ['repository.go','2193d3d9b4a46fcaba849343736188ef64c2eb16373d815aa1e56fee981fa427'],
+ ['repository.go','0e400c02823bf0bc8808fda6fda69c54798385eaf6f8539e43b8f5eb72c26e21'],
  ['requests.go','df912b24bac325dfd1983341738fdfa85e4a41d76528c73480823cf393a36f84'],
 ])('I19-6 leaves backup-retention protection and frozen CLI approval logic unchanged: %s',(file,hash)=>{
  expect(sha(readFileSync(new URL('../../../internal/modules/maintenance/'+file,import.meta.url),'utf8'))).toBe(hash);

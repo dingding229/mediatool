@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Check, View, Refresh, Download, Lock, Unlock, Delete, Close } from '@element-plus/icons-vue';
+import StatusBadge from '../components/StatusBadge.vue';
+import {alertPresentation} from './alerts';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { formatBytes as bytes } from './model';
@@ -23,6 +25,7 @@ const recordPages=reactive({backups:usePageNumber('backupsPage'),drills:usePageN
 const recordSizes=reactive({backups:usePageSize(25,'backupsPage'),drills:usePageSize(25,'drillsPage'),requests:usePageSize(25,'maintenanceRequestsPage'),alerts:usePageSize(25,'alertsPage')});
 function recordRows(kind:keyof typeof recordPages){return (data.data?.[kind]||[]).slice((recordPages[kind]-1)*recordSizes[kind],recordPages[kind]*recordSizes[kind])}
 const data = reactive(useResource<any>(() => request('/ops'))), op = reactive(useOperation('maintenance')), section = ref(useRoute().query.restore?'recovery':'backups'), confirm = ref(false), action = ref<any>(null), detail = ref<any>(null), detailOpen = ref(false), restoreID = ref(''), rollbackID = ref(''), preview = ref<any>(null), previewLoading = ref(false), previewError = ref<unknown>(null), previewDialog = ref(false), approval = ref(false), copied = ref(''), commandCopy = ref('');
+const alertRows=computed(()=>recordRows('alerts').map((a:any)=>({...a,display:alertPresentation(a)})));
 async function load() {
   await data.load();
   if (preview.value && !data.error) {
@@ -189,9 +192,9 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     <section v-else-if="section==='alerts'" class="media-surface ops-alerts-panel">
       <header class="media-section-heading"><h3>阈值告警</h3><RouterLink to="/connections?tab=notifications">查看通知投递记录</RouterLink></header>
       <div v-if="data.data?.alerts?.length" class="mt-list-columns ops-alert-columns" aria-hidden="true"><span>告警 / 状态</span><span>当前值</span><span>连续次数 / 最近发生</span><span>操作</span></div>
-      <article v-for="a in recordRows('alerts')" :key="a.code" class="mt-list-row ops-alert-row">
-        <div class="ops-alert-name"><h3>{{ a.message||a.code }}</h3><p>{{ stateLabel(a.state) }}</p></div>
-        <p class="ops-alert-value"><span class="ops-mobile-label">当前 </span>{{ a.value??'—' }}</p>
+      <article v-for="a in alertRows" :key="a.code" class="mt-list-row ops-alert-row">
+        <div class="ops-alert-name"><h3>{{ a.display.name }}</h3><StatusBadge :state="a.display.badgeState" :label="a.display.badgeLabel"/><p v-if="a.display.description">{{ a.display.description }}</p></div>
+        <div class="ops-alert-value"><p><span class="ops-mobile-label">当前 </span>{{ a.display.value }}</p><small v-if="a.display.threshold" class="ops-alert-threshold">{{ a.display.threshold }}</small></div>
         <div class="ops-alert-time"><p>连续 {{ a.hits??'—' }} 次</p><p>{{ date(a.last_seen_at) }}</p></div>
         <div class="media-actions mt-list-actions">
           <el-button size="small" aria-label="确认告警" v-if="a.state==='active'&&!a.acknowledged_at" :disabled="!!op.pending" @click="ask('ack',a)"><el-icon class="mt-list-action-icon"><Check/></el-icon><span class="mt-list-action-text">确认告警</span></el-button>

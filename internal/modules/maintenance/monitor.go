@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"golang.org/x/sys/unix"
 	deferutil "media-tool/internal/platform/cleanup"
-	"media-tool/internal/platform/outbox"
 	"media-tool/internal/platform/scheduling"
 	"os"
 	"path/filepath"
@@ -172,11 +171,7 @@ func number(v any) *float64 {
 	return &n
 }
 func (e Engine) evaluate(ctx context.Context, p Policy, v map[string]any) error {
-	rules := []struct {
-		code, key, message string
-		threshold          float64
-		below              bool
-	}{{"plugin_journal", "pluginJournalUsed", "插件事件journal容量高，请核对订阅游标/unknown任务与保留窗口", outbox.PluginJournalWarning, false}, {"memory", "memoryPercent", "宿主内存使用率过高", p.MemoryPercent, false}, {"disk", "diskFreeGB", "STRM所在文件系统剩余空间不足", p.DiskFreeGB, true}, {"load", "loadPerCPU", "宿主每CPU负载过高", p.LoadPerCPU, false}, {"workers", "offlineQueues", "业务Worker离线", 1, false}, {"failures", "failedJobs10m", "十分钟内失败任务过多", float64(p.FailedJobs), false}}
+	rules := alertRules(p)
 	tx, err := e.DB.Begin(ctx)
 	if err != nil {
 		return err

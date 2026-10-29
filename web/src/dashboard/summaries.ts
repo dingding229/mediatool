@@ -26,7 +26,7 @@ export function failedJobs(slots: Record<string, Slot>): InboxItem[] {
     const object = field ? p[field] : r.kind === 'system.check' ? 'system' : r.id;
     const account = list(slots.accounts?.data).find(a => a.id === object);
     const title = account?.name || [...list(slots.transfers?.data), ...list(slots.manual?.data)].find(a => a.id === object)?.title;
-    const key = JSON.stringify([r.kind, field || '', object, String(r.lastError || '').trim().replace(/\s+/g, ' ')]);
+    const key = JSON.stringify([r.kind, field || '', object]);
     const latestAt = r.updatedAt || r.createdAt;
     const old = groups.get(key), count = (old?.count || 0) + 1;
     if (old && time({ updatedAt: old.latestAt }) > time(r)) {

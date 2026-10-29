@@ -134,9 +134,11 @@
 .t8-ops .ops-alert-warning{margin:12px 0 0;padding:8px 12px;border-left:3px solid var(--el-color-warning);background:var(--mt-bg-canvas);font-size:13px;line-height:1.7}
 .t8-ops .ops-alerts-panel>.media-section-heading>h3{margin:0}
 .t8-ops .ops-alerts-panel>.media-section-heading>a{display:inline-flex;align-items:center;min-height:44px;font-size:13px;color:var(--mt-color-primary)}
-.t8-ops .ops-alert-columns,.t8-ops .ops-alert-row.mt-list-row{grid-template-columns:minmax(0,1.5fr) 100px minmax(0,1fr) 96px}
+.t8-ops .ops-alert-columns,.t8-ops .ops-alert-row.mt-list-row{grid-template-columns:minmax(0,1.5fr) 150px minmax(0,1fr) 96px}
 .t8-ops .ops-alert-row.mt-list-row{padding:8px 0;font-size:13px;overflow-wrap:anywhere}
 .t8-ops .ops-alert-name>p,.t8-ops .ops-alert-time>p:last-child{color:var(--mt-text-muted)}
+.t8-ops .ops-alert-name>.status-badge{margin-top:4px}
+.t8-ops .ops-alert-value>.ops-alert-threshold{display:block;margin-top:4px;color:var(--mt-text-muted);font-size:12px}
 @media(max-width:1240px){
  .t8-ops .ops-cache-row.mt-list-row,.t8-ops .is-search .ops-cache-row.mt-list-row{grid-template-columns:minmax(0,1fr) 92px;gap:4px 8px}
  .t8-ops .is-search .ops-cache-row.mt-list-row{grid-template-columns:minmax(0,1fr) 140px}
