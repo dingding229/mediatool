@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {usePageNumber,usePageSize} from '../ui/page-query';
-import {beijingTime} from '../presentation/time';
+import ConnectionHealth from './ConnectionHealth.vue';
 import {usePageRefresh} from '../ui/page-refresh';
 import './connections.css';
 import { computed, ref, watch } from 'vue';
@@ -13,7 +13,6 @@ import StateView from '../ui/StateView.vue';
 import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-import StatusBadge from '../components/StatusBadge.vue';
 import Official115AuthDialog from '../components/Official115AuthDialog.vue';
 import { useConnections } from './useConnections';
 import { useSecretReveal } from './useSecretReveal';
@@ -61,14 +60,13 @@ usePageRefresh(load);
   <article v-for="row in visible.slice((connectionPage-1)*connectionSize,connectionPage*connectionSize)" :key="row.id" class="saved-connection">
     <div>
       <h3>{{ row.name }}</h3>
-      <p>{{ kinds[row.kind]?.name }} · {{ row.enabled?'已启用':'未启用' }}</p>
-      <StatusBadge :state="row.readiness?.state||row.lastCheckState" />
-      <p v-if="row.kind==='open115'">上次健康检测：{{beijingTime(row.lastCheckedAt)}} · {{row.lastCheckMessage||'尚未检测'}}</p>
+      <p>{{ kinds[row.kind]?.name }} · {{ row.enabled?'已启用':'已停用' }}</p>
+      <ConnectionHealth :state="row.enabled?(row.lastCheckState==='ready'?'ready':'unavailable'):'disabled'" :checked-at="row.lastCheckedAt" :message="row.lastCheckMessage"/>
       <p>{{ row.secretFields?.length?'凭据已设置':'凭据未设置' }}</p>
     </div>
     <div class="connection-buttons">
       <el-button @click="edit(row)">{{ row.kind==='tmdb'?'编辑TMDB Token':'编辑' }}</el-button>
-      <el-button :disabled="!!testState" :loading="testing===row.id" @click="test(row)">测试连接</el-button>
+      <el-button :disabled="!row.enabled||!!testState" :loading="testing===row.id" @click="test(row)">测试连接</el-button>
       <el-button v-if="row.kind==='open115'" @click="authorize(row)">115扫码授权</el-button>
       <el-button type="danger" plain @click="askRemove(row)">删除</el-button>
     </div>

@@ -42,8 +42,8 @@ export function inboxGroups(slots: Record<string, Slot>): InboxGroup[] {
   return groups;
 }
 export function guideSteps(readiness: Readiness | null, integrations: any, classification: any) {
-  const connected=(key:string)=>['ready','check_required'].includes(readiness?.components?.[key]?.state||'');
-  const needsCheck=(keys:string[])=>keys.some(k=>readiness?.components?.[k]?.state==='check_required');
+  const connected=(key:string)=>['ready','check_required'].includes(readiness?.components?.[key]?.state||'')||readiness?.components?.[key]?.reason==='probe_missing_or_stale';
+  const needsCheck=(keys:string[])=>keys.some(k=>readiness?.components?.[k]?.state==='check_required'||readiness?.components?.[k]?.reason==='probe_missing_or_stale');
   return [
     { label: '连接 115/CD2', done: connected('open115')&&connected('clouddrive2'), note:connected('open115')&&connected('clouddrive2')&&needsCheck(['open115','clouddrive2'])?'已连接，需要检测':'', path: '/connections', tab: 'storage' },
     { label: '添加站点', done: list(integrations).some(r => r.kind === 'ptsite' && r.enabled), path: '/sites', tab: 'accounts' },

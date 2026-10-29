@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConnectionHealth from '../connections/ConnectionHealth.vue';
 import StateView from '../ui/StateView.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import { readinessLabel, readinessReason, services, stateFor, errorText, type Readiness } from './readiness';
@@ -9,6 +10,7 @@ defineProps<{
   canTest?:boolean;
   testing?:boolean;
   testLocked?:boolean;
+  overview?:boolean;
 }>();
 defineEmits<{
   test: [];
@@ -17,15 +19,16 @@ defineEmits<{
 }>();
 </script>
 <template>
-<section class="service-readiness" aria-label="服务就绪状态">
+<section class="service-readiness" :class="{'is-overview':overview}" aria-label="服务就绪状态">
   <StateView v-if="loading" state="loading" title="正在检查服务状态…" />
   <StateView v-else-if="error" :state="stateFor(error)" title="服务状态暂不可用" :description="errorText(error)" @retry="$emit('retry')" />
   <div v-else class="readiness-cards">
-    <article v-for="service in services" :key="service.key">
+    <article v-for="service in services.filter(s=>!overview||s.key!=='strm')" :key="service.key">
       <h3>{{ service.name }}</h3>
-      <StatusBadge :state="value?.components?.[service.key]?.state || 'unavailable'" :label="readinessLabel(value?.components?.[service.key])" />
-      <p>{{ readinessReason(value?.components?.[service.key]) }}</p>
-      <el-button v-if="service.key==='open115'&&value?.components?.open115?.state==='check_required'&&canTest" class="readiness-test" :loading="testing" :disabled="testLocked||testing" @click="$emit('test')">立即检测</el-button>
+      <ConnectionHealth v-if="service.key!=='strm'&&value?.components?.[service.key]?.state!=='not_configured'" :state="value?.components?.[service.key]?.state||'unavailable'" :checked-at="value?.components?.[service.key]?.lastCheckedAt" :message="value?.components?.[service.key]?.message"/>
+      <StatusBadge v-else :state="value?.components?.[service.key]?.state || 'unavailable'" :label="readinessLabel(value?.components?.[service.key])" />
+      <p v-if="service.key==='strm'||value?.components?.[service.key]?.state==='not_configured'">{{ readinessReason(value?.components?.[service.key]) }}</p>
+      <el-button v-if="service.key==='open115'&&value?.components?.open115?.state!=='disabled'&&canTest" class="readiness-test" :loading="testing" :disabled="testLocked||testing" @click="$emit('test')">立即检测</el-button>
       <RouterLink :to="{ path: '/connections', query: { tab: service.tab } }">
         {{value?.components?.[service.key]?.state==='ready'?'查看':'去处理'}}
         <span class="sr-only">{{ service.name }}</span>
@@ -36,11 +39,14 @@ defineEmits<{
 </section>
 </template>
 <style scoped>
+.service-readiness.is-overview{min-height:200px}
+
 .readiness-cards  {
    display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:16px
 }
+.readiness-cards:has(>article:nth-child(3):last-child){grid-template-columns:repeat(3,minmax(0,1fr))}
 .readiness-cards article  {
    padding:20px;
   border:1px solid var(--mt-border-color);
@@ -75,19 +81,19 @@ defineEmits<{
   clip-path:inset(50%)
 }
 @media(max-width:1100px) {
-  .readiness-cards {
+  .readiness-cards,.readiness-cards:has(>article:nth-child(3):last-child) {
     grid-template-columns:1fr 1fr
   }
 }
 @media(max-width:600px) {
-  .readiness-cards {
+  .readiness-cards,.readiness-cards:has(>article:nth-child(3):last-child) {
     grid-template-columns:1fr
   }
   .readiness-cards{gap:0;border:1px solid var(--mt-border-color);border-radius:12px;background:var(--mt-bg-surface);overflow:hidden}
   .readiness-cards article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;border:0;border-radius:0;padding:12px 16px;border-bottom:1px solid var(--mt-border-color)}
   .readiness-cards article:last-child{border-bottom:0}
   .readiness-cards h3{font-size:14px;margin:0}
-  .readiness-cards :deep(.status-badge){justify-self:end}
+  .readiness-cards :deep(.status-badge){justify-self:end}.readiness-cards :deep(.connection-health){grid-column:1/-1;grid-row:2}.readiness-cards article:has(.connection-health) a{grid-column:2;grid-row:1}
   .readiness-cards p{min-height:0;margin:0;grid-column:1;font-size:12px}
   .readiness-cards a{grid-column:2;grid-row:2;justify-self:end;align-self:center;min-height:44px}
 

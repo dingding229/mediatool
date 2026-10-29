@@ -42,7 +42,7 @@ func hostFixture(t *testing.T) (AcquisitionHost, context.Context) {
 	if _, e = base.Exec(ctx, `CREATE SCHEMA `+pgx.Identifier{schema}.Sanitize()); e != nil {
 		t.Fatal(e)
 	}
-	tables := []string{"integrations", "site_definitions", "site_template_loads", "site_metrics", "site_metric_schedule", "application_settings", "network_proxy_settings", "search_runs", "search_site_results", "search_run_resources", "resources", "download_tasks", "download_files", "transfer_tasks", "manual_download_tasks", "download_cleanup_requests", "subscriptions", "subscription_runs", "jobs", "outbox_events", "audit_logs"}
+	tables := []string{"integrations", "integration_health_schedule", "site_definitions", "site_template_loads", "site_metrics", "site_metric_schedule", "application_settings", "network_proxy_settings", "search_runs", "search_site_results", "search_run_resources", "resources", "download_tasks", "download_files", "transfer_tasks", "manual_download_tasks", "download_cleanup_requests", "subscriptions", "subscription_runs", "jobs", "outbox_events", "audit_logs"}
 	for _, name := range tables {
 		if _, e = base.Exec(ctx, `CREATE TABLE `+pgx.Identifier{schema, name}.Sanitize()+` (LIKE public.`+pgx.Identifier{name}.Sanitize()+` INCLUDING ALL)`); e != nil {
 			t.Fatal(e)

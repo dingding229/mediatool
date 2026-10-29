@@ -77,10 +77,11 @@ func (m *Manager) officialToken(ctx context.Context, id, rejected string, playba
 	if err != nil {
 		return "", ErrUnavailable
 	}
+	// Token rotation/safety metadata are not configuration edits: preserve revision and updated_at.
 	// Persist a received token pair even if the requesting player disconnected.
 	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
-	_, err = tx.Exec(saveCtx, `UPDATE integrations SET credentials_ciphertext=$2,revision=revision+1,updated_at=now() WHERE id=$1`, id, encrypted)
+	_, err = tx.Exec(saveCtx, `UPDATE integrations SET credentials_ciphertext=$2 WHERE id=$1`, id, encrypted)
 	if err != nil {
 		return "", ErrUnavailable
 	}

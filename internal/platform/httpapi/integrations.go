@@ -117,7 +117,7 @@ func (a *API) saveIntegration(w http.ResponseWriter, r *http.Request) {
 	}
 	draft := !in.Enabled && len(values) == 0 || in.Kind == "open115" && values["accessToken"] == ""
 	var result integrations.CheckResult
-	if !draft {
+	if !draft && !(heartbeatInput(in.Kind) && !in.Enabled) {
 		candidate := integrations.Credentials{Record: integrations.Record{ID: id, Kind: in.Kind, Name: in.Name, Settings: in.Settings, Enabled: in.Enabled}, Values: values}
 		var err error
 		result, err = a.Deps.Integrations.ProbeCredentials(ctx, candidate)
@@ -127,7 +127,7 @@ func (a *API) saveIntegration(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	var probe *integrations.CheckResult
-	if !draft {
+	if !draft && !(heartbeatInput(in.Kind) && !in.Enabled) {
 		probe = &result
 	}
 	record, err := a.Deps.Integrations.SaveProbed(ctx, id, in, probe)
@@ -268,4 +268,8 @@ func (a *API) revealIntegrationSecrets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, map[string]any{"revision": in.Revision, "values": values})
+}
+
+func heartbeatInput(kind string) bool {
+	return kind == "open115" || kind == "clouddrive2" || kind == "qbittorrent"
 }

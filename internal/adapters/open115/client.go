@@ -40,6 +40,7 @@ var pickPattern = regexp.MustCompile(`^[A-Za-z0-9]{8,64}$`)
 type APIError struct {
 	Code       int64
 	HTTPStatus int
+	RetryAt    time.Time
 }
 
 func (e *APIError) Error() string {
@@ -57,6 +58,16 @@ func (e *APIError) ExpiredAccess() bool {
 	return e.HTTPStatus == 401 || e.Code == 40140125 || e.Code == 40140126
 }
 func (e *APIError) RateLimited() bool { return e.HTTPStatus == 429 || e.Code == 40140117 }
+
+func responseError(r *http.Response, code int64) *APIError {
+	e := &APIError{Code: code, HTTPStatus: r.StatusCode}
+	if seconds, err := strconv.ParseInt(r.Header.Get("Retry-After"), 10, 64); err == nil && seconds > 0 {
+		e.RetryAt = time.Now().Add(time.Duration(min(seconds, 31536000)) * time.Second)
+	} else {
+		e.RetryAt, _ = http.ParseTime(r.Header.Get("Retry-After"))
+	}
+	return e
+}
 
 type State bool
 
@@ -228,14 +239,14 @@ func (c Client) callAttempt(ctx context.Context, method, endpoint, token, agent 
 		Data  json.RawMessage `json:"data"`
 	}
 	if json.Unmarshal(raw, &envelope) != nil {
-		return &APIError{HTTPStatus: res.StatusCode}
+		return responseError(res, 0)
 	}
 	code := envelope.Code
 	if code == 0 {
 		code = envelope.Errno
 	}
 	if res.StatusCode != 200 || !envelope.State || code != 0 {
-		return &APIError{Code: code, HTTPStatus: res.StatusCode}
+		return responseError(res, code)
 	}
 	if out != nil && json.Unmarshal(envelope.Data, out) != nil {
 		return storage.ErrInvalidResponse

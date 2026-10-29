@@ -1,5 +1,6 @@
 import { computed, onUnmounted, ref } from 'vue';
-import { post, APIError, responseStatus } from '../api/client';
+import { APIError, responseStatus } from '../api/client';
+import {checkConnection} from '../api/connections';
 import { readPrivate, savePrivate } from '../organize/model';
 import { list } from './model';
 export function useReadinessTest(accounts: () => any, reload: () => Promise<unknown>) {
@@ -27,16 +28,16 @@ export function useReadinessTest(accounts: () => any, reload: () => Promise<unkn
     phase.value = 'reconciling';
     message.value = '正在检测，尚未确认结果。';
     try {
-      const out = await post<any>(`/integrations/${row.id}/test`, {});
+      const out = await checkConnection(row.id);
       if (!alive)
         return;
-      if (responseStatus(out) === 202 || out?.id || ['pending', 'queued', 'running'].includes(out?.state)) {
+      if (responseStatus(out) === 202 || 'id' in out || ['pending', 'queued', 'running'].includes(out?.state)) {
         phase.value = 'queued';
         message.value = '检测已排队，尚未完成，请核对结果。';
       }
       else if (typeof out?.passed === 'boolean') {
         clear();
-        message.value = out.passed ? '连接检测通过，不代表播放器已经试播成功。' : '连接检测未通过，请到连接页检查配置。';
+        message.value = out.reused ? '冷却期内复用上次检测结果，检测时间不变。' : out.passed ? '连接检测通过，不代表播放器已经试播成功。' : '连接检测未通过，请到连接页检查配置。';
         await reload();
       }
       else

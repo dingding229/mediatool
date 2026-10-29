@@ -421,3 +421,15 @@ X-Requested-With: media-tool
 管理端列表/类型筛选/详情共用当前语言 TMDB 成功快照的 `classification`（version=1，genreIds/countries/originalLanguage）；仅补齐缺失的分类判定输入，已有入库事实保持优先，损坏或未知版本忽略。无新增 HTTP 路由/DTO，不提供元数据编辑功能。
 
 旧快照可通过 app 内所有者 CLI 执行一次受限补齐：`media-tool ops refresh-classification --targets movie:700,series:701`（示例 ID；实际必须属于已入库可展示内容，最多20个且不允许重复）。命令只执行 TMDB GET，payload 比较栅栏防并发覆盖；只写分类子对象和缓存更新时间，不改入库记录/整理路径/STRM，不入整理队列、不发布 metadata.scraped 事件。已有完整分类事实时直接跳过，不重复请求；未来正常详情获取也保存这些事实。
+
+### I16 连接心跳
+
+- 115 / CloudDrive2 / qBittorrent 共用 PG 持久化到期时间与带令牌租约；复用现有表，schema 93，无迁移。
+- GET `/integrations` 和 `/readiness` 只读检测回执，不触发探测；后者为三类组件补充 connectionId / lastCheckedAt / message。
+- POST `/integrations/{id}/test` 与定时探测去重；`reused:true` 表示复用冷却内回执，时间不更新。停用返回 disabled，不探测。
+- 检测结果 ready/unavailable，展示连接成功/连接失败；disabled 展示已停用。未配置是空状态，不是检测结果。STRM 保留独立播放器验证语义。
+- 115 每 1 小时加 0–10 分钟抖动；失败 30/60/120/240/360 分钟，限流至少 6 小时或 Retry-After 更晚时间。手动冷却 10 分钟。
+- CD2/qB 每 60 秒加 0–15 秒抖动，失败 1/2/4/8/16/30 分钟；手动冷却 10 秒。单次外部探测总超时 10 秒，认证必要的重发也在同一窗口内。
+- 115 只经原 officialCall/officialToken 行锁刷新；refreshBlocked 不刷新，固定提示“115授权不可用，请重新扫码授权；现有授权已保留”，文案定义在 integrations/health.go。refreshAfter 冷却期只探测现有 Access Token。
+- 正常令牌轮换及失败安全标记不再作为配置编辑增加 revision/updated_at；失败保留原令牌对，仅原刷新函数写 refreshAfter/refreshBlocked，不修改配置、启停或其他授权字段。
+- 首次启动即安排无回执/到期连接；已有新鲜回执立即显示并遵守持久化退避；保存/启用立即置为到期并唤醒循环。每进程最多三条定时探测并行，跨进程同连接只持有一个有效租约；首次结果/状态翻转才记录安全日志。

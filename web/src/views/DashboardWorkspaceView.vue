@@ -26,7 +26,7 @@ usePageRefresh(refresh,props.attention?'attention':'*');
 
       </template>
     </PageHeader>
-    <ServiceReadiness v-if="attention" :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" :can-test="probe.available.value" :testing="probe.busy.value" :test-locked="!!probe.phase.value" @test="probe.start" @retry="load('readiness')" />
+    <ServiceReadiness :overview="!attention" :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" :can-test="probe.available.value" :testing="probe.busy.value" :test-locked="!!probe.phase.value" @test="probe.start" @retry="load('readiness')" />
     <AsyncResultBanner v-if="attention&&probe.phase.value" :status="probe.phase.value" :message="probe.message.value" @refresh="probe.reconcile"/>
     <p v-if="attention&&probe.message.value&&!probe.phase.value" role="status">{{probe.message.value}}</p>
     <section v-if="attention" class="dashboard-inbox u2-surface" aria-label="待处理收件箱">

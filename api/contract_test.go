@@ -1249,7 +1249,7 @@ func (s *source) build(t *testing.T) object {
 		case "media-tool/internal/platform/flow.Status":
 			m["properties"] = s.schemas["FlowStatus"].(object)["properties"]
 		case "media-tool/internal/modules/integrations.Readiness":
-			set("state", "not_configured", "configured", "authorization_required", "disabled", "check_required", "check_failed", "ready")
+			set("state", "not_configured", "configured", "authorization_required", "disabled", "check_required", "check_failed", "ready", "unavailable")
 		case "media-tool/internal/modules/plugins/v2.Capability":
 			set("state", "unsupported", "authorization_required", "disabled", "starting", "runtime_failed", "ready")
 		case "media-tool/internal/modules/acquisition.Task":

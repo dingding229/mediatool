@@ -1,5 +1,7 @@
-import { onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { post, request } from '../api/client';
+import {useRefresh} from '../composables/useRefresh';
+import {listConnections,checkConnection} from '../api/connections';
+import { onUnmounted, reactive, ref, watch } from 'vue';
+import { request } from '../api/client';
 import { changedEndpointMissing, isConflict, secretPayload, safeSettings, type Connection } from './model';
 export function useConnections() {
   const rows = ref<Connection[]>([]), loading = ref(true), error = ref(''), editing = ref(false), saving = ref(false), notice = ref(''), conflict = ref<Connection | null>(null);
@@ -14,7 +16,7 @@ export function useConnections() {
     loadError.value = null;
     error.value = '';
     try {
-      const value = await request<Connection[]>('/integrations');
+      const value = await listConnections();
       if (!disposed)
         rows.value = value;
     hasLoaded=true;
@@ -69,7 +71,7 @@ export function useConnections() {
     catch (e: any) {
       if (isConflict(e) && form.id) {
         try {
-          const fresh = await request<Connection[]>('/integrations');
+          const fresh = await listConnections();
           if (disposed)
             return;
           rows.value = fresh;
@@ -102,20 +104,20 @@ export function useConnections() {
     error.value = '已采用最新修订号；你的输入未变，确认后可再次保存。';
   }
   async function test(row: Connection) {
-    if (testState.value || testing.value)
+    if (!row.enabled || testState.value || testing.value)
       return;
     testing.value = row.id;
     notice.value = '';
     try {
-      const out = await post<any>(`/integrations/${row.id}/test`, {});
-      if (out?.id || ['pending', 'queued', 'running'].includes(out?.state)) {
+      const out = await checkConnection(row.id);
+      if ('id' in out || ['pending', 'queued', 'running'].includes(out?.state)) {
         testId.value = row.id;
         testTime.value = row.lastCheckedAt ?? '';
         testState.value = 'queued';
         notice.value = '检测已排队，尚未完成。';
       }
       else
-        notice.value = out?.passed ? '连接检测通过。' : '连接检测未通过，请核对配置。';
+        notice.value = out?.reused ? '冷却期内复用上次检测结果，检测时间不变。' : out?.passed ? '连接检测通过。' : '连接检测未通过，请核对配置。';
       await load();
     }
     catch {
@@ -166,7 +168,7 @@ export function useConnections() {
       form.clear = [];
     }
   });
-  onMounted(load);
+  useRefresh(load,{interval:30000,active:()=>!editing.value&&!testing.value});
   onUnmounted(() => {
     disposed = true;
     form.secrets = {};

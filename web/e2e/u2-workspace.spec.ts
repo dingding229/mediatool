@@ -1,5 +1,6 @@
 import {test,expect,type Page} from '@playwright/test'
 import {mkdirSync} from 'node:fs'
+const capture=process.env.U2_SCREENSHOTS==='1'&&!process.env.CI&&!process.env.GITHUB_ACTIONS;
 const ready={components:{open115:{state:'ready',reason:'fresh_saved_probe',nextAction:'none'},clouddrive2:{state:'ready',reason:'fresh_saved_probe',nextAction:'none'},emby:{state:'ready',reason:'fresh_saved_probe',nextAction:'none'},strm:{state:'configured',reason:'stable_resolver_configured_not_player_verified',nextAction:'verify_player_302'}}}
 const connection={id:'fixture-cd2',kind:'clouddrive2',name:'文件服务',enabled:true,revision:2,settings:{endpoint:'http://nas.invalid:19798',cloudRoot:'/115/Media'},secretFields:['token'],lastCheckState:'ready',lastCheckMessage:'',lastCheckedAt:'2026-10-21T00:00:00Z'}
 async function fixture(page:Page){
@@ -50,12 +51,12 @@ test('alert acknowledgement stays explicitly separate from resolving the underly
  await page.goto('/ops?tab=attention');await expect(page.getByText(/确认告警不等于问题已解决/)).toBeVisible();await expect(page.getByRole('button',{name:'确认告警',exact:true})).toHaveCount(0);await expect(page.getByRole('link').filter({hasText:'空间不足'})).toHaveAttribute('href','/ops?tab=maintenance');expect(ack).toBe(0)
 })
 test('dashboard and connection screenshots in both themes and widths contain no horizontal overflow',async({page})=>{
- const dir='/tmp/media-tool-u2-screenshots';mkdirSync(dir,{recursive:true});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
+ const dir='/tmp/media-tool-u2-screenshots';if(capture)mkdirSync(dir,{recursive:true});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
  for(const width of [375,1440])for(const theme of ['light','dark']){
   await page.setViewportSize({width,height:width===375?900:1000});await page.addInitScript(value=>localStorage.setItem('media-tool:theme-mode:v1',value),theme)
   for(const [name,url] of [['dashboard','/dashboard'],['connections','/connections?tab=storage']]){
-   await page.goto(url!);await expect(page.locator('html')).toHaveAttribute('data-theme',theme);await expect(page.locator('main h1')).toBeVisible();if(name==='dashboard'){await expect(page.getByRole('heading',{name:'服务器状态',exact:true})).toBeVisible();await expect(page.getByRole('region',{name:'服务就绪状态'})).toHaveCount(0)}else await expect(page.getByRole('heading',{name:'空间与会员',exact:true})).toBeVisible()
-   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);for(const button of await page.locator(name==='dashboard'?'.dashboard-workspace .el-button':'.connections-workspace .el-button').all()){if(await button.isVisible())expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)};await page.screenshot({path:`${dir}/${name}-${width}-${theme}.png`,fullPage:true,animations:'disabled'})
+   await page.goto(url!);await expect(page.locator('html')).toHaveAttribute('data-theme',theme);await expect(page.locator('main h1')).toBeVisible();if(name==='dashboard'){await expect(page.getByRole('heading',{name:'服务器状态',exact:true})).toBeVisible();await expect(page.getByRole('region',{name:'服务就绪状态'})).toHaveCount(1);await expect(page.locator('.readiness-cards article')).toHaveCount(3)}else await expect(page.getByRole('heading',{name:'空间与会员',exact:true})).toBeVisible()
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);for(const button of await page.locator(name==='dashboard'?'.dashboard-workspace .el-button':'.connections-workspace .el-button').all()){if(await button.isVisible())expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)};if(capture)await page.screenshot({path:`${dir}/${name}-${width}-${theme}.png`,fullPage:true,animations:'disabled'})
   }
  }
  expect(errors).toEqual([])

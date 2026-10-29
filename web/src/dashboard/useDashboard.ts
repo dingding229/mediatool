@@ -5,7 +5,7 @@ import { guideSteps, inboxGroups, type Slot } from './model';
 import { readGuideHidden, writeGuideHidden } from '../workflows/readiness';
 const endpoints: Record<string, string> = { readiness: '/readiness', runtime: '/system/runtime', recent: '/search', jobs: '/jobs/browse?state=failed&page=1&pageSize=100', candidates: '/library/candidates?state=needs_confirmation&page=1&pageSize=5', transfers: '/transfers', manual: '/downloads/manual', batches: '/library/activity?state=needs_reconcile&page=1&pageSize=5', alerts: '/ops', plugins: '/plugins?page=1&pageSize=200', accounts: '/integrations', classification: '/classification' };
 export function useDashboard(options:{overview?:boolean}={}) {
-  const activeKeys=options.overview===true?['runtime','recent']:Object.keys(endpoints);
+  const activeKeys=options.overview===true?['runtime','recent','readiness']:Object.keys(endpoints);
   const slots = reactive<Record<string, Slot>>(Object.fromEntries(Object.keys(endpoints).map(k => [k, { data: null, loading: true, error: null }])));
   const hidden = ref(readGuideHidden());
   const groups = computed(() => inboxGroups(slots)), steps = computed(() => guideSteps(slots.readiness?.data, slots.accounts?.data, slots.classification?.data));

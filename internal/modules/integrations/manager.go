@@ -5,6 +5,7 @@ import (
 
 	"errors"
 
+	"log/slog"
 	deferutil "media-tool/internal/platform/cleanup"
 	"net/http"
 	"os"
@@ -29,19 +30,19 @@ type cloudRevision struct {
 	adapter *clouddrive2.Adapter
 }
 type Manager struct {
-	Repository      Repository
-	Config          config.Config
-	OutboundHTTP    *http.Client
-	proxyClients    map[string]*http.Client
-	proxyRevision   int64
-	mu              sync.Mutex
-	lastPruned      time.Time
-	healthNotBefore time.Time
-	cloud           map[string]cloudRevision
+	Repository    Repository
+	Config        config.Config
+	OutboundHTTP  *http.Client
+	proxyClients  map[string]*http.Client
+	proxyRevision int64
+	mu            sync.Mutex
+	lastPruned    time.Time
+	healthWake    chan struct{}
+	cloud         map[string]cloudRevision
 }
 
 func NewManager(repository Repository, c config.Config) *Manager {
-	return &Manager{Repository: repository, Config: c, cloud: map[string]cloudRevision{}, healthNotBefore: time.Now().Add(5 * time.Minute)}
+	return &Manager{Repository: repository, Config: c, cloud: map[string]cloudRevision{}, healthWake: make(chan struct{}, 1)}
 }
 func (m *Manager) Close() {
 	m.mu.Lock()
@@ -134,12 +135,22 @@ type CheckResult struct {
 	Passed  bool   `json:"passed"`
 	Message string `json:"message"`
 	State   string `json:"state"`
+	Reused  bool   `json:"reused,omitempty"`
 }
 
 func (m *Manager) Test(ctx context.Context, id string) (CheckResult, error) {
 	c, err := m.Repository.Get(ctx, id)
 	if err != nil {
 		return CheckResult{}, err
+	}
+	if heartbeatKind(c.Record.Kind) {
+		if !c.Record.Enabled {
+			return CheckResult{State: "disabled", Message: "已停用"}, nil
+		}
+		if err = m.ScheduleHealth(ctx); err != nil {
+			return CheckResult{}, err
+		}
+		return m.checkHealth(ctx, id, true, slog.Default())
 	}
 	result, err := m.ProbeCredentials(ctx, c)
 	if err != nil {
@@ -157,8 +168,19 @@ func (m *Manager) RecordProbe(ctx context.Context, r Record, result CheckResult)
 }
 func (m *Manager) SaveProbed(ctx context.Context, id string, in Input, result *CheckResult) (Record, error) {
 	record, e := m.Repository.Save(ctx, id, in)
-	if e != nil || result == nil {
+	if e != nil {
 		return record, e
+	}
+	if record.Enabled && heartbeatKind(record.Kind) {
+		defer func() {
+			select {
+			case m.healthWake <- struct{}{}:
+			default:
+			}
+		}()
+	}
+	if result == nil {
+		return record, nil
 	}
 	if e = m.RecordProbe(ctx, record, *result); e != nil {
 		return record, ErrProbeRecord
@@ -252,6 +274,9 @@ func (m *Manager) ProbeCredentials(ctx context.Context, c Credentials) (CheckRes
 	}
 	if err != nil && c.Record.Kind == "clouddrive2" && errors.Is(err, storage.ErrUnauthenticated) {
 		message = "CloudDrive2 凭据无效或过期"
+	}
+	if heartbeatKind(c.Record.Kind) {
+		message = healthMessage(err)
 	}
 	return CheckResult{Passed: err == nil, Message: message, State: state}, nil
 }

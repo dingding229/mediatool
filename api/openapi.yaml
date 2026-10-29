@@ -23672,6 +23672,9 @@
           "passed": {
             "type": "boolean"
           },
+          "reused": {
+            "type": "boolean"
+          },
           "state": {
             "enum": [
               "ready",
@@ -23792,6 +23795,23 @@
       "modules_integrations_Readiness": {
         "additionalProperties": false,
         "properties": {
+          "connectionId": {
+            "type": "string"
+          },
+          "lastCheckedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
           "nextAction": {
             "type": "string"
           },
@@ -23806,7 +23826,8 @@
               "disabled",
               "check_required",
               "check_failed",
-              "ready"
+              "ready",
+              "unavailable"
             ],
             "type": "string"
           }

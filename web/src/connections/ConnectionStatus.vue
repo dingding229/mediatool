@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConnectionHealth from './ConnectionHealth.vue';
 import StateView from '../ui/StateView.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import { readinessLabel, readinessReason, stateFor, errorText, type Readiness } from '../workflows/readiness';
@@ -24,8 +25,9 @@ defineEmits<{
         <dt>{{service.name}}</dt>
         <dd v-if="loading"><span role="status">正在读取服务状态…</span></dd>
         <dd v-else>
-          <StatusBadge :state="value?.components?.[service.key]?.state||'unavailable'" :label="readinessLabel(value?.components?.[service.key])"/>
-          <span class="connection-status-reason">{{readinessReason(value?.components?.[service.key])}}</span>
+          <ConnectionHealth v-if="service.key!=='strm'&&value?.components?.[service.key]?.state!=='not_configured'" :state="value?.components?.[service.key]?.state||'unavailable'" :checked-at="value?.components?.[service.key]?.lastCheckedAt" :message="value?.components?.[service.key]?.message"/>
+          <StatusBadge v-else :state="value?.components?.[service.key]?.state||'unavailable'" :label="readinessLabel(value?.components?.[service.key])"/>
+          <span v-if="service.key==='strm'||value?.components?.[service.key]?.state==='not_configured'" class="connection-status-reason">{{readinessReason(value?.components?.[service.key])}}</span>
         </dd>
       </div>
     </dl>

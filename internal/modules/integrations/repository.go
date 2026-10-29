@@ -53,6 +53,11 @@ func (r Repository) scan(row pgx.Row) (Credentials, error) {
 	}
 	sort.Strings(c.Record.SecretFields)
 	c.Record.Readiness = ConnectionReadiness(c.Record, time.Now())
+	if heartbeatKind(c.Record.Kind) {
+		c.Record.LastCheckState = c.Record.Readiness.State
+		c.Record.LastCheckMessage = c.Record.Readiness.Message
+		c.Record.LastCheckedAt = c.Record.Readiness.LastCheckedAt
+	}
 	return c, nil
 }
 func (r Repository) List(ctx context.Context) ([]Record, error) {
@@ -231,6 +236,11 @@ func (r Repository) Save(ctx context.Context, id string, in Input) (Record, erro
 			return Record{}, ErrConflict
 		}
 		return Record{}, ErrUnavailable
+	}
+	if heartbeatKind(in.Kind) && in.Enabled {
+		if _, err = tx.Exec(ctx, `INSERT INTO integration_health_schedule(integration_id,config_revision,next_check_at) SELECT id,revision,clock_timestamp() FROM integrations WHERE id=$1 ON CONFLICT(integration_id) DO UPDATE SET next_check_at=clock_timestamp(),failures=0 WHERE coalesce(integration_health_schedule.lease_until,'epoch')<clock_timestamp()`, id); err != nil {
+			return Record{}, err
+		}
 	}
 	audit, _ := json.Marshal(map[string]string{"integrationId": id, "kind": in.Kind})
 	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(actor,action,details)VALUES('administrator','integration.save',$1)`, audit); err != nil {

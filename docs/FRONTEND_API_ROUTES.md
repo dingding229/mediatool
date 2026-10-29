@@ -157,7 +157,7 @@
 | POST | `/api/v1/files/preview` | management | 前端直接调用 | `web/src/files/FileActionDialog.vue:73` |
 | GET | `/api/v1/files/roots` | management | 前端直接调用 | `web/src/files/useBrowser.ts:41`、`web/src/organize/ScanPanel.vue:38` |
 | HEAD | `/api/v1/files/roots` | management | 未检出静态使用 |  |
-| GET | `/api/v1/integrations` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:31`、`web/src/connections/useConnections.ts:16`、`web/src/acquisition/useSearch.ts:19`、`web/src/acquisition/useResults.ts:111`、`web/src/media/useCatalog.ts:15`、`web/src/sites/TemplatesPanel.vue:11`、`web/src/sites/AccountsPanel.vue:18` |
+| GET | `/api/v1/integrations` | management | 前端直接调用 | `web/src/subscriptions/useSubscriptionWorkspace.ts:31`、`web/src/api/connections.ts:4`、`web/src/acquisition/useSearch.ts:19`、`web/src/acquisition/useResults.ts:111`、`web/src/media/useCatalog.ts:15`、`web/src/sites/TemplatesPanel.vue:11`、`web/src/sites/AccountsPanel.vue:18` |
 | HEAD | `/api/v1/integrations` | management | 未检出静态使用 |  |
 | POST | `/api/v1/integrations` | management | 前端直接调用 | `web/src/connections/useConnections.ts:56` |
 | DELETE | `/api/v1/integrations/{id}` | management | 前端直接调用 | `web/src/connections/useConnections.ts:150`、`web/src/sites/AccountsPanel.vue:64` |
@@ -166,7 +166,7 @@
 | POST | `/api/v1/integrations/{id}/115/auth/poll` | management | 前端直接调用 | `web/src/components/Official115AuthDialog.vue:14` |
 | POST | `/api/v1/integrations/{id}/115/auth/start` | management | 前端直接调用 | `web/src/components/Official115AuthDialog.vue:27` |
 | POST | `/api/v1/integrations/{id}/secrets/reveal` | management | 前端直接调用 | `web/src/connections/useSecretReveal.ts:21` |
-| POST | `/api/v1/integrations/{id}/test` | management | 前端直接调用 | `web/src/connections/useConnections.ts:108`、`web/src/sites/AccountsPanel.vue:72`、`web/src/dashboard/useReadinessTest.ts:30` |
+| POST | `/api/v1/integrations/{id}/test` | management | 前端直接调用 | `web/src/api/connections.ts:5`、`web/src/sites/AccountsPanel.vue:72` |
 | GET | `/api/v1/jobs` | management | 未检出静态使用 |  |
 | HEAD | `/api/v1/jobs` | management | 未检出静态使用 |  |
 | POST | `/api/v1/jobs` | management | 前端直接调用 | `web/src/operations/QueuePanel.vue:35` |

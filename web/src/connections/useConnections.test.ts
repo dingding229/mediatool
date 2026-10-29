@@ -19,3 +19,5 @@ it('unknown test response permits only GET reconciliation until a new check is o
 it('sanitizes embedded endpoint credentials for editable and comparison display',()=>{expect(safeSettings({endpoint:'https://private:secret@example.com/api'}).endpoint).toBe('https://example.com/api')})
 
 it.each([401,501])('read failure %i stays distinct from an empty connection list',async status=>{vi.mocked(request).mockRejectedValueOnce(new APIError(status,'unavailable','读取受限'));await view.state.load();expect(view.state.loadError.status).toBe(status);expect(view.state.error).toContain('读取失败')})
+it('I16 disabled connections never post a manual probe',async()=>{await view.state.test({...record,enabled:false});expect(post).not.toHaveBeenCalled()});
+it('I16 reused receipts explicitly preserve the old detection time',async()=>{vi.mocked(post).mockResolvedValue({passed:true,state:'ready',reused:true});await view.state.test(record);expect(view.state.notice).toContain('检测时间不变');expect(view.state.testState).toBeNull()});

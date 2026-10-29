@@ -424,6 +424,9 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 		w.Handlers["transfer.import.resume"] = downloader.RunOutputImport
 		if queue == "default" {
 			watchCtx, watchCancel := context.WithCancel(ctx)
+			healthDone := make(chan struct{})
+			go func() { defer close(healthDone); manager.RunHealth(watchCtx, logger) }()
+			defer func() { watchCancel(); <-healthDone }()
 			watchDone := make(chan struct{})
 			go func() { defer close(watchDone); libraryEngine.RunChangeWatcher(watchCtx, logger) }()
 			defer func() { watchCancel(); <-watchDone }()
@@ -475,9 +478,6 @@ func runWorker(ctx context.Context, c config.Config, db *pgxpool.Pool, manager *
 					nativeIDCursor = 0
 				} else {
 					nativeIDCursor = next
-				}
-				if err := manager.TickOfficialHealth(check); err != nil {
-					logger.Warn("115 health scheduling failed", "module", "integrations", "error", err)
 				}
 				if err := downloader.Reconcile(check); err != nil && ctx.Err() == nil {
 					logger.Warn("download reconciliation unavailable")
