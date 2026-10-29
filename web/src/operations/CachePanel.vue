@@ -90,6 +90,7 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
       <p class="ops-cache-note">只管理缓存复用；清理搜索缓存会隐藏记录，底层结果、下载证明和媒体保留。</p>
       <div class="ops-content-stage ops-cache-stage" :aria-busy="data.loading||data.refreshing">
       <ResourceState :stale="!!data.data" :loading="(!data.loaded||!data.data)&&!data.error" :error="data.error" :empty="!!data.data&&!data.data.items?.length" @reload="load"/>
+      <template v-if="data.loaded||data.error">
       <p class="ops-cache-summary">当前检索共 {{ data.loading||data.error?'—':data.data?.total??'—' }} 项 · 本页 {{ data.loading||data.error?'—':bytes(data.data?.items.reduce((n:number,r:any)=>n+(r.bytes||0),0)) }}</p>
       <p v-if="notice" role="status">{{ notice }}</p>
       <p v-if="data.data?.truncated">扫描存在上限，当前列表未必覆盖全部缓存；可分批清理并重新读取。</p>
@@ -112,13 +113,16 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
           <el-button size="small" aria-label="删除缓存项" :disabled="!!op.pending" @click="ask(row.id)"><el-icon class="mt-list-action-icon"><Delete/></el-icon><span class="mt-list-action-text">删除缓存项</span></el-button>
         </div>
       </article>
+      </template>
       </div>
+      <template v-if="data.loaded||data.error">
       <PagePagination v-model:current-page="page" :total="data.data?.total" v-model:page-size="pageSize" :page-sizes="[10,25,30,50,100]" layout="prev,pager,next" @current-change="load"/>
     <p class="ops-cache-note ops-cache-ttl">
       缓存有效期统一在
       <RouterLink to="/settings?tab=automation">设置 · 搜索订阅</RouterLink>
       中调整。
     </p>
+      </template>
     </section>
     <ConfirmAction v-model:visible="confirm" :title="removeId?'删除缓存项':'清理此类缓存'" description="确认清理所选范围？" :impact-scope="kind==='search'?'从搜索缓存移除并停止复用，保留底层结果、下载记录和媒体。':'仅删除当前影视缓存，不删除媒体或其他业务数据。'" confirm-text="确认清理" :loading="op.busy" class="media-dialog" @confirm="apply"/>
     <DetailDrawer v-model:visible="open" title="缓存内容" :technical-data="detail?.data??detail" size="large" class="media-detail">

@@ -200,7 +200,7 @@
 .t8-ops .f3-log-console .f3-log-table .u6-raw{color:var(--mt-text-primary)}
 .t8-ops .f3-log-console .f3-log-message{min-width:0}
 .t8-ops .f3-log-console .f3-log-message small,.t8-ops .f3-log-console .f3-log-source{color:var(--mt-text-muted)}
-.t8-ops .f3-log-console .f3-log-source{min-height:32px;max-width:100%;line-height:1.5}
+.t8-ops .f3-log-console .f3-log-source{min-height:0;max-width:100%;line-height:1.5}
 .t8-ops .f3-log-console .f3-log-level{color:var(--mt-text-muted)}
 .t8-ops .f3-log-console .f3-log-level[data-level=info]{color:var(--mt-color-primary)}
 .t8-ops .f3-log-console .f3-log-level[data-level=warn],.t8-ops .f3-log-console .f3-log-level[data-level=warning]{color:var(--mt-color-warning)}

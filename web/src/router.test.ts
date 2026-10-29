@@ -1,8 +1,14 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { routes } from './router/routes'
 import { installPageRedirects } from './router/redirects'
 import { primaryPages } from './navigation/pages'
+// This suite checks URL ownership/redirects, not rendering the lazy plugin and
+// search UI. Vue Router resolves lazy leaves even without mounting; transforming
+// those full UI graphs inside a timed routing assertion races the parallel suite.
+// Real leaf rendering remains covered by the browser suite.
+vi.mock('./views/ResourceResultsView.vue',()=>({default:{render:()=>null}}))
+vi.mock('./views/PluginSurfaceView.vue',()=>({default:{render:()=>null}}))
 function getRouter() { const router = createRouter({ history: createMemoryHistory(), routes }); installPageRedirects(router); return router }
 const legacy = [
   ['/mediaLibrary','/library','browse'], ['/media-server','/playback','settings'],

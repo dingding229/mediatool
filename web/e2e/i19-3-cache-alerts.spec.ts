@@ -31,8 +31,8 @@ for(const kind of ['tmdb','search'])for(const whole of [false,true])test(`I19-3 
 });
 
 for(const whole of [false,true])test(`I19-3 unknown ${whole?'whole':'single'} cache clear never replays across readback/reload`,async({page})=>{
- const f=await cacheAlertFixture(page);f.lose();await page.goto('/ops?tab=cache&cacheKind=search');await page.getByRole('button',{name:whole?'清理此类缓存':'删除缓存项',exact:true}).first().click();await page.getByRole('dialog',{name:whole?'清理此类缓存':'删除缓存项',exact:true}).getByRole('button',{name:'确认清理',exact:true}).click();
- await expect(page.getByRole('button',{name:'清理此类缓存',exact:true})).toBeDisabled();await page.getByRole('button',{name:'核对结果',exact:true}).click();await page.reload();await expect(page.getByRole('button',{name:'清理此类缓存',exact:true})).toBeDisabled();expect(f.writes).toHaveLength(1);
+ const f=await cacheAlertFixture(page);f.lose();await page.goto('/ops?tab=cache&cacheKind=search');await expect(page.locator('.ops-cache-row')).toHaveCount(4);await page.getByRole('button',{name:whole?'清理此类缓存':'删除缓存项',exact:true}).first().click();await page.getByRole('dialog',{name:whole?'清理此类缓存':'删除缓存项',exact:true}).getByRole('button',{name:'确认清理',exact:true}).click();
+ await expect(page.getByRole('button',{name:'清理此类缓存',exact:true})).toBeDisabled();await page.getByRole('button',{name:'核对结果',exact:true}).click();const readback=!whole?page.waitForResponse(r=>r.request().method()==='GET'&&new URL(r.url()).pathname==='/api/v1/cache/search/i193-search-0'):null;await page.reload();if(readback)expect((await readback).status()).toBe(200);await expect(page.getByRole('button',{name:'清理此类缓存',exact:true})).toBeDisabled();expect(f.writes).toHaveLength(1);
  if(!whole){expect(f.detailReads).toContain('i193-search-0');f.removeOriginal('search','i193-search-0');await page.getByRole('button',{name:'核对结果',exact:true}).click();await expect(page.getByRole('button',{name:'清理此类缓存',exact:true})).toBeEnabled();expect(f.writes).toHaveLength(1)}
 });
 for(const mode of ['empty','failed','rejected']as const)test(`I19-3 cache ${mode} stays explicit without lost content or automatic clearing`,async({page})=>{

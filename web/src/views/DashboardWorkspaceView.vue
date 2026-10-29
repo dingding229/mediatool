@@ -26,6 +26,9 @@ usePageRefresh(refresh,props.attention?'attention':'*');
 
       </template>
     </PageHeader>
+    <!-- Settle the first read as one surface; refresh retains the rendered rows. -->
+    <StateView v-if="attention ? busy : slots.readiness?.loading||slots.runtime?.loading||slots.recent?.loading" state="loading" :title="attention?'正在读取待处理事项…':'正在读取工作台…'"/>
+    <template v-else>
     <ServiceReadiness :overview="!attention" :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" :can-test="probe.available.value" :testing="probe.busy.value" :test-locked="!!probe.phase.value" @test="probe.start" @retry="load('readiness')" />
     <AsyncResultBanner v-if="attention&&probe.phase.value" :status="probe.phase.value" :message="probe.message.value" @refresh="probe.reconcile"/>
     <p v-if="attention&&probe.message.value&&!probe.phase.value" role="status">{{probe.message.value}}</p>
@@ -117,6 +120,7 @@ usePageRefresh(refresh,props.attention?'attention':'*');
         <span v-if="hasResourceCount(item.total)">{{ item.total }} 个资源</span>
       </RouterLink>
     </section>
+    </template>
   </div>
 </template>
 <style scoped>

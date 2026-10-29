@@ -31,10 +31,12 @@ usePageRefresh(trends.load);
   </template>
  </PageHeader>
  <ResourceState :stale="trends.loaded" :loading="trends.loading" :error="trends.error" @reload="trends.load"/>
+ <template v-if="trends.loaded">
  <div class="trend-list">
   <TrendChart v-for="[metric,title,unit] in trendFields" :key="metric" :title="title!" :unit="unit!" :metric="metric!" :rows="trendRows" :gap-ms="gapMS" stretch/>
  </div>
  <el-button class="trend-original" @click="detailOpen=true">查看原始采样记录</el-button>
+ </template>
  <DetailDrawer v-model:visible="detailOpen" title="原始采样记录" size="large" :technical-data="trends.data"/>
 </section>
 </template>

@@ -230,7 +230,7 @@ test('official 115 is saved disabled and QR authorization is explicit and cancel
  await expect(page.getByLabel('CloudDrive2中的115挂载前缀',{exact:true})).toHaveValue('/115')
  await page.getByRole('button',{name:'加密保存',exact:true}).click()
  const row=page.locator('.saved-connection').filter({hasText:name});await expect(row).toBeVisible()
- await expect(row).toContainText('未启用')
+ await expect(row).toContainText('已停用')
  await page.route('**/115/auth/start',route=>fixtureFulfill(route,{json:{data:{sessionId:'00000000-0000-4000-8000-000000000001',state:'waiting',qrCodeImage:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZVkAAAAASUVORK5CYII=',expiresAt:new Date(Date.now()+300000).toISOString()}}}))
  let pollState='scanned',pollCount=0
  const pollReceipts:Array<{elapsedMs:number;state:string}>=[],pollStarted=Date.now()
@@ -636,15 +636,15 @@ test('workbench layouts fit desktop, tablet and mobile with reduced motion (UI)'
 
 test('sidebar groups are always expanded and the active destination uses highlight only',async({page})=>{
  await fixtureLogin(page);const nav=page.getByRole('navigation',{name:'功能导航'})
- await expect(nav.getByRole('link')).toHaveCount(13);await expect(nav.getByRole('button')).toHaveCount(0)
+ await expect(nav.getByRole('link')).toHaveCount(14);await expect(nav.getByRole('button')).toHaveCount(0)
  for(const name of ['获取','媒体','系统'])await expect(nav.getByRole('heading',{name,exact:true})).toBeVisible()
  await expect(nav.getByText('当前',{exact:true})).toHaveCount(0)
- await nav.getByRole('link',{name:'首页',exact:true}).focus();await page.keyboard.press('Tab');await expect(nav.getByRole('link',{name:'搜索',exact:true})).toBeFocused()
+ await nav.getByRole('link',{name:'首页',exact:true}).focus();await page.keyboard.press('Tab');await expect(nav.getByRole('link',{name:'运行趋势',exact:true})).toBeFocused();await page.keyboard.press('Tab');await expect(nav.getByRole('link',{name:'搜索',exact:true})).toBeFocused()
  await navigate(page,'程序日志');await expect(nav.getByRole('link',{name:'运维',exact:true})).toHaveAttribute('aria-current','page')
- await page.reload();await expect(nav.getByRole('link')).toHaveCount(13);await expect(nav.getByRole('link',{name:'运维',exact:true})).toHaveClass(/selected/)
+ await page.reload();await expect(nav.getByRole('link')).toHaveCount(14);await expect(nav.getByRole('link',{name:'运维',exact:true})).toHaveClass(/selected/)
 })
 
-test('desktop and mobile expose the same thirteen expanded destinations',async({page})=>{
+test('desktop and mobile expose the same fourteen expanded destinations',async({page})=>{
  await fixtureLogin(page);const desktop=page.getByRole('complementary',{name:'主导航'})
  const labels=await desktop.getByRole('navigation',{name:'功能导航'}).getByRole('link').allTextContents()
  await page.setViewportSize({width:375,height:812});await page.getByRole('button',{name:'打开导航',exact:true}).click()
@@ -819,7 +819,7 @@ test('acquisition: dedicated results survive reload and every history entry navi
 });
 
 test('cache maintenance links to settings-owned TTL while search history stays read-only with meaningful expiry (fixture)',async({page})=>{
- const id='22222222-2222-4222-8222-222222222222';let kind='tmdb';await page.route('**/api/v1/cache/**',r=>fixtureFulfill(r,{json:{data:{items:[{id:kind==='tmdb'?'a'.repeat(64):id,query:'Owned cache',state:'succeeded',count:2,bytes:9999,ttlSeconds:7200,reusable:true}],total:1}}}));await fixtureLogin(page);await page.goto('/tmdb-cache');await expect(page.getByRole('columnheader',{name:'大小',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'缓存有效期',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'设置 · 搜索订阅',exact:true})).toHaveAttribute('href','/settings?tab=automation');await expect(page.locator('.u6-cache-content').getByText(/2\.00 小时/)).toBeVisible();await expect(page.getByRole('button',{name:'缓存详情',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'删除缓存项',exact:true})).toBeVisible();kind='search';await page.goto('/search-cache');await expect(page.getByRole('columnheader',{name:'大小',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'查看结果',exact:true})).toBeVisible();await page.setViewportSize({width:390,height:844});await expect(page.locator('.acquire-history').getByRole('link',{name:'查看结果',exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,'acquire-cache-mobile.png'),fullPage:true,animations:'disabled'});
+ const id='22222222-2222-4222-8222-222222222222';let kind='tmdb';await page.route('**/api/v1/cache/**',r=>fixtureFulfill(r,{json:{data:{items:[{id:kind==='tmdb'?'a'.repeat(64):id,query:'Owned cache',state:'succeeded',count:2,bytes:9999,ttlSeconds:7200,reusable:true}],total:1}}}));await fixtureLogin(page);await page.goto('/tmdb-cache');await expect(page.getByRole('columnheader',{name:'大小',exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'缓存有效期',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'设置 · 搜索订阅',exact:true})).toHaveAttribute('href','/settings?tab=automation');await expect(page.locator('.ops-cache-meta').getByText(/2\.00 小时/)).toBeVisible();await expect(page.getByRole('button',{name:'缓存详情',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'删除缓存项',exact:true})).toBeVisible();kind='search';await page.goto('/search-cache');await expect(page.getByRole('columnheader',{name:'大小',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'查看结果',exact:true})).toBeVisible();await page.setViewportSize({width:390,height:844});await expect(page.locator('.acquire-history').getByRole('link',{name:'查看结果',exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,'acquire-cache-mobile.png'),fullPage:true,animations:'disabled'});
 });
 
 test('acquisition: proxy settings are scoped, validated and persisted in isolated database',async({page})=>{
@@ -1159,7 +1159,7 @@ test('classification checkbox editor preserves original countries and genre IDs 
 })
 
 test('system operations has real bounded health, paginated tasks and details (isolated)',async({page})=>{
- await fixtureLogin(page);await page.goto('/ops?tab=attention');await page.locator('.f5-runtime-checks summary').click();await expect(page.getByText(/核心协调/)).toBeVisible();await expect(page.locator('.f5-runtime-summary')).toContainText('数据库 可用 · 缓存 可用')
+ await fixtureLogin(page);await page.goto('/ops?tab=attention');await page.locator('.f5-runtime-checks summary').click();await expect(page.getByText(/核心协调/)).toBeVisible();for(const label of ['数据库','缓存']){const row=page.locator('.f5-runtime-summary>div').filter({has:page.getByText(label,{exact:true})});await expect(row.locator('dt')).toHaveText(label);await expect(row.locator('dd')).toHaveText('可用')}
  const health=await page.request.get('/api/v1/system/operations');expect(health.status()).toBe(200);expect(health.headers()['cache-control']).toBe('no-store');const snapshot=(await health.json()).data;expect(snapshot.migration).toBe(expectedSchema);expect(snapshot.unavailable).toEqual([]);expect(snapshot.workers.some((w:any)=>w.online)).toBe(true);expect(snapshot.schedules.some((s:any)=>s.id==='core'&&s.cron==='*/15 * * * * *')).toBe(true)
  const response=await page.request.post('/api/v1/jobs',{headers:{'X-Requested-With':'media-tool'},data:{kind:'system.check'}});expect(response.status()).toBe(201);const job=(await response.json()).data;await page.goto('/ops?tab=jobs');await page.getByLabel('搜索任务',{exact:true}).fill(job.id);await page.getByRole('button',{name:'筛选任务',exact:true}).click();await expect(page.getByRole('button',{name:'任务详情',exact:true})).toHaveCount(1);await expect(page.getByRole('button',{name:'任务详情',exact:true})).toBeVisible();await page.getByRole('button',{name:'任务详情',exact:true}).click();const dialog=page.getByRole('dialog',{name:'任务与运行技术详情',exact:true});await dialog.getByRole('button',{name:/技术细节与原始记录/}).click();await expect(dialog).toContainText(job.id);await expect(page.getByText(/重试先核对原业务状态/)).toBeVisible();await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(dialog).not.toBeVisible()
  expect((await page.request.get('/api/v1/jobs/browse?page=0')).status()).toBe(400);expect((await page.request.get('/api/v1/jobs/not-a-uuid')).status()).toBe(400);const empty=await page.request.get(`/api/v1/jobs/browse?page=2&pageSize=25&q=${job.id}`);expect((await empty.json()).data).toEqual({items:[],total:1})
@@ -1192,7 +1192,7 @@ test('maintenance center preserves policy editing and contains desktop/mobile ta
  let saved:any;await page.route('**/api/v1/ops',r=>fixtureFulfill(r,{json:{data}}));await page.route('**/api/v1/ops/trends?*',r=>fixtureFulfill(r,{json:{data:[]}}));await page.route('**/api/v1/ops/policy',r=>{saved=r.request().postDataJSON();data.policy={...saved,revision:2};return fixtureFulfill(r,{json:{data:data.policy}})})
  await page.goto('/maintenance');await expect(page.getByRole('heading',{name:'备份与告警',exact:true})).toBeVisible();await expect(page.getByText('尚无系统备份',{exact:true})).toBeVisible();await page.getByRole('button',{name:'维护策略',exact:true}).click();await page.getByRole('checkbox',{name:'启用定时备份',exact:true}).check();await expect(page.getByRole('checkbox',{name:'启用定时备份',exact:true})).toBeChecked();await page.getByLabel('备份Cron',{exact:true}).fill('0 4 * * *');await page.getByRole('button',{name:'保存维护策略',exact:true}).click();await expect.poll(()=>saved?.value.backupCron).toBe('0 4 * * *');expect(saved.value.backupEnabled).toBe(true);expect(saved.revision).toBe(1);expect(saved.value.keepCount).toBe(10)
  for(const width of [1440,768,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`maintenance-policy-${width}.png`),fullPage:true,animations:'disabled'})}
- await page.getByRole('button',{name:'运行趋势',exact:true}).click();await expect(page.getByText('暂无有效采样',{exact:true})).toHaveCount(9);await expect(page.locator('.u6-trends').getByRole('img')).toHaveCount(0)
+ await page.getByRole('button',{name:'打开导航',exact:true}).click();await page.getByRole('dialog',{name:'主导航',exact:true}).getByRole('link',{name:'运行趋势',exact:true}).click();await expect(page).toHaveURL(/\/trends$/);await expect(page.getByText('暂无有效采样',{exact:true})).toHaveCount(9);await expect(page.locator('.trend-list').getByRole('img')).toHaveCount(0)
 })
 
 test('maintenance backup and drill require confirmation and never pretend a queued job completed (fixture)',async({page})=>{
@@ -1475,7 +1475,7 @@ test('R-F3 HTTP plugin install, enable and execute recover from failures with bo
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
  await page.getByRole('region',{name:'内置插件目录'}).locator('article').filter({hasText:'Hello Go'}).getByRole('button',{name:'安装插件',exact:true}).click()
  const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await consent.getByRole('checkbox').check()
- await consent.getByRole('button',{name:'确认安装插件',exact:true}).click();await expect(page.getByRole('alert')).toContainText('结果未确认')
+ await consent.getByRole('button',{name:'确认安装插件',exact:true}).click();await expect(page.locator('.async-result-banner')).toContainText('结果未确认')
  await expect(consent).toBeHidden()
  await page.getByRole('button',{name:'核对原请求',exact:true}).click();await expect(consent).toBeHidden()
  await expect.poll(()=>operations.length).toBe(2);expect(operations[0].operationKey).toBe(operations[1].operationKey)
@@ -1567,7 +1567,7 @@ test('R committed install response loss retries the original key against the rea
  })
  try{
   const directory=page.getByRole('region',{name:'内置插件目录'}).locator('article').filter({hasText:'Hello Go'})
-  await directory.getByRole('button',{name:/安装插件|新增独立实例/}).click();const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await consent.getByRole('checkbox').check();await consent.getByRole('button',{name:'确认安装插件',exact:true}).click();await expect(page.getByRole('alert')).toContainText('结果未确认')
+  await directory.getByRole('button',{name:/安装插件|新增独立实例/}).click();const consent=page.getByRole('dialog',{name:'插件权限确认',exact:true});await consent.getByRole('checkbox').check();await consent.getByRole('button',{name:'确认安装插件',exact:true}).click();await expect(page.locator('.async-result-banner')).toContainText('结果未确认')
   await page.reload();await page.getByRole('button',{name:'核对原请求',exact:true}).click();await expect.poll(()=>keys.length).toBe(2);expect(keys[0]).toBe(keys[1]);await expect(page.getByRole('status')).toContainText('已安装')
   const detail=(await(await page.request.get(`/api/v1/plugins/${id}`)).json()).data;expect(detail.instance.desiredState).toBe('disabled');expect(detail.instance.revision).toBe(1)
   expect(((await(await page.request.get('/api/v1/plugins')).json()).data as any[]).filter(i=>i.id===id)).toHaveLength(1)

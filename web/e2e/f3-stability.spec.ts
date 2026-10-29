@@ -41,7 +41,7 @@ test('F3 queue SSE has no stacked poll and preserves container, filters, details
 test('F3 home is overview-only and log table retains original URLs during refresh',async({page})=>{
  await metrics(page);await fixture(page,'ops');const requests:string[]=[];page.on('request',r=>requests.push(new URL(r.url()).pathname))
  await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'服务器状态',exact:true})).toBeVisible()
- await expect(page.getByLabel('待处理收件箱')).toHaveCount(0);await expect(page.getByLabel('首次使用引导')).toHaveCount(0);expect(requests).not.toContain('/api/v1/readiness')
+ await expect(page.getByLabel('待处理收件箱')).toHaveCount(0);await expect(page.getByLabel('首次使用引导')).toHaveCount(0);expect(requests.filter(p=>p==='/api/v1/readiness')).toHaveLength(1)
  await shot(page,'dashboard-desktop');await page.setViewportSize({width:390,height:844});await shot(page,'dashboard-narrow')
  await page.setViewportSize({width:1440,height:1000});await page.goto('/ops?tab=logs');await expect(page.locator('.f3-log-row.u6-log')).toHaveCount(1)
  await expect(page.locator('.u6-log pre')).toContainText(rawLog.url);await expect(page.locator('.u6-log pre')).toContainText(rawLog.location)
