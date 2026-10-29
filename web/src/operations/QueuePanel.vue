@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { View, MoreFilled } from '@element-plus/icons-vue';
 import {ElDropdown,ElDropdownMenu,ElDropdownItem} from 'element-plus';
 import 'element-plus/es/components/dropdown/style/css';
 import 'element-plus/es/components/dropdown-menu/style/css';
@@ -65,7 +66,7 @@ defineExpose({ load, filter, jobs });
   <div class="media-stack">
     <section class="media-surface f3-queue-list">
       <h2>任务列表</h2>
-      <form class="u5-filters" @submit.prevent="search">
+      <form class="u5-filters ops-job-filters" @submit.prevent="search">
         <label>
           任务状态
           <el-select v-model="filter.state" aria-label="任务状态" placeholder="全部状态">
@@ -91,17 +92,26 @@ defineExpose({ load, filter, jobs });
         <el-button native-type="submit">筛选任务</el-button>
       </form>
       <p>取消只停止本程序后续执行；重试先核对原业务状态，不能证明安全时保留未知状态。</p>
-      <div class="f4-queue-rows ops-content-stage" :aria-busy="jobs.loading||jobs.refreshing">
-      <ResourceState :stale="jobs.loaded" :loading="!jobs.loaded&&!jobs.error" :error="jobs.error" :empty="!!jobs.data&&!jobs.data.items?.length" @reload="load"/>
+      <div class="mt-list" aria-label="后台任务列表">
+      <div class="mt-list-columns ops-job-columns" aria-hidden="true"><span>任务</span><span>状态 / 队列</span><span>执行摘要</span><span>操作</span></div>
+      <div class="f4-queue-rows ops-content-stage ops-job-list" :aria-busy="jobs.loading||jobs.refreshing">
+      <div v-if="!jobs.loaded&&!jobs.error" class="ops-job-loading" role="status" aria-label="正在读取任务">
+        <div v-for="n in 3" :key="n" class="ops-job-loading-row" aria-hidden="true"><el-skeleton :rows="1" animated/></div>
+      </div>
+      <ResourceState :stale="jobs.loaded" :error="jobs.error" :empty="jobs.loaded&&!jobs.error&&!jobs.data?.items?.length" @reload="load"/>
       <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
-      <article v-for="j in jobs.data?.items||[]" :key="j.id" class="organize-record f3-job-row">
-        <div class="f4-job-summary"><h3 :title="kindLabel(j.kind)">{{ kindLabel(j.kind) }}</h3><StatusBadge :state="j.state" :label="stateLabel(j.state)" :title="j.lastError||undefined"/></div>
-        <p class="f3-job-meta">尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }} · 耗时 {{ j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—' }} 秒 <span> · {{ j.state==='succeeded'?'已完成':j.state==='running'?'业务进度见详情':'等待状态核对' }}</span></p>
-        <div class="media-actions ops-job-actions">
-          <el-button size="small" @click="inspect(j.id)">任务详情</el-button>
+      <article v-for="j in jobs.data?.items||[]" :key="j.id" class="mt-list-row f3-job-row">
+        <div class="ops-job-name"><h3 :title="kindLabel(j.kind)">{{ kindLabel(j.kind) }}</h3></div>
+        <div class="ops-job-status"><StatusBadge :state="j.state" :label="stateLabel(j.state)" :title="j.lastError||undefined"/><span class="ops-job-queue">{{queueLabel(j.queue)}}</span></div>
+        <div class="ops-job-meta">
+          <p class="f3-job-meta"><span class="ops-job-meta-queue">{{queueLabel(j.queue)}} · </span>尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }}</p>
+          <p class="ops-job-progress">耗时 {{ j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—' }} 秒 · {{ j.state==='succeeded'?'已完成':j.state==='running'?'业务进度见详情':'等待状态核对' }}</p>
+        </div>
+        <div class="mt-list-actions ops-job-actions">
+          <el-button size="small" aria-label="任务详情" @click="inspect(j.id)"><el-icon class="mt-list-action-icon"><View/></el-icon><span class="mt-list-action-text">任务详情</span></el-button>
           <TaskControl kind="jobs" :id="j.id" :state="j.state" @changed="jobs.load" v-slot="{ask,disabled,canCancel,canRetry}">
             <ElDropdown v-if="canCancel||canRetry||taskTarget(j)" trigger="click" popper-class="t8-ops-menu">
-              <el-button size="small">更多</el-button>
+              <el-button size="small" aria-label="更多"><el-icon class="mt-list-action-icon"><MoreFilled/></el-icon><span class="mt-list-action-text">更多</span></el-button>
               <template #dropdown><ElDropdownMenu>
                 <ElDropdownItem v-if="taskTarget(j)"><RouterLink :to="taskTarget(j)!">前往业务页核对</RouterLink></ElDropdownItem>
                 <ElDropdownItem v-if="canRetry" :disabled="disabled" @click="ask('retry')">核对后重试</ElDropdownItem>
@@ -112,7 +122,8 @@ defineExpose({ load, filter, jobs });
         </div>
       </article>
       </div>
-      <PagePagination v-model:current-page="filter.page" :total="jobs.data?.total" v-model:page-size="filter.pageSize" layout="prev,pager,next,total" @current-change="changePage"/>
+      </div>
+      <PagePagination :status="!jobs.loaded?(jobs.error?'error':'loading'):''" v-model:current-page="filter.page" :total="jobs.data?.total" v-model:page-size="filter.pageSize" layout="prev,pager,next,total" @current-change="changePage"/>
     </section>
     <DetailDrawer v-model:visible="open" title="任务与运行技术详情" :technical-data="detail" size="large" class="media-detail">
       <el-button @click="copyOriginal(JSON.stringify(detail,null,2),s=>copyText=s).then(s=>copied=s)">复制原始记录</el-button>

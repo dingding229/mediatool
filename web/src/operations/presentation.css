@@ -1,13 +1,60 @@
 /* Scope to the operations workspace; keep other page control contracts intact. */
 .t8-ops{--ops-gap:20px}.t8-ops>.ops-attention,.t8-ops .media-stack,.t8-ops .dashboard-workspace{display:grid;gap:var(--ops-gap);min-width:0}.t8-ops .media-surface{padding:20px}.t8-ops .media-section-heading{gap:12px;margin-bottom:16px;align-items:center}.t8-ops h2{font-size:18px;line-height:1.5;margin-top:0}.t8-ops h3{font-size:14px;line-height:1.5}.t8-ops .ops-panel-header{min-height:0;border:0;background:none;padding:0}.t8-ops .media-surface .media-surface{min-height:0;border:0;box-shadow:none;padding:0}.t8-ops .ops-content-stage{min-height:360px;min-width:0;position:relative}.t8-ops .state-view.state-empty{min-height:220px}.t8-ops .media-surface.f5-runtime-checks{min-height:240px;margin:0}.t8-ops .f5-runtime-checks .f5-first-read{min-height:0}.t8-ops .service-readiness .readiness-cards{border:0}.t8-ops .u5-filters{align-items:end;gap:12px}.t8-ops .u5-filters input,.t8-ops .u5-filters select,.t8-ops .u5-filters .el-input__wrapper,.t8-ops .u5-filters .el-select__wrapper,.t8-ops .u5-filters>.el-button{height:44px;min-height:44px;box-sizing:border-box}.t8-ops .u5-filters>label{min-width:0}.t8-ops .u5-filters input{width:100%;min-width:0}.t8-ops .organize-record{min-width:0}.t8-ops .u6-cache-content{flex:1}.t8-ops .media-surface>.organize-record:has(.u6-cache-content){display:flex;gap:16px;align-items:center;justify-content:space-between}.t8-ops .media-surface>.organize-record:has(.u6-cache-content) .media-actions{justify-content:flex-end;margin:0}
-.t8-ops .organize-record.f3-job-row{grid-template-columns:minmax(0,1fr) 168px;grid-template-rows:auto auto;gap:4px 16px;min-height:84px;box-sizing:border-box;padding:12px 0;align-items:center}.t8-ops .f4-job-summary{display:flex;align-items:center;flex-wrap:nowrap;min-width:0;gap:8px}.t8-ops .f4-job-summary h3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.t8-ops .f4-job-summary>.status-badge{flex:none}.t8-ops .f3-job-meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.t8-ops .organize-record.f3-job-row>.ops-job-actions{width:168px;min-width:0;grid-column:2;grid-row:1/span 2;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin:0}.t8-ops .ops-job-actions .el-button{height:32px;min-height:32px;padding:6px 10px;font-size:12px}.t8-ops .ops-job-actions .task-controls{min-width:0}.t8-ops-menu .el-dropdown-menu__item{min-height:36px;font-size:13px}.t8-ops-menu a{color:inherit;text-decoration:none;display:flex;align-items:center;min-height:36px}.t8-ops .ops-job-actions .task-controls:has(.state-view),.t8-ops .ops-job-actions .task-controls:has([role=status]){flex-wrap:wrap;max-width:100%}
-@media(max-width:700px){.t8-ops{--ops-gap:16px}.t8-ops .media-surface{padding:16px}.t8-ops .ops-panel-header{padding:0}.t8-ops .u5-filters{grid-template-columns:minmax(0,1fr)}.t8-ops .organize-record.f3-job-row{grid-template-columns:minmax(0,1fr) 136px;min-height:96px;gap:4px 8px}.t8-ops .organize-record.f3-job-row>.ops-job-actions{grid-column:2;grid-row:1/span 2;width:136px}.t8-ops .ops-job-actions .el-button{height:44px;min-height:44px;padding-inline:8px}.t8-ops .media-surface>.organize-record:has(.u6-cache-content){align-items:flex-start;flex-direction:column}.t8-ops .media-surface>.organize-record:has(.u6-cache-content) .media-actions{justify-content:flex-start}.t8-ops .media-section-heading{flex-wrap:wrap}}
+.t8-ops-menu .el-dropdown-menu__item{min-height:36px;font-size:13px}.t8-ops-menu a{color:inherit;text-decoration:none;display:flex;align-items:center;min-height:36px}
+@media(max-width:700px){.t8-ops{--ops-gap:16px}.t8-ops .media-surface{padding:16px}.t8-ops .ops-panel-header{padding:0}.t8-ops .u5-filters{grid-template-columns:minmax(0,1fr)}.t8-ops .media-surface>.organize-record:has(.u6-cache-content){align-items:flex-start;flex-direction:column}.t8-ops .media-surface>.organize-record:has(.u6-cache-content) .media-actions{justify-content:flex-start}.t8-ops .media-section-heading{flex-wrap:wrap}}
 
 @media(max-width:700px){.t8-ops-menu .el-dropdown-menu__item,.t8-ops-menu a{min-height:44px}}
 
 /* Match the existing select frame, including the log date-range outer frame. */
 .t8-ops .f3-log-filters>label>input,.t8-ops .f3-log-filters .f4-log-time-range .el-date-editor.el-range-editor{height:44px;min-height:44px;box-sizing:border-box}
 
+
+/* I19-1: shared foundation is operations-only; never resize global dialogs/cards. */
+.t8-ops .f5-maint-summary{min-height:28px}
+@media(max-width:700px){
+ .t8-ops.media-workspace>.page-heading{flex-direction:row;flex-wrap:nowrap;align-items:flex-start;min-height:72px}
+ .t8-ops .page-heading-main{min-width:0}
+ .t8-ops.media-workspace>.page-heading>.heading-actions{width:auto;flex-shrink:0}
+}
+
+/* Page columns/actions reuse mt-list; request and task-control logic are unchanged. */
+.t8-ops .ops-job-columns,.t8-ops .mt-list-row.f3-job-row{
+ grid-template-columns:minmax(0,1.2fr) 124px minmax(240px,1.8fr) 144px;
+}
+.t8-ops .mt-list-row.f3-job-row{min-height:64px;padding:8px 0}
+.t8-ops .ops-job-name h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t8-ops .ops-job-status{display:grid;justify-items:start;gap:2px}
+.t8-ops .ops-job-queue,.t8-ops .ops-job-progress{font-size:12px;color:var(--mt-text-muted)}
+.t8-ops .ops-job-meta .f3-job-meta,.t8-ops .ops-job-meta .ops-job-progress{font-size:12px;line-height:1.5;white-space:normal;overflow:visible}
+.t8-ops .ops-job-meta-queue{display:none}
+.t8-ops .mt-list-actions.ops-job-actions{
+ grid-column:4;grid-row:1;display:flex;box-sizing:border-box;justify-self:end;width:144px;
+}
 .t8-ops .ops-job-actions>.task-controls{display:contents}
-.t8-ops .ops-job-actions>.task-controls .state-view{flex-basis:100%;max-width:100%}
-.t8-ops .organize-record.f3-job-row>.ops-job-actions{box-sizing:border-box;justify-self:end}
+.t8-ops .ops-job-actions:has(.state-view),.t8-ops .ops-job-actions:has([role=status]),.t8-ops .ops-job-actions:has(.async-result-banner){
+ grid-column:1/-1;grid-row:auto;justify-self:stretch;width:100%;flex-wrap:wrap;
+}
+.t8-ops .ops-job-actions>.task-controls>.state-view,.t8-ops .ops-job-actions>.task-controls>.async-result-banner,.t8-ops .ops-job-actions>.task-controls>p{flex-basis:100%;max-width:100%;min-height:0}
+.t8-ops .ops-job-actions .state-view{padding:8px 0}
+.t8-ops .ops-job-actions .state-view .el-button,.t8-ops .ops-job-actions .async-result-banner .el-button{width:auto;padding-inline:12px}
+
+/* Skeletons reserve real rows only on first load; refresh never replaces saved rows. */
+.t8-ops .ops-job-list.ops-content-stage{min-height:0}
+.t8-ops .ops-job-list>.state-view{min-height:0;padding:16px 0}
+.t8-ops .ops-job-list .state-empty .el-empty{padding:12px 0}
+.t8-ops .ops-job-loading-row{display:flex;align-items:center;height:64px;border-top:1px solid var(--mt-border-color);box-sizing:border-box}
+.t8-ops .ops-job-loading-row .el-skeleton{width:75%}
+.t8-ops .ops-job-loading-row .el-skeleton__item{height:12px;margin:4px 0}
+@media(max-width:700px){
+ .t8-ops .u5-filters.ops-job-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .t8-ops .ops-job-filters>.el-button{grid-column:2}
+ .t8-ops .mt-list-row.f3-job-row{grid-template-columns:minmax(0,1fr) auto 96px;gap:4px 8px}
+ .t8-ops .ops-job-name{grid-column:1;grid-row:1}
+ .t8-ops .ops-job-status{grid-column:2;grid-row:1}
+ .t8-ops .ops-job-status .ops-job-queue{display:none}
+ .t8-ops .ops-job-meta{grid-column:1/-1;grid-row:2}
+ .t8-ops .ops-job-meta-queue{display:inline}
+ .t8-ops .mt-list-actions.ops-job-actions{grid-column:3;grid-row:1;width:96px}
+ .t8-ops .ops-job-actions:has(.state-view),.t8-ops .ops-job-actions:has([role=status]),.t8-ops .ops-job-actions:has(.async-result-banner){grid-column:1/-1;grid-row:auto;width:100%}
+ .t8-ops .ops-job-loading-row{height:100px}
+}
