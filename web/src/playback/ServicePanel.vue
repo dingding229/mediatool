@@ -52,7 +52,7 @@ defineExpose({ load, form, save, status, libraries, op });
   <div class="media-stack">
     <section class="media-surface">
       <h2>服务设置</h2>
-      <ResourceState :stale="status.loaded" :loading="status.loading" :error="status.error" @reload="load"/>
+      <ResourceState overlay :stale="status.loaded" :loading="status.loading" :error="status.error" @reload="load"/>
       <p>服务状态：{{ status.data?status.data.enabled?'已启用':'已停用':'—' }}</p>
       <ResourceState :error="providers.error" @reload="providers.load"/>
       <form class="u5-form" @submit.prevent="save">
