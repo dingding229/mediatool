@@ -7,13 +7,11 @@ defineProps<{
   value: Readiness | null;
   loading: boolean;
   error: unknown;
-  canTest?:boolean;
-  testing?:boolean;
-  testLocked?:boolean;
+  tests?:Partial<Record<string,{available:boolean;busy:boolean;locked:boolean}>>;
   overview?:boolean;
 }>();
 defineEmits<{
-  test: [];
+  test: [kind: string];
   retry: [
   ];
 }>();
@@ -28,7 +26,7 @@ defineEmits<{
       <ConnectionHealth v-if="service.key!=='strm'&&value?.components?.[service.key]?.state!=='not_configured'" :state="value?.components?.[service.key]?.state||'unavailable'" :checked-at="value?.components?.[service.key]?.lastCheckedAt" :message="value?.components?.[service.key]?.message"/>
       <StatusBadge v-else :state="value?.components?.[service.key]?.state || 'unavailable'" :label="readinessLabel(value?.components?.[service.key])" />
       <p v-if="service.key==='strm'||value?.components?.[service.key]?.state==='not_configured'">{{ readinessReason(value?.components?.[service.key]) }}</p>
-      <el-button v-if="service.key==='open115'&&value?.components?.open115?.state!=='disabled'&&canTest" class="readiness-test" :loading="testing" :disabled="testLocked||testing" @click="$emit('test')">立即检测</el-button>
+      <el-button v-if="!overview&&service.key!=='strm'&&value?.components?.[service.key]?.state!=='disabled'&&tests?.[service.key]?.available" class="readiness-test" :loading="tests?.[service.key]?.busy" :disabled="tests?.[service.key]?.locked||tests?.[service.key]?.busy" @click="$emit('test',service.key)">立即检测</el-button>
       <RouterLink :to="{ path: '/connections', query: { tab: service.tab } }">
         {{value?.components?.[service.key]?.state==='ready'?'查看':'去处理'}}
         <span class="sr-only">{{ service.name }}</span>
@@ -39,7 +37,13 @@ defineEmits<{
 </section>
 </template>
 <style scoped>
-.service-readiness.is-overview{min-height:200px}
+.service-readiness.is-overview{min-height:0}
+.is-overview .readiness-cards article{padding:16px}
+@media(min-width:601px){
+  .is-overview .readiness-cards article{display:flex;flex-direction:column}
+  .is-overview .readiness-cards h3{margin:0 0 12px}
+  .is-overview .readiness-cards a{align-self:flex-start;align-items:flex-end;margin-top:auto}
+}
 
 .readiness-cards  {
    display:grid;
@@ -86,6 +90,8 @@ defineEmits<{
   }
 }
 @media(max-width:600px) {
+  .is-overview .readiness-cards article{padding:12px 16px}
+  .is-overview .readiness-cards h3{align-self:center}
   .readiness-cards,.readiness-cards:has(>article:nth-child(3):last-child) {
     grid-template-columns:1fr
   }

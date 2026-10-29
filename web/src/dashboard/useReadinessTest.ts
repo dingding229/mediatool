@@ -3,10 +3,12 @@ import { APIError, responseStatus } from '../api/client';
 import {checkConnection} from '../api/connections';
 import { readPrivate, savePrivate } from '../organize/model';
 import { list } from './model';
-export function useReadinessTest(accounts: () => any, reload: () => Promise<unknown>) {
-  const key = 'media-tool:readiness-test', pending = ref<any>(readPrivate(key)), busy = ref(false), phase = ref<'queued' | 'reconciling' | null>(pending.value ? 'reconciling' : null), message = ref(pending.value ? '上次检测结果未确认，请先核对，不重复检测。' : '');
+export type ReadinessTestKind = 'open115' | 'clouddrive2' | 'qbittorrent';
+export function useReadinessTest(accounts: () => any, reload: () => Promise<unknown>, kind: ReadinessTestKind = 'open115') {
+  // Keep the existing 115 receipt key; each other connection reconciles independently.
+  const key = 'media-tool:readiness-test' + (kind === 'open115' ? '' : ':' + kind), pending = ref<any>(readPrivate(key)), busy = ref(false), phase = ref<'queued' | 'reconciling' | null>(pending.value ? 'reconciling' : null), message = ref(pending.value ? '上次检测结果未确认，请先核对，不重复检测。' : '');
   const connection = computed(() => {
-    const rows = list(accounts()).filter(r => r.kind === 'open115' && r.enabled);
+    const rows = list(accounts()).filter(r => r.kind === kind && r.enabled);
     return rows.length === 1 ? rows[0] : null;
   }), available = computed(() => !!connection.value);
   let alive = true;

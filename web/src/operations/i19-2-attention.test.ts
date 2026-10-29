@@ -4,12 +4,13 @@ import {createHash} from 'node:crypto';
 import postcss from 'postcss';
 const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
-it('I19-2 leaves detection, pending reconciliation, polling and dashboard behavior byte-identical',()=>{
+it('I19-2 leaves system detection and dashboard loading unchanged (I26a expands connection buttons)',()=>{
  const runtime=read('operations/RuntimeChecks.vue').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { View, Setting } from '@element-plus/icons-vue';\n",'');
  expect(sha(runtime)).toBe('7882f484dba4117557fc670575abe9b77ae6cbff8ab5b4ef882a7882be227046');
- const dashboard=read('views/DashboardWorkspaceView.vue').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!;
- expect(sha(dashboard)).toBe('68bd41a4905e3eaf386c09544f4e3a6326088966ab06892aafbebee9a7c4d56c');
- expect(sha(read('workflows/ServiceReadiness.vue'))).toBe('f24d28c510fcabad0f54a9c4d582cffa9225058a8f7bb5af4b6b2490f2aecce1');
+ // I26a explicitly permits adding CD2/qB to the same receipt/reconciliation flow.
+ // Keep freezing the loader and shared header; behavior is covered in readiness-test and i26a-cards.
+ expect(sha(read('dashboard/useDashboard.ts'))).toBe('5fd2936401cf867786efa104576fe68af637abc13959ad8f2323f0699980b8c7');
+ expect(sha(read('ui/PageHeader.vue'))).toBe('e03eb2e098b252e7e494d15c1601c80f3915aaf8ccd60bfd5921f85938057de4');
 });
 it('I19-2 retains full detail data and original confirmation without any queue controls',()=>{
  const source=read('operations/RuntimeChecks.vue');

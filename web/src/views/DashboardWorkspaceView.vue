@@ -7,6 +7,7 @@ import ServiceReadiness from '../workflows/ServiceReadiness.vue';
 import { bytes, date, errorText, stateFor } from '../workflows/readiness';
 import {recentSearches,hasResourceCount} from '../dashboard/summaries';
 import {useReadinessTest} from '../dashboard/useReadinessTest';
+import {services} from '../workflows/readiness';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { useDashboard } from '../dashboard/useDashboard';
 const props=withDefaults(defineProps<{attention?:boolean}>(),{attention:false});
@@ -16,12 +17,17 @@ const visibleGroups=computed(()=>groups.value.filter(g=>g.items.length||g.errors
 const busy = computed(() => Object.values(slots).some(s => s.loading)), runtime = computed(() => slots.runtime?.data);
 const counters = [{ key: 'sites', label: '站点', path: '/sites?tab=accounts' }, { key: 'subscriptions', label: '订阅', path: '/subscriptions' }, { key: 'downloads', label: '下载', path: '/downloads' }, { key: 'media', label: '媒体文件', path: '/library' }, { key: 'todaySearches', label: '今日搜索', path: '/search' }];
 const recent = computed(() => recentSearches(slots.recent?.data));
-const probe=useReadinessTest(()=>slots.accounts?.error?null:slots.accounts?.data,()=>Promise.all([load('accounts'),load('readiness')]));
+const probes=(['open115','clouddrive2','qbittorrent'] as const).map(kind=>({
+  kind,name:services.find(s=>s.key===kind)!.name,
+  probe:useReadinessTest(()=>slots.accounts?.error?null:slots.accounts?.data,()=>Promise.all([load('accounts'),load('readiness')]),kind),
+}));
+const probeStates=computed(()=>Object.fromEntries(probes.map(({kind,probe})=>[kind,{available:probe.available.value,busy:probe.busy.value,locked:!!probe.phase.value}])));
+const startProbe=(kind:string)=>probes.find(p=>p.kind===kind)?.probe.start();
 usePageRefresh(refresh,props.attention?'attention':'*');
 </script>
 <template>
   <div class="dashboard-workspace" :class="{'ops-attention-dashboard':attention}">
-    <PageHeader v-if="!attention" title="首页" description="常用业务概览与最近搜索。">
+    <PageHeader v-if="!attention" class="dashboard-home-heading" title="首页" description="常用业务概览与最近搜索。">
       <template #actions>
 
       </template>
@@ -29,9 +35,11 @@ usePageRefresh(refresh,props.attention?'attention':'*');
     <!-- Settle the first read as one surface; refresh retains the rendered rows. -->
     <StateView v-if="attention ? busy : slots.readiness?.loading||slots.runtime?.loading||slots.recent?.loading" state="loading" :title="attention?'正在读取待处理事项…':'正在读取工作台…'"/>
     <template v-else>
-    <ServiceReadiness :overview="!attention" :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" :can-test="probe.available.value" :testing="probe.busy.value" :test-locked="!!probe.phase.value" @test="probe.start" @retry="load('readiness')" />
-    <AsyncResultBanner v-if="attention&&probe.phase.value" :status="probe.phase.value" :message="probe.message.value" @refresh="probe.reconcile"/>
-    <p v-if="attention&&probe.message.value&&!probe.phase.value" role="status">{{probe.message.value}}</p>
+    <ServiceReadiness :overview="!attention" :value="slots.readiness?.data" :loading="!!slots.readiness?.loading" :error="slots.readiness?.error" :tests="probeStates" @test="startProbe" @retry="load('readiness')" />
+    <template v-if="attention" v-for="{kind,name,probe} in probes" :key="kind">
+      <AsyncResultBanner v-if="probe.phase.value" :status="probe.phase.value" :message="name+'：'+probe.message.value" @refresh="probe.reconcile"/>
+      <p v-else-if="probe.message.value" role="status">{{name}}：{{probe.message.value}}</p>
+    </template>
     <section v-if="attention" class="dashboard-inbox u2-surface" aria-label="待处理收件箱">
       <header v-if="visibleGroups.length"><h2>待处理</h2></header>
       <StateView v-if="!visibleGroups.length&&inboxLoading" compact state="loading" title="正在读取待处理事项…"/>
@@ -272,16 +280,8 @@ header>span,small,.setup-guide p,.dashboard-empty {
   .u2-surface {
     padding:16px
   }
-  .inbox-grid,.setup-guide ol,.dashboard-counters,.dashboard-server dl {
+  .inbox-grid,.setup-guide ol,.dashboard-server dl {
     grid-template-columns:1fr
-  }
-  .dashboard-counters a {
-    display:flex;
-    align-items:center;
-    justify-content:space-between
-  }
-  .dashboard-counters strong {
-    margin:0
   }
   .dashboard-searches>a {
     flex-wrap:wrap
@@ -289,6 +289,14 @@ header>span,small,.setup-guide p,.dashboard-empty {
   .dashboard-workspace {
     gap:16px
   }
+}
+@media(max-width:768px){
+  .dashboard-counters{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .dashboard-counters a{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;min-height:52px;box-sizing:border-box}
+  .dashboard-counters a:last-child:nth-child(odd){grid-column:1/-1}
+  .dashboard-counters strong{font-size:22px;line-height:1.2;margin:0}
+  .dashboard-home-heading{flex-wrap:nowrap;min-height:72px}
+  .dashboard-home-heading :deep(.heading-actions){width:auto;flex-shrink:0}
 }
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 </style>
