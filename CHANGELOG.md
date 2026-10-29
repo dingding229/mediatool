@@ -2,7 +2,9 @@
 
 面向使用者记录稳定版本的变化；版本以 Git tag 为准，开发镜像不代表稳定发布。
 
-## 未发布
+## [0.49.0] - 2026-10-30
+
+- I22–I27 统一发版；schema 保持 93，无数据库迁移，插件 pin 与启动配置不变。移除 CLI 子命令 `diagnose emby-layout`；告警列表 API 新增 `threshold`、`unit`、`comparison` 三个只读展示字段，数值与实际告警判定共用来源。内置 Emby 兼容协议及 CloudDrive2 不变。
 
 - I27：移除外部 Emby 残留 CLI 和任务类型，内置 Emby 兼容协议不变。删除 `diagnose emby-layout`、连接诊断的外部 Emby 请求与报告字段、旧任务控制分支及失效流程枚举/文档；成功历史任务保留且不重放。诊断策略不再写死部署 IP 或外部 Emby 主机名，本机地址从运行时配置读取；CloudDrive2、内置媒体协议、STRM/302、退役数据保护与插件 pin 均不变，不新增迁移或删除业务行。
 
