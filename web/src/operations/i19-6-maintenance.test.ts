@@ -28,7 +28,8 @@ it.each([
  ['ui/PreviewApprove.vue','e015b8824bee6d214b2638323540119416d7b69c82ac07a318577189b88c629a'],
 ])('I19-6 leaves shared confirmation/workflow unchanged: %s',(file,hash)=>expect(sha(read(file))).toBe(hash));
 it.each([
- ['maintenance.go','de9ddec5d94e80116c797070b28a6a58483a47c9ba51d88e37d2196106193f4e'],
+ // I22 only changes policy response projection; destructive handlers remain byte-identical.
+ ['maintenance.go','8b152a2b9633d5daff77fe205d5e4bb3451ea278819c73d2539d7ce2ed5c8916'],
  ['web_restore.go','e74e964aece0b1ccad84a687fac4206f83e86d0edcfc9eaa19e16c17d15bbb10'],
 ])('I19-6 does not alter protected endpoints or ten-minute recent-session guard: %s',(file,hash)=>{
  expect(sha(readFileSync(new URL('../../../internal/platform/httpapi/'+file,import.meta.url),'utf8'))).toBe(hash);

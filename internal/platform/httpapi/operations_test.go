@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"encoding/json"
+	"media-tool/internal/modules/system"
 	"net/http"
 	"testing"
 )
@@ -15,5 +17,12 @@ func TestOperationsAdminBoundaryAndDegradedSnapshot(t *testing.T) {
 	w := invoke(h, http.MethodGet, "/api/v1/system/operations", "", cfg().SessionKey)
 	if w.Code != 200 || w.Header().Get("Cache-Control") != "no-store" {
 		t.Fatal(w.Code, w.Body.String())
+	}
+	var out struct{ Data system.Snapshot }
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Data.Schedules) == 0 || out.Data.Schedules[0].Name != "核心协调" || out.Data.Schedules[0].Cron != "*/15 * * * * *" {
+		t.Fatal("core schedule name/frequency", out.Data.Schedules)
 	}
 }

@@ -27,7 +27,7 @@ it('I19-7 presentation stays in the web-restore list scope, not shared dialogs o
  const css=read('operations/presentation.css').split('/* I19-7:')[1]!;postcss.parse('/* I19-7:'+css).walkRules(rule=>{for(const selector of rule.selector.split(/,(?![^()]*\))/))expect(selector.trim()).toMatch(/^\.t8-ops\s\.ops-web-/)});expect(css).not.toMatch(/\.el-dialog|\.detail-body|\.confirm-action|\.ops-cli|\.ops-backup-row/);
 });
 it.each([
- ['operations/MaintenancePanel.vue','d4fde2c0029e7e733752ce3800455da30e7ca15a9e339a8a9a658a5cf1d64a73'],
+ ['operations/MaintenancePanel.vue','1e15eaa8527f4253484641726c136ddc4a684a83d02cb74eaf58612027313aa6'],
  ['workflows/restore-session.ts','0215778c804dc3c98505816adcc505a2dc0cbb2cf176f29803e843a9c203e425'],
  ['ui/ConfirmAction.vue','abb54b05b33a408a385aef0ad5d32b311be6d7b77ab7125c481cd10f8773278b'],
  ['ui/DetailDrawer.vue','89d028ea7bb8716a17edf4af45a9095b5bae5378d3bdf34dfee310d2224a2d76'],

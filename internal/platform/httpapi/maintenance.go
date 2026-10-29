@@ -52,6 +52,12 @@ func opsError(w http.ResponseWriter, err error) {
 	}
 	fail(w, status, "maintenance_rejected", err.Error())
 }
+func backupPolicyResponse(policy maintenance.PolicyRecord) maintenance.PolicyRecord {
+	if !policy.Value.BackupEnabled {
+		policy.NextBackup = nil
+	}
+	return policy
+}
 func (a *API) opsOverview(w http.ResponseWriter, r *http.Request) {
 	if !a.opsReady(w) {
 		return
@@ -64,6 +70,7 @@ func (a *API) opsOverview(w http.ResponseWriter, r *http.Request) {
 		opsError(w, err)
 		return
 	}
+	policy = backupPolicyResponse(policy)
 	backups, err := e.Backups(ctx)
 	if err != nil {
 		opsError(w, err)
@@ -118,7 +125,7 @@ func (a *API) opsPolicy(w http.ResponseWriter, r *http.Request) {
 		opsError(w, err)
 		return
 	}
-	write(w, 200, out)
+	write(w, 200, backupPolicyResponse(out))
 }
 func opsConfirm(w http.ResponseWriter, r *http.Request) bool {
 	var in struct {

@@ -70,7 +70,7 @@ defineExpose({load,create,health,op});
      <div class="mt-list-columns ops-schedule-columns" aria-hidden="true"><span>名称</span><span>状态 / 频率</span><span>执行时间</span><span>操作</span></div>
      <article v-for="s in health.data?.schedules||[]" :key="s.id" class="mt-list-row ops-runtime-row ops-schedule-row">
       <h3>{{s.name}}</h3><div class="ops-schedule-frequency"><span>{{s.enabled?'已启用':'已停用'}}</span><p>{{scheduleLabel(s.cron)}}</p></div>
-      <div class="ops-runtime-time"><p>下次 {{s.nextRunAt===null?'计划已结束':date(s.nextRunAt)}}</p><p>上次 {{date(s.lastRunAt)}}</p></div>
+      <div class="ops-runtime-time"><p>{{s.enabled?'下次 '+(s.nextRunAt===null?'计划已结束':date(s.nextRunAt)):'已停用'}}</p><p>上次 {{date(s.lastRunAt)}}</p></div>
       <div class="media-actions mt-list-actions"><RouterLink v-if="s.link?.startsWith('/')" class="ops-plan-link" :to="s.link" aria-label="管理此计划"><el-icon class="mt-list-action-icon"><Setting/></el-icon><span class="mt-list-action-text">管理此计划</span></RouterLink></div>
       <p v-if="s.error" class="ops-schedule-error" role="status">{{s.error}}</p>
      </article>

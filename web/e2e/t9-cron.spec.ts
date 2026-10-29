@@ -15,7 +15,7 @@ async function fixture(page:Page,ended=false){
  await page.route('**/api/v1/library/scan-schedules',r=>fixtureFulfill(r,{json:{data:[{...schedule,id:'scan-owned',root:'/115/自有测试目录',nextRunAt:ended?null:schedule.nextRunAt}]}}));
  await page.route('**/api/v1/subscriptions?*',r=>fixtureFulfill(r,{json:{data:[{id:'t9-sub',title:'测试订阅',media:{id:42,mediaType:'movie',title:'测试订阅',year:'2026'},rules:{accountIds:[],include:[],exclude:[],minSize:0,maxSize:0,minSeeders:0,season:0,episodes:[]},source:'search',enabled:true,revision:1,lastState:'idle',nextRunAt:ended?null:schedule.nextRunAt}]}}));
  await page.route('**/api/v1/library/scans?*',r=>fixtureFulfill(r,{json:{data:{items:[],total:0}}}));
- await page.route('**/api/v1/ops',r=>fixtureFulfill(r,{json:{data:{...opsSnapshot,policy:{...opsSnapshot.policy,nextBackupAt:ended?null:schedule.nextRunAt}}}}));
+ await page.route('**/api/v1/ops',r=>fixtureFulfill(r,{json:{data:{...opsSnapshot,policy:{...opsSnapshot.policy,value:{...opsSnapshot.policy.value,backupEnabled:true},nextBackupAt:ended?null:schedule.nextRunAt}}}}));
  await page.route('**/api/v1/jobs/browse?*',r=>fixtureFulfill(r,{json:{data:{items:[{id:'j1',kind:'site.metrics.refresh',state:'succeeded'},{id:'j2',kind:'native.tmdb.fetch',state:'failed'}],total:2}}}));
  await page.route('**/api/v1/plugins/'+plugin.id,r=>fixtureFulfill(r,{json:{data:{instance:{...plugin,pluginId:'site-checkin',metadata:{...plugin.metadata,id:'site-checkin',name:'站点签到'}},config:{value:{active:false,cron:'0 8 * * *'},revision:2},entries:[],fingerprint:'owned'}}}));
  return writes;

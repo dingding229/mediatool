@@ -67,6 +67,11 @@ func (e Engine) Schedule(ctx context.Context) error {
 		return err
 	}
 	if due {
+		if _, err = e.DB.Exec(ctx, `DELETE FROM worker_heartbeats WHERE owner IN (
+ SELECT owner FROM worker_heartbeats WHERE last_seen_at<now()-interval '24 hours'
+ ORDER BY last_seen_at,owner LIMIT 1000 FOR UPDATE SKIP LOCKED)`); err != nil {
+			return err
+		}
 		// Recover stale backup/delete intents even when collecting metrics fails.
 		if err = e.Retain(ctx, r.Value); err != nil {
 			return err

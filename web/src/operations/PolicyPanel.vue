@@ -70,7 +70,7 @@ usePageRefresh(load,'maintenance');
           <input v-model.number="form[field.key]" type="number" :aria-label="field.label" :min="field.min" :max="field.max" :step="field.step||1" required/>
         </label>
       </div>
-      <p>下次备份 {{ read.data?.policy.nextBackupAt===null?'计划已结束':date(read.data?.policy.nextBackupAt) }}；关闭计划不删除已有备份，固定备份不参与保留清理。</p>
+      <p>{{ read.data?.policy.value.backupEnabled?'下次备份 '+(read.data?.policy.nextBackupAt===null?'计划已结束':date(read.data?.policy.nextBackupAt)):'已停用' }}；关闭计划不删除已有备份，固定备份不参与保留清理。</p>
       <p v-if="latest">配置已被修改，已重新读取；你的输入已保留。</p>
       <details v-if="latest?.value">
         <summary>对照当前保存策略（只读）</summary>

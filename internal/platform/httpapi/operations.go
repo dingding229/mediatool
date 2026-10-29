@@ -18,9 +18,10 @@ func (a *API) operations(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	out := system.Inspect(ctx, a.Deps.DB, a.Deps.Redis)
 	coreNext, _ := scheduling.Next(scheduling.CoreReconcileCron, time.Now(), 0)
-	out.Schedules = append([]system.Schedule{{ID: "core", Name: "核心协调（秒 分 时 日 月 周）", Cron: scheduling.CoreReconcileCron, Next: &coreNext, Enabled: true, Timezone: scheduling.Timezone, Link: "/logs"}}, out.Schedules...)
+	out.Schedules = append([]system.Schedule{{ID: "core", Name: "核心协调", Cron: scheduling.CoreReconcileCron, Next: &coreNext, Enabled: true, Timezone: scheduling.Timezone, Link: "/logs"}}, out.Schedules...)
 	if a.Deps.DB != nil && out.PostgreSQL.State == "ready" {
 		if policy, err := a.maintenance().Policy(ctx); err == nil {
+			policy = backupPolicyResponse(policy)
 			next := policy.NextBackup
 			nextSample, _ := scheduling.Next(maintenance.SampleCron, time.Now(), time.Minute)
 			out.Schedules = append(out.Schedules, system.Schedule{ID: "ops-backup", Name: "系统备份", Cron: policy.Value.BackupCron, Enabled: policy.Value.BackupEnabled, Next: next, Timezone: scheduling.Timezone, Link: "/maintenance"})
