@@ -16,7 +16,7 @@ const hours=computed({get:()=>ranges.includes(Number(route.query.hours))?Number(
 const trends=reactive(useResource<any[]>(()=>request('/ops/trends?hours='+hours.value),[])),detailOpen=ref(false);
 const gapMS=computed(()=>Math.max(1,Math.ceil(hours.value*60/500))*60000);
 const trendRows=computed(()=>trends.data.map(r=>({...r,processMiB:typeof r.processBytes==='number'?r.processBytes/1048576:null,successRate:typeof r.succeededJobs10m==='number'&&typeof r.failedJobs10m==='number'&&r.succeededJobs10m+r.failedJobs10m>0?r.succeededJobs10m/(r.succeededJobs10m+r.failedJobs10m)*100:null})));
-const trendFields=[['memoryPercent','内存使用率','%'],['diskFreeGB','剩余空间','GiB'],['load1','系统负载','1min'],['loadPerCPU','每CPU负载',''],['jobSeconds','任务执行耗时','秒'],['pendingJobs','待处理任务','条'],['processMiB','应用堆内存','MiB'],['failedJobs10m','十分钟失败任务','条'],['successRate','十分钟任务成功率','%']];
+const trendFields=[['memoryPercent','内存使用率','%'],['diskFreeGB','剩余空间','GiB'],['load1','系统负载（1 分钟平均）',''],['loadPerCPU','每CPU负载',''],['jobSeconds','任务执行耗时','秒'],['pendingJobs','待处理任务','条'],['processMiB','应用堆内存','MiB'],['failedJobs10m','十分钟失败任务','条'],['successRate','十分钟任务成功率','%']];
 watch(hours,()=>void trends.load());
 useRefresh(trends.load,{interval:30000,active:()=>!detailOpen.value});
 usePageRefresh(trends.load);

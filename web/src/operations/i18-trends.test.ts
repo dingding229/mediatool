@@ -21,6 +21,6 @@ it('I18 preserves query/hash, falls back to 24h for invalid bookmarks and fences
 });
 it('I18 charts stretch only when explicitly requested; ops no longer owns duplicated trend logic',()=>{
  const chart=readFileSync(new URL('./TrendChart.vue',import.meta.url),'utf8'),ops=readFileSync(new URL('./MaintenancePanel.vue',import.meta.url),'utf8');
- expect(chart).toContain('stretch:false');expect(chart).toContain("stretch?'none':'xMidYMid meet'");expect(chart).toContain('non-scaling-stroke');
+ expect(chart).toContain('stretch:false');expect(chart).toContain('preserveAspectRatio="none"');expect(chart).toContain('preserveAspectRatio="xMidYMid meet"');expect(chart).toContain('non-scaling-stroke');
  expect(ops).not.toContain('/ops/trends');expect(ops).not.toContain('trendFields');expect(ops).not.toContain("trends:'运行趋势'");
 });
