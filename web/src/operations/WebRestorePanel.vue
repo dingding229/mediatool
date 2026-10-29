@@ -23,8 +23,8 @@ onUnmounted(()=>{alive=false;++epoch});
 usePageRefresh(()=>load());
 </script>
 <template>
-<section aria-label="网页备份恢复" class="media-surface ops-web-restore">
- <h2>网页备份恢复</h2>
+<section aria-label="网页备份恢复" class="ops-web-restore">
+ <h3 class="ops-recovery-subtitle">网页备份恢复</h3>
  <div class="ops-web-restore-risk" role="note">
  <p>先预览校验，再输入备份确认短语。确认需10分钟内的新近登录；执行前自动保留恢复前快照。</p>
  <p>账号、115授权、连接、设置、媒体记录、插件配置及KV全部随备份回退；不覆盖现存播放文件。数据库恢复后旧任务暂停，需逐项核对。</p>

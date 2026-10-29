@@ -56,7 +56,7 @@ export function image(value?: string) {
 export const sourceState = (e: unknown) => e instanceof APIError && [401, 403].includes(e.status) ? 'unauthorized' : e instanceof APIError && e.status === 501 ? 'unsupported' : 'error';
 export const cloudState = (v?: string) => ({ present: '文件在库', suspected_missing: '待完整对账', missing: '文件缺失', trashed: '已在回收目录' } as Record<string, string>)[v || ''] || '—';
 
-export function displayRating(value?:number|null){return value!=null&&Number.isFinite(value)&&value>=0&&value<=10?value.toFixed(1):'—';}
+export function displayRating(value?:number|null){return value!=null&&Number.isFinite(value)&&value>0&&value<=10?value.toFixed(1):'—';}
 export function displayResolution(values?:{width:number;height:number}[]){
  return values?.filter(v=>Number.isInteger(v.width)&&v.width>0&&Number.isInteger(v.height)&&v.height>0).map(v=>`${v.width>=3800?'4K':v.width>=1900?'1080p':v.width>=1260?'720p':'SD'}（${v.width}×${v.height}）`).join('、')||'—';
 }

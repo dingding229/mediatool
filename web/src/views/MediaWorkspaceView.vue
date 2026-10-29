@@ -75,7 +75,7 @@ async function metadataSaved(){await load();if(detail.value){try {const updated=
             </div>
             <p class="catalog-subtitle">{{detail.year||'—'}} · {{mediaType(detail.mediaType)}}</p>
             <dl>
-              <div><dt>评分</dt><dd>{{source==='managed'?displayRating(detail.rating):detail.rating??'—'}}</dd></div>
+              <div><dt>评分</dt><dd>{{displayRating(detail.rating)}}</dd></div>
               <div><dt>清晰度</dt><dd>{{source==='managed'?displayResolution(detail.resolutions):detail.resolution||'—'}}</dd></div>
               <div><dt>文件大小</dt><dd>{{source==='managed'?displayMediaSize(detail.size):formatBytes(detail.size)}}</dd></div>
               <div><dt>分类</dt><dd>{{source==='managed'?detail.category||'未分类':detail.genres?.join('、')||'—'}}</dd></div>

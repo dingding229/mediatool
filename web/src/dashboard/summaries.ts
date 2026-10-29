@@ -1,4 +1,5 @@
 import { failureText, jobNames } from '../presentation/failures';
+import {jobObject} from '../presentation/job-object';
 import type { InboxItem, Slot } from './model';
 const list = (data: any): any[] => Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
 const time = (row: any) => Number.isFinite(Date.parse(row.updatedAt || row.createdAt)) ? Date.parse(row.updatedAt || row.createdAt) : 0;
@@ -21,11 +22,7 @@ export function failedJobTarget(row: any):Pick<InboxItem,'path'|'query'> {
 export function failedJobs(slots: Record<string, Slot>): InboxItem[] {
   const groups = new Map<string, InboxItem>();
   for (const r of list(slots.jobs?.data)) {
-    const p = r.payload && typeof r.payload === 'object' && !Array.isArray(r.payload) ? r.payload : {};
-    const field = ['accountId', 'integrationId', 'subscriptionId', 'assetId', 'downloadId', 'transferId', 'batchId', 'fileId'].find(k => typeof p[k] === 'string' && p[k]);
-    const object = field ? p[field] : r.kind === 'system.check' ? 'system' : r.id;
-    const account = list(slots.accounts?.data).find(a => a.id === object);
-    const title = account?.name || [...list(slots.transfers?.data), ...list(slots.manual?.data)].find(a => a.id === object)?.title;
+    const {field,object,name:title}=jobObject(r,slots.accounts?.data,[...list(slots.transfers?.data),...list(slots.manual?.data)]);
     const key = JSON.stringify([r.kind, field || '', object]);
     const latestAt = r.updatedAt || r.createdAt;
     const old = groups.get(key), count = (old?.count || 0) + 1;

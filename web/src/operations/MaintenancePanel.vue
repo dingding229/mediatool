@@ -148,11 +148,11 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
 <PagePagination label="恢复演练分页" v-model:current-page="recordPages.drills" v-model:page-size="recordSizes.drills" :total="data.data?.drills?.length"/>
 
     </section>
-    <section v-else-if="section==='recovery'" class="media-surface">
-      <h3>受控恢复与回滚</h3>
+    <section v-else-if="section==='recovery'" class="media-surface ops-recovery-panel">
+      <h2>受控恢复与回滚</h2>
       <WebRestorePanel :backups="data.data?.backups||[]" :backup-error="data.error" :backups-loading="data.loading"/>
       <section class="ops-cli-maintenance" aria-label="命令行维护与维护单">
-      <h3>命令行维护</h3>
+      <h3 class="ops-recovery-subtitle">命令行维护</h3>
       <p>以下保留原命令行审批流程；网页恢复请使用上方的预览与确认。</p>
       <div class="u5-filters ops-cli-filters">
         <label>

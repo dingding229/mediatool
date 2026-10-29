@@ -4,7 +4,7 @@ import {APIError} from '../api/client';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import PagePagination from '../ui/PagePagination.vue';
 import {metadataFields,readMediaMetadata,saveMediaMetadata,metadataTargetID,type MetadataField,type MetadataRecord,type MetadataTarget} from '../api/mediaMetadata';
-import {inputValue,metadataLabels,metadataPatch} from './metadata-form';
+import {inputValue,metadataValueLabel,metadataLabels,metadataPatch} from './metadata-form';
 import {errorText} from '../workflows/readiness';
 const unmatchedPage=usePageNumber('unmatchedPage'),unmatchedSize=usePageSize(50,'unmatchedPage');
 const props=withDefaults(defineProps<{itemId:string;hideTrigger?:boolean}>(),{hideTrigger:false}),emit=defineEmits<{saved:[]}>();
@@ -55,7 +55,7 @@ watch(()=>props.itemId,()=>{epoch++;opened.value=false;record.value=undefined;ac
       <textarea v-if="key==='overview'" :id="`metadata-${key}`" v-model="draft[key]" :disabled="busy" rows="5" maxlength="10000" @input="changed(key)"/>
       <input v-else :id="`metadata-${key}`" v-model="draft[key]" :disabled="busy" :type="key==='premiereDate'?'date':['year','communityRating'].includes(key)?'number':'text'" :step="key==='communityRating'?'0.1':key==='year'?'1':undefined" :min="key==='year'?1800:key==='communityRating'?0:undefined" :max="key==='year'?2100:key==='communityRating'?10:undefined" :maxlength="key==='tagline'?1000:['genres','tags'].includes(key)?undefined:500" :placeholder="['genres','tags'].includes(key)?'用顿号或逗号分隔，最多50项':undefined" @input="changed(key)"/>
      </label>
-     <div class="metadata-origin"><span :title="inputValue(record.base[key],key)">刮削值：{{inputValue(record.base[key],key)||'暂无刮削值'}}</span><el-button :disabled="busy||!Object.hasOwn(record.overrides,key)&&!restore.has(key)" @click="stageRestore(key)">恢复为刮削值</el-button></div>
+     <div class="metadata-origin"><span :title="metadataValueLabel(record.base[key],key)">刮削值：{{metadataValueLabel(record.base[key],key)}}</span><el-button :disabled="busy||!Object.hasOwn(record.overrides,key)&&!restore.has(key)" @click="stageRestore(key)">恢复为刮削值</el-button></div>
     </div>
     <div class="mt-save-actions"><el-button class="mt-save-button" type="primary" native-type="submit" :loading="busy" :disabled="busy||blocked||!dirty">保存信息</el-button><el-button :disabled="busy" @click="assign(record);notice='已撤回未保存修改'">撤回草稿</el-button></div>
    </form>

@@ -239,6 +239,8 @@
 .t8-ops .ops-backups-panel .state-empty .el-empty,.t8-ops .ops-cli-maintenance .state-empty .el-empty{padding:8px 0}
 .t8-ops .ops-cli-maintenance{min-width:0;margin-top:24px;padding-top:20px;border-top:1px solid var(--mt-border-color)}
 .t8-ops .ops-cli-maintenance>h3{margin:0 0 8px}
+.t8-ops .ops-recovery-panel>h2{font-size:18px;margin:0 0 20px}
+.t8-ops .ops-recovery-panel .ops-recovery-subtitle{font-size:16px;line-height:1.5;margin:0 0 12px}
 .t8-ops .ops-cli-maintenance>.el-button{min-height:44px;margin:0 0 16px;white-space:normal}
 .t8-ops .u5-filters.ops-cli-filters{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;gap:12px;margin:16px 0}
 .t8-ops .ops-cli-filters .el-select{width:100%;min-width:0}
@@ -253,7 +255,7 @@
 }
 
 /* I19-7: web restore lists only. Shared risk/confirmation dialogs stay unchanged. */
-.t8-ops .ops-web-restore>h2{font-size:16px;margin:0 0 12px}
+.t8-ops .ops-web-restore>.ops-recovery-subtitle{font-size:16px;margin:0 0 12px}
 .t8-ops .ops-web-restore-risk{padding:8px 12px;border-left:3px solid var(--el-color-warning);background:var(--mt-bg-canvas);margin:0 0 12px}
 .t8-ops .ops-web-restore-risk>p{margin:4px 0;font-size:13px;line-height:1.7}
 .t8-ops .ops-web-restore-scope{font-size:13px;color:var(--mt-text-muted);margin:8px 0}

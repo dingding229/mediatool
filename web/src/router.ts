@@ -3,6 +3,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { routes } from './router/routes'
 import { installPageRedirects } from './router/redirects'
+import { installChunkRecovery } from './router/chunk-recovery'
+import {ElMessage} from 'element-plus'
+import 'element-plus/es/components/message/style/css'
 
 export { routes }
 
@@ -34,5 +37,7 @@ router.beforeEach(async (to) => {
   if (to.name === 'login' && auth.authenticated) return { name: 'dashboard' }
   return true
 })
+
+if(typeof window!=='undefined')installChunkRecovery(router,()=>{ElMessage.error('页面资源加载失败，请刷新页面后重试。')})
 
 export default router

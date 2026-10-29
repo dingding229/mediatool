@@ -53,3 +53,8 @@ it('log policy loads only on opening settings and bounded debug preserves unrela
  const call=writes('/settings/application')[0];const body=JSON.parse(call[1].body);expect(body.revision).toBe(1);expect(body.value.access.private).toBe('preserved');expect(body.value.logging.retentionDays).toBe(90);expect(Date.parse(body.value.logging.debugUntil)-Date.now()).toBe(24*3600000);
 });
 it('changing retention cannot silently extend an already active sensitive debug session',async()=>{const until=new Date(Date.now()+10*60000).toISOString();settings.value.logging.debugUntil=until;const s=mount(Logs);await flush();s.settings=true;await flush();expect(s.debug).toBe(true);s.policy.draft.value.logging.retentionDays=8;await s.savePolicy();const put=writes('/settings/application')[0];expect(JSON.parse(put[1].body).value.logging.debugUntil).toBe(until)});
+it('I25 loads account names once per queue mount, never per row, page or refresh',async()=>{
+ route.query={tab:'jobs'};const s=mount(Queue);await flush();
+ const count=()=>fetch.mock.calls.filter(([u])=>u==='/api/v1/integrations').length;
+ expect(count()).toBe(1);await s.load();await s.load();s.filter.page=2;await flush();expect(count()).toBe(1);
+});

@@ -4,9 +4,9 @@ import {createHash} from 'node:crypto';
 import postcss from 'postcss';
 const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
-it('I19-1 leaves request, paging, SSE and task state logic byte-identical except the icon import',()=>{
+it('I19-1 preserves task flow; I25 only adds the approved once-per-mount account label read',()=>{
  const script=read('operations/QueuePanel.vue').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { View, MoreFilled } from '@element-plus/icons-vue';\n",'');
- expect(sha(script)).toBe('889a3b5f550e1ff4fbf3275dc0995c3f25e9e7c440616207065521097e0df80f');
+ expect(sha(script)).toBe('8bb2b5a1e4f62aecc2f8433757e5c8db1cf5a81bb17a42d712579267496fa4e3');
 });
 it.each([
  ['workflows/TaskControl.vue','1754c6a35624517dccf545cb2e34ccc6daa8fa30d74f296e3c5ebe73663bad5b'],

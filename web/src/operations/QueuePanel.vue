@@ -10,6 +10,8 @@ import { subscribeJobEvents } from '../api/client';
 import StatusBadge from '../components/StatusBadge.vue';
 import TaskControl from '../workflows/TaskControl.vue';
 import { pageResult } from './model';
+import {listConnections} from '../api/connections';
+import {jobObject} from '../presentation/job-object';
 import { onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { request } from '../api/client';
@@ -21,6 +23,8 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 const route = useRoute();
 const filter = reactive({ state: '', kind: '', queue: '', q: typeof route.query.q === 'string' ? route.query.q : '', page: usePageNumber(), pageSize: usePageSize(25) }), jobs = reactive(useResource<any>(() => request('/jobs/browse?' + new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])))).then(pageResult))), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), copied = ref(''), copyText = ref('');
 async function load() { await jobs.load(); }
+const accounts=reactive(useResource(listConnections,[]));
+function jobTitle(row:any){const name=jobObject(row,accounts.data).name;return kindLabel(row.kind)+(name?' · '+name:'')}
 async function inspect(id: string) {
   try {
     detail.value = await request(`/jobs/${encodeURIComponent(id)}`);
@@ -57,7 +61,7 @@ function connect() {
   if (typeof document === 'undefined' || document.hidden || (route.query.tab||'jobs')!=='jobs') return;
   stream=subscribeJobEvents(()=>{if(Date.now()-lastTick>=15000){lastTick=Date.now();void events.refresh();}},state=>connected.value=state);
 }
-onMounted(()=>{connect();globalThis.document?.addEventListener('visibilitychange',connect)});
+onMounted(()=>{void accounts.load();connect();globalThis.document?.addEventListener('visibilitychange',connect)});
 watch(()=>route.query.tab,connect);
 onUnmounted(()=>{stream?.close();globalThis.document?.removeEventListener('visibilitychange',connect)});
 defineExpose({ load, filter, jobs });
@@ -101,7 +105,7 @@ defineExpose({ load, filter, jobs });
       <ResourceState :stale="jobs.loaded" :error="jobs.error" :empty="jobs.loaded&&!jobs.error&&!jobs.data?.items?.length" @reload="load"/>
       <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
       <article v-for="j in jobs.data?.items||[]" :key="j.id" class="mt-list-row f3-job-row">
-        <div class="ops-job-name"><h3 :title="kindLabel(j.kind)">{{ kindLabel(j.kind) }}</h3></div>
+        <div class="ops-job-name"><h3 :title="jobTitle(j)">{{ jobTitle(j) }}</h3></div>
         <div class="ops-job-status"><StatusBadge :state="j.state" :label="stateLabel(j.state)" :title="j.lastError||undefined"/><span class="ops-job-queue">{{queueLabel(j.queue)}}</span></div>
         <div class="ops-job-meta">
           <p class="f3-job-meta"><span class="ops-job-meta-queue">{{queueLabel(j.queue)}} · </span>尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }}</p>
