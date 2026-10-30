@@ -18,9 +18,9 @@ it('external image entry reuses the existing lazy read and does not toggle close
  const s=mount(ImageEditor,{itemId:'movie',hideTrigger:true});expect(fetch).not.toHaveBeenCalled();await s.openEditor();s.close();expect(s.isOpen()).toBe(false);await s.openEditor();expect(s.isOpen()).toBe(true);expect(fetch).toHaveBeenCalledTimes(1);
 });
 it('detail selects one visible editor, blocks switching during reads and resets on another work',async()=>{
- const s=mount(Detail),metadataOpen=vi.fn(),imageOpen=vi.fn(),metadataClose=vi.fn(),imageClose=vi.fn();s.metadataEditor={open:metadataOpen,close:metadataClose,busy:false};s.imageEditor={open:imageOpen,close:imageClose,busy:false};
- s.edit('metadata');expect(s.activeEditor).toBe('metadata');expect(metadataOpen).toHaveBeenCalledTimes(1);expect(s.imageEditor.close).toHaveBeenCalledTimes(1);
- s.edit('images');expect(s.activeEditor).toBe('images');expect(imageOpen).toHaveBeenCalledTimes(1);expect(s.metadataEditor.close).toHaveBeenCalledTimes(1);
- s.imageEditor.busy=true;s.edit('metadata');expect(s.activeEditor).toBe('images');expect(metadataOpen).toHaveBeenCalledTimes(1);
+ const s=mount(Detail),metadataOpen=vi.fn(),imageOpen=vi.fn(),metadataClose=vi.fn(),imageClose=vi.fn();s.metadataEditor={open:metadataOpen,close:metadataClose,busy:false,isOpen:()=>true,canClose:vi.fn(async()=>true)};s.imageEditor={open:imageOpen,close:imageClose,busy:false,isOpen:()=>false};
+ await s.edit('metadata');expect(s.activeEditor).toBe('metadata');expect(metadataOpen).toHaveBeenCalledTimes(1);expect(s.imageEditor.close).toHaveBeenCalledTimes(1);
+ await s.edit('images');expect(s.activeEditor).toBe('images');expect(imageOpen).toHaveBeenCalledTimes(1);expect(s.metadataEditor.close).toHaveBeenCalledTimes(1);
+ s.imageEditor.busy=true;await s.edit('metadata');expect(s.activeEditor).toBe('images');expect(metadataOpen).toHaveBeenCalledTimes(1);
  s.detail={id:'series'};await flush();expect(s.activeEditor).toBe('');s.activeEditor='metadata';s.detailOpen=false;await flush();expect(s.activeEditor).toBe('');
 });

@@ -31,6 +31,9 @@ import { readIntent, writeIntent, size } from '../acquisition/model';
 import '../media/media.css';
 const route = useRoute(), router = useRouter(), state = reactive(useOrganize()), tabs = [{ id: 'candidates', label: '待确认' }, { id: 'scans', label: '扫描' }, { id: 'assets', label: '已入库' }, { id: 'history', label: '整理历史' }], tab = computed(() => tabs.some(t => t.id === route.query.tab) ? String(route.query.tab) : 'candidates');
 const editor = ref<InstanceType<typeof IdentityEditor>>(), detailsOpen = ref(false), assetDetail = ref<any>(null), outputs = ref<any>(null), operations = ref<any[]>([]), detailError = ref<unknown>(null), confirmOpen = ref(false), action = ref<any>(null), busy = ref(false), phase = ref<'queued' | 'reconciling' | null>(null), actionError = ref<unknown>(null);
+const assetImageEditor=ref<InstanceType<typeof ImageEditor>>();
+const assetImagesOpen=computed(()=>!!assetImageEditor.value?.isOpen());
+function assetImageSaved(){assetImageEditor.value?.close();void state.load('assets');}
 let detailVersion = 0;
 function edit(files: any[], asset: any = null) {
   void editor.value?.open(files, asset, { page: state.page.candidates, state: state.filter });
@@ -201,9 +204,10 @@ usePageRefresh(state.refresh,'*');
     <AsyncResultBanner v-if="phase" :status="phase" message="操作结果需重新读取核对，不重复提交同一操作。" @refresh="state.refresh"/>
     <IdentityEditor ref="editor" @changed="state.changed" @editing="editing"/>
     <ConfirmAction v-model:visible="confirmOpen" :title="action?.type==='rotate'?'轮换播放凭据':'撤销文件播放'" :description="action?.type==='rotate'?'旧凭据将失效，STRM 重写通过恢复日志执行，不覆盖手工文件。':'固定链接将失效；此前已签发的临时 CDN 链接可能短期仍有效。'" impact-scope="不删除云端媒体或本地做种源；后续结果以恢复记录和最新资产状态为准。" :loading="busy" class="media-dialog" @confirm="apply"/>
-    <DetailDrawer :key="assetDetail?.id" v-model:visible="detailsOpen" title="资产与输出详情" :technical-data="{asset:assetDetail,outputs,operations}" size="large" class="media-detail">
+    <DetailDrawer :key="assetDetail?.id" v-model:visible="detailsOpen" title="资产与输出详情" :technical-data="assetImagesOpen?undefined:{asset:assetDetail,outputs,operations}" size="large" class="media-detail">
       <h3>{{ assetDetail?.title||'—' }}</h3>
- <ImageEditor v-if="assetDetail" :item-id="assetDetail.id" @saved="state.load('assets')"/>
+ <ImageEditor v-if="assetDetail" ref="assetImageEditor" :item-id="assetDetail.id" @saved="assetImageSaved"/>
+      <div v-show="!assetImagesOpen" class="asset-readonly" role="region" aria-label="资产输出与操作记录">
       <p>{{ assetDetail?.path }}</p>
       <StateView v-if="detailError" :state="sourceState(detailError)" title="部分输出或历史未取得" :description="errorText(detailError)"/>
       <h3>当前输出与 STRM</h3>
@@ -212,6 +216,7 @@ usePageRefresh(state.refresh,'*');
       <h3>按当前文件名检索的文件操作记录</h3>
       <p v-for="item in operations" :key="item.id">{{ label(item.state) }} · {{ item.source }} → {{ item.destination||'—' }}</p>
       <RouterLink :to="{path:'/organize',query:{tab:'history',kind:'file',q:assetDetail?.path?.split('/').pop()}}" @click="detailsOpen=false">查看重命名与整理历史</RouterLink>
+      </div>
     </DetailDrawer>
   </div>
 </template>

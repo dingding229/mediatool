@@ -19,15 +19,22 @@ const { pageSize,childSize, selectedSeason, chooseSeason, displayItems, source, 
 usePageRefresh(refresh,'*');
 const metadataEditor=ref<InstanceType<typeof MetadataEditor>>(),imageEditor=ref<InstanceType<typeof ImageEditor>>();
 const activeEditor=ref<'metadata'|'images'|''>('');
-const editorBusy=computed(()=>!!(metadataEditor.value?.busy||imageEditor.value?.busy));
-function edit(kind:'metadata'|'images'){
+const switchingEditor=ref(false);
+const editorBusy=computed(()=>switchingEditor.value||!!(metadataEditor.value?.busy||imageEditor.value?.busy));
+const editorOpen=computed(()=>!!(metadataEditor.value?.isOpen()||imageEditor.value?.isOpen()));
+async function edit(kind:'metadata'|'images'){
  if(editorBusy.value)return;
- activeEditor.value=kind;
- if(kind==='metadata'){imageEditor.value?.close();metadataEditor.value?.open();}else{metadataEditor.value?.close();void imageEditor.value?.open();}
+ const id=detail.value?.id;switchingEditor.value=true;
+ try{
+  if(kind==='images'&&metadataEditor.value?.isOpen()&&!await metadataEditor.value.canClose())return;
+  if(detail.value?.id!==id||!detailOpen.value)return;
+  activeEditor.value=kind;
+  if(kind==='metadata'){imageEditor.value?.close();metadataEditor.value?.open();}else{metadataEditor.value?.close();void imageEditor.value?.open();}
+ }finally{switchingEditor.value=false;}
 }
 watch(()=>detail.value?.id,()=>{activeEditor.value='';});
 watch(detailOpen,open=>{if(!open)activeEditor.value='';});
-async function metadataSaved(){await load();if(detail.value){try {const updated=await managedDetail(detail.value.id);detail.value={...detail.value,...updated};}catch(e){detailError.value=e;}}}
+async function metadataSaved(){metadataEditor.value?.close();imageEditor.value?.close();activeEditor.value='';await load();if(detail.value){try {const updated=await managedDetail(detail.value.id);detail.value={...detail.value,...updated};}catch(e){detailError.value=e;}}}
 </script>
 <template>
   <div class="catalog-workspace">
@@ -63,7 +70,7 @@ async function metadataSaved(){await load();if(detail.value){try {const updated=
       <StateView v-if="detailLoading" state="loading" title="正在读取作品详情…"/>
       <StateView v-else-if="detailError" :state="sourceState(detailError)" :description="errorText(detailError)" @retry="detail&&inspect(detail)"/>
       <template v-else-if="detail">
-        <div class="catalog-summary" :class="{'catalog-summary--text':!image(detail.poster)}">
+        <div class="catalog-summary" :class="{'catalog-summary--text':!image(detail.poster),'catalog-summary--editing':editorOpen}">
           <img v-if="image(detail.poster)" :src="image(detail.poster)" :alt="detail.title+'海报'"/>
           <div class="catalog-summary-info">
             <div class="catalog-title-row">
@@ -73,8 +80,8 @@ async function metadataSaved(){await load();if(detail.value){try {const updated=
                 <el-button :disabled="editorBusy" :aria-expanded="activeEditor==='images'&&!!imageEditor?.isOpen()" @click="edit('images')">编辑图片</el-button>
               </div>
             </div>
-            <p class="catalog-subtitle">{{detail.year||'—'}} · {{mediaType(detail.mediaType)}}</p>
-            <dl>
+            <p v-show="!editorOpen" class="catalog-subtitle">{{detail.year||'—'}} · {{mediaType(detail.mediaType)}}</p>
+            <dl v-show="!editorOpen">
               <div><dt>评分</dt><dd>{{displayRating(detail.rating)}}</dd></div>
               <div><dt>清晰度</dt><dd>{{source==='managed'?displayResolution(detail.resolutions):detail.resolution||'—'}}</dd></div>
               <div><dt>文件大小</dt><dd>{{source==='managed'?displayMediaSize(detail.size):formatBytes(detail.size)}}</dd></div>
@@ -85,6 +92,7 @@ async function metadataSaved(){await load();if(detail.value){try {const updated=
         <!-- Keep both instances mounted when switching so unsaved drafts are not discarded. -->
         <MetadataEditor v-if="source==='managed'" v-show="activeEditor==='metadata'" ref="metadataEditor" :item-id="detail.id" hide-trigger @saved="metadataSaved"/>
         <ImageEditor v-if="source==='managed'" v-show="activeEditor==='images'" ref="imageEditor" :item-id="detail.id" hide-trigger @saved="metadataSaved"/>
+        <div v-show="!editorOpen" class="catalog-readonly">
         <section class="catalog-detail-section" aria-label="作品简介">
           <h3>作品简介</h3>
           <p>{{detail.overview||'—'}}</p>
@@ -116,6 +124,7 @@ async function metadataSaved(){await load();if(detail.value){try {const updated=
           <p v-if="source==='managed'&&detail.mediaType==='series'" class="catalog-note">内置媒体库按作品、季、集分层读取，仅反映已入库内容，不代表整部剧集已收齐。</p>
         </section>
         <SubtitlePanel v-if="source==='managed'&&!['Series','Season'].includes(detail.type||'')&&['movie','series'].includes(detail.mediaType||'')" :key="detail.id" :asset-id="detail.id"/>
+        </div>
       </template>
     </DetailDrawer>
   </div>

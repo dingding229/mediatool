@@ -28,9 +28,9 @@ test('I7 movie and series detail: title actions, exclusive editors, retained dra
   const sections=d.locator('.catalog-detail-section>h3,.subtitle-panel>h3');expect(await sections.allTextContents()).toEqual(item===movie?['作品简介','版本与文件','字幕']:['作品简介','版本与文件']);
   await expect(d.locator('.metadata-editor')).toBeHidden();await expect(d.locator('.image-editor')).toBeHidden();
   await d.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(d.locator('#metadata-title')).toHaveValue(item.title);await d.locator('#metadata-title').fill('未保存草稿');
-  await d.getByRole('button',{name:'编辑图片',exact:true}).click();await expect(d.locator('.image-row')).toHaveCount(3);await expect(d.locator('.metadata-editor')).toBeHidden();
+  await d.getByRole('button',{name:'编辑图片',exact:true}).click();await page.getByRole('dialog',{name:'保留未保存草稿',exact:true}).getByRole('button',{name:'保留草稿并继续',exact:true}).click();await expect(d.locator('.image-row')).toHaveCount(3);await expect(d.locator('.metadata-editor')).toBeHidden();
   await d.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(d.locator('#metadata-title')).toHaveValue('未保存草稿');await expect(d.locator('.image-editor')).toBeHidden();
-  await d.getByRole('button',{name:'收起编辑',exact:true}).click();await expect(d.locator('.metadata-editor')).toBeHidden();
+  await d.getByRole('button',{name:'收起编辑',exact:true}).click();await page.getByRole('dialog',{name:'保留未保存草稿',exact:true}).getByRole('button',{name:'保留草稿并继续',exact:true}).click();await expect(d.locator('.metadata-editor')).toBeHidden();
   await expect(d.getByRole('heading',{name:'版本与文件',exact:true})).toBeVisible();
   if(item===series){await d.getByRole('button',{name:'第 1 季 · 第一季',exact:true}).click();await expect(d.getByRole('button',{name:'第 1 季 · 第 1 集 · 重逢',exact:true})).toBeVisible();await d.getByRole('button',{name:'返回季列表',exact:true}).click();await expect(d.getByRole('button',{name:'第 1 季 · 第一季',exact:true})).toBeVisible();}
   await d.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(d).toBeHidden();

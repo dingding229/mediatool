@@ -37,10 +37,6 @@ it.each([
   "83634b7bb16ab870dd83b9660dfd5cf505b059f96e690ddd138f27b718710157"
  ],
  [
-  "media/MetadataEditor.vue",
-  "d812d3cac85ac4c532086082643d47097397abf86f4ee90a032805fb9cdc7e87"
- ],
- [
   "media/SubtitlePanel.vue",
   "c99245782cf904738ae19d411560293c5481bc601b9d6c9a6655c2932c855132"
  ],
@@ -68,4 +64,15 @@ it('I26b friendly preference switches its original boolean, not the saved policy
  const logs=read('operations/LogsPanel.vue');expect(logs).toContain('<ElSwitch v-model="friendly" aria-label="友好说明"/>');
  expect(logs).toContain("await policy.save(['logging','playbackRetentionDays'])");
  const service=read('playback/ServicePanel.vue');expect(service).toContain(':total="libraries.data?.total??0"');expect(service).toContain('empty-title="暂无媒体库目录"');
+});
+
+// I33 intentionally replaces the paged read and adds a retained-draft close guard.
+// Keep the original save envelope, lock/restore patch and unknown-receipt blocking.
+it('I33 metadata layout keeps the save API and revision/conflict protections',()=>{
+ const source=read('media/MetadataEditor.vue');
+ expect(source).toContain('saveMediaMetadata(activeID.value,patch.value)');
+ expect(source).toContain('metadataPatch(record.value,draft,restore.value)');
+ expect(source).toContain('e.status>=500||e.status===409');
+ expect(source).toContain('busy||blocked||!dirty');
+ expect(source).toContain('readMediaMetadata(activeID.value,1,unmatchedLimit)');
 });

@@ -60,3 +60,8 @@
 
 
 .catalog-toolbar .el-button.is-circle{width:44px;min-width:44px}.catalog-options .el-select-dropdown__item{min-height:44px;line-height:44px}.catalog-filters .el-input__clear{min-width:44px;min-height:44px;display:grid;place-items:center}
+
+/* Editor mode keeps only the work heading and a compact poster, without remounting read-only panels. */
+.catalog-summary.catalog-summary--editing{grid-template-columns:64px minmax(0,1fr);gap:16px;align-items:center}
+.catalog-summary--editing>img{width:64px;max-height:96px;object-fit:contain}
+.catalog-summary--editing.catalog-summary--text{grid-template-columns:minmax(0,1fr)}
