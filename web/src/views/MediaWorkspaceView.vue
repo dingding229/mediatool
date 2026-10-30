@@ -66,7 +66,7 @@ async function metadataSaved(){metadataEditor.value?.close();imageEditor.value?.
         <StateView v-if="!items.length" state="empty" title="暂无匹配作品" description="可调整标题或类型后再查看。"/>
         <PagePagination v-model:current-page="page" :total="total??undefined" v-model:page-size="pageSize" :page-sizes="[10,24,25,50,100]" layout="prev,pager,next" @current-change="load"/>
       </section>
-    <DetailDrawer :key="detail?.id" v-model:visible="detailOpen" :title="detail?.title||'作品详情'" size="large" class="catalog-detail">
+    <DetailDrawer :key="detail?.id" v-model:visible="detailOpen" title="作品详情" size="large" class="catalog-detail">
       <StateView v-if="detailLoading" state="loading" title="正在读取作品详情…"/>
       <StateView v-else-if="detailError" :state="sourceState(detailError)" :description="errorText(detailError)" @retry="detail&&inspect(detail)"/>
       <template v-else-if="detail">
@@ -75,9 +75,9 @@ async function metadataSaved(){metadataEditor.value?.close();imageEditor.value?.
           <div class="catalog-summary-info">
             <div class="catalog-title-row">
               <h2>{{detail.title}}</h2>
-              <div v-if="source==='managed'" class="catalog-detail-actions" aria-label="作品编辑">
-                <el-button :disabled="editorBusy" :aria-expanded="activeEditor==='metadata'&&!!metadataEditor?.isOpen()" @click="edit('metadata')">编辑信息</el-button>
-                <el-button :disabled="editorBusy" :aria-expanded="activeEditor==='images'&&!!imageEditor?.isOpen()" @click="edit('images')">编辑图片</el-button>
+              <div v-if="source==='managed'" class="catalog-detail-actions" :class="{'is-editing':editorOpen}" :aria-label="editorOpen?'编辑模式':'作品编辑'" role="group">
+                <el-button :disabled="editorBusy" :aria-pressed="editorOpen?activeEditor==='metadata':undefined" :aria-expanded="activeEditor==='metadata'&&!!metadataEditor?.isOpen()" @click="edit('metadata')">编辑信息</el-button>
+                <el-button :disabled="editorBusy" :aria-pressed="editorOpen?activeEditor==='images':undefined" :aria-expanded="activeEditor==='images'&&!!imageEditor?.isOpen()" @click="edit('images')">编辑图片</el-button>
               </div>
             </div>
             <p v-show="!editorOpen" class="catalog-subtitle">{{detail.year||'—'}} · {{mediaType(detail.mediaType)}}</p>

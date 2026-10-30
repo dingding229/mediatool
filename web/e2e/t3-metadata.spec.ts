@@ -26,7 +26,7 @@ async function fixture(page:Page){
 }
 test('T3 edit field locks, explicit restore, 409 keeps draft, unmatched notice',async({page})=>{
  const f=await fixture(page);await page.goto('/library');await page.getByRole('button',{name:'海边的故事',exact:true}).click();await page.getByRole('button',{name:'编辑信息',exact:true}).click();
- const form=page.locator('.metadata-editor');await expect(form.locator('#metadata-communityRating')).toHaveValue('6.7');await expect(form.getByText('暂无刮削值',{exact:false}).first()).toBeVisible();
+ const form=page.locator('.metadata-editor');await expect(form.locator('#metadata-communityRating')).toHaveValue('6.7');await expect(form.locator('.metadata-origin')).toHaveCount(0);
  await form.locator('#metadata-title').fill('人工标题');await form.locator('#metadata-overview').fill('人工简介');
  await form.getByRole('button',{name:'保存信息',exact:true}).click();await expect(page.locator('.catalog-readonly')).toBeVisible();await page.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(form.getByRole('status').filter({hasText:'信息已保存'})).toBeVisible();expect(f.state().overrides).toEqual({title:'人工标题',overview:'人工简介'});
  await expect(page.locator('.catalog-title-row').getByRole('heading',{name:'人工标题',exact:true})).toBeVisible();
@@ -44,7 +44,7 @@ test('T3 metadata editor screenshots 1440/390 light/dark aligned without overflo
   await expect(page.locator('html')).toHaveAttribute('data-theme',theme);await expect(page.getByRole('button',{name:'编辑信息',exact:true})).toBeVisible();
   await page.screenshot({path:`${dir}/after-local-detail-${width}-${theme}.png`,animations:'disabled'});
   await page.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(page.locator('#metadata-title')).toHaveValue('海边的故事');await expect(page.locator('.metadata-form')).toHaveCount(1);
-  const d=page.getByRole('dialog',{name:'海边的故事',exact:true});await expect.poll(()=>d.evaluate(el=>el.getBoundingClientRect().left>=0&&el.getBoundingClientRect().right<=innerWidth)).toBe(true);
+  const d=page.getByRole('dialog',{name:'作品详情',exact:true});await expect.poll(()=>d.evaluate(el=>el.getBoundingClientRect().left>=0&&el.getBoundingClientRect().right<=innerWidth)).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
   expect(await page.locator('.metadata-row input,.metadata-origin .el-button').evaluateAll(els=>els.every(el=>el.getBoundingClientRect().height>=44))).toBe(true);
   await page.screenshot({path:`${dir}/after-local-editor-${width}-${theme}.png`,animations:'disabled'});
@@ -59,7 +59,7 @@ test('T3 previous-release screenshot matrix for before/after comparison',async({
  await page.route('**/library{,?*}',r=>new URL(r.request().url()).pathname==='/library'?r.fulfill({contentType:'text/html',body:readFileSync(join(root,'index.html'))}):r.fallback());
  await page.route('**/assets/*',r=>{const name=basename(new URL(r.request().url()).pathname),type=extname(name)==='.js'?'application/javascript':extname(name)==='.css'?'text/css':'application/octet-stream';return r.fulfill({contentType:type,body:readFileSync(join(root,'assets',name))})});
  for(const width of [1440,390])for(const theme of ['light','dark']){
-  await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);await page.goto('/library');await page.getByRole('button',{name:'海边的故事',exact:true}).click();const d=page.getByRole('dialog',{name:'海边的故事',exact:true});
+  await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);await page.goto('/library');await page.getByRole('button',{name:'海边的故事',exact:true}).click();const d=page.getByRole('dialog',{name:'作品详情',exact:true});
   await expect(d.getByText('1080p（1920×872）',{exact:true})).toBeVisible();await expect.poll(()=>d.evaluate(el=>el.getBoundingClientRect().left>=0&&el.getBoundingClientRect().right<=innerWidth)).toBe(true);
   await expect(d.getByRole('button',{name:'编辑信息',exact:true})).toHaveCount(0);expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
   await page.screenshot({path:`${dir}/before-local-detail-${width}-${theme}.png`,animations:'disabled'});

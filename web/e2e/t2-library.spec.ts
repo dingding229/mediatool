@@ -16,7 +16,7 @@ test('T2 real detail mapping, configured category filter and one embedded subtit
  await fixture(page);const obsolete:string[]=[];page.on('request',r=>{if(/\/media\/assets\/[^/]+\/strm/.test(r.url()))obsolete.push(r.url())});
  await page.goto('/library');await expect(page.locator('.catalog-poster')).toHaveCount(2);
  for(const [title,rating,size,dimensions,category]of [['一生所爱','6.7','7.41 GB','1080p（1920×872）','电影 / 欧美电影'],['大濛','7.7','5.11 GB','1080p（1920×1080）','电影 / 其他电影']]){
-  await page.getByRole('button',{name:title,exact:true}).click();const d=page.getByRole('dialog',{name:title,exact:true});
+  await page.getByRole('button',{name:title,exact:true}).click();const d=page.getByRole('dialog',{name:'作品详情',exact:true});
   for(const value of [rating,size,dimensions,category])await expect(d.locator('dd').filter({hasText:value!})).toHaveCount(1);
   await expect(d.getByText('内嵌字幕随视频播放，仅编辑显示信息，不提供提取或删除。',{exact:true})).toHaveCount(1);
   await expect(d.getByRole('button',{name:/复制播放链接|获取播放链接/})).toHaveCount(0);

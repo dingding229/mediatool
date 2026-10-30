@@ -2,6 +2,7 @@
 import { ref, watch, onUnmounted } from 'vue';
 import { APIError, post, request } from '../api/client';
 import ConfirmAction from '../ui/ConfirmAction.vue';
+import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import PreviewApprove from '../ui/PreviewApprove.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { readIntent, writeIntent } from '../acquisition/model';
@@ -296,8 +297,8 @@ defineExpose({ open });
       </template>
       <template v-else>
         <article v-for="row in batch" :key="row.candidate.id" class="organize-file-draft">
-          <strong>{{ row.candidate.name }}</strong>
-          <p>{{ row.candidate.path }}</p>
+          <strong><MiddleEllipsis :text="row.candidate.name" full/></strong>
+          <p><MiddleEllipsis :path="row.candidate.path" full/></p>
           <label>
             季度
             <el-input-number :controls="false" v-model="row.season" :aria-label="'季度 '+row.candidate.name" :min="0" :max="9999" :disabled="!!phase||saving"/>
@@ -326,7 +327,7 @@ defineExpose({ open });
         <p v-if="plan.outputProjectionMode==='sharedWholeFileEpisodeAliases'||plan.wholeFilePlayback">每个条目都播放同一个完整源文件，没有自动切片或重新封装。</p>
         <div v-for="(operation,index) in plan.operations" :key="index">
           <strong>{{ operation.operation==='archive'?'归档旧输出':'生成新输出' }}</strong>
-          <p>{{ operation.path }}</p>
+          <p><MiddleEllipsis :path="operation.path" full/></p>
         </div>
       </PreviewApprove>
     </div>

@@ -45,7 +45,9 @@ it.each([
   "39915ebda1d0d22826f6e0fbfec3af5aea9499bb38c52d9c944f0177ae147728"
  ]
 ])('I26b leaves requests, payloads and interaction logic unchanged: %s',(file,hash)=>{
- expect(sha(read(file).match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!)).toBe(hash);
+ const script=read(file).match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!;
+ // I34 adds only the shared state-chip CSS import; the entire image operation script remains pinned.
+ expect(sha(file==='media/ImageEditor.vue'?script.replace("import './editor.css';\n",''):script)).toBe(hash);
 });
 it('IP confirmation changes only its unique CSS class; original words, acknowledgement and actions remain exact',()=>{
  const source=read('playback/IPBlockEditor.vue');

@@ -54,3 +54,8 @@ button.organize-list-thumb{cursor:pointer}button.organize-list-thumb:focus-visib
  .organize-scan-row.organize-scan-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"identity state" "path actions" "time actions"}
  .organize-list-path>.mt-path{max-width:100%}
 }
+
+/* Keep file cells to one line; the copy hit area is positioned out of text flow. */
+.organize-candidate-row .organize-list-identity h3{display:block;overflow:visible;min-width:0}
+.organize-candidate-row .organize-list-identity label{display:block;min-width:0}
+@media(max-width:600px){.organize-candidate-row .organize-list-thumb{display:none}.organize-candidate-row .organize-list-identity{min-height:48px}}

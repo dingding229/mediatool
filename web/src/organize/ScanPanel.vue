@@ -5,7 +5,7 @@ import CronInput from '../ui/CronInput.vue';
 const cronValid=ref(false);
 import {usePageNumber,usePageSize} from '../ui/page-query';
 
-import PathText from '../ui/PathText.vue';
+import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import ScanRecord from './ScanRecord.vue';
 import TaskControl from '../workflows/TaskControl.vue';
 import {scheduleLabel} from '../presentation/labels';
@@ -231,8 +231,9 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
       <div class="media-form">
         <label>
           云盘目录来源
-          <el-select v-model="connection" aria-label="扫描目录来源" :disabled="!!pending" @change="root=roots.find(r=>r.id===connection)?.path||'';useDefault=false">
-            <el-option v-for="entry in roots" :key="entry.id" :value="entry.id" :label="entry.name+' · '+entry.path"/>
+          <el-select v-model="connection" aria-label="扫描目录来源" fit-input-width :disabled="!!pending" @change="root=roots.find(r=>r.id===connection)?.path||'';useDefault=false">
+            <template #label><MiddleEllipsis :path="roots.find(r=>r.id===connection)?.path" :copy="false"/></template>
+            <el-option v-for="entry in roots" :key="entry.id" :value="entry.id" :label="entry.name+' · '+entry.path" :aria-label="entry.name+' · '+entry.path"><MiddleEllipsis :path="entry.path" :copy="false"/></el-option>
           </el-select>
         </label>
         <el-checkbox class="mt-form-checkbox" v-model="useDefault" :disabled="!!pending">使用服务端默认云盘根目录</el-checkbox>
@@ -243,7 +244,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
         <StateView v-if="rootError" :state="sourceState(rootError)" title="目录浏览暂不可用" description="可以手工输入扫描范围；不会把未取得的数据当作完整预览。" @retry="readRoots"/>
         <el-button :loading="busy" :disabled="!!pending||(!useDefault&&!root.trim())" @click="rangePreview">预览扫描范围</el-button>
         <section v-if="preview" aria-label="扫描范围预览">
-          <h3><PathText :path="preview.root||'服务端默认云盘根目录'"/></h3>
+          <h3><MiddleEllipsis class="mt-path" :path="preview.root||'服务端默认云盘根目录'" full/></h3>
           <p>只读查看范围，不移动文件；执行时由服务端按当前连接和授权校验。</p>
           <p v-if="preview.listing">此层已取得 {{ preview.listing.items?.length??'—' }} 项 · 总数 {{ preview.listing.total??'—' }}；这不是全树文件总数。</p>
           <p v-else>未预读文件清单，不推断文件数、缺失项或完整覆盖。</p>
@@ -264,8 +265,8 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <div class="mt-list-columns organize-list-columns organize-scan-columns" aria-hidden="true"><span>目录 / 任务</span><span>来源路径 / 进度</span><span>状态</span><span>更新时间</span><span>操作</span></div>
     <div class="mt-list" role="list" aria-label="扫描任务列表">
     <article v-for="scan in scans" :key="scan.id" class="organize-record mt-list-row organize-list-row organize-scan-row f5-scan-row" role="listitem">
-      <div class="organize-list-identity"><el-icon class="organize-list-folder" aria-hidden="true"><Folder/></el-icon><div><h3>{{ scan.root?.split('/').filter(Boolean).pop()||'根目录' }}</h3><p>目录扫描</p></div></div>
-      <div class="organize-list-path"><PathText :path="scan.root"/><p>{{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</p><div v-if="scan.directories>0" class="scan-record-progress"><el-progress :show-text="false" :stroke-width="4" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/><span>{{ scanPercent(scan.completedDirectories||0,scan.directories) }}%</span></div></div>
+      <div class="organize-list-identity"><el-icon class="organize-list-folder" aria-hidden="true"><Folder/></el-icon><div><h3><MiddleEllipsis :text="scan.root?.split('/').filter(Boolean).pop()||'根目录'" :copy="false"/></h3><p>目录扫描</p></div></div>
+      <div class="organize-list-path"><MiddleEllipsis class="mt-path" :path="scan.root"/><p>{{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</p><div v-if="scan.directories>0" class="scan-record-progress"><el-progress :show-text="false" :stroke-width="4" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/><span>{{ scanPercent(scan.completedDirectories||0,scan.directories) }}%</span></div></div>
       <div class="organize-list-state"><StatusBadge :state="scan.state" :label="label(scan.state)"/></div>
       <time class="organize-list-time">{{ date(scan.updatedAt||scan.createdAt) }}</time>
       <div class="media-actions mt-list-actions organize-list-actions">
@@ -288,7 +289,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <StateView v-else-if="scheduleError" :state="sourceState(scheduleError)" title="扫描计划读取失败" @retry="emit('changed')"/>
     <StateView v-else-if="!schedules.length" state="empty" title="尚无定时扫描" description="新增计划默认停用，核对目录与周期后再启用。"/>
     <article v-for="schedule in schedules" :key="schedule.id" class="organize-record">
-      <h3><PathText :path="schedule.root"/></h3>
+      <h3><MiddleEllipsis class="mt-path" :path="schedule.root"/></h3>
       <p>{{ scheduleLabel(schedule.cron) }} · {{ schedule.enabled?'已启用':'未启用' }} · 下次 {{ schedule.nextRunAt===null?'计划已结束':date(schedule.nextRunAt) }}</p>
       <p>文件变化推送：{{ label(schedule.watchState) }} · {{ schedule.watchMessage||'—' }}</p>
       <p>{{ schedule.lastError||'—' }}</p>
@@ -298,10 +299,10 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
   <DetailDrawer v-model:visible="detailOpen" title="扫描目录覆盖" :technical-data="detail" size="large" class="media-detail">
     <ScanRecord v-if="detail?.scan" :path="detail.scan.root" :state="detail.scan.state" :time="detail.scan.updatedAt||detail.scan.createdAt" :percent="detail.scan.directories>0?scanPercent(detail.scan.completedDirectories||0,detail.scan.directories):undefined">
       <span>{{detail.scan.files??'—'}} 个文件 · 已知目录 {{detail.scan.completedDirectories??'—'}} / {{detail.scan.directories??'—'}}</span>
-      <template #details><p>当前目录：<PathText :path="detail.scan.currentDirectory"/></p><p>{{detail.scan.message||'—'}}</p></template>
+      <template #details><p>当前目录：<MiddleEllipsis class="mt-path" :path="detail.scan.currentDirectory" full/></p><p>{{detail.scan.message||'—'}}</p></template>
     </ScanRecord>
     <ScanRecord v-for="directory in detail?.directories||[]" :key="directory.path" :path="directory.path" :state="directory.state" :time="directory.updatedAt">
-      <template #details><details class="f5-directory-row"><summary>目录覆盖说明</summary><p>完整路径：{{directory.path}}</p><p>{{directory.lastError||directory.message||'—'}}</p></details></template>
+      <template #details><details class="f5-directory-row"><summary>目录覆盖说明</summary><p>完整路径：<MiddleEllipsis :path="directory.path" full/></p><p>{{directory.lastError||directory.message||'—'}}</p></details></template>
     </ScanRecord>
     <PagePagination v-if="detail" v-model:current-page="cursorPage" v-model:page-size="cursorSize" :total="detail.scan.directories||0" layout="prev,pager,next" @current-change="inspect(detail.scan,false)"/>
   </DetailDrawer>

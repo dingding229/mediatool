@@ -4,7 +4,8 @@ import {APIError} from '../api/client';
 import {ElMessageBox} from 'element-plus';
 import 'element-plus/es/components/message-box/style/css';
 import {metadataFields,readMediaMetadata,saveMediaMetadata,metadataTargetID,type MetadataField,type MetadataRecord,type MetadataTarget} from '../api/mediaMetadata';
-import {inputValue,metadataValueLabel,metadataLabels,metadataPatch} from './metadata-form';
+import './editor.css';
+import {inputValue,metadataValueLabel,metadataLabels,metadataPatch,parseValue} from './metadata-form';
 import {errorText} from '../workflows/readiness';
 const unmatchedLimit=100;
 const props=withDefaults(defineProps<{itemId:string;hideTrigger?:boolean}>(),{hideTrigger:false}),emit=defineEmits<{saved:[]}>();
@@ -13,6 +14,7 @@ let epoch=0;
 const patch=computed(()=>record.value?metadataPatch(record.value,draft,restore.value):undefined);
 const dirty=computed(()=>!!patch.value&&(Object.keys(patch.value.set).length>0||patch.value.restore.length>0));
 const label=(key:MetadataField)=>key==='title'&&record.value?.target.kind==='episode'?'集标题':metadataLabels[key];
+const showOrigin=(key:MetadataField)=>!!record.value&&(Object.hasOwn(record.value.overrides,key)||restore.value.has(key))&&inputValue(parseValue(key,draft[key]),key)!==inputValue(record.value.base[key],key);
 const targetLabel=(t:MetadataTarget)=>t.kind==='episode'?`第 ${t.season} 季 · 第 ${t.episode} 集`:t.kind==='season'?`第 ${t.season} 季`:t.kind==='series'?'剧集':'电影';
 function assign(r:MetadataRecord){for(const key of metadataFields)draft[key]=inputValue(r.effective[key],key);restore.value=new Set();}
 async function load(keep=false){
@@ -45,7 +47,7 @@ watch(()=>props.itemId,()=>{epoch++;opened.value=false;record.value=undefined;ac
 <section v-if="opened||!props.hideTrigger" class="metadata-editor" aria-label="元数据信息">
  <el-button v-if="!opened&&!props.hideTrigger" @click="open">编辑信息</el-button>
  <template v-if="opened">
-  <div class="metadata-heading"><h3>编辑信息</h3><el-button :disabled="busy" @click="requestClose">收起编辑</el-button></div>
+  <div class="metadata-heading"><h3>编辑信息</h3><el-button :disabled="busy" @click="requestClose">完成编辑</el-button></div>
   <p class="metadata-note">修改过的字段将逐项锁定，不会被后续刮削覆盖。同一作品或单集的物理版本共用文字信息，不改文件与目录分类。</p>
   <label v-if="choices.length>1" class="metadata-field">选择单集<select :value="record?metadataTargetID(record.target):activeID" :disabled="busy||dirty" @change="choose(($event.target as HTMLSelectElement).value)"><option v-for="t in choices" :key="metadataTargetID(t)" :value="metadataTargetID(t)">{{targetLabel(t)}}</option></select></label>
   <p v-if="busy&&!record" role="status">正在读取元数据…</p>
@@ -66,7 +68,7 @@ watch(()=>props.itemId,()=>{epoch++;opened.value=false;record.value=undefined;ac
      <div class="metadata-field">
       <textarea v-if="key==='overview'" :id="`metadata-${key}`" v-model="draft[key]" :disabled="busy" rows="5" maxlength="10000" @input="changed(key)"/>
       <input v-else :id="`metadata-${key}`" v-model="draft[key]" :disabled="busy" :type="key==='premiereDate'?'date':['year','communityRating'].includes(key)?'number':'text'" :step="key==='communityRating'?'0.1':key==='year'?'1':undefined" :min="key==='year'?1800:key==='communityRating'?0:undefined" :max="key==='year'?2100:key==='communityRating'?10:undefined" :maxlength="key==='tagline'?1000:['genres','tags'].includes(key)?undefined:500" :placeholder="['genres','tags'].includes(key)?'用顿号或逗号分隔，最多50项':undefined" @input="changed(key)"/>
-      <span class="metadata-origin" :title="metadataValueLabel(record.base[key],key)">刮削值：{{metadataValueLabel(record.base[key],key)}}</span>
+      <span v-if="showOrigin(key)" class="metadata-origin" :title="metadataValueLabel(record.base[key],key)">刮削值：{{metadataValueLabel(record.base[key],key)}}</span>
      </div>
      <el-button class="metadata-restore" :disabled="busy||!Object.hasOwn(record.overrides,key)&&!restore.has(key)" @click="stageRestore(key)">恢复为刮削值</el-button>
     </div>
@@ -80,7 +82,8 @@ watch(()=>props.itemId,()=>{epoch++;opened.value=false;record.value=undefined;ac
 .metadata-editor{margin-block:16px;min-width:0}.metadata-heading{display:flex;align-items:center;gap:12px;justify-content:space-between}.metadata-heading h3{margin:0}.metadata-note,.metadata-origin{color:var(--mt-text-muted);font-size:13px}
 .metadata-form{display:grid;gap:16px}.metadata-row{display:grid;grid-template-columns:112px minmax(0,1fr) auto;align-items:start;gap:12px;min-width:0}.metadata-label{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:44px;justify-content:center}.metadata-field{display:grid;gap:4px;min-width:0}
 .metadata-field input,.metadata-field textarea,.metadata-field select{width:100%;min-width:0;box-sizing:border-box;font:inherit;min-height:44px;padding:var(--mt-field-padding);border:1px solid var(--mt-border-color);border-radius:var(--el-border-radius-base);background:var(--mt-bg-surface);color:var(--mt-text-primary)}.metadata-field textarea{resize:vertical}.metadata-field input:focus-visible,.metadata-field textarea:focus-visible,.metadata-field select:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:2px}
-.metadata-lock{font-size:12px;line-height:18px;color:var(--mt-text-muted);padding-inline:6px;border:1px solid var(--mt-border-color);border-radius:var(--radius-sm)}.metadata-origin{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.metadata-row .metadata-restore{margin:0;min-height:44px}.metadata-error{color:var(--el-color-danger);overflow-wrap:anywhere}
+.metadata-origin{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.metadata-row .metadata-restore{margin:0;min-height:44px}.metadata-error{color:var(--el-color-danger);overflow-wrap:anywhere}
 .metadata-unmatched{padding:12px;border:1px solid var(--mt-border-color);border-radius:var(--radius-sm);margin-block:12px}.metadata-unmatched-items{max-height:240px;overflow:auto;display:flex;flex-wrap:wrap;gap:8px}.metadata-unmatched .el-button{margin:0;max-width:100%;white-space:normal;height:auto;min-height:44px}
 @media(max-width:480px){.metadata-row{grid-template-columns:minmax(0,1fr);gap:8px}.metadata-label{flex-direction:row;justify-content:space-between;align-items:center;min-height:0}.metadata-row .metadata-restore{justify-self:start;max-width:100%}}
+.metadata-editor .mt-save-actions{position:sticky;bottom:0;z-index:2;display:flex;flex-wrap:wrap;gap:8px;padding-block:12px;margin-top:0;border-top:1px solid var(--mt-border-color);background:var(--mt-bg-surface)}
 </style>

@@ -24,7 +24,7 @@ async function fixture(page:Page,series=false,unmatchedTotal=65){
  await page.route('**/api/v1/library/activity?*',r=>{counts.history++;return fixtureFulfill(r,{json:{data:{items:[],total:0}}})});
  return {counts,queries};
 }
-async function openDetail(page:Page){await page.goto('/library');await page.getByRole('button',{name:'海边的故事',exact:true}).click();return page.getByRole('dialog',{name:'海边的故事',exact:true})}
+async function openDetail(page:Page){await page.goto('/library');await page.getByRole('button',{name:'海边的故事',exact:true}).click();return page.getByRole('dialog',{name:'作品详情',exact:true})}
 async function settled(page:Page){await page.evaluate(async()=>{await document.fonts.ready;await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())))});}
 for(const width of [1440,375])test(`I33 aligned editor rows and hidden read-only sections at ${width}`,async({page})=>{
  const f=await fixture(page);await page.setViewportSize({width,height:1000});const dialog=await openDetail(page);await dialog.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(dialog.locator('.metadata-row')).toHaveCount(11);await settled(page);
@@ -35,7 +35,7 @@ for(const width of [1440,375])test(`I33 aligned editor rows and hidden read-only
  await dialog.getByRole('button',{name:'编辑图片',exact:true}).click();await expect(dialog.locator('.image-row')).toHaveCount(3);await expect(dialog.locator('.metadata-editor')).toHaveCount(0);await settled(page);
  if(width===1440){const images=await dialog.locator('.image-row').evaluateAll(rows=>rows.map(row=>{const upload=row.querySelector('.image-upload')!.getBoundingClientRect(),restore=row.querySelector('.image-restore')!.getBoundingClientRect();return Math.abs(upload.y+upload.height/2-restore.y-restore.height/2)}));for(const diff of images)expect(diff).toBeLessThanOrEqual(2)}
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await dialog.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);
- const reads={...f.counts};await dialog.getByRole('button',{name:'收起图片编辑',exact:true}).click();await expect(dialog.getByRole('region',{name:'作品简介',exact:true})).toBeVisible();await expect(dialog.getByRole('region',{name:'版本与文件',exact:true})).toBeVisible();await expect(dialog.getByRole('region',{name:'字幕管理',exact:true})).toBeVisible();expect(f.counts).toEqual(reads);
+ const reads={...f.counts};await dialog.getByRole('button',{name:'完成编辑',exact:true}).click();await expect(dialog.getByRole('region',{name:'作品简介',exact:true})).toBeVisible();await expect(dialog.getByRole('region',{name:'版本与文件',exact:true})).toBeVisible();await expect(dialog.getByRole('region',{name:'字幕管理',exact:true})).toBeVisible();expect(f.counts).toEqual(reads);
  await dialog.getByRole('button',{name:'编辑信息',exact:true}).click();expect(f.counts).toEqual(reads);
 });
 test('I33 dirty switch/collapse confirms and retains draft; successful save restores details',async({page})=>{
@@ -43,17 +43,17 @@ test('I33 dirty switch/collapse confirms and retains draft; successful save rest
  const confirm=page.getByRole('dialog',{name:'保留未保存草稿',exact:true});await expect(confirm).toBeVisible();await confirm.getByRole('button',{name:'继续编辑',exact:true}).click();await expect(dialog.locator('#metadata-title')).toHaveValue('保留的人工草稿');await expect(dialog.locator('.image-row')).toHaveCount(0);
  await dialog.getByRole('button',{name:'编辑图片',exact:true}).click();await confirm.getByRole('button',{name:'保留草稿并继续',exact:true}).click();await expect(dialog.locator('.image-row')).toHaveCount(3);await expect(dialog.getByRole('region',{name:'版本与文件',exact:true})).toBeHidden();
  await dialog.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(dialog.locator('#metadata-title')).toHaveValue('保留的人工草稿');expect(f.counts.metadata).toBe(1);expect(f.counts.writes).toBe(0);
- await dialog.getByRole('button',{name:'收起编辑',exact:true}).click();await confirm.getByRole('button',{name:'继续编辑',exact:true}).click();await expect(dialog.locator('#metadata-title')).toBeVisible();
+ await dialog.getByRole('button',{name:'完成编辑',exact:true}).click();await confirm.getByRole('button',{name:'继续编辑',exact:true}).click();await expect(dialog.locator('#metadata-title')).toBeVisible();
  await dialog.getByRole('button',{name:'保存信息',exact:true}).click();await expect(page.locator('.catalog-title-row h2')).toHaveText('保留的人工草稿');await expect(page.locator('.catalog-readonly')).toBeVisible();await expect(page.locator('.metadata-form')).toHaveCount(0);expect(f.counts.writes).toBe(1);
 });
 test('I33 version pagination is only hidden and returns without new child reads',async({page})=>{
  await fixture(page,true);let children=0;page.on('request',r=>{if(new URL(r.url()).searchParams.get('parentId'))children++});const dialog=await openDetail(page);await expect(dialog.getByRole('navigation',{name:'分页',exact:true})).toBeVisible();const before=children;
- await dialog.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(dialog.getByRole('navigation',{name:'分页',exact:true})).toBeHidden();await dialog.getByRole('button',{name:'收起编辑',exact:true}).click();await expect(dialog.getByRole('navigation',{name:'分页',exact:true})).toBeVisible();expect(children).toBe(before);
+ await dialog.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(dialog.getByRole('navigation',{name:'分页',exact:true})).toBeHidden();await dialog.getByRole('button',{name:'完成编辑',exact:true}).click();await expect(dialog.getByRole('navigation',{name:'分页',exact:true})).toBeVisible();expect(children).toBe(before);
 });
 test('I33 organize image editor hides outputs/history/raw details without a reread',async({page})=>{
  const f=await fixture(page);await page.goto('/organize?tab=assets');await page.getByRole('button',{name:'查看资产详情',exact:true}).click();const dialog=page.getByRole('dialog',{name:'资产与输出详情',exact:true});await expect(dialog.getByRole('heading',{name:'当前输出与 STRM',exact:true})).toBeVisible();
  await dialog.getByRole('button',{name:'编辑图片',exact:true}).click();await expect(dialog.locator('.image-row')).toHaveCount(3);await expect(dialog.getByRole('region',{name:'资产输出与操作记录',exact:true})).toBeHidden();await expect(dialog.locator('.technical-section')).toHaveCount(0);const before={...f.counts};
- await dialog.getByRole('button',{name:'收起图片编辑',exact:true}).click();await expect(dialog.getByRole('region',{name:'资产输出与操作记录',exact:true})).toBeVisible();await expect(dialog.locator('.technical-section')).toBeVisible();expect(f.counts).toEqual(before);
+ await dialog.getByRole('button',{name:'完成编辑',exact:true}).click();await expect(dialog.getByRole('region',{name:'资产输出与操作记录',exact:true})).toBeVisible();await expect(dialog.locator('.technical-section')).toBeVisible();expect(f.counts).toEqual(before);
  await dialog.getByRole('button',{name:'编辑图片',exact:true}).click();await dialog.getByRole('button',{name:'恢复为刮削值',exact:true}).first().click();await expect(dialog.getByRole('region',{name:'资产输出与操作记录',exact:true})).toBeVisible();expect(f.counts.writes).toBe(1);
 });
 test.describe('I33 local screenshots @screenshots',()=>{

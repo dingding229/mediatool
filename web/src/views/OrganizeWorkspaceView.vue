@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import StatusBadge from '../components/StatusBadge.vue';
 import {Check,Document,Edit,MoreFilled} from '@element-plus/icons-vue';
-import PathText from '../ui/PathText.vue';
+import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import '../organize/workspaces.css';
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, reactive, ref, watch } from 'vue';
@@ -153,8 +153,8 @@ usePageRefresh(state.refresh,'*');
         <label class="media-consent organize-list-selection">
           <input :id="'candidate-'+candidate.id" type="checkbox" :aria-label="'选择 '+candidate.name" :checked="state.selected.candidates.some(r=>r.id===candidate.id)" :disabled="!selectable(candidate)||state.selected.candidates.length>=20&&!state.selected.candidates.some(r=>r.id===candidate.id)" @change="state.toggle('candidates',candidate,($event.target as HTMLInputElement).checked)"/>
         </label>
-        <div class="organize-list-identity"><span class="organize-list-thumb" role="img" aria-label="暂无海报"><PosterArtwork :title="candidate.name||'文件'"/></span><div><h3><label :for="'candidate-'+candidate.id">{{ candidate.name||'—' }}</label></h3><p>待核对作品</p></div></div>
-        <div class="organize-list-path"><PathText :path="candidate.path"/><p>{{ size(candidate.size) }}</p></div>
+        <div class="organize-list-identity"><span class="organize-list-thumb" role="img" aria-label="暂无海报"><PosterArtwork :title="candidate.name||'文件'"/></span><div><h3><label :for="'candidate-'+candidate.id"><MiddleEllipsis :text="candidate.name"/></label></h3><p>待核对作品</p></div></div>
+        <div class="organize-list-path"><MiddleEllipsis class="mt-path" :path="candidate.path"/><p>{{ size(candidate.size) }}</p></div>
         <div class="organize-list-state"><StatusBadge :state="candidate.state" :label="label(candidate.state)"/><p>云端：{{ label(candidate.cloudState) }}</p></div>
         <time class="organize-list-time">{{ date(candidate.updatedAt) }}</time>
         <div class="media-actions mt-list-actions organize-list-actions">
@@ -185,7 +185,7 @@ usePageRefresh(state.refresh,'*');
       <article v-for="asset in state.data.assets" :key="asset.id" class="organize-record mt-list-row organize-list-row organize-asset-row" role="listitem">
         <label class="media-consent organize-list-selection"><input :id="'asset-'+asset.id" type="checkbox" :aria-label="'选择 '+(asset.title||'资产')" :checked="state.selected.assets.some(r=>r.id===asset.id)" :disabled="state.selected.assets.length>=20&&!state.selected.assets.some(r=>r.id===asset.id)" @change="state.toggle('assets',asset,($event.target as HTMLInputElement).checked)"/></label>
         <div class="organize-list-identity"><button class="organize-list-thumb" :aria-label="'查看'+(asset.title||'资产')+'详情'" @click="inspect(asset)"><PosterArtwork :src="image(asset.poster)" :title="asset.title||'资产'"/></button><div><h3><label :for="'asset-'+asset.id">{{ asset.title||'—' }}</label></h3><p>{{ asset.mediaType==='series'?'剧集':asset.mediaType==='movie'?'电影':'类型待核对' }}</p></div></div>
-        <div class="organize-list-path"><PathText :path="asset.path"/><p>{{ asset.revoked?'文件播放已撤销':'文件播放未撤销' }}</p></div>
+        <div class="organize-list-path"><MiddleEllipsis class="mt-path" :path="asset.path"/><p>{{ asset.revoked?'文件播放已撤销':'文件播放未撤销' }}</p></div>
         <div class="organize-list-state"><StatusBadge :state="asset.artifactsState" :label="label(asset.artifactsState)"/><p>云端：{{ label(asset.state) }}</p></div>
         <time class="organize-list-time" :datetime="asset.createdAt" aria-label="入库时间">{{ date(asset.createdAt) }}</time>
         <div class="media-actions mt-list-actions organize-list-actions">
@@ -208,13 +208,13 @@ usePageRefresh(state.refresh,'*');
       <h3>{{ assetDetail?.title||'—' }}</h3>
  <ImageEditor v-if="assetDetail" ref="assetImageEditor" :item-id="assetDetail.id" @saved="assetImageSaved"/>
       <div v-show="!assetImagesOpen" class="asset-readonly" role="region" aria-label="资产输出与操作记录">
-      <p>{{ assetDetail?.path }}</p>
+      <p><MiddleEllipsis :path="assetDetail?.path" full/></p>
       <StateView v-if="detailError" :state="sourceState(detailError)" title="部分输出或历史未取得" :description="errorText(detailError)"/>
       <h3>当前输出与 STRM</h3>
-      <p v-for="item in outputs?.outputs||[]" :key="item.path">{{ item.kind==='strm'?'STRM':item.kind==='nfo'?'NFO':'输出文件' }} · {{ item.path }}</p>
+      <p v-for="item in outputs?.outputs||[]" :key="item.path">{{ item.kind==='strm'?'STRM':item.kind==='nfo'?'NFO':'输出文件' }} · <MiddleEllipsis :path="item.path" full/></p>
       <p v-if="!outputs">尚未取得匹配的输出清单，不据此推断输出已删除。</p>
       <h3>按当前文件名检索的文件操作记录</h3>
-      <p v-for="item in operations" :key="item.id">{{ label(item.state) }} · {{ item.source }} → {{ item.destination||'—' }}</p>
+      <p v-for="item in operations" :key="item.id">{{ label(item.state) }} · <MiddleEllipsis :path="item.source" full/> → <MiddleEllipsis :path="item.destination" full/></p>
       <RouterLink :to="{path:'/organize',query:{tab:'history',kind:'file',q:assetDetail?.path?.split('/').pop()}}" @click="detailsOpen=false">查看重命名与整理历史</RouterLink>
       </div>
     </DetailDrawer>

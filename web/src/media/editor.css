@@ -1,0 +1,5 @@
+/* One visual state chip for both metadata and image editors. */
+.metadata-lock{display:inline-block;align-self:flex-start;font-size:12px;line-height:18px;color:var(--mt-text-muted);padding-inline:6px;border:1px solid var(--mt-border-color);border-radius:var(--radius-sm)}
+.catalog-detail-actions.is-editing{display:flex;gap:2px;padding:3px;border:1px solid var(--mt-border-color);border-radius:var(--radius-sm);background:var(--mt-bg-canvas)}
+.catalog-detail-actions.is-editing .el-button{border:0;background:transparent}
+.catalog-detail-actions.is-editing .el-button[aria-pressed=true]{background:var(--mt-color-primary-light);color:var(--mt-color-primary)}

@@ -18,7 +18,7 @@ async function fixture(page:Page){
  await page.route('**/api/v1/media/library/managed/*/images',r=>fixtureFulfill(r,{json:{data:{target:{mediaId:'root',kind:'movie',season:-1,episode:-1},targetKey:'root',revision:1,base:{},effective:{},overrides:{},matched:true,unmatched:[],choices:[]}}}));
  await page.route('**/api/v1/media/assets/*/subtitles',r=>{const id=new URL(r.request().url()).pathname.split('/')[5];return fixtureFulfill(r,{json:{data:{assetId:id,versions:[{id,name:'1080p · 原始物理版本'}],items:[]}}})});
 }
-async function open(page:Page,title:string){await page.getByRole('button',{name:title,exact:true}).click();const d=page.getByRole('dialog',{name:title,exact:true});await expect(d).toBeVisible();await expect(d.getByRole('heading',{name:'作品简介',exact:true})).toBeVisible();return d;}
+async function open(page:Page,title:string){await page.getByRole('button',{name:title,exact:true}).click();const d=page.getByRole('dialog',{name:'作品详情',exact:true});await expect(d).toBeVisible();await expect(d.getByRole('heading',{name:'作品简介',exact:true})).toBeVisible();return d;}
 test('I7 movie and series detail: title actions, exclusive editors, retained draft and season navigation',async({page})=>{
  await fixture(page);const writes:string[]=[],errors:string[]=[];page.on('request',r=>{if(r.url().includes('/api/')&&r.method()!=='GET')writes.push(r.url())});page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/library');
@@ -30,7 +30,7 @@ test('I7 movie and series detail: title actions, exclusive editors, retained dra
   await d.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(d.locator('#metadata-title')).toHaveValue(item.title);await d.locator('#metadata-title').fill('未保存草稿');
   await d.getByRole('button',{name:'编辑图片',exact:true}).click();await page.getByRole('dialog',{name:'保留未保存草稿',exact:true}).getByRole('button',{name:'保留草稿并继续',exact:true}).click();await expect(d.locator('.image-row')).toHaveCount(3);await expect(d.locator('.metadata-editor')).toBeHidden();
   await d.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(d.locator('#metadata-title')).toHaveValue('未保存草稿');await expect(d.locator('.image-editor')).toBeHidden();
-  await d.getByRole('button',{name:'收起编辑',exact:true}).click();await page.getByRole('dialog',{name:'保留未保存草稿',exact:true}).getByRole('button',{name:'保留草稿并继续',exact:true}).click();await expect(d.locator('.metadata-editor')).toBeHidden();
+  await d.getByRole('button',{name:'完成编辑',exact:true}).click();await page.getByRole('dialog',{name:'保留未保存草稿',exact:true}).getByRole('button',{name:'保留草稿并继续',exact:true}).click();await expect(d.locator('.metadata-editor')).toBeHidden();
   await expect(d.getByRole('heading',{name:'版本与文件',exact:true})).toBeVisible();
   if(item===series){await d.getByRole('button',{name:'第 1 季 · 第一季',exact:true}).click();await expect(d.getByRole('button',{name:'第 1 季 · 第 1 集 · 重逢',exact:true})).toBeVisible();await d.getByRole('button',{name:'返回季列表',exact:true}).click();await expect(d.getByRole('button',{name:'第 1 季 · 第一季',exact:true})).toBeVisible();}
   await d.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(d).toBeHidden();

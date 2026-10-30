@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PathText from '../ui/PathText.vue';
+import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import {label} from './model';
 import {date} from '../workflows/readiness';
@@ -7,7 +7,7 @@ defineProps<{path?:string;state?:string;time?:string;percent?:number}>();
 </script>
 <template>
  <article class="organize-record scan-record">
-  <header class="scan-record-heading"><h3><PathText :path="path"/></h3><StatusBadge :state="state||'unknown'" :label="label(state)"/></header>
+  <header class="scan-record-heading"><h3><MiddleEllipsis class="mt-path" :path="path" full/></h3><StatusBadge :state="state||'unknown'" :label="label(state)"/></header>
   <div class="scan-record-meta"><slot/><time v-if="time">{{date(time)}}</time></div>
   <div v-if="percent!=null" class="scan-record-progress"><el-progress :show-text="false" :stroke-width="4" :percentage="percent"/><span>{{Number(percent.toFixed(1))}}%</span></div>
   <div v-if="$slots.details" class="scan-record-details"><slot name="details"/></div>

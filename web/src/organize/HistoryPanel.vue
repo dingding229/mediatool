@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PathText from '../ui/PathText.vue';
+import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import {Document,Close,Refresh} from '@element-plus/icons-vue';
 import {beijingISO} from '../presentation/time';
@@ -207,7 +207,7 @@ usePageRefresh(load, 'history');
       <span class="f5-history-cover"><img v-if="cachedTMDBImage(item.poster||item.media?.posterPath)&&!brokenPosters.has(item.id)" :src="cachedTMDBImage(item.poster||item.media?.posterPath)" alt="作品海报" width="44" height="66" loading="lazy" @error="brokenPosters.add(item.id)"/><span v-else aria-label="暂无海报">暂无海报</span></span>
       <div class="f5-row-summary">
         <h3>{{stageLabel(item.kind)}}</h3>
-        <div class="history-paths"><div><small>源文件</small><PathText :path="item.source"/></div><span aria-hidden="true">→</span><div><small>目标路径</small><PathText :path="item.destination"/></div></div>
+        <div class="history-paths"><div><small>源文件</small><MiddleEllipsis class="mt-path" :path="item.source"/></div><span aria-hidden="true">→</span><div><small>目标路径</small><MiddleEllipsis class="mt-path" :path="item.destination"/></div></div>
         <p>识别结果：{{item.media?.title?item.media.title+(item.media.year?' ('+item.media.year+')':''):'暂无识别结果'}}<span v-if="item.category"> · {{item.category}}</span></p>
         <div class="history-record-meta"><StatusBadge :state="item.state" :label="label(item.state)"/><time>{{date(item.updatedAt||item.createdAt)}}</time></div>
       </div>
@@ -226,13 +226,13 @@ usePageRefresh(load, 'history');
   <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" :technical-data="detail" size="large" class="media-detail">
     <h3>{{ detail?.media?.title||stageLabel(detail?.kind) }}</h3>
     <p>{{ label(detail?.state) }} · {{ detail?.message||'—' }}</p>
-    <p>原位置：{{detail?.source||'—'}}</p><p>目标位置：{{detail?.destination||'—'}}</p><p>目录分类：{{detail?.category||'—'}}</p>
+    <p>原位置：<MiddleEllipsis :path="detail?.source" full/></p><p>目标位置：<MiddleEllipsis :path="detail?.destination" full/></p><p>目录分类：{{detail?.category||'—'}}</p>
     <article v-for="(step,index) in detail?.details?.plan?.steps||[]" :key="index">
       <strong>{{ step.action==='mkdir'?'创建目录':'移动或改名' }} · {{ label(stepState(detail.state,detail.details.completedSteps||0,Number(index))) }}</strong>
-      <p>{{ step.source?.path||'—' }} → {{ step.target||'—' }}</p>
+      <p><MiddleEllipsis :path="step.source?.path" full/> → <MiddleEllipsis :path="step.target" full/></p>
     </article>
     <article v-for="part in detail?.details?.items||[]" :key="part.ordinal">
-      <p>{{ part.source }} · {{ label(part.state) }} · {{ part.message||'—' }}</p>
+      <p><MiddleEllipsis :path="part.source" full/> · {{ label(part.state) }} · {{ part.message||'—' }}</p>
     </article>
     <section v-if="detail?.kind==='transfer'">
       <p>{{ detail.details.bytesTransferred??'—' }} / {{ detail.details.size??'—' }} 字节已传输；上传完成不等于云端校验或输出完成。</p>
