@@ -5,6 +5,7 @@ import PageHeader from '../ui/PageHeader.vue';
 import StateView from '../ui/StateView.vue';
 import ServiceReadiness from '../workflows/ServiceReadiness.vue';
 import { bytes, date, errorText, stateFor } from '../workflows/readiness';
+import {label} from '../acquisition/model';
 import {recentSearches,hasResourceCount} from '../dashboard/summaries';
 import {useReadinessTest} from '../dashboard/useReadinessTest';
 import {services} from '../workflows/readiness';
@@ -125,7 +126,7 @@ usePageRefresh(refresh,props.attention?'attention':'*');
       <p v-else-if="!recent.length" class="dashboard-empty">暂无搜索记录，前往搜索发现作品。</p>
       <RouterLink v-for="item in recent" :key="item.id" :to="`/search/results/${item.id}`">
         <strong>{{ item.keyword }}</strong>
-        <span v-if="hasResourceCount(item.total)">{{ item.total }} 个资源</span>
+        <span>{{label(item.state)}} · <template v-if="hasResourceCount(item.total)">{{item.total}} 个资源 · </template>{{date(item.createdAt)}}</span>
       </RouterLink>
     </section>
     </template>
@@ -259,12 +260,13 @@ header>span,small,.setup-guide p,.dashboard-empty {
   align-items:center;
   justify-content:space-between;
   gap:16px;
-  min-height:48px;
-  padding:12px 0;
+  min-height:44px;
+  padding:8px 0;
   border-top:1px solid var(--mt-border-color);
   font-size:13px
 }
 .dashboard-searches.has-searches{min-height:0}
+.dashboard-searches>a>strong{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dashboard-searches>a>span{min-width:0;max-width:65%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--mt-text-muted);font-size:12px}
 .dashboard-searches header a {
   min-height:44px;
   display:inline-flex;
@@ -285,7 +287,7 @@ header>span,small,.setup-guide p,.dashboard-empty {
     grid-template-columns:1fr
   }
   .dashboard-searches>a {
-    flex-wrap:wrap
+    flex-wrap:nowrap
   }
   .dashboard-workspace {
     gap:16px

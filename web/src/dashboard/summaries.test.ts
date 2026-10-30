@@ -24,3 +24,8 @@ it('stale detection does not undo completed connection setup, but missing author
 
 it.each([undefined,null,NaN,Infinity,-1])('unknown recent-search count %s is not rendered',value=>expect(hasResourceCount(value)).toBe(false));
 it.each([0,8])('known recent-search count %s remains visible',value=>expect(hasResourceCount(value)).toBe(true));
+it('recent searches dedupe by keyword plus media identity, retaining distinct works and the latest run only',()=>{
+ const old={id:'old',keyword:'同名作品',createdAt:'2026-10-20T01:00:00Z',media:{id:1,mediaType:'series'}};
+ const rows=recentSearches([old,{...old,id:'latest',createdAt:'2026-10-21T01:00:00Z'},{...old,id:'film',media:{id:1,mediaType:'movie'}},{...old,id:'other',media:{id:2,mediaType:'series'}},{...old,id:'unbound',media:null}]);
+ expect(rows.map(r=>r.id)).toEqual(['latest','film','other','unbound']);expect(old.id).toBe('old');
+});

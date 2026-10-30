@@ -1,3 +1,4 @@
+import {useDebouncedFilter} from '../composables/useDebouncedFilter';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
@@ -10,7 +11,7 @@ export function useResults() {
   const filters = reactive({ resolution: [] as string[], source: [] as string[], codec: [] as string[], accountId: [] as string[], keyword: '', sort: 'seeders_desc' });
   const showAll = ref(false);
   const activeMedia = computed(() => run.value?.media || null);
-  let epoch = 0, controller: AbortController | undefined, filterTimer: ReturnType<typeof setTimeout> | undefined, disposed = false;
+  let epoch = 0, controller: AbortController | undefined, disposed = false;
   async function refresh(id = String(route.params.id), afterSave = false) {
     if (mediaSaving.value && !afterSave && run.value?.id === id)
       return;
@@ -44,7 +45,7 @@ export function useResults() {
     }
   }
   function applyFilter() {
-    clearTimeout(filterTimer);
+    keywordFilter.cancel();
     page.value = 1;
     void refresh();
   }
@@ -53,10 +54,7 @@ export function useResults() {
     delivery.close();
     applyFilter();
   }
-  function queueFilter() {
-    clearTimeout(filterTimer);
-    filterTimer = setTimeout(applyFilter, 250);
-  }
+  const keywordFilter=useDebouncedFilter(()=>filters.keyword,applyFilter);
   function sort(prop: string) {
     filters.sort = prop + '_' + (filters.sort === prop + '_desc' ? 'asc' : 'desc');
     applyFilter();
@@ -137,7 +135,6 @@ export function useResults() {
     disposed = true;
     epoch++;
     controller?.abort();
-    clearTimeout(filterTimer);
   });
-  return { showAll,toggleIdentityFilter,pageSize,run, loading, error, accounts, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter, queueFilter, sort, persistMedia, openDownload, searchAgain };
+  return { showAll,toggleIdentityFilter,pageSize,run, loading, error, accounts, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter,  sort, persistMedia, openDownload, searchAgain };
 }

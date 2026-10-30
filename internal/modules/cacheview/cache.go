@@ -73,11 +73,20 @@ func (s Store) keys(ctx context.Context, kind string) ([]string, bool, error) {
 	return out, cursor != 0, nil
 }
 func (s Store) List(ctx context.Context, kind string, page, limit int) ([]Entry, int, bool, error) {
+	return s.ListFiltered(ctx, kind, page, limit, "")
+}
+
+// ListFiltered applies a search-history keyword before pagination and counting.
+func (s Store) ListFiltered(ctx context.Context, kind string, page, limit int, query string) ([]Entry, int, bool, error) {
+	query = strings.TrimSpace(query)
+	if len(query) > 800 || kind != "search" && query != "" {
+		return nil, 0, false, ErrInvalid
+	}
 	if page < 1 || page > 10000 || limit < 1 || limit > 100 {
 		return nil, 0, false, ErrInvalid
 	}
 	if kind == "search" {
-		return s.searchList(ctx, page, limit)
+		return s.searchList(ctx, page, limit, query)
 	}
 	keys, truncated, e := s.keys(ctx, kind)
 	if e != nil {

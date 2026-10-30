@@ -41,8 +41,10 @@ defineEmits<{
 .is-overview .readiness-cards article{padding:16px}
 @media(min-width:601px){
   .is-overview .readiness-cards article{display:flex;flex-direction:column}
-  .is-overview .readiness-cards h3{margin:0 0 12px}
-  .is-overview .readiness-cards a{align-self:flex-start;align-items:flex-end;margin-top:auto}
+  .is-overview .readiness-cards h3{margin:0 0 8px}
+  .is-overview .readiness-cards a{align-self:flex-start;align-items:flex-end;margin-top:auto;min-height:44px}
+  .is-overview .readiness-cards article{padding-block:12px}
+  .is-overview .readiness-cards p{min-height:0;margin:8px 0}
 }
 
 .readiness-cards  {

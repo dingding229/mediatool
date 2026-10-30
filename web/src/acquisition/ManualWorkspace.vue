@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DownloadRow from './DownloadRow.vue';
 import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import FilePicker from '../ui/FilePicker.vue';
 import {usePageRefresh} from '../ui/page-refresh';
@@ -26,6 +27,7 @@ function choose(selected: File) {
   file.value = selected;
 }
 usePageRefresh(load,'manual');
+defineExpose({load});
 </script>
 <template>
   <section class="acquire-surface">
@@ -36,7 +38,7 @@ usePageRefresh(load,'manual');
       </div>
       <div class="acquire-actions">
 
-        <RouterLink to="/downloads?tab=tasks">同步下载器任务</RouterLink>
+
         <el-button type="primary" @click="create">添加种子</el-button>
       </div>
     </header>
@@ -44,23 +46,15 @@ usePageRefresh(load,'manual');
     <StateView v-if="loading" state="loading" title="正在读取手动下载…"/>
     <StateView v-else-if="listError" :state="stateFor(listError)" title="手动任务读取失败" :description="errorText(listError)" @retry="load"/>
     <StateView v-else-if="!tasks.length" state="empty" title="暂无手动下载任务"/>
-    <article v-for="task in tasks" :key="task.id" class="acquire-task">
-      <div>
-        <h3><MiddleEllipsis :text="task.title" :copy="false"/></h3>
-        <p>{{ label(task.state) }} · {{ progress(task.progress) }} · {{ date(task.syncedAt) }}</p>
-        <p v-if="task.progress==null">进度待下载器同步，不以0%代替未知进度。</p>
-        <p v-else>下载 {{ task.syncedAt?size(task.downloadSpeed)+'/s':'—' }}</p>
-        <p>后处理：{{importLabel(task.processingState)}}</p>
-        <p>{{ task.message||'—' }}</p>
-      </div>
-      <div class="acquire-actions">
-        <el-button @click="detail=task;detailsOpen=true">查看详情</el-button>
+    <DownloadRow v-for="task in tasks" :key="task.id" :title="task.title" :state="task.state" :state-label="label(task.state)" :percent="task.progress==null?null:task.progress*100">
+      <template #meta><span v-if="task.syncedAt">{{date(task.syncedAt)}}</span><span v-if="task.progress==null">进度待下载器同步</span><span v-else-if="task.syncedAt">下载 {{size(task.downloadSpeed)}}/s</span><span>{{importLabel(task.processingState)}}</span><span v-if="task.message">{{task.message}}</span></template>
+      <template #actions>        <el-button @click="detail=task;detailsOpen=true">查看详情</el-button>
         <RouterLink v-if="task.managedTaskId" to="/downloads?tab=uploads">查看上传入库</RouterLink>
         <el-button v-else-if="task.state==='completed'" @click="detail=task;detailsOpen=true">选择身份后入库</el-button>
-        <el-button :loading="actionBusy===task.id" @click="reconcile(task)">核对下载器</el-button>
+<div class="manual-secondary-wide">        <el-button :loading="actionBusy===task.id" @click="reconcile(task)">核对下载器</el-button>
         <el-button v-if="['blocked','failed','absent_confirmed'].includes(task.state)&&(!task.submitAttempted||task.state==='absent_confirmed')" @click="retry(task)">确认后重试</el-button>
-      </div>
-    </article>
+</div><el-dropdown class="manual-secondary-narrow" trigger="click"><el-button>更多</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item :disabled="actionBusy===task.id" @click="reconcile(task)">核对下载器</el-dropdown-item><el-dropdown-item v-if="['blocked','failed','absent_confirmed'].includes(task.state)&&(!task.submitAttempted||task.state==='absent_confirmed')" @click="retry(task)">确认后重试</el-dropdown-item></el-dropdown-menu></template></el-dropdown></template>
+    </DownloadRow>
     <PagePagination v-model:current-page="page" :total="total" v-model:page-size="pageSize" @current-change="load"/>
   </section>
   <el-dialog v-model="dialog" title="添加种子下载" width="min(650px,94vw)" :close-on-click-modal="false" :show-close="!busy" :close-on-press-escape="!busy" class="acquire-dialog">

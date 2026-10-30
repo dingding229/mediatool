@@ -29,7 +29,7 @@ test('T6 search results compact status and aligned columns 1440/390 light/dark',
   }
   const prefix=join(dir,`${before?'before':'after'}-${width}-${theme}`);
   await page.locator('.f3-site-summary').screenshot({path:prefix+'-status-collapsed.png',animations:'disabled'});
-  await page.locator('.f3-stable-scroll').screenshot({path:prefix+'-results.png',animations:'disabled'});
+  await page.locator('.resource-results-table').screenshot({path:prefix+'-results.png',animations:'disabled'});
   await page.getByRole('button',{name:/站点查询状态/}).click();await expect(page.locator('.f4-site-grid article')).toHaveCount(6);
   await page.locator('.f3-site-summary').screenshot({path:prefix+'-status-expanded.png',animations:'disabled'});
   if(!before){const expanded=await metrics(page);expect(expanded.summary.bottom-expanded.contentBottom).toBeLessThan(24);expect((await page.locator('.f4-site-grid').boundingBox())!.height).toBeLessThanOrEqual(240)}

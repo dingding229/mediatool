@@ -2,6 +2,7 @@ import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';import {createHash} from 'node:crypto';import ts from 'typescript';
 import snapshot from './i36-business-functions.json';
 // I38 changes only ManualWorkspace.choose from native event to FilePicker File; its payload builder stays pinned.
+// I39 intentionally removes the redundant SearchHistory.inspect dialog; its list reader and all mutation functions remain pinned.
 // I36 removes display-only state/imports; all original action/validation/readback functions stay pinned.
 for(const [file,functions]of Object.entries(snapshot))it('I36 retains existing business functions: '+file,()=>{
  const source=readFileSync(new URL('../'+file,import.meta.url),'utf8').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!;

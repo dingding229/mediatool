@@ -19,7 +19,7 @@ function go(n:number){if(props.disabled||n<1||n===props.currentPage||pages.value
 function resize(value:number){if(props.disabled||value===props.pageSize||!sizeOptions.includes(value as 10|25|50|100))return;requested=1;emit('update:pageSize',value);emit('update:currentPage',1);emit('size-change',value);emit('current-change',1)}
 </script>
 <template>
- <nav v-if="effectiveTotal!==0" class="mt-pagination" :aria-label="label">
+ <nav v-if="effectiveTotal!==0" class="mt-pagination" :class="{'is-single-page':pages===1}" :aria-label="label">
   <div class="mt-page-summary">
    <span v-if="pages===1" class="mt-single-page">共 {{effectiveTotal}} 条</span>
    <label v-else>每页 <el-select :model-value="pageSize" :aria-label="label+'每页条数'" :disabled="disabled" @change="resize"><el-option v-for="n in sizeOptions" :key="n" :value="n" :label="String(n)"/></el-select><span v-if="total!=null">条，共 {{total}} 条</span><span v-else>条</span></label>
@@ -30,4 +30,5 @@ function resize(value:number){if(props.disabled||value===props.pageSize||!sizeOp
 </template>
 <style scoped>
 .mt-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:16px 0 4px;min-height:44px;color:var(--mt-text-muted);font-size:13px;font-variant-numeric:tabular-nums}.mt-page-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.mt-pagination label,.mt-page-actions{display:flex;align-items:center;gap:8px}.mt-pagination .el-select{width:80px}.mt-pagination button{min-height:44px;min-width:44px;padding:6px 10px;border:1px solid var(--mt-border-color);border-radius:6px;background:var(--mt-bg-surface);color:var(--mt-text-primary);font:inherit;cursor:pointer}.mt-pagination button:hover:not(:disabled){border-color:var(--mt-color-primary);color:var(--mt-color-primary)}.mt-pagination button:disabled{color:var(--mt-text-muted);opacity:.6;cursor:not-allowed}.mt-pagination button:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:3px}@media(max-width:600px){.mt-page-actions{width:100%;justify-content:space-between;gap:4px}.mt-page-actions button{padding-inline:6px}.mt-page-actions>span{white-space:nowrap;font-size:12px}.mt-pagination{justify-content:space-between}.mt-page-count{font-size:12px}}
+.mt-pagination.is-single-page{margin-top:8px;min-height:0}
 </style>

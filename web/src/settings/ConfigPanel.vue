@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import CronInput from '../ui/CronInput.vue';
+import CronField from '../ui/CronField.vue';
 const cronValid=ref(false);
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, onUnmounted, ref, watch, reactive } from 'vue';
@@ -209,7 +209,7 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
             <RouterLink to="/ops?tab=cache">查看与清理缓存</RouterLink>
           </p>
           <div class="settings-field">
-            <CronInput v-model="a.subscriptionCron" purpose="subscription" label="订阅调度时间" @valid="cronValid=$event"/>
+            <CronField v-model="a.subscriptionCron" purpose="subscription" label="订阅调度时间" @valid="cronValid=$event"/>
             <small>间隔至少5分钟；不自动启用已停用的订阅。</small>
           </div>
         </template>

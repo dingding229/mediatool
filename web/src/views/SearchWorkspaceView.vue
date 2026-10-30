@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {recentSearches} from '../dashboard/summaries';
+import {date} from '../workflows/readiness';
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed, onMounted, ref, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -74,7 +76,7 @@ usePageRefresh(load, 'query');
             </label>
             <label>
               年份（可选）
-              <el-input v-model="year" aria-label="TMDB年份" maxlength="4" inputmode="numeric"/>
+              <el-input v-model="year" aria-label="TMDB年份" maxlength="4" inputmode="numeric" placeholder="如 2026"/>
             </label>
           </div>
           <div class="acquire-actions">
@@ -122,13 +124,9 @@ usePageRefresh(load, 'query');
 
         </p>
         <div class="acquire-history">
-          <article v-for="item in history.slice(0,5)" :key="item.id">
-            <div>
-              <h3>{{ item.keyword }}</h3>
-              <p>{{ label(item.state) }} · {{ item.total??'—' }} 个资源</p>
-            </div>
-            <RouterLink :to="`/search/results/${item.id}`">查看结果</RouterLink>
-          </article>
+          <RouterLink v-for="item in recentSearches(history)" :key="item.id" class="recent-search-row" :to="`/search/results/${item.id}`">
+            <strong>{{item.keyword}}</strong><span>{{label(item.state)}} · {{item.total??'—'}} 个资源 · {{date(item.createdAt)}}</span><span aria-hidden="true">查看结果</span>
+          </RouterLink>
         </div>
         <p v-if="!loading&&!history.length&&!historyError">暂无搜索记录</p>
       </section>

@@ -13,7 +13,7 @@ function activate(){if(!props.disabled)emit('select',props.item)}
   <span class="media-card-copy">
    <strong class="media-card-title">{{item.title}}</strong>
    <span>{{item.mediaType==='series'?'剧集':'电影'}} · {{item.year||'—'}}</span>
-   <span>{{item.originalTitle||'—'}}</span>
+   <span v-if="item.originalTitle&&item.originalTitle!==item.title">{{item.originalTitle}}</span>
    <span class="acquire-overview">{{item.overview||'暂无简介'}}</span>
    <span v-if="loading" role="status">正在搜索全部站点…</span>
   </span>

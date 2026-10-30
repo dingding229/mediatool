@@ -1,3 +1,4 @@
+import {useDebouncedFilter} from '../composables/useDebouncedFilter';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { useRefresh } from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -26,9 +27,7 @@ export function useSubscriptionWorkspace() {
   const previewReady = computed(() => !!previewId.value && previewSignature.value === signature.value && !!previewRun.value && !['pending','running','needs_refresh'].includes(previewRun.value.state) && !pending.value && !previewError.value)
   const mutation = ref(''), deleteOpen = ref(false), deleting = ref(false), deleteTarget = ref<Subscription | null>(null)
   const visible = computed(() => records.value.filter(s => (filter.value === 'all' || s.enabled === (filter.value === 'enabled')) && `${s.title} ${s.media.title}`.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase())))
-  let searchTimer:ReturnType<typeof setTimeout>;
- watch([search,filter],()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{page.value=1;void refresh()},250)});
- onUnmounted(()=>clearTimeout(searchTimer));
+  useDebouncedFilter(()=>[search.value,filter.value],()=>{page.value=1;return refresh()});
   let disposed = false, listSeq = 0, historySeq = 0, detailSeq = 0, polling = false
   watch(pending, p => { try { if (p) sessionStorage.setItem(pendingStorageKey, JSON.stringify(p)); else sessionStorage.removeItem(pendingStorageKey) } catch {} }, { deep: true, flush: 'sync' })
   function location(values: Record<string, string | undefined>) { return router.replace({ query: { ...route.query, ...values } }) }

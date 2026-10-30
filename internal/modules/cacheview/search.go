@@ -9,12 +9,12 @@ import (
 
 var uuidID = regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`)
 
-func (s Store) searchList(ctx context.Context, page, limit int) ([]Entry, int, bool, error) {
+func (s Store) searchList(ctx context.Context, page, limit int, query string) ([]Entry, int, bool, error) {
 	var total int
-	if err := s.DB.QueryRow(ctx, `SELECT count(*) FROM search_runs WHERE NOT cache_hidden`).Scan(&total); err != nil {
+	if err := s.DB.QueryRow(ctx, `SELECT count(*) FROM search_runs WHERE NOT cache_hidden AND ($1='' OR keyword ILIKE '%'||$1||'%')`, query).Scan(&total); err != nil {
 		return nil, 0, false, err
 	}
-	rows, err := s.DB.Query(ctx, `SELECT id::text FROM search_runs WHERE NOT cache_hidden ORDER BY created_at DESC,id DESC LIMIT $1 OFFSET $2`, limit, (page-1)*limit)
+	rows, err := s.DB.Query(ctx, `SELECT id::text FROM search_runs WHERE NOT cache_hidden AND ($3='' OR keyword ILIKE '%'||$3||'%') ORDER BY created_at DESC,id DESC LIMIT $1 OFFSET $2`, limit, (page-1)*limit, query)
 	if err != nil {
 		return nil, 0, false, err
 	}

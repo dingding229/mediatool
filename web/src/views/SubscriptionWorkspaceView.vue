@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import {useDebouncedFilter} from '../composables/useDebouncedFilter'
+import DescriptionGrid from '../ui/DescriptionGrid.vue'
 import {usePageRefresh} from '../ui/page-refresh';
-import { computed } from 'vue'
+import { computed,ref } from 'vue'
 import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElIcon } from 'element-plus'
 import 'element-plus/es/components/dropdown/style/css'
 import 'element-plus/es/components/dropdown-menu/style/css'
@@ -31,6 +33,9 @@ function moreAction(command: string | number | object, record: Subscription) {
   else if (command === 'toggle') void toggle(record)
   else if (command === 'archive') askDelete(record)
 }
+const runQuery=ref(''),runSearch=ref('');
+useDebouncedFilter(runQuery,value=>{runSearch.value=value.trim().toLocaleLowerCase()});
+const filteredHistory=computed(()=>history.value.filter(item=>`${item.preview?'规则预演':'正式运行'} ${timestamp(item.createdAt)} ${item.state}`.toLocaleLowerCase().includes(runSearch.value)));
 const tabs = [{ id: 'list', label: '订阅列表' }, { id: 'history', label: '运行记录' }]
 const currentRecord = computed(() => records.value.find(s => s.id === historyId.value))
 const runTime = computed(() => history.value.find(r => r.id === activeRunId.value)?.createdAt)
@@ -106,8 +111,9 @@ usePageRefresh(refresh,'*');
         <div v-else class="subscription-history-workspace">
           <nav class="run-timeline" aria-label="运行时间线">
             <header><h3>运行记录</h3><span>{{ history.length }} 次</span></header>
-            <p v-if="!history.length">暂无运行记录；预演或运行后会显示在这里。</p>
-            <button v-for="item in history" :key="item.id" type="button" :aria-pressed="activeRunId === item.id" @click="chooseRun(item.id)">
+            <el-input v-model="runQuery" clearable aria-label="筛选本页运行记录" placeholder="筛选本页运行记录"/>
+            <p v-if="!filteredHistory.length">{{history.length?'没有符合筛选条件的运行记录。':'暂无运行记录；预演或运行后会显示在这里。'}}</p>
+            <button v-for="item in filteredHistory" :key="item.id" type="button" :aria-pressed="activeRunId === item.id" @click="chooseRun(item.id)">
               <span class="timeline-dot" aria-hidden="true" />
               <span><strong>{{ item.preview ? '规则预演' : '正式运行' }}</strong><small>{{ timestamp(item.createdAt) }}</small><StatusBadge :state="item.state" /></span>
             </button>
@@ -125,13 +131,15 @@ usePageRefresh(refresh,'*');
     <DetailDrawer :key="selected?.id" v-model:visible="detailOpen" title="订阅详情" size="large" class="subscription-detail">
       <template v-if="selected">
         <div class="subscription-detail-target"><span>跟进对象</span><h2>{{ selected.title || '—' }}</h2><StatusBadge :state="selected.enabled ? 'running' : 'disabled'" :label="selected.enabled ? '已启用' : '已停用'" /></div>
-        <dl class="subscription-detail-facts">
-          <div><dt>监控站点</dt><dd>{{ siteNames(selected.rules.accountIds) }}</dd></div>
-          <div><dt>质量要求</dt><dd>{{ quality(selected.rules) }}</dd></div>
-          <div><dt>搜索与筛选</dt><dd>{{ selected.rules.keyword || '—' }}<small>包含：{{ selected.rules.include?.join('、') || '—' }}<br />排除：{{ selected.rules.exclude?.join('、') || '—' }}</small></dd></div>
-          <div><dt>最近运行说明</dt><dd>{{ selected.lastMessage || '—' }}</dd></div>
-          <div><dt>下次运行</dt><dd>{{ selected.nextRunAt===null?'计划已结束':timestamp(selected.nextRunAt) }}</dd></div>
-        </dl>
+        <DescriptionGrid :items="[
+          {key:'sites',label:'监控站点',value:siteNames(selected.rules.accountIds)},
+          {key:'quality',label:'质量要求',value:quality(selected.rules)},
+          {key:'keyword',label:'搜索词',value:selected.rules.keyword},
+          {key:'include',label:'包含',value:selected.rules.include?.join('、')},
+          {key:'exclude',label:'排除',value:selected.rules.exclude?.join('、')},
+          {key:'message',label:'最近运行说明',value:selected.lastMessage},
+          {key:'next',label:'下次运行',value:selected.nextRunAt===null?'计划已结束':timestamp(selected.nextRunAt)}
+        ]"/>
         <div class="subscription-detail-actions">
           <el-button @click="showHistory(selected.id)">查看运行记录</el-button>
           <template v-if="scope === 'current'">

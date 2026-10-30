@@ -47,7 +47,7 @@ it.each([
   "e1ba9e19fe8cd5230d7984df13e070e3d24236d706430df20b1e457d397582fc"
  ]
 ])('I26b leaves requests, payloads and interaction logic unchanged: %s',(file,hash)=>{
- const script=read(file).match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!;
+ const script=read(file).match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import {label} from '../acquisition/model';\n",'');
  // I34 adds only the shared state-chip CSS import; the entire image operation script remains pinned.
  expect(sha(file==='media/ImageEditor.vue'?script.replace("import './editor.css';\n",''):script)).toBe(hash);
 });

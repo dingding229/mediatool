@@ -43,3 +43,4 @@ it('non-stretch playback chart keeps its original coordinates, formatting and SV
  expect(html).not.toContain('trend-frame');expect(html).not.toContain('trend-dot');expect(html).toContain('preserveAspectRatio="xMidYMid meet"');expect(html).toContain('每日播放');expect(html).toContain('最近 3.00 次');
  for(const point of trendSegments(data,'x',60000))expect(html).toContain(`points="${point}"`);
 });
+it('100 percent samples stay below the upper grid and do not overlap the middle tick',()=>{for(const values of [[100,100],[70,90,100]]){const range=trendRange(values,'%');expect(range.max).toBeGreaterThan(100);expect(range.max).toBe(105);expect((range.min+range.max)/2).not.toBe(100)}});

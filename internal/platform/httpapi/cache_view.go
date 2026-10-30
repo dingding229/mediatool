@@ -38,7 +38,7 @@ func (a *API) viewCache(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	entries, total, truncated, e := s.List(ctx, r.PathValue("kind"), page, size)
+	entries, total, truncated, e := s.ListFiltered(ctx, r.PathValue("kind"), page, size, r.URL.Query().Get("q"))
 	if e != nil {
 		fail(w, 400, "cache_query_failed", "缓存查询失败或类型无效")
 		return

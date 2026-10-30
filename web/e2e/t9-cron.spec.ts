@@ -21,7 +21,7 @@ async function fixture(page:Page,ended=false){
  return writes;
 }
 async function open(page:Page,kind:string){
- if(kind==='settings'){await page.goto('/settings?tab=automation');await expect(page.getByLabel('订阅调度时间',{exact:true})).toBeVisible()}
+ if(kind==='settings'){await page.goto('/settings?tab=automation');await expect(page.getByRole('combobox',{name:'订阅调度时间预设',exact:true})).toBeVisible()}
  if(kind==='metrics'){await page.goto('/sites');await page.getByRole('button',{name:'编辑采集计划',exact:true}).click();await expect(page.getByRole('dialog',{name:'指标采集计划',exact:true})).toBeVisible()}
  if(kind==='scan'){await page.goto('/organize?tab=scans');await page.getByRole('button',{name:'新增定时扫描',exact:true}).click();await expect(page.getByRole('dialog',{name:'定时扫描设置',exact:true})).toBeVisible()}
  if(kind==='backup'){await page.goto('/ops?tab=maintenance');await page.getByRole('button',{name:'维护策略',exact:true}).click();await expect(page.getByLabel('备份Cron',{exact:true})).toBeVisible()}
@@ -34,7 +34,8 @@ test('T9 consumer geometry 1440/390 light/dark (screenshots local opt-in)' ,asyn
  for(const kind of process.env.T9_PAGE?[process.env.T9_PAGE]:['settings','metrics','scan','backup','jobs','plugin'])for(const width of [1440,390])for(const theme of ['light','dark']){
   if(before&&existsSync(join(dir,`before-${kind}-${width}-${theme}.png`)))continue;
   await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);await open(page,kind);await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
-  if(!before&&kind!=='jobs'){await expect(page.locator('.cron-input').first()).toBeVisible();await expect(page.locator('.cron-preview')).toHaveCount(0);await expect(page.locator('.cron-input').first().getByRole('button',{name:/生成$/})).toBeVisible()}
+  if(!before&&kind==='settings'){await expect(page.locator('.cron-field')).toBeVisible();await expect(page.getByRole('combobox',{name:'订阅调度时间预设',exact:true})).toBeVisible();await expect(page.locator('.cron-field-feedback')).toContainText('下次执行时间');await expect(page.locator('.cron-preview')).toHaveCount(0)}
+  if(!before&&kind!=='jobs'&&kind!=='settings'){await expect(page.locator('.cron-input').first()).toBeVisible();await expect(page.locator('.cron-preview')).toHaveCount(0);await expect(page.locator('.cron-input').first().getByRole('button',{name:/生成$/})).toBeVisible()}
   if(!before&&kind==='jobs'){
    const boxes=await page.locator('.ops-job-actions').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();const buttons=e.querySelectorAll('button');return {width:r.width,right:buttons[buttons.length-1]!.getBoundingClientRect().right}}));
    expect(boxes[0]!.width).toBe(boxes[1]!.width);expect(Math.abs(boxes[0]!.right-boxes[1]!.right)).toBeLessThanOrEqual(1);
@@ -65,9 +66,9 @@ test('T9 validation feedback is compact and remains authoritative without a futu
  for(const width of [1440,390]){
   await page.setViewportSize({width,height:1000});let release!:()=>void,seen=false;const gate=new Promise<void>(r=>release=r);
   await page.route('**/api/v1/scheduling/cron/preview',async r=>{seen=true;await gate;await fixtureFulfill(r,{json:{data:{}}})});
-  await open(page,'settings');await expect.poll(()=>seen).toBe(true);const feedback=page.locator('.cron-input > .cron-feedback');await expect(feedback).toContainText('正在校验');
-  release();await expect(feedback).toContainText('校验通过');await expect(page.locator('.cron-preview')).toHaveCount(0);expect((await feedback.boundingBox())!.height).toBeLessThan(190);
-  await page.getByLabel('订阅调度时间',{exact:true}).fill('* *');await expect(feedback.getByRole('alert')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await open(page,'settings');await expect.poll(()=>seen).toBe(true);const feedback=page.locator('.cron-field-feedback');await expect(feedback).toContainText('正在校验');
+  release();await expect(feedback).toContainText('下次执行时间');await expect(page.locator('.cron-preview')).toHaveCount(0);expect((await feedback.boundingBox())!.height).toBeLessThan(190);
+  await page.locator('.cron-field .el-select__wrapper').click();await page.getByRole('option',{name:'自定义',exact:true}).click();await page.getByLabel('订阅调度时间自定义 Cron',{exact:true}).fill('* *');await expect(feedback.getByRole('alert')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.unroute('**/api/v1/scheduling/cron/preview');
  }
 });

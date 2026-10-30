@@ -39,9 +39,10 @@ usePageRefresh(load, 'discover');
           <el-button :disabled="!item.tmdbId" @click="emit('select',item)">搜索资源</el-button>
         </article>
       </div>
-      <StateView v-if="!items.length" state="empty" title="暂无发现推荐" description="已启用的服务尚未返回作品。"/>
+      <StateView v-if="!items.length" state="empty" title="暂无发现推荐" description="在插件中启用发现/推荐服务。"/>
+      <RouterLink v-if="!items.length" to="/plugins">前往插件</RouterLink>
       <p v-if="truncated" role="status">来源仅提供部分结果，未展示的作品不代表不存在。</p>
-      <PagePagination v-model:page-size="pageSize" v-model:current-page="page" :item-count="items.length" :has-next="hasMore" :disabled="loading" @current-change="load"/>
+      <PagePagination v-if="items.length" v-model:page-size="pageSize" v-model:current-page="page" :item-count="items.length" :has-next="hasMore" :disabled="loading" @current-change="load"/>
     </template>
     <DetailDrawer v-model:visible="detailOpen" :title="detail?.title||'作品详情'" class="catalog-detail">
       <StateView v-if="detailLoading" state="loading"/>

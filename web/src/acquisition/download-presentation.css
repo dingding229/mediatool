@@ -4,3 +4,20 @@
 /* First-read controls stay unpainted until skeletons resolve; refresh retains rows. */
 .download-list-footer.is-loading{visibility:hidden}
 .t8-download-row .download-progress>.el-progress{width:100%;max-width:none;margin:0}
+/* All three task lists share the same geometry; touch actions remain visible. */
+.acquire-task.t8-download-row{grid-template-columns:minmax(0,1fr) minmax(88px,360px)}
+.download-row-actions{justify-self:end;justify-content:flex-end;align-items:center;gap:8px}
+.download-row-meta{display:flex;align-items:center;gap:12px;min-width:0;white-space:nowrap;overflow:hidden;font-size:12px;color:var(--mt-text-muted)}.download-row-meta>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.manual-secondary-wide{display:flex;gap:8px}.manual-secondary-narrow{display:none}.empty-batch-row{display:flex;align-items:center;gap:12px}.empty-batch-row h2,.empty-batch-row p{margin:0}
+@media(max-width:700px){.acquire-task.t8-download-row{grid-template-columns:minmax(0,1fr);gap:12px}.download-row-actions{width:100%;justify-self:stretch;justify-content:flex-start}.download-row-actions>.el-button{flex:1}.manual-secondary-wide{display:none}.manual-secondary-narrow{display:inline-flex}.download-heading{flex-wrap:wrap}.download-heading h3{flex-basis:100%}.empty-batch-row{flex-wrap:wrap}}
+.acquire-task>.download-row-actions{max-width:none}
+
+.download-heading{min-height:44px}.download-heading h3{display:flex;align-items:center;min-height:44px}
+
+.detail-footer .download-detail-actions{margin-top:0}
+/* More specific than acquisition.css's generic 260px action cap, regardless of lazy CSS order. */
+.acquire-task.t8-download-row>.download-row-actions{max-width:none}
+
+/* Keep TaskControl mounted for unknown receipts; only collapse genuinely empty chrome. */
+.el-dialog.download-detail>.el-dialog__footer:not(:has(button,[role=status],[role=alert])){display:none}
+.download-detail .detail-body>section:last-child>.mt-description-grid{margin-bottom:0}

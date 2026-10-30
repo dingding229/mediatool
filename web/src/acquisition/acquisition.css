@@ -59,3 +59,12 @@
 /* Form-local helper text and site status share one secondary text style. */
 .search-helper-text,.search-site-scope{color:var(--mt-text-muted);font-size:13px;line-height:1.6}
 .search-site-scope{display:flex;align-items:center;gap:8px;min-height:44px;margin-top:12px}
+
+/* I39: one page scroll, shared compact history rows and one-line desktop filters. */
+.acquire-filters{grid-template-columns:minmax(180px,1.6fr) repeat(4,minmax(0,1fr))}.acquire-filters label:last-child{grid-column:auto}
+.resource-results-table{overflow:visible;max-height:none;height:auto}.resource-columns{position:sticky;top:68px;z-index:10;background:var(--mt-bg-surface);padding-block:12px;border-bottom:1px solid var(--mt-border-color)}
+.acquire-history .recent-search-row,.acquire-history .search-history-row{display:flex;gap:12px;align-items:center;min-width:0;padding:8px 0;border-top:1px solid var(--mt-border-color);color:var(--mt-text-primary);text-decoration:none;min-height:44px}
+.recent-search-row strong,.history-row-copy{min-width:0;flex:1}.recent-search-row strong,.recent-search-row>span,.history-row-meta,.history-row-copy>strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.recent-search-row>span,.history-row-meta{font-size:12px;color:var(--mt-text-muted)}
+.history-row-copy{display:grid;gap:6px}.acquire-history-cover{flex:none;margin:0;width:40px;height:60px}.history-cover-placeholder{display:grid;place-items:center;background:var(--mt-bg-canvas);font-size:11px;color:var(--mt-text-muted);text-align:center}
+@media(max-width:700px){.acquire-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.acquire-filters label:first-child{grid-column:1/-1}.resource-columns{top:60px}.recent-search-row>span:last-child,.search-history-row>span:last-child{display:none}.recent-search-row>span{max-width:60%}}
+.history-row-meta{display:flex;align-items:center;gap:8px}.history-row-meta>.status-badge{flex:none}.history-row-meta>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

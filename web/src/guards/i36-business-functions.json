@@ -5,8 +5,7 @@
     "choose": "b0296f173107926f3900a181f1ef4e677c278d714a8b57066848ed18c672f586"
   },
   "acquisition/SearchHistory.vue": {
-    "load": "dd76873bc493ac2618e9a8eeb52298a9b07bd28488f262ac538393edf11c0eed",
-    "inspect": "418316c310d9a78a9dfb273a2085ef0600288753f08c7171398d7e2d02f146b3"
+    "load": "9d17c657bbd82ad5226d03fef4739031db0122e037d15c1a93b6bb53cb0f53d3"
   },
   "files/BrowserPanel.vue": {
     "allowed": "13904c3fc9b51c2b9206569731b1c2411ebb032f7d65f81adba25d6677aa262e",

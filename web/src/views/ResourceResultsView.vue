@@ -17,7 +17,7 @@ import { sourceLabel, resourceSources } from '../utils/resource-source';
 import { size, label } from '../acquisition/model';
 import { errorText, stateFor } from '../workflows/readiness';
 import '../acquisition/acquisition.css';
-const { showAll,toggleIdentityFilter,pageSize, run, loading, error, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter, queueFilter, sort, persistMedia, openDownload, searchAgain } = useResults();
+const { showAll,toggleIdentityFilter,pageSize, run, loading, error, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter, sort, persistMedia, openDownload, searchAgain } = useResults();
 const sitesOpen=ref(false);
 const siteCounts=computed(()=>({success:run.value?.sites.filter(s=>s.state==='succeeded').length||0,failed:run.value?.sites.filter(s=>['failed','partial'].includes(s.state)).length||0,running:run.value?.sites.filter(s=>['pending','running'].includes(s.state)).length||0}));
 const direction=(key:string)=>filters.sort.startsWith(key+'_')?(filters.sort.endsWith('_asc')?'ascending':'descending'):'none';
@@ -65,6 +65,10 @@ ownRefresh.register(()=>refresh(),()=>true);
         <ResourceIdentityNotice :excluded="run.excluded||0" :show-all="showAll" @toggle="toggleIdentityFilter"/>
         <div class="acquire-filters">
           <label>
+            关键字筛选
+            <el-input v-model="filters.keyword" aria-label="资源关键字筛选" clearable/>
+          </label>
+          <label>
             分辨率
             <el-select v-model="filters.resolution" multiple clearable aria-label="资源分辨率" @change="applyFilter">
               <el-option v-for="r in ['480p','720p','1080p','2160p','4320p','unknown']" :key="r" :value="r" :label="r==='unknown'?'未知':r"/>
@@ -88,13 +92,10 @@ ownRefresh.register(()=>refresh(),()=>true);
               <el-option v-for="site in run.sites" :key="site.accountId" :value="site.accountId" :label="site.name"/>
             </el-select>
           </label>
-          <label>
-            关键字筛选
-            <el-input v-model="filters.keyword" aria-label="资源关键字筛选" clearable @input="queueFilter" @keyup.enter="applyFilter"/>
-          </label>
+
         </div>
-        <p>筛选整个已取得快照；标题与编码仅为线索，投递前仍需核对媒体身份及 H&amp;R 要求。</p>
-        <div class="f3-stable-scroll resource-results-table">
+        <p>筛选已取得的资源；投递前核对身份与 H&amp;R 要求。</p>
+        <div class="resource-results-table">
         <div class="resource-columns">
           <span>资源与站点</span>
           <span role="columnheader" tabindex="0" :aria-sort="direction('size')" aria-label="按文件大小排序" @click="sort('size')" @keydown.enter="sort('size')" @keydown.space.prevent="sort('size')"><span class="resource-sort-label">大小</span><component :is="sortIcon('size')" class="f4-sort-icon" aria-hidden="true"/></span>

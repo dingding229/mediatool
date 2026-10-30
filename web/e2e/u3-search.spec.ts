@@ -9,7 +9,7 @@ test('U3 media card directly searches all enabled sites, and acceptance is not a
 })
 test('U3 history is read-only, query-synchronized, and links cache maintenance to ops',async({page})=>{
  let mutations=0;page.on('request',r=>{if(r.url().includes('/cache/')&&r.method()!=='GET')mutations++})
- await page.goto('/search?tab=history');await expect(page.getByRole('heading',{name:'继续上次的搜索',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'删除',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'前往缓存管理',exact:true})).toHaveAttribute('href','/ops?tab=cache&cacheKind=search');await page.getByRole('button',{name:'查看记录详情',exact:true}).click();await expect(page.getByRole('dialog',{name:'搜索记录详情'})).toBeVisible();await expect(page.locator('.technical-json')).toHaveCount(0);expect(mutations).toBe(0)
+ await page.goto('/search?tab=history');await expect(page.getByRole('heading',{name:'继续上次的搜索',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'删除',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'前往缓存管理',exact:true})).toHaveAttribute('href','/ops?tab=cache&cacheKind=search');await expect(page.getByRole('button',{name:'查看记录详情',exact:true})).toHaveCount(0);await page.locator('.search-history-row').click();await expect(page).toHaveURL('/search/results/run-u3');await expect(page.locator('.resource-entry')).toHaveCount(1);await expect(page.locator('.technical-json')).toHaveCount(0);expect(mutations).toBe(0)
 })
 test('U3 result filters cover the full snapshot and ranking is sent to the server',async({page})=>{
  let sort='';await page.route('**/api/v1/search/run-u3?*',r=>{sort=new URL(r.request().url()).searchParams.get('sort')||'';return fixtureFulfill(r,{json:{data:u3Run}})})

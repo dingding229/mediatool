@@ -7,8 +7,9 @@ export const hasResourceCount=(value:unknown)=>typeof value==='number'&&Number.i
 export function recentSearches(data: any) {
   const seen = new Set<string>();
   return [...list(data)].sort((a, b) => time(b) - time(a)).filter(r => {
-    const key = String(r.keyword || '').trim();
-    if (!key || seen.has(key))
+    const keyword = String(r.keyword || r.query || '').trim();
+    const key = JSON.stringify([keyword, r.media?.mediaType || '', r.media?.id || '']);
+    if (!keyword || seen.has(key))
       return false;
     seen.add(key);
     return true;

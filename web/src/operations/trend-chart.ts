@@ -16,6 +16,7 @@ export function trendTimeTicks(start:number,end:number){
 export function trendRange(values:number[],unit:string){
  if(!values.length)return {min:0,max:1};
  let min=Math.min(...values),max=Math.max(...values);
+ if(unit==='%')return {min:Math.min(0,min),max:Math.max(105,max+5)};
  if(min===max){const padding=min===0?1:Math.max(10**-digitsFor(unit),Math.abs(min)*.1);min=min>=0?Math.max(0,min-padding):min-padding;max+=padding}
  const half=(max-min)/2,power=10**Math.floor(Math.log10(half));
  const step=Math.max(10**-digitsFor(unit),([1,2,5,10].find(n=>n*power>=half)||10)*power);

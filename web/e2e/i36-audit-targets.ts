@@ -5,7 +5,6 @@ const button=(name:string)=>(p:Page)=>p.getByRole('button',{name,exact:true}).fi
 const summary=async(p:Page,text:string)=>{const s=p.locator('summary').filter({hasText:text}).first();await s.click()};
 export const targets:Target[]=[
  {id:'discovery',file:'acquisition/DiscoveryPanel.vue',path:'/search?tab=discover',title:'海边的故事',size:'default',open:p=>p.locator('.discovery-grid .catalog-poster').first().click()},
- {id:'search-history',file:'acquisition/SearchHistory.vue',path:'/search?tab=history',title:'搜索记录详情',size:'default',open:button('查看记录详情')},
  {id:'download',file:'views/DownloadsWorkspaceView.vue',path:'/downloads?tab=tasks',title:'任务详情',open:p=>p.locator('.download-main h3 button').first().click()},
  {id:'manual',file:'acquisition/ManualWorkspace.vue',path:'/downloads?tab=manual',title:'手动下载详情',open:button('查看详情')},
  {id:'browser',file:'files/BrowserPanel.vue',path:'/files?tab=browser',title:'文件操作记录',open:button('操作记录')},

@@ -51,6 +51,7 @@ export interface Run {
   resources: Resource[];
 }
 export interface DownloadTask {
+  endpoint?: string;
   resourceSize?: number;
   siteName?: string;
   id: string;

@@ -56,6 +56,6 @@ it('keeps the audited DetailDrawer size map explicit',()=>{
    else expect(tag,`${name}: default-sized instance must not opt into a different width`).not.toMatch(/\ssize=/)
   }
  }
- expect(fileCount).toBe(24)
- expect(instanceCount).toBe(26)
+ expect(fileCount).toBe(23)
+ expect(instanceCount).toBe(25)
 })

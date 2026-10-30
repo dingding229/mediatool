@@ -5,7 +5,7 @@ import {waitForLayout} from './layout-stability';import {fixture,open} from './i
 const output=resolve(import.meta.dirname,'../../scratchpad/i-phase/i36');
 const capture=process.env.I36_SCREENSHOTS==='1'&&process.env.CI!=='true'&&process.env.GITHUB_ACTIONS!=='true';
 const business:Record<string,string[]>={
- discovery:['海边的故事','搜索资源'],'search-history':['海边的故事','已完成'],download:['海边的故事','文件已入库'],manual:['手动添加的种子','保存路径'],browser:['文件变更','已完成'],'managed-strm':['海边的故事','读取原文'],queue:['系统检查','已完成','默认队列','执行次数'],runtime:['默认队列','在线','最近在线'],maintenance:['备份就绪','备份大小','数据库与受管输出已打包'],restore:['只读核验预览','高风险提示','SHA256'],log:['完整请求 URL','完整 302 URL','复制日志'],'log-settings':['日志大小','日志文件'],cache:['海边的故事'],asset:['海边的故事','当前输出与 STRM'],scan:['/115/媒体','目录覆盖说明'],history:['原位置','目标位置','/电影/核对目录 30'],users:['设备与登录','权限摘要'],access:['实际收到的完整 UA','复制完整 UA'],sessions:['家庭成员','验收播放器'],accounts:['家庭站点','站内用户名','做种体积'],templates:['家庭站点','https://hdsky.me','管理站点账号'],media:['海边的故事','作品简介','版本与文件'],plugin:['确认安装插件','权限'],subscription:['海边的故事','监控站点','等待下次检查'],'subscription-run':['候选决策','已完成'],external:['只读核验凭据','全部权限','最近调用']
+ discovery:['海边的故事','搜索资源'],download:['海边的故事','文件已入库'],manual:['手动添加的种子','保存路径'],browser:['文件变更','已完成'],'managed-strm':['海边的故事','读取原文'],queue:['系统检查','已完成','默认队列','执行次数'],runtime:['默认队列','在线','最近在线'],maintenance:['备份就绪','备份大小','数据库与受管输出已打包'],restore:['只读核验预览','高风险提示','SHA256'],log:['完整请求 URL','完整 302 URL','复制日志'],'log-settings':['日志大小','日志文件'],cache:['海边的故事'],asset:['海边的故事','当前输出与 STRM'],scan:['/115/媒体','目录覆盖说明'],history:['原位置','目标位置','/电影/核对目录 30'],users:['设备与登录','权限摘要'],access:['实际收到的完整 UA','复制完整 UA'],sessions:['家庭成员','验收播放器'],accounts:['家庭站点','站内用户名','做种体积'],templates:['家庭站点','https://hdsky.me','管理站点账号'],media:['海边的故事','作品简介','版本与文件'],plugin:['确认安装插件','权限'],subscription:['海边的故事','等待下次检查'],'subscription-run':['候选决策','已完成'],external:['只读核验凭据','全部权限','最近调用']
 };
 for(const width of [1440,375])for(const target of targets)test(`I36 business detail ${target.id} ${width}`,async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.setViewportSize({width,height:1000});
@@ -16,6 +16,7 @@ for(const width of [1440,375])for(const target of targets)test(`I36 business det
  await expect(dialog.locator('.technical-section,.technical-json,.technical-toggle')).toHaveCount(0);
  await expect(dialog).not.toContainText(/技术细节|技术详情|复制原始记录/);
  for(const text of business[target.id]||[])await expect(dialog).toContainText(text);
+ if(target.id==='subscription')await expect(dialog.locator('dt').filter({hasText:/^监控站点$/})).toHaveCount(0);
  expect(await page.evaluate(()=>(window as any).i36CLS)).toBe(0);expect(errors).toEqual([]);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(0);
  if(capture){mkdirSync(resolve(output,'screens'),{recursive:true});writeFileSync(resolve(output,`after-${target.id}-${width}.json`),JSON.stringify({cls:await page.evaluate(()=>(window as any).i36CLS)}));if(width===1440&&['search-history','accounts','history'].includes(target.id))await page.screenshot({path:resolve(output,`screens/after-${target.id}-1440-light.png`),animations:'disabled'})}
@@ -37,8 +38,12 @@ test('I36 workflow management keeps editable definitions and readable outcomes, 
  await expect(dialog.getByLabel('工作流定义（JSON）',{exact:true})).toHaveValue(/"fixture-flow"/);await expect(dialog).toContainText('站点连接暂不可用');await expect(dialog).toContainText('结果未知或失败不会自动重放');await expect(dialog.locator('pre,.technical-json')).toHaveCount(0);await expect(dialog).not.toContainText(/i36-private-workflow-object|i36-private-run-object|技术详情/);expect(mutations).toEqual([]);
 });
 for(const width of [1440,375])test(`I36 shared compact Cron dialog remains stable ${width}`,async({page})=>{
- await page.setViewportSize({width,height:1000});await i3Fixture(page,'/settings');await page.goto('/settings?tab=automation');await page.waitForLoadState('networkidle');await waitForLayout(page);
+ await page.setViewportSize({width,height:1000});await i3Fixture(page,'/sites');await page.goto('/sites');await page.getByRole('button',{name:'编辑采集计划',exact:true}).click();await page.waitForLoadState('networkidle');await waitForLayout(page);
  await page.evaluate(()=>{(window as any).i36CLS=0;new PerformanceObserver(list=>{for(const entry of list.getEntries())if(!(entry as any).hadRecentInput)(window as any).i36CLS+=(entry as any).value}).observe({type:'layout-shift',buffered:false})});
- await page.getByRole('button',{name:'订阅调度时间生成',exact:true}).click();const dialog=page.getByRole('dialog',{name:'订阅调度时间生成器',exact:true});await expect(dialog).toBeVisible();await waitForLayout(page);await page.waitForTimeout(600);await expect(dialog.getByRole('button',{name:'确定',exact:true})).toBeVisible();await expect(dialog.locator('.technical-section,.technical-json')).toHaveCount(0);expect(await page.evaluate(()=>(window as any).i36CLS)).toBe(0);
+ await page.getByRole('button',{name:'站点指标 Cron生成',exact:true}).click();const dialog=page.getByRole('dialog',{name:'站点指标 Cron生成器',exact:true});await expect(dialog).toBeVisible();await waitForLayout(page);await page.waitForTimeout(600);await expect(dialog.getByRole('button',{name:'确定',exact:true})).toBeVisible();await expect(dialog.locator('.technical-section,.technical-json')).toHaveCount(0);expect(await page.evaluate(()=>(window as any).i36CLS)).toBe(0);
  if(capture)writeFileSync(resolve(output,`after-cron-${width}.json`),JSON.stringify({cls:await page.evaluate(()=>(window as any).i36CLS)}));
+});
+
+for(const width of [1440,375])test(`I39 retired history drawer stays absent, its row still opens complete results ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:1000});await i3Fixture(page,'/search');await page.goto('/search?tab=history');const row=page.locator('.search-history-row');await expect(row).toHaveCount(1);await expect(row).toContainText('海边的故事');await expect(row).toContainText('已完成');await expect(page.getByRole('button',{name:'查看记录详情',exact:true})).toHaveCount(0);await expect(page.locator('.technical-json,.technical-section')).toHaveCount(0);await row.click();await expect(page).toHaveURL('/search/results/run-u3');await expect(page.locator('.resource-entry')).toHaveCount(1);
 });

@@ -70,10 +70,10 @@ test('I26b fields inherit Element frames and native token spacing rather than ne
 });
 test('I26b search history already centers desktop actions and uses compact mobile rows',async({page})=>{
  await u7Fixture(page,'/search');await page.route('**/api/v1/search',r=>r.fulfill({json:{data:[]}}));await page.route('**/api/v1/cache/search?*',r=>r.fulfill({json:{data:{items:[{id:'history',query:'本地历史样例',createdAt:'2026-10-30T02:00:00Z',total:3,state:'succeeded'}],total:1}}}));
- await page.goto('/search?tab=history');const row=page.locator('.acquire-history article');await expect(row).toHaveCount(1);await stableLayout(page);
- const box=await row.boundingBox(),actions=await row.locator('.acquire-actions').boundingBox();expect(Math.abs(box!.y+box!.height/2-actions!.y-actions!.height/2)).toBeLessThanOrEqual(1);
+ await page.goto('/search?tab=history');const row=page.locator('.search-history-row');await expect(row).toHaveCount(1);await stableLayout(page);
+ const box=await row.boundingBox(),actions=await row.locator('.history-row-copy').boundingBox();expect(Math.abs(box!.y+box!.height/2-actions!.y-actions!.height/2)).toBeLessThanOrEqual(1);
  await page.setViewportSize({width:390,height:1000});await stableLayout(page);await expect(row).toHaveCSS('padding-top','8px');await expect(row).toHaveCSS('padding-bottom','8px');
- for(const el of await row.locator('button,a').all())expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(44);await noOverflow(page);
+ expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(44);await expect(row).toHaveAttribute('href','/search/results/history');await noOverflow(page);
 });
 test('I26b user activity empty mock does not read length from missing items',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});await i26bPlaybackFixture(page);
