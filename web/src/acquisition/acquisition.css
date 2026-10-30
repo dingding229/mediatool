@@ -56,5 +56,6 @@
 /* I26b: compact history rows only; keep the existing desktop alignment/actions. */
 @media(max-width:700px){.acquire-history article{padding-block:8px}}
 
-/* A compact, populated status row stays in flow without a disappearing card. */
-.search-site-scope{display:flex;align-items:center;gap:8px;min-height:44px;color:var(--mt-text-muted);font-size:13px}
+/* Form-local helper text and site status share one secondary text style. */
+.search-helper-text,.search-site-scope{color:var(--mt-text-muted);font-size:13px;line-height:1.6}
+.search-site-scope{display:flex;align-items:center;gap:8px;min-height:44px;margin-top:12px}

@@ -202,21 +202,10 @@
 /* Run history must not inherit the list stage cap and clip its only pager. */
 .subscription-workbench.subscription-history-section{max-height:none;overflow:hidden;scrollbar-gutter:auto}
 
-/* Follow-list content and its pager share the card, without a fixed scroller. */
+/* Both tabs use the same padded full-width shared pagination row. */
 .subscription-workbench.subscription-follow-section{min-height:0;max-height:none;overflow:hidden;scrollbar-gutter:auto}
 .subscription-follow-section .f5-subscription-results{min-height:0}
 .subscription-follow-section .state-view{min-height:260px;padding:16px 24px}
 .subscription-follow-section .subscription-list-footer{padding-block:12px}
-.subscription-follow-section>.mt-pagination{margin:0;padding:16px 24px;box-sizing:border-box;border-top:1px solid var(--mt-border-color)}
-@media(max-width:700px){.subscription-follow-section .state-view{min-height:280px;padding-inline:16px}.subscription-follow-section>.mt-pagination{padding:16px}}
-
-/* History pagination owns only the timeline; never stretch it across RunReview. */
-.subscription-history-timeline{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--mt-border-color)}
-.subscription-history-timeline>.run-timeline{flex:1;min-width:0;padding:24px;border:0}
-.subscription-history-pagination{flex:none;padding:16px 24px;border-top:1px solid var(--mt-border-color)}
-.subscription-history-pagination .mt-pagination{margin:0;min-width:0;flex-direction:column;align-items:stretch}
-.subscription-history-pagination .mt-pagination label{flex-wrap:wrap}
-.subscription-history-pagination .mt-page-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:8px}
-.subscription-history-pagination .mt-page-actions>span{grid-column:1/-1;grid-row:1;text-align:center}
-.subscription-history-pagination .mt-page-actions>button:first-child,.subscription-history-pagination .mt-page-actions>button:last-child{display:none}
-@media(max-width:700px){.subscription-history-timeline{border-right:0;border-bottom:1px solid var(--mt-border-color)}.subscription-history-timeline>.run-timeline,.subscription-history-pagination{padding:16px}}
+.subscription-workbench>.mt-pagination{margin:0;padding:16px 24px;box-sizing:border-box;border-top:1px solid var(--mt-border-color)}
+@media(max-width:700px){.subscription-follow-section .state-view{min-height:280px;padding-inline:16px}.subscription-workbench>.mt-pagination{padding:16px}}

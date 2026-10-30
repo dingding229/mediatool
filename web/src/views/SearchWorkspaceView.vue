@@ -80,7 +80,7 @@ usePageRefresh(load, 'query');
           <div class="acquire-actions">
             <el-button :type="selected?'default':'primary'" native-type="submit" :loading="searching" :disabled="!query.trim()">搜索媒体</el-button>
             <el-button :disabled="searching||!query.trim()" @click="findMedia(true)">忽略TMDB缓存</el-button>
-            <span v-if="searched">{{discovered?'已从发现推荐选择作品':cached?'本次使用TMDB缓存':'本次已查询TMDB'}}</span>
+            <span v-if="searched" class="search-helper-text">{{discovered?'已从发现推荐选择作品':cached?'本次使用TMDB缓存':'本次已查询TMDB'}}</span>
           </div>
         </form>
         <form v-else class="acquire-form" @submit.prevent="start(false)">
@@ -92,6 +92,12 @@ usePageRefresh(load, 'query');
             <el-button :disabled="!keyword.trim()||!ready||busy||!!intent" @click="start(true)">忽略站点缓存重新搜索</el-button>
           </div>
         </form>
+        <div class="search-site-scope" role="status" aria-label="站点状态">
+          <span v-if="loading">正在读取可用站点…</span>
+          <StateView v-else-if="accountsError" compact :state="stateFor(accountsError)" title="站点配置读取失败" @retry="load"/>
+          <span v-else-if="!ready">还没有可用站点。<RouterLink to="/sites?tab=accounts">配置站点账号</RouterLink></span>
+          <span v-else>固定搜索全部 {{sites.length}} 个已启用站点。</span>
+        </div>
       </section>
       <StateView v-if="error" :state="stateFor(error)" title="搜索暂未完成" :description="errorText(error)" @retry="mode==='media'?findMedia(false):reconcile()"/>
       <StateView v-if="searching" state="loading" title="正在查找匹配作品…"/>
@@ -105,12 +111,6 @@ usePageRefresh(load, 'query');
         </div>
         <StateView v-if="!media.length" state="empty" title="没有匹配作品" description="试试原标题、另一年份或调整类型。"/>
       </section>
-      <div class="search-site-scope" role="status" aria-label="站点状态">
-        <span v-if="loading">正在读取可用站点…</span>
-        <StateView v-else-if="accountsError" compact :state="stateFor(accountsError)" title="站点配置读取失败" @retry="load"/>
-        <span v-else-if="!ready">还没有可用站点。<RouterLink to="/sites?tab=accounts">配置站点账号</RouterLink></span>
-        <span v-else>固定搜索全部 {{sites.length}} 个已启用站点。</span>
-      </div>
       <AsyncResultBanner v-if="intent" :status="intent.phase" :message="intent.phase==='queued'?'搜索已排队，请进入记录查看查询进度。':'搜索回执未知，先读取记录核对，不重复发起。'" @refresh="reconcile"/>
       <section class="acquire-surface" aria-label="近期搜索">
         <header class="acquire-section-heading">
