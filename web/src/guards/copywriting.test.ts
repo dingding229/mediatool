@@ -88,3 +88,9 @@ it('approved search copy describes click-to-search all enabled sites',()=>{
  expect(view).toContain('description="点击作品即搜索全部已启用站点；投递前核对身份与做种要求。"');
  expect(view).not.toContain('先确认作品，再选择站点');
 });
+
+it('I35 approved identity section headings retain the existing confirmation and file-safety copy',()=>{
+ const view=readFileSync(resolve(root,'organize/IdentityEditor.vue'),'utf8');
+ for(const title of ['1 找到正确作品','2 核对季集','3 预览输出'])expect(view).toContain('<h3>'+title+'</h3>');
+ expect(view).toContain('仅预览，不写入文件；原媒体与固定链接保持不变。');expect(view).toContain('不移动云端源文件、不改变文件播放链接，不覆盖手工内容。');expect(view).toContain('确认结果需核对输出与记录，不重复提交同一确认。');
+});
