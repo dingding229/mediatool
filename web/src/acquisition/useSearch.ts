@@ -3,9 +3,10 @@ import { useRouter } from 'vue-router';
 import { post, request, APIError } from '../api/client';
 import { list, readIntent, writeIntent, type Account, type Media, type Run, type Intent } from './model';
 export function useSearch() {
-  const router = useRouter(), mode = ref('media'), query = ref(''), kind = ref('auto'), year = ref(''), keyword = ref(''), selected = ref<Media | null>(null), media = ref<Media[]>([]), history = ref<Run[]>([]), sites = ref<Account[]>([]), accountIds = ref<string[]>([]);
+  const router = useRouter(), mode = ref('media'), query = ref(''), kind = ref('auto'), year = ref(''), keyword = ref(''), selected = ref<Media | null>(null), media = ref<Media[]>([]), history = ref<Run[]>([]), sites = ref<Account[]>([]);
   const loading = ref(true), searching = ref(false), busy = ref(false), searched = ref(false), cached = ref(false), error = ref<unknown>(null), accountsError = ref<unknown>(null), historyError = ref<unknown>(null), intent = ref<Intent | null>(null);
-  const ready = computed(() => sites.value.length > 0), text = computed(() => mode.value === 'site' ? keyword.value.trim() : selected.value?.title || ''), scope = computed(() => JSON.stringify([text.value, mode.value === 'media' ? selected.value?.id : 0, mode.value === 'media' ? selected.value?.mediaType : '', accountIds.value]));
+  const ready = computed(() => !loading.value && !accountsError.value && sites.value.length > 0), text = computed(() => mode.value === 'site' ? keyword.value.trim() : selected.value?.title || ''), scope = computed(() => JSON.stringify([text.value, mode.value === 'media' ? selected.value?.id : 0, mode.value === 'media' ? selected.value?.mediaType : '', []]));
+  // The fixed empty array keeps the existing all-enabled-sites intent key.
   let epoch = 0, disposed = false, lastScope = '';
   watch(() => [query.value, kind.value, year.value], () => {
     epoch++;
@@ -82,8 +83,14 @@ export function useSearch() {
       }
     }
   }
+  async function selectAndSearch(item: Media) {
+    if (mode.value !== 'media' || busy.value || intent.value || !ready.value)
+      return;
+    selected.value = item;
+    await start(false);
+  }
   async function start(refresh = false) {
-    if (!text.value || busy.value || !ready.value)
+    if (!text.value || busy.value || intent.value || !ready.value)
       return;
     lastScope = scope.value;
     intent.value = readIntent('search:' + lastScope);
@@ -99,7 +106,7 @@ export function useSearch() {
       const out = await post<{
         id: string;
         cached?: boolean;
-      }>('/search', { keyword: text.value, refresh, accountIds: accountIds.value.length ? accountIds.value : undefined, media: mode.value === 'media' && selected.value ? { id: selected.value.id, mediaType: selected.value.mediaType } : undefined });
+      }>('/search', { keyword: text.value, refresh, accountIds: [], media: mode.value === 'media' && selected.value ? { id: selected.value.id, mediaType: selected.value.mediaType } : undefined });
       intent.value = { phase: 'queued', id: out.id };
       writeIntent('search:' + lastScope, intent.value);
       await router.push(`/search/results/${out.id}`);
@@ -120,5 +127,5 @@ export function useSearch() {
     disposed = true;
     epoch++;
   });
-  return { loading, mode, query, kind, year, keyword, selected, media, history, sites, accountIds, searching, busy, searched, cached, error, accountsError, historyError, ready, intent, load, findMedia, start, reconcile };
+  return { loading, mode, query, kind, year, keyword, selected, media, history, sites, searching, busy, searched, cached, error, accountsError, historyError, ready, intent, load, findMedia, selectAndSearch, start, reconcile };
 }

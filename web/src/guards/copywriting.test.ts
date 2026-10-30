@@ -82,3 +82,9 @@ describe('Copywriting Guard (Forbidden Developer Jargon)', () => {
     expect(violations).toEqual([])
   })
 })
+
+it('approved search copy describes click-to-search all enabled sites',()=>{
+ const view=readFileSync(resolve(root,'views/SearchWorkspaceView.vue'),'utf8');
+ expect(view).toContain('description="点击作品即搜索全部已启用站点；投递前核对身份与做种要求。"');
+ expect(view).not.toContain('先确认作品，再选择站点');
+});

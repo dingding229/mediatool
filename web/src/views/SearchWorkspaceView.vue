@@ -13,10 +13,10 @@ import SearchHistory from '../acquisition/SearchHistory.vue';
 import { label } from '../acquisition/model';
 import { useSearch } from '../acquisition/useSearch';
 import { errorText, stateFor } from '../workflows/readiness';
-import { tmdbImage } from '../utils/tmdb-image';
+import MediaSearchCard from '../acquisition/MediaSearchCard.vue';
 import '../acquisition/acquisition.css';
-const route = useRoute(), router = useRouter(), tab = computed(() => ['history', 'discover'].includes(String(route.query.tab)) ? String(route.query.tab) : 'query'), tabs = [{ id: 'query', label: '搜索' }, { id: 'history', label: '搜索历史' }, { id: 'discover', label: '发现推荐' }], broken = ref(new Set<string>()), discovered = ref(false);
-const { loading, mode, query, kind, year, keyword, selected, media, history, sites, accountIds, searching, busy, searched, cached, error, accountsError, historyError, ready, intent, load, findMedia: findMediaRequest, start, reconcile } = useSearch();
+const route = useRoute(), router = useRouter(), tab = computed(() => ['history', 'discover'].includes(String(route.query.tab)) ? String(route.query.tab) : 'query'), tabs = [{ id: 'query', label: '搜索' }, { id: 'history', label: '搜索历史' }, { id: 'discover', label: '发现推荐' }], discovered = ref(false);
+const { loading, mode, query, kind, year, keyword, selected, media, history, sites, searching, busy, searched, cached, error, accountsError, historyError, ready, intent, load, findMedia: findMediaRequest, selectAndSearch, start, reconcile } = useSearch();
 function findMedia(refresh = false) {
   discovered.value = false;
   return findMediaRequest(refresh);
@@ -46,7 +46,7 @@ usePageRefresh(load, 'query');
 </script>
 <template>
   <div class="acquire-workspace">
-    <PageHeader title="搜索" description="先确认作品，再选择站点；投递前核对身份与做种要求。"/>
+    <PageHeader title="搜索" description="点击作品即搜索全部已启用站点；投递前核对身份与做种要求。"/>
     <PageTabs :tabs="tabs" default-tab="query"/>
     <template v-if="tab==='query'">
       <section class="acquire-surface">
@@ -86,7 +86,7 @@ usePageRefresh(load, 'query');
         <form v-else class="acquire-form" @submit.prevent="start(false)">
           <h2>按资源关键词搜索站点</h2>
           <el-input v-model="keyword" aria-label="资源关键词" placeholder="影片、剧集或发布关键词"/>
-          <p>关键词不是媒体身份，下载前仍需核对具体作品。</p>
+          <p>固定搜索全部已启用站点；关键词不是媒体身份，下载前仍需核对具体作品。</p>
           <div class="acquire-actions">
             <el-button type="primary" native-type="submit" :disabled="!keyword.trim()||!ready||!!intent" :loading="busy">开始搜索</el-button>
             <el-button :disabled="!keyword.trim()||!ready||busy||!!intent" @click="start(true)">忽略站点缓存重新搜索</el-button>
@@ -101,36 +101,16 @@ usePageRefresh(load, 'query');
           <span>{{ media.length }} 项</span>
         </header>
         <div class="acquire-media-grid">
-          <article v-for="item in media" :key="item.mediaType+item.id" :class="{selected:selected?.id===item.id&&selected?.mediaType===item.mediaType}">
-            <img v-if="tmdbImage(item.posterPath)&&!broken.has(item.mediaType+item.id)" :src="tmdbImage(item.posterPath)" :alt="item.title+'海报'" @error="broken.add(item.mediaType+item.id)"/>
-            <div v-else class="acquire-poster-fallback">暂无海报</div>
-            <div>
-              <h3>
-                <button type="button" :aria-label="item.title" :aria-pressed="selected?.id===item.id&&selected?.mediaType===item.mediaType" @click="selected=item">{{ item.title }}</button>
-              </h3>
-              <p>{{ item.mediaType==='series'?'剧集':'电影' }} · {{ item.year||'—' }}</p>
-              <p>{{ item.originalTitle||'—' }}</p>
-              <p class="acquire-overview">{{ item.overview||'暂无简介' }}</p>
-            </div>
-          </article>
+          <MediaSearchCard v-for="item in media" :key="item.mediaType+item.id" :item="item" :selected="selected?.id===item.id&&selected?.mediaType===item.mediaType" :disabled="busy||!!intent||!ready" :loading="busy&&selected?.id===item.id&&selected?.mediaType===item.mediaType" @select="selectAndSearch"/>
         </div>
         <StateView v-if="!media.length" state="empty" title="没有匹配作品" description="试试原标题、另一年份或调整类型。"/>
       </section>
-      <section class="acquire-surface">
-        <h2>{{ mode==='media'?'选择站点，查找资源':'站点范围' }}</h2>
-        <p v-if="selected&&mode==='media'">已选择：{{ selected.title }} · {{ selected.year||'—' }}</p>
-        <el-select v-model="accountIds" multiple clearable aria-label="搜索站点" placeholder="全部已启用站点">
-          <el-option v-for="site in sites" :key="site.id" :value="site.id" :label="site.name"/>
-        </el-select>
-        <p>默认查询全部 {{ loading||accountsError?'—':sites.length }} 个已启用站点；可指定站点缩小范围。</p>
-        <StateView v-if="loading" state="loading" title="正在读取可用站点…"/>
-        <StateView v-else-if="accountsError" :state="stateFor(accountsError)" title="站点配置读取失败" @retry="load"/>
-        <p v-else-if="!ready">
-          还没有可用站点。
-          <RouterLink to="/sites?tab=accounts">配置站点账号</RouterLink>
-        </p>
-        <el-button v-if="mode==='media'" type="primary" :disabled="!selected||!ready||!!intent" :loading="busy" @click="start(false)">搜索站点资源</el-button>
-      </section>
+      <div class="search-site-scope" role="status" aria-label="站点状态">
+        <span v-if="loading">正在读取可用站点…</span>
+        <StateView v-else-if="accountsError" compact :state="stateFor(accountsError)" title="站点配置读取失败" @retry="load"/>
+        <span v-else-if="!ready">还没有可用站点。<RouterLink to="/sites?tab=accounts">配置站点账号</RouterLink></span>
+        <span v-else>固定搜索全部 {{sites.length}} 个已启用站点。</span>
+      </div>
       <AsyncResultBanner v-if="intent" :status="intent.phase" :message="intent.phase==='queued'?'搜索已排队，请进入记录查看查询进度。':'搜索回执未知，先读取记录核对，不重复发起。'" @refresh="reconcile"/>
       <section class="acquire-surface" aria-label="近期搜索">
         <header class="acquire-section-heading">

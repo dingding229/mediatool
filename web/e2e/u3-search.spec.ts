@@ -2,10 +2,10 @@ import {fixtureFulfill} from './collection-fixture'
 import {test,expect} from '@playwright/test'
 import {u3Fixture,u3Media,u3Run} from './u3-fixture'
 test.beforeEach(async({page})=>u3Fixture(page))
-test('U3 media selection is explicit before site search, and acceptance is not a finished result',async({page})=>{
+test('U3 media card directly searches all enabled sites, and acceptance is not a finished result',async({page})=>{
  let starts=0,body:any;await page.route('**/api/v1/search',r=>{if(r.request().method()==='POST'){starts++;body=r.request().postDataJSON();return fixtureFulfill(r,{status:202,json:{data:{id:'run-u3'}}})}return fixtureFulfill(r,{json:{data:[u3Run]}})})
  await page.route('**/api/v1/search/run-u3?*',r=>fixtureFulfill(r,{json:{data:{...u3Run,state:'pending',resources:[],sites:[{...u3Run.sites[0],state:'pending'}],total:0}}}))
- await page.goto('/search');await page.getByLabel('TMDB媒体名称',{exact:true}).fill(u3Media.title);await page.getByRole('button',{name:'搜索媒体',exact:true}).click();expect(starts).toBe(0);await page.getByRole('button',{name:u3Media.title,exact:true}).click();expect(starts).toBe(0);await page.getByRole('button',{name:'搜索站点资源',exact:true}).click();await expect(page).toHaveURL(/\/search\/results\/run-u3/);expect(body.media).toEqual({id:42,mediaType:'movie'});await expect(page.getByText('站点正在查询…',{exact:true})).toBeVisible();expect(starts).toBe(1)
+ await page.goto('/search');await page.getByLabel('TMDB媒体名称',{exact:true}).fill(u3Media.title);await page.getByRole('button',{name:'搜索媒体',exact:true}).click();expect(starts).toBe(0);await expect(page.getByRole('button',{name:'搜索站点资源',exact:true})).toHaveCount(0);await expect(page.getByRole('combobox',{name:'搜索站点',exact:true})).toHaveCount(0);await page.getByRole('button',{name:`搜索《${u3Media.title}》(${u3Media.year}) 的站点资源`,exact:true}).click();await expect(page).toHaveURL(/\/search\/results\/run-u3/);expect(body.media).toEqual({id:42,mediaType:'movie'});expect(body.accountIds).toEqual([]);expect(body.refresh).toBe(false);await expect(page.getByText('站点正在查询…',{exact:true})).toBeVisible();expect(starts).toBe(1)
 })
 test('U3 history is read-only, query-synchronized, and links cache maintenance to ops',async({page})=>{
  let mutations=0;page.on('request',r=>{if(r.url().includes('/cache/')&&r.method()!=='GET')mutations++})
@@ -24,12 +24,10 @@ test('U3 unknown download outcome persists through reload and only permits readb
  await page.goto('/search/results/run-u3');await page.getByRole('button',{name:'确认并下载',exact:true}).click();await page.getByRole('button',{name:'创建下载任务',exact:true}).click();await expect(page.locator('.async-result-banner')).toContainText('回执未知');await page.reload();await page.getByRole('button',{name:'确认并下载',exact:true}).click();await expect(page.locator('.async-result-banner')).toContainText('回执未知');await page.locator('.async-result-banner').getByRole('button',{name:'核对结果',exact:true}).click();expect(posts).toBe(1);expect(reads).toBe(1)
 })
 
-test('U3 search and results screenshots fit 375 and 1440 in both themes',async({page})=>{
- const {mkdirSync}=await import('node:fs');const dir='/tmp/media-tool-u3-screenshots';mkdirSync(dir,{recursive:true});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='warning'&&m.text().includes('Failed to resolve component'))errors.push(m.text())})
- for(const width of [375,1440])for(const theme of ['light','dark']){
-  await page.setViewportSize({width,height:width===375?950:1000});await page.addInitScript(value=>localStorage.setItem('media-tool:theme-mode:v1',value),theme)
-  await page.goto('/search');await page.getByLabel('TMDB媒体名称',{exact:true}).fill(u3Media.title);await page.getByRole('button',{name:'搜索媒体',exact:true}).click();await page.getByRole('button',{name:u3Media.title,exact:true}).click();await expect(page.locator('html')).toHaveAttribute('data-theme',theme);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`${dir}/search-${width}-${theme}.png`,fullPage:true,animations:'disabled'})
-  await page.goto('/search/results/run-u3');await expect(page.locator('.resource-entry')).toHaveCount(1);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);for(const button of await page.locator('.acquire-workspace button:visible').all())expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);await page.screenshot({path:`${dir}/search-results-${width}-${theme}.png`,fullPage:true,animations:'disabled'})
- }
- expect(errors).toEqual([])
-})
+for(const width of [375,1440])for(const theme of ['light','dark'])test(`U3 search and results screenshots fit ${width} in ${theme}`,async({page})=>{
+ const {mkdirSync}=await import('node:fs');const dir='/tmp/media-tool-u3-screenshots';mkdirSync(dir,{recursive:true});const errors:string[]=[];let starts=0;page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});page.on('request',r=>{if(r.url().endsWith('/api/v1/search')&&r.method()==='POST')starts++});
+ await page.setViewportSize({width,height:width===375?950:1000});await page.addInitScript(value=>localStorage.setItem('media-tool:theme-mode:v1',value),theme);
+ await page.goto('/search');await page.getByLabel('TMDB媒体名称',{exact:true}).fill(u3Media.title);await page.getByRole('button',{name:'搜索媒体',exact:true}).click();const card=page.getByRole('button',{name:`搜索《${u3Media.title}》(${u3Media.year}) 的站点资源`,exact:true});await expect(card).toBeEnabled();expect(starts).toBe(0);await expect(page.locator('html')).toHaveAttribute('data-theme',theme);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`${dir}/search-${width}-${theme}.png`,fullPage:true,animations:'disabled'});
+ await card.click();await expect(page).toHaveURL(/\/search\/results\/run-u3$/);expect(starts).toBe(1);await expect(page.locator('.resource-entry')).toHaveCount(1);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);for(const button of await page.locator('.acquire-workspace button:visible').all())expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);await page.screenshot({path:`${dir}/search-results-${width}-${theme}.png`,fullPage:true,animations:'disabled'});
+ expect(errors).toEqual([]);
+});
