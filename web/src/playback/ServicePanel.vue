@@ -8,9 +8,8 @@ import { useResource } from '../workflows/useResource';
 import { useOperation } from '../workflows/useOperation';
 import ResourceState from '../workflows/ResourceState.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-import DetailDrawer from '../ui/DetailDrawer.vue';
 import { errorText } from '../workflows/readiness';
-const status = reactive(useResource(getNativeServerSettings)), providers = reactive(useResource(() => request('/media-server/providers'))), page = usePageNumber(), pageSize = usePageSize(50), libraries = reactive(useResource(() => listNativeLibraryMappings((page.value - 1) * pageSize.value,pageSize.value))), op = reactive(useOperation('service')), form = reactive({ serverName: '', enabled: false, revision: 0 }), latest = ref<any>(null), technical = ref(false), notice = ref('');
+const status = reactive(useResource(getNativeServerSettings)), providers = reactive(useResource(() => request('/media-server/providers'))), page = usePageNumber(), pageSize = usePageSize(50), libraries = reactive(useResource(() => listNativeLibraryMappings((page.value - 1) * pageSize.value,pageSize.value))), op = reactive(useOperation('service')), form = reactive({ serverName: '', enabled: false, revision: 0 }), latest = ref<any>(null), notice = ref('');
 async function load() {
   const pristine = status.data && form.serverName === status.data.serverName && form.enabled === status.data.enabled && form.revision === status.data.revision;
   const s = await status.load();
@@ -85,7 +84,6 @@ defineExpose({ load, form, save, status, libraries, op });
         <li>115 官方地址</li>
       </ol>
       <p>服务器不中转流量。</p>
-      <el-button @click="technical=true">技术详情</el-button>
       <div class="media-actions">
         <RouterLink to="/playback?tab=users">管理媒体用户</RouterLink>
       </div>
@@ -109,9 +107,5 @@ defineExpose({ load, form, save, status, libraries, op });
       </article>
       <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="libraries.data?.total??0" layout="prev,pager,next,total" @current-change="libraries.load"/>
     </section>
-    <DetailDrawer v-model:visible="technical" title="服务技术详情" :technical-data="{settings:status.data,services:providers.data,libraries:libraries.data}" size="large" class="media-detail">
-      <ResourceState :stale="providers.loaded" :loading="providers.loading" :error="providers.error" @reload="providers.load"/>
-      <p>这里记录服务能力与地址配置；是否能正常观看仍以实际设备测试为准。</p>
-    </DetailDrawer>
   </div>
 </template>

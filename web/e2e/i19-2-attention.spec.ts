@@ -21,9 +21,7 @@ test('I19-2 compact overview, full-width rows, trailing accessible actions and r
   await expand(page);
  }
  await expand(page);await page.getByRole('button',{name:'执行器详情',exact:true}).first().click();
- const dialog=page.getByRole('dialog',{name:'运行检查详情',exact:true});await expect(dialog).toBeVisible();await dialog.getByText('技术细节与原始记录',{exact:true}).click();await expect(dialog).toContainText('i192-worker-original-identity');
- await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(dialog).not.toBeVisible();await page.getByRole('button',{name:'技术详情',exact:true}).click();await expect(dialog).toBeVisible();
- if(await dialog.locator('.technical-toggle').getAttribute('aria-expanded')==='false')await dialog.locator('.technical-toggle').click();await expect(dialog).toContainText('expiredLeases');expect(f.writes).toEqual([]);
+ const dialog=page.getByRole('dialog',{name:'运行检查详情',exact:true});await expect(dialog).toBeVisible();await expect(dialog).not.toContainText('i192-worker-original-identity');await expect(dialog).toContainText('在线');await expect(dialog).toContainText('最近在线');await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(dialog).not.toBeVisible();await expect(page.getByRole('button',{name:'技术详情',exact:true})).toHaveCount(0);expect(f.writes).toEqual([]);
 });
 
 test('I19-2 system check still requires original confirmation and pending readback never resubmits',async({page})=>{

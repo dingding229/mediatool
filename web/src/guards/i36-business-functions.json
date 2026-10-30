@@ -1,0 +1,179 @@
+{
+  "acquisition/ManualWorkspace.vue": {
+    "readImport": "e24877d0463f762739608bf6e752a599ca119d1b6df139f8e1526a57ff5d4fa0",
+    "importTask": "3b7c0408e62a06a911a70484cf0e49d65aff6f7a6c5ae54a66bdd0c4c3307545",
+    "choose": "9851897801b99504a4a76b7ac06f63f3f1ad850409ee5624464a0c46d6e2c414"
+  },
+  "acquisition/SearchHistory.vue": {
+    "load": "dd76873bc493ac2618e9a8eeb52298a9b07bd28488f262ac538393edf11c0eed",
+    "inspect": "418316c310d9a78a9dfb273a2085ef0600288753f08c7171398d7e2d02f146b3"
+  },
+  "files/BrowserPanel.vue": {
+    "allowed": "13904c3fc9b51c2b9206569731b1c2411ebb032f7d65f81adba25d6677aa262e",
+    "act": "c201fee46baa3d377d910ef15f14a6c127dde941aeee0ee876e076250bf2af71",
+    "organize": "a6e8d0532d986f5760b0af78608d47831e060f9693a718f0fc7bd2d9bb0dc440",
+    "selectPage": "19488b8ab43964342c666db9d189cb0914dedf656cdb162f8c1d7b4149b16e3e",
+    "history": "a20d637e42ccb2dfb4b519d478620d3a4edf724907691803617cfea74bd02b88",
+    "selectedLibrary": "66a8076b0ebf9fd09d0f44ae9e400b9eb4baa2bc3a407e50d3888458a1a89c59"
+  },
+  "files/FileActionDialog.vue": {
+    "open": "8ec42fb6854947b2b69556d04e1f2a1f276c0c1a15c11ba4b864ade9e0421b2e",
+    "preview": "dea9833563331e665b5d608610625b3b226d72f3af5033e1354ba555389175cd",
+    "execute": "690a30d75fdb8bd5ab032083cdbe19f7e2e1e1cf2042edd38e25c9cda85a2974",
+    "readback": "6e8a6e46114ca7bb8a9bbd0af6b545cab789e8171fe029a550a92feaa5d64b9e",
+    "reconcile": "d403509d9c50bcc9883eef0b2a076712a8683ca24965674cdbbb3910d958b892",
+    "inspect": "b44eb596b2953f3d6279b12a6854fd9226eadd1f4a9d9128a92640d7458f401a"
+  },
+  "files/ManagedSTRMPanel.vue": {
+    "load": "af3eaf482931d104326fc071c00b809c1dd006eb33c221cbafb0e754f1bcc172",
+    "search": "4dbb4fe5aa2f7993ed95a1842e165505ef95a5b597389fea0ed6258e65ff7bf3",
+    "inspect": "ea279545686c69c634cec8fc4ad0d58d4a2b2feab27111cc816a4faf8808edc2",
+    "readContent": "f4c29ab24425c6ede3d332e39071dbd9c5065a9a2e49e23d9ed8ecaefd9355fd",
+    "copy": "153be2a20fefcd87769efa2cdbf85fe20505a22b22c1d8248a1630bd6ca93007"
+  },
+  "files/STRMRepairPanel.vue": {
+    "toggle": "c1851cdd4cf9e29b42d0d73f33a03ff643cf3b2a5a2481566bc45f8b96939218",
+    "selectPage": "80b571ea55bd4c3b4ba72ba127d56391cf0d0367afb84741e840ca41e1a5eca2",
+    "loadAssets": "bb974d04df877cc835c2094d5a3219937cbb8c35fbc49eb98b4bd9f8671fd1d4",
+    "choose": "db852c6dcb0e0171785851e05e2e3eda3e31938a1cedb12d352329dd0640c973",
+    "preview": "b2408a3e57aedc83975373c88e332873dee13d1d5bcac0a726b49ee25dc51839",
+    "readback": "22f2257e85af74d996574eec86fd02d17411497c4170f0fd2108b41187eaffa4",
+    "ask": "40d8441f9784fdfb88cbb7d1a97d3c07652d667bc5b249edb4a9d41acd952495",
+    "apply": "b4af58c96caf20b982017416ed80295d05205873cabaf6cba535ec29d103b28b"
+  },
+  "operations/CachePanel.vue": {
+    "setKind": "e4a925dada50c11ebbc6dd3c1c2d31afe20a81b9f496db6404aeb0f2126c9f02",
+    "load": "cfc95a02e9c928725c4e81ab2324da2602db9270705490b8d0a8215f37bede29",
+    "inspect": "103eed98d6ff7391b2e80ef1517fe119f489dc0244383946cc183d58f6bda7af",
+    "ask": "6691e8bcdc095c36c89f73bef7006683643d49239ba554fd5895b102c7ab224f",
+    "apply": "6f925131c84fa6fe94a0e514b120c4ddcf211471306ce7627070fd0dae545315"
+  },
+  "operations/LogsPanel.vue": {
+    "savePolicy": "505c66e79acc91aec18cab00110c52205394eef799eba1233f3b764ce014700a",
+    "load": "583677d88052abd3006e40085adbec606e058f5c4fc2f56d0fc29f307a3914bb",
+    "refresh": "66037378cd53b05b5368a371b9afec237b4ee3c87587dfa67dd70ada04b2e90a",
+    "clear": "882f2d9b777a7e5752946c89fd57d3307db752a113685d565fe1514d025114c3",
+    "change": "c79a4cfc14ed497d943bf67a9456a1593d9ab0eba14794ea7b69e667922d2e7f",
+    "copy": "654b0147b4ae9ccc9ac021bd36efc3332be23785d00b85cd051871cd71a1fbde",
+    "download": "0db412725f79b2e39ce6ed569a46af4f439f6f2e3dbd2fda5e1840a18dbe11af",
+    "fields": "cdad3b9cb8dd40bc7b35e5d96b8960886543e5229cc7e200d5f14f34b8381818",
+    "trace": "9bad765e1b134d311fdca53a5c51641f4d6ff186906cdb1bbc192e4f00a6da83"
+  },
+  "operations/MaintenancePanel.vue": {
+    "recordRows": "3d02807f87e14f26e1f1d11e3eff2b4398b4f95ced18520ec7a9baab60f51e5a",
+    "load": "44187383fc2fdc2914534b74f1923659733b1ee6ccf95939658ad46a0fad9e49",
+    "ask": "2a429e61935b71d4c279939ddcdb47589af963aaa4cbeeb033b531b6dd57b5b8",
+    "apply": "3455fd173e6a25283465ebad72d3b7a5b6acc842c322677e12965a9e36e01717",
+    "showPreview": "9d92001b61f6938404787116d4375f26ff9e125c1095264a31be3a8b62a18585",
+    "approve": "e3ba5e8f83fd5246000e45dfc25b69276768a945b543bce800507d73a652ca86",
+    "inspect": "c0d4727c3be9490e3535c4c408597611f4ced2051d4538ab585dfc464c950a0e"
+  },
+  "operations/QueuePanel.vue": {
+    "load": "f5a5826962caab3fff9a665cb844561bddbc12d9c41dbf85604f2699a0e1ad83",
+    "jobTitle": "b7e0ab502cd5b5f0c1e8cdf7b44f8c3679f3371fdaecc84acb3b4469bac9c53f",
+    "inspect": "f34644edc9f58246280b685e9a6e8204e41f9df33cb5d6c10c38add6ef45b589",
+    "search": "5ff4e368d7ce7438979d8b7fb5cb0b41e05f0b1fbc644e440db9fcb5d355d76f",
+    "changePage": "52106598b99909ab22c8fb1f7f32e7e67a3eed9abdab014825c2c05607808fd7",
+    "refreshQueue": "7b29765aced99a79749711ec827e8e15ca3f45ec6b750fa590526da913fbd191",
+    "connect": "2083880a9ddf8c3f50da525fbed763f1b2e1dc65d24ed91d2f965c494912930a"
+  },
+  "operations/RuntimeChecks.vue": {
+    "load": "31eacc8353ca1ea46405fab9341f7a464ed9a96c4e33ad6b04cea8bb1f768b17",
+    "create": "46c258a56b7ad48d232372e737404d3ec29db7bc9d1a2d144ef85d3652eca86d"
+  },
+  "organize/HistoryPanel.vue": {
+    "load": "d5bc9edef7e3d34a3dc891015f142f57c54ca68f851f74461b08b1e9917b2477",
+    "apply": "36936abb43156e00d3976e8ccc988a0c478519ced485a48a57ac0f905dcfc974",
+    "resetFilters": "4d58cef3865100fa1eced700c87fb4959f58fc7838c9caf5856888fbea0328c2",
+    "toggle": "7a9ce5595b7c68eb4f287340ba5ac7bf868ea8b839b9801a8a6792b66299b0ab",
+    "remove": "d77c76cdbc1628f99d81349ffbc9f9117112ffa88c114e4c8537e421763a6f50",
+    "reconcile": "edfa93a1efc3484f4e3c027551741a5b545fda0ddf347e928fc04b613483b329",
+    "filterOutputs": "23b604a2c7b15e599825b12297383f997d907937b4af3dad55d1bd73832b28d7",
+    "retryOutput": "1c1f8e4f68e84211a852f3ce2e6d175a3cb7e24066f5f11a4cd28a6a638ffb97"
+  },
+  "organize/ScanPanel.vue": {
+    "readRoots": "636d4cbe290c50eccf47abbff7652c8a85f6016cbd688b441ab1ebfa108f2eb1",
+    "rangePreview": "b1840bbcfa9c44589edfa64df1ad189afa12db087bd1e01ed30fb6e358a6c9c6",
+    "create": "e462e3117102b5cd86aadf04be5cd2d9f3e082f01e7fe77e15f83ecdede72d25",
+    "inspect": "879d758cf93c18675ed1c2ba1d698529a033f55daee128c929dbacc15cbbcf2d",
+    "askControl": "7c9400d6604f8746bcc8660c6bf075e8a243b0b7af7b1a620bd543cdb24bc53e",
+    "control": "efcaac252981be4b0e85c2d92407bd321e7731208edaa55fdf6b21f767f30abe",
+    "editSchedule": "19b75e0f396074f355bee9632a873b7e9502e32441f1c788788a38221be77a1e",
+    "saveSchedule": "1b33af1fe880f8cb50e9a5f67f9d8129f925f397cdbdd4c506415518f8e94ddd",
+    "checkSchedule": "0f9953a201c4261e4fe341696a0f010b11e6258a1856fc70368292fc53724196"
+  },
+  "playback/AccessPanel.vue": {
+    "load": "3221d2acd6e63bd407d7959895420e76363c05b8cea562610aa131ade802c461",
+    "search": "6ef08444e23b29c31fdec26474b0b38aa6175ffa2fac6fc22a91ecdb795ab3cf",
+    "edit": "9ce61cf7807a995d5ccb79717062904b518caaf34ab8b022cc11a996b2c1c703",
+    "submit": "900b3d2490855b4e246f14ebf65154d22ddcbd9f71410e0808f8c934ab1e8592",
+    "ask": "d9ac675e8a5b2c8fc621b6b4f13e524a429b5f3c6666ba4a186079ce33b02984",
+    "chooseMode": "b187d0c28704f85e4055215ba30dfaf5a545cab061a2fa8b9885ba85ecdc7cfa",
+    "apply": "da3823d79ade08ee8d69a62125566f7963f6eb971ba0b7881483e45a7201ded6",
+    "copyUA": "0ba05476c76c254e2297dbcaedc6262bc874a530c75da92da4e176cf4190fb61"
+  },
+  "playback/ProcessingPanel.vue": {
+    "load": "9fa9d8a41951c40d7cfc7a265959f4105e1ef6a13ad7107d2737c061bb43d69e",
+    "save": "9c564ef76a827bebe10095f248ccf08092add4bec2a9135c61c78ada10a28a9c",
+    "ask": "7818868347a99faedcb8119ec1c033ce88b00601cf27ba32c44d7a3937b6a45b",
+    "apply": "e85404b5e9c18ad3d2a451fd615eb809ea3c2ce8d5e7f3cfeee4828233b74b27",
+    "changeFilter": "e0d85e49b6cb301ba6feb120cf8dc24f2e9fd1edd8487d70072f3bd41d7b878e",
+    "reason": "507bf786855a3103953e62f959fb645a9592e27f6ebb4605233b5795039e535b"
+  },
+  "playback/ServicePanel.vue": {
+    "load": "01c34bbcb7486b1726f9334a7f29609fd45f747028aca2d9bfd0b5da6f8379dd",
+    "save": "dde4b33932cb91f42142795a179d496c44fc6a5bd45d8e4c92d4bd40f7ec9db1"
+  },
+  "playback/SessionsPanel.vue": {
+    "accountEntry": "ca2b20168a2b1aec20d5682b93fab08e9dcafe9fa4c4708e8845b85a8912ff4e",
+    "load": "5c1ddcdf5be29b70e4c3691b2c47147e36f5ceebaceaaa4c6581dfba19c7587f",
+    "revoke": "76e255f837fbe699a65fcd0864c9b33d5b798d123b5df5fac32dbfdaa284b53f",
+    "showSession": "e350f95527c84a957fc14703c32564f22bed2a6a04fe001cd2ce5b49c2448167"
+  },
+  "plugins/PluginAutomation.vue": {
+    "load": "66cf8e964455688b36b43a4c54489823139669363ad33a94011869a266ae1624",
+    "retryDetail": "368bfc8ca8cf9d7a2702df214476facf76a85cfbf3ab1e22105e29c34c0a5389",
+    "open": "d934ffa0437cbcd3e83dab55dd513b480f59a96b010c611f7ec7fa68c5ca5a25",
+    "refreshRuns": "665bc4d9c24c4bb8d57cebcf26d61b3fc2054cd477289f5b9efcc8884bd4d7cb",
+    "move": "1956e1d5f3495e175822bb758454ef26c3e589068b26c2c450a3d9eb231965dc",
+    "historyMove": "b91f8c6267bb1ac7e9914981a130e60ee38ec9355d74e93ff6241696b8ba1a88",
+    "newWorkflow": "6745f152e6c82fdeaad5aacc5fc5e51492d0e796f447091567d2da209308fbdc",
+    "perform": "a93ced538096b5bf30e70be75222b1729529073ae56a36bb5970f20593fed044"
+  },
+  "sites/AccountsPanel.vue": {
+    "total": "d96d53bc92489bd282cabf0de9b2363e4b16b7afefc4d855ba866bca51e3acf6",
+    "load": "8bf5bb83f8e3eea400d99dff481f529901797b635f72f5491d6a7cb27400a7c7",
+    "saved": "f50284a519ea40f6b27e89c0c5111549ea01e8c39d180a17638e9f054100dd9e",
+    "create": "25874dd1f776660daf9fa91e667c98a558cbbcb8a5361c177a2164c0bd964d5f",
+    "ask": "72ca87edafafac1cb4f5ddabb65541f0717647421ddce18c3759c727ad7d53c7",
+    "apply": "cf08294b860b58d5c712d63097c8b3768e81f892894c912638bc41e44e7199a3",
+    "test": "ff36484020fd2b33dd5bd295ea03932a67d6bd9b28ed6cc8abf9e849e3ca54bc",
+    "sync": "4806619b0b4edcfb493aa0bf2cfbd381c7a50dbd59d5ac817f5f7ec40de71190"
+  },
+  "sites/TemplatesPanel.vue": {
+    "load": "853d712bbe5269e480a168fcf6e66020eb4f54c429976d4af0d568367249c956",
+    "selectAll": "6fb01921eacd6a905f1a6ce2590e4e75e64d1db1c521a401ce686a64b44cffae",
+    "loadSelected": "1aa292dfff3f11ea254c16192573008cf46819c69a81640855f150a6443981d3"
+  },
+  "views/DownloadsWorkspaceView.vue": {
+    "show": "07d4caa454b7783353439548e5780d3a7520b75b466524f583e7699d259e247f"
+  },
+  "views/OrganizeWorkspaceView.vue": {
+    "assetImageSaved": "7242cbcb20675a8843bad5dfcd2adedce98e6a4748fbcc8f6756bfb61364c9fa",
+    "edit": "e417cd9ff91f67b27edbb03f49121db0ba6395394b17a2b4eedaeaab1bc55553",
+    "editing": "d9f90555cae18d6066bc7d5bbd8dd3785ea5aa7d15a82717f6c9cdf26b23e9ef",
+    "pageChange": "8f9d4c9b4104049722c56d760fa1226c47d33e7a9273b9bf0746e304fe272874",
+    "inspect": "194f2ad57278aabb204e9fc17136e5666c8ad96abfe4c9952a7a4070c09cad2f",
+    "ask": "f3bfc1e47bbdc7f46882a190cdd1bd7cd8606c683b2a1a9a39002e4b26c4a70d",
+    "apply": "24a7763eb3ae18aef76a19efff95d5f28370cff80665b747e6da6e0b103fbecd"
+  },
+  "views/PluginsWorkspaceView.vue": {
+    "read": "f98a792da3358bfb74bcfaa544c9e4e8ff2e9200f6875fa2af05e4b752bc08d9",
+    "load": "3f912c8f6f1c0b5fea76cc81c331283128ea1451e96770e406b3d2f60a58e24b",
+    "select": "14bb428485b93a4360f295ab2d443c45e33ee527651471ddf726c3d858e58dce",
+    "install": "891351ea9905cae0a87d661c28fc0e4f0b69dbbc2e91467a1e162d1c66369644"
+  },
+  "views/SubscriptionWorkspaceView.vue": {
+    "moreAction": "6e19bf0695a1129542949cf92387cf433b616e5fb2246a53fdf7615f6d0de70d"
+  }
+}

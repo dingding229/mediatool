@@ -94,7 +94,7 @@ defineExpose({ load, data, page, accountEntry, showSession });
     </article>
     <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="data.data?.total ?? 0" layout="prev,pager,next,total" @current-change="load"/>
   </section>
-  <DetailDrawer v-model:visible="open" title="在线会话详情" :technical-data="detail" size="large" class="media-detail">
+  <DetailDrawer v-model:visible="open" title="在线会话详情" size="large" class="media-detail">
     <h3>{{mediaTitle({...detail,name:detail?.itemName})}}</h3>
     <p>{{ detail?.userName||'—' }} · {{ detail?.deviceName||'—' }}</p>
     <p v-if="detail?.account">有效登录 {{detail.account.activeSessions??'—'}} · {{detail.account.enabled?'账号已启用':'账号已停用'}}</p>

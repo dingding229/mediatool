@@ -59,3 +59,7 @@ button.organize-list-thumb{cursor:pointer}button.organize-list-thumb:focus-visib
 .organize-candidate-row .organize-list-identity h3{display:block;overflow:visible;min-width:0}
 .organize-candidate-row .organize-list-identity label{display:block;min-width:0}
 @media(max-width:600px){.organize-candidate-row .organize-list-thumb{display:none}.organize-candidate-row .organize-list-identity{min-height:48px}}
+/* Identity-bearing filenames need room for season/episode + year + extension, even with copy controls. */
+@media(min-width:1241px){.organize-candidate-columns,.organize-candidate-row{grid-template-columns:44px minmax(240px,1.2fr) minmax(170px,1.5fr) 108px 136px minmax(110px,auto)}}
+@media(max-width:600px){.organize-candidate-row.organize-candidate-row{grid-template-areas:"selection identity identity" "path path actions" "time time actions" "state state actions"}.organize-candidate-row .organize-list-state{justify-self:start}}
+.organize-candidate-row .organize-list-identity>div{flex:1}

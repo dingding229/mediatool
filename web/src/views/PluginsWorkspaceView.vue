@@ -14,12 +14,11 @@ import PluginAutomation from '../plugins/PluginAutomation.vue';
 import PageHeader from '../ui/PageHeader.vue';
 import PageTabs from '../ui/PageTabs.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-import DetailDrawer from '../ui/DetailDrawer.vue';
 import ResourceState from '../workflows/ResourceState.vue';
 import '../media/media.css';
 import '../workflows/u5.css';
 import '../operations/u6.css';
-const route = useRoute(), tab = computed(() => route.query.tab === 'catalog' ? 'catalog' : 'installed'), page = usePageNumber(),pageSize=usePageSize(50), catalogPage = usePageNumber('catalogPage'),catalogSize=usePageSize(200,'catalogPage'), query = ref(''), list = reactive(useResource(() => instances(page.value,pageSize.value), [])), directory = reactive(useResource(() => catalog(catalogPage.value,catalogSize.value))), op = reactive(usePluginOperation()), consent = ref<PluginDefinition | null>(null), confirmed = ref(false), automation = ref(false), tech = ref(false);
+const route = useRoute(), tab = computed(() => route.query.tab === 'catalog' ? 'catalog' : 'installed'), page = usePageNumber(),pageSize=usePageSize(50), catalogPage = usePageNumber('catalogPage'),catalogSize=usePageSize(200,'catalogPage'), query = ref(''), list = reactive(useResource(() => instances(page.value,pageSize.value), [])), directory = reactive(useResource(() => catalog(catalogPage.value,catalogSize.value))), op = reactive(usePluginOperation()), consent = ref<PluginDefinition | null>(null), confirmed = ref(false), automation = ref(false);
 const shown = computed(() => list.data.filter(i => (i.metadata?.name || i.pluginId).toLowerCase().includes(query.value.toLowerCase()))), definitions = computed(() => directory.data?.items.filter(d => (d.manifest.name + ' ' + d.manifest.description).toLowerCase().includes(query.value.toLowerCase())) || []);
 async function read() {
   await Promise.all([list.load(), directory.load()]);
@@ -67,7 +66,6 @@ usePageRefresh(load,'*');
       <p v-if="op.notice" role="status">{{ op.notice }}</p>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.pending?.input.kind==='install'?'上次安装结果未确认，正在核对，不会重复安装。':'上次操作尚未确认，请先核对当前实例。'" @refresh="load"/>
       <el-button v-if="op.pending&&op.canReconcile" :disabled="op.busy" @click="op.replay(read).then(load)">核对原请求</el-button>
-      <el-button v-if="op.technical" @click="tech=true">查看技术详情</el-button>
       <template v-if="tab==='installed'"><div class="f5-plugin-list-stage">
         <ResourceState :stale="list.loaded" :loading="list.loading" :error="safePluginError(list.error)" :empty="!shown.length" empty-title="尚未安装匹配的插件" @reload="load"/>
         <div v-if="!list.error" class="u6-card-grid">
@@ -95,10 +93,6 @@ usePageRefresh(load,'*');
     <el-dialog :model-value="!!consent" title="插件权限确认" width="min(700px,94vw)" class="media-dialog u5-dialog" :close-on-click-modal="false" @update:model-value="consent=null">
       <h3>{{ consent?.manifest.name }}</h3>
       <p>尚未提交时不会创建实例；确认安装将新增独立实例，默认停用。</p>
-      <details v-if="op.technical">
-        <summary>技术详情</summary>
-        <pre class="u6-raw">{{ op.technical }}</pre>
-      </details>
       <el-alert v-if="op.error" :title="op.error" type="error" :closable="false"/>
       <p>安装将创建独立实例，默认停用；启用后将以本服务权限运行，请只选择可信插件。</p>
       <Permissions :permissions="consent?.manifest.permissions||[]"/>
@@ -114,6 +108,5 @@ usePageRefresh(load,'*');
     <el-dialog v-model="automation" title="工作流管理" width="min(960px,94vw)" class="media-dialog" destroy-on-close>
       <PluginAutomation/>
     </el-dialog>
-    <DetailDrawer v-model:visible="tech" title="操作技术详情" :technical-data="op.technical" size="large" class="media-detail"/>
   </div>
 </template>

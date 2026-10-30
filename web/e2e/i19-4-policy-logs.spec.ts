@@ -48,7 +48,7 @@ test('I19-4 log settings are scoped, two/one-column, file records have three col
   for(const wrapper of await dialog.locator('.ops-log-settings-grid .el-input__wrapper').all())await expect(wrapper).toHaveCSS('min-height','44px');
   expect(await dialog.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  }
- await expect(dialog.locator('.ops-log-file-row button,.ops-log-file-row a')).toHaveCount(0);await dialog.getByRole('button',{name:/技术细节与原始记录/}).click();await expect(dialog).toContainText('application-with-a-long-owned-local-fixture-name.1.log');await expect(dialog).toContainText('268435456');await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();expect(f.writes).toEqual([]);
+ await expect(dialog.locator('.ops-log-file-row button,.ops-log-file-row a')).toHaveCount(0);await expect(dialog.getByRole('button',{name:/技术细节与原始记录/})).toHaveCount(0);await expect(dialog).toContainText('application-with-a-long-owned-local-fixture-name.1.log');await expect(dialog).toContainText('256.00 MiB');await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();expect(f.writes).toEqual([]);
 });
 
 for(const enabled of [true,false])test(`I19-4 Debug ${enabled?'enable':'disable'} preserves original bounds, payload, unrelated settings and auto-close rules`,async({page})=>{

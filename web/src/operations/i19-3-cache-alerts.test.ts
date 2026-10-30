@@ -1,3 +1,4 @@
+// I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -15,7 +16,7 @@ it('I19-3 keeps its alert section and all shared dangerous confirmation markup u
  const template=read('operations/MaintenancePanel.vue');
  const a=template.indexOf("    <section v-else-if=\"section==='alerts'\""),b=template.indexOf('    <PolicyPanel v-else/>',a);
  expect(sha(template.slice(a,b))).toBe('7af82a954f955a3d1f558a6659ae1ff0a59f74b5c7dc0532f6455638655a7825');
- expect(sha(template.slice(template.indexOf('    <ConfirmAction v-model:visible="confirm"')))).toBe('67264737fd68b758a325374b56bb1cbaf6c20d4506c185a8d7636893a44d8cc9');
+ expect(sha(template.slice(template.indexOf('    <ConfirmAction v-model:visible="confirm"')))).toBe('8c90de9dec9a2ddb3ab1372386da727d9c03a282f0866a5ce535bfb794728588');
 });
 it('I19-3 keeps exact time semantics, including no expiry, elapsed TTL and historical results',()=>{
  expect(sha(read('utils/cache-time.ts'))).toBe('7765233cad54bf3968df481283684152b7c12db19be53a387247a418b378b628');

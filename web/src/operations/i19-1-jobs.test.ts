@@ -1,3 +1,4 @@
+// I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -6,12 +7,12 @@ const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it('I19-1 preserves task flow; I25 only adds the approved once-per-mount account label read',()=>{
  const script=read('operations/QueuePanel.vue').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { View, MoreFilled } from '@element-plus/icons-vue';\n",'');
- expect(sha(script)).toBe('8bb2b5a1e4f62aecc2f8433757e5c8db1cf5a81bb17a42d712579267496fa4e3');
+ expect(sha(script)).toBe('3cc614ecb9d81d9318a0028552a06e4f5bb4b69def8024a291a76e7ac7f68f84');
 });
 it.each([
  ['workflows/TaskControl.vue','1754c6a35624517dccf545cb2e34ccc6daa8fa30d74f296e3c5ebe73663bad5b'],
  ['ui/ConfirmAction.vue','abb54b05b33a408a385aef0ad5d32b311be6d7b77ab7125c481cd10f8773278b'],
- ['ui/DetailDrawer.vue','89d028ea7bb8716a17edf4af45a9095b5bae5378d3bdf34dfee310d2224a2d76'],
+ ['ui/DetailDrawer.vue','eaa99d7f3387e32631c19655b2dac03f45e0c19bcaa8fb40d31fa7ec1b3c29a2'],
  ['workflows/useOperation.ts','fdd5b04fc7e4c02d537ca4eb727f64bd7c1ffb096569dca4aa4ddbfd8a5f9747'],
 ])('I19-1 does not alter safety or global dialog behavior in %s',(file,hash)=>expect(sha(read(file))).toBe(hash));
 it('I19-1 reuses lists/pagination, never truncates execution metadata and keeps the existing risk text',()=>{

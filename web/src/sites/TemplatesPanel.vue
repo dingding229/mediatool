@@ -66,7 +66,7 @@ defineExpose({ load, loadSelected, selected, blocked });
     </div>
     <p>当前不支持移除已加载模板；账号使用中的模板不能移除。</p>
   </section>
-  <DetailDrawer v-model:visible="detailOpen" title="内置模板详情" :technical-data="detail" class="media-detail">
+  <DetailDrawer v-model:visible="detailOpen" title="内置模板详情" class="media-detail">
     <h3>{{ detail?.name||'—' }}</h3>
     <p>{{ detail?.domain||'—' }}</p>
     <p>{{ detail?.unavailable?'不在当前内置列表，账号和已有配置仍保留。':detail?.loaded?'已加载':'尚未加载' }}</p>

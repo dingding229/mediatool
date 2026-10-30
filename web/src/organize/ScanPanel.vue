@@ -296,7 +296,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
       <el-button @click="editSchedule(schedule)">编辑</el-button>
     </article>
   </section>
-  <DetailDrawer v-model:visible="detailOpen" title="扫描目录覆盖" :technical-data="detail" size="large" class="media-detail">
+  <DetailDrawer v-model:visible="detailOpen" title="扫描目录覆盖" size="large" class="media-detail">
     <ScanRecord v-if="detail?.scan" :path="detail.scan.root" :state="detail.scan.state" :time="detail.scan.updatedAt||detail.scan.createdAt" :percent="detail.scan.directories>0?scanPercent(detail.scan.completedDirectories||0,detail.scan.directories):undefined">
       <span>{{detail.scan.files??'—'}} 个文件 · 已知目录 {{detail.scan.completedDirectories??'—'}} / {{detail.scan.directories??'—'}}</span>
       <template #details><p>当前目录：<MiddleEllipsis class="mt-path" :path="detail.scan.currentDirectory" full/></p><p>{{detail.scan.message||'—'}}</p></template>

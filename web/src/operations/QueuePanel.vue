@@ -17,11 +17,11 @@ import { useRoute } from 'vue-router';
 import { request } from '../api/client';
 import { useResource } from '../workflows/useResource';
 import { date, errorText } from '../workflows/readiness';
-import { stateLabel, queueLabel, kindLabel, taskTarget, copyOriginal } from './model';
+import { stateLabel, queueLabel, kindLabel, taskTarget } from './model';
 import ResourceState from '../workflows/ResourceState.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 const route = useRoute();
-const filter = reactive({ state: '', kind: '', queue: '', q: typeof route.query.q === 'string' ? route.query.q : '', page: usePageNumber(), pageSize: usePageSize(25) }), jobs = reactive(useResource<any>(() => request('/jobs/browse?' + new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])))).then(pageResult))), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), copied = ref(''), copyText = ref('');
+const filter = reactive({ state: '', kind: '', queue: '', q: typeof route.query.q === 'string' ? route.query.q : '', page: usePageNumber(), pageSize: usePageSize(25) }), jobs = reactive(useResource<any>(() => request('/jobs/browse?' + new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])))).then(pageResult))), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false);
 async function load() { await jobs.load(); }
 const accounts=reactive(useResource(listConnections,[]));
 function jobTitle(row:any){const name=jobObject(row,accounts.data).name;return kindLabel(row.kind)+(name?' · '+name:'')}
@@ -129,10 +129,18 @@ defineExpose({ load, filter, jobs });
       </div>
       <PagePagination :status="!jobs.loaded?(jobs.error?'error':'loading'):''" v-model:current-page="filter.page" :total="jobs.data?.total" v-model:page-size="filter.pageSize" layout="prev,pager,next,total" @current-change="changePage"/>
     </section>
-    <DetailDrawer v-model:visible="open" title="任务与运行技术详情" :technical-data="detail" size="large" class="media-detail">
-      <el-button @click="copyOriginal(JSON.stringify(detail,null,2),s=>copyText=s).then(s=>copied=s)">复制原始记录</el-button>
-      <p>{{ copied }}</p>
-      <textarea v-if="copyText" class="u6-raw" :value="copyText" readonly aria-label="待复制任务记录"/>
+    <DetailDrawer v-model:visible="open" title="任务详情" size="large" class="media-detail">
+      <template v-if="detail">
+        <h3>{{jobTitle(detail)}}</h3>
+        <dl class="u5-detail-list">
+          <div><dt>状态</dt><dd>{{stateLabel(detail.state)}}</dd></div>
+          <div><dt>队列</dt><dd>{{queueLabel(detail.queue)}}</dd></div>
+          <div><dt>执行次数</dt><dd>{{detail.attempts??'—'}} / {{detail.maxAttempts??'—'}}</dd></div>
+          <div><dt>创建时间</dt><dd>{{date(detail.createdAt)}}</dd></div>
+          <div><dt>最近更新</dt><dd>{{date(detail.updatedAt)}}</dd></div>
+        </dl>
+        <p v-if="detail.lastError">{{detail.lastError}}</p>
+      </template>
     </DetailDrawer>
   </div>
 </template>

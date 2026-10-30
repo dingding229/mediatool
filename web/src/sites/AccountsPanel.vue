@@ -163,7 +163,7 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
   </div>
   <AccountEditor ref="editor" @saved="saved"/>
   <ConfirmAction v-model:visible="confirm" :title="action?.kind==='delete'?'删除站点账号':action?.row.connection?.enabled?'停用站点账号':'启用站点账号'" :description="`将处理 ${action?.row.name||'此站点'}。`" :impact-scope="action?.kind==='delete'?'移除登录信息及关联站点指标，不删除媒体文件；相关订阅需要重新核对站点。':'保留凭据与记录，修改是否参与搜索、订阅及采集。现有服务在停用前也会验证登录；验证失败时不改开关，不清空凭据绕过。'" :confirm-text="action?.kind==='delete'?'确认删除账号':'确认修改开关'" :loading="op.busy" :danger-level="action?.kind==='delete'?'danger':'warning'" class="media-dialog" @confirm="apply"/>
-  <DetailDrawer v-model:visible="detailOpen" title="站点数据与趋势" :technical-data="detail?.metric" size="large" class="media-detail">
+  <DetailDrawer v-model:visible="detailOpen" title="站点数据与趋势" size="large" class="media-detail">
     <h3>{{ detail?.name||'—' }}</h3>
     <p>登录：{{siteState(detail?.connection?.lastCheckState||detail?.state)}} · {{date(detail?.connection?.lastCheckedAt)}}</p>
     <p>订阅地址：{{detail?.settings.rssState==='ready'?'已获取':detail?.settings.rssState==='unavailable'?'尚未获取':'—'}}</p>

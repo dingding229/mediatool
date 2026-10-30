@@ -15,7 +15,7 @@ test('I19-1 compact columns, mobile two-layer rows, accessible icons and no page
    await expect(page.locator('.ops-job-name').first()).toBeVisible();await expect(page.locator('.ops-job-meta-queue').first()).toBeVisible();
   }
  }
- await page.getByRole('button',{name:'任务详情',exact:true}).first().click();await expect(page.getByRole('dialog',{name:'任务与运行技术详情',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'任务详情',exact:true}).first().click();await expect(page.getByRole('dialog',{name:'任务详情',exact:true})).toBeVisible();
 });
 test('I19-1 filtering and pagination retain existing query fields and default 25',async({page})=>{
  const f=await jobsFixture(page,true);await page.goto('/ops?tab=jobs');await expect(page.locator('.f3-job-row')).toHaveCount(25);expect(f.reads[0]!.get('pageSize')).toBe('25');

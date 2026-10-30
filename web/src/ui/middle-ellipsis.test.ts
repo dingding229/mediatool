@@ -38,3 +38,14 @@ it('remeasures a selected/bold ancestor style even if container width stays unch
  vi.stubGlobal('document',{createElement:()=>({getContext:()=>({font:'',measureText:(text:string)=>({width:pixels(text)*weight})})}),fonts:{ready:Promise.resolve()}});
  const v=setupComponent(MiddleEllipsis,{text:long});v.state.host={clientWidth:180};resize();const before=v.state.shown;weight=1.2;changed!();expect(v.state.shown).not.toBe(before);expect(pixels(v.state.shown)*weight).toBeLessThanOrEqual(180);expect(v.state.shown.endsWith('.mkv')).toBe(true);v.unmount();expect(release).toHaveBeenCalledTimes(1);
 });
+it.each([160,240])('retains distinct episode and year markers for eight releases at %ipx',width=>{
+ const shown=Array.from({length:8},(_,i)=>middleText(long.replace('S01E01','S01E'+String(i+1).padStart(2,'0')),width,pixels));
+ expect(new Set(shown).size).toBe(8);shown.forEach((value,i)=>{expect(value).toContain('S01E'+String(i+1).padStart(2,'0'));expect(value).toContain('2026');expect(value).toMatch(/\.mkv$/);expect(pixels(value)).toBeLessThanOrEqual(width)});
+});
+it.each(['S01E03-E05','S02E03-05','S03','E04','第十二集','第2季','1x03'])('preserves complete identity marker %s',marker=>{
+ const shown=middleText('超长作品Long.Release.Name.2026.'+marker+'.2160p.WEB-DL.DDP-HHWEB.mkv',190,pixels);expect(shown).toContain(marker);expect(shown).toContain('2026');expect(shown).toMatch(/\.mkv$/);expect(pixels(shown)).toBeLessThanOrEqual(190);
+});
+it('gives the episode and extension priority over a year or directory in a very narrow column',()=>{
+ const shown=middleText(long,80,pixels);expect(shown).toContain('S01E01');expect(shown).toMatch(/\.mkv$/);expect(pixels(shown)).toBeLessThanOrEqual(80);
+ const path=displayPath('/115/很长的父目录名称/多级目录/'+long,160,pixels);expect(path).toContain('S01E01');expect(path).toMatch(/\.mkv$/);expect(pixels(path)).toBeLessThanOrEqual(160);
+});

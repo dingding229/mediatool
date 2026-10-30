@@ -154,7 +154,7 @@ defineExpose({ refresh: load });
       <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next,total" @current-change="directory='';load()"/>
     </template>
   </section>
-  <DetailDrawer v-model:visible="visible" title="受管 STRM 与媒体详情" :technical-data="{asset,content}" size="large" class="media-detail">
+  <DetailDrawer v-model:visible="visible" title="受管 STRM 与媒体详情" size="large" class="media-detail">
     <h3>{{ asset?.title||'—' }}</h3>
     <img v-if="image(asset?.poster)" :src="image(asset.poster)" :alt="asset?.title" class="files-detail-poster"/>
     <p>{{ asset?.source||'—' }}</p>

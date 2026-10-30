@@ -1,3 +1,4 @@
+// I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -26,7 +27,7 @@ it.each([
  ],
  [
   "playback/ServicePanel.vue",
-  "742fd61125ec61d3e39fdce9411d947940b7cb5a3c280c61ec69895594340adf"
+  "fe56d0e9c7703d178cebc7b2454f529065948549466612c6e84bc56830c807c6"
  ],
  [
   "playback/AccessPanel.vue",

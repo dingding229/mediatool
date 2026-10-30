@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed } from "vue";
 
 const props = withDefaults(
   defineProps<{
     title: string;
-    technicalData?: Record<string, any> | unknown;
     size?: "small" | "default" | "large";
   }>(),
   { size: "default" },
 );
 
 const visible = defineModel<boolean>("visible", { default: false });
-const showTechnical = ref(false);
 const dialogWidth = computed(
   () => ({ small: "560px", default: "800px", large: "1000px" })[props.size],
 );
@@ -30,24 +28,6 @@ const dialogWidth = computed(
   >
     <div class="detail-body">
       <slot />
-
-      <div v-if="technicalData" class="technical-section">
-        <button
-          type="button"
-          class="technical-toggle"
-          :aria-expanded="showTechnical"
-          @click="showTechnical = !showTechnical"
-        >
-          <span>技术细节与原始记录</span>
-          <span>{{ showTechnical ? "收起 ▲" : "展开 ▼" }}</span>
-        </button>
-
-        <div v-if="showTechnical" class="technical-content">
-          <pre
-            class="technical-json"
-          ><code>{{ JSON.stringify(technicalData, null, 2) }}</code></pre>
-        </div>
-      </div>
     </div>
 
     <template v-if="$slots.footer" #footer>
@@ -85,40 +65,8 @@ const dialogWidth = computed(
   flex-wrap: wrap;
 }
 .detail-dialog .detail-body {
-  min-height: min(360px, 60vh);
   font-size: 14px;
   line-height: 1.6;
-}
-.detail-dialog .technical-section {
-  margin-top: 24px;
-  border-top: 1px dashed var(--border);
-  padding-top: 16px;
-}
-.detail-dialog .technical-toggle {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background: var(--mt-bg-canvas);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--muted);
-  font-size: 13px;
-  cursor: pointer;
-}
-.detail-dialog .technical-toggle:hover { color: var(--text); border-color: var(--border-strong); }
-.detail-dialog .technical-content { margin-top: 12px; }
-.detail-dialog .technical-json {
-  background: var(--mt-bg-canvas);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  max-height: 360px;
-  overflow: auto;
-  font-size: 12px;
-  white-space: pre-wrap;
-  word-break: break-all;
 }
 @media (max-width: 599.98px) {
   .el-dialog.detail-dialog {

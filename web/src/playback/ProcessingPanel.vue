@@ -7,14 +7,13 @@ import { useOperation } from '../workflows/useOperation';
 import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-import DetailDrawer from '../ui/DetailDrawer.vue';
 import { date, errorText, bytes } from '../workflows/readiness';
 const props = withDefaults(defineProps<{
   initialKind?: string;
   initialState?: string;
   jobId?: string;
 }>(), { initialKind: '', initialState: '', jobId: '' });
-const filter = reactive<any>({ kind: props.initialKind === 'still' ? 'still' : 'probe', state: props.jobId ? '' : 'failed', page: usePageNumber(), pageSize: usePageSize(50) }), summary = reactive(useResource(getProcessing)), tasks = reactive(useResource(() => listProcessing(filter.kind, filter.state, filter.page, filter.pageSize))), form = reactive({ enabled: false, probeEnabled: true, stillsEnabled: true, revision: 0 }), latest = ref<any>(null), op = reactive(useOperation('processing')), confirm = ref(false), action = ref<any>(null), notice = ref(''), technical = ref(false);
+const filter = reactive<any>({ kind: props.initialKind === 'still' ? 'still' : 'probe', state: props.jobId ? '' : 'failed', page: usePageNumber(), pageSize: usePageSize(50) }), summary = reactive(useResource(getProcessing)), tasks = reactive(useResource(() => listProcessing(filter.kind, filter.state, filter.page, filter.pageSize))), form = reactive({ enabled: false, probeEnabled: true, stillsEnabled: true, revision: 0 }), latest = ref<any>(null), op = reactive(useOperation('processing')), confirm = ref(false), action = ref<any>(null), notice = ref('');
 const states: Record<string, string> = { pending: '等待中', probing: '探测中', grabbing: '截图中', ready: '已就绪', failed: '失败', needs_action: '需人工处理', skipped: '已跳过' }, reasons: Record<string, string> = { not_exposable: '媒体暂不可用', file_missing: '文件不存在', strm_mismatch: '播放文件与记录不一致', authorization: '115 授权失效，请重新授权', rate_limited: '请求限流', timeout: '执行超时', unavailable: '处理工具不可用', unsafe_target: '播放地址不安全', ua_mismatch: '播放器标识不一致', ticket_unavailable: '播放授权暂不可用', lease_expired: '任务超时，需要核对', process_failed: '媒体处理失败', invalid_result: '结果无效', invalid_image: '截图无效', tmdb_still: '已有单集图片', source_unavailable: '没有可用截图来源', storage_unavailable: '截图缓存暂不可用', storage_full: '截图缓存空间不足', cache_evicted: '截图已被回收，可按条件重新获取', schema_outdated: '记录需要更新', link_timeout: '解析超时', probe_failed: '探测失败' };
 const validStates = computed(() => filter.kind === 'probe' ? ['pending', 'probing', 'ready', 'failed', 'needs_action'] : ['pending', 'grabbing', 'ready', 'failed', 'needs_action', 'skipped']);
 const currentStates = computed(() => filter.kind === 'probe' ? summary.data?.probe : summary.data?.still), capacityPercent = computed(() => summary.data?.capacity?.limitBytes ? Math.min(100, Math.round(100 * (summary.data.capacity.usedBytes + summary.data.capacity.reservedBytes) / summary.data.capacity.limitBytes)) : 0);
@@ -105,7 +104,7 @@ function changeFilter() {
   void load();
 }
 function reason(code: string) {
-  return code ? reasons[code] || '其他原因，见技术详情' : '—';
+  return code ? reasons[code] || '其他原因' : '—';
 }
 watch(() => [props.initialKind, props.initialState, props.jobId], () => {
   filter.kind = props.initialKind === 'still' ? 'still' : 'probe';
@@ -178,9 +177,7 @@ defineExpose({ load, save, ask, apply, form, filter, summary, tasks, op, action,
         <el-button :disabled="!!op.pending||op.busy||tasks.loading||!!tasks.error" @click="ask(task)">重试此任务</el-button>
       </article>
       <PagePagination v-model:current-page="filter.page" v-model:page-size="filter.pageSize" :total="tasks.data.total" layout="prev,pager,next,total" @current-change="load"/>
-      <el-button @click="technical=true">技术详情</el-button>
     </section>
   </div>
   <ConfirmAction v-model:visible="confirm" :title="action?.action==='gc'?'清理截图缓存':action?.id?'重试预处理任务':'确认批量重试'" :description="action?.action==='gc'?'按服务端限制分批检查并清理截图缓存。':`将处理 ${action?.kind==='probe'?'媒体探测':'单集截图'} / ${states[action?.state]||'全部状态'}，${action?.id?'仅所选任务':'本轮最多 500 条'}。`" impact-scope="只影响预处理任务或截图缓存，不修改媒体文件，不改变播放链路。" confirm-text="确认执行" :loading="op.busy" class="media-dialog" @confirm="apply"/>
-  <DetailDrawer v-model:visible="technical" title="预处理技术详情" :technical-data="{summary:summary.data,tasks:tasks.data}" size="large" class="media-detail"/>
 </template>

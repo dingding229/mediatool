@@ -145,10 +145,10 @@ defineExpose({settings,policy,debug,duration,savePolicy, load, refresh, filter, 
         <p v-if="detail.clientIp!==undefined">访问 IP：<IpAddress :ip="String(detail.clientIp)"/></p>
         <p v-if="friendly">{{ friendlyMessage(detail) }} {{ logAdvice(detail) }}</p>
         <pre class="u6-raw">{{ JSON.stringify(Object.fromEntries(Object.entries(detail).filter(([key])=>!['clientIp','connectionIp'].includes(key))),null,2) }}</pre>
-        <el-button @click="copy(JSON.stringify(detail,null,2))">复制原始记录</el-button>
+        <el-button @click="copy(JSON.stringify(detail,null,2))">复制日志</el-button>
       </template>
     </DetailDrawer>
-    <DetailDrawer v-model:visible="settings" title="日志设置" :technical-data="summary.data" size="large" class="media-detail ops-log-settings">
+    <DetailDrawer v-model:visible="settings" title="日志设置" size="large" class="media-detail ops-log-settings">
       <ResourceState :error="summary.error" @reload="summary.load"/>
       <label class="u5-field ops-log-friendly">详情中显示友好说明<ElSwitch v-model="friendly" aria-label="友好说明"/></label>
       <h2>日志大小</h2>

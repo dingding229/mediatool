@@ -1,3 +1,4 @@
+// I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -27,10 +28,10 @@ it('I19-7 presentation stays in the web-restore list scope, not shared dialogs o
  const css=read('operations/presentation.css').split('/* I19-7:')[1]!;postcss.parse('/* I19-7:'+css).walkRules(rule=>{for(const selector of rule.selector.split(/,(?![^()]*\))/))expect(selector.trim()).toMatch(/^\.t8-ops\s\.ops-web-/)});expect(css).not.toMatch(/\.el-dialog|\.detail-body|\.confirm-action|\.ops-cli|\.ops-backup-row/);
 });
 it.each([
- ['operations/MaintenancePanel.vue','c2037c2b0935465425e1fc7802eefe080e9d2516569ac4bb484a027b0d897c73'],
+ ['operations/MaintenancePanel.vue','956d57eed6d64703fdcbbb6bca16965a2d3b73a011848d399fca89cfc3b3585e'],
  ['workflows/restore-session.ts','0215778c804dc3c98505816adcc505a2dc0cbb2cf176f29803e843a9c203e425'],
  ['ui/ConfirmAction.vue','abb54b05b33a408a385aef0ad5d32b311be6d7b77ab7125c481cd10f8773278b'],
- ['ui/DetailDrawer.vue','89d028ea7bb8716a17edf4af45a9095b5bae5378d3bdf34dfee310d2224a2d76'],
+ ['ui/DetailDrawer.vue','eaa99d7f3387e32631c19655b2dac03f45e0c19bcaa8fb40d31fa7ec1b3c29a2'],
 ])('I19-7 preserves parent selector values, restore session and shared dialogs unchanged: %s',(file,hash)=>expect(sha(read(file))).toBe(hash));
 it('I19-7 keeps the existing rendered risk text and review/rollback receipt labels without adding local expiry/default behavior',()=>{
  const source=read('operations/WebRestorePanel.vue');for(const token of ['结果未知，需核对','失败后已自动回滚','未执行恢复','没有再次执行恢复','已排队，尚未恢复。请查看执行记录；成功后需要重新登录。','先核对执行记录；需要重新登录时，登录后重新预览。'])expect(source).toContain(token);

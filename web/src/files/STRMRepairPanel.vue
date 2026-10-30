@@ -9,11 +9,10 @@ import PreviewApprove from '../ui/PreviewApprove.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import StateView from '../ui/StateView.vue';
-import DetailDrawer from '../ui/DetailDrawer.vue';
 import { errorText, date } from '../workflows/readiness';
 import { sourceState } from '../media/model';
 import { label, rows, readPrivate, savePrivate } from '../organize/model';
-const route = useRoute(), router = useRouter(), assets = ref<any[]>([]), page = usePageNumber(),pageSize=usePageSize(100), total = ref(0), query = ref(''), limit = ref(100), selected = ref<string[]>([]), pickerOpen = ref(false), loading = ref(false), loadError = ref<unknown>(null), batch = ref<any>(null), busy = ref(false), error = ref<unknown>(null), pending = ref<any>(readPrivate('media-tool:strm-repair:v1')), phase = ref<'queued' | 'reconciling' | null>(pending.value ? 'reconciling' : null), confirmOpen = ref(false), retry = ref(false), readVerified = ref(false), technical = ref(false);
+const route = useRoute(), router = useRouter(), assets = ref<any[]>([]), page = usePageNumber(),pageSize=usePageSize(100), total = ref(0), query = ref(''), limit = ref(100), selected = ref<string[]>([]), pickerOpen = ref(false), loading = ref(false), loadError = ref<unknown>(null), batch = ref<any>(null), busy = ref(false), error = ref<unknown>(null), pending = ref<any>(readPrivate('media-tool:strm-repair:v1')), phase = ref<'queued' | 'reconciling' | null>(pending.value ? 'reconciling' : null), confirmOpen = ref(false), retry = ref(false), readVerified = ref(false);
 let epoch = 0, loadEpoch = 0, disposed = false;
 const repairLabel = (s: string) => ({ preview: '等待核对', running: '执行中', succeeded: '修复完成', partial: '部分完成，含跳过项', ready: '原文完整', missing: '待恢复缺失文件', staged: '已登记恢复意图', repaired: '已修复', needs_reconcile: '需核对后继续', blocked: '跳过，需核对', expired: '预览已过期' } as Record<string, string>)[s] || label(s);
 const allSelected = computed(() => assets.value.length > 0 && assets.value.every(a => selected.value.includes(a.id)));
@@ -218,14 +217,10 @@ defineExpose({ readback });
           <el-button v-if="batch.state==='preview'&&!pending" :disabled="busy||!batch.items.some((r:any)=>r.state==='missing')||Date.parse(batch.expiresAt)<=Date.now()" @click="ask()">批准批量修复</el-button>
 
           <el-button v-if="batch.state==='needs_reconcile'" :disabled="!readVerified||busy||pending&&pending.id!==batch.id" @click="ask(true)">核对后恢复此批次</el-button>
-          <el-button @click="technical=true">技术详情</el-button>
         </div>
       </section>
       <el-button v-if="pending&&!batch" @click="readback(pending.id)">核对已有修复请求</el-button>
     </PreviewApprove>
   </section>
   <ConfirmAction v-model:visible="confirmOpen" :title="retry?'恢复 STRM 修复任务':'批准 STRM 修复'" :description="retry?'沿用已有批准与原始修复意图，需已读取当前批次状态。':'仅恢复本次预览中可证明原文的缺失文件。'" impact-scope="不覆盖手工文件、不重新上传源媒体、不生成新播放凭据、不处理 NFO。" :confirm-text="retry?'明确恢复任务':'明确批准修复'" :loading="busy" class="media-dialog" @confirm="apply"/>
-  <DetailDrawer v-model:visible="technical" title="修复技术详情" :technical-data="batch" size="large" class="media-detail">
-    <p>用于核对当前批次与原始修复意图。</p>
-  </DetailDrawer>
 </template>

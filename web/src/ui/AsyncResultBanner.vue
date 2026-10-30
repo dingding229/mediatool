@@ -6,7 +6,6 @@ export type AsyncStatus = 'queued' | 'reconciling' | 'locked'
 const props = withDefaults(defineProps<{
   status: AsyncStatus
   message?: string
-  ticketId?: string
   canRefresh?: boolean
 }>(), {
   canRefresh: true
@@ -36,7 +35,6 @@ const bannerType = computed(() => props.status === 'reconciling' ? 'warning' : '
     <template #title>
       <div class="banner-title-box">
         <span>{{ displayMessage }}</span>
-        <details v-if="ticketId"><summary>技术详情</summary><code>{{ ticketId }}</code></details>
         <el-button v-if="canRefresh" class="reconcile-button" @click="emit('refresh')">核对结果</el-button>
 
       </div>
@@ -55,13 +53,4 @@ const bannerType = computed(() => props.status === 'reconciling' ? 'warning' : '
   flex-wrap: wrap;
 }
 .reconcile-button { min-height:44px; }
-.banner-ticket {
-  font-size: 12px;
-  color: var(--mt-text-muted);
-}
-.banner-ticket code {
-  background: var(--mt-border-color);
-  padding: 1px 4px;
-  border-radius: 4px;
-}
 </style>

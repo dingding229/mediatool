@@ -53,7 +53,7 @@ test('I33 version pagination is only hidden and returns without new child reads'
 test('I33 organize image editor hides outputs/history/raw details without a reread',async({page})=>{
  const f=await fixture(page);await page.goto('/organize?tab=assets');await page.getByRole('button',{name:'查看资产详情',exact:true}).click();const dialog=page.getByRole('dialog',{name:'资产与输出详情',exact:true});await expect(dialog.getByRole('heading',{name:'当前输出与 STRM',exact:true})).toBeVisible();
  await dialog.getByRole('button',{name:'编辑图片',exact:true}).click();await expect(dialog.locator('.image-row')).toHaveCount(3);await expect(dialog.getByRole('region',{name:'资产输出与操作记录',exact:true})).toBeHidden();await expect(dialog.locator('.technical-section')).toHaveCount(0);const before={...f.counts};
- await dialog.getByRole('button',{name:'完成编辑',exact:true}).click();await expect(dialog.getByRole('region',{name:'资产输出与操作记录',exact:true})).toBeVisible();await expect(dialog.locator('.technical-section')).toBeVisible();expect(f.counts).toEqual(before);
+ await dialog.getByRole('button',{name:'完成编辑',exact:true}).click();await expect(dialog.getByRole('region',{name:'资产输出与操作记录',exact:true})).toBeVisible();await expect(dialog.locator('.technical-section')).toHaveCount(0);expect(f.counts).toEqual(before);
  await dialog.getByRole('button',{name:'编辑图片',exact:true}).click();await dialog.getByRole('button',{name:'恢复为刮削值',exact:true}).first().click();await expect(dialog.getByRole('region',{name:'资产输出与操作记录',exact:true})).toBeVisible();expect(f.counts.writes).toBe(1);
 });
 test.describe('I33 local screenshots @screenshots',()=>{

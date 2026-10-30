@@ -1,3 +1,4 @@
+// I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -7,7 +8,7 @@ const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it('I19-6 leaves all maintenance request/paging/reconciliation functions byte-identical, apart from icon imports',()=>{
  const script=read('operations/MaintenancePanel.vue').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { Check, View, Refresh, Download, Lock, Unlock, Delete, Close } from '@element-plus/icons-vue';\n",'');
  expect(sha(script)).toBe('e89b4dd415f0c5e806223d8002798f1e0360ec334c9144860131a40a66b437fa');
- const source=read('operations/MaintenancePanel.vue');expect(sha(source.slice(source.indexOf('    <ConfirmAction v-model:visible="confirm"')))).toBe('67264737fd68b758a325374b56bb1cbaf6c20d4506c185a8d7636893a44d8cc9');
+ const source=read('operations/MaintenancePanel.vue');expect(sha(source.slice(source.indexOf('    <ConfirmAction v-model:visible="confirm"')))).toBe('8c90de9dec9a2ddb3ab1372386da727d9c03a282f0866a5ce535bfb794728588');
 });
 it('I19-6 preserves every original action guard and all safety text, including recent-two backup protection',()=>{
  const source=read('operations/MaintenancePanel.vue');
@@ -20,7 +21,7 @@ it('I19-6 preserves every original action guard and all safety text, including r
   ["showPreview('restore',restoreID)",undefined,'!restoreID||!!op.pending'],["showPreview('rollback',rollbackID)",undefined,'!rollbackID||!!op.pending'],
  ];
  for(const [click,condition,disabled]of expected){const tags=[...source.matchAll(/<el-button\b([^>]*)>/g)].map(m=>m[1]!).filter(tag=>tag.includes(`@click="${click}"`));expect(tags,click).toHaveLength(1);expect(tags[0]).toContain(`:disabled="${disabled}"`);if(condition)expect(tags[0]).toContain(`v-if="${condition}"`)}
- for(const text of ['保留最近两份成功备份，固定及维护单使用中的备份不参与自动清理；最多显示最近200条。','以下保留原命令行审批流程；网页恢复请使用上方的预览与确认。',":href=\"`/api/v1/ops/backups/${b.id}/download`\"",'label="系统备份分页"','label="恢复演练分页"','label="维护单分页"',"r.state==='approved'&&r.flow?.reason!=='approval_expired'",'register dingding229/mediatool:sha-完整SHA'])expect(source).toContain(text);
+ for(const text of ['保留最近两份成功备份，固定及维护单使用中的备份不参与自动清理；最多显示最近200条。','以下保留原命令行审批流程；网页恢复请使用上方的预览与确认。',":href=\"`/api/v1/ops/backups/${b.id}/download`\"",'label="系统备份分页"','label="恢复演练分页"','label="维护单分页"',"r.state==='approved'&&r.flow?.reason!=='approval_expired'"])expect(source).toContain(text);
  expect(source).toContain('<el-option value="" label="请选择"/>');expect(source.match(/<el-option value="" label="请选择"\/>/g)).toHaveLength(2);
 });
 it.each([

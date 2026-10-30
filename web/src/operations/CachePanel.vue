@@ -125,9 +125,10 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
       </template>
     </section>
     <ConfirmAction v-model:visible="confirm" :title="removeId?'删除缓存项':'清理此类缓存'" description="确认清理所选范围？" :impact-scope="kind==='search'?'从搜索缓存移除并停止复用，保留底层结果、下载记录和媒体。':'仅删除当前影视缓存，不删除媒体或其他业务数据。'" confirm-text="确认清理" :loading="op.busy" class="media-dialog" @confirm="apply"/>
-    <DetailDrawer v-model:visible="open" title="缓存内容" :technical-data="detail?.data??detail" size="large" class="media-detail">
+    <DetailDrawer v-model:visible="open" title="缓存内容" size="large" class="media-detail">
       <ResourceState :error="detailError" @reload="load"/>
-      <h3>{{ detail?.query||'—' }}</h3>
+      <h3>{{ detail?.query||detail?.data?.query||detail?.title||detail?.data?.title||'—' }}</h3>
+      <ul v-if="detail?.data?.items?.length"><li v-for="(item,index) in detail.data.items" :key="index">{{item.title||item.name||'—'}}<span v-if="item.year"> · {{item.year}}</span></li></ul>
     </DetailDrawer>
   </div>
 </template>

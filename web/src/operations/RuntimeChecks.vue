@@ -8,14 +8,14 @@ import { useResource } from '../workflows/useResource';
 import { useOperation } from '../workflows/useOperation';
 import { savePrivate } from '../organize/model';
 import { date, errorText } from '../workflows/readiness';
-import { formatBytes, queueLabel, stateLabel, copyOriginal } from './model';
+import { formatBytes, queueLabel, stateLabel } from './model';
 import { scheduleLabel } from '../presentation/labels';
 import ResourceState from '../workflows/ResourceState.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 const route=useRoute(), health=reactive(useResource<any>(()=>request('/system/operations'))), op=reactive(useOperation('system-check'));
-const confirm=ref(false), open=ref(false), detail=ref<any>(null), copied=ref(''), copyText=ref('');
+const confirm=ref(false), open=ref(false), detail=ref<any>(null);
 const workers=computed<any[]>(()=>health.data?.workers||[]), online=computed(()=>workers.value.filter(w=>w.online).length);
 async function load(){
  await health.load();
@@ -77,10 +77,11 @@ defineExpose({load,create,health,op});
      <p v-if="health.loaded&&!health.data?.schedules?.length" class="ops-runtime-empty">暂无运行计划</p>
     </section>
    </div>
-   <el-button @click="detail=health.data;open=true">技术详情</el-button>
   </details>
   <ConfirmAction v-model:visible="confirm" title="运行系统检查" description="创建一次新的系统检查任务？" impact-scope="只检查当前服务状态，不重放失败业务或修改媒体文件。" confirm-text="确认运行检查" :loading="op.busy" @confirm="create"/>
-  <DetailDrawer v-model:visible="open" title="运行检查详情" :technical-data="detail"><el-button @click="copyOriginal(JSON.stringify(detail,null,2),s=>copyText=s).then(s=>copied=s)">复制原始记录</el-button><p>{{copied}}</p><textarea v-if="copyText" class="u6-raw" :value="copyText" readonly aria-label="待复制运行记录"/></DetailDrawer>
+  <DetailDrawer v-model:visible="open" title="运行检查详情">
+   <template v-if="detail"><h3>{{queueLabel(detail.queue)}}</h3><p>{{detail.online?'在线':'离线'}}</p><p>最近在线 {{date(detail.lastSeenAt)}}</p></template>
+  </DetailDrawer>
  </section>
 </template>
 <style scoped>

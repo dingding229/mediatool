@@ -172,7 +172,6 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
         </label>
         <el-button :disabled="!rollbackID||!!op.pending" @click="showPreview('rollback',rollbackID)">预览回滚</el-button>
       </div>
-      <el-button @click="inspect({releases:data.data?.releases,register:'media-toolctl --root /root/docker/mediatool register dingding229/mediatool:sha-完整SHA'})">查看登记与版本技术详情</el-button>
       <h3>维护单</h3>
       <div v-if="data.data?.requests?.length" class="mt-list-columns ops-request-columns" aria-hidden="true"><span>类型 / 状态</span><span>有效期 / 说明</span><span>操作</span></div>
       <article v-for="r in recordRows('requests')" :key="r.id" class="mt-list-row ops-request-row">
@@ -221,7 +220,14 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       </PreviewApprove>
     </el-dialog>
     <ConfirmAction v-model:visible="approval" title="确认维护审批" description="确认预览范围后，批准管理员在服务器执行受控恢复或回滚。" :impact-scope="preview?.request.kind==='restore'?'审批不会立即执行；执行时走app内共享恢复器，成功后恢复调度，旧任务仍需核对。':'审批不会立即执行；镜像回滚执行后必须再核验，核验通过也不自动解除维护。'" :confirm-phrase="preview?.confirmText" confirm-text="审批维护单（不立即执行）" :loading="op.busy" class="media-dialog" @confirm="approve"/>
-    <DetailDrawer v-model:visible="detailOpen" title="维护技术详情" :technical-data="detail" size="large" class="media-detail">
+    <DetailDrawer v-model:visible="detailOpen" title="维护详情" size="large" class="media-detail">
+      <template v-if="detail">
+        <p>{{stateLabel((detail.request||detail).state)}} · {{(detail.request||detail).message||'—'}}</p>
+        <p v-if="detail.createdAt">创建时间 {{date(detail.createdAt)}}</p>
+        <p v-if="detail.bytes!=null">备份大小 {{bytes(detail.bytes)}} · {{detail.pinned?'已固定':'未固定'}}</p>
+        <p v-if="detail.request?.expiresAt||detail.expiresAt">有效至 {{date(detail.request?.expiresAt||detail.expiresAt)}}</p>
+        <p v-if="detail.request?.digest||detail.digest" class="u6-wrap">核对摘要 {{detail.request?.digest||detail.digest}}</p>
+      </template>
       <label v-if="detail?.command" class="u5-field">
         服务器受控执行命令
         <textarea :value="detail.command" rows="4" readonly aria-label="宿主受控执行命令"/>

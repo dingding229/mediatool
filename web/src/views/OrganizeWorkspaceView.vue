@@ -204,7 +204,7 @@ usePageRefresh(state.refresh,'*');
     <AsyncResultBanner v-if="phase" :status="phase" message="操作结果需重新读取核对，不重复提交同一操作。" @refresh="state.refresh"/>
     <IdentityEditor ref="editor" @changed="state.changed" @editing="editing"/>
     <ConfirmAction v-model:visible="confirmOpen" :title="action?.type==='rotate'?'轮换播放凭据':'撤销文件播放'" :description="action?.type==='rotate'?'旧凭据将失效，STRM 重写通过恢复日志执行，不覆盖手工文件。':'固定链接将失效；此前已签发的临时 CDN 链接可能短期仍有效。'" impact-scope="不删除云端媒体或本地做种源；后续结果以恢复记录和最新资产状态为准。" :loading="busy" class="media-dialog" @confirm="apply"/>
-    <DetailDrawer :key="assetDetail?.id" v-model:visible="detailsOpen" title="资产与输出详情" :technical-data="assetImagesOpen?undefined:{asset:assetDetail,outputs,operations}" size="large" class="media-detail">
+    <DetailDrawer :key="assetDetail?.id" v-model:visible="detailsOpen" title="资产与输出详情" size="large" class="media-detail">
       <h3>{{ assetDetail?.title||'—' }}</h3>
  <ImageEditor v-if="assetDetail" ref="assetImageEditor" :item-id="assetDetail.id" @saved="assetImageSaved"/>
       <div v-show="!assetImagesOpen" class="asset-readonly" role="region" aria-label="资产输出与操作记录">

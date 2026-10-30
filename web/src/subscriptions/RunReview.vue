@@ -21,7 +21,7 @@ const submitted = computed(() => props.run?.decisions?.filter(d => d.action === 
         <StatusBadge :state="run.state" />
       </header>
       <el-alert v-if="run.state === 'needs_refresh'" title="订阅、站点或资源已变化，请刷新列表后重新核对规则。已有下载不会重复创建。" type="warning" :closable="false" />
-      <el-alert v-if="run.state === 'failed'" title="这次运行未完成，请检查决策说明或技术详情，再决定下一步。" type="error" :closable="false" />
+      <el-alert v-if="run.state === 'failed'" title="这次运行未完成，请检查决策说明，再决定下一步。" type="error" :closable="false" />
       <StateView v-if="['pending','running'].includes(run.state)" state="loading" title="任务正在排队或执行，尚未完成…" />
       <template v-else>
         <div class="run-outcome-summary"><span><strong>{{ run.decisions?.length ?? 0 }}</strong> 条候选决策</span><span><strong>{{ submitted }}</strong> 条已加入下载队列</span><el-button v-if="!compact" @click="emit('detail')">完整运行详情</el-button></div>

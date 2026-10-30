@@ -94,7 +94,7 @@ usePageRefresh(load, 'history');
     <StateView v-if="!loading&&!error&&!runsError&&!rows.length" state="empty" title="还没有搜索记录" description="先选择作品并发起站点搜索，记录会保存在这里。"/>
     <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next" @current-change="load"/>
   </section>
-  <DetailDrawer v-model:visible="open" title="搜索记录详情" :technical-data="detail">
+  <DetailDrawer v-model:visible="open" title="搜索记录详情">
     <h3>{{ detail?.query||detail?.keyword||'—' }}</h3>
     <p>{{ label(detail?.state) }}</p>
     <p>{{ date(detail?.createdAt) }}</p>

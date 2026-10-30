@@ -278,10 +278,6 @@ defineExpose({ open, inspect });
           <el-button :disabled="busy" @click="reconcile">核对结果（不重放）</el-button>
           <el-button v-if="!phase&&!historyOnly&&verified&&result?.state!=='succeeded'" @click="plan=null;result=null;verified=false">重新预览</el-button>
         </div>
-        <details class="files-technical">
-          <summary>技术详情</summary>
-          <pre>{{ JSON.stringify({plan,result},null,2) }}</pre>
-        </details>
       </template>
     </PreviewApprove>
     <template #footer>

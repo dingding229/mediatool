@@ -20,7 +20,7 @@ it('places label, input/helper and restore in one row, with an equal-width label
 it('hides rather than unmounts read-only details on both host pages',()=>{
  const source=read('../views/MediaWorkspaceView.vue');expect(source).toContain('v-show="!editorOpen" class="catalog-readonly"');expect(source).toContain('v-show="!editorOpen" class="catalog-subtitle"');expect(source).toContain('<dl v-show="!editorOpen">');expect(source).toContain('v-show="activeEditor===');
  expect(source.indexOf('class="catalog-readonly"')).toBeLessThan(source.indexOf('aria-label="作品简介"'));expect(source.lastIndexOf('<SubtitlePanel')).toBeGreaterThan(source.indexOf('class="catalog-readonly"'));
- const organize=read('../views/OrganizeWorkspaceView.vue');expect(organize).toContain('v-show="!assetImagesOpen"');expect(organize).toContain('assetImagesOpen?undefined:{asset:assetDetail,outputs,operations}');
+ const organize=read('../views/OrganizeWorkspaceView.vue');expect(organize).toContain('v-show="!assetImagesOpen"');expect(organize).not.toContain('technical-data');
 });
 it('confirms dirty collapse, keeps drafts on both cancel and continue, and reopens without a read',async()=>{
  const v=setupComponent(MetadataEditor,{itemId:'movie',hideTrigger:true}),s=v.state;s.open();await flush();s.draft.title='保留草稿';

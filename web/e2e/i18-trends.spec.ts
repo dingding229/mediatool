@@ -36,8 +36,7 @@ test('I18 time range loads existing API, charts fill the page and original sampl
  const requests=await fixture(page);await page.goto('/trends?hours=24');await expect(page.locator('.u6-trend')).toHaveCount(9);await expect.poll(()=>requests).toEqual([24]);
  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await geometry(page,width)}
  await page.locator('.trend-range .el-select__wrapper').click();await page.getByRole('option',{name:'最近 1 小时',exact:true}).click();await expect.poll(()=>requests).toEqual([24,1]);await expect(page).toHaveURL(/hours=1/);
- await page.getByRole('button',{name:'查看原始采样记录',exact:true}).click();await expect(page.getByRole('dialog',{name:'原始采样记录',exact:true})).toBeVisible();await page.getByRole('button',{name:/技术细节与原始记录/}).click();await expect(page.getByRole('dialog',{name:'原始采样记录',exact:true})).toContainText('processBytes');
- await page.getByRole('dialog',{name:'原始采样记录',exact:true}).getByRole('button',{name:'关闭此对话框',exact:true}).click();
+ await expect(page.getByRole('button',{name:'查看原始采样记录',exact:true})).toHaveCount(0);await expect(page.locator('.technical-section')).toHaveCount(0);
  await page.goto('/ops?tab=maintenance');await expect(page.getByRole('navigation',{name:'备份与告警功能'}).getByRole('button',{name:'运行趋势',exact:true})).toHaveCount(0);
 });
 test.describe('I18 local screenshots @screenshots',()=>{

@@ -48,13 +48,13 @@ test('verified metadata prefill opens directly into rules and defaults to paused
   await expect(page).not.toHaveURL(/create=1/); await dialog.getByRole('button', { name: '进入预演', exact: true }).click()
   await expect(dialog).toContainText('退出向导后草稿仍保留')
 })
-test('direct run URL opens inline decision review; raw JSON stays in a separate collapsed drawer', async ({ page }) => {
+test('direct run URL opens inline decision review and a business-only detail dialog', async ({ page }) => {
   await page.goto('/subscriptions?tab=history&subscription=trial-sub&run=trial-run')
   await expect(tabs(page).getByRole('button', { name: '运行记录', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('region', { name: '运行结果', exact: true })).toContainText('分辨率 · 通过')
   await page.getByRole('button', { name: '完整运行详情', exact: true }).click(); const drawer = page.getByRole('dialog', { name: '运行详情', exact: true })
-  await expect(drawer.locator('.technical-json')).toHaveCount(0); const technical = drawer.getByRole('button', { name: /技术细节与原始记录/ })
-  expect(await technical.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44); await technical.click(); await expect(drawer.locator('.technical-json')).toContainText('trial-run')
+  await expect(drawer.locator('.technical-json')).toHaveCount(0);
+  await expect(drawer.getByRole('button',{name:/技术细节与原始记录/})).toHaveCount(0);await expect(drawer).toContainText('候选决策');
   await drawer.getByRole('button', { name: '关闭此对话框', exact: true }).click(); await tabs(page).getByRole('button', { name: '订阅列表', exact: true }).click(); await page.reload(); await expect(page.locator('.subscription-row')).toHaveCount(2)
 })
 test('202 stays queued, navigates to the accepted run and failed readback never repeats execution', async ({ page }) => {

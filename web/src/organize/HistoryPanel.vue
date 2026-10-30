@@ -223,7 +223,7 @@ usePageRefresh(load, 'history');
     <StateView v-if="!loading&&!error&&!items.length" state="empty" title="暂无符合条件的历史"/>
     <PagePagination v-if="hasLoaded" v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next,total" @current-change="load"/>
   </section>
-  <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" :technical-data="detail" size="large" class="media-detail">
+  <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" size="large" class="media-detail">
     <h3>{{ detail?.media?.title||stageLabel(detail?.kind) }}</h3>
     <p>{{ label(detail?.state) }} · {{ detail?.message||'—' }}</p>
     <p>原位置：<MiddleEllipsis :path="detail?.source" full/></p><p>目标位置：<MiddleEllipsis :path="detail?.destination" full/></p><p>目录分类：{{detail?.category||'—'}}</p>

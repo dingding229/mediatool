@@ -7,7 +7,7 @@
 .identity-step-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;min-width:0}.identity-step-heading h3{margin:0;font-size:15px;flex:none}
 .identity-step-heading>span{min-width:0;color:var(--mt-text-muted);font-size:12px}.identity-selected{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .identity-editor-dialog .identity-search.media-filter-row{grid-template-columns:140px minmax(0,1fr) auto;align-items:end}
-.identity-editor-dialog .identity-matches{grid-template-columns:repeat(2,minmax(0,1fr));max-height:264px;overflow:auto;scrollbar-gutter:stable;margin-top:12px}
+.identity-editor-dialog .identity-matches{grid-template-columns:repeat(2,minmax(0,1fr));max-height:264px;overflow:auto;margin-top:12px}
 .identity-editor-dialog .media-choice-list .identity-choice{display:grid;grid-template-columns:48px minmax(0,1fr);align-items:center;gap:12px;min-width:0;padding:8px}
 .identity-choice .poster-artwork{width:48px;height:72px}.identity-choice .poster-artwork-placeholder{gap:2px}.identity-choice .poster-artwork-placeholder small{display:none}.identity-choice-copy{display:grid;gap:4px;min-width:0}
 .identity-choice-copy>strong,.identity-choice-copy>small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.identity-choice-copy>span,.identity-choice-copy>small{font-size:12px;color:var(--mt-text-muted)}
@@ -27,6 +27,7 @@
 @media(max-width:600px){
  .el-dialog.identity-editor-dialog{width:calc(100vw - 32px);height:calc(100dvh - 32px);max-height:calc(100dvh - 32px);margin:16px!important}
  .identity-editor-dialog>.el-dialog__header,.identity-editor-dialog>.el-dialog__footer{padding:12px 16px}.identity-editor-dialog>.el-dialog__body{padding:12px 16px}
+ .el-dialog.identity-editor-dialog>.el-dialog__footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.el-dialog.identity-editor-dialog>.el-dialog__footer>.el-button{width:100%;min-width:0;margin:0;padding-inline:8px;white-space:normal}
  .identity-step{padding:12px}.identity-step-heading{align-items:flex-start;flex-wrap:wrap;gap:8px}.identity-selected{max-width:100%}
  .identity-editor-dialog .identity-search.media-filter-row{grid-template-columns:minmax(0,1fr) auto}.identity-search>label:first-child{grid-column:1/-1}
  .identity-editor-dialog .identity-matches{grid-template-columns:minmax(0,1fr);max-height:240px}

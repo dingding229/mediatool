@@ -31,22 +31,16 @@ describe('U1 UI Components logic', () => {
     confirm.unmount()
   })
 
-  it('DetailDrawer toggles technical details', () => {
-    const drawer = setupComponent(DetailDrawer, {
-      title: '任务详情',
-      visible: true,
-      technicalData: { id: 'test-123' }
-    })
-    expect(drawer.state.showTechnical).toBe(false)
-    drawer.state.showTechnical = true
-    expect(drawer.state.showTechnical).toBe(true)
-    drawer.unmount()
+  it('DetailDrawer exposes only the business dialog sizing', () => {
+    const drawer = setupComponent(DetailDrawer, {title:'任务详情',visible:true});
+    expect(drawer.state.dialogWidth).toBe('800px');
+    expect(drawer.state).not.toHaveProperty('showTechnical');
+    drawer.unmount();
   })
 
   it('AsyncResultBanner computes default message and type', () => {
     const banner = setupComponent(AsyncResultBanner, {
-      status: 'queued',
-      ticketId: 't-1'
+      status: 'queued'
     })
     expect(banner.state.displayMessage).toContain('已排队')
     expect(banner.state.bannerType).toBe('info')

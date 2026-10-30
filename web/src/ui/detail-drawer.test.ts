@@ -83,3 +83,8 @@ it("keeps supplied footer actions anchored to the full footer row", () => {
   const source=readFileSync(new URL('./DetailDrawer.vue',import.meta.url),'utf8');
   expect(source).toMatch(/\.detail-dialog \.detail-footer\s*\{[^}]*width:\s*100%/);
 });
+
+it('renders business slots without a technical section or a forced minimum content height',async()=>{
+ const html=await render({}, {default:()=>h('p','可读业务说明')});expect(html).toContain('可读业务说明');expect(html).not.toMatch(/technical|<pre/);
+ const source=readFileSync(new URL('./DetailDrawer.vue',import.meta.url),'utf8');expect(source).not.toMatch(/technicalData|showTechnical|min-height: min\(360px/);
+});
