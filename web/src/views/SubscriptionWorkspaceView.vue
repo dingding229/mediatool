@@ -101,24 +101,28 @@ usePageRefresh(refresh,'*');
           <el-select id="history-subscription" :model-value="historyId" aria-label="选择订阅查看运行记录" placeholder="选择订阅" @change="showHistory"><el-option v-for="record in records" :key="record.id" :label="record.title" :value="record.id" /></el-select>
           <span>{{ currentRecord?.title || '—' }}</span>
         </div>
-        <StateView v-if="historyLoading" state="loading" title="正在读取运行记录…" />
-        <StateView v-else-if="historyError" :state="stateFor(historyError)" :title="stateTitle(historyError, '运行记录')" :description="historyError.message" @retry="loadHistory" />
-        <div v-else class="subscription-history-workspace">
-          <nav class="run-timeline" aria-label="运行时间线">
-            <header><h3>运行记录</h3><span>{{ history.length }} 次</span></header>
-            <p v-if="!history.length">暂无运行记录；预演或运行后会显示在这里。</p>
-            <button v-for="item in history" :key="item.id" type="button" :aria-pressed="activeRunId === item.id" @click="chooseRun(item.id)">
-              <span class="timeline-dot" aria-hidden="true" />
-              <span><strong>{{ item.preview ? '规则预演' : '正式运行' }}</strong><small>{{ timestamp(item.createdAt) }}</small><StatusBadge :state="item.state" /></span>
-            </button>
-          </nav>
-          <RunReview :run="run" :loading="runLoading" :error="runError" :created-at="runTime" @refresh="readRun(activeRunId)" @detail="runDetailOpen = true" />
+        <div class="subscription-history-workspace">
+          <div class="subscription-history-timeline">
+            <StateView v-if="historyLoading" state="loading" title="正在读取运行记录…" />
+            <StateView v-else-if="historyError" :state="stateFor(historyError)" :title="stateTitle(historyError, '运行记录')" :description="historyError.message" @retry="loadHistory" />
+            <nav v-else class="run-timeline" aria-label="运行时间线">
+              <header><h3>运行记录</h3><span>{{ history.length }} 次</span></header>
+              <p v-if="!history.length">暂无运行记录；预演或运行后会显示在这里。</p>
+              <button v-for="item in history" :key="item.id" type="button" :aria-pressed="activeRunId === item.id" @click="chooseRun(item.id)">
+                <span class="timeline-dot" aria-hidden="true" />
+                <span><strong>{{ item.preview ? '规则预演' : '正式运行' }}</strong><small>{{ timestamp(item.createdAt) }}</small><StatusBadge :state="item.state" /></span>
+              </button>
+            </nav>
+            <footer class="subscription-history-pagination">
+              <PagePagination label="订阅运行历史分页" v-if="tab==='history'" v-model:current-page="historyPage" :total="historyTotal" v-model:page-size="historySize" @current-change="loadHistory"/>
+            </footer>
+          </div>
+          <RunReview v-if="!historyLoading&&!historyError" :run="run" :loading="runLoading" :error="runError" :created-at="runTime" @refresh="readRun(activeRunId)" @detail="runDetailOpen = true" />
         </div>
       </template>
       </div>
         <footer v-if="tab==='list'" class="subscription-list-footer"><FlowHint reason="停用只停止后续自动下载；归档会保留下载、文件和运行历史。" /></footer>
     <PagePagination v-if="tab==='list'" label="订阅列表分页" v-model:current-page="page" :total="total" v-model:page-size="pageSize" @current-change="refresh"/>
-      <PagePagination label="订阅运行历史分页" v-if="tab==='history'" v-model:current-page="historyPage" :total="historyTotal" v-model:page-size="historySize" @current-change="loadHistory"/>
       </section>
     <SubscriptionComposer v-model:visible="editorOpen" v-model:draft="draft" :accounts="accounts" :account-error="accountError" :saving="saving" :error="saveError" :preview-ready="previewReady" :preview-run="previewRun" :preview-error="previewError" :pending="pending" @preview="previewDraft" @reconcile="reconcile" @save="save" @reload="reloadEditor" @retry-accounts="refresh" />
     <ConfirmAction v-model:visible="deleteOpen" class="subscription-confirm" title="归档订阅" :description="`将停止「${deleteTarget?.title || '—'}」的后续自动订阅。`" impact-scope="仅归档此订阅；保留规则、运行记录及下载关联，不删除已有下载、云盘文件或做种源文件。" danger-level="danger" confirm-text="确认归档订阅" :loading="deleting" @confirm="confirmDelete" />
