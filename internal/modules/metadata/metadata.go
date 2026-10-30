@@ -3,6 +3,8 @@ package metadata
 import "context"
 
 type Item struct {
+	CandidateTitles  []string      `json:"candidateTitles,omitempty"`
+	IMDBID           string        `json:"imdbId,omitempty"`
 	GenreIDs         []int         `json:"genreIds,omitempty"`
 	Countries        []string      `json:"countries,omitempty"`
 	OriginalLanguage string        `json:"originalLanguage,omitempty"`

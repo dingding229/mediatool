@@ -66,7 +66,7 @@ func (a *API) startSearch(w http.ResponseWriter, r *http.Request) {
 			fail(w, 503, "tmdb_unavailable", clientErr.Error())
 			return
 		}
-		item, identityErr := client.Details(r.Context(), body.Media.MediaType, body.Media.ID)
+		item, identityErr := client.IdentityDetails(r.Context(), body.Media.MediaType, body.Media.ID)
 		if identityErr != nil {
 			fail(w, 400, "media_unavailable", "所选TMDB身份无法核验")
 			return
@@ -122,7 +122,11 @@ func (a *API) getSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := search.Filter{Resolutions: q["resolution"], Sources: q["source"], Codecs: q["codec"], AccountIDs: q["accountId"], Keyword: q.Get("keyword"), Sort: q.Get("sort"), Resolution: q.Get("resolution"), Source: q.Get("source"), Codec: q.Get("codec"), AccountID: q.Get("accountId"), FreeOnly: q.Get("freeOnly") == "true"}
+	if raw := q.Get("ignoreMediaIdentity"); raw != "" && raw != "true" && raw != "false" {
+		fail(w, 400, "invalid_filters", "媒体身份筛选参数无效")
+		return
+	}
+	f := search.Filter{IgnoreMediaIdentity: q.Get("ignoreMediaIdentity") == "true", Resolutions: q["resolution"], Sources: q["source"], Codecs: q["codec"], AccountIDs: q["accountId"], Keyword: q.Get("keyword"), Sort: q.Get("sort"), Resolution: q.Get("resolution"), Source: q.Get("source"), Codec: q.Get("codec"), AccountID: q.Get("accountId"), FreeOnly: q.Get("freeOnly") == "true"}
 	for key, target := range map[string]*int64{"minSize": &f.MinSize, "maxSize": &f.MaxSize} {
 		if raw := q.Get(key); raw != "" {
 			n, e := strconv.ParseInt(raw, 10, 64)

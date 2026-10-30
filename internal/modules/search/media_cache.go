@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"media-tool/internal/modules/metadata"
@@ -16,7 +17,12 @@ func (e Engine) StartMediaCached(ctx context.Context, keyword string, ids []stri
 	if err != nil {
 		return "", false, err
 	}
-	key += fmt.Sprintf(":media:%s:%d", media.MediaType, media.ID)
+	// A new identity/alias snapshot must never reuse an old run's frozen media.
+	raw, err := json.Marshal(media.ShowMetadata())
+	if err != nil {
+		return "", false, err
+	}
+	key += fmt.Sprintf(":media:%s:%d:identity-v2:%x", media.MediaType, media.ID, sha256.Sum256(raw))
 	if !refresh && ttl > 0 && e.Redis != nil {
 		id, err := e.Redis.Get(ctx, key).Result()
 		if err == nil {

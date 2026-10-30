@@ -26740,6 +26740,15 @@
           "backdropPath": {
             "type": "string"
           },
+          "candidateTitles": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "countries": {
             "items": {
               "type": "string"
@@ -26780,6 +26789,9 @@
           "id": {
             "format": "int64",
             "type": "integer"
+          },
+          "imdbId": {
+            "type": "string"
           },
           "mediaType": {
             "type": "string"
@@ -53929,6 +53941,14 @@
           },
           {
             "in": "query",
+            "name": "ignoreMediaIdentity",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "keyword",
             "required": false,
             "schema": {
@@ -54044,6 +54064,14 @@
           {
             "in": "query",
             "name": "freeOnly",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ignoreMediaIdentity",
             "required": false,
             "schema": {
               "type": "string"
@@ -78056,6 +78084,14 @@
           },
           {
             "in": "query",
+            "name": "ignoreMediaIdentity",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "keyword",
             "required": false,
             "schema": {
@@ -78167,6 +78203,14 @@
           {
             "in": "query",
             "name": "freeOnly",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ignoreMediaIdentity",
             "required": false,
             "schema": {
               "type": "string"

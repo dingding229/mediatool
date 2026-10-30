@@ -35,15 +35,40 @@ func matchesMediaCandidate(r Resource, i metadata.Item) bool {
 	} else {
 		return false
 	}
+	strong := false
 	if raw, ok := r.Metadata["tmdbId"]; ok {
 		value := strings.TrimSpace(strings.Trim(strings.TrimSpace(string(mustJSON(raw))), `"`))
 		if value != strconv.Itoa(i.ID) {
 			return false
 		}
+		strong = true
+	}
+	if raw, ok := r.Metadata["imdbId"]; ok && i.IMDBID != "" {
+		value, valid := raw.(string)
+		if !valid || strings.TrimSpace(value) != i.IMDBID {
+			return false
+		}
+		strong = true
+	}
+	if strong {
+		return true
 	}
 	title := normalizedTitle(h.Title)
+	if title == "" {
+		return false
+	}
 	a, b := normalizedTitle(i.Title), normalizedTitle(i.OriginalTitle)
-	return title != "" && (title == a || b != "" && title == b || a != "" && b != "" && (title == a+b || title == b+a))
+	if title == a || b != "" && title == b || a != "" && b != "" && (title == a+b || title == b+a) {
+		return true
+	}
+	for _, candidate := range i.CandidateTitles {
+		c := normalizedTitle(candidate)
+		// Bilingual names must both be verified titles in the release itself.
+		if c != "" && (title == c || a != "" && (title == a+c || title == c+a) || b != "" && (title == b+c || title == c+b)) {
+			return true
+		}
+	}
+	return false
 }
 
 var ErrMediaYearConfirmation = errors.New("剧集资源年份与TMDB首播年不一致，可能为季年份或同名剧集；请人工核对并明确确认")

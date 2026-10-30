@@ -8,13 +8,15 @@ import StateView from '../ui/StateView.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import MediaContext from '../acquisition/MediaContext.vue';
 import DownloadSubmission from '../acquisition/DownloadSubmission.vue';
+import ResourceIdentityNotice from '../acquisition/ResourceIdentityNotice.vue';
+import {resultsEmptyTitle,resultsEmptyDescription} from '../acquisition/results-empty';
 import ResourcePromotion from '../acquisition/ResourcePromotion.vue';
 import { useResults } from '../acquisition/useResults';
 import { sourceLabel, resourceSources } from '../utils/resource-source';
 import { size, label } from '../acquisition/model';
 import { errorText, stateFor } from '../workflows/readiness';
 import '../acquisition/acquisition.css';
-const { pageSize, run, loading, error, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter, queueFilter, sort, persistMedia, openDownload, searchAgain } = useResults();
+const { showAll,toggleIdentityFilter,pageSize, run, loading, error, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter, queueFilter, sort, persistMedia, openDownload, searchAgain } = useResults();
 const sitesOpen=ref(false);
 const siteCounts=computed(()=>({success:run.value?.sites.filter(s=>s.state==='succeeded').length||0,failed:run.value?.sites.filter(s=>['failed','partial'].includes(s.state)).length||0,running:run.value?.sites.filter(s=>['pending','running'].includes(s.state)).length||0}));
 const direction=(key:string)=>filters.sort.startsWith(key+'_')?(filters.sort.endsWith('_asc')?'ascending':'descending'):'none';
@@ -51,7 +53,7 @@ ownRefresh.register(()=>refresh(),()=>true);
       </section>
       <section class="acquire-surface">
         <header class="acquire-section-heading">
-          <h2>择优选择资源 <small>{{run.total??run.resources.length}} 条匹配</small></h2>
+          <h2>择优选择资源 <small>{{run.total??run.resources.length}} {{showAll?'条资源（未按身份过滤）':'条匹配'}}</small></h2>
           <el-select v-model="filters.sort" aria-label="择优排序" @change="applyFilter">
             <el-option value="seeders_desc" label="做种人数优先"/><el-option value="seeders_asc" label="做种人数从少到多"/>
             <el-option value="promotion_asc" label="促销优先"/><el-option value="promotion_desc" label="促销从高到低"/>
@@ -59,6 +61,7 @@ ownRefresh.register(()=>refresh(),()=>true);
             <el-option value="size_desc" label="体积从大到小"/>
           </el-select>
         </header>
+        <ResourceIdentityNotice :excluded="run.excluded||0" :show-all="showAll" @toggle="toggleIdentityFilter"/>
         <div class="acquire-filters">
           <label>
             分辨率
@@ -110,7 +113,7 @@ ownRefresh.register(()=>refresh(),()=>true);
           <ResourcePromotion class="resource-stat" :factor="item.downloadFactor"/>
           <el-button :disabled="mediaSaving||!mediaReady" @click="openDownload(item)">确认并下载</el-button>
         </article>
-        <StateView v-if="!run.resources.length" :state="['pending','running'].includes(run.state)?'loading':'empty'" :title="['pending','running'].includes(run.state)?'站点正在查询…':'没有匹配资源'" description="若有站点失败或部分结果，请先核对上方原因。"/>
+        <StateView v-if="!run.resources.length" :state="['pending','running'].includes(run.state)?'loading':'empty'" :title="resultsEmptyTitle(run,showAll)" :description="resultsEmptyDescription(run,showAll)"/>
         </div>
         <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="run.total||0" layout="prev,pager,next" @current-change="refresh()"/>
       </section>

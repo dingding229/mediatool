@@ -8,6 +8,7 @@ import { useDelivery } from './useDelivery';
 export function useResults() {
   const route = useRoute(), router = useRouter(), run = ref<Run | null>(null), loading = ref(true), error = ref<unknown>(null), accounts = ref<Account[]>([]), mediaSaving = ref(false), mediaReady = ref(true), page = usePageNumber(),pageSize=usePageSize(50), busy = ref(false), searchIntent = ref(readIntent('search-again:' + route.params.id)), delivery = reactive(useDelivery());
   const filters = reactive({ resolution: [] as string[], source: [] as string[], codec: [] as string[], accountId: [] as string[], keyword: '', sort: 'seeders_desc' });
+  const showAll = ref(false);
   const activeMedia = computed(() => run.value?.media || null);
   let epoch = 0, controller: AbortController | undefined, filterTimer: ReturnType<typeof setTimeout> | undefined, disposed = false;
   async function refresh(id = String(route.params.id), afterSave = false) {
@@ -19,6 +20,7 @@ export function useResults() {
     loading.value = !run.value;
     error.value = null;
     const p = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) });
+    p.set("ignoreMediaIdentity", String(showAll.value));
     for (const [key, value] of Object.entries(filters)) {
       if (Array.isArray(value))
         value.forEach(v => p.append(key, v));
@@ -45,6 +47,11 @@ export function useResults() {
     clearTimeout(filterTimer);
     page.value = 1;
     void refresh();
+  }
+  function toggleIdentityFilter() {
+    showAll.value = !showAll.value;
+    delivery.close();
+    applyFilter();
   }
   function queueFilter() {
     clearTimeout(filterTimer);
@@ -122,6 +129,7 @@ export function useResults() {
     mediaReady.value = true;
     page.value = 1;
     delivery.close();
+    showAll.value = false;
     searchIntent.value = readIntent('search-again:' + route.params.id);
     void refresh();
   });
@@ -131,5 +139,5 @@ export function useResults() {
     controller?.abort();
     clearTimeout(filterTimer);
   });
-  return { pageSize,run, loading, error, accounts, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter, queueFilter, sort, persistMedia, openDownload, searchAgain };
+  return { showAll,toggleIdentityFilter,pageSize,run, loading, error, accounts, mediaSaving, mediaReady, page, filters, activeMedia, delivery, busy, searchIntent, refresh, applyFilter, queueFilter, sort, persistMedia, openDownload, searchAgain };
 }

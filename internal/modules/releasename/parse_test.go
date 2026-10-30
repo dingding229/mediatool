@@ -48,3 +48,20 @@ func TestDirectoryReleaseTokensAreNotRemovedAsExtensions(t *testing.T) {
 		}
 	}
 }
+
+func TestSeasonPacksAndChineseTitles(t *testing.T) {
+	for _, name := range []string{"Where the Mask Ends S01 2026 2160p YK WEB-DL H.265-HHWEB", "Jia.Jin.Chai.S01.2026.1080p", "嫁金钗.2026.S01", "嫁金钗.S01.2026.WEB-DL"} {
+		h := Parse(name)
+		if h.MediaType != "series" || h.Season != 1 || h.Episode != 0 || len(h.Episodes) != 0 || h.Year != "2026" {
+			t.Fatal(name, h)
+		}
+		if h.Title != "Where the Mask Ends" && h.Title != "Jia Jin Chai" && h.Title != "嫁金钗" {
+			t.Fatal(h)
+		}
+	}
+	for _, name := range []string{"Movie.S01omething.2026.1080p", "Movie.AVS01.2026.1080p"} {
+		if Parse(name).MediaType == "series" {
+			t.Fatal("partial season token", name)
+		}
+	}
+}

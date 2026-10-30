@@ -12,20 +12,21 @@ import (
 )
 
 type Filter struct {
-	Resolutions []string `json:"resolutions,omitempty"`
-	Sources     []string `json:"sources,omitempty"`
-	Codecs      []string `json:"codecs,omitempty"`
-	AccountIDs  []string `json:"accountIds,omitempty"`
-	Keyword     string   `json:"keyword"`
-	Sort        string   `json:"sort"`
-	Resolution  string   `json:"resolution"`
-	Source      string   `json:"source"`
-	Codec       string   `json:"codec"`
-	AccountID   string   `json:"accountId"`
-	MinSize     int64    `json:"minSize"`
-	MaxSize     int64    `json:"maxSize"`
-	MinSeeders  int      `json:"minSeeders"`
-	FreeOnly    bool     `json:"freeOnly"`
+	IgnoreMediaIdentity bool     `json:"ignoreMediaIdentity,omitempty"`
+	Resolutions         []string `json:"resolutions,omitempty"`
+	Sources             []string `json:"sources,omitempty"`
+	Codecs              []string `json:"codecs,omitempty"`
+	AccountIDs          []string `json:"accountIds,omitempty"`
+	Keyword             string   `json:"keyword"`
+	Sort                string   `json:"sort"`
+	Resolution          string   `json:"resolution"`
+	Source              string   `json:"source"`
+	Codec               string   `json:"codec"`
+	AccountID           string   `json:"accountId"`
+	MinSize             int64    `json:"minSize"`
+	MaxSize             int64    `json:"maxSize"`
+	MinSeeders          int      `json:"minSeeders"`
+	FreeOnly            bool     `json:"freeOnly"`
 }
 
 func attrs(title string) map[string]string { return releaseattrs.Parse(title) }
@@ -161,7 +162,10 @@ func (e Engine) GetFiltered(ctx context.Context, id string, page, limit int, f F
 		}
 		if identity.ID > 0 && !matchesMediaCandidate(r, identity) {
 			run.Excluded++
-			continue
+			// Browsing all never changes the media snapshot or delivery validation.
+			if !f.IgnoreMediaIdentity {
+				continue
+			}
 		}
 		if !f.Match(r) {
 			continue

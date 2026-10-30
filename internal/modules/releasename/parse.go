@@ -26,6 +26,7 @@ type Hint struct {
 }
 
 var seasonEpisode = regexp.MustCompile(`(?i)(?:^|[. _\-\[(])S(\d{1,3})[. _-]*E(\d{1,4})(?:(?:[. _-]*E)(\d{1,4}))?`)
+var seasonOnly = regexp.MustCompile(`(?i)(?:^|[. _\-\[(])S(\d{1,3})(?:$|[. _\-\])])`)
 var xEpisode = regexp.MustCompile(`(?i)(?:^|[. _\-\[(])(\d{1,2})x(\d{1,4})(?:\D|$)`)
 var year = regexp.MustCompile(`(?:19|20)\d{2}`)
 var resolution = regexp.MustCompile(`(?i)(?:^|[. _\-])((?:480|576|720|1080|1440|2160|4320)[pi]|4k|8k)(?:[. _\-]|$)`)
@@ -40,7 +41,7 @@ func Parse(filename string) Hint {
 	ext := path.Ext(n)
 	// Directory/release titles may end in .2026, .S03E07 or .1080p.
 	// Those are recognition evidence, not a filename extension.
-	if len(ext) > 8 || year.FindString(ext) == strings.TrimPrefix(ext, ".") || seasonEpisode.MatchString(ext) || xEpisode.MatchString(ext) || resolution.MatchString(ext) {
+	if len(ext) > 8 || year.FindString(ext) == strings.TrimPrefix(ext, ".") || seasonEpisode.MatchString(ext) || seasonOnly.MatchString(ext) || xEpisode.MatchString(ext) || resolution.MatchString(ext) {
 		ext = ""
 	}
 	stem := strings.TrimSuffix(n, ext)
@@ -61,6 +62,14 @@ func Parse(filename string) Hint {
 				}
 			}
 			break
+		}
+	}
+	// A season pack is series evidence even without an episode number.
+	if h.MediaType == "unknown" {
+		if m := seasonOnly.FindStringSubmatchIndex(stem); m != nil {
+			h.MediaType = "series"
+			h.Season, _ = strconv.Atoi(stem[m[2]:m[3]])
+			cut = min(cut, m[0])
 		}
 	}
 	for _, m := range year.FindAllStringIndex(stem, -1) {

@@ -29,7 +29,7 @@ func (a *API) saveSearchMedia(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "tmdb_unavailable", "TMDB不可用")
 		return
 	}
-	item, err := client.Details(ctx, in.MediaType, in.ID)
+	item, err := client.IdentityDetails(ctx, in.MediaType, in.ID)
 	if err != nil || item.ID != in.ID || item.MediaType != in.MediaType {
 		fail(w, 502, "tmdb_failed", "媒体信息查询失败")
 		return

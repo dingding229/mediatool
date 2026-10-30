@@ -359,7 +359,7 @@
 | GET | `/api/v1/search` | management | 前端直接调用 | `web/src/dashboard/useDashboard.ts:5`、`web/src/acquisition/useSearch.ts:28` |
 | HEAD | `/api/v1/search` | management | 未检出静态使用 |  |
 | POST | `/api/v1/search` | management | 前端直接调用 | `web/src/acquisition/useSearch.ts:102`、`web/src/acquisition/useResults.ts:93` |
-| GET | `/api/v1/search/{id}` | management | 前端直接调用 | `web/src/acquisition/useSearch.ts:74`、`web/src/acquisition/useResults.ts:27` |
+| GET | `/api/v1/search/{id}` | management | 前端直接调用；`ignoreMediaIdentity=true` 只取消浏览过滤，不改变投递校验 | `web/src/acquisition/useSearch.ts:74`、`web/src/acquisition/useResults.ts:27` |
 | HEAD | `/api/v1/search/{id}` | management | 未检出静态使用 |  |
 | POST | `/api/v1/search/{id}/media` | management | 前端直接调用 | `web/src/acquisition/useResults.ts:69` |
 | GET | `/api/v1/search/media` | management | 前端直接调用 | `web/src/acquisition/useSearch.ts:54`、`web/src/acquisition/MediaContext.vue:55`、`web/src/subscriptions/SubscriptionComposer.vue:28` |
