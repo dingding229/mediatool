@@ -1,6 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 import {mkdirSync,readFileSync} from 'node:fs';
 import {basename,extname,resolve} from 'node:path';
+import {openMediaEditor} from './media-edit-helper';
 import {u4Fixture} from './u4-fixture';
 import {fixtureFulfill} from './collection-fixture';
 const output=resolve(import.meta.dirname,'../../scratchpad/i-phase/i7/screens');
@@ -16,6 +17,7 @@ async function fixture(page:Page){
  await page.route('**/api/v1/media/library/managed/*',r=>fixtureFulfill(r,{json:{data:[movie,series,season,episode].find(i=>r.request().url().endsWith('/'+i.id))}}));
  await page.route('**/api/v1/media/library/managed/*/metadata{,?*}',r=>{const id=new URL(r.request().url()).pathname.split('/')[6],item=id===series.id?series:movie;return fixtureFulfill(r,{json:{data:{target:{mediaId:id,kind:item.mediaType,season:-1,episode:-1},targetKey:id,revision:1,base:{title:item.title,year:2026},effective:{title:item.title,year:2026},overrides:{},matched:true,unmatched:[],choices:[]}}})});
  await page.route('**/api/v1/media/library/managed/*/images',r=>fixtureFulfill(r,{json:{data:{target:{mediaId:'root',kind:'movie',season:-1,episode:-1},targetKey:'root',revision:1,base:{},effective:{},overrides:{},matched:true,unmatched:[],choices:[]}}}));
+ await page.route('**/api/v1/media/library/managed/*/subtitles?*',r=>fixtureFulfill(r,{json:{data:{selectedAssetId:'',versions:[],groups:[]}}}));
  await page.route('**/api/v1/media/assets/*/subtitles',r=>{const id=new URL(r.request().url()).pathname.split('/')[5];return fixtureFulfill(r,{json:{data:{assetId:id,versions:[{id,name:'1080p · 原始物理版本'}],items:[]}}})});
 }
 async function open(page:Page,title:string){await page.getByRole('button',{name:title,exact:true}).click();const d=page.getByRole('dialog',{name:'作品详情',exact:true});await expect(d).toBeVisible();await expect(d.getByRole('heading',{name:'作品简介',exact:true})).toBeVisible();return d;}
@@ -23,16 +25,13 @@ test('I7 movie and series detail: title actions, exclusive editors, retained dra
  await fixture(page);const writes:string[]=[],errors:string[]=[];page.on('request',r=>{if(r.url().includes('/api/')&&r.method()!=='GET')writes.push(r.url())});page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/library');
  for(const item of [movie,series]){
-  const d=await open(page,item.title);await expect(d.locator('.el-dialog')).toHaveCSS('width','1000px');await expect(d.locator('.catalog-detail-actions button')).toHaveCount(2);
+  const d=await open(page,item.title);await expect(d.locator('.el-dialog')).toHaveCSS('width','1000px');await expect(d.locator('.catalog-detail-actions button')).toHaveCount(1);
   const row=await d.locator('.catalog-title-row').evaluate(el=>{const title=el.querySelector('h2')!.getBoundingClientRect(),actions=el.querySelector('.catalog-detail-actions')!.getBoundingClientRect();return {topDelta:Math.abs(title.top-actions.top),separated:actions.left>title.right}});expect(row.topDelta).toBeLessThan(2);expect(row.separated).toBe(true);
-  const sections=d.locator('.catalog-detail-section>h3,.subtitle-panel>h3');expect(await sections.allTextContents()).toEqual(item===movie?['作品简介','版本与文件','字幕']:['作品简介','版本与文件']);
+  const sections=d.locator('.catalog-detail-section>h3,.subtitle-heading>h3');expect(await sections.allTextContents()).toEqual(['作品简介','版本与文件','字幕']);
   await expect(d.locator('.metadata-editor')).toBeHidden();await expect(d.locator('.image-editor')).toBeHidden();
-  await d.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(d.locator('#metadata-title')).toHaveValue(item.title);await d.locator('#metadata-title').fill('未保存草稿');
-  await d.getByRole('button',{name:'编辑图片',exact:true}).click();await page.getByRole('dialog',{name:'保留未保存草稿',exact:true}).getByRole('button',{name:'保留草稿并继续',exact:true}).click();await expect(d.locator('.image-row')).toHaveCount(3);await expect(d.locator('.metadata-editor')).toBeHidden();
-  await d.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(d.locator('#metadata-title')).toHaveValue('未保存草稿');await expect(d.locator('.image-editor')).toBeHidden();
-  await d.getByRole('button',{name:'完成编辑',exact:true}).click();await page.getByRole('dialog',{name:'保留未保存草稿',exact:true}).getByRole('button',{name:'保留草稿并继续',exact:true}).click();await expect(d.locator('.metadata-editor')).toBeHidden();
+  const edit=await openMediaEditor(page);await expect(edit.locator('#metadata-title')).toHaveValue(item.title);await edit.locator('#metadata-title').fill('未保存草稿');await edit.getByRole('button',{name:'图片',exact:true}).click();await expect(edit.locator('.image-row')).toHaveCount(3);await expect(edit.locator('.metadata-editor')).toBeHidden();await edit.getByRole('button',{name:'信息',exact:true}).click();await expect(edit.locator('#metadata-title')).toHaveValue('未保存草稿');await expect(edit.locator('.image-editor')).toBeHidden();await edit.getByRole('button',{name:'取消',exact:true}).click();await page.getByRole('dialog',{name:'放弃未保存修改？',exact:true}).getByRole('button',{name:'放弃修改',exact:true}).click();await expect(edit).toBeHidden();
   await expect(d.getByRole('heading',{name:'版本与文件',exact:true})).toBeVisible();
-  if(item===series){await d.getByRole('button',{name:'第 1 季 · 第一季',exact:true}).click();await expect(d.getByRole('button',{name:'第 1 季 · 第 1 集 · 重逢',exact:true})).toBeVisible();await d.getByRole('button',{name:'返回季列表',exact:true}).click();await expect(d.getByRole('button',{name:'第 1 季 · 第一季',exact:true})).toBeVisible();}
+  if(item===series){const season=d.locator('.catalog-season-toggle');await expect(season).toContainText('第 1 季 · 第一季');await season.click();await expect(d.locator('.season-episode')).toContainText('第 1 集');await expect(d.locator('.season-episode')).toContainText('重逢');await season.click();await expect(d.locator('.season-episode')).toHaveCount(0);}
   await d.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(d).toBeHidden();
  }
  expect(writes).toEqual([]);expect(errors).toEqual([]);
@@ -41,8 +40,7 @@ test('I7 mobile detail stays fullscreen and editor body follows the poster infor
  await page.setViewportSize({width:390,height:1000});await fixture(page);await page.goto('/library');const d=await open(page,movie.title);
  await expect.poll(()=>d.evaluate(el=>{const r=el.getBoundingClientRect();return Math.round(r.width)===390&&r.left>=0&&el.scrollWidth<=el.clientWidth})).toBe(true);
  await expect(d.locator('.catalog-detail-actions button').first()).toHaveCSS('min-height','44px');
- await d.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(d.locator('#metadata-title')).toBeVisible();const before=await d.locator('.catalog-summary').boundingBox();const editor=await d.locator('.metadata-editor').boundingBox();expect(editor!.y).toBeGreaterThanOrEqual(before!.y+before!.height-1);
- await page.keyboard.press('Escape');await expect(d).toBeHidden();
+ const edit=await openMediaEditor(page);await expect(edit.locator('#metadata-title')).toBeVisible();const summary=(await edit.locator('.media-edit-summary').boundingBox())!,editor=(await edit.locator('.media-edit-workspace').boundingBox())!;expect(editor.y).toBeGreaterThanOrEqual(summary.y+summary.height-1);await page.keyboard.press('Escape');await expect(edit).toBeHidden();await expect(d).toBeVisible();await page.keyboard.press('Escape');await expect(d).toBeHidden();
 });
 const capture=process.env.I7_SCREENSHOTS==='1'&&!process.env.CI&&!process.env.GITHUB_ACTIONS;
 const before=process.env.I7_BEFORE==='1';

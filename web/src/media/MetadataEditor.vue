@@ -8,7 +8,7 @@ import './editor.css';
 import {inputValue,metadataValueLabel,metadataLabels,metadataPatch,parseValue} from './metadata-form';
 import {errorText} from '../workflows/readiness';
 const unmatchedLimit=100;
-const props=withDefaults(defineProps<{itemId:string;hideTrigger?:boolean}>(),{hideTrigger:false}),emit=defineEmits<{saved:[]}>();
+const props=withDefaults(defineProps<{itemId:string;hideTrigger?:boolean;externalControls?:boolean}>(),{hideTrigger:false}),emit=defineEmits<{saved:[]}>();
 const opened=ref(false),busy=ref(false),record=ref<MetadataRecord>(),draft=reactive(Object.fromEntries(metadataFields.map(k=>[k,''])) as Record<MetadataField,string>),restore=ref(new Set<MetadataField>()),error=ref(''),notice=ref(''),blocked=ref(false),activeID=ref(props.itemId),choices=ref<MetadataTarget[]>([]);
 let epoch=0;
 const patch=computed(()=>record.value?metadataPatch(record.value,draft,restore.value):undefined);
@@ -36,18 +36,19 @@ async function canClose(){
  try{await ElMessageBox.confirm('信息有未保存的修改，收起或切换后会保留草稿，不会自动保存。','保留未保存草稿',{confirmButtonText:'保留草稿并继续',cancelButtonText:'继续编辑',type:'warning'});return true;}catch{return false;}
 }
 async function requestClose(){if(await canClose())close();}
-defineExpose({open,close,isOpen,busy,canClose});
+defineExpose({open,close,isOpen,busy,canClose,dirty,save,discard,blocked});
+function discard(){if(record.value)assign(record.value);notice.value='已撤回未保存修改';}
 function stageRestore(key:MetadataField){restore.value.add(key);draft[key]=inputValue(record.value?.base[key],key);notice.value='恢复操作尚未保存。';}
 function changed(key:MetadataField){restore.value.delete(key);}
 async function choose(id:string){activeID.value=id;notice.value='';await load();}
-async function save(){if(!patch.value||!dirty.value||blocked.value)return;const version=epoch;busy.value=true;error.value='';try{const out=await saveMediaMetadata(activeID.value,patch.value);if(version!==epoch)return;record.value=out;assign(out);if((out.unmatchedTotal??0)>out.unmatched.length)await load();notice.value='信息已保存，修改字段已锁定；恢复字段已解除锁定。';emit('saved');}catch(e){if(version!==epoch)return;error.value=errorText(e);if(!(e instanceof APIError)||e.status>=500||e.status===409){blocked.value=true;error.value+=' 请重新读取并核对，不要重复提交。';}}finally{if(version===epoch)busy.value=false;}}
+async function save(){if(!dirty.value)return !!record.value;if(!patch.value||blocked.value)return false;const version=epoch;busy.value=true;error.value='';try{const out=await saveMediaMetadata(activeID.value,patch.value);if(version!==epoch)return;record.value=out;assign(out);if((out.unmatchedTotal??0)>out.unmatched.length)await load();notice.value='信息已保存，修改字段已锁定；恢复字段已解除锁定。';emit('saved');return true;}catch(e){if(version!==epoch)return;error.value=errorText(e);if(!(e instanceof APIError)||e.status>=500||e.status===409){blocked.value=true;error.value+=' 请重新读取并核对，不要重复提交。';}return false;}finally{if(version===epoch)busy.value=false;}}
 watch(()=>props.itemId,()=>{epoch++;opened.value=false;record.value=undefined;activeID.value=props.itemId;busy.value=false;blocked.value=false;});
 </script>
 <template>
 <section v-if="opened||!props.hideTrigger" class="metadata-editor" aria-label="元数据信息">
  <el-button v-if="!opened&&!props.hideTrigger" @click="open">编辑信息</el-button>
  <template v-if="opened">
-  <div class="metadata-heading"><h3>编辑信息</h3><el-button :disabled="busy" @click="requestClose">完成编辑</el-button></div>
+  <div v-if="!externalControls" class="metadata-heading"><h3>编辑信息</h3><el-button :disabled="busy" @click="requestClose">完成编辑</el-button></div>
   <p class="metadata-note">修改过的字段将逐项锁定，不会被后续刮削覆盖。同一作品或单集的物理版本共用文字信息，不改文件与目录分类。</p>
   <label v-if="choices.length>1" class="metadata-field">选择单集<el-select :model-value="record?metadataTargetID(record.target):activeID" :disabled="busy||dirty" @change="choose($event)"><el-option v-for="t in choices" :key="metadataTargetID(t)" :value="metadataTargetID(t)" :label="(targetLabel(t))"/></el-select></label>
   <p v-if="busy&&!record" role="status">正在读取元数据…</p>
@@ -72,7 +73,7 @@ watch(()=>props.itemId,()=>{epoch++;opened.value=false;record.value=undefined;ac
      </div>
      <el-button class="metadata-restore" :disabled="busy||!Object.hasOwn(record.overrides,key)&&!restore.has(key)" @click="stageRestore(key)">恢复为刮削值</el-button>
     </div>
-    <div class="mt-save-actions"><el-button class="mt-save-button" type="primary" native-type="submit" :loading="busy" :disabled="busy||blocked||!dirty">保存信息</el-button><el-button :disabled="busy" @click="assign(record);notice='已撤回未保存修改'">撤回草稿</el-button></div>
+    <div v-if="!externalControls" class="mt-save-actions"><el-button class="mt-save-button" type="primary" native-type="submit" :loading="busy" :disabled="busy||blocked||!dirty">保存信息</el-button><el-button :disabled="busy" @click="assign(record);notice='已撤回未保存修改'">撤回草稿</el-button></div>
    </form>
   </template>
  </template>

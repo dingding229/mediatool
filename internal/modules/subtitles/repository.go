@@ -22,10 +22,10 @@ type Repository struct {
 // This is the original B3 same-directory/name-boundary query; both native
 // provider resolution and the registry discovery use this single definition.
 const AutoSQL = `SELECT f.id::text,f.full_path,coalesce(f.pick_code,''),f.size_bytes,f.updated_at FROM media_assets a JOIN cloud_files v ON v.id=a.cloud_file_id JOIN cloud_files f ON f.storage_id=v.storage_id AND regexp_replace(f.full_path,'/[^/]+$','')=regexp_replace(v.full_path,'/[^/]+$','') WHERE a.id=$1::uuid AND f.state='present' AND f.id<>v.id AND ('.'||lower(regexp_replace(f.full_path,'^.*\.','')))=ANY($3::text[]) AND left(lower(f.full_path),length(regexp_replace(v.full_path,'\.[^/.]+$',''))+1)=lower(regexp_replace(v.full_path,'\.[^/.]+$',''))||'.' AND ($2::text='' OR f.id::text=$2) ORDER BY f.full_path,f.id LIMIT 201`
-const columns = `id::text,asset_id::text,source,source_key,stream_index,filename,extension,storage_path,language,title,is_default,is_forced,hidden,overridden,digest,size_bytes,revision,deleting`
+const columns = `id::text,asset_id::text,source,source_key,stream_index,filename,extension,storage_path,language,title,is_default,is_forced,hidden,overridden,digest,size_bytes,revision,deleting,language_tags`
 
 func dest(v *Entry) []any {
-	return []any{&v.ID, &v.AssetID, &v.Source, &v.SourceKey, &v.Index, &v.Filename, &v.Extension, &v.StoragePath, &v.Language, &v.Title, &v.Default, &v.Forced, &v.Hidden, &v.Overridden, &v.Digest, &v.Size, &v.Revision, &v.Deleting}
+	return []any{&v.ID, &v.AssetID, &v.Source, &v.SourceKey, &v.Index, &v.Filename, &v.Extension, &v.StoragePath, &v.Language, &v.Title, &v.Default, &v.Forced, &v.Hidden, &v.Overridden, &v.Digest, &v.Size, &v.Revision, &v.Deleting, &v.LanguageTags}
 }
 
 type rowReader interface {
@@ -97,7 +97,7 @@ func (r Repository) Save(ctx context.Context, asset, id string, m Metadata) (Ent
 	}
 	v.Metadata = m
 	v.Overridden = true
-	e = tx.QueryRow(ctx, `UPDATE managed_subtitles SET language=$3,title=$4,is_default=$5,is_forced=$6,hidden=$7,overridden=true,revision=revision+1 WHERE asset_id=$1 AND id=$2 RETURNING revision`, asset, id, m.Language, m.Title, m.Default, m.Forced, m.Hidden).Scan(&v.Revision)
+	e = tx.QueryRow(ctx, `UPDATE managed_subtitles SET language=$3,title=$4,is_default=$5,is_forced=$6,hidden=$7,language_tags=$8,overridden=true,revision=revision+1 WHERE asset_id=$1 AND id=$2 RETURNING revision`, asset, id, m.Language, m.Title, m.Default, m.Forced, m.Hidden, m.LanguageTags).Scan(&v.Revision)
 	if e != nil {
 		return v, ErrUnavailable
 	}
@@ -190,6 +190,10 @@ func (r Repository) Groups(ctx context.Context, assets []string, extensions []st
 				continue
 			}
 			v := Entry{AssetID: asset, Source: "embedded", SourceKey: strconv.Itoa(stream.Index), Index: stream.Index, Filename: bounded(probeinfo.DisplayTitle(stream), 256), Extension: stream.Codec, Metadata: Metadata{Language: bounded(stream.Language, 16), Title: bounded(probeinfo.DisplayTitle(stream), 200), Default: stream.IsDefault, Forced: stream.IsForced, Revision: 1}}
+			if e := normalizeLanguage(&v.Metadata); e != nil {
+				rows.Close()
+				return out, ErrUnavailable
+			}
 			candidates[key(v)] = v
 		}
 	}
@@ -202,15 +206,16 @@ func (r Repository) Groups(ctx context.Context, assets []string, extensions []st
 		Asset, Source, Key, Name, Ext, Language, Title string
 		Index                                          int
 		Default, Forced                                bool
+		LanguageTags                                   []string
 	}
 	seeds := []seed{}
 	for _, v := range candidates {
-		seeds = append(seeds, seed{v.AssetID, v.Source, v.SourceKey, v.Filename, v.Extension, v.Language, v.Title, v.Index, v.Default, v.Forced})
+		seeds = append(seeds, seed{v.AssetID, v.Source, v.SourceKey, v.Filename, v.Extension, v.Language, v.Title, v.Index, v.Default, v.Forced, v.LanguageTags})
 	}
 	raw, _ := json.Marshal(seeds)
-	if _, e = r.DB.Exec(ctx, `INSERT INTO managed_subtitles(asset_id,source,source_key,filename,extension,language,title,is_default,is_forced,stream_index)
+	if _, e = r.DB.Exec(ctx, `INSERT INTO managed_subtitles(asset_id,source,source_key,filename,extension,language,title,is_default,is_forced,stream_index,language_tags)
  SELECT (v->>'Asset')::uuid,v->>'Source',v->>'Key',v->>'Name',v->>'Ext',v->>'Language',v->>'Title',(v->>'Default')::boolean,(v->>'Forced')::boolean,
- CASE WHEN v->>'Source'='embedded' THEN (v->>'Index')::integer ELSE nextval('managed_subtitle_index') END
+ CASE WHEN v->>'Source'='embedded' THEN (v->>'Index')::integer ELSE nextval('managed_subtitle_index') END,ARRAY(SELECT jsonb_array_elements_text(v->'LanguageTags'))
  FROM jsonb_array_elements($1::jsonb) v WHERE NOT EXISTS(SELECT 1 FROM managed_subtitles s WHERE s.asset_id=(v->>'Asset')::uuid AND s.source=v->>'Source' AND s.source_key=v->>'Key')
  ORDER BY v->>'Asset',v->>'Source',v->>'Key' ON CONFLICT DO NOTHING`, raw); e != nil {
 		return out, ErrUnavailable

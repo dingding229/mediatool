@@ -812,7 +812,7 @@
   },
   "playback-info": {
     "status": 200,
-    "bytes": 1051,
+    "bytes": 1061,
     "body": {
       "MediaSources": [
         {
@@ -837,7 +837,7 @@
             {
               "Codec": "srt",
               "DeliveryMethod": "Embed",
-              "DisplayTitle": "English SRT",
+              "DisplayTitle": "英语 · English SRT",
               "Index": 5,
               "IsExternal": false,
               "IsTextSubtitleStream": true,

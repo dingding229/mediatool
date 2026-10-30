@@ -41,10 +41,10 @@ func newProbeLinkFixture(t *testing.T) probeLinkFixture {
 	f := newMovieFixture(t)
 	// This fixture invokes current integration repository code, not just the
 	// schema-58 catalog. Apply the real release schema in its disposable schema.
-	if _, err := f.provider.UpTo(f.ctx, 93); err != nil {
-		t.Fatal("migrate probe fixture to schema 93:", err)
+	if _, err := f.provider.UpTo(f.ctx, 94); err != nil {
+		t.Fatal("migrate probe fixture to schema 94:", err)
 	}
-	if version, err := f.provider.GetDBVersion(f.ctx); err != nil || version != 93 {
+	if version, err := f.provider.GetDBVersion(f.ctx); err != nil || version != 94 {
 		t.Fatal("probe fixture schema", version, err)
 	}
 	media := f.media(t, 220001, "Synthetic probe", "2026", `{}`)

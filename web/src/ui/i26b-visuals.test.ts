@@ -1,3 +1,4 @@
+// I40 ImageEditor/SubtitlePanel intentionally gain deferred saves and language recognition; behavioral tests live in media/i40-edit.test.ts and subtitles.test.ts.
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
@@ -33,14 +34,6 @@ it.each([
  [
   "playback/AccessPanel.vue",
   "939065ab747d4183fadd1356116d74d49a15db484ea672f5fc627bc452216739"
- ],
- [
-  "media/ImageEditor.vue",
-  "fc4a3991654c433aa817d9f9451f961a8b096684ab7217b611059a7514db7081"
- ],
- [
-  "media/SubtitlePanel.vue",
-  "3287bf34e54fca6ef81903993b99bc4f64437aec9f97cf40c089294ab70116a7"
  ],
  [
   "settings/AboutPanel.vue",

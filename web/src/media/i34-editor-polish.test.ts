@@ -12,7 +12,7 @@ it('only shows scraped hints for a locked/restoring field whose current value di
 });
 it('uses a generic detail title, active segmented controls, sticky save actions and one shared chip',()=>{
  const detail=read('../views/MediaWorkspaceView.vue'),text=read('./MetadataEditor.vue'),images=read('./ImageEditor.vue');
- expect(detail).toContain('title="作品详情"');expect(detail).not.toContain(':title="detail?.title');expect(detail).toContain("'is-editing':editorOpen");expect(detail).toContain(':aria-pressed="editorOpen?');expect(text).toContain('@click="requestClose">完成编辑');expect(images).toContain("open?'完成编辑':'编辑图片'");
+ expect(detail).toContain('title="作品详情"');expect(detail).not.toContain(':title="detail?.title');expect(detail).toContain('<MediaEditDialog');expect(detail).not.toContain('class="mt-segments"');expect(text).toContain('@click="requestClose">完成编辑');expect(images).toContain("open?'完成编辑':'编辑图片'");
  expect(text).toContain('position:sticky;bottom:0');expect(text).toContain('background:var(--mt-bg-surface)');expect(text).toContain('border-top:1px solid var(--mt-border-color)');
  for(const file of [text,images]){expect(file).toContain("import './editor.css'");expect(file).toContain('class="metadata-lock"')}
  expect(images).toContain('.image-preview-poster{width:64px;height:96px;justify-self:start}');

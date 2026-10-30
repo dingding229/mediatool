@@ -56,7 +56,7 @@ func TestH3aSubtitleUpDownUpStoreStableIndicesAndIsolation(t *testing.T) {
 		t.Fatal("migration touched credentials")
 	}
 	// Current native readers run only after the historical 82 round trip.
-	if _, e := f.provider.UpTo(f.ctx, 84); e != nil {
+	if _, e := f.provider.UpTo(f.ctx, 94); e != nil {
 		t.Fatal(e)
 	}
 	repo := subtitles.Repository{DB: f.pool, Root: filepath.Join(t.TempDir(), "subtitles")}
@@ -66,7 +66,7 @@ func TestH3aSubtitleUpDownUpStoreStableIndicesAndIsolation(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if uploaded.Index < 65536 || uploaded.Language != "chs" || !uploaded.Default || uploaded.Size != int64(len(h3Subtitle)) {
+	if uploaded.Index < 65536 || uploaded.Language != "chi" || !uploaded.Default || uploaded.Size != int64(len(h3Subtitle)) {
 		t.Fatal(uploaded)
 	}
 
@@ -260,7 +260,7 @@ func TestH3aUploadedPlaybackInfoGoldenAuthenticationAndOriginal302(t *testing.T)
 			external = s
 		}
 	}
-	if external.Index == nil || *external.Index != uploaded.Index || external.Language != "chs" || external.DisplayTitle != "film.chs.default.forced.srt" || !external.IsDefault || !external.IsForced || external.DeliveryMethod != "External" {
+	if external.Index == nil || *external.Index != uploaded.Index || external.Language != "chi" || external.DisplayTitle != "简体中文 · film.chs.default.forced.srt" || !external.IsDefault || !external.IsForced || external.DeliveryMethod != "External" {
 		t.Fatal(external)
 	}
 	delivery, e := url.Parse(external.DeliveryUrl)

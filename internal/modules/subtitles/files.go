@@ -11,12 +11,17 @@ import (
 	uuidcheck "media-tool/internal/platform/identity"
 	"os"
 	"path"
+	"slices"
 )
 
 func (r Repository) Upload(ctx context.Context, asset, name, charset string, raw []byte) (Entry, error) {
 	return r.UploadID(ctx, asset, jobs.UUID(), name, charset, raw)
 }
 func (r Repository) UploadID(ctx context.Context, asset, id, name, charset string, raw []byte) (Entry, error) {
+	return r.UploadLanguage(ctx, asset, id, name, charset, raw, nil)
+}
+
+func (r Repository) UploadLanguage(ctx context.Context, asset, id, name, charset string, raw []byte, selected *Metadata) (Entry, error) {
 	if !uuidcheck.UUID(id) {
 		return Entry{}, ErrInvalid
 	}
@@ -30,6 +35,14 @@ func (r Repository) UploadID(ctx context.Context, asset, id, name, charset strin
 	sum := sha256.Sum256(body)
 	relative := path.Join(asset, id+"."+ext)
 	m := Infer(name)
+	detectedLanguage := FilenameLanguage(name)
+	if !detectedLanguage.Known {
+		detectedLanguage = contentLanguage(string(body))
+	}
+	m.Language, m.LanguageTags = detectedLanguage.Language, detectedLanguage.LanguageTags
+	if selected != nil {
+		m.Language, m.LanguageTags = selected.Language, selected.LanguageTags
+	}
 	if err = m.Validate(); err != nil {
 		return Entry{}, err
 	}
@@ -51,7 +64,7 @@ func (r Repository) UploadID(ctx context.Context, asset, id, name, charset strin
 	}
 	old, e := readEntry(ctx, tx, asset, id, false)
 	if e == nil {
-		if old.Source != "uploaded" || old.Deleting || old.Extension != ext || !bytes.Equal(old.Digest, sum[:]) {
+		if old.Source != "uploaded" || old.Deleting || old.Extension != ext || !bytes.Equal(old.Digest, sum[:]) || old.Language != m.Language || !slices.Equal(old.LanguageTags, m.LanguageTags) {
 			return entry, ErrConflict
 		}
 		old.Encoding = detected
@@ -102,7 +115,7 @@ func (r Repository) UploadID(ctx context.Context, asset, id, name, charset strin
 	} else {
 		created = true
 	}
-	err = tx.QueryRow(ctx, `INSERT INTO managed_subtitles(id,asset_id,source,source_key,filename,extension,storage_path,language,title,is_default,is_forced,overridden,digest,size_bytes)VALUES($1::uuid,$2::uuid,'uploaded',($1::uuid)::text,$3,$4,$5,$6,$7,$8,$9,true,$10,$11) RETURNING stream_index`, id, asset, entry.Filename, ext, relative, m.Language, m.Title, m.Default, m.Forced, sum[:], len(body)).Scan(&entry.Index)
+	err = tx.QueryRow(ctx, `INSERT INTO managed_subtitles(id,asset_id,source,source_key,filename,extension,storage_path,language,title,is_default,is_forced,overridden,digest,size_bytes,language_tags)VALUES($1::uuid,$2::uuid,'uploaded',($1::uuid)::text,$3,$4,$5,$6,$7,$8,$9,true,$10,$11,$12) RETURNING stream_index`, id, asset, entry.Filename, ext, relative, m.Language, m.Title, m.Default, m.Forced, sum[:], len(body), m.LanguageTags).Scan(&entry.Index)
 	if err != nil {
 		return entry, ErrUnavailable
 	}

@@ -14,3 +14,4 @@ it('renders named slots inside label/value pairs, omits the grid when all hidden
  expect(html).toMatch(/<dt[^>]*>状态<\/dt>/);expect(html).toContain('status-badge');expect(html).toContain('连接成功');
  expect(await renderToString(createSSRApp(Grid,{items:[{key:'empty',label:'空值',value:null}]}))).not.toContain('<dl');
 });
+it('can omit a sole field label without hiding its value, while multi-field descriptions retain labels',async()=>{const html=await renderToString(createSSRApp(Grid,{items:[{key:'cleanup',label:'条件状态',value:'未启用自动清理'}],hideSingleLabel:true}));expect(html).not.toContain('<dt');expect(html).toContain('未启用自动清理')});

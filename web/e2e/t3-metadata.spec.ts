@@ -1,6 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 import {mkdirSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {openMediaEditor} from './media-edit-helper';
 import {u4Fixture} from './u4-fixture';
 import {fixtureFulfill} from './collection-fixture';
 const dir=resolve(process.cwd(),'../scratchpad/t3');
@@ -25,15 +26,15 @@ async function fixture(page:Page){
  return {conflict:()=>{conflict=true},state:()=>record()};
 }
 test('T3 edit field locks, explicit restore, 409 keeps draft, unmatched notice',async({page})=>{
- const f=await fixture(page);await page.goto('/library');await page.getByRole('button',{name:'海边的故事',exact:true}).click();await page.getByRole('button',{name:'编辑信息',exact:true}).click();
+ const f=await fixture(page);await page.goto('/library');await page.getByRole('button',{name:'海边的故事',exact:true}).click();await openMediaEditor(page);
  const form=page.locator('.metadata-editor');await expect(form.locator('#metadata-communityRating')).toHaveValue('6.7');await expect(form.locator('.metadata-origin')).toHaveCount(0);
  await form.locator('#metadata-title').fill('人工标题');await form.locator('#metadata-overview').fill('人工简介');
- await form.getByRole('button',{name:'保存信息',exact:true}).click();await expect(page.locator('.catalog-readonly')).toBeVisible();await page.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(form.getByRole('status').filter({hasText:'信息已保存'})).toBeVisible();expect(f.state().overrides).toEqual({title:'人工标题',overview:'人工简介'});
- await expect(page.locator('.catalog-title-row').getByRole('heading',{name:'人工标题',exact:true})).toBeVisible();
+ await page.getByRole('dialog',{name:'编辑作品',exact:true}).getByRole('button',{name:'保存',exact:true}).click();await expect(page.locator('.catalog-readonly')).toBeVisible();await openMediaEditor(page);await expect(form.locator('#metadata-title')).toHaveValue('人工标题');expect(f.state().overrides).toEqual({title:'人工标题',overview:'人工简介'});
+ await expect(page.locator('.catalog-title-row').getByRole('heading',{name:'人工标题',exact:true})).toHaveText('人工标题');
  const row=form.locator('.metadata-row').filter({has:page.locator('#metadata-title')});await expect(row.getByText('人工锁定',{exact:true})).toBeVisible();
- await row.getByRole('button',{name:'恢复为刮削值',exact:true}).click();await form.getByRole('button',{name:'保存信息',exact:true}).click();expect(f.state().overrides).toEqual({overview:'人工简介'});await expect(page.locator('.catalog-readonly')).toBeVisible();await page.getByRole('button',{name:'编辑信息',exact:true}).click();
- await form.locator('#metadata-overview').fill('保留草稿');f.conflict();await form.getByRole('button',{name:'保存信息',exact:true}).click();await expect(form.getByRole('alert')).toContainText('信息已变化');await expect(form.locator('#metadata-overview')).toHaveValue('保留草稿');await expect(form.getByRole('button',{name:'保存信息',exact:true})).toBeDisabled();
- await form.getByRole('button',{name:'重新读取并核对'}).click();await expect(form.locator('#metadata-overview')).toHaveValue('保留草稿');await expect(form.getByRole('button',{name:'保存信息',exact:true})).toBeEnabled();await expect(form.locator('#metadata-originalTitle')).toHaveValue('并发原标题');
+ await row.getByRole('button',{name:'恢复为刮削值',exact:true}).click();await page.getByRole('dialog',{name:'编辑作品',exact:true}).getByRole('button',{name:'保存',exact:true}).click();expect(f.state().overrides).toEqual({overview:'人工简介'});await expect(page.locator('.catalog-readonly')).toBeVisible();await openMediaEditor(page);
+ await form.locator('#metadata-overview').fill('保留草稿');f.conflict();await page.getByRole('dialog',{name:'编辑作品',exact:true}).getByRole('button',{name:'保存',exact:true}).click();await expect(form.getByRole('alert')).toContainText('信息已变化');await expect(form.locator('#metadata-overview')).toHaveValue('保留草稿');await expect(page.getByRole('dialog',{name:'编辑作品',exact:true}).getByRole('button',{name:'保存',exact:true})).toBeDisabled();
+ await form.getByRole('button',{name:'重新读取并核对'}).click();await expect(form.locator('#metadata-overview')).toHaveValue('保留草稿');await expect(page.getByRole('dialog',{name:'编辑作品',exact:true}).getByRole('button',{name:'保存',exact:true})).toBeEnabled();await expect(form.locator('#metadata-originalTitle')).toHaveValue('并发原标题');
  await form.getByText('未匹配的人工信息（1）',{exact:true}).click();await expect(form.getByRole('button',{name:'第 1 季 · 第 2 集 · 未匹配'})).toBeVisible();
 });
 test('T3 metadata editor screenshots 1440/390 light/dark aligned without overflow',async({page})=>{
@@ -43,7 +44,7 @@ test('T3 metadata editor screenshots 1440/390 light/dark aligned without overflo
   await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);await page.goto('/library');await page.getByRole('button',{name:'海边的故事',exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme',theme);await expect(page.getByRole('button',{name:'编辑信息',exact:true})).toBeVisible();
   await page.screenshot({path:`${dir}/after-local-detail-${width}-${theme}.png`,animations:'disabled'});
-  await page.getByRole('button',{name:'编辑信息',exact:true}).click();await expect(page.locator('#metadata-title')).toHaveValue('海边的故事');await expect(page.locator('.metadata-form')).toHaveCount(1);
+  await openMediaEditor(page);await expect(page.locator('#metadata-title')).toHaveValue('海边的故事');await expect(page.locator('.metadata-form')).toHaveCount(1);
   const d=page.getByRole('dialog',{name:'作品详情',exact:true});await expect.poll(()=>d.evaluate(el=>el.getBoundingClientRect().left>=0&&el.getBoundingClientRect().right<=innerWidth)).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
   expect(await page.locator('.metadata-row input,.metadata-origin .el-button').evaluateAll(els=>els.every(el=>el.getBoundingClientRect().height>=44))).toBe(true);

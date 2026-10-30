@@ -35,7 +35,7 @@ func TestB3ExternalSubtitlesAuthenticatedOfficial302AndUAGate(t *testing.T) {
 			if s.IsExternal {
 				count++
 				delivery = s.DeliveryUrl
-				if s.DeliveryMethod != "External" || !s.IsForced || s.Language != "zh" {
+				if s.DeliveryMethod != "External" || !s.IsForced || s.Language != "chi" {
 					t.Fatal(s)
 				}
 			}

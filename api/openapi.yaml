@@ -941,6 +941,25 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
+      "HTTP200_2331cc458d79": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/modules_subtitles_LanguageDetection"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
       "HTTP200_237e2f1adc7c": {
         "content": {
           "application/json": {
@@ -2060,6 +2079,25 @@
                     "queued"
                   ],
                   "type": "object"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
+      "HTTP200_532dd8c5e835": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/modules_subtitles_CatalogPage"
                 }
               },
               "required": [
@@ -20643,8 +20681,30 @@
               }
             ]
           },
+          "episodeCount": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "filePath": {
             "type": "string"
+          },
+          "fileSize": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "id": {
             "type": "string"
@@ -20656,6 +20716,9 @@
             "type": "string"
           },
           "poster": {
+            "type": "string"
+          },
+          "resolution": {
             "type": "string"
           },
           "season": {
@@ -20724,8 +20787,30 @@
               }
             ]
           },
+          "episodeCount": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "filePath": {
             "type": "string"
+          },
+          "fileSize": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "id": {
             "type": "string"
@@ -20751,6 +20836,9 @@
                 "type": "null"
               }
             ]
+          },
+          "resolution": {
+            "type": "string"
           },
           "resolutions": {
             "items": {
@@ -30198,6 +30286,39 @@
         "type": "object",
         "x-go-type": "media-tool/internal/modules/subscriptions.RunRecord"
       },
+      "modules_subtitles_CatalogPage": {
+        "additionalProperties": false,
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/modules_subtitles_Page"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "selectedAssetId": {
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/modules_subtitles_Version"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "groups",
+          "selectedAssetId",
+          "versions"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/subtitles.CatalogPage"
+      },
       "modules_subtitles_Entry": {
         "additionalProperties": false,
         "properties": {
@@ -30235,6 +30356,15 @@
           "language": {
             "type": "string"
           },
+          "languageTags": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "revision": {
             "format": "int64",
             "type": "integer"
@@ -30261,6 +30391,7 @@
           "id",
           "index",
           "language",
+          "languageTags",
           "revision",
           "size",
           "source",
@@ -30268,6 +30399,45 @@
         ],
         "type": "object",
         "x-go-type": "media-tool/internal/modules/subtitles.Entry"
+      },
+      "modules_subtitles_LanguageDetection": {
+        "additionalProperties": false,
+        "properties": {
+          "encoding": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "known": {
+            "type": "boolean"
+          },
+          "label": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "languageTags": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "encoding",
+          "evidence",
+          "known",
+          "label",
+          "language",
+          "languageTags"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/subtitles.LanguageDetection"
       },
       "modules_subtitles_Metadata": {
         "additionalProperties": false,
@@ -30284,6 +30454,15 @@
           "language": {
             "type": "string"
           },
+          "languageTags": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "revision": {
             "format": "int64",
             "type": "integer"
@@ -30297,6 +30476,7 @@
           "forced",
           "hidden",
           "language",
+          "languageTags",
           "revision",
           "title"
         ],
@@ -30339,11 +30519,33 @@
       "modules_subtitles_Version": {
         "additionalProperties": false,
         "properties": {
+          "episode": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string"
           },
           "name": {
             "type": "string"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -67657,7 +67859,7 @@
         "x-go-handler": "listSubtitles",
         "x-go-registration": "GET /api/v1/media/assets/{id}/subtitles",
         "x-listener": "management",
-        "x-source": "subtitles.go:191"
+        "x-source": "subtitles.go:252"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -67711,7 +67913,7 @@
         "x-go-handler": "listSubtitles",
         "x-go-registration": "GET /api/v1/media/assets/{id}/subtitles",
         "x-listener": "management",
-        "x-source": "subtitles.go:191"
+        "x-source": "subtitles.go:252"
       },
       "post": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -67820,7 +68022,7 @@
         "x-go-handler": "uploadSubtitle",
         "x-go-registration": "POST /api/v1/media/assets/{id}/subtitles",
         "x-listener": "management",
-        "x-source": "subtitles.go:192"
+        "x-source": "subtitles.go:253"
       }
     },
     "/api/v1/media/assets/{id}/subtitles/{subtitleId}": {
@@ -67916,7 +68118,7 @@
         "x-go-handler": "deleteSubtitle",
         "x-go-registration": "DELETE /api/v1/media/assets/{id}/subtitles/{subtitleId}",
         "x-listener": "management",
-        "x-source": "subtitles.go:194"
+        "x-source": "subtitles.go:255"
       },
       "put": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -67969,6 +68171,15 @@
                   },
                   "language": {
                     "type": "string"
+                  },
+                  "languageTags": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
                   },
                   "revision": {
                     "format": "int64",
@@ -68023,7 +68234,7 @@
         "x-go-handler": "saveSubtitle",
         "x-go-registration": "PUT /api/v1/media/assets/{id}/subtitles/{subtitleId}",
         "x-listener": "management",
-        "x-source": "subtitles.go:193"
+        "x-source": "subtitles.go:254"
       }
     },
     "/api/v1/media/assets/{id}/subtitles/{subtitleId}/download": {
@@ -68091,7 +68302,7 @@
         "x-go-handler": "downloadSubtitle",
         "x-go-registration": "GET /api/v1/media/assets/{id}/subtitles/{subtitleId}/download",
         "x-listener": "management",
-        "x-source": "subtitles.go:195"
+        "x-source": "subtitles.go:256"
       },
       "head": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -68157,7 +68368,7 @@
         "x-go-handler": "downloadSubtitle",
         "x-go-registration": "GET /api/v1/media/assets/{id}/subtitles/{subtitleId}/download",
         "x-listener": "management",
-        "x-source": "subtitles.go:195"
+        "x-source": "subtitles.go:256"
       }
     },
     "/api/v1/media/assets/{id}/validation-ref": {
@@ -69503,6 +69714,132 @@
         "x-source": "api.go:236"
       }
     },
+    "/api/v1/media/library/managed/{id}/subtitles": {
+      "get": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "get_api_v1_media_library_managed_id_subtitles_2f9950c0",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assetId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_532dd8c5e835"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_25b3d03a5a16"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_89e5afaaf297"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_c4405538d138"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6e3c1a4df2c8"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "catalogSubtitles",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "catalogSubtitles",
+        "x-go-registration": "GET /api/v1/media/library/managed/{id}/subtitles",
+        "x-listener": "management",
+        "x-source": "subtitles.go:250"
+      },
+      "head": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "head_api_v1_media_library_managed_id_subtitles_2f9950c0",
+        "parameters": [
+          {
+            "description": "服务端路由参数；不得二次URL解码或传入目录穿越。",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assetId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_3c96584e0154"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_25b3d03a5a16"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_89e5afaaf297"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_c4405538d138"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6e3c1a4df2c8"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "catalogSubtitles",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "catalogSubtitles",
+        "x-go-registration": "GET /api/v1/media/library/managed/{id}/subtitles",
+        "x-listener": "management",
+        "x-source": "subtitles.go:250"
+      }
+    },
     "/api/v1/media/library/sources": {
       "get": {
         "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
@@ -69801,6 +70138,66 @@
         "x-go-registration": "POST /api/v1/media/recognize-name",
         "x-listener": "management",
         "x-source": "api.go:182"
+      }
+    },
+    "/api/v1/media/subtitles/identify": {
+      "post": {
+        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "operationId": "post_api_v1_media_subtitles_identify_8ca6815d",
+        "parameters": [
+          {
+            "description": "还须通过同源Origin/Fetch Metadata检查；不能以此头代替会话。",
+            "in": "header",
+            "name": "X-Requested-With",
+            "required": true,
+            "schema": {
+              "const": "media-tool",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/HTTP200_2331cc458d79"
+          },
+          "400": {
+            "$ref": "#/components/responses/HTTP400_25b3d03a5a16"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403_2601227bedbe"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404_89e5afaaf297"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409_c4405538d138"
+          },
+          "413": {
+            "$ref": "#/components/responses/HTTP413_790e429f5844"
+          },
+          "423": {
+            "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
+          },
+          "503": {
+            "$ref": "#/components/responses/HTTP503_6e3c1a4df2c8"
+          }
+        },
+        "security": [
+          {
+            "AdminSession": []
+          }
+        ],
+        "summary": "identifySubtitle",
+        "tags": [
+          "媒体库与文件"
+        ],
+        "x-go-handler": "identifySubtitle",
+        "x-go-registration": "POST /api/v1/media/subtitles/identify",
+        "x-listener": "management",
+        "x-source": "subtitles.go:251"
       }
     },
     "/api/v1/media/tmdb/image": {

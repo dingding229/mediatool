@@ -669,11 +669,13 @@ POST 必须当前管理员密码与 confirm=true，version/digest 仅用于匹�
 
 | method | path | listener | 当前前端使用 | 证据（源码行） |
 |---|---|---|---|---|
-| GET | `/api/v1/media/assets/{id}/subtitles` | management | 前端经适配调用 | `web/src/api/subtitles.ts:7` |
-| POST | `/api/v1/media/assets/{id}/subtitles` | management | 前端经适配调用 | `web/src/api/subtitles.ts:8` |
-| PUT | `/api/v1/media/assets/{id}/subtitles/{subtitleId}` | management | 前端经适配调用 | `web/src/api/subtitles.ts:9` |
-| DELETE | `/api/v1/media/assets/{id}/subtitles/{subtitleId}` | management | 前端经适配调用 | `web/src/api/subtitles.ts:10` |
-| GET | `/api/v1/media/assets/{id}/subtitles/{subtitleId}/download` | management | 资源/链接使用 | `web/src/api/subtitles.ts:11` |
+| POST | `/api/v1/media/subtitles/identify` | management | 前端经适配调用；只读语言预识别 | `web/src/api/subtitles.ts:13` |
+| GET | `/api/v1/media/library/managed/{id}/subtitles` | management | 前端经适配调用；按作品与单集列出物理版本字幕 | `web/src/api/subtitles.ts:12` |
+| GET | `/api/v1/media/assets/{id}/subtitles` | management | 前端经适配调用 | `web/src/api/subtitles.ts:11` |
+| POST | `/api/v1/media/assets/{id}/subtitles` | management | 前端经适配调用 | `web/src/api/subtitles.ts:14` |
+| PUT | `/api/v1/media/assets/{id}/subtitles/{subtitleId}` | management | 前端经适配调用 | `web/src/api/subtitles.ts:15` |
+| DELETE | `/api/v1/media/assets/{id}/subtitles/{subtitleId}` | management | 前端经适配调用 | `web/src/api/subtitles.ts:16` |
+| GET | `/api/v1/media/assets/{id}/subtitles/{subtitleId}/download` | management | 资源/链接使用 | `web/src/api/subtitles.ts:17` |
 | HEAD | `/api/v1/media/assets/{id}/subtitles/{subtitleId}/download` | management | 未检出静态使用 | GET 自动派生，仅管理员 |
 
 上传为 multipart file/encoding/uploadId；更新使用 revision；删除需要 confirm=true。

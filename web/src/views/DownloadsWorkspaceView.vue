@@ -156,7 +156,7 @@ usePageRefresh(()=>refresh(),'uploads');
     </el-dialog>
     <DetailDrawer v-model:visible="detailsOpen" title="任务详情" size="large" class="acquire-detail download-detail">
       <h3><MiddleEllipsis :text="selectedTask?.title||detail?.title||detail?.destination" :copy="false"/></h3>
-      <section v-for="group in detailGroups" :key="group.key" :aria-label="group.title"><h4>{{group.title}}</h4><DescriptionGrid :items="group.items"><template #state><StatusBadge :state="selectedTask?.state||detail?.state" :label="label(selectedTask?.state||detail?.state)"/></template></DescriptionGrid></section>
+      <section v-for="group in detailGroups" :key="group.key" :aria-label="group.title"><h4>{{group.title}}</h4><DescriptionGrid :items="group.items" hide-single-label><template #state><StatusBadge :state="selectedTask?.state||detail?.state" :label="label(selectedTask?.state||detail?.state)"/></template></DescriptionGrid></section>
       <template v-for="task in selectedTask?[selectedTask]:[]" :key="task.id">
         <el-alert v-if="task.syncError" :title="'同步失败（保留上次进度）：'+task.syncError" type="warning" :closable="false"/>
         <p v-if="task.trackerError" role="alert">Tracker状态未同步：{{task.trackerError}}</p><p v-for="tracker in task.trackers?.filter(t=>t.status>=4&&t.message)||[]" :key="tracker.url" role="alert">Tracker：{{tracker.message}}</p>

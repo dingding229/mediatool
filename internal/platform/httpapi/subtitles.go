@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"media-tool/internal/modules/nativeplayback/runtime"
@@ -37,63 +38,121 @@ func (a *API) listSubtitles(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, out)
 }
-func (a *API) uploadSubtitle(w http.ResponseWriter, r *http.Request) {
+
+type subtitleUploadInput struct {
+	name, encoding, id string
+	body               []byte
+	language           *subtitles.Metadata
+}
+
+func readSubtitleUpload(w http.ResponseWriter, r *http.Request, selection bool) (subtitleUploadInput, error) {
+	in := subtitleUploadInput{encoding: "auto"}
 	r.Body = http.MaxBytesReader(w, r.Body, subtitles.MaxBytes+(64<<10))
 	reader, e := r.MultipartReader()
 	if e != nil {
-		subtitleError(w, subtitles.ErrInvalid)
-		return
+		return in, subtitles.ErrInvalid
 	}
-	var body []byte
-	name, encoding, uploadID := "", "auto", ""
-	parts := 0
 	seen := map[string]bool{}
+	fields := map[string]string{}
 	for {
 		part, e := reader.NextPart()
 		if e == io.EOF {
 			break
 		}
 		if e != nil {
-			fail(w, 413, "subtitle_too_large", "字幕文件最大5MiB，请检查文件和上传格式")
-			return
+			return in, e
 		}
-		parts++
-		if parts > 3 || seen[part.FormName()] {
+		key := part.FormName()
+		if seen[key] || len(seen) >= 5 {
 			deferutil.Report(part.Close(), "subtitle multipart close")
-			subtitleError(w, subtitles.ErrInvalid)
-			return
+			return in, subtitles.ErrInvalid
 		}
-		seen[part.FormName()] = true
-		if part.FormName() == "file" && part.FileName() != "" && name == "" {
-			name = part.FileName()
-			body, e = io.ReadAll(io.LimitReader(part, subtitles.MaxBytes+1))
-		} else if (part.FormName() == "encoding" || part.FormName() == "uploadId") && part.FileName() == "" {
+		seen[key] = true
+		if key == "file" && part.FileName() != "" {
+			in.name = part.FileName()
+			in.body, e = io.ReadAll(io.LimitReader(part, subtitles.MaxBytes+1))
+			if len(in.body) > subtitles.MaxBytes {
+				e = &http.MaxBytesError{Limit: subtitles.MaxBytes}
+			}
+		} else if part.FileName() == "" && (key == "encoding" || selection && (key == "uploadId" || key == "language" || key == "languageTags")) {
 			var raw []byte
-			raw, e = io.ReadAll(io.LimitReader(part, 65))
-			if len(raw) > 64 {
+			raw, e = io.ReadAll(io.LimitReader(part, 1025))
+			if len(raw) > 1024 {
 				e = subtitles.ErrInvalid
 			}
-			if part.FormName() == "uploadId" {
-				uploadID = string(raw)
-			} else {
-				encoding = string(raw)
-			}
+			fields[key] = string(raw)
 		} else {
 			e = subtitles.ErrInvalid
 		}
 		closeErr := part.Close()
-		if e != nil || closeErr != nil {
-			subtitleError(w, subtitles.ErrInvalid)
-			return
+		if e != nil {
+			return in, e
 		}
-		if len(body) > subtitles.MaxBytes {
-			fail(w, 413, "subtitle_too_large", "字幕文件最大5MiB")
-			return
+		if closeErr != nil {
+			return in, subtitles.ErrInvalid
 		}
+	}
+	if !seen["file"] {
+		return in, subtitles.ErrInvalid
+	}
+	if seen["encoding"] {
+		in.encoding = fields["encoding"]
+	}
+	in.id = fields["uploadId"]
+	if seen["languageTags"] && !seen["language"] {
+		return in, subtitles.ErrInvalid
+	}
+	if seen["language"] {
+		in.language = &subtitles.Metadata{Language: fields["language"], Revision: 1}
+		if seen["languageTags"] && json.Unmarshal([]byte(fields["languageTags"]), &in.language.LanguageTags) != nil {
+			return in, subtitles.ErrInvalid
+		}
+		if in.language.Validate() != nil {
+			return in, subtitles.ErrInvalid
+		}
+	}
+	return in, nil
+}
+func subtitleUploadError(w http.ResponseWriter, e error) {
+	var limit *http.MaxBytesError
+	if errors.As(e, &limit) {
+		fail(w, 413, "subtitle_too_large", "字幕文件最大5MiB")
+		return
+	}
+	subtitleError(w, e)
+}
+func (a *API) identifySubtitle(w http.ResponseWriter, r *http.Request) {
+	in, e := readSubtitleUpload(w, r, false)
+	if e != nil {
+		subtitleUploadError(w, e)
+		return
+	}
+	out, e := subtitles.DetectLanguage(in.name, in.encoding, in.body)
+	if e != nil {
+		subtitleError(w, e)
+		return
+	}
+	write(w, 200, out)
+}
+func (a *API) catalogSubtitles(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	out, e := a.subtitles().Catalog(ctx, r.PathValue("id"), r.URL.Query().Get("assetId"))
+	if e != nil {
+		subtitleError(w, e)
+		return
+	}
+	write(w, 200, out)
+}
+func (a *API) uploadSubtitle(w http.ResponseWriter, r *http.Request) {
+	in, e := readSubtitleUpload(w, r, true)
+	if e != nil {
+		subtitleUploadError(w, e)
+		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	out, e := a.subtitles().UploadID(ctx, r.PathValue("id"), uploadID, name, encoding, body)
+	out, e := a.subtitles().UploadLanguage(ctx, r.PathValue("id"), in.id, in.name, in.encoding, in.body, in.language)
 	if e != nil {
 		subtitleError(w, e)
 		return
@@ -188,6 +247,8 @@ func (a *API) downloadSubtitle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (a *API) registerSubtitles(mux routeRegistrar) {
+	mux.HandleFunc("GET /api/v1/media/library/managed/{id}/subtitles", a.protected(a.catalogSubtitles))
+	mux.HandleFunc("POST /api/v1/media/subtitles/identify", a.protected(a.identifySubtitle))
 	mux.HandleFunc("GET /api/v1/media/assets/{id}/subtitles", a.protected(a.listSubtitles))
 	mux.HandleFunc("POST /api/v1/media/assets/{id}/subtitles", a.protected(a.uploadSubtitle))
 	mux.HandleFunc("PUT /api/v1/media/assets/{id}/subtitles/{subtitleId}", a.protected(a.saveSubtitle))

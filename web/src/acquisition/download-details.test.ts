@@ -8,7 +8,7 @@ it('groups real download facts by meaning, with no placeholder-only media group'
  expect(groups.map(g=>g.key)).toEqual(['status','downloader','cleanup']);
  const html=await renderToString(createSSRApp({render:()=>h('main',groups.map(group=>h(Grid,{items:group.items})))}));
  for(const label of ['年份','同步时间','说明','下载速度','清理说明'])expect(html).not.toContain('>'+label+'<');
- expect(html).toContain('家庭下载器');expect(html).toContain('正在做种');expect(html).toContain('未启用自动清理');expect(html).not.toContain('>—<');
+ expect(html).toContain('家庭下载器');expect(html).toContain('持续做种中');expect(html).not.toContain('正在做种');expect(html).toContain('未启用自动清理');expect(html).not.toContain('>—<');
 });
 it('all four groups exist when populated, keeps zero connections and zero progress as data',()=>{
  const groups=downloadDetailGroups({state:'downloading',progress:0,media:{id:1,mediaType:'series',title:'作品',year:'2026'},seeds:0,peers:0,cleanupState:'blocked',cleanupMessage:'做种要求尚未满足'},true);

@@ -61,23 +61,14 @@ func (s *Service) subtitles(ctx context.Context, asset string) ([]subtitle, erro
 func subtitleStream(v subtitle, index int, origin, item, source, token string) (dto.MediaStream, error) {
 	ext := strings.ToLower(strings.TrimPrefix(path.Ext(v.name), "."))
 	lower := strings.ToLower(v.name)
-	language := ""
-	for _, lang := range []string{"zh", "chs", "cht", "zh-cn", "zh-tw", "eng", "en", "jpn", "ja"} {
-		if strings.Contains(lower, "."+lang+".") {
-			language = lang
-			break
-		}
-	}
-	title := v.name
-	forced := strings.Contains(lower, ".forced.") || strings.Contains(lower, ".foreign.")
-	def := strings.Contains(lower, ".default.")
+	m := subtitles.Infer(v.name)
 	if v.entry != nil {
-		language = v.entry.Language
-		title = v.entry.Title
-		forced = v.entry.Forced
-		def = v.entry.Default
+		m = v.entry.Metadata
 		ext = v.entry.Extension
 	}
+	language := subtitles.CanonicalLanguage(m.Language)
+	title := subtitles.DisplayTitle(m, ext)
+	forced, def := m.Forced, m.Default
 	target, e := nativeplayback.SubtitleURL(origin, item, source, token, v.id, index, ext)
 	if e != nil {
 		return dto.MediaStream{}, e
@@ -87,13 +78,15 @@ func subtitleStream(v subtitle, index int, origin, item, source, token string) (
 func addSubtitles(a nativeplayback.Actor, item string, v *source, subs []subtitle) error {
 	for _, sub := range subs {
 		if sub.entry != nil && sub.entry.Source == "embedded" {
-			if sub.entry.Overridden {
+			{
 				for i := range v.MediaStreams {
 					m := &v.MediaStreams[i]
 					if m.Type == "Subtitle" && m.Index != nil && *m.Index == sub.entry.Index {
-						m.Language = sub.entry.Language
-						m.DisplayTitle = sub.entry.Title
-						m.Title = sub.entry.Title
+						m.Language = subtitles.CanonicalLanguage(sub.entry.Language)
+						m.DisplayTitle = subtitles.DisplayTitle(sub.entry.Metadata, sub.entry.Extension)
+						if sub.entry.Overridden {
+							m.Title = sub.entry.Title
+						}
 						m.IsDefault = sub.entry.Default
 						m.IsForced = sub.entry.Forced
 					}

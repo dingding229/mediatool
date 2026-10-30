@@ -24,6 +24,9 @@ func Normalize(name, charset string, raw []byte) ([]byte, string, string, error)
 	}
 	encodings := map[string]encoding.Encoding{"gb18030": simplifiedchinese.GB18030, "big5": traditionalchinese.Big5, "shift-jis": japanese.ShiftJIS, "windows-1252": charmap.Windows1252, "utf-16le": unicodeenc.UTF16(unicodeenc.LittleEndian, unicodeenc.IgnoreBOM), "utf-16be": unicodeenc.UTF16(unicodeenc.BigEndian, unicodeenc.IgnoreBOM), "utf-32le": utf32.UTF32(utf32.LittleEndian, utf32.IgnoreBOM), "utf-32be": utf32.UTF32(utf32.BigEndian, utf32.IgnoreBOM)}
 	charset = strings.ToLower(charset)
+	if charset == "gbk" {
+		charset = "gb18030"
+	}
 	if charset == "" || charset == "auto" {
 		switch {
 		case bytes.HasPrefix(raw, []byte{0xff, 0xfe, 0, 0}):
@@ -43,17 +46,7 @@ func Normalize(name, charset string, raw []byte) ([]byte, string, string, error)
 		case utf8.Valid(raw):
 			charset = "utf-8"
 		default:
-			charset = "gb18030"
-			lang := Infer(name).Language
-			if lang == "cht" || lang == "zh-tw" {
-				charset = "big5"
-			}
-			if lang == "jpn" || lang == "ja" {
-				charset = "shift-jis"
-			}
-			if lang == "eng" || lang == "en" {
-				charset = "windows-1252"
-			}
+			charset = legacyCharset(name, raw)
 		}
 	}
 	var body []byte

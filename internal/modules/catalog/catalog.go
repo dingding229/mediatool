@@ -15,20 +15,23 @@ var ErrUnavailable = errors.New("catalog unavailable")
 var ErrInvalid = errors.New("invalid catalog query")
 
 type Item struct {
-	ID         string `json:"id"`
-	Type       string `json:"type,omitempty"`
-	Source     string `json:"source"`
-	Title      string `json:"title"`
-	Year       string `json:"year"`
-	MediaType  string `json:"mediaType"`
-	Overview   string `json:"overview"`
-	Poster     string `json:"poster"`
-	FilePath   string `json:"filePath,omitempty"`
-	State      string `json:"state,omitempty"`
-	Season     *int   `json:"season,omitempty"`
-	Episode    *int   `json:"episode,omitempty"`
-	CategoryID string `json:"categoryId,omitempty"`
-	Category   string `json:"category,omitempty"`
+	ID           string `json:"id"`
+	FileSize     *int64 `json:"fileSize,omitempty"`
+	EpisodeCount *int   `json:"episodeCount,omitempty"`
+	Resolution   string `json:"resolution,omitempty"`
+	Type         string `json:"type,omitempty"`
+	Source       string `json:"source"`
+	Title        string `json:"title"`
+	Year         string `json:"year"`
+	MediaType    string `json:"mediaType"`
+	Overview     string `json:"overview"`
+	Poster       string `json:"poster"`
+	FilePath     string `json:"filePath,omitempty"`
+	State        string `json:"state,omitempty"`
+	Season       *int   `json:"season,omitempty"`
+	Episode      *int   `json:"episode,omitempty"`
+	CategoryID   string `json:"categoryId,omitempty"`
+	Category     string `json:"category,omitempty"`
 }
 type Page struct {
 	Items      []Item     `json:"items"`

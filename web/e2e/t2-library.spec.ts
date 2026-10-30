@@ -10,6 +10,7 @@ async function fixture(page:Page){
  await u4Fixture(page);
  await page.route('**/api/v1/media/library?*',r=>{const q=new URL(r.request().url()).searchParams;const category=q.get('categoryId');const items=media.filter(m=>!category||m.categoryId===category);return fixtureFulfill(r,{json:{data:{items,total:items.length,categories}}})});
  await page.route('**/api/v1/media/library/managed/*',r=>fixtureFulfill(r,{json:{data:media.find(m=>r.request().url().endsWith(m.id))}}));
+ await page.route('**/api/v1/media/library/managed/*/subtitles?*',r=>{const id=new URL(r.request().url()).pathname.split('/')[6];return fixtureFulfill(r,{json:{data:{selectedAssetId:id,versions:[{id,name:'当前物理版本'}],groups:[{assetId:id,items:[0,1].map(i=>({id:`embedded-${i}`,assetId:id,source:'embedded',index:5+i,filename:'内嵌字幕',language:i?'eng':'chi',languageTags:i?['en']:['zh-Hans'],title:i?'英文':'简体中文',extension:'srt',revision:1}))}]}}})});
  await page.route('**/api/v1/media/assets/*/subtitles',r=>{const id=new URL(r.request().url()).pathname.split('/')[5];return fixtureFulfill(r,{json:{data:{assetId:id,versions:[{id,name:'当前物理版本'}],items:[0,1].map(i=>({id:`embedded-${i}`,assetId:id,source:'embedded',filename:'内嵌字幕',language:i?'eng':'chs',title:i?'英文':'简体中文',extension:'srt',revision:1}))}}})});
 }
 test('T2 real detail mapping, configured category filter and one embedded subtitle notice',async({page})=>{

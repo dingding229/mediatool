@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {resourceSummary} from '../acquisition/resource-summary';
 import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import {computed,ref} from 'vue';
 import {Sort,Top,Bottom,CircleCheck,CircleClose,Loading} from '@element-plus/icons-vue';
@@ -106,9 +107,7 @@ ownRefresh.register(()=>refresh(),()=>true);
         <article v-for="item in run.resources" :key="item.id" class="resource-entry">
           <div>
             <h3><MiddleEllipsis :text="item.title" :copy="false"/></h3>
-            <p>{{ item.metadata?.subtitle||'—' }}</p>
-            <p>{{ item.siteName||'—' }} · {{ item.metadata?.attributes?.codec?.toUpperCase()||'编码未知' }} · {{ sourceLabel(item.metadata?.attributes?.source) }} · {{ item.metadata?.attributes?.resolution||'分辨率未知' }}</p>
-            <p v-if="item.metadata?.yearWarning" role="note">{{ item.metadata.yearWarning }}</p>
+            <p class="resource-meta" :title="resourceSummary(item,activeMedia)">{{resourceSummary(item,activeMedia)}}<span v-if="item.metadata?.yearWarning" role="note" class="resource-year-note" :aria-label="item.metadata.yearWarning" :title="item.metadata.yearWarning"> · 年份需核对</span></p>
           </div>
           <span class="resource-stat">{{ size(item.size) }}</span>
           <span class="resource-stat">{{ item.seeders??'—' }}</span>

@@ -75,7 +75,7 @@ func TestNormalizeEncodingsAndInference(t *testing.T) {
 		}
 	}
 	m := Infer("film.chs.default.forced.srt")
-	if m.Language != "chs" || !m.Default || !m.Forced {
+	if m.Language != "chi" || !m.Default || !m.Forced {
 		t.Fatal(m)
 	}
 	if Root(config.Config{}) != "/data/native-media/subtitles" || Root(config.Config{NativeStillsRoot: "/data/private/stills"}) != "/data/private/subtitles" {
@@ -112,7 +112,7 @@ func TestNormalizeLimitsFormatsAndMetadata(t *testing.T) {
 		}
 	}
 	m := Metadata{Revision: 1, Language: " ZH-CN ", Title: " title "}
-	if m.Validate() != nil || m.Language != "zh-cn" || m.Title != "title" {
+	if m.Validate() != nil || m.Language != "chi" || m.Title != "title" {
 		t.Fatal(m)
 	}
 }

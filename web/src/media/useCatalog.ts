@@ -1,3 +1,4 @@
+import {useDebouncedFilter} from '../composables/useDebouncedFilter';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -44,7 +45,9 @@ export function useCatalog() {
     childEpoch++;
     children.value = [];
   }
+  const keywordFilter=useDebouncedFilter(query,()=>search());
   function search() {
+    keywordFilter.cancel();
     page.value = 1;
     void load();
   }

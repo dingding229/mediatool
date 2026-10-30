@@ -69,6 +69,14 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 		where += ` GROUP BY CASE WHEN m.media_type='series' THEN 'series_'||m.id::text ELSE a.id::text END,m.media_type,m.id`
 		order = `title,id`
 	}
+	// Bounded scalar probe lookup for physical episode rows; season/root rows
+	// aggregate persisted bytes and distinct episode numbers, never estimate them.
+	resolutionSQL := `coalesce((SELECT CASE WHEN (video->>'width') ~ '^[0-9]+$' THEN CASE WHEN (video->>'width')::numeric>=3800 THEN '4K' WHEN (video->>'width')::numeric>=1900 THEN '1080p' WHEN (video->>'width')::numeric>=1260 THEN '720p' ELSE 'SD' END ELSE '' END FROM media_probe_results p CROSS JOIN LATERAL jsonb_array_elements(coalesce(p.result->'streams','[]'::jsonb)) video WHERE p.cloud_file_id=f.id AND video->>'type'='Video' LIMIT 1),'')`
+	if strings.Contains(where, " GROUP BY") {
+		fields += `,sum(f.size_bytes)::bigint catalog_bytes,count(DISTINCT (b.season,b.episode)) FILTER (WHERE b.episode IS NOT NULL)::int episode_count,max(` + resolutionSQL + `) resolution`
+	} else {
+		fields += `,f.size_bytes::bigint catalog_bytes,NULL::int episode_count,` + resolutionSQL + ` resolution`
+	}
 	categoryExpr := categorySQLFrom(policy.Value, &args, "c.metadata")
 	if category != "" {
 		args = append(args, category)
@@ -88,7 +96,7 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 		return out, ErrUnavailable
 	}
 	args = append(args, out.PageSize, (out.Page-1)*out.PageSize)
-	rows, err := e.DB.Query(ctx, sql+`SELECT id,title,item_year,media_type,overview,poster,file_path,state,season,episode,type,category_id FROM entries ORDER BY `+order+fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)-1, len(args)), args...)
+	rows, err := e.DB.Query(ctx, sql+`SELECT id,title,item_year,media_type,overview,poster,file_path,state,season,episode,type,category_id,catalog_bytes,episode_count,resolution FROM entries ORDER BY `+order+fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)-1, len(args)), args...)
 	if err != nil {
 		return out, ErrUnavailable
 	}
@@ -96,7 +104,7 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 	for rows.Next() {
 		item := Item{Source: "managed"}
 		var poster string
-		if err = rows.Scan(&item.ID, &item.Title, &item.Year, &item.MediaType, &item.Overview, &poster, &item.FilePath, &item.State, &item.Season, &item.Episode, &item.Type, &item.CategoryID); err != nil {
+		if err = rows.Scan(&item.ID, &item.Title, &item.Year, &item.MediaType, &item.Overview, &poster, &item.FilePath, &item.State, &item.Season, &item.Episode, &item.Type, &item.CategoryID, &item.FileSize, &item.EpisodeCount, &item.Resolution); err != nil {
 			return out, ErrUnavailable
 		}
 		item.Category = "未分类"

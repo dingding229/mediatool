@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import {computed} from 'vue';
 export interface DescriptionItem {key:string;label:string;value?:unknown}
-const props=withDefaults(defineProps<{items:DescriptionItem[];columns?:2|3}>(),{columns:3});
+const props=withDefaults(defineProps<{items:DescriptionItem[];columns?:2|3;hideSingleLabel?:boolean}>(),{columns:3});
 const visible=computed(()=>props.items.filter(item=>item.value!==null&&item.value!==undefined&&String(item.value).trim()!==''&&String(item.value).trim()!=='—'));
 </script>
 <template>
  <dl v-if="visible.length" class="mt-description-grid" :style="{'--description-columns':columns}">
   <div v-for="item in visible" :key="item.key" class="mt-description-item">
-   <dt>{{item.label}}</dt><dd><slot :name="item.key" :item="item">{{item.value}}</slot></dd>
+   <dt v-if="!hideSingleLabel||visible.length!==1">{{item.label}}</dt><dd><slot :name="item.key" :item="item">{{item.value}}</slot></dd>
   </div>
  </dl>
 </template>

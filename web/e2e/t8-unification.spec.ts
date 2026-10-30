@@ -40,7 +40,7 @@ test('T8 before/after 1440/390 light/dark',async({page})=>{
  }
 });
 test('T8 download detail retains information and job menu retains confirmation',async({page})=>{
- const f=await fixture(page);await open(page,'downloads');const row=page.locator('.acquire-task').first();await expect(row).not.toContainText(task.trackerError);await expect(row).not.toContainText(task.message);await expect(row).toContainText('测试站点');await open(page,'download-detail');const drawer=page.getByRole('dialog',{name:'任务详情',exact:true});await expect(drawer).toContainText(task.trackerError);await expect(drawer).toContainText(task.message);await expect(drawer).toContainText('正在做种');
+ const f=await fixture(page);await open(page,'downloads');const row=page.locator('.acquire-task').first();await expect(row).not.toContainText(task.trackerError);await expect(row).not.toContainText(task.message);await expect(row).toContainText('测试站点');await open(page,'download-detail');const drawer=page.getByRole('dialog',{name:'任务详情',exact:true});await expect(drawer).toContainText(task.trackerError);await expect(drawer).toContainText(task.message);await expect(drawer).toContainText('持续做种中');await expect(drawer).not.toContainText('正在做种');
  await open(page,'jobs');const failed=page.locator('.f3-job-row').nth(1);await failed.getByRole('button',{name:'更多',exact:true}).click();await page.getByRole('menuitem',{name:'取消后台任务',exact:true}).click();const confirm=page.getByRole('dialog',{name:'取消后台任务',exact:true});await expect(confirm).toBeVisible();expect(f.writes).toHaveLength(0);await confirm.getByRole('button',{name:'确认处理当前任务',exact:true}).click();await expect.poll(()=>f.writes.filter(p=>p.endsWith('/cancel')).length).toBe(1);
 });
 

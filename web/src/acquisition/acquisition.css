@@ -68,3 +68,7 @@
 .history-row-copy{display:grid;gap:6px}.acquire-history-cover{flex:none;margin:0;width:40px;height:60px}.history-cover-placeholder{display:grid;place-items:center;background:var(--mt-bg-canvas);font-size:11px;color:var(--mt-text-muted);text-align:center}
 @media(max-width:700px){.acquire-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.acquire-filters label:first-child{grid-column:1/-1}.resource-columns{top:60px}.recent-search-row>span:last-child,.search-history-row>span:last-child{display:none}.recent-search-row>span{max-width:60%}}
 .history-row-meta{display:flex;align-items:center;gap:8px}.history-row-meta>.status-badge{flex:none}.history-row-meta>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* I40: no padding band between the sticky header and the first row. */
+.resource-columns{padding-block:0;margin-bottom:0}.resource-entry{padding-block:10px}.resource-entry h3{margin:0}.resource-entry .resource-meta{margin:4px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;line-height:20px}.resource-year-note{color:var(--mt-color-warning)}
+.history-cover-placeholder svg{width:24px;height:24px}

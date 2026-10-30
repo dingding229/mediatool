@@ -33,12 +33,13 @@ func Root(c config.Config) string {
 }
 
 type Metadata struct {
-	Language string `json:"language"`
-	Title    string `json:"title"`
-	Default  bool   `json:"default"`
-	Forced   bool   `json:"forced"`
-	Hidden   bool   `json:"hidden"`
-	Revision int64  `json:"revision"`
+	Language     string   `json:"language"`
+	LanguageTags []string `json:"languageTags"`
+	Title        string   `json:"title"`
+	Default      bool     `json:"default"`
+	Forced       bool     `json:"forced"`
+	Hidden       bool     `json:"hidden"`
+	Revision     int64    `json:"revision"`
 }
 type Entry struct {
 	Metadata
@@ -57,8 +58,10 @@ type Entry struct {
 	Encoding    string `json:"encoding,omitempty"`
 }
 type Version struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Season  *int   `json:"season,omitempty"`
+	Episode *int   `json:"episode,omitempty"`
 }
 type Page struct {
 	AssetID  string    `json:"assetId"`
@@ -66,10 +69,12 @@ type Page struct {
 	Items    []Entry   `json:"items"`
 }
 
-var languagePattern = regexp.MustCompile(`^[a-zA-Z]{2,3}(?:-[a-zA-Z]{2,4})?$`)
+var languagePattern = regexp.MustCompile(`^[a-z]{3}$`)
 
 func (m *Metadata) Validate() error {
-	m.Language = strings.ToLower(strings.TrimSpace(m.Language))
+	if e := normalizeLanguage(m); e != nil {
+		return e
+	}
 	m.Title = strings.TrimSpace(m.Title)
 	if m.Revision < 1 || m.Language != "" && !languagePattern.MatchString(m.Language) || !utf8.ValidString(m.Title) || utf8.RuneCountInString(m.Title) > 200 || strings.ContainsAny(m.Title, "\x00\r\n") {
 		return ErrInvalid
@@ -81,14 +86,8 @@ func (m *Metadata) Validate() error {
 }
 func Infer(name string) Metadata {
 	lower := "." + strings.ToLower(name)
-	m := Metadata{Title: bounded(path.Base(name), 200), Default: strings.Contains(lower, ".default."), Forced: strings.Contains(lower, ".forced.") || strings.Contains(lower, ".foreign."), Revision: 1}
-	for _, lang := range []string{"zh-cn", "zh-tw", "chs", "cht", "zho", "chi", "zh", "eng", "en", "jpn", "ja", "kor", "ko", "fra", "fre", "deu", "ger", "spa", "rus"} {
-		if strings.Contains(lower, "."+lang+".") {
-			m.Language = lang
-			break
-		}
-	}
-	return m
+	d := FilenameLanguage(name)
+	return Metadata{Language: d.Language, LanguageTags: d.LanguageTags, Title: bounded(path.Base(name), 200), Default: strings.Contains(lower, ".default."), Forced: strings.Contains(lower, ".forced.") || strings.Contains(lower, ".foreign."), Revision: 1}
 }
 func Matches(video, sub string) bool {
 	if path.Dir(video) != path.Dir(sub) || !mediaext.IsSubtitle(sub) {
