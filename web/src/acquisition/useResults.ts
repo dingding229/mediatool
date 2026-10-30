@@ -6,7 +6,7 @@ import { APIError, post, request } from '../api/client';
 import { list, readIntent, sameMedia, writeIntent, type Account, type Media, type Run } from './model';
 import { useDelivery } from './useDelivery';
 export function useResults() {
-  const route = useRoute(), router = useRouter(), run = ref<Run | null>(null), loading = ref(true), error = ref<unknown>(null), accounts = ref<Account[]>([]), mediaSaving = ref(false), mediaReady = ref(true), page = usePageNumber(),pageSize=usePageSize(50), busy = ref(false), searchIntent = ref(readIntent('search-again:' + route.params.id)), delivery = reactive(useDelivery());
+  const route = useRoute(), router = useRouter(), run = ref<Run | null>(null), loading = ref(true), error = ref<unknown>(null), accounts = ref<Account[]>([]), mediaSaving = ref(false), mediaReady = ref(true), page = usePageNumber(),pageSize=usePageSize(25), busy = ref(false), searchIntent = ref(readIntent('search-again:' + route.params.id)), delivery = reactive(useDelivery());
   const filters = reactive({ resolution: [] as string[], source: [] as string[], codec: [] as string[], accountId: [] as string[], keyword: '', sort: 'seeders_desc' });
   const showAll = ref(false);
   const activeMedia = computed(() => run.value?.media || null);

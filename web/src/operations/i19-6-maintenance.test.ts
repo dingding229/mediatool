@@ -1,3 +1,4 @@
+// I38: PreviewApprove step-content no longer reserves a fixed minimum height; confirmation bindings are unchanged.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
@@ -26,7 +27,7 @@ it('I19-6 preserves every original action guard and all safety text, including r
 });
 it.each([
  ['ui/ConfirmAction.vue','abb54b05b33a408a385aef0ad5d32b311be6d7b77ab7125c481cd10f8773278b'],
- ['ui/PreviewApprove.vue','e015b8824bee6d214b2638323540119416d7b69c82ac07a318577189b88c629a'],
+ ['ui/PreviewApprove.vue','93b2c7c383bfb4c089dfa709219920470162adc0b1d8ae73a951515bd27342da'],
 ])('I19-6 leaves shared confirmation/workflow unchanged: %s',(file,hash)=>expect(sha(read(file))).toBe(hash));
 it.each([
  // I22 only changes policy response projection; destructive handlers remain byte-identical.

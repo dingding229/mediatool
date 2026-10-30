@@ -38,16 +38,16 @@ test('I19-5 full request/302 and original JSON stay available; clipboard fallbac
  const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'下载原始日志',exact:true}).click();const download=await downloaded;expect(await readFile((await download.path())!,'utf8')).toBe(logText(logRows,false));expect(f.writes).toEqual([]);
 });
 
-test('I19-5 filters and pagination retain original request fields, 200 default, before anchor and instance scope',async({page})=>{
- const f=await logConsoleFixture(page,true);await page.goto('/ops?tab=logs&module=library&instance=owned-instance');await expect(page.locator('.u6-log')).toHaveCount(200);expect(f.reads[0]!.get('pageSize')).toBe('200');expect(f.reads[0]!.get('module')).toBe('library');expect(f.reads[0]!.get('instance')).toBe('owned-instance');
- await page.getByRole('navigation',{name:'日志分页',exact:true}).getByRole('button',{name:'下一页',exact:true}).click();await expect(page.locator('.u6-log')).toHaveCount(1);expect(f.reads.at(-1)!.get('page')).toBe('2');expect(f.reads.at(-1)!.get('before')).toBe('2026-10-29T00:00:00Z');
+test('I19-5 filters and pagination retain original request fields, 25 default, before anchor and instance scope',async({page})=>{
+ const f=await logConsoleFixture(page,true);await page.goto('/ops?tab=logs&module=library&instance=owned-instance');await expect(page.locator('.u6-log')).toHaveCount(25);expect(f.reads[0]!.get('pageSize')).toBe('25');expect(f.reads[0]!.get('module')).toBe('library');expect(f.reads[0]!.get('instance')).toBe('owned-instance');
+ await page.getByRole('navigation',{name:'日志分页',exact:true}).getByRole('button',{name:'下一页',exact:true}).click();await expect(page.locator('.u6-log')).toHaveCount(25);expect(f.reads.at(-1)!.get('page')).toBe('2');expect(f.reads.at(-1)!.get('before')).toBe('2026-10-29T00:00:00Z');
  await page.getByRole('textbox',{name:'搜索日志',exact:true}).fill('original-value');await expect.poll(()=>f.reads.at(-1)!.get('keyword')).toBe('original-value');expect(f.reads.at(-1)!.get('page')).toBe('1');expect(f.reads.at(-1)!.has('before')).toBe(false);
  await page.locator('.f3-log-filters .el-select__wrapper').first().click();await page.getByRole('option',{name:'ERROR',exact:true}).click();await expect.poll(()=>f.reads.at(-1)!.get('level')).toBe('error');expect(f.reads.at(-1)!.get('instance')).toBe('owned-instance');
  const before=f.reads.length;await page.getByRole('button',{name:'刷新日志',exact:true}).click();await expect.poll(()=>f.reads.length).toBeGreaterThan(before);expect(f.reads.at(-1)!.get('level')).toBe('error');expect(f.writes).toEqual([]);
 });
 
 test('I19-5 many records remain scrollable and clean mode is optional, never imposed or used for export',async({page})=>{
- await logConsoleFixture(page,true);await page.goto('/ops?tab=logs');await expect(page.locator('.u6-log')).toHaveCount(200);
+ await logConsoleFixture(page,true);await page.goto('/ops?tab=logs');await expect(page.locator('.u6-log')).toHaveCount(25);
  const box=await page.locator('.f3-log-table').evaluate(el=>({height:el.clientHeight,scroll:el.scrollHeight,overflow:getComputedStyle(el).overflow}));expect(box.scroll).toBeGreaterThan(box.height);expect(box.height).toBeLessThanOrEqual(672);expect(box.overflow).toBe('auto');
  await page.getByRole('switch',{name:'清爽模式',exact:true}).press('Space');await expect(page.locator('.f3-log-message .u6-raw')).toHaveCount(0);await page.getByRole('switch',{name:'清爽模式',exact:true}).press('Space');await expect(page.locator('.f3-log-message').first()).toContainText(rawRedirectURL);
 });

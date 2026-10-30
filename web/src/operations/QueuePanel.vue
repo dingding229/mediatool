@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DescriptionGrid from '../ui/DescriptionGrid.vue';
 import { View, MoreFilled } from '@element-plus/icons-vue';
 import {ElDropdown,ElDropdownMenu,ElDropdownItem} from 'element-plus';
 import 'element-plus/es/components/dropdown/style/css';
@@ -132,14 +133,15 @@ defineExpose({ load, filter, jobs });
     <DetailDrawer v-model:visible="open" title="任务详情" size="large" class="media-detail">
       <template v-if="detail">
         <h3>{{jobTitle(detail)}}</h3>
-        <dl class="u5-detail-list">
-          <div><dt>状态</dt><dd>{{stateLabel(detail.state)}}</dd></div>
-          <div><dt>队列</dt><dd>{{queueLabel(detail.queue)}}</dd></div>
-          <div><dt>执行次数</dt><dd>{{detail.attempts??'—'}} / {{detail.maxAttempts??'—'}}</dd></div>
-          <div><dt>创建时间</dt><dd>{{date(detail.createdAt)}}</dd></div>
-          <div><dt>最近更新</dt><dd>{{date(detail.updatedAt)}}</dd></div>
-        </dl>
-        <p v-if="detail.lastError">{{detail.lastError}}</p>
+        <DescriptionGrid :items="[
+          {key:'state',label:'状态',value:detail.state},
+          {key:'queue',label:'队列',value:queueLabel(detail.queue)},
+          {key:'attempts',label:'执行次数',value:detail.attempts==null?null:detail.attempts+' / '+(detail.maxAttempts??'—')},
+          {key:'createdAt',label:'创建时间',value:date(detail.createdAt)},
+          {key:'updatedAt',label:'最近更新',value:date(detail.updatedAt)},
+          {key:'error',label:'失败原因',value:detail.lastError}
+        ]"><template #state><StatusBadge :state="detail.state" :label="stateLabel(detail.state)"/></template></DescriptionGrid>
+
       </template>
     </DetailDrawer>
   </div>

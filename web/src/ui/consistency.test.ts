@@ -38,11 +38,11 @@ it('resize returns to first page exactly once after both model updates',async()=
  const calls:string[]=[],size=vi.fn(),change=vi.fn(),v=setupComponent(Pagination,{currentPage:3,pageSize:25,total:100,'onUpdate:pageSize':()=>calls.push('size'),'onUpdate:currentPage':()=>calls.push('page'),onSizeChange:size,onCurrentChange:change});
  expect(v.state.sizeOptions).toEqual([10,25,50,100]);v.state.resize(50);expect(calls).toEqual(['size','page']);expect(size).toHaveBeenCalledExactlyOnceWith(50);expect(change).toHaveBeenCalledExactlyOnceWith(1);v.unmount();
 });
-it('disabled and unchanged sizes do not trigger reads and custom options win',()=>{
- const change=vi.fn();for(const props of [{disabled:true},{pageSizes:[25,50,200]}]){const v=setupComponent(Pagination,{pageSize:25,...props,onSizeChange:change});v.state.resize(25);v.state.resize(10);if(props.disabled)v.state.resize(50);else expect(v.state.sizeOptions).toEqual([25,50,200]);v.unmount()}expect(change).not.toHaveBeenCalled();
+it('disabled, unchanged and nonstandard sizes do not trigger reads; global options win',()=>{
+ const change=vi.fn();for(const props of [{disabled:true},{pageSizes:[25,50,200]}]){const v=setupComponent(Pagination,{pageSize:25,...props,onSizeChange:change});v.state.resize(25);v.state.resize(200);if(props.disabled)v.state.resize(50);else expect(v.state.sizeOptions).toEqual([10,25,50,100]);v.unmount()}expect(change).not.toHaveBeenCalled();
 });
 
-it('pagination count copy has no whitespace before the comma',async()=>{const {createSSRApp,h}=await import('vue');const {renderToString}=await import('vue/server-renderer');const app=createSSRApp(Pagination,{total:1});app.component('el-select',{setup:(_:unknown,ctx:any)=>()=>h('select',ctx.slots.default?.())});app.component('el-option',{setup:()=>()=>h('option')});const html=await renderToString(app);expect(html).toContain('条，共 1 条');expect(html).not.toContain('条 ，共 1 条')});
+it('pagination count copy has no whitespace before the comma',async()=>{const {createSSRApp,h}=await import('vue');const {renderToString}=await import('vue/server-renderer');const app=createSSRApp(Pagination,{total:1});app.component('el-select',{setup:(_:unknown,ctx:any)=>()=>h('select',ctx.slots.default?.())});app.component('el-option',{setup:()=>()=>h('option')});const html=await renderToString(app);expect(html).toContain('共 1 条');expect(html).not.toContain('每页');expect(html).not.toContain('条 ，共 1 条')});
 
 it('form checkbox alignment keeps native control size and label hit area',async()=>{
  const {readFileSync}=await import('node:fs');
@@ -72,4 +72,8 @@ it('single-value native time fields use the shared cross-workspace contract with
  for(const file of ['../media/media.css','../organize/workspaces.css'])expect(read(file)).not.toContain('input[type=datetime-local]');
  expect(read('./CronInput.vue')).not.toContain('mt-native-time-input');
  expect(read('../operations/LogsPanel.vue')).toContain('type="datetimerange"');
+});
+it('clamps a known shortened collection before hiding its single-page controls, not unknown/zero/error reads',()=>{
+ const page=vi.fn(),change=vi.fn(),v=setupComponent(Pagination,{currentPage:3,pageSize:25,total:2,'onUpdate:currentPage':page,onCurrentChange:change});expect(page).toHaveBeenCalledExactlyOnceWith(1);expect(change).toHaveBeenCalledExactlyOnceWith(1);v.unmount();
+ for(const props of [{total:undefined},{total:0},{total:2,disabled:true},{total:2,status:'error' as const},{total:2,status:'loading' as const}]){page.mockClear();change.mockClear();const w=setupComponent(Pagination,{currentPage:3,pageSize:25,...props,'onUpdate:currentPage':page,onCurrentChange:change});expect(page).not.toHaveBeenCalled();expect(change).not.toHaveBeenCalled();w.unmount()}
 });

@@ -17,3 +17,14 @@ it('does not overwrite an edited interval during a background refresh',async()=>
 it('requires both password and explicit risk confirmation, then clears the password',async()=>{const s=mount(Online);await flush();expect(s.ready).toBeTruthy();s.prepare();s.password='synthetic-secret';await s.execute();expect(executeOnlineUpdate).not.toHaveBeenCalled();s.confirmed=true;s.password='';await s.execute();expect(executeOnlineUpdate).not.toHaveBeenCalled();s.password='synthetic-secret';vi.mocked(executeOnlineUpdate).mockRejectedValue(Error('当前密码不正确'));await s.execute();expect(executeOnlineUpdate).toHaveBeenCalledWith('0.40.0','sha256:fixture','synthetic-secret',true);expect(s.password).toBe('');expect(s.error).toContain('当前密码不正确')});
 it('is always on with valid prerequisites and keeps manual recovery locked',async()=>{vi.mocked(getOnlineUpdate).mockResolvedValue({...available(),executionEnabled:false} as any);const s=mount(Online);await flush();expect(s.ready).toBeTruthy();vi.mocked(getOnlineUpdate).mockResolvedValue({...available(),available:false,recoveryRequired:['pending']} as any);await s.load();expect(s.ready).toBeFalsy();s.prepare('pending');s.password='synthetic-password';s.confirmed=true;await s.execute();expect(confirmOnlineUpdateRecovery).toHaveBeenCalledWith('pending','synthetic-password',true);expect(executeOnlineUpdate).not.toHaveBeenCalled()});
 it('shows an explicit environment reason and never enables the update button',async()=>{vi.mocked(getOnlineUpdate).mockResolvedValue({...available(),available:false,reason:'docker.sock 权限不足，请核对 GID'} as any);const s=mount(Online);await flush();expect(s.ready).toBeFalsy();expect(s.result).toContain('GID')});
+it('never presents a persisted older release or its notes after a manual release',()=>{
+ store.build.version='0.51.0';store.state.result.latest={version:'0.49.0',tag:'v0.49.0',notes:'old release'};store.state.hasUpdate=false;
+ const s=mount(About);expect(s.currentAtLeastLatest).toBe(true);expect(s.latest).toBeNull();expect(s.status).toBe('已是最新版本');
+ store.state.result.latest={version:'0.51.0',tag:'v0.51.0'};expect(s.currentAtLeastLatest).toBe(true);
+ store.state.result.latest={version:'0.52.0',tag:'v0.52.0'};store.state.hasUpdate=true;expect(s.currentAtLeastLatest).toBe(false);expect(s.latest.version).toBe('0.52.0');expect(s.status).toBe('发现新稳定版本');
+});
+it('uses fresh state provenance while build metadata is loading, never flashes an older cache',()=>{
+ store.state.current={version:'0.51.0'};store.build=undefined;store.state.result.latest={version:'0.49.0',tag:'v0.49.0'};
+ const s=mount(About);expect(s.version).toBe('v0.51.0');expect(s.latest).toBeNull();expect(s.currentAtLeastLatest).toBe(true);
+ store.state.current=undefined;expect(s.latest).toBeNull();expect(s.version).toBe('读取中');
+});

@@ -1,3 +1,4 @@
+// I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
@@ -28,7 +29,7 @@ it('I19-7 presentation stays in the web-restore list scope, not shared dialogs o
  const css=read('operations/presentation.css').split('/* I19-7:')[1]!;postcss.parse('/* I19-7:'+css).walkRules(rule=>{for(const selector of rule.selector.split(/,(?![^()]*\))/))expect(selector.trim()).toMatch(/^\.t8-ops\s\.ops-web-/)});expect(css).not.toMatch(/\.el-dialog|\.detail-body|\.confirm-action|\.ops-cli|\.ops-backup-row/);
 });
 it.each([
- ['operations/MaintenancePanel.vue','956d57eed6d64703fdcbbb6bca16965a2d3b73a011848d399fca89cfc3b3585e'],
+ ['operations/MaintenancePanel.vue','2ba1ae1fdaf3bc4d95d7552a19305441b83f2f6f221c51e32f8bc8c5e8fa92f5'],
  ['workflows/restore-session.ts','0215778c804dc3c98505816adcc505a2dc0cbb2cf176f29803e843a9c203e425'],
  ['ui/ConfirmAction.vue','abb54b05b33a408a385aef0ad5d32b311be6d7b77ab7125c481cd10f8773278b'],
  ['ui/DetailDrawer.vue','eaa99d7f3387e32631c19655b2dac03f45e0c19bcaa8fb40d31fa7ec1b3c29a2'],

@@ -3,7 +3,7 @@ import {usePageNumber,usePageSize} from '../ui/page-query';
 import ConnectionHealth from './ConnectionHealth.vue';
 import {usePageRefresh} from '../ui/page-refresh';
 import './connections.css';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, useId } from 'vue';
 import { ElMessageBox,ElDropdown,ElDropdownMenu,ElDropdownItem } from 'element-plus';
 import 'element-plus/es/components/message-box/style/css'
 import 'element-plus/es/components/dropdown/style/css'
@@ -18,6 +18,7 @@ import { useConnections } from './useConnections';
 import { useSecretReveal } from './useSecretReveal';
 import { stateFor, errorText } from '../workflows/readiness';
 import { kinds, safeSettings } from './model';
+const editorFormId=useId();
 const props = defineProps<{
   allowedKinds: string[];
   title: string;
@@ -25,7 +26,7 @@ const props = defineProps<{
 const { rows, loading, loadError, error, editing, saving, notice, conflict, saved, blocked, form, load, create, edit, save, useRevision, test, testState, testing, reconcile, authorize, authOpen, authId, askRemove, removeOpen, removeTarget, removing, remove } = useConnections();
 const reveal = useSecretReveal(() => ({ id: form.id, revision: form.revision }));
 watch(() => [editing.value, form.id, form.revision, saving.value], () => reveal.hideAll());
-const connectionPage=usePageNumber('connectionPage'),connectionSize=usePageSize(10,'connectionPage');
+const connectionPage=usePageNumber('connectionPage'),connectionSize=usePageSize(25,'connectionPage');
 const selectedKind = ref(props.allowedKinds[0] ?? 'clouddrive2'), visible = computed(() => rows.value.filter(r => props.allowedKinds.includes(r.kind)));
 async function approveRevision() {
   try {
@@ -77,7 +78,7 @@ usePageRefresh(load);
 <PagePagination label="服务连接分页" v-model:current-page="connectionPage" v-model:page-size="connectionSize" :status="loading?'loading':loadError&&!visible.length?'error':''" :total="!loading&&(!loadError||visible.length)?visible.length:undefined"/>
 
   <el-dialog v-model="editing" :title="form.id?'编辑连接':'添加连接'" width="min(760px,94vw)" :close-on-click-modal="false" class="u2-connection-dialog" :show-close="!saving" :close-on-press-escape="!saving">
-    <form class="connection-editor" @submit.prevent="save()">
+    <form :id="editorFormId" class="connection-editor" @submit.prevent="save()">
       <p>{{ kinds[form.kind]?.name }} · 密钥留空保留；填写新值才替换。关闭窗口会清空未提交的密钥。</p>
       <label>
         连接名称
@@ -117,15 +118,18 @@ usePageRefresh(load);
         <p>凭据：{{ conflict.secretFields.length?'已设置（默认隐藏）':'未设置' }}</p>
         <el-button @click="approveRevision">保留输入并采用最新修订</el-button>
       </section>
+
+    </form>
+    <template #footer>
       <div class="connection-buttons">
-        <el-button :disabled="saving||blocked||!!conflict" :loading="saving" native-type="submit" type="primary" class="mt-save-button">{{ form.kind==='tmdb'?'保存TMDB Token':'加密保存' }}</el-button>
+        <el-button :disabled="saving||blocked||!!conflict" :loading="saving" native-type="submit" :form="editorFormId" type="primary" class="mt-save-button">{{ form.kind==='tmdb'?'保存TMDB Token':'加密保存' }}</el-button>
         <ElDropdown v-if="form.kind==='open115'" trigger="click">
           <el-button :disabled="saving||blocked||!!conflict">更多保存方式</el-button>
           <template #dropdown><ElDropdownMenu><ElDropdownItem :disabled="saving||blocked||!!conflict" @click="save(true)">保存并115扫码授权</ElDropdownItem></ElDropdownMenu></template>
         </ElDropdown>
         <el-button v-if="blocked" @click="load">核对结果</el-button>
       </div>
-    </form>
+    </template>
   </el-dialog>
   <ConfirmAction v-model:visible="removeOpen" title="删除连接" :description="`将移除「${removeTarget?.name||'—'}」的连接配置。`" impact-scope="依赖此连接的服务将不可用；不会删除网盘文件、媒体或其他账号。" danger-level="danger" confirm-text="删除连接" :loading="removing" @confirm="remove" />
   <Official115AuthDialog v-model="authOpen" :integration-id="authId" @authorized="load" />

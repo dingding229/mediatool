@@ -1,3 +1,4 @@
+import {standardPageSize} from './pagination';
 import {getCurrentInstance,onUnmounted,ref,watch} from 'vue';
 export function validPage(value:unknown){const n=Number(value);return Number.isSafeInteger(n)&&n>0&&n<=20000?n:1;}
 // Batch page/size writes so two lists or a resize cannot overwrite each other.
@@ -26,7 +27,7 @@ function queryNumber(key:string,initial:number,validate:(value:unknown)=>number,
 function scope(key:string){const route=getCurrentInstance()?.appContext.config.globalProperties.$router?.currentRoute;return key==='page'?String(route?.value.query.tab||'list')+'Page':key;}
 // Per-list URL keys keep drawers and tabs independent. URL always wins on load/back.
 export function usePageNumber(key='page'){return queryNumber(scope(key),1,validPage,true)}
-export function usePageSize(initial:number,key='page',options:number[]=[10,25,50,100]){
- const allowed=new Set([...options,initial]);
- return queryNumber(scope(key)+'Size',initial,v=>allowed.has(Number(v))?Number(v):initial);
+export function usePageSize(initial=25,key='page'){
+ initial=standardPageSize(initial);
+ return queryNumber(scope(key)+'Size',initial,v=>Number.isFinite(Number(v))&&Number(v)>0?standardPageSize(Number(v)):initial);
 }

@@ -5,7 +5,7 @@ import {CopyDocument} from '@element-plus/icons-vue';
 import 'element-plus/es/components/message/style/css';
 import 'element-plus/es/components/tooltip/style/css';
 import {middleText,displayPath} from './middle-ellipsis';
-const props=withDefaults(defineProps<{text?:string|null;path?:string|null;full?:boolean;copy?:boolean}>(),{full:false,copy:true});
+const props=withDefaults(defineProps<{text?:string|null;path?:string|null;full?:boolean;copy?:boolean;embedded?:boolean}>(),{full:false,copy:true,embedded:false});
 const original=computed(()=>(props.path??props.text)||'—'),shown=ref(original.value),host=ref<HTMLElement>(),copying=ref(false),notice=ref('');
 let observer:ResizeObserver|undefined,fontObserver:MutationObserver|undefined,alive=true;
 function measure(){
@@ -36,11 +36,11 @@ onBeforeUnmount(()=>{alive=false;observer?.disconnect();fontObserver?.disconnect
 </script>
 <template>
  <span class="middle-ellipsis" :class="{'middle-ellipsis--full':full,'middle-ellipsis--copy':copy}">
-  <ElTooltip :content="original" :trigger="['hover','focus']" :show-after="200" placement="top" popper-class="middle-ellipsis-tooltip">
-   <span ref="host" class="middle-ellipsis-text" tabindex="0" :aria-label="original"><span aria-hidden="true">{{full?original:shown}}</span></span>
+  <ElTooltip :disabled="embedded" :content="original" :trigger="['hover','focus']" :show-after="200" placement="top" popper-class="middle-ellipsis-tooltip">
+   <span ref="host" class="middle-ellipsis-text" :tabindex="embedded?undefined:0" :aria-label="original"><span aria-hidden="true">{{full?original:shown}}</span></span>
   </ElTooltip>
   <button v-if="copy" type="button" class="middle-copy" aria-label="复制全文" title="复制全文" :disabled="copying" @click.stop.prevent="copyFull"><CopyDocument aria-hidden="true"/></button>
-  <span class="middle-copy-notice" role="status">{{notice}}</span>
+  <span v-if="copy" class="middle-copy-notice" role="status">{{notice}}</span>
  </span>
 </template>
 <style scoped>

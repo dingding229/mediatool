@@ -58,3 +58,17 @@ label.mt-form-checkbox:not(.el-checkbox)>input[type=checkbox]{width:20px;height:
  .mt-list-action-icon.mt-list-action-icon{display:inline-flex;font-size:18px}
  .mt-list-action-text.mt-list-action-text{display:none}
 }
+
+/* I38 form contract; controls retain normal-weight values, labels/help use tokens. */
+:root{--mt-form-label-size:13px;--mt-form-label-weight:600;--mt-form-help-size:12px;--mt-form-control-height:44px;--el-component-size:var(--mt-form-control-height)}
+:root:root :is(label:not(.el-checkbox,.el-radio,.el-switch),.connection-field,.settings-field,.media-filter-label,.u5-field){font-size:var(--mt-form-label-size);font-weight:var(--mt-form-label-weight)}
+:root:root :is(input:not([type=checkbox],[type=radio]),textarea,.el-select__selected-item){font-size:14px;font-weight:400}
+:root:root :is(.mt-help,.connection-field>small,.settings-card small,.mt-form-checkbox-help,.metadata-note,.image-note){font-size:var(--mt-form-help-size);font-weight:400;color:var(--mt-text-muted)}
+.mt-form-group{border:0;border-top:1px solid var(--mt-border-color);padding:16px 0;margin:16px 0;min-width:0}.mt-form-group-title{font-size:var(--mt-form-label-size);font-weight:var(--mt-form-label-weight);margin:0 0 12px}
+/* Fixed dialog chrome, scroll only the editor body. */
+.u2-connection-dialog.el-dialog{display:flex;flex-direction:column;max-height:85dvh;margin-block:7.5dvh;overflow:hidden}
+.u2-connection-dialog>.el-dialog__header,.u2-connection-dialog>.el-dialog__footer{flex:none}
+.u2-connection-dialog>.el-dialog__body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.u2-connection-dialog>.el-dialog__footer{border-top:1px solid var(--mt-border-color);background:var(--mt-bg-surface)}
+
+:root :is(.settings-card form>p,.connection-editor>p,.u5-form>p,.cron-input>small){font-size:var(--mt-form-help-size);font-weight:400}

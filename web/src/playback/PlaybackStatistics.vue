@@ -16,7 +16,7 @@ import type {IPStatsPage} from '../api/playback-statistics';
 const blockEditor=ref<InstanceType<typeof IPBlockEditor>>();
 const route=useRoute(),router=useRouter();
 const props=defineProps<{userId?:string;onlyIPs?:boolean;initialDevice?:string}>(),days=ref([0,7,30,90].includes(Number(route.query.statsDays))?Number(route.query.statsDays):30),device=ref(props.initialDevice||String(route.query.statsDevice||'')),user=ref(props.userId||String(route.query.statsUser||'')),mode=ref(props.onlyIPs?'ips':'events'),query=ref(String(route.query.ipQuery||'')),searchInput=ref(query.value);
-const page=usePageNumber(props.userId?'activityStatsPage':'ipStatsPage'),size=usePageSize(25,props.userId?'activityStatsPage':'ipStatsPage',[25,50,100]),users=ref<any[]>([]),devices=ref<any[]>([]);
+const page=usePageNumber(props.userId?'activityStatsPage':'ipStatsPage'),size=usePageSize(25,props.userId?'activityStatsPage':'ipStatsPage'),users=ref<any[]>([]),devices=ref<any[]>([]);
 const filter=()=>({userId:user.value,deviceId:device.value,days:days.value,startIndex:(page.value-1)*size.value,limit:size.value,q:query.value});
 const summary=reactive(useResource(()=>getPlaybackStatistics(filter()))),events=reactive(useResource(()=>getPlaybackEvents(filter()),{items:[],total:0,startIndex:0,limit:25})),ips=reactive(useResource<IPStatsPage>(()=>mode.value==='deviceIps'?getDeviceIPHistory(filter()):getPlaybackIPs(filter()),{items:[],total:0,startIndex:0,limit:25}));
 const chart=computed(()=>(summary.data?.trend||[]).map(r=>({...r,at:r.date+'T00:00:00+08:00'})));
@@ -54,7 +54,7 @@ defineExpose({load});
    <template v-if="mode==='events'"><article v-for="row in events.data?.items||[]" :key="row.id" class="organize-record"><h3>{{mediaTitle(row)}}</h3><p>{{date(row.startedAt)}} · {{row.userName}} / {{row.deviceName||row.client}} · {{playbackDuration(row.durationSeconds)}}</p><p><IpAddress :ip="row.ip"/> · {{row.state==='stopped'?'已结束':row.state==='paused'?'暂停':'播放中'}} · 302 {{row.redirectCount}} 次</p></article></template>
    <template v-else><article v-for="row in ips.data?.items||[]" :key="row.ip" class="organize-record"><h3><IpAddress :ip="row.ip"/></h3><p>{{row.count}} 次已鉴权请求</p><el-button class="ip-block-quick-button" @click="blockEditor?.open(row.ip)">加入 IP 黑名单</el-button><p>首次 {{date(row.firstSeenAt)}} · 最近 {{date(row.lastSeenAt)}}</p></article></template>
   </div>
-  <PagePagination v-model:current-page="page" v-model:page-size="size" :total="current.data?.total||0" :page-sizes="[25,50,100]" label="播放统计分页"/>
+  <PagePagination v-model:current-page="page" v-model:page-size="size" :total="current.data?.total||0" label="播放统计分页"/>
 
  </section>
 <IPBlockEditor ref="blockEditor"/>

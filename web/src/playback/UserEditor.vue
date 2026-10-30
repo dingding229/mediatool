@@ -135,8 +135,8 @@ defineExpose({ open, save, reread, form, op, latest });
           有效期（留空不限）
           <input v-model="form.expiry" class="mt-native-time-input" type="datetime-local" aria-label="媒体用户有效期" :disabled="op.busy||!!op.pending"/>
         </label>
-        <fieldset>
-          <legend>媒体库权限</legend>
+        <section class="mt-form-group" role="group" aria-label="媒体库权限">
+          <h3 class="mt-form-group-title">媒体库权限</h3>
           <p class="u5-permission-help">可见只允许浏览；可播放才允许观看。新授权库默认可播放、不可下载；已有权限保持原值。</p>
           <article v-for="library in libraries" :key="library.id" class="u5-grant">
             <strong>{{ library.name }}</strong>
@@ -157,7 +157,7 @@ defineExpose({ open, save, reread, form, op, latest });
             </template>
           </article>
           <p v-if="!libraries.length">暂无可分配的媒体库。</p>
-        </fieldset>
+        </section>
       </template>
       <template v-if="!form.id||resetMode">
         <label>

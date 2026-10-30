@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import {computed,ref} from 'vue';
 import {Sort,Top,Bottom,CircleCheck,CircleClose,Loading} from '@element-plus/icons-vue';
 import {providePageRefresh,usePageRefresh} from '../ui/page-refresh';
@@ -103,7 +104,7 @@ ownRefresh.register(()=>refresh(),()=>true);
         </div>
         <article v-for="item in run.resources" :key="item.id" class="resource-entry">
           <div>
-            <h3>{{ item.title }}</h3>
+            <h3><MiddleEllipsis :text="item.title" :copy="false"/></h3>
             <p>{{ item.metadata?.subtitle||'—' }}</p>
             <p>{{ item.siteName||'—' }} · {{ item.metadata?.attributes?.codec?.toUpperCase()||'编码未知' }} · {{ sourceLabel(item.metadata?.attributes?.source) }} · {{ item.metadata?.attributes?.resolution||'分辨率未知' }}</p>
             <p v-if="item.metadata?.yearWarning" role="note">{{ item.metadata.yearWarning }}</p>

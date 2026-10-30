@@ -72,12 +72,12 @@ onUnmounted(() => { disposed = true; ++sequence })
         </template>
         <template v-else-if="step === 1">
           <div class="composer-target"><strong>{{ draft.media?.title || '—' }}</strong><span>{{ draft.media?.mediaType === 'movie' ? '电影' : '剧集' }} · {{ draft.media?.year || '—' }}</span><small v-if="draft.id">媒体身份已绑定，编辑时不可更换。</small></div>
-          <fieldset>
-            <legend>从哪些站点寻找</legend>
+          <section class="mt-form-group" role="group" aria-label="从哪些站点寻找">
+            <h3 class="mt-form-group-title">从哪些站点寻找</h3>
             <StateView v-if="accountError" :state="stateFor(accountError)" title="站点账号暂不可用" :description="accountError.message" @retry="emit('retryAccounts')" />
             <p v-else-if="!accounts.length">暂无可用账号，请先在站点页面添加并启用账号。</p>
             <el-checkbox-group v-model="draft.accountIds" aria-label="PT账号"><el-checkbox class="mt-form-checkbox mt-form-checkbox-inline" v-for="a in accounts" :key="a.id" :value="a.id">{{ a.name }}{{ a.secretFields?.includes('rssUrl') ? ' · 已配RSS' : '' }}</el-checkbox></el-checkbox-group>
-          </fieldset>
+          </section>
           <div class="composer-fields">
             <label>发现方式<el-select v-model="draft.source" aria-label="发现方式"><el-option label="周期搜索" value="search" /><el-option label="RSS新条目" value="rss" /><el-option label="搜索 + RSS" value="both" /></el-select></label>
             <label>站点搜索词<el-input v-model="draft.keyword" aria-label="站点搜索词" /></label>
@@ -100,14 +100,14 @@ onUnmounted(() => { disposed = true; ++sequence })
             <label>目标季（0 为特别篇）<el-input-number :controls="false" v-model="draft.season" :min="0" :max="999" aria-label="目标季" /></label>
             <label>目标集（留空跟进已播集）<el-input v-model="draft.episodeText" aria-label="目标集" placeholder="使用逗号分隔集数" /></label>
           </div>
-          <fieldset class="composer-safeguards">
-            <legend>下载保护</legend>
+          <section class="mt-form-group composer-safeguards" role="group" aria-label="下载保护">
+            <h3 class="mt-form-group-title">下载保护</h3>
             <el-checkbox class="mt-form-checkbox" v-model="draft.freeOnly">只下载已确认免费资源</el-checkbox>
             <el-checkbox class="mt-form-checkbox" v-model="draft.rejectHR">拒绝下载H&amp;R资源</el-checkbox>
             <p class="mt-form-checkbox-help">H&amp;R 信息未知时始终拒绝自动下载。关闭此项只允许已明确标记的 H&amp;R 资源，请承担相应做种义务。</p>
             <el-checkbox class="mt-form-checkbox" v-model="draft.includeHistory">允许首次RSS历史补抓</el-checkbox>
             <p class="mt-form-checkbox-help">RSS 缺少促销数据时无法满足免费限制；已入库或正在下载的季集不会重复申请，原做种文件不受影响。</p>
-          </fieldset>
+          </section>
         </template>
         <template v-else-if="step === 2">
           <el-alert title="此操作会保存停用草稿；编辑已启用订阅时也会先停用。已有下载和文件不受影响，退出向导后草稿仍保留。" type="info" :closable="false" />

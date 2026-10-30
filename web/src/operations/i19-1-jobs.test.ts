@@ -1,3 +1,4 @@
+// I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it('I19-1 preserves task flow; I25 only adds the approved once-per-mount account label read',()=>{
  const script=read('operations/QueuePanel.vue').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { View, MoreFilled } from '@element-plus/icons-vue';\n",'');
- expect(sha(script)).toBe('3cc614ecb9d81d9318a0028552a06e4f5bb4b69def8024a291a76e7ac7f68f84');
+ expect(sha(script)).toBe('03ad72360a4087d7e3f6b537ac1d15e5c5962ed9dc79fb8d6deea3b6d920ac73');
 });
 it.each([
  ['workflows/TaskControl.vue','1754c6a35624517dccf545cb2e34ccc6daa8fa30d74f296e3c5ebe73663bad5b'],

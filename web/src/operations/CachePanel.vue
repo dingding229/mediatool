@@ -18,7 +18,7 @@ import DetailDrawer from '../ui/DetailDrawer.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 const notice = ref(''), posterErrors = ref(new Set<string>());
-const route = useRoute(), router = useRouter(), kind = computed<'tmdb' | 'search'>(() => route.query.cacheKind === 'search' ? 'search' : 'tmdb'), page = usePageNumber(), pageSize = usePageSize(30), loadedAt = ref(Date.now()), now = ref(Date.now()), data = reactive(useResource<any>(() => request(`/cache/${kind.value}?page=${page.value}&pageSize=${pageSize.value}`).then(pageResult))), detail = ref<any>(null), open = ref(false), detailError = ref<unknown>(null), op = reactive(useOperation('cache')), confirm = ref(false), removeId = ref('');
+const route = useRoute(), router = useRouter(), kind = computed<'tmdb' | 'search'>(() => route.query.cacheKind === 'search' ? 'search' : 'tmdb'), page = usePageNumber(), pageSize = usePageSize(25), loadedAt = ref(Date.now()), now = ref(Date.now()), data = reactive(useResource<any>(() => request(`/cache/${kind.value}?page=${page.value}&pageSize=${pageSize.value}`).then(pageResult))), detail = ref<any>(null), open = ref(false), detailError = ref<unknown>(null), op = reactive(useOperation('cache')), confirm = ref(false), removeId = ref('');
 function setKind(value: string) {
   void router.replace({ query: { ...route.query, cacheKind: value } });
 }
@@ -116,7 +116,7 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
       </template>
       </div>
       <template v-if="data.loaded||data.error">
-      <PagePagination v-model:current-page="page" :total="data.data?.total" v-model:page-size="pageSize" :page-sizes="[10,25,30,50,100]" layout="prev,pager,next" @current-change="load"/>
+      <PagePagination v-model:current-page="page" :total="data.data?.total" v-model:page-size="pageSize" layout="prev,pager,next" @current-change="load"/>
     <p class="ops-cache-note ops-cache-ttl">
       缓存有效期统一在
       <RouterLink to="/settings?tab=automation">设置 · 搜索订阅</RouterLink>

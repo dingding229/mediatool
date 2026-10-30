@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
+import FilePicker from '../ui/FilePicker.vue';
 import {usePageRefresh} from '../ui/page-refresh';
 import {reactive,ref,watch} from 'vue';
 import {post} from '../api/client';
@@ -20,8 +22,8 @@ const importLabel=(s?:string)=>({download_only:'仅下载（未启用后处理�
 async function readImport(){await load();if(importOp.pending){const id=JSON.parse(importOp.pending.key).id;const row=tasks.value.find(t=>t.id===id);if(row?.managedTaskId||row?.processingState==='needs_confirmation')importOp.clear();}}
 async function importTask(){if(!detail.value||!selectedMedia.value)return;const id=detail.value.id,media=selectedMedia.value;await importOp.run(JSON.stringify({id}),()=>post(`/downloads/manual/${id}/import`,{confirm:true,mediaType:media.mediaType,tmdbId:media.id}));importConfirm.value=false;await readImport();}
 
-function choose(event: Event) {
-  file.value = (event.target as HTMLInputElement).files?.[0];
+function choose(selected: File) {
+  file.value = selected;
 }
 usePageRefresh(load,'manual');
 </script>
@@ -44,7 +46,7 @@ usePageRefresh(load,'manual');
     <StateView v-else-if="!tasks.length" state="empty" title="暂无手动下载任务"/>
     <article v-for="task in tasks" :key="task.id" class="acquire-task">
       <div>
-        <h3>{{ task.title }}</h3>
+        <h3><MiddleEllipsis :text="task.title" :copy="false"/></h3>
         <p>{{ label(task.state) }} · {{ progress(task.progress) }} · {{ date(task.syncedAt) }}</p>
         <p v-if="task.progress==null">进度待下载器同步，不以0%代替未知进度。</p>
         <p v-else>下载 {{ task.syncedAt?size(task.downloadSpeed)+'/s':'—' }}</p>
@@ -70,7 +72,7 @@ usePageRefresh(load,'manual');
       </el-radio-group>
       <label v-if="kind==='file'">
         种子文件（.torrent）
-        <input type="file" accept=".torrent" aria-label="种子文件（.torrent）" :disabled="busy||!!intent" @change="choose"/>
+        <FilePicker accept=".torrent" label="种子文件（.torrent）" :disabled="busy||!!intent" @select="choose"/>
       </label>
       <label v-else>
         种子链接或磁力链接

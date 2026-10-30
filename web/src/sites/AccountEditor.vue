@@ -130,10 +130,10 @@ defineExpose({ open, load, save, form, current, latest, op });
     <form class="u5-form" @submit.prevent="save">
       <label>
         站点模板
-        <select v-model="form.definitionId" aria-label="站点模板" :disabled="!!form.id||loading||op.busy||!!op.pending">
-          <option value="">请选择已加载模板</option>
-          <option v-for="site in templates" :key="site.id" :value="site.id" :disabled="!form.id&&accounts.some(a=>a.definitionId===site.id)">{{ site.name }}{{ !form.id&&accounts.some(a=>a.definitionId===site.id)?' · 已添加':'' }}</option>
-        </select>
+        <el-select v-model="form.definitionId" aria-label="站点模板" :disabled="!!form.id||loading||op.busy||!!op.pending">
+          <el-option value="" :label="'请选择已加载模板'"/>
+          <el-option v-for="site in templates" :key="site.id" :value="site.id" :disabled="!form.id&&accounts.some(a=>a.definitionId===site.id)" :label="(site.name) + (!form.id&&accounts.some(a=>a.definitionId===site.id)?' · 已添加':'')"/>
+        </el-select>
       </label>
       <p v-if="form.definitionId">{{ templates.find(t=>t.id===form.definitionId)?.name||'—' }} · {{ templates.find(t=>t.id===form.definitionId)?.domain||'—' }}</p>
       <p>同一站点只添加一个账号；请先在站点模板标签加载所需模板。</p>

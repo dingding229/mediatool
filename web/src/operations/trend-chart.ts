@@ -1,7 +1,9 @@
+import {formatBytes} from '../utils/format-bytes';
 import {trendSegments} from './model';
 const digitsFor=(unit:string)=>unit==='%'?1:['MiB','条','次'].includes(unit)?0:2;
 export function formatTrendValue(value:number|undefined,unit:string){
  if(value==null||!Number.isFinite(value))return '—';
+ if(unit==='GiB'||unit==='MiB')return formatBytes(value*1024**(unit==='GiB'?3:2),{unit,digits:digitsFor(unit)});
  return value.toFixed(digitsFor(unit))+(unit?(unit==='%'?'':' ')+unit:'');
 }
 const timeFormat=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});

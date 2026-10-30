@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DescriptionGrid from '../ui/DescriptionGrid.vue';
 import {siteFavicon} from '../api/sites';
 import { useRefresh } from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
@@ -165,23 +166,15 @@ defineExpose({ load, create, rows, metrics, accounts, connections, sync, test, o
   <ConfirmAction v-model:visible="confirm" :title="action?.kind==='delete'?'删除站点账号':action?.row.connection?.enabled?'停用站点账号':'启用站点账号'" :description="`将处理 ${action?.row.name||'此站点'}。`" :impact-scope="action?.kind==='delete'?'移除登录信息及关联站点指标，不删除媒体文件；相关订阅需要重新核对站点。':'保留凭据与记录，修改是否参与搜索、订阅及采集。现有服务在停用前也会验证登录；验证失败时不改开关，不清空凭据绕过。'" :confirm-text="action?.kind==='delete'?'确认删除账号':'确认修改开关'" :loading="op.busy" :danger-level="action?.kind==='delete'?'danger':'warning'" class="media-dialog" @confirm="apply"/>
   <DetailDrawer v-model:visible="detailOpen" title="站点数据与趋势" size="large" class="media-detail">
     <h3>{{ detail?.name||'—' }}</h3>
-    <p>登录：{{siteState(detail?.connection?.lastCheckState||detail?.state)}} · {{date(detail?.connection?.lastCheckedAt)}}</p>
-    <p>订阅地址：{{detail?.settings.rssState==='ready'?'已获取':detail?.settings.rssState==='unavailable'?'尚未获取':'—'}}</p>
-    <p v-if="detail?.metric?.message">{{detail.metric.message}}</p>
-    <dl class="u5-detail-list">
-      <div v-for="(text,key) in {username:'站内用户名',level:'等级',bonus:'积分',seeding:'做种数'}" :key="key">
-        <dt>{{ text }}</dt>
-        <dd>{{ numberText(detail?.metric?.metrics?.[key]) }}</dd>
-      </div>
-      <div>
-        <dt>做种体积</dt>
-        <dd>{{ bytes(detail?.metric?.metrics?.seedingBytes) }}</dd>
-      </div>
-      <div>
-        <dt>最近尝试</dt>
-        <dd>{{ date(detail?.metric?.attemptedAt) }}</dd>
-      </div>
-    </dl>
+    <DescriptionGrid :items="[
+      {key:'state',label:'登录',value:detail?.connection?.lastCheckState||detail?.state},
+      {key:'checkedAt',label:'最近检测',value:date(detail?.connection?.lastCheckedAt)},
+      {key:'rss',label:'订阅地址',value:detail?.settings.rssState==='ready'?'已获取':detail?.settings.rssState==='unavailable'?'尚未获取':null},
+      ...Object.entries({username:'站内用户名',level:'等级',bonus:'积分',seeding:'做种数'}).map(([key,label])=>({key,label,value:numberText(detail?.metric?.metrics?.[key])})),
+      {key:'seedingBytes',label:'做种体积',value:bytes(detail?.metric?.metrics?.seedingBytes)},
+      {key:'attemptedAt',label:'最近尝试',value:date(detail?.metric?.attemptedAt)},
+      {key:'message',label:'采集说明',value:detail?.metric?.message}
+    ]"><template #state><StatusBadge :state="detail?.connection?.lastCheckState||detail?.state" :label="siteState(detail?.connection?.lastCheckState||detail?.state)"/></template></DescriptionGrid>
     <p v-for="(note,index) in detail?.metric?.metrics?.notes||[]" :key="index">{{ note }}</p>
     <h3>本页采样趋势</h3>
     <p>服务暂不提供历史趋势；这里只记录本页打开后读到的真实采集快照，最多60次，不跨页面保存。</p>

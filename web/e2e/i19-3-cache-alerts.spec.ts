@@ -2,15 +2,15 @@ import {test,expect,type Page} from '@playwright/test';
 import {cacheAlertFixture} from './i19-3-fixture';
 import {waitForLayout} from './layout-stability';
 async function openAlerts(page:Page){await page.goto('/ops?tab=maintenance');await page.getByRole('navigation',{name:'备份与告警功能'}).getByRole('button',{name:'运维告警',exact:true}).click()}
-for(const kind of ['tmdb','search'])test(`I19-3 ${kind} preserves default 30, paging, details, time semantics and all links`,async({page})=>{
- const f=await cacheAlertFixture(page,true);await page.goto('/ops?tab=cache&cacheKind='+kind);await expect(page.locator('.ops-cache-row')).toHaveCount(30);expect(f.cacheReads[0]!.get('pageSize')).toBe('30');
+for(const kind of ['tmdb','search'])test(`I19-3 ${kind} preserves default 25, paging, details, time semantics and all links`,async({page})=>{
+ const f=await cacheAlertFixture(page,true);await page.goto('/ops?tab=cache&cacheKind='+kind);await expect(page.locator('.ops-cache-row')).toHaveCount(25);expect(f.cacheReads[0]!.get('pageSize')).toBe('25');
  const panel=page.locator('.ops-cache-panel');await expect(panel.getByRole('link',{name:'设置 · 搜索订阅',exact:true})).toHaveAttribute('href','/settings?tab=automation');
  const row=page.locator('.ops-cache-row').first();await expect(row).toContainText(kind==='tmdb'?'小时':'小时');await expect(page.locator('.ops-cache-row').nth(2)).toContainText('无自动到期');await expect(page.locator('.ops-cache-row').nth(3)).toContainText(kind==='tmdb'?'已到期':'历史结果');
- await expect(page.getByRole('link',{name:'查看搜索结果',exact:true})).toHaveCount(kind==='search'?30:0);
+ await expect(page.getByRole('link',{name:'查看搜索结果',exact:true})).toHaveCount(kind==='search'?25:0);
  if(kind==='search')await expect(row.getByRole('link',{name:'查看搜索结果',exact:true})).toHaveAttribute('href','/search/results/i193-search-0');
  await row.getByRole('button',{name:'缓存详情',exact:true}).click();const dialog=page.getByRole('dialog',{name:'缓存内容',exact:true});await expect(dialog).toBeVisible();await expect(dialog.getByRole('button',{name:/技术细节与原始记录/})).toHaveCount(0);await expect(dialog).not.toContainText('原始缓存内容');await dialog.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(dialog).not.toBeVisible();
- await page.getByRole('button',{name:'下一页',exact:true}).click();await expect(page.locator('.ops-cache-row')).toHaveCount(1);expect(f.cacheReads.at(-1)!.get('page')).toBe('2');expect(f.cacheReads.at(-1)!.get('pageSize')).toBe('30');
- await page.getByRole('button',{name:kind==='tmdb'?'搜索缓存':'TMDB',exact:true}).click();await expect(page.locator('.ops-cache-row')).toHaveCount(30);expect(f.cacheReads.at(-1)!.get('page')).toBe('1');expect(f.writes).toEqual([]);
+ await page.getByRole('button',{name:'下一页',exact:true}).click();await expect(page.locator('.ops-cache-row')).toHaveCount(6);expect(f.cacheReads.at(-1)!.get('page')).toBe('2');expect(f.cacheReads.at(-1)!.get('pageSize')).toBe('25');
+ await page.getByRole('button',{name:kind==='tmdb'?'搜索缓存':'TMDB',exact:true}).click();await expect(page.locator('.ops-cache-row')).toHaveCount(25);expect(f.cacheReads.at(-1)!.get('page')).toBe('1');expect(f.writes).toEqual([]);
 });
 for(const kind of ['tmdb','search'])test(`I19-3 ${kind} compact rows and pagination/notes stay inside the card in both widths`,async({page})=>{
  await cacheAlertFixture(page);await page.goto('/ops?tab=cache&cacheKind='+kind);await expect(page.locator('.ops-cache-row')).toHaveCount(4);

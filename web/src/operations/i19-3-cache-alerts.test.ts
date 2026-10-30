@@ -1,3 +1,4 @@
+// I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ import {cacheTime} from '../utils/cache-time';
 const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it.each([
- ['CachePanel.vue',"import { View, Delete, Search, Picture } from '@element-plus/icons-vue';\n",'625731510885bdb7c078ab84960db3b9b0e1382c7ea8c0c3db2df0d6a473fc1b'],
+ ['CachePanel.vue',"import { View, Delete, Search, Picture } from '@element-plus/icons-vue';\n",'38d129f248f0dc1dcef500cf2170a052d6c7b17c38974c8d9b5e61847ead628a'],
  ['MaintenancePanel.vue',"import { Check } from '@element-plus/icons-vue';\n",'e89b4dd415f0c5e806223d8002798f1e0360ec334c9144860131a40a66b437fa'],
 ])('I19-3 preserves all request/state/confirmation/paging code in %s',(file,icons,hash)=>{
  const script=read('operations/'+file).match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { Check, View, Refresh, Download, Lock, Unlock, Delete, Close } from '@element-plus/icons-vue';\n","import { Check } from '@element-plus/icons-vue';\n").replace(icons,'');expect(sha(script)).toBe(hash);
@@ -25,7 +26,7 @@ it('I19-3 keeps exact time semantics, including no expiry, elapsed TTL and histo
 });
 it('I19-3 reuses lists and pagination while keeping acknowledgement separate from recovery',()=>{
  const cache=read('operations/CachePanel.vue'),alerts=read('operations/MaintenancePanel.vue');
- for(const token of ['usePageSize(30)','mt-list-row ops-cache-row','mt-list-columns ops-cache-columns',':to="\'/search/results/\'+encodeURIComponent(row.id)"','/settings?tab=automation',':disabled="!!op.pending"'])expect(cache).toContain(token);
+ for(const token of ['usePageSize(25)','mt-list-row ops-cache-row','mt-list-columns ops-cache-columns',':to="\'/search/results/\'+encodeURIComponent(row.id)"','/settings?tab=automation',':disabled="!!op.pending"'])expect(cache).toContain(token);
  expect(cache.indexOf('<p class="ops-cache-note ops-cache-ttl">')).toBeLessThan(cache.indexOf('</section>'));
  for(const token of ['mt-list-row ops-alert-row',"a.state==='active'&&!a.acknowledged_at",':disabled="!!op.pending"','a.display.badgeLabel','v-else-if="a.acknowledged_at">已确认','确认告警不等于问题已解决','/connections?tab=notifications','label="告警记录分页"'])expect(alerts).toContain(token);
  expect(alerts).not.toContain('已恢复');

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useDebouncedFilter} from '../composables/useDebouncedFilter';
 import {reactive,ref} from 'vue';
 import {listIPBlocks,checkIPBlock,deleteIPBlock,type IPBlockPage,type IPBlockRule,type IPBlockCheck} from '../api/ip-blocklist';
 import {useRefresh} from '../composables/useRefresh';
@@ -12,7 +13,7 @@ const page=usePageNumber(),pageSize=usePageSize(25),q=ref(''),query=ref(''),data
 const target=ref<IPBlockRule>(),targetRevision=ref(0),confirm=ref(false),busy=ref(false),error=ref(''),uncertain=ref(false),address=ref(''),result=ref<IPBlockCheck>(),checking=ref(false),checkError=ref('');
 async function load(){await data.load();if(result.value&&result.value.revision!==data.data.revision)result.value=undefined;if(!data.error)uncertain.value=false}
 const refresh=useRefresh(load,{interval:5000});
-function search(){page.value=1;query.value=q.value.trim();void load()}
+useDebouncedFilter(()=>q.value,async value=>{query.value=value.trim();if(page.value===1)await load();else page.value=1});
 function askDelete(rule:IPBlockRule){target.value=rule;targetRevision.value=data.data.revision;confirm.value=true}
 let checkGeneration=0;
 function invalidateCheck(){checkGeneration++;result.value=undefined}
@@ -26,7 +27,7 @@ defineExpose({load:refresh.refresh});
   <header class="media-section-heading"><div><h2>IP 黑名单</h2><p>拒绝指定 IP 或网段的媒体访问；管理后台始终可用于解封。</p></div><el-button type="primary" :disabled="!data.data.status.available||busy||!!data.error" @click="editor?.open()">添加 IP 规则</el-button></header>
   <el-alert v-if="data.loaded&&!data.data.status.available" :title="data.data.status.message||'IP 黑名单策略暂不可用，媒体请求返回 503；后台正在自动重试，成功后自动恢复。'" :description="'媒体入口返回 503；后台自动重试并在成功后恢复，管理后台不受影响。'" type="error" :closable="false"/>
   <el-alert v-if="data.data.status.counterWarning" title="命中计数暂未刷盘，正在自动重试；IP 黑名单阻断不受影响。" type="warning" :closable="false"/>
-  <form class="media-actions ip-block-search" @submit.prevent="search"><el-input v-model="q" aria-label="搜索 IP 黑名单规则" placeholder="搜索 IP、网段或备注"/><el-button native-type="submit">搜索</el-button><el-button :loading="data.loading" @click="load">刷新规则</el-button></form>
+  <div class="media-actions ip-block-search"><el-input v-model="q" aria-label="搜索 IP 黑名单规则" placeholder="搜索 IP、网段或备注" clearable/></div>
   <p>最多 {{data.data.maxRules}} 条规则；重叠时计入最精确网段，命中计数约每 5 秒刷盘。</p>
   <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="data.data.status.available&&!data.data.items.length" empty-title="暂无 IP 黑名单规则" @reload="load"/>
   <el-alert v-if="error" :title="error" type="error" :closable="false"/>

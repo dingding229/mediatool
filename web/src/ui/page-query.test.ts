@@ -20,9 +20,13 @@ it('keeps sizes independent, gives URL priority and merges resize page and size 
  expect(replace).toHaveBeenCalledTimes(1);expect(route.value.query).toMatchObject({usersPage:'1',usersPageSize:'10',visitPageSize:'100',q:'keep'});
  route.value={query:{...route.value.query,usersPageSize:'invalid'}};await flush();expect(v.state.size).toBe(25);v.unmount();
 });
-it('retains nonstandard original defaults and page-specific options',()=>{
- for(const initial of [8,20,24,30,200]){const v=setupComponent(defineComponent({setup:()=>({size:usePageSize(initial)})}));expect(v.state.size).toBe(initial);v.unmount()}
+it('normalizes obsolete page sizes to the nearest global option',()=>{
+ for(const [initial,expected] of [[8,10],[20,25],[24,25],[30,25],[200,100]]){const v=setupComponent(defineComponent({setup:()=>({size:usePageSize(initial)})}));expect(v.state.size).toBe(expected);v.unmount()}
 });
 it('does not write a departing list query onto another page after unmount',async()=>{
  vi.useFakeTimers();const route=ref({query:{tab:'list'}}),replace=vi.fn();const v=setupComponent(defineComponent({setup(){getCurrentInstance()!.appContext.config.globalProperties.$router={currentRoute:route,replace} as any;return {page:usePageNumber(),size:usePageSize(25)}}}));v.state.page=2;v.state.size=10;v.unmount();await vi.advanceTimersByTimeAsync(1);expect(replace).not.toHaveBeenCalled();
+});
+it('normalizes legacy URL size values before the first request',()=>{
+ const route=ref({query:{tab:'jobs',jobsPageSize:'8'}});
+ const v=setupComponent(defineComponent({setup(){getCurrentInstance()!.appContext.config.globalProperties.$router={currentRoute:route,replace:vi.fn()} as any;return{size:usePageSize(25)}}}));expect(v.state.size).toBe(10);v.unmount();
 });

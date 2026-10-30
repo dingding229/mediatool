@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { request } from '../api/client';
 import { rows, type MediaItem } from '../media/model';
 export function useDiscovery() {
-  const route = useRoute(), router = useRouter(), kind = ref(route.query.kind === 'recommend.source' ? 'recommend.source' : 'discover.source'), page = usePageNumber(),pageSize=usePageSize(24), items = ref<MediaItem[]>([]), hasMore = ref(false), truncated = ref(false), loading = ref(true), error = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>();
+  const route = useRoute(), router = useRouter(), kind = ref(route.query.kind === 'recommend.source' ? 'recommend.source' : 'discover.source'), page = usePageNumber(),pageSize=usePageSize(25), items = ref<MediaItem[]>([]), hasMore = ref(false), truncated = ref(false), loading = ref(true), error = ref<unknown>(), detail = ref<MediaItem | null>(null), detailOpen = ref(false), detailLoading = ref(false), detailError = ref<unknown>();
   let epoch = 0, detailEpoch = 0, alive = true;
   let hasLoaded=false;
   async function load() {

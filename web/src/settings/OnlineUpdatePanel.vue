@@ -22,7 +22,7 @@ onUnmounted(()=>{password.value=''});
 </script>
 <template>
  <section class="f8-online" aria-label="在线更新">
-  <div class="media-actions"><el-button type="primary" :disabled="!ready" @click="prepare()">一键更新</el-button><el-button @click="detailsOpen=true">更新详情</el-button></div>
+  <div class="media-actions"><el-button v-if="target&&newerStable(updates.build?.version||'',target.version)" type="primary" :disabled="!ready" @click="prepare()">一键更新</el-button><el-button @click="detailsOpen=true">更新详情</el-button></div>
   <IdleUpdatePanel/>
   <p class="f8-job-status" role="status">{{result}}</p><p v-if="error&&!open" role="alert">{{error}}</p>
   <el-dialog v-model="detailsOpen" title="更新详情" width="min(680px,94vw)" :close-on-click-modal="false" class="media-dialog">

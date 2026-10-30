@@ -277,7 +277,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
       </div>
     </article>
     </div>
-    <PagePagination v-model:current-page="scanPage" :page-size="pageSize??8" :page-sizes="[8,10,25,50,100]" @update:page-size="(n:number)=>emit('size',n)" :total="total??scans.length" layout="prev,pager,next"/>
+    <PagePagination v-model:current-page="scanPage" :page-size="pageSize??25" @update:page-size="(n:number)=>emit('size',n)" :total="total??scans.length" layout="prev,pager,next"/>
     <p>扫描中断或云盘内容变化时，不会把未扫描到的文件直接标记为缺失；恢复后会重新检查。</p>
   </section>
   <section class="media-surface">

@@ -183,9 +183,10 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
           <el-button size="small" aria-label="执行后核验" v-if="r.state==='completed'&&!r.verifiedAt" :disabled="!!op.pending" @click="ask('verify',r)"><el-icon class="mt-list-action-icon"><Check/></el-icon><span class="mt-list-action-text">执行后核验</span></el-button>
         </div>
       </article>
-<PagePagination label="维护单分页" v-model:current-page="recordPages.requests" v-model:page-size="recordSizes.requests" :total="data.data?.requests?.length"/>
+
 
       <ResourceState :empty="!data.loading&&!data.error&&!!data.data&&!data.data.requests?.length" empty-title="暂无维护单"/>
+<PagePagination label="维护单分页" v-model:current-page="recordPages.requests" v-model:page-size="recordSizes.requests" :total="data.data?.requests?.length"/>
       </section>
     </section>
     <section v-else-if="section==='alerts'" class="media-surface ops-alerts-panel">

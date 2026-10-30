@@ -22,5 +22,5 @@ for(const width of [1440,390])test(`F8b explicit recovery confirmation never sta
 test('F8b changed image startup config is failed, with a manual-update message',async({page})=>{
  await u5PlaybackFixture(page);
  await page.route('**/api/v1/system/online-update',r=>r.fulfill({json:{data:{available:false,recoveryRequired:[],reason:'',socketMounted:true,policyVerified:true,job:{id:'fixture',actor:'admin',fromVersion:'0.28.5',target:{version:'0.28.6'},phase:'failed',failure:'image_startup_config_changed',updatedAt:'2026-10-24T08:00:00Z',backup:'',events:[{phase:'preflighting',at:'2026-10-24T08:00:00Z'},{phase:'failed',at:'2026-10-24T08:00:00Z'}]}}}}));
- await page.goto('/settings?tab=about');await expect(page.getByLabel('在线更新',{exact:true})).toContainText('镜像启动配置已变化，请按文档手动更新');await expect(page.getByRole('button',{name:'任务已完成人工确认',exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:'一键更新',exact:true})).toBeDisabled();
+ await page.goto('/settings?tab=about');await expect(page.getByLabel('在线更新',{exact:true})).toContainText('镜像启动配置已变化，请按文档手动更新');await expect(page.getByRole('button',{name:'任务已完成人工确认',exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:'一键更新',exact:true})).toHaveCount(0);
 });

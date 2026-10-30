@@ -1,3 +1,4 @@
+// I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
@@ -11,7 +12,7 @@ it.each([
  ],
  [
   "operations/LogsPanel.vue",
-  "d2578d872a94b921423b13270444bd8909e0fca91e6b48caf6810976035b928e"
+  "38fe7895e48a8bf4a6c3946e0322682fbf7f6d00824af3bf4dba2db800b9b1f4"
  ],
  [
   "connections/ProxySettings.vue",
@@ -27,7 +28,7 @@ it.each([
  ],
  [
   "playback/ServicePanel.vue",
-  "fe56d0e9c7703d178cebc7b2454f529065948549466612c6e84bc56830c807c6"
+  "85521232caf82b862c197ac22550d5be308cfbe2c5ef2e9c95e8bac75d3d717f"
  ],
  [
   "playback/AccessPanel.vue",
@@ -35,15 +36,15 @@ it.each([
  ],
  [
   "media/ImageEditor.vue",
-  "83634b7bb16ab870dd83b9660dfd5cf505b059f96e690ddd138f27b718710157"
+  "fc4a3991654c433aa817d9f9451f961a8b096684ab7217b611059a7514db7081"
  ],
  [
   "media/SubtitlePanel.vue",
-  "c99245782cf904738ae19d411560293c5481bc601b9d6c9a6655c2932c855132"
+  "3287bf34e54fca6ef81903993b99bc4f64437aec9f97cf40c089294ab70116a7"
  ],
  [
   "settings/AboutPanel.vue",
-  "39915ebda1d0d22826f6e0fbfec3af5aea9499bb38c52d9c944f0177ae147728"
+  "e1ba9e19fe8cd5230d7984df13e070e3d24236d706430df20b1e457d397582fc"
  ]
 ])('I26b leaves requests, payloads and interaction logic unchanged: %s',(file,hash)=>{
  const script=read(file).match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!;

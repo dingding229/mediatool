@@ -26,13 +26,13 @@ test('T16B session initial render, slow empty page and null response never open 
  const pending=new Promise<void>(r=>release=r),responded=new Promise<void>(r=>served=r);
  await page.route('**/api/v1/media-server/native/sessions?*',async r=>{await pending;await r.fulfill({json:{data:{items:[],total:0,startIndex:0,limit:50}}});served()});
  await page.goto('/playback?tab=sessions');await expect(page.getByRole('heading',{name:'在线会话',exact:true})).toBeVisible();
- await expect(page.getByText('第 1 页 / 共 1 页',{exact:true})).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(0);
+ await expect(page.locator('.mt-pagination')).toHaveCount(0);await expect(page.getByRole('dialog')).toHaveCount(0);
  release();await responded;await expect(page.getByText('暂无记录',{exact:true})).toBeVisible();
  await page.route('**/api/v1/media-server/native/sessions?*',r=>r.fulfill({json:{data:null}}));
  for(const width of[1440,390])for(const theme of['light','dark']){
   await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);
   await page.goto('/playback?tab=sessions');await expect(page.getByRole('heading',{name:'在线会话',exact:true})).toBeVisible();
-  await expect(page.getByText('第 1 页 / 共 1 页',{exact:true})).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.mt-pagination')).toHaveCount(0);await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:resolve(dir,`after-sessions-${width}-${theme}.png`),fullPage:true,animations:'disabled'});
  }

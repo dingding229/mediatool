@@ -13,7 +13,7 @@ afterEach(()=>{mounted?.unmount();mounted=undefined;});
 it('T16B renders the real session template before any request completes',async()=>{
  const app=createSSRApp(Sessions);app.component('PagePagination',PagePagination);app.config.warnHandler=()=>{};
  const html=await renderToString(app);
- expect(html).toContain('在线会话');expect(html).toContain('第 1 页 / 共 1 页');
+ expect(html).toContain('在线会话');expect(html).not.toContain('mt-pagination');
  expect(listNativeSessions).not.toHaveBeenCalled();
 });
 it('T16B starts with an empty page while loading and preserves it on failure',async()=>{

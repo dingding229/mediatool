@@ -60,10 +60,4 @@ export function displayRating(value?:number|null){return value!=null&&Number.isF
 export function displayResolution(values?:{width:number;height:number}[]){
  return values?.filter(v=>Number.isInteger(v.width)&&v.width>0&&Number.isInteger(v.height)&&v.height>0).map(v=>`${v.width>=3800?'4K':v.width>=1900?'1080p':v.width>=1260?'720p':'SD'}（${v.width}×${v.height}）`).join('、')||'—';
 }
-// Match the owner's media-size convention without changing global capacity units.
-export function displayMediaSize(value?:number|null){
- if(value==null||!Number.isFinite(value)||value<0)return '—';
- const units=['B','KB','MB','GB','TB','PB'];let i=0;
- while(value>=1024&&i<units.length-1){value/=1024;i++;}
- return `${value.toFixed(2)} ${units[i]}`;
-}
+export {formatBytes as displayMediaSize} from '../utils/format-bytes';

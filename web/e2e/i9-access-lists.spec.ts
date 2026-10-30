@@ -23,7 +23,7 @@ async function layout(page:Page,width:number){
  for(const r of reports){expect(Math.abs(r.rowWidth-r.listWidth)).toBeLessThan(1);expect(r.rightDelta).toBeLessThan(1);for(const b of r.buttons){expect(b.width).toBeGreaterThanOrEqual(width<1241?44:32);expect(b.height).toBeGreaterThanOrEqual(width<1241?44:32);expect(b.label).toBeTruthy()}if(width<1241)expect(r.below).toBe(true);else if(r.isRule){expect(r.rowHeight).toBeGreaterThanOrEqual(56);expect(r.rowHeight).toBeLessThanOrEqual(72);}}
  const controls=await page.evaluate(()=>{
   const geometry=(el:Element)=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return{height:r.height,radius:s.borderTopLeftRadius}};
-  const reference=geometry(document.querySelector('.page-pagination .el-select__wrapper,.el-pagination .el-select__wrapper,nav[aria-label="分页"] .el-select__wrapper')!);
+  const tokens=getComputedStyle(document.documentElement);const reference={height:parseFloat(tokens.getPropertyValue('--mt-form-control-height')),radius:tokens.getPropertyValue('--el-border-radius-base').trim()};
   const selects=['UA 策略模式','UA 规则名单','UA记录筛选'].map(name=>geometry(document.querySelector(`[aria-label="${name}"]`)!.closest('.el-select')!.querySelector('.el-select__wrapper')!));
   const note=document.querySelector('.ua-policy-summary')!,field=note.nextElementSibling!;
   return{reference,selects,noteGap:field.getBoundingClientRect().top-note.getBoundingClientRect().bottom,noteHeight:note.getBoundingClientRect().height};

@@ -49,7 +49,7 @@ watch(()=>props.itemId,()=>{epoch++;opened.value=false;record.value=undefined;ac
  <template v-if="opened">
   <div class="metadata-heading"><h3>编辑信息</h3><el-button :disabled="busy" @click="requestClose">完成编辑</el-button></div>
   <p class="metadata-note">修改过的字段将逐项锁定，不会被后续刮削覆盖。同一作品或单集的物理版本共用文字信息，不改文件与目录分类。</p>
-  <label v-if="choices.length>1" class="metadata-field">选择单集<select :value="record?metadataTargetID(record.target):activeID" :disabled="busy||dirty" @change="choose(($event.target as HTMLSelectElement).value)"><option v-for="t in choices" :key="metadataTargetID(t)" :value="metadataTargetID(t)">{{targetLabel(t)}}</option></select></label>
+  <label v-if="choices.length>1" class="metadata-field">选择单集<el-select :model-value="record?metadataTargetID(record.target):activeID" :disabled="busy||dirty" @change="choose($event)"><el-option v-for="t in choices" :key="metadataTargetID(t)" :value="metadataTargetID(t)" :label="(targetLabel(t))"/></el-select></label>
   <p v-if="busy&&!record" role="status">正在读取元数据…</p>
   <p v-if="error" class="metadata-error" role="alert">{{error}}</p>
   <p v-if="notice" role="status">{{notice}}</p>

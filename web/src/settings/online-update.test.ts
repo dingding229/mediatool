@@ -13,3 +13,5 @@ it('execution controls carry password only in JSON body',async()=>{
 });
 
 it('shows a clear manual-update requirement for changed image startup settings',()=>{expect(updateFailures.image_startup_config_changed).toBe('镜像启动配置已变化，请按文档手动更新')});
+it('compares local/cache versions including v prefix and invalid provenance',async()=>{const {compareVersions}=await import('./online-update');expect(compareVersions('v0.51.0','0.49.0')).toBe(1);expect(compareVersions('0.51.0','v0.51.0')).toBe(0);expect(compareVersions('0.51.0','0.52.0')).toBe(-1);expect(compareVersions('unknown','0.52.0')).toBeNull();expect(newerStable('v0.51.0','0.49.0')).toBe(false)});
+it('fails closed on malformed runtime version data',async()=>{const {compareVersions}=await import('./online-update');expect(compareVersions(null as unknown as string,'0.51.0')).toBeNull()});

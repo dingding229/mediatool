@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DescriptionGrid from '../ui/DescriptionGrid.vue';
+import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import {remainingTime} from '../acquisition/download-presentation';
 import '../acquisition/download-presentation.css';
@@ -62,7 +64,7 @@ usePageRefresh(()=>refresh(),'uploads');
         <p v-if="errors.tasks&&tasks.length" role="status">刷新失败，保留上次下载数据；请在详情核对同步状态。</p>
         <article v-for="task in tasks" :key="task.id" class="acquire-task t8-download-row" :class="{highlighted:route.query.taskId===task.id}">
           <div class="download-main">
-            <header class="download-heading"><h3><button type="button" class="t8-download-title" :title="task.title" @click="show(task)">{{task.title}}</button></h3><StatusBadge :state="task.syncError?'failed':task.state" :label="task.syncError?'同步失败':label(task.state)"/></header>
+            <header class="download-heading"><h3><el-tooltip :content="task.title" :trigger="['hover','focus']" :trigger-keys="[]" popper-class="middle-ellipsis-tooltip"><button type="button" class="t8-download-title" :title="task.title" @click="show(task)"><MiddleEllipsis :text="task.title" :copy="false" embedded/></button></el-tooltip></h3><StatusBadge :state="task.syncError?'failed':task.state" :label="task.syncError?'同步失败':label(task.state)"/></header>
             <div class="download-progress"><el-progress v-if="task.progress!=null" :show-text="false" :stroke-width="4" :percentage="Math.max(0,Math.min(100,Math.round(task.progress*100)))"/><span v-else class="download-progress-unknown" aria-label="等待同步进度"/><span>{{progress(task.progress)}}</span></div>
             <dl class="download-metrics"><div><dt>速度</dt><dd>{{task.syncedAt&&!task.syncError?'↓ '+size(task.downloadSpeed)+'/s · ↑ '+size(task.uploadSpeed)+'/s':'—'}}</dd></div><div title="按资源体积、已同步进度和当前下载速度估算，不是下载器 ETA"><dt>剩余（估算）</dt><dd>{{remainingTime(task)}}</dd></div><div><dt>站点</dt><dd>{{task.siteName||'—'}}</dd></div></dl>
           </div>
@@ -90,7 +92,7 @@ usePageRefresh(()=>refresh(),'uploads');
         <StateView v-else-if="!transfers.length" state="empty" title="尚无上传任务" description="下载完成且文件服务可用后，会准备上传。"/>
         <article v-for="transfer in transfers" :key="transfer.id" class="acquire-task" :class="{highlighted:route.query.transferId===transfer.id}">
           <div>
-            <h3>{{ transfer.destination||'—' }}</h3>
+            <h3><MiddleEllipsis :path="transfer.destination" :copy="false"/></h3>
             <p>{{ label(transfer.state) }}</p>
             <el-progress v-if="transfer.processingProgress!=null" :percentage="Math.max(0,Math.min(100,transfer.processingProgress))"/>
             <p>{{ transfer.processingStage||'—' }}</p>
@@ -129,7 +131,7 @@ usePageRefresh(()=>refresh(),'uploads');
         <article v-for="batch in batches" :key="batch.id" class="acquire-task">
           <div>
             <h3>{{ batch.message||'文件批次待核对' }}</h3>
-            <p>{{ batch.destination||batch.source||'—' }}</p>
+            <MiddleEllipsis :path="batch.destination||batch.source"/>
           </div>
           <RouterLink :to="{path:'/organize',query:{tab:'history',kind:batch.kind,batchId:batch.batchId||batch.id}}">查看步骤并核对</RouterLink>
         </article>
@@ -155,16 +157,26 @@ usePageRefresh(()=>refresh(),'uploads');
       </div>
     </el-dialog>
     <DetailDrawer v-model:visible="detailsOpen" title="任务详情" size="large" class="acquire-detail">
-      <h3>{{ selectedTask?.title||detail?.title||detail?.destination||'—' }}</h3>
-      <p>{{ label(selectedTask?.state||detail?.state) }} · {{ selectedTask?.message||detail?.message||'—' }}</p>
-      <p>下载进度：{{ progress(selectedTask?selectedTask.progress:detail?.progress) }}</p>
-      <p>操作前请核对任务的最新状态。</p>
+      <h3><MiddleEllipsis :text="selectedTask?.title||detail?.title||detail?.destination" :copy="false"/></h3>
+      <DescriptionGrid :items="[
+        {key:'state',label:'状态',value:selectedTask?.state||detail?.state},
+        {key:'message',label:'说明',value:selectedTask?.message||detail?.message},
+        {key:'progress',label:'下载进度',value:progress(selectedTask?selectedTask.progress:detail?.progress)}
+      ]"><template #state><StatusBadge :state="selectedTask?.state||detail?.state" :label="label(selectedTask?.state||detail?.state)"/></template></DescriptionGrid>
       <template v-for="task in selectedTask?[selectedTask]:[]" :key="task.id">
-        <p>媒体：{{task.media?.title||'—'}} · {{task.media?.year||'—'}}</p><p>下载器：{{qbLabel(task.qbState)}} · 做种：{{seedingLabel(task.seedingState)}} · {{date(task.syncedAt)}}</p>
-        <p>↓ {{task.syncedAt?size(task.downloadSpeed)+'/s':'—'}} / ↑ {{task.syncedAt?size(task.uploadSpeed)+'/s':'—'}} · 做种连接 {{task.seeds??'—'}} / 下载连接 {{task.peers??'—'}}</p>
+        <DescriptionGrid :items="[
+          {key:'media',label:'媒体',value:task.media?.title}, {key:'year',label:'年份',value:task.media?.year},
+          {key:'downloader',label:'下载器',value:qbLabel(task.qbState)}, {key:'seeding',label:'做种',value:seedingLabel(task.seedingState)},
+          {key:'syncedAt',label:'同步时间',value:date(task.syncedAt)},
+          {key:'downloadSpeed',label:'下载速度',value:task.syncedAt?size(task.downloadSpeed)+'/s':null},
+          {key:'uploadSpeed',label:'上传速度',value:task.syncedAt?size(task.uploadSpeed)+'/s':null},
+          {key:'seeds',label:'做种连接',value:task.seeds}, {key:'peers',label:'下载连接',value:task.peers},
+          {key:'cleanup',label:'清理条件',value:task.cleanupState&&task.cleanupState!=='disabled'?label(task.cleanupState):null},
+          {key:'cleanupMessage',label:'清理说明',value:task.cleanupMessage}
+        ]"/>
         <el-alert v-if="task.syncError" :title="'同步失败（保留上次进度）：'+task.syncError" type="warning" :closable="false"/>
         <p v-if="task.trackerError" role="alert">Tracker状态未同步：{{task.trackerError}}</p><p v-for="tracker in task.trackers?.filter(t=>t.status>=4&&t.message)||[]" :key="tracker.url" role="alert">Tracker：{{tracker.message}}</p>
-        <p v-if="task.cleanupState&&task.cleanupState!=='disabled'">清理：{{label(task.cleanupState)}} · {{task.cleanupMessage||'—'}}</p>
+
           <div class="acquire-actions download-detail-actions">
             <TaskControl kind="downloads" :id="task.id" :state="task.state" @changed="load('tasks')"/>
             <el-button v-if="task.sourceRecoveryRequired" @click="detailsOpen=false;source?.open(task.id)">核对来源</el-button>

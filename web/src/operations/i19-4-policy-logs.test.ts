@@ -1,3 +1,4 @@
+// I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it.each([
  ['operations/PolicyPanel.vue','a38f122b7e1c996ba52cb4b5a98429ca77c545a9a0985a1be8015df4b2aff445'],
- ['operations/LogsPanel.vue','d2578d872a94b921423b13270444bd8909e0fca91e6b48caf6810976035b928e'],
+ ['operations/LogsPanel.vue','38fe7895e48a8bf4a6c3946e0322682fbf7f6d00824af3bf4dba2db800b9b1f4'],
 ])('I19-4 leaves requests, settings revisions and Debug logic byte-identical in %s',(file,hash)=>expect(sha(read(file).match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!)).toBe(hash));
 it.each([
  ['ui/CronInput.vue','8270404e17a385b5f73d72f8c87be1d415967aab5c6b3fd86b3cbe2195304cfa'],
@@ -17,7 +18,7 @@ it.each([
 ])('I19-4 does not change shared validation, concurrency or dialog behavior: %s',(file,hash)=>expect(sha(read(file))).toBe(hash));
 it('I19-4 does not touch the log console, filters, exports or cleanup confirmations outside settings',()=>{
  const source=read('operations/LogsPanel.vue'),a=source.indexOf('    <DetailDrawer v-model:visible="settings"'),b=source.indexOf('    <el-dialog v-model="copyOpen"',a);
- expect(sha(source.slice(0,a)+'SETTINGS\n'+source.slice(b))).toBe('dd62a3e009b48b5f3f06bda2709c1281af061e5073c547cf742a26f1fc54446d');
+ expect(sha(source.slice(0,a)+'SETTINGS\n'+source.slice(b))).toBe('ba07af1f7ffb1937746fa838ab1ae7cd85b95664406f5c422699860fb2774ab4');
 });
 it('I19-4 retains native numeric validation and all original operation guards',()=>{
  const policy=read('operations/PolicyPanel.vue'),logs=read('operations/LogsPanel.vue');

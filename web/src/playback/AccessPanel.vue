@@ -191,11 +191,11 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       </label>
       <label v-if="!form.observationId">
         匹配方式
-        <select v-model="form.matchType" aria-label="UA匹配方式" :disabled="op.busy">
-          <option value="exact">完整匹配</option>
-          <option value="prefix">前缀匹配</option>
-          <option value="contains">包含匹配</option>
-        </select>
+        <el-select v-model="form.matchType" aria-label="UA匹配方式" :disabled="op.busy">
+          <el-option value="exact" :label="'完整匹配'"/>
+          <el-option value="prefix" :label="'前缀匹配'"/>
+          <el-option value="contains" :label="'包含匹配'"/>
+        </el-select>
       </label>
       <label v-if="!form.observationId" class="u5-check">
         <input v-model="form.enabled" type="checkbox" :disabled="op.busy"/>

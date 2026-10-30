@@ -197,7 +197,7 @@
 .subscription-scope .el-select{width:150px}
 @media(max-width:700px){.subscription-row-actions{justify-content:flex-start}.subscription-scope{width:100%;justify-content:space-between}.subscription-scope .el-select{width:160px}}
 
-.f5-subscription-results{min-height:500px}
+.f5-subscription-results{min-height:0}
 
 /* Run history must not inherit the list stage cap and clip its only pager. */
 .subscription-workbench.subscription-history-section{max-height:none;overflow:hidden;scrollbar-gutter:auto}

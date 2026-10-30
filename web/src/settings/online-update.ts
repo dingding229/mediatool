@@ -1,5 +1,10 @@
 export const updatePhases:Record<string,string>={queued:'等待拉取已校验镜像',preflighting:'兼容性 dry-run 预检（旧 app 保持在线）',verifying:'重新核验发布来源',backing_up:'备份数据库与 Compose',applying:'替换 app 镜像',checking:'核对健康、版本与 schema',rolling_back:'启动保留的旧容器（按实际 schema 决定是否恢复数据库）',succeeded:'更新成功',rolled_back:'更新失败，已回滚',failed:'更新已拒绝或未执行',manual_recovery:'自动恢复未完成，需要运维处理'};
 export const updateDone=(phase:string)=>['succeeded','rolled_back','failed','manual_recovery'].includes(phase);
-export function newerStable(current:string,target:string){const a=current.split('-')[0].split('.').map(Number),b=target.split('.').map(Number);if(a.length!==3||b.length!==3||![...a,...b].every(Number.isSafeInteger))return false;for(let i=0;i<3;i++){if(a[i]!==b[i])return b[i]>a[i]}return false}
+export function compareVersions(left:string,right:string):number|null{
+ const parts=(value:string)=>typeof value==='string'?value.replace(/^v/,'').split('-')[0].split('.'):[];
+ const a=parts(left),b=parts(right);if(a.length!==3||b.length!==3||![...a,...b].every(v=>/^\d+$/.test(v)&&Number.isSafeInteger(Number(v))))return null;
+ for(let i=0;i<3;i++){if(Number(a[i])!==Number(b[i]))return Number(a[i])>Number(b[i])?1:-1}return 0;
+}
+export function newerStable(current:string,target:string){return compareVersions(current,target)===-1;}
 
 export const updateFailures:Record<string,string>={recovery_required:"存在未完成人工恢复确认的更新任务",image_startup_config_changed:"镜像启动配置已变化，请按文档手动更新",preflight_rejected:"兼容性预检被拒，旧 app 与数据库未改动",execution_disabled:"执行开关关闭，未替换 app",release_hub_mismatch_or_unavailable:"Release 与 Hub 再次校验未通过，已拒绝更新",backup_failed:"备份未完成，未替换镜像",image_pull_failed:"不可变镜像拉取失败，未替换 app",image_provenance_failed:"镜像版本或来源校验失败，未启动执行器",updater_start_failed:"临时执行器启动失败，未替换 app",apply_failed:"app 替换失败",health_or_schema_failed:"健康或 schema 校验失败"};

@@ -170,8 +170,8 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
             <small>预览由当前模板生成，不操作真实文件。</small>
             <el-button @click="previewNames">预览命名模板</el-button>
           </section>
-          <fieldset v-if="a.scraping">
-            <legend>入库时生成的资料</legend>
+          <section v-if="a.scraping" class="mt-form-group" role="group" aria-label="入库时生成的资料">
+            <h3 class="mt-form-group-title">入库时生成的资料</h3>
             <p>仅影响下次确认入库。关闭不删除旧资料；图片获取失败会阻止本次写入，缺图时显示原因。</p>
             <div class="settings-grid">
               <div v-for="[key,label,options] in scraping" :key="key">
@@ -182,7 +182,7 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
                 </label>
               </div>
             </div>
-          </fieldset>
+          </section>
           <label class="settings-choice">
             <input v-model="a.cleanupAfterImport" type="checkbox"/>
             <span>新任务上传校验并入库后，清理本地文件和下载种子</span>

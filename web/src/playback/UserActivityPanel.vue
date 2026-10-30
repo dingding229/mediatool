@@ -15,7 +15,7 @@ import { date, errorText } from '../workflows/readiness';
 const props = defineProps<{
   userId: string;
   userName: string;
-}>(), statsDevice=ref(''),tab = ref('devices'), page = usePageNumber('userActivityPage'),pageSize=usePageSize(50,'userActivityPage'), data = reactive(useResource<any>(() => tab.value === 'devices' ? listMediaDevices(props.userId, (page.value - 1) * pageSize.value,pageSize.value) : listMediaHistory(props.userId, (page.value - 1) * pageSize.value,pageSize.value))), op = reactive(useOperation('devices')), confirm = ref(false), target = ref<any>(null);
+}>(), statsDevice=ref(''),tab = ref('devices'), page = usePageNumber('userActivityPage'),pageSize=usePageSize(25,'userActivityPage'), data = reactive(useResource<any>(() => tab.value === 'devices' ? listMediaDevices(props.userId, (page.value - 1) * pageSize.value,pageSize.value) : listMediaHistory(props.userId, (page.value - 1) * pageSize.value,pageSize.value))), op = reactive(useOperation('devices')), confirm = ref(false), target = ref<any>(null);
 async function load() {
   if(tab.value!=='statistics')await data.load();
   if (op.pending) {

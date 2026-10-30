@@ -4,7 +4,7 @@ import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import { request } from '../api/client';
 import { listAssets } from '../api/mediaCatalog';
 export function useOrganize() {
-  const sizes=reactive({candidates:usePageSize(50,'candidatesPage'),assets:usePageSize(50,'assetsPage'),scans:usePageSize(8,'scansPage')});
+  const sizes=reactive({candidates:usePageSize(25,'candidatesPage'),assets:usePageSize(25,'assetsPage'),scans:usePageSize(25,'scansPage')});
   const data = reactive<Record<string, any>>({ candidates: [], assets: [], scans: [], schedules: [] }), errors = reactive<Record<string, unknown>>({}), loading = reactive<Record<string, boolean>>({}), total = reactive({ candidates: 0, assets: 0,scans:0 }), page = reactive({candidates:usePageNumber('candidatesPage'),assets:usePageNumber('assetsPage'),scans:usePageNumber('scansPage')}), filter = ref('needs_confirmation'), assetId = ref(''), selected = reactive<Record<string, any[]>>({ candidates: [], assets: [] }), editing = ref(false);
   let disposed = false;
   const versions: Record<string, number> = {};

@@ -30,7 +30,8 @@ test('I15 follow-list pager remains inside a padded card for populated and empty
  await page.route('**/api/v1/subscriptions?*',r=>fixtureFulfill(r,{json:{data:[]}}));await page.reload();
  await expect(page.getByText('还没有订阅，从一部想看的影视开始',{exact:true})).toBeVisible();
  for(const width of [1440,390]){
-  await page.setViewportSize({width,height:1000});await geometry(page,width);
+  await page.setViewportSize({width,height:1000});await expect(pager).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   const empty=await page.locator('.state-view.state-empty').boundingBox(),footer=await page.locator('.subscription-list-footer').boundingBox();
   expect(empty!.height).toBeLessThanOrEqual(300);expect(footer!.y-(empty!.y+empty!.height)).toBeLessThanOrEqual(1);
  }
@@ -73,7 +74,7 @@ test.describe('I30b history local screenshots @screenshots',()=>{
   const {mkdirSync,writeFileSync}=await import('node:fs'),{resolve}=await import('node:path'),dir=resolve(import.meta.dirname,'../../scratchpad/i-phase/i30b/screens');mkdirSync(dir,{recursive:true});
   const name=`after-history-${width}-${theme}`;
   await page.screenshot({path:resolve(dir,name+'.png'),fullPage:true,animations:'disabled'});
-  const facts=await page.evaluate(()=>{const pager=document.querySelector('[aria-label="订阅运行历史分页"]')!;const rect=(e:Element)=>{const {x,y,width,height}=e.getBoundingClientRect();return{x,y,width,height}};return {parent:pager.parentElement?.className,pager:rect(pager),summary:rect(pager.querySelector('.mt-page-summary')!),actions:rect(pager.querySelector('.mt-page-actions')!),card:rect(document.querySelector('.subscription-workbench')!),timeline:rect(document.querySelector('.run-timeline')!),review:rect(document.querySelector('.run-review')!),owner:rect(document.querySelector('.subscription-workbench')!),gutter:parseFloat(getComputedStyle(document.querySelector('.subscription-commandbar')!).paddingLeft),justifyContent:getComputedStyle(pager).justifyContent,overflow:document.documentElement.scrollWidth>innerWidth}});
+  const facts=await page.evaluate(()=>{const pager=document.querySelector('[aria-label="订阅运行历史分页"]');if(!pager)return {pager:null,overflow:document.documentElement.scrollWidth>innerWidth};const rect=(e:Element)=>{const {x,y,width,height}=e.getBoundingClientRect();return{x,y,width,height}};return {parent:pager.parentElement?.className,pager:rect(pager),summary:rect(pager.querySelector('.mt-page-summary')!),actions:rect(pager.querySelector('.mt-page-actions')!),card:rect(document.querySelector('.subscription-workbench')!),timeline:rect(document.querySelector('.run-timeline')!),review:rect(document.querySelector('.run-review')!),owner:rect(document.querySelector('.subscription-workbench')!),gutter:parseFloat(getComputedStyle(document.querySelector('.subscription-commandbar')!).paddingLeft),justifyContent:getComputedStyle(pager).justifyContent,overflow:document.documentElement.scrollWidth>innerWidth}});
   writeFileSync(resolve(dir,name+'.json'),JSON.stringify(facts,null,2));
  });
 });
@@ -82,35 +83,37 @@ type Rect={x:number;y:number;width:number;height:number};
 async function paginationInsets(page:Page,label:string){
  // One frame: tab changes can resize the card and scroll anchor together.
  return page.locator('.subscription-workbench').evaluate((card,label)=>{
-  const pager=card.querySelector(`[aria-label="${label}"]`)!,bounds=card.getBoundingClientRect(),p=pager.getBoundingClientRect(),summary=pager.querySelector('.mt-page-summary')!.getBoundingClientRect(),actions=pager.querySelector('.mt-page-actions')!.getBoundingClientRect();
-  return {left:summary.x-bounds.x,right:bounds.right-actions.right,bottom:bounds.bottom-actions.bottom,height:p.height,pagerLeft:p.x-bounds.x,pagerRight:bounds.right-p.right};
+  const pager=card.querySelector(`[aria-label="${label}"]`)!,bounds=card.getBoundingClientRect(),p=pager.getBoundingClientRect(),summary=pager.querySelector('.mt-page-summary')!.getBoundingClientRect(),actions=(pager.querySelector('.mt-page-actions')||pager.querySelector('.mt-page-summary'))!.getBoundingClientRect();
+  return {left:summary.x-bounds.x,right:bounds.right-(p.right-parseFloat(getComputedStyle(pager).paddingRight)),bottom:bounds.bottom-p.bottom,height:p.height,pagerLeft:p.x-bounds.x,pagerRight:bounds.right-p.right};
  },label);
 }
 async function historyGeometry(page:Page){
  await page.evaluate(async()=>{await document.fonts.ready;await new Promise<void>(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r()))) });
  const pager=page.getByRole('navigation',{name:'订阅运行历史分页',exact:true}),card=page.locator('.subscription-workbench');
+ if(await pager.count()===0){const c=(await card.boundingBox())!,w=(await page.locator('.subscription-history-workspace').boundingBox())!;expect(c.y+c.height-w.y-w.height).toBeGreaterThanOrEqual(0);expect(c.y+c.height-w.y-w.height).toBeLessThanOrEqual(24);expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(()=>innerWidth));return;}
+ const multiple=await pager.locator('.mt-page-actions').count()>0;
  const p=(await pager.boundingBox())!,bounds=(await card.boundingBox())!,workspace=(await page.locator('.subscription-history-workspace').boundingBox())!,review=(await page.locator('.subscription-history-workspace>.run-review').boundingBox())!;
  expect(Math.abs(p.width-await card.evaluate(e=>e.clientWidth))).toBeLessThanOrEqual(1);
  expect(p.x).toBeGreaterThanOrEqual(bounds.x);expect(p.x+p.width).toBeLessThanOrEqual(bounds.x+bounds.width);expect(p.y+p.height).toBeLessThanOrEqual(bounds.y+bounds.height);
  expect(p.y).toBeGreaterThanOrEqual(workspace.y+workspace.height);
  const separate=(a:Rect,b:Rect)=>expect(a.x+a.width<=b.x||b.x+b.width<=a.x||a.y+a.height<=b.y||b.y+b.height<=a.y).toBe(true);
  separate(p,workspace);separate(p,review);for(const record of await page.locator('.run-timeline>button').all())separate(p,(await record.boundingBox())!);
- const header=await page.locator('.subscription-commandbar').evaluate(e=>{const box=e.getBoundingClientRect(),style=getComputedStyle(e);return {left:box.x+parseFloat(style.paddingLeft),right:box.right-parseFloat(style.paddingRight)}}),summary=(await pager.locator('.mt-page-summary').boundingBox())!,actions=(await pager.locator('.mt-page-actions').boundingBox())!,subject=(await page.locator('.history-subject-picker>label').boundingBox())!;
- if((page.viewportSize()?.width||1440)>700)expect(Math.abs(summary.y-actions.y)).toBeLessThanOrEqual(1);
- expect(Math.abs(summary.x-header.left)).toBeLessThanOrEqual(1);expect(Math.abs(summary.x-subject.x)).toBeLessThanOrEqual(1);expect(Math.abs(actions.x+actions.width-header.right)).toBeLessThanOrEqual(1);
+ const header=await page.locator('.subscription-commandbar').evaluate(e=>{const box=e.getBoundingClientRect(),style=getComputedStyle(e);return {left:box.x+parseFloat(style.paddingLeft),right:box.right-parseFloat(style.paddingRight)}}),summary=(await pager.locator('.mt-page-summary').boundingBox())!,actions=multiple?(await pager.locator('.mt-page-actions').boundingBox())!:summary,subject=(await page.locator('.history-subject-picker>label').boundingBox())!;
+ if(multiple&&(page.viewportSize()?.width||1440)>700)expect(Math.abs(summary.y-actions.y)).toBeLessThanOrEqual(1);
+ expect(Math.abs(summary.x-header.left)).toBeLessThanOrEqual(1);expect(Math.abs(summary.x-subject.x)).toBeLessThanOrEqual(1);if(multiple)expect(Math.abs(actions.x+actions.width-header.right)).toBeLessThanOrEqual(1);else{await expect(pager.locator('.el-select')).toHaveCount(0);expect(await pager.evaluate(e=>parseFloat(getComputedStyle(e).paddingRight))).toBe((page.viewportSize()?.width||1440)>700?24:16);}
  expect(await pager.evaluate(e=>getComputedStyle(e).borderTopWidth)).toBe('1px');
- for(const name of ['首页','上一页','下一页','末页']){const button=pager.getByRole('button',{name,exact:true});await expect(button).toBeVisible();expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)}
+ for(const name of ['首页','上一页','下一页','末页']){if(!multiple){await expect(pager.getByRole('button',{name,exact:true})).toHaveCount(0);continue;}const button=pager.getByRole('button',{name,exact:true});await expect(button).toBeVisible();expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)}
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(()=>innerWidth));
  const history=await paginationInsets(page,'订阅运行历史分页');
  await page.getByRole('button',{name:'订阅列表',exact:true}).click();await expect(page.getByRole('navigation',{name:'订阅列表分页',exact:true})).toBeVisible();const list=await paginationInsets(page,'订阅列表分页');
- for(const key of ['left','right','bottom','height','pagerLeft','pagerRight']as const)expect(Math.abs(history[key]-list[key]),key).toBeLessThanOrEqual(1);
+ for(const key of (multiple?['left','right','bottom','height','pagerLeft','pagerRight']:['left','right','bottom','pagerLeft','pagerRight'])as ('left'|'right'|'bottom'|'height'|'pagerLeft'|'pagerRight')[])expect(Math.abs(history[key]-list[key]),key).toBeLessThanOrEqual(1);
  await page.getByRole('button',{name:'运行记录',exact:true}).click();await expect(page.getByRole('navigation',{name:'订阅运行历史分页',exact:true})).toBeVisible();const restored=await paginationInsets(page,'订阅运行历史分页');
  for(const key of ['left','right','bottom']as const)expect(Math.abs(restored[key]-history[key]),key).toBeLessThanOrEqual(1);
  if(i30Capture){const {mkdirSync,writeFileSync}=await import('node:fs'),{resolve}=await import('node:path'),dir=resolve(import.meta.dirname,'../../scratchpad/i-phase/i30b');mkdirSync(dir,{recursive:true});writeFileSync(resolve(dir,'geometry-'+test.info().title.replace(/[^a-zA-Z0-9-]/g,'-')+'.json'),JSON.stringify({history,list,restored},null,2))}
 }
-for(const width of [1440,375])for(const count of [0,3])test(`I30b full-width history pager sits below both columns ${width}px ${count} runs`,async({page})=>{
+for(const width of [1440,375])for(const count of [0,3,30])test(`I30b full-width history pager sits below both columns ${width}px ${count} runs`,async({page})=>{
  await historyFixture(page,count);await page.setViewportSize({width,height:1000});await page.goto('/subscriptions?tab=history&subscription=i15-sub-0');
- await expect(page.locator('.run-timeline>button')).toHaveCount(count);await expect(page.getByRole('navigation',{name:'订阅运行历史分页',exact:true})).toBeVisible();await historyGeometry(page);
+ await expect(page.locator('.run-timeline>button')).toHaveCount(Math.min(count,25));const nav=page.getByRole('navigation',{name:'订阅运行历史分页',exact:true});if(count===0)await expect(nav).toHaveCount(0);else{await expect(nav).toBeVisible();if(count===3)await expect(nav).toHaveText('共 3 条')}await historyGeometry(page);
 });
 test('I30b full history pagination preserves page and page-size requests',async({page})=>{
  const reads=await historyFixture(page,30);await page.goto('/subscriptions?tab=history&subscription=i15-sub-0');await expect(page.locator('.run-timeline>button')).toHaveCount(25);

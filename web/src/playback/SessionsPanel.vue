@@ -14,7 +14,7 @@ import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { date, errorText } from '../workflows/readiness';
 const route = useRoute();
-const page = usePageNumber(), pageSize = usePageSize(50), data = reactive(useResource(() => listNativeSessions((page.value - 1) * pageSize.value,pageSize.value), { items: [], total: 0, startIndex: 0, limit: 50 })), detail = ref<any>(null), open = ref(false), confirm = ref(false), op = reactive(useOperation('sessions')), notice = ref('');
+const page = usePageNumber(), pageSize = usePageSize(25), data = reactive(useResource(() => listNativeSessions((page.value - 1) * pageSize.value,pageSize.value), { items: [], total: 0, startIndex: 0, limit: 50 })), detail = ref<any>(null), open = ref(false), confirm = ref(false), op = reactive(useOperation('sessions')), notice = ref('');
 const account = reactive(useResource<any>(() => request(`/media-server/users/${encodeURIComponent(String(route.query.userId))}`)));
 async function accountEntry() {
   const id = route.query.userId;

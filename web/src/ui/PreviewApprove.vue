@@ -114,7 +114,7 @@ withDefaults(defineProps<{
   min-width: 20px;
 }
 .step-content {
-  min-height: 120px;
+  min-height: 0;
 }
 .step-footer {
   margin-top: 24px;

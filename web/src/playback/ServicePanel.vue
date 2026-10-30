@@ -9,7 +9,7 @@ import { useOperation } from '../workflows/useOperation';
 import ResourceState from '../workflows/ResourceState.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { errorText } from '../workflows/readiness';
-const status = reactive(useResource(getNativeServerSettings)), providers = reactive(useResource(() => request('/media-server/providers'))), page = usePageNumber(), pageSize = usePageSize(50), libraries = reactive(useResource(() => listNativeLibraryMappings((page.value - 1) * pageSize.value,pageSize.value))), op = reactive(useOperation('service')), form = reactive({ serverName: '', enabled: false, revision: 0 }), latest = ref<any>(null), notice = ref('');
+const status = reactive(useResource(getNativeServerSettings)), providers = reactive(useResource(() => request('/media-server/providers'))), page = usePageNumber(), pageSize = usePageSize(25), libraries = reactive(useResource(() => listNativeLibraryMappings((page.value - 1) * pageSize.value,pageSize.value))), op = reactive(useOperation('service')), form = reactive({ serverName: '', enabled: false, revision: 0 }), latest = ref<any>(null), notice = ref('');
 async function load() {
   const pristine = status.data && form.serverName === status.data.serverName && form.enabled === status.data.enabled && form.revision === status.data.revision;
   const s = await status.load();

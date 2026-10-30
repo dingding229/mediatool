@@ -49,3 +49,6 @@ it('gives the episode and extension priority over a year or directory in a very 
  const shown=middleText(long,80,pixels);expect(shown).toContain('S01E01');expect(shown).toMatch(/\.mkv$/);expect(pixels(shown)).toBeLessThanOrEqual(80);
  const path=displayPath('/115/很长的父目录名称/多级目录/'+long,160,pixels);expect(path).toContain('S01E01');expect(path).toMatch(/\.mkv$/);expect(pixels(path)).toBeLessThanOrEqual(160);
 });
+it('embedded titles do not create a second tab stop inside a parent button',async()=>{
+ const html=await renderToString(createSSRApp(MiddleEllipsis,{text:long,copy:false,embedded:true}));expect(html).toContain(long);expect(html).not.toContain('tabindex="0"');expect(html).not.toContain('<button');
+});

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import FilePicker from '../ui/FilePicker.vue';
+import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import {ref,reactive,watch} from 'vue';
 import {requestUUID} from '../utils/request-uuid';
 import {listSubtitles,uploadSubtitle,saveSubtitle,deleteSubtitle,subtitleDownload,type Subtitle,type SubtitleMetadata} from '../api/subtitles';
@@ -8,13 +10,13 @@ import {errorText} from '../workflows/readiness';
 import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
-const props=defineProps<{assetId:string}>(),asset=ref(props.assetId),data=reactive(useResource(()=>listSubtitles(asset.value),{assetId:'',versions:[],items:[]})),op=reactive(useOperation('subtitles')),file=ref<File>(),uploadId=ref(''),encoding=ref('auto'),input=ref<HTMLInputElement>(),notice=ref(''),editing=ref<Subtitle>(),form=reactive<SubtitleMetadata>({language:'',title:'',default:false,forced:false,hidden:false,revision:1}),remove=ref<Subtitle>(),confirm=ref(false);
+const props=defineProps<{assetId:string}>(),asset=ref(props.assetId),data=reactive(useResource(()=>listSubtitles(asset.value),{assetId:'',versions:[],items:[]})),op=reactive(useOperation('subtitles')),file=ref<File>(),uploadId=ref(''),encoding=ref('auto'),notice=ref(''),editing=ref<Subtitle>(),form=reactive<SubtitleMetadata>({language:'',title:'',default:false,forced:false,hidden:false,revision:1}),remove=ref<Subtitle>(),confirm=ref(false);
 const origin=(s:string)=>({automatic:'自动识别',embedded:'内嵌',uploaded:'已上传'}[s]||'待核对');
 async function load(){await data.load();if(op.pending&&!data.error&&data.data.assetId===asset.value){let p;try{p=JSON.parse(op.pending.key)}catch{op.clear();return}if(p.asset!==asset.value)return;const row=data.data.items.find(s=>s.id===p.id);if(p.kind==='delete'&&(!row||row.deleting)||p.kind==='upload'&&!!row||p.kind==='save'&&row&&row.revision!==p.revision)op.clear()}}
-watch(()=>props.assetId,v=>{asset.value=v});watch(asset,()=>{editing.value=undefined;file.value=undefined;notice.value='';if(input.value)input.value.value='';void load()},{immediate:true});
-function cancelPending(){op.clear();file.value=undefined;if(input.value)input.value.value='';notice.value='已核对列表，请重新选择文件或操作。'}
-function choose(event:Event){file.value=(event.target as HTMLInputElement).files?.[0];notice.value='';uploadId.value=requestUUID();if(file.value&&(!/\.(srt|ass|ssa|vtt)$/i.test(file.value.name)||file.value.size>5*1024*1024)){notice.value='仅支持 srt/ass/ssa/vtt，最大 5MiB。';file.value=undefined;if(input.value)input.value.value=''}}
-async function upload(){if(!file.value||op.pending)return;const selected=file.value,target=asset.value,id=uploadId.value;const out=await op.run(JSON.stringify({kind:'upload',asset:target,id,name:selected.name}),()=>uploadSubtitle(target,selected,encoding.value,id));if(asset.value!==target)return;if(out){notice.value=`已上传并转为 UTF-8，识别编码：${out.encoding||'UTF-8'}。`;file.value=undefined;if(input.value)input.value.value='';await load()}else if(op.pending){await load();notice.value='上传结果待核对，请查看字幕列表；不要重复上传。'}}
+watch(()=>props.assetId,v=>{asset.value=v});watch(asset,()=>{editing.value=undefined;file.value=undefined;notice.value='';void load()},{immediate:true});
+function cancelPending(){op.clear();file.value=undefined;notice.value='已核对列表，请重新选择文件或操作。'}
+function choose(selected:File){file.value=selected;notice.value='';uploadId.value=requestUUID();if(file.value&&(!/\.(srt|ass|ssa|vtt)$/i.test(file.value.name)||file.value.size>5*1024*1024)){notice.value='仅支持 srt/ass/ssa/vtt，最大 5MiB。';file.value=undefined;}}
+async function upload(){if(!file.value||op.pending)return;const selected=file.value,target=asset.value,id=uploadId.value;const out=await op.run(JSON.stringify({kind:'upload',asset:target,id,name:selected.name}),()=>uploadSubtitle(target,selected,encoding.value,id));if(asset.value!==target)return;if(out){notice.value=`已上传并转为 UTF-8，识别编码：${out.encoding||'UTF-8'}。`;file.value=undefined;await load()}else if(op.pending){await load();notice.value='上传结果待核对，请查看字幕列表；不要重复上传。'}}
 function edit(row:Subtitle){editing.value=row;Object.assign(form,{language:row.language,title:row.title,default:row.default,forced:row.forced,hidden:row.hidden,revision:row.revision});op.error=null}
 async function save(row=editing.value,value:SubtitleMetadata=form){if(!row||op.pending)return;const target=asset.value;const out=await op.run(JSON.stringify({kind:'save',asset:target,id:row.id,revision:row.revision}),()=>saveSubtitle(target,row.id,{...value,revision:row.revision}));if(asset.value!==target)return;await load();if(out)editing.value=undefined}
 async function applyDelete(){if(!remove.value)return;const row=remove.value,target=asset.value;await op.run(JSON.stringify({kind:'delete',asset:target,id:row.id,revision:row.revision}),()=>deleteSubtitle(target,row.id,row.revision));if(asset.value!==target)return;confirm.value=false;await load()}
@@ -22,14 +24,14 @@ async function applyDelete(){if(!remove.value)return;const row=remove.value,targ
 <template>
 <section class="subtitle-panel" aria-label="字幕管理">
  <h3>字幕</h3><p>按物理版本管理；自动字幕走直链，上传副本仅存本程序，不改媒体或 STRM。</p>
- <label class="subtitle-field">物理版本<select v-model="asset" aria-label="字幕物理版本" :disabled="!!op.pending"><option v-for="v in data.data.versions" :key="v.id" :value="v.id">{{v.name}}</option></select></label>
+ <label class="subtitle-field">物理版本<el-select v-model="asset" aria-label="字幕物理版本" :disabled="!!op.pending"><el-option v-for="v in data.data.versions" :key="v.id" :value="v.id" :label="(v.name)"/></el-select></label>
  <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" @reload="load"/>
  <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
  <AsyncResultBanner v-if="op.phase" :status="op.phase" message="正在核对上次操作，不重复提交。" @refresh="load"/>
  <el-button v-if="op.pending&&data.loaded&&!data.error" @click="cancelPending">已核对，取消待定操作</el-button>
  <div class="subtitle-upload">
-  <div class="subtitle-field"><span>上传字幕</span><div class="subtitle-file"><el-button :disabled="!!op.pending||!!data.error" @click="input?.click()">选择字幕文件</el-button><span :title="file?.name">{{file?.name||'未选择文件'}}</span><input ref="input" type="file" accept=".srt,.ass,.ssa,.vtt" aria-label="上传字幕文件" hidden :disabled="!!op.pending||!!data.error" @change="choose"/></div></div>
-  <label class="subtitle-field">原文件编码<select v-model="encoding" aria-label="字幕编码" :disabled="!!op.pending"><option value="auto">自动检测</option><option v-for="v in ['utf-8','utf-16le','utf-16be','gb18030','big5','shift-jis','windows-1252']" :key="v" :value="v">{{v.toUpperCase()}}</option></select></label>
+  <div class="subtitle-field"><span>上传字幕</span><div class="subtitle-file"><FilePicker accept=".srt,.ass,.ssa,.vtt" label="选择字幕文件" :disabled="!!op.pending||!!data.error" @select="choose"/><MiddleEllipsis v-if="file" :text="file.name" :copy="false"/><span v-else>未选择文件</span></div></div>
+  <label class="subtitle-field">原文件编码<el-select v-model="encoding" aria-label="字幕编码" :disabled="!!op.pending"><el-option value="auto" :label="'自动检测'"/><el-option v-for="v in ['utf-8','utf-16le','utf-16be','gb18030','big5','shift-jis','windows-1252']" :key="v" :value="v" :label="(v.toUpperCase())"/></el-select></label>
   <p>支持 srt / ass / ssa / vtt，最大 5MiB。检测 Unicode、UTF-8，并按文件名尝试旧编码；疑似乱码请指定原编码重新上传。</p>
   <el-button :disabled="!file||!!op.pending||!!data.error" :loading="op.busy" @click="upload">上传字幕</el-button>
  </div>
@@ -37,7 +39,7 @@ async function applyDelete(){if(!remove.value)return;const row=remove.value,targ
  <p v-if="data.loaded&&!data.error&&!data.data.items.length" class="subtitle-empty">此版本暂无字幕，可上传自己的字幕文件。</p>
  <p v-if="data.data.items.some(row=>row.source==='embedded')" class="subtitle-embedded-note">内嵌字幕随视频播放，仅编辑显示信息，不提供提取或删除。</p>
  <article v-for="row in data.data.items" :key="row.id" class="subtitle-row">
-  <header><strong :title="row.filename">{{row.title||row.filename}}</strong><el-tag>{{origin(row.source)}}</el-tag></header>
+  <header><strong :title="row.filename"><MiddleEllipsis :text="row.title||row.filename" :copy="false"/></strong><el-tag>{{origin(row.source)}}</el-tag></header>
   <p>{{row.language||'语言未标注'}} · {{row.extension.toUpperCase()}}<span v-if="row.default"> · 默认</span><span v-if="row.forced"> · 强制</span><span v-if="row.hidden"> · 已隐藏</span><span v-if="row.deleting"> · 副本清理待重试</span></p>
   <div v-if="editing?.id!==row.id" class="subtitle-actions">
    <el-button :disabled="!!op.pending||row.deleting" @click="edit(row)">编辑字幕信息</el-button>

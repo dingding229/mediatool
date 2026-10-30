@@ -64,7 +64,7 @@ async function metadataSaved(){metadataEditor.value?.close();imageEditor.value?.
         </header>
         <PosterWall :items="displayItems" @select="inspect"/>
         <StateView v-if="!items.length" state="empty" title="暂无匹配作品" description="可调整标题或类型后再查看。"/>
-        <PagePagination v-model:current-page="page" :total="total??undefined" v-model:page-size="pageSize" :page-sizes="[10,24,25,50,100]" layout="prev,pager,next" @current-change="load"/>
+        <PagePagination v-model:current-page="page" :total="total??undefined" v-model:page-size="pageSize" layout="prev,pager,next" @current-change="load"/>
       </section>
     <DetailDrawer :key="detail?.id" v-model:visible="detailOpen" title="作品详情" size="large" class="catalog-detail">
       <StateView v-if="detailLoading" state="loading" title="正在读取作品详情…"/>
@@ -114,7 +114,7 @@ async function metadataSaved(){metadataEditor.value?.close();imageEditor.value?.
                 </li>
               </ol>
               <StateView v-if="!children.length" state="empty" title="来源尚未返回季集内容"/>
-              <PagePagination v-model:current-page="childPage" :total="childTotal" v-model:page-size="childSize" :page-sizes="[10,24,25,50,100]" layout="prev,pager,next" @current-change="readChildren"/>
+              <PagePagination v-model:current-page="childPage" :total="childTotal" v-model:page-size="childSize" layout="prev,pager,next" @current-change="readChildren"/>
             </template>
           </section>
           <section v-if="detail.episodeDetails?.length">

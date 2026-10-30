@@ -18,7 +18,7 @@ export async function logConsoleFixture(page:Page,large=false){
  await page.route('**/api/v1/logs/query?*',async r=>{
   const q=new URL(r.request().url()).searchParams;reads.push(q);if(hold)await new Promise<void>(resolve=>releases.push(resolve));
   if(failed)return r.fulfill({status:503,json:{error:{code:'fixture_unavailable',message:'本地模拟：日志查询失败'}}});
-  const size=Number(q.get('pageSize')||200),number=Number(q.get('page')||1);
+  const size=Number(q.get('pageSize')||25),number=Number(q.get('page')||1);
   return r.fulfill({json:{data:{items:rows.slice((number-1)*size,number*size),total:rows.length,before:at,modules:['httpapi','library','integrations'],truncated:false}}});
  });
  await page.route('**/api/v1/logs/clear',r=>{if(lost)return r.abort('failed');rows=[];return r.fulfill({json:{data:{deleted:true}}})});

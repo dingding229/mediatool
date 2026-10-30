@@ -63,7 +63,6 @@ usePageRefresh(session.load, 'security');
         <p v-if="error" role="alert">{{error}}</p>
       </template>
     </section>
-    <AdministratorSessions/>
     <section class="settings-card" aria-label="修改管理员密码">
       <h2>修改密码</h2>
       <PasswordForm/>
@@ -76,5 +75,6 @@ usePageRefresh(session.load, 'security');
       <el-button @click="reopen">重新打开配置引导</el-button>
       </div>
     </section>
+    <AdministratorSessions/>
   </div>
 </template>
