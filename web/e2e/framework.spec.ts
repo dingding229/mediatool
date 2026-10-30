@@ -1,3 +1,4 @@
+import {waitForLayout} from './layout-stability';
 import {chooseUASelect,expectUASelect} from './ua-select';
 import {fixtureFulfill} from './collection-fixture'
 import { test,expect } from '@playwright/test'
@@ -284,9 +285,13 @@ test('output identity migration needs read-only preview and explicit archive con
  await dialog.getByText('同时迁移Movies/TV输出目录（先预览）',{exact:true}).click()
  await dialog.getByRole('button',{name:'预览输出迁移',exact:true}).click()
  const confirm=page.getByRole('dialog',{name:'确认输出迁移',exact:true})
- await expect(dialog.getByText('输出迁移预览',{exact:true})).toBeVisible();await dialog.getByRole('button',{name:'核对后确认迁移',exact:true}).click();await expect(confirm).toBeVisible();expect(applied).toHaveLength(0)
- await expect(dialog.getByText('归档旧输出',{exact:true})).toBeVisible()
- await expect(dialog.getByText('Movies/自有电影/自有电影.strm',{exact:true})).toBeVisible()
+ await expect(dialog.getByText('输出迁移预览',{exact:true})).toBeVisible()
+ const sourceGroup=dialog.locator('.identity-path-pair>div').filter({hasText:'源路径组 · 归档旧输出'}),targetGroup=dialog.locator('.identity-path-pair>div').filter({hasText:'目标路径组 · 生成新输出'});
+ await expect(sourceGroup).toHaveCount(1);await expect(targetGroup).toHaveCount(1);
+ await expect(sourceGroup.locator('.middle-ellipsis-text')).toHaveText(preview.operations[1].path);await expect(sourceGroup.locator('.middle-ellipsis-text')).toHaveAttribute('aria-label',preview.operations[1].path);
+ await expect(targetGroup.locator('.middle-ellipsis-text')).toHaveText(preview.operations[0].path);await expect(targetGroup.locator('.middle-ellipsis-text')).toHaveAttribute('aria-label',preview.operations[0].path);
+ await expect(dialog.getByText('仅预览，不写入文件；原媒体与固定链接保持不变。',{exact:true})).toBeVisible();expect(applied).toHaveLength(0);
+ await dialog.getByRole('button',{name:'核对后确认迁移',exact:true}).click();await expect(confirm).toBeVisible();expect(applied).toHaveLength(0)
  await page.screenshot({path:resolve(screenshots,'output-migration-preview.png'),fullPage:true,animations:'disabled'})
  await page.setViewportSize({width:375,height:812});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  await page.screenshot({path:resolve(screenshots,'output-migration-preview-mobile.png'),fullPage:true,animations:'disabled'})
@@ -540,7 +545,7 @@ test('media catalog browses builtin content without exposing playback credential
  await page.goto('/mediaLibrary')
  await expect(page.getByRole('heading',{name:'媒体库',exact:true})).toBeVisible()
  await page.getByRole('button',{name:/自有影片验证样本/}).click()
- const detail=page.getByRole('dialog',{name:'自有影片验证样本',exact:true});await expect(detail.getByText('用于界面验收的明确测试内容，不是实际影片入库记录。',{exact:true})).toBeVisible()
+ const detail=page.getByRole('dialog',{name:'作品详情',exact:true});await expect(detail.getByRole('heading',{name:item.title,exact:true})).toHaveCount(1);await expect(detail.getByText(item.overview,{exact:true})).toBeVisible()
  await detail.getByRole('button',{name:'关闭此对话框',exact:true}).click()
  await expect(detail).not.toBeVisible()
  await page.screenshot({path:resolve(screenshots,'media-catalog-desktop.png'),animations:'disabled'})
@@ -1169,8 +1174,8 @@ test('system operations has real bounded health, paginated tasks and details (is
 
 test('history entries separate media paths time and safe actions at mobile widths (fixture)',async({page})=>{
  await fixtureLogin(page);const item={id:'owned-history-ui',kind:'transfer',state:'imported',source:'/data/下载目录/Owned.Film.2026.1080p.WEB-DL.mkv',destination:'/115/电影/华语电影/自有影片 (2026)/自有影片 (2026) - 1080p.mkv',origin:'download',method:'transfer',batchId:'owned-batch',media:{title:'自有影片',year:'2026',mediaType:'movie'},category:'华语电影',message:'云端校验、STRM输出均完成，保留做种源',updatedAt:'2026-10-15T01:00:00Z',createdAt:'2026-10-15T00:00:00Z',details:{phase:'verified',bytesTransferred:5,size:5}}
- await page.route('**/api/v1/library/activity?*',r=>fixtureFulfill(r,{json:{data:{items:[item],total:1}}}));await page.goto('/organize-history');const row=page.locator('.organize-record');await expect(row.locator('time')).toHaveCount(1);await expect(row.getByRole('heading')).toHaveText('上传 / 入库');await expect(row).toContainText('识别结果：自有影片 (2026)');await expect(row.locator('.mt-path').nth(0)).toHaveAttribute('title',item.source);await expect(row.locator('.mt-path').nth(1)).toHaveAttribute('title',item.destination);await expect(row).not.toContainText(item.message)
- for(const width of [1440,768,375]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await expect(row.getByRole('button',{name:'查看步骤详情',exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,`history-compact-${width}.png`),fullPage:true,animations:'disabled'});}
+ await page.route('**/api/v1/library/activity?*',r=>fixtureFulfill(r,{json:{data:{items:[item],total:1}}}));await page.goto('/organize-history');const row=page.locator('.organize-record');await expect(row.locator('time')).toHaveCount(1);await expect(row.getByRole('heading')).toHaveText('上传 / 入库');await expect(row).toContainText('识别结果：自有影片 (2026)');const sourceField=row.locator('.history-paths>div').filter({hasText:'源文件'}),targetField=row.locator('.history-paths>div').filter({hasText:'目标路径'});await expect(sourceField).toHaveCount(1);await expect(targetField).toHaveCount(1);const sourceText=sourceField.locator('.middle-ellipsis-text'),targetText=targetField.locator('.middle-ellipsis-text');await expect(sourceText).toHaveAttribute('aria-label',item.source);await expect(targetText).toHaveAttribute('aria-label',item.destination);await sourceText.focus();await expect(page.getByRole('tooltip').filter({hasText:item.source})).toHaveText(item.source);await targetText.focus();await expect(page.getByRole('tooltip').filter({hasText:item.destination})).toHaveText(item.destination);await targetText.press('Tab');await expect(page.getByRole('tooltip').filter({hasText:item.source})).toBeHidden();await expect(page.getByRole('tooltip').filter({hasText:item.destination})).toBeHidden();await waitForLayout(page);await expect(row).not.toContainText(item.message)
+ for(const width of [1440,768,375]){await page.setViewportSize({width,height:950});await waitForLayout(page);const layout=await page.evaluate(()=>({viewport:innerWidth,page:document.documentElement.scrollWidth,overflow:[...document.querySelectorAll('body *')].map(el=>({tag:el.tagName,cls:typeof el.className==='string'?el.className:'',right:el.getBoundingClientRect().right,width:el.getBoundingClientRect().width})).filter(r=>r.width>0&&r.right>innerWidth).slice(0,12)}));expect(layout.page<=layout.viewport,JSON.stringify(layout)).toBe(true);await expect(row.getByRole('button',{name:'查看步骤详情',exact:true})).toBeVisible();await page.screenshot({path:resolve(screenshots,`history-compact-${width}.png`),fullPage:true,animations:'disabled'});}
  await row.getByRole('button',{name:'查看步骤详情',exact:true}).click();await expect(page.getByRole('dialog',{name:'整理步骤详情',exact:true})).toContainText(item.destination);await expect(page.getByRole('dialog',{name:'整理步骤详情',exact:true})).toContainText(item.source)
 })
 

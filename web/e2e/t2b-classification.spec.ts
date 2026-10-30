@@ -9,7 +9,7 @@ test('T2b list, category filter and detail use the same classification for all t
  await page.goto('/library');await expect(page.locator('.catalog-poster')).toHaveCount(3);
  for(const entry of entries){
   await expect(page.getByRole('button',{name:entry.title,exact:true})).toContainText(entry.category);
-  await page.getByRole('button',{name:entry.title,exact:true}).click();const d=page.getByRole('dialog',{name:entry.title,exact:true});await expect(d.locator('dd').filter({hasText:entry.category})).toHaveCount(1);await d.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(d).toBeHidden();
+  await page.getByRole('button',{name:entry.title,exact:true}).click();const d=page.getByRole('dialog',{name:'作品详情',exact:true});await expect(d.getByRole('heading',{name:entry.title,exact:true})).toHaveCount(1);await expect(d.locator('dd').filter({hasText:entry.category})).toHaveCount(1);await d.getByRole('button',{name:'关闭此对话框',exact:true}).click();await expect(d).toBeHidden();
   await page.locator('.catalog-filters .el-select').click();await page.getByRole('option',{name:entry.category,exact:true}).click();await expect(page.locator('.catalog-poster')).toHaveCount(1);await expect(page.locator('.catalog-poster')).toContainText(entry.title);
   await page.locator('.catalog-filters .el-select').click();await page.getByRole('option',{name:'全部类型',exact:true}).click();await expect(page.locator('.catalog-poster')).toHaveCount(3);
  }
