@@ -20744,6 +20744,19 @@
           "type": {
             "type": "string"
           },
+          "versionCount": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "当前集包含的物理版本数；容量为这些版本各累计一次。",
+            "readOnly": true
+          },
           "year": {
             "type": "string"
           }
@@ -20882,6 +20895,19 @@
           },
           "type": {
             "type": "string"
+          },
+          "versionCount": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "当前集包含的物理版本数；容量为这些版本各累计一次。",
+            "readOnly": true
           },
           "year": {
             "type": "string"
@@ -25005,6 +25031,19 @@
             "format": "int64",
             "type": "integer"
           },
+          "endedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "终态最后落定时间，仅展示；进行中时省略。",
+            "readOnly": true
+          },
           "files": {
             "format": "int64",
             "type": "integer"
@@ -25025,6 +25064,19 @@
           },
           "root": {
             "type": "string"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "本轮覆盖开始时间，仅展示；未开始时省略。",
+            "readOnly": true
           },
           "state": {
             "enum": [

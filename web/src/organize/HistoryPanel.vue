@@ -1,7 +1,14 @@
 <script setup lang="ts">
+import {ElPopover} from 'element-plus';
+import 'element-plus/es/components/popover/style/css';
+import DescriptionGrid from '../ui/DescriptionGrid.vue';
+import {useDebouncedFilter} from '../composables/useDebouncedFilter';
+import HistoryPaths from './HistoryPaths.vue';
+import HistorySteps from './HistorySteps.vue';
+import {present} from './presentation';
 import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-import {Document,Close,Refresh} from '@element-plus/icons-vue';
+import {Document,Close,Refresh,FolderOpened,Upload,Tools,Delete,Files} from '@element-plus/icons-vue';
 import {beijingISO} from '../presentation/time';
 import {cachedTMDBImage} from '../api/images';
 import {usePageNumber,usePageSize} from '../ui/page-query';
@@ -24,6 +31,9 @@ const router=useRouter();
 const stageOptions=Object.fromEntries(Object.entries(kindLabels).filter(([key])=>key!=='cleanup'));
 const stageLabel=(value?:string)=>kindLabels[value||'']||'其他/历史阶段';
 const route = useRoute(), items = ref<any[]>([]), total = ref(0), page = usePageNumber('historyPage'), pageSize = usePageSize(25,'historyPage'), kind = ref(String(route.query.kind || '')), state = ref(String(route.query.state || '')), query = ref(String(route.query.q || '')), batchId = ref(String(route.query.batchId || '')), origin = ref(''), method = ref(''), from = ref(''), to = ref(''), loading = ref(true), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false), selected = ref<any[]>([]), removeOpen = ref(false), busy = ref(false), uncertain = ref(false);
+const bulkMode=ref(false);
+const historyIcon=(kind:string)=>({scan:FolderOpened,transfer:Upload,strmRepair:Tools,cleanup:Delete,batch:Files}[kind]||Document);
+useDebouncedFilter(()=>[query.value,batchId.value,origin.value,method.value,from.value,to.value],()=>apply());
 let epoch = 0, disposed = false;
 const summary = computed(() => ({ active: items.value.filter(r => ['pending', 'running', 'paused'].includes(r.state)).length, attention: items.value.filter(r => ['needs_reconcile', 'conflict', 'failed', 'partial'].includes(r.state)).length, done: items.value.filter(r => ['succeeded', 'imported', 'visible', 'applied', 'verified'].includes(r.state)).length }));
 let hasLoaded=false;
@@ -143,6 +153,25 @@ usePageRefresh(load, 'history');
     </header>
     <form class="media-form organize-history-filters" @submit.prevent="apply">
       <label>
+        关键词
+        <el-input v-model="query" aria-label="历史关键词" placeholder="搜索文件名或路径" clearable/>
+      </label>
+      <label>
+        状态
+        <el-select v-model="state" aria-label="历史状态" @change="apply">
+          <el-option value="" label="全部状态"/>
+          <el-option v-for="v in ['pending','conflict','running','paused','needs_reconcile','failed','partial','succeeded','imported','applied','verified','visible','cancelled']" :key="v" :value="v" :label="kind==='output'&&v==='pending'?'待恢复':label(v)"/>
+        </el-select>
+      </label>
+      <label>
+        阶段
+        <el-select v-model="kind" aria-label="历史阶段" @change="apply">
+          <el-option value="" label="全部阶段"/>
+          <el-option v-for="(text,value) in stageOptions" :key="value" :value="value" :label="text"/>
+        </el-select>
+      </label>
+      <ElPopover trigger="click" placement="bottom-end" :width="360" popper-class="history-more-popover"><template #reference><el-button>更多筛选</el-button></template><div class="history-more-fields">
+      <label>
         来源
         <el-select v-model="origin" aria-label="历史来源" @change="apply">
           <el-option value="" label="全部来源"/>
@@ -159,28 +188,6 @@ usePageRefresh(load, 'history');
         </el-select>
       </label>
       <label>
-        阶段
-        <el-select v-model="kind" aria-label="历史阶段" @change="apply">
-          <el-option value="" label="全部阶段"/>
-          <el-option v-for="(text,value) in stageOptions" :key="value" :value="value" :label="text"/>
-        </el-select>
-      </label>
-      <label>
-        状态
-        <el-select v-model="state" aria-label="历史状态" @change="apply">
-          <el-option value="" label="全部状态"/>
-          <el-option v-for="v in ['pending','conflict','running','paused','needs_reconcile','failed','partial','succeeded','imported','applied','verified','visible','cancelled']" :key="v" :value="v" :label="kind==='output'&&v==='pending'?'待恢复':label(v)"/>
-        </el-select>
-      </label>
-      <nav class="media-actions history-output-filters" aria-label="输出恢复快捷筛选">
-        <el-button :aria-pressed="kind==='output'&&state==='pending'" @click="filterOutputs('pending')">待恢复输出</el-button>
-        <el-button :aria-pressed="kind==='output'&&state==='conflict'" @click="filterOutputs('conflict')">冲突输出</el-button>
-      </nav>
-      <label>
-        关键词
-        <el-input v-model="query" aria-label="历史关键词"/>
-      </label>
-      <label>
         批次
         <el-input v-model="batchId" aria-label="历史批次ID"/>
       </label>
@@ -192,23 +199,24 @@ usePageRefresh(load, 'history');
         结束时间
         <input v-model="to" class="mt-native-time-input" type="datetime-local" aria-label="历史结束时间"/>
       </label>
-      <div class="media-actions history-filter-actions"><el-button native-type="submit">筛选</el-button><el-button @click="resetFilters">重置</el-button></div>
+      <el-button @click="resetFilters">重置筛选</el-button></div></ElPopover>
     </form>
+    <div class="history-tools"><nav class="media-actions history-output-filters" aria-label="输出恢复快捷筛选"><el-button :aria-pressed="kind==='output'&&state==='pending'" @click="filterOutputs('pending')">待恢复输出</el-button><el-button :aria-pressed="kind==='output'&&state==='conflict'" @click="filterOutputs('conflict')">冲突输出</el-button></nav><el-button :aria-pressed="bulkMode" @click="bulkMode=!bulkMode;selected=[]">{{bulkMode?'退出批量移除':'批量移除'}}</el-button></div>
     <p v-if="error&&hasLoaded" class="f3-stale-warning" role="status">刷新失败，保留上次内容。<button @click="load">重试</button></p>
     <p v-if="uncertain">移除回执未知，请先重新读取，不重复提交。</p>
-    <div class="media-actions history-list-toolbar"><el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button></div>
-    <div class="mt-list-columns history-list-columns" aria-hidden="true"><span>选择</span><span>海报</span><span>处理记录</span><span>操作</span></div>
+    <div v-if="selected.length" class="media-actions history-list-toolbar"><span>已选 {{selected.length}} 项</span><el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button></div>
+    <div v-if="items.length" class="mt-list-columns history-list-columns" :class="{'history-bulk':bulkMode}" aria-hidden="true"><span v-if="bulkMode">选择</span><span>类型</span><span>处理记录</span><span>操作</span></div>
     <StateView v-if="loading" state="loading" title="正在读取历史…"/>
     <StateView v-else-if="error&&!hasLoaded" :state="sourceState(error)" title="历史读取或核对失败" :description="errorText(error)" @retry="load"/>
     <ol class="mt-list organize-history-list" aria-label="整理历史列表">
-    <li v-for="item in items" :key="item.kind+item.id" class="organize-record f5-history-row mt-list-row organize-history-row">
-      <label v-if="removable(item)" class="media-consent f5-history-check"><input type="checkbox" aria-label="选择此历史" :checked="selected.some(r=>r.id===item.id&&r.kind===item.kind)" :disabled="uncertain" @change="toggle(item,($event.target as HTMLInputElement).checked)"/></label>
-      <span v-else class="f5-history-check"/>
-      <span class="f5-history-cover"><img v-if="cachedTMDBImage(item.poster||item.media?.posterPath)&&!brokenPosters.has(item.id)" :src="cachedTMDBImage(item.poster||item.media?.posterPath)" alt="作品海报" width="44" height="66" loading="lazy" @error="brokenPosters.add(item.id)"/><span v-else aria-label="暂无海报">暂无海报</span></span>
+    <li v-for="item in items" :key="item.kind+item.id" class="organize-record f5-history-row mt-list-row organize-history-row" :class="{'history-bulk':bulkMode}">
+      <label v-if="bulkMode" class="media-consent f5-history-check"><input type="checkbox" aria-label="选择此历史" :checked="selected.some(r=>r.id===item.id&&r.kind===item.kind)" :disabled="uncertain||!removable(item)" @change="toggle(item,($event.target as HTMLInputElement).checked)"/></label>
+
+      <span class="f5-history-cover" :aria-label="stageLabel(item.kind)"><component :is="historyIcon(item.kind)" aria-hidden="true"/></span>
       <div class="f5-row-summary">
         <h3>{{stageLabel(item.kind)}}</h3>
-        <div class="history-paths"><div><small>源文件</small><MiddleEllipsis class="mt-path" :path="item.source"/></div><span aria-hidden="true">→</span><div><small>目标路径</small><MiddleEllipsis class="mt-path" :path="item.destination"/></div></div>
-        <p>识别结果：{{item.media?.title?item.media.title+(item.media.year?' ('+item.media.year+')':''):'暂无识别结果'}}<span v-if="item.category"> · {{item.category}}</span></p>
+        <HistoryPaths :source="item.source" :target="item.destination"/>
+        <p v-if="item.media?.title||item.category">识别结果：{{item.media?.title?item.media.title+(item.media.year?' ('+item.media.year+')':''):'暂无识别结果'}}<span v-if="item.category"> · {{item.category}}</span></p>
         <div class="history-record-meta"><StatusBadge :state="item.state" :label="label(item.state)"/><time>{{date(item.updatedAt||item.createdAt)}}</time></div>
       </div>
       <div class="media-actions mt-list-actions history-row-actions">
@@ -225,15 +233,9 @@ usePageRefresh(load, 'history');
   </section>
   <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" size="large" class="media-detail">
     <h3>{{ detail?.media?.title||stageLabel(detail?.kind) }}</h3>
-    <p>{{ label(detail?.state) }} · {{ detail?.message||'—' }}</p>
-    <p>原位置：<MiddleEllipsis :path="detail?.source" full/></p><p>目标位置：<MiddleEllipsis :path="detail?.destination" full/></p><p>目录分类：{{detail?.category||'—'}}</p>
-    <article v-for="(step,index) in detail?.details?.plan?.steps||[]" :key="index">
-      <strong>{{ step.action==='mkdir'?'创建目录':'移动或改名' }} · {{ label(stepState(detail.state,detail.details.completedSteps||0,Number(index))) }}</strong>
-      <p><MiddleEllipsis :path="step.source?.path" full/> → <MiddleEllipsis :path="step.target" full/></p>
-    </article>
-    <article v-for="part in detail?.details?.items||[]" :key="part.ordinal">
-      <p><MiddleEllipsis :path="part.source" full/> · {{ label(part.state) }} · {{ part.message||'—' }}</p>
-    </article>
+    <p v-if="[label(detail?.state),detail?.message].some(present)">{{[label(detail?.state),detail?.message].filter(present).join(' · ')}}</p>
+    <DescriptionGrid :items="[{key:'source',label:'原位置',value:detail?.source},{key:'target',label:'目标位置',value:detail?.destination},{key:'category',label:'目录分类',value:detail?.category}]"><template #source><MiddleEllipsis :path="detail.source" full inline-copy/></template><template #target><MiddleEllipsis :path="detail.destination" full inline-copy/></template></DescriptionGrid>
+    <HistorySteps :detail="detail"/>
     <section v-if="detail?.kind==='transfer'">
       <p>{{ detail.details.bytesTransferred??'—' }} / {{ detail.details.size??'—' }} 字节已传输；上传完成不等于云端校验或输出完成。</p>
       <RouterLink :to="{path:'/downloads',query:{tab:'uploads'}}" @click="open=false">查看上传入库与批准</RouterLink>

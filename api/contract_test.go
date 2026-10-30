@@ -1313,6 +1313,7 @@ func generatedContract(t *testing.T) (*source, object) {
 	annotateStateContracts(s.schemas)
 	annotateProxyContract(want)
 	annotateAlertContract(s.schemas)
+	annotateI40bReadOnly(s.schemas)
 	compactResponses(want)
 	return s, want
 }

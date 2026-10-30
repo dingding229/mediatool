@@ -55,3 +55,5 @@ export function displayPath(path:string,width:number,measure:TextWidth){
  const start=prefix+directory+'/';
  return start+middleText(file,Math.max(0,width-measure(start)),measure);
 }
+
+export function displayFilenamePath(path:string,width:number,measure:TextWidth){const file=path.split('/').filter(Boolean).at(-1)||path;const prefix=path.includes('/')?'…/':'';return prefix+middleText(file,Math.max(0,width-measure(prefix)),measure)}

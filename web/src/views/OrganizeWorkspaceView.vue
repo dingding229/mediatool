@@ -24,6 +24,7 @@ import { useOrganize } from '../organize/useOrganize';
 import { label, selectable, rows } from '../organize/model';
 import { sourceState,image } from '../media/model';
 import PosterArtwork from '../media/PosterArtwork.vue';
+import {readMediaImages,type ImageRecord} from '../api/mediaImages';
 import ImageEditor from '../media/ImageEditor.vue';
 import '../media/catalog.css';
 import { date,errorText } from '../workflows/readiness';
@@ -31,8 +32,12 @@ import { readIntent, writeIntent, size } from '../acquisition/model';
 import '../media/media.css';
 const route = useRoute(), router = useRouter(), state = reactive(useOrganize()), tabs = [{ id: 'candidates', label: '待确认' }, { id: 'scans', label: '扫描' }, { id: 'assets', label: '已入库' }, { id: 'history', label: '整理历史' }], tab = computed(() => tabs.some(t => t.id === route.query.tab) ? String(route.query.tab) : 'candidates');
 const editor = ref<InstanceType<typeof IdentityEditor>>(), detailsOpen = ref(false), assetDetail = ref<any>(null), outputs = ref<any>(null), operations = ref<any[]>([]), detailError = ref<unknown>(null), confirmOpen = ref(false), action = ref<any>(null), busy = ref(false), phase = ref<'queued' | 'reconciling' | null>(null), actionError = ref<unknown>(null);
+const assetArtwork=ref<ImageRecord>();let artworkVersion=0;
+async function loadAssetArtwork(){const n=++artworkVersion,id=assetDetail.value?.id;if(!id)return;try{const record=await readMediaImages(id);if(n===artworkVersion)assetArtwork.value=record}catch{}}
+watch(()=>assetDetail.value?.id,()=>{assetArtwork.value=undefined;void loadAssetArtwork()});
 const assetImageEditor=ref<InstanceType<typeof ImageEditor>>();
 const assetImagesOpen=computed(()=>!!assetImageEditor.value?.isOpen());
+
 function assetImageSaved(){assetImageEditor.value?.close();void state.load('assets');}
 let detailVersion = 0;
 function edit(files: any[], asset: any = null) {
@@ -133,22 +138,22 @@ usePageRefresh(state.refresh,'*');
           <h2>待确认文件</h2>
           <p>可同时核对多个文件；已有入库记录的文件，请先查看处理结果。</p>
         </div>
-        <el-select v-model="state.filter" aria-label="候选状态" @change="state.page.candidates=1;pageChange('candidates')">
+        <label class="candidate-state-filter">状态<el-select v-model="state.filter" aria-label="候选状态" @change="state.page.candidates=1;pageChange('candidates')">
           <el-option value="needs_confirmation" label="需要确认或继续处理"/>
           <el-option value="" label="全部状态"/>
           <el-option value="confirmed" label="已确认"/>
           <el-option value="artifacts_pending" label="输出待恢复"/>
-        </el-select>
+        </el-select></label>
       </header>
       <div class="media-actions">
-        <el-button :disabled="!state.selected.candidates.length||state.selected.candidates.length>20" @click="edit(state.selected.candidates)">批量确认作品 · {{ state.selected.candidates.length }}</el-button>
+        <el-button v-if="state.selected.candidates.length" :disabled="!state.selected.candidates.length||state.selected.candidates.length>20" @click="edit(state.selected.candidates)">批量确认作品 · {{ state.selected.candidates.length }}</el-button>
         <RouterLink v-if="state.selected.candidates.length>0&&state.selected.candidates.length<=20" :to="{path:'/files',query:{tab:'browser',selectionKind:'candidates',selection:state.selected.candidates.map((x:any)=>x.id)}}">在文件页批量整理 · {{state.selected.candidates.length}}</RouterLink>
       </div>
       <StateView v-if="state.loading.candidates&&!state.data.candidates.length" state="loading" title="正在读取候选文件…"/>
       <StateView v-else-if="state.errors.candidates" :state="sourceState(state.errors.candidates)" title="候选读取失败，旧数据待核对" :description="errorText(state.errors.candidates)" @retry="state.load('candidates')"/>
       <StateView v-else-if="!state.data.candidates.length" state="empty" title="暂无待确认文件" description="先在扫描标签选择目录并完成扫描。"/>
-      <div class="mt-list-columns organize-list-columns organize-candidate-columns" aria-hidden="true"><span>选择</span><span>文件 / 识别结果</span><span>来源路径</span><span>状态</span><span>更新时间</span><span>操作</span></div>
-      <div class="mt-list" role="list" aria-label="待确认文件列表">
+      <div v-if="state.data.candidates.length" class="mt-list-columns organize-list-columns organize-candidate-columns" aria-hidden="true"><span>选择</span><span>文件 / 识别结果</span><span>来源路径</span><span>状态</span><span>更新时间</span><span>操作</span></div>
+      <div v-if="state.data.candidates.length" class="mt-list" role="list" aria-label="待确认文件列表">
       <article v-for="candidate in state.data.candidates" :key="candidate.id" class="organize-record mt-list-row organize-list-row organize-candidate-row" :class="{highlighted:route.query.candidateId===candidate.id}" role="listitem">
         <label class="media-consent organize-list-selection">
           <input :id="'candidate-'+candidate.id" type="checkbox" :aria-label="'选择 '+candidate.name" :checked="state.selected.candidates.some(r=>r.id===candidate.id)" :disabled="!selectable(candidate)||state.selected.candidates.length>=20&&!state.selected.candidates.some(r=>r.id===candidate.id)" @change="state.toggle('candidates',candidate,($event.target as HTMLInputElement).checked)"/>
@@ -163,7 +168,7 @@ usePageRefresh(state.refresh,'*');
         </div>
       </article>
       </div>
-      <PagePagination v-model:current-page="state.page.candidates" v-model:page-size="state.sizes.candidates" :total="state.total.candidates" layout="prev,pager,next,total" @current-change="pageChange('candidates')"/>
+      <PagePagination v-if="state.total.candidates>0" v-model:current-page="state.page.candidates" v-model:page-size="state.sizes.candidates" :total="state.total.candidates" layout="prev,pager,next,total" @current-change="pageChange('candidates')"/>
     </section>
     <div v-show="tab==='scans'" class="media-stack">
       <ScanPanel :page="state.page.scans" :page-size="state.sizes.scans" @size="n=>state.sizes.scans=n" :total="state.total.scans" @page="(n:number)=>{state.page.scans=n;state.load('scans')}" :scans="state.data.scans" :schedules="state.data.schedules" :scan-error="state.errors.scans" :schedule-error="state.errors.schedules" :loading="state.loading.scans" :schedule-loading="state.loading.schedules" @changed="state.refresh"/>
@@ -182,15 +187,15 @@ usePageRefresh(state.refresh,'*');
       <StateView v-else-if="!state.data.assets.length" state="empty" title="尚无已确认资产"/>
       <div class="mt-list-columns organize-list-columns organize-asset-columns" aria-hidden="true"><span>选择</span><span>作品 / 识别结果</span><span>来源路径</span><span>状态</span><span>入库时间</span><span>操作</span></div>
       <div class="mt-list" role="list" aria-label="已入库资产列表">
-      <article v-for="asset in state.data.assets" :key="asset.id" class="organize-record mt-list-row organize-list-row organize-asset-row" role="listitem">
-        <label class="media-consent organize-list-selection"><input :id="'asset-'+asset.id" type="checkbox" :aria-label="'选择 '+(asset.title||'资产')" :checked="state.selected.assets.some(r=>r.id===asset.id)" :disabled="state.selected.assets.length>=20&&!state.selected.assets.some(r=>r.id===asset.id)" @change="state.toggle('assets',asset,($event.target as HTMLInputElement).checked)"/></label>
-        <div class="organize-list-identity"><button class="organize-list-thumb" :aria-label="'查看'+(asset.title||'资产')+'详情'" @click="inspect(asset)"><PosterArtwork :src="image(asset.poster)" :title="asset.title||'资产'"/></button><div><h3><label :for="'asset-'+asset.id">{{ asset.title||'—' }}</label></h3><p>{{ asset.mediaType==='series'?'剧集':asset.mediaType==='movie'?'电影':'类型待核对' }}</p></div></div>
-        <div class="organize-list-path"><MiddleEllipsis class="mt-path" :path="asset.path"/><p>{{ asset.revoked?'文件播放已撤销':'文件播放未撤销' }}</p></div>
-        <div class="organize-list-state"><StatusBadge :state="asset.artifactsState" :label="label(asset.artifactsState)"/><p>云端：{{ label(asset.state) }}</p></div>
+      <article v-for="asset in state.data.assets" :key="asset.id" class="organize-record mt-list-row organize-list-row organize-asset-row" role="listitem" tabindex="0" @click="inspect(asset)" @keydown.enter.self="inspect(asset)" @keydown.space.self.prevent="inspect(asset)">
+        <label class="media-consent organize-list-selection" @click.stop><input :id="'asset-'+asset.id" type="checkbox" :aria-label="'选择 '+(asset.title||'资产')" :checked="state.selected.assets.some(r=>r.id===asset.id)" :disabled="state.selected.assets.length>=20&&!state.selected.assets.some(r=>r.id===asset.id)" @change="state.toggle('assets',asset,($event.target as HTMLInputElement).checked)"/></label>
+        <div class="organize-list-identity"><button class="organize-list-thumb" :aria-label="'查看'+(asset.title||'资产')+'详情'" @click.stop="inspect(asset)"><PosterArtwork :src="image(asset.poster)" :title="asset.title||'资产'"/></button><div><h3>{{ asset.title||'未命名作品' }}</h3><p>{{ asset.mediaType==='series'?'剧集':asset.mediaType==='movie'?'电影':'类型待核对' }}</p></div></div>
+        <div class="organize-list-path"><MiddleEllipsis class="mt-path" :path="asset.path" filename-only/><p>{{ asset.revoked?'播放已停用':asset.state==='present'?'可播放':'播放可用性待核对' }}</p></div>
+        <div class="organize-list-state"><StatusBadge :state="['failed','needs_reconcile','needs_output_reconciliation'].includes(asset.artifactsState)?'failed':asset.artifactsState" :label="label(asset.artifactsState)"/><p v-if="asset.state==='present'">云端文件正常</p><StatusBadge v-else :state="asset.state==='missing'||asset.state==='trashed'?'failed':'needs_refresh'" :label="label(asset.state)"/></div>
         <time class="organize-list-time" :datetime="asset.createdAt" aria-label="入库时间">{{ date(asset.createdAt) }}</time>
-        <div class="media-actions mt-list-actions organize-list-actions">
-          <el-button aria-label="查看资产详情" title="查看资产详情" @click="inspect(asset)"><el-icon class="mt-list-action-icon"><Document/></el-icon><span class="mt-list-action-text">查看资产详情</span></el-button>
-          <el-button aria-label="修正身份 / 季集" title="修正身份 / 季集" @click="edit([],asset)"><el-icon class="mt-list-action-icon"><Edit/></el-icon><span class="mt-list-action-text">修正身份 / 季集</span></el-button>
+        <div class="media-actions mt-list-actions organize-list-actions" @click.stop>
+
+          <el-button aria-label="修正身份" title="修正身份" @click="edit([],asset)"><el-icon class="mt-list-action-icon"><Edit/></el-icon><span class="mt-list-action-text">修正身份</span></el-button>
           <ElDropdown trigger="click" popper-class="media-dropdown"><el-button aria-label="更多" title="更多"><el-icon class="mt-list-action-icon"><MoreFilled/></el-icon><span class="mt-list-action-text">更多</span></el-button><template #dropdown><ElDropdownMenu><ElDropdownItem :disabled="!asset.fileScoped" @click="ask(asset,'revoke')">撤销文件播放</ElDropdownItem><ElDropdownItem @click="ask(asset,'rotate')">轮换播放凭据</ElDropdownItem></ElDropdownMenu></template></ElDropdown>
         </div>
       </article>
@@ -206,16 +211,11 @@ usePageRefresh(state.refresh,'*');
     <ConfirmAction v-model:visible="confirmOpen" :title="action?.type==='rotate'?'轮换播放凭据':'撤销文件播放'" :description="action?.type==='rotate'?'旧凭据将失效，STRM 重写通过恢复日志执行，不覆盖手工文件。':'固定链接将失效；此前已签发的临时 CDN 链接可能短期仍有效。'" impact-scope="不删除云端媒体或本地做种源；后续结果以恢复记录和最新资产状态为准。" :loading="busy" class="media-dialog" @confirm="apply"/>
     <DetailDrawer :key="assetDetail?.id" v-model:visible="detailsOpen" title="资产与输出详情" size="large" class="media-detail">
       <h3>{{ assetDetail?.title||'—' }}</h3>
- <ImageEditor v-if="assetDetail" ref="assetImageEditor" :item-id="assetDetail.id" @saved="assetImageSaved"/>
-      <div v-show="!assetImagesOpen" class="asset-readonly" role="region" aria-label="资产输出与操作记录">
-      <p><MiddleEllipsis :path="assetDetail?.path" full/></p>
-      <StateView v-if="detailError" :state="sourceState(detailError)" title="部分输出或历史未取得" :description="errorText(detailError)"/>
-      <h3>当前输出与 STRM</h3>
-      <p v-for="item in outputs?.outputs||[]" :key="item.path">{{ item.kind==='strm'?'STRM':item.kind==='nfo'?'NFO':'输出文件' }} · <MiddleEllipsis :path="item.path" full/></p>
-      <p v-if="!outputs">尚未取得匹配的输出清单，不据此推断输出已删除。</p>
-      <h3>按当前文件名检索的文件操作记录</h3>
-      <p v-for="item in operations" :key="item.id">{{ label(item.state) }} · <MiddleEllipsis :path="item.source" full/> → <MiddleEllipsis :path="item.destination" full/></p>
-      <RouterLink :to="{path:'/organize',query:{tab:'history',kind:'file',q:assetDetail?.path?.split('/').pop()}}" @click="detailsOpen=false">查看重命名与整理历史</RouterLink>
+      <div class="asset-sections">
+      <section v-show="!assetImagesOpen" class="asset-detail-section asset-readonly" aria-label="源文件"><h3>源文件</h3><MiddleEllipsis v-if="assetDetail?.path" :path="assetDetail.path" full inline-copy/></section>
+      <section v-show="!assetImagesOpen" class="asset-detail-section asset-readonly" aria-label="输出"><h3>当前输出与 STRM</h3><StateView v-if="detailError" :state="sourceState(detailError)" title="部分输出或历史未取得" :description="errorText(detailError)"/><div v-for="item in outputs?.outputs||[]" :key="item.path" class="asset-output"><StatusBadge state="ready" :label="item.kind==='strm'?'STRM':item.kind==='nfo'?'NFO':'输出文件'"/><MiddleEllipsis v-if="item.path" :path="item.path" full inline-copy/></div><p v-if="!outputs">尚未取得匹配的输出清单，不据此推断输出已删除。</p></section>
+      <section class="asset-detail-section" aria-label="图片"><ImageEditor v-if="assetDetail" ref="assetImageEditor" :item-id="assetDetail.id" @saved="assetImageSaved();loadAssetArtwork()"/><div v-show="!assetImagesOpen" class="asset-artwork"><PosterArtwork :title="assetDetail?.title||'资产'" :src="assetArtwork?.effective?.Primary?.url||image(assetDetail?.poster)"/><img v-if="assetArtwork?.effective?.Backdrop?.url" :src="assetArtwork.effective.Backdrop.url" alt="背景图"/></div></section>
+      <section v-show="!assetImagesOpen" class="asset-detail-section asset-readonly" aria-label="资产输出与操作记录"><h3>历史</h3><div v-for="item in operations" :key="item.id" class="asset-operation"><StatusBadge :state="item.state" :label="label(item.state)"/><MiddleEllipsis v-if="item.source" :path="item.source" full inline-copy/><template v-if="item.destination"><span aria-hidden="true">→</span><MiddleEllipsis :path="item.destination" full inline-copy/></template></div><RouterLink :to="{path:'/organize',query:{tab:'history',kind:'file',q:assetDetail?.path?.split('/').pop()}}" @click="detailsOpen=false">查看重命名与整理历史</RouterLink></section>
       </div>
     </DetailDrawer>
   </div>

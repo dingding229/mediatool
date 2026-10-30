@@ -742,3 +742,5 @@ T13：`PUT /system/updates/settings` 同时要求 enabled 与 intervalHours（1�
 - `GET /api/v1/plugins/workflows`（列表及 `view=runs`）：`pageSize` 可选 10/20/25/50/100，缺省 20。
 - `GET /api/v1/media/library/managed/{id}/metadata`：`unmatchedPageSize` 可选 10/25/50/100，缺省 50。
 - 上述参数非法、为空或重复时返回 400；GET 对应的 HEAD 采用相同契约。
+
+I40b 只读展示字段：`GET /api/v1/library/scans` 与扫描详情返回可选 `startedAt`（当前覆盖轮次开始）和 `endedAt`（终态落定），不改变扫描控制；入库媒体季下的集列表按季集号聚合物理版本，`versionCount` 为当前集的物理版本数，容量每个物理文件累计一次，分页计数按集。schema 保持 94，无迁移。

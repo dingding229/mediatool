@@ -56,7 +56,8 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 				return out, ErrInvalid
 			}
 			args = append(args, n)
-			where += ` AND b.season=$4`
+			where += ` AND b.season=$4 AND b.episode IS NOT NULL GROUP BY m.id,b.season,b.episode`
+			fields = `(array_agg(a.id::text ORDER BY (f.state='present') DESC,a.id))[1] id,max(coalesce(v.metadata->>'title',regexp_replace(f.full_path,'^.*/','','g'))) title,max(coalesce(v.metadata->>'year','')) item_year,'series' media_type,max(coalesce(v.metadata->>'overview','')) overview,max(coalesce(m.metadata->>'posterPath','')) poster,(array_agg(f.full_path ORDER BY (f.state='present') DESC,a.id))[1] file_path,CASE WHEN bool_or(f.state='present') THEN 'present' ELSE max(f.state) END state,b.season,b.episode,'Episode' type`
 		} else {
 			if len(parts) != 2 {
 				return out, ErrInvalid
@@ -73,9 +74,14 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 	// aggregate persisted bytes and distinct episode numbers, never estimate them.
 	resolutionSQL := `coalesce((SELECT CASE WHEN (video->>'width') ~ '^[0-9]+$' THEN CASE WHEN (video->>'width')::numeric>=3800 THEN '4K' WHEN (video->>'width')::numeric>=1900 THEN '1080p' WHEN (video->>'width')::numeric>=1260 THEN '720p' ELSE 'SD' END ELSE '' END FROM media_probe_results p CROSS JOIN LATERAL jsonb_array_elements(coalesce(p.result->'streams','[]'::jsonb)) video WHERE p.cloud_file_id=f.id AND video->>'type'='Video' LIMIT 1),'')`
 	if strings.Contains(where, " GROUP BY") {
-		fields += `,sum(f.size_bytes)::bigint catalog_bytes,count(DISTINCT (b.season,b.episode)) FILTER (WHERE b.episode IS NOT NULL)::int episode_count,max(` + resolutionSQL + `) resolution`
+		fields += `,sum(f.size_bytes)::bigint catalog_bytes,count(DISTINCT (b.season,b.episode)) FILTER (WHERE b.episode IS NOT NULL)::int episode_count,string_agg(DISTINCT nullif(` + resolutionSQL + `,''),' / ') resolution`
 	} else {
 		fields += `,f.size_bytes::bigint catalog_bytes,NULL::int episode_count,` + resolutionSQL + ` resolution`
+	}
+	if strings.HasPrefix(parent, "season_") {
+		fields += ",count(*)::int version_count"
+	} else {
+		fields += ",NULL::int version_count"
 	}
 	categoryExpr := categorySQLFrom(policy.Value, &args, "c.metadata")
 	if category != "" {
@@ -96,7 +102,7 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 		return out, ErrUnavailable
 	}
 	args = append(args, out.PageSize, (out.Page-1)*out.PageSize)
-	rows, err := e.DB.Query(ctx, sql+`SELECT id,title,item_year,media_type,overview,poster,file_path,state,season,episode,type,category_id,catalog_bytes,episode_count,resolution FROM entries ORDER BY `+order+fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)-1, len(args)), args...)
+	rows, err := e.DB.Query(ctx, sql+`SELECT id,title,item_year,media_type,overview,poster,file_path,state,season,episode,type,category_id,catalog_bytes,episode_count,coalesce(resolution,''),version_count FROM entries ORDER BY `+order+fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)-1, len(args)), args...)
 	if err != nil {
 		return out, ErrUnavailable
 	}
@@ -104,7 +110,7 @@ func (e Engine) managed(ctx context.Context, out Page, q, kind, category string)
 	for rows.Next() {
 		item := Item{Source: "managed"}
 		var poster string
-		if err = rows.Scan(&item.ID, &item.Title, &item.Year, &item.MediaType, &item.Overview, &poster, &item.FilePath, &item.State, &item.Season, &item.Episode, &item.Type, &item.CategoryID, &item.FileSize, &item.EpisodeCount, &item.Resolution); err != nil {
+		if err = rows.Scan(&item.ID, &item.Title, &item.Year, &item.MediaType, &item.Overview, &poster, &item.FilePath, &item.State, &item.Season, &item.Episode, &item.Type, &item.CategoryID, &item.FileSize, &item.EpisodeCount, &item.Resolution, &item.VersionCount); err != nil {
 			return out, ErrUnavailable
 		}
 		item.Category = "未分类"

@@ -1,10 +1,12 @@
+import {useDebouncedFilter} from '../composables/useDebouncedFilter';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { request } from '../api/client';
 import type { FileRoot, FileEntry, FileResult, FileCapabilities } from './types';
 export function useBrowser() {
   const roots = ref<FileRoot[]>([]), connection = ref(''), directory = ref('.'), page = usePageNumber(),pageSize=usePageSize(25), total = ref(0), entries = ref<FileEntry[]>([]), filter = ref(''), selection = ref<FileEntry[]>([]), capability = ref<FileCapabilities | null>(null), loading = ref(true), rootsLoading = ref(true), error = ref<unknown>(null), rootError = ref<unknown>(null), history = ref<FileResult[]>([]), historyLoading = ref(false), historyError = ref<unknown>(null);
-  const root = computed(() => roots.value.find(r => r.id === connection.value)), shown = computed(() => entries.value.filter(f => f.name.toLocaleLowerCase().includes(filter.value.toLocaleLowerCase()))), crumbs = computed(() => [{ name: '根目录', path: '.' }, ...(directory.value === '.' ? [] : directory.value.split('/').map((name, index, all) => ({ name, path: all.slice(0, index + 1).join('/') })))]);
+  const appliedFilter=ref('');useDebouncedFilter(filter,value=>{appliedFilter.value=value});
+  const root = computed(() => roots.value.find(r => r.id === connection.value)), shown = computed(() => entries.value.filter(f => f.name.toLocaleLowerCase().includes(appliedFilter.value.toLocaleLowerCase()))), crumbs = computed(() => [{ name: '根目录', path: '.' }, ...(directory.value === '.' ? [] : directory.value.split('/').map((name, index, all) => ({ name, path: all.slice(0, index + 1).join('/') })))]);
   let version = 0, historyVersion = 0, rootVersion = 0, disposed = false;
   let hasLoaded=false;
   async function load() {

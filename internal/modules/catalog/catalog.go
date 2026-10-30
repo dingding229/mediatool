@@ -15,6 +15,7 @@ var ErrUnavailable = errors.New("catalog unavailable")
 var ErrInvalid = errors.New("invalid catalog query")
 
 type Item struct {
+	VersionCount *int   `json:"versionCount,omitempty"`
 	ID           string `json:"id"`
 	FileSize     *int64 `json:"fileSize,omitempty"`
 	EpisodeCount *int   `json:"episodeCount,omitempty"`

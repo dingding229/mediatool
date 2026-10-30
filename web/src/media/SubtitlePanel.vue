@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import {ref} from 'vue';
+import {ElDropdown,ElDropdownMenu,ElDropdownItem} from 'element-plus';
+import 'element-plus/es/components/dropdown/style/css';
+import 'element-plus/es/components/dropdown-menu/style/css';
+import 'element-plus/es/components/dropdown-item/style/css';
+import {subtitleRowTitle,subtitleExtraTitle} from './subtitle-presentation';
 import FilePicker from '../ui/FilePicker.vue';
 import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import {subtitleDownload} from '../api/subtitles';
@@ -8,6 +14,8 @@ import {errorText} from '../workflows/readiness';
 import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
+const menus=ref<InstanceType<typeof ElDropdown>[]>([]);
+function closeSubtitleMenus(){for(const menu of menus.value)menu.handleClose()}
 const props=defineProps<{itemId:string}>();
 const {asset,data,op,file,encoding,choice,detected,detecting,detectionError,notice,uploadOpen,editing,form,editLanguage,remove,confirm,rows,shownGroups,load,selectAsset,choose,upload,edit,save,applyDelete,cancelPending}=useSubtitles(()=>props.itemId);
 const origin=(s:string)=>({automatic:'外挂',embedded:'内嵌',uploaded:'上传'}[s]||'待核对');
@@ -17,17 +25,17 @@ const versionLabel=(v:{name:string;season?:number;episode?:number})=>(v.episode!
 <template>
  <section class="subtitle-panel catalog-detail-section" aria-label="字幕">
   <header class="subtitle-heading"><h3>字幕</h3><el-button :disabled="!asset||!!op.pending||!!data.error" @click="uploadOpen=true">上传字幕</el-button></header>
-  <label v-if="data.data.versions.length>1||!asset" class="subtitle-field">选择版本或单集<el-select :model-value="asset" aria-label="字幕物理版本" filterable placeholder="先选择版本或单集" :disabled="!!op.pending" @change="selectAsset"><el-option v-for="version in data.data.versions" :key="version.id" :value="version.id" :label="versionLabel(version)"/></el-select></label>
+  <label v-if="data.data.versions.length>1" class="subtitle-field">选择版本或单集<el-select :model-value="asset" aria-label="字幕物理版本" filterable placeholder="先选择版本或单集" :disabled="!!op.pending" @change="selectAsset"><el-option v-for="version in data.data.versions" :key="version.id" :value="version.id" :label="versionLabel(version)"/></el-select></label>
   <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" @reload="load"/>
   <AsyncResultBanner v-if="op.phase" :status="op.phase" message="字幕操作结果待核对，不会自动重复提交。" @refresh="load"/>
   <el-button v-if="op.pending&&data.loaded&&!data.loading&&!data.error" @click="cancelPending">已核对，取消待定操作</el-button>
   <p v-if="op.error" role="alert">{{errorText(op.error)}}</p><p v-if="notice" role="status">{{notice}}</p>
   <p v-if="data.loaded&&!data.error&&!shownGroups.length" class="subtitle-empty">{{asset?'暂无字幕，可上传字幕文件。':'请先选择单集，查看或上传字幕。'}}</p>
   <p v-if="rows.some(row=>row.source==='embedded')" class="subtitle-embedded-note">内嵌字幕随视频播放，仅编辑显示信息，不提供提取或删除。</p>
-  <section v-for="group in shownGroups" :key="group.assetId" class="subtitle-version" :aria-label="versionName(group.assetId)"><h4><MiddleEllipsis :text="versionName(group.assetId)" :copy="false"/></h4>
+  <section v-for="group in shownGroups" :key="group.assetId" class="subtitle-version" :aria-label="versionName(group.assetId)">
    <article v-for="row in group.items.filter(row=>!row.hidden)" :key="row.id" class="subtitle-row">
-    <div class="subtitle-row-main"><strong><MiddleEllipsis :text="row.filename" :copy="false"/></strong><p><span v-if="row.title&&row.title!==row.filename&&row.title!==subtitleLanguageLabel(row)">{{row.title}} · </span>{{subtitleLanguageLabel(row)}} · {{row.extension.toUpperCase()}} · {{origin(row.source)}}<span v-if="row.default"> · 默认</span><span v-if="row.forced"> · 强制</span><span v-if="row.deleting"> · 副本清理待重试</span></p></div>
-    <div v-if="editing?.id!==row.id" class="subtitle-actions"><el-button :disabled="!!op.pending||row.deleting" @click="edit(row)">编辑字幕信息</el-button><a v-if="row.source!=='embedded'&&!row.deleting" class="el-button" :href="subtitleDownload(row.assetId,row.id)" target="_blank" rel="noopener noreferrer">下载字幕</a><el-button :disabled="row.source==='embedded'||!!op.pending" :title="row.source==='embedded'?'内嵌字幕不能删除':undefined" @click="remove=row;confirm=true">{{row.source==='embedded'?'内嵌字幕不可删除':row.deleting?'重试清理':row.source==='uploaded'?'删除上传副本':'移除外挂字幕'}}</el-button></div>
+    <div class="subtitle-row-main"><strong><MiddleEllipsis :text="subtitleRowTitle(row)" :copy="false"/></strong><p v-if="row.source!=='embedded'||row.default||row.forced||row.deleting"><span v-if="subtitleExtraTitle(row)">{{subtitleExtraTitle(row)}} · </span><template v-if="row.source!=='embedded'">{{subtitleLanguageLabel(row)}} · {{row.extension.toUpperCase()}} · {{origin(row.source)}}</template><span v-if="row.default">{{row.source==='embedded'?'':' · '}}默认</span><span v-if="row.forced">{{row.source==='embedded'&&!row.default?'':' · '}}强制</span><span v-if="row.deleting"> · 副本清理待重试</span></p></div>
+    <div v-if="editing?.id!==row.id" class="subtitle-actions"><el-button :disabled="!!op.pending||row.deleting" @click="edit(row)">编辑</el-button><ElDropdown v-if="row.source!=='embedded'" ref="menus" @keydown.esc.stop="closeSubtitleMenus" trigger="click" popper-class="media-dropdown"><el-button :disabled="!!op.pending">更多</el-button><template #dropdown><ElDropdownMenu @keydown.esc.stop.prevent="closeSubtitleMenus"><ElDropdownItem v-if="!row.deleting"><a :href="subtitleDownload(row.assetId,row.id)" target="_blank" rel="noopener noreferrer">下载字幕</a></ElDropdownItem><ElDropdownItem :disabled="!!op.pending" @click="remove=row;confirm=true">{{row.deleting?'重试清理':row.source==='uploaded'?'删除上传副本':'移除外挂字幕'}}</ElDropdownItem></ElDropdownMenu></template></ElDropdown></div>
     <form v-else class="subtitle-editor" @submit.prevent="save()"><label class="subtitle-field">语言<el-select v-model="editLanguage" aria-label="字幕语言"><el-option v-for="language in subtitleLanguages.filter(v=>v.value!=='auto')" :key="language.value" :value="language.value" :label="language.label"/><el-option v-if="!subtitleLanguages.some(v=>v.value===editLanguage)" :value="editLanguage" :label="subtitleLanguageLabel(form)"/></el-select></label><label class="subtitle-field">显示名称<el-input v-model="form.title" aria-label="字幕标题" maxlength="200"/></label><div class="subtitle-checks"><el-checkbox v-model="form.default">默认字幕</el-checkbox><el-checkbox v-model="form.forced">强制字幕</el-checkbox></div><div class="subtitle-actions"><el-button :disabled="!!op.pending" @click="editing=undefined">取消编辑</el-button><el-button native-type="submit" :disabled="!!op.pending" :loading="op.busy">保存字幕信息</el-button></div></form>
    </article>
   </section>

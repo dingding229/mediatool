@@ -4,8 +4,8 @@ import {ElTooltip,ElMessage} from 'element-plus';
 import {CopyDocument} from '@element-plus/icons-vue';
 import 'element-plus/es/components/message/style/css';
 import 'element-plus/es/components/tooltip/style/css';
-import {middleText,displayPath} from './middle-ellipsis';
-const props=withDefaults(defineProps<{text?:string|null;path?:string|null;full?:boolean;copy?:boolean;embedded?:boolean}>(),{full:false,copy:true,embedded:false});
+import {middleText,displayPath,displayFilenamePath} from './middle-ellipsis';
+const props=withDefaults(defineProps<{text?:string|null;path?:string|null;full?:boolean;copy?:boolean;embedded?:boolean;filenameOnly?:boolean;inlineCopy?:boolean}>(),{full:false,copy:true,embedded:false});
 const original=computed(()=>(props.path??props.text)||'—'),shown=ref(original.value),host=ref<HTMLElement>(),copying=ref(false),notice=ref('');
 let observer:ResizeObserver|undefined,fontObserver:MutationObserver|undefined,alive=true;
 function measure(){
@@ -14,7 +14,7 @@ function measure(){
  const context=document.createElement('canvas').getContext('2d');if(!context)return;
  context.font=getComputedStyle(host.value).font;
  const pixels=(value:string)=>context.measureText(value).width;
- shown.value=props.path?displayPath(original.value,width,pixels):middleText(original.value,width,pixels);
+ shown.value=props.path?(props.filenameOnly?displayFilenamePath(original.value,width,pixels):displayPath(original.value,width,pixels)):middleText(original.value,width,pixels);
 }
 async function copyFull(){
  if(copying.value)return;copying.value=true;
@@ -35,8 +35,8 @@ watch([original,()=>props.full],()=>{shown.value=original.value;void nextTick(me
 onBeforeUnmount(()=>{alive=false;observer?.disconnect();fontObserver?.disconnect()});
 </script>
 <template>
- <span class="middle-ellipsis" :class="{'middle-ellipsis--full':full,'middle-ellipsis--copy':copy}">
-  <ElTooltip :disabled="embedded" :content="original" :trigger="['hover','focus']" :show-after="200" placement="top" popper-class="middle-ellipsis-tooltip">
+ <span class="middle-ellipsis" :class="{'middle-ellipsis--full':full,'middle-ellipsis--copy':copy,'middle-ellipsis--inline':inlineCopy}">
+  <ElTooltip :disabled="embedded||full" :content="original" :trigger="['hover','focus']" :show-after="200" placement="top" popper-class="middle-ellipsis-tooltip">
    <span ref="host" class="middle-ellipsis-text" :tabindex="embedded?undefined:0" :aria-label="original"><span aria-hidden="true">{{full?original:shown}}</span></span>
   </ElTooltip>
   <button v-if="copy" type="button" class="middle-copy" aria-label="复制全文" title="复制全文" :disabled="copying" @click.stop.prevent="copyFull"><CopyDocument aria-hidden="true"/></button>
@@ -44,7 +44,7 @@ onBeforeUnmount(()=>{alive=false;observer?.disconnect();fontObserver?.disconnect
  </span>
 </template>
 <style scoped>
-.middle-ellipsis{display:block;position:relative;min-width:0;max-width:100%;line-height:1.6;text-align:start;box-sizing:border-box}.middle-ellipsis--copy{padding-inline-end:44px}.middle-ellipsis-text{display:block;min-width:0;overflow:hidden;white-space:nowrap}.middle-ellipsis--full .middle-ellipsis-text{white-space:normal;overflow-wrap:anywhere}.middle-ellipsis-text:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:2px}.middle-copy{position:absolute;inset-inline-end:0;top:50%;transform:translateY(-50%);width:44px;height:44px;min-width:44px;min-height:44px;border:0;background:transparent;color:var(--mt-text-muted);padding:12px;cursor:pointer}.middle-copy:hover{color:var(--mt-color-primary)}.middle-copy svg{width:16px;height:16px}.middle-copy-notice{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.middle-ellipsis{display:block;position:relative;min-width:0;max-width:100%;line-height:1.6;text-align:start;box-sizing:border-box}.middle-ellipsis--copy{padding-inline-end:44px}.middle-ellipsis-text{display:block;min-width:0;overflow:hidden;white-space:nowrap}.middle-ellipsis--full .middle-ellipsis-text{white-space:normal;overflow-wrap:anywhere}.middle-ellipsis-text:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:2px}.middle-copy{position:absolute;inset-inline-end:0;top:50%;transform:translateY(-50%);width:44px;height:44px;min-width:44px;min-height:44px;border:0;background:transparent;color:var(--mt-text-muted);padding:12px;cursor:pointer}.middle-copy:hover{color:var(--mt-color-primary)}.middle-copy svg{width:16px;height:16px}.middle-ellipsis--inline{display:inline-block;vertical-align:middle;padding-inline-end:44px}.middle-ellipsis--inline .middle-ellipsis-text{min-width:0;max-width:100%}.middle-copy-notice{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 </style>
 <style>
 .middle-ellipsis-tooltip{max-width:min(560px,calc(100vw - 32px));white-space:normal;overflow-wrap:anywhere}

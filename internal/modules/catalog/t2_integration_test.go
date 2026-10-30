@@ -152,6 +152,19 @@ func TestT2CategoryFilterBeforePaginationAndManagedFacts(t *testing.T) {
 			t.Fatal(v, err)
 		}
 	}
+	seasons, err := e.ListParent(ctx, "managed", "", "series", "series_"+work, 1, 25)
+	if err != nil || len(seasons.Items) != 1 || seasons.Items[0].EpisodeCount == nil || *seasons.Items[0].EpisodeCount != 1 || seasons.Items[0].FileSize == nil || *seasons.Items[0].FileSize != 3*7960117968 {
+		t.Fatal("season totals", seasons, err)
+	}
+	episodes, err := e.ListParent(ctx, "managed", "", "series", "season_"+work+"_1", 1, 25)
+	if err != nil || episodes.Total != 1 || len(episodes.Items) != 1 || episodes.Items[0].VersionCount == nil || *episodes.Items[0].VersionCount != 3 || episodes.Items[0].FileSize == nil || *episodes.Items[0].FileSize != *seasons.Items[0].FileSize {
+		t.Fatal("episode totals", episodes, err)
+	}
+	t2Exec(t, ctx, db, `UPDATE cloud_files SET state='missing' WHERE id=$1`, files[0])
+	grouped, err := e.ListParent(ctx, "managed", "", "series", "season_"+work+"_1", 1, 25)
+	if err != nil || len(grouped.Items) != 1 || grouped.Items[0].ID == assets[0] || grouped.Items[0].State != "present" {
+		t.Fatal("representative must be a present version", grouped, err)
+	}
 	// Malformed dimensions are ignored, not cast errors or guessed resolutions.
 	t2Exec(t, ctx, db, `UPDATE media_probe_results SET result='{"schema_version":1,"streams":[{"type":"Video","width":"bad","height":"bad"}]}' WHERE cloud_file_id=$1`, files[0])
 	if v, err := e.ManagedDetail(ctx, assets[0]); err != nil || len(v.Resolutions) != 0 {

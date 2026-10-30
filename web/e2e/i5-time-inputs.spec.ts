@@ -1,3 +1,4 @@
+import {openHistoryMore} from './history-filters-helper';
 import {test,expect,type Page,type Locator} from '@playwright/test';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
@@ -15,7 +16,7 @@ async function fixture(page:Page,path:string){
 }
 const targets=[
  {id:'idle',path:'/settings',open:async(page:Page)=>{await page.goto('/settings?tab=about');return page.locator('section.idle-update')},labels:['开始时间','结束时间']},
- {id:'history',path:'/organize',open:async(page:Page)=>{await page.goto('/organize?tab=history');return page.locator('form.organize-history-filters')},labels:['历史开始时间','历史结束时间']},
+ {id:'history',path:'/organize',open:async(page:Page)=>{await page.goto('/organize?tab=history');await openHistoryMore(page);return page.locator('.history-more-fields')},labels:['历史开始时间','历史结束时间']},
  {id:'users',path:'/playback',open:async(page:Page)=>{await page.goto('/playback?tab=users');await page.getByRole('button',{name:'编辑用户',exact:true}).click();return page.getByRole('dialog',{name:'编辑媒体用户',exact:true})},labels:['媒体用户有效期']},
 ];
 async function geometry(input:Locator){return input.evaluate(el=>{const r=el.getBoundingClientRect(),p=el.parentElement!.getBoundingClientRect(),s=getComputedStyle(el);return {x:r.x,y:r.y,width:r.width,height:r.height,parentWidth:p.width,padding:[s.paddingTop,s.paddingRight,s.paddingBottom,s.paddingLeft],border:[s.borderTopWidth,s.borderTopStyle,s.borderRadius],boxSizing:s.boxSizing,color:s.color,background:s.backgroundColor,type:el.getAttribute('type')}})}
@@ -36,7 +37,7 @@ test('I5 behavior idle HH:mm values and disabled-save validation retain the exac
 });
 test('I5 behavior history datetime values keep Beijing query semantics',async({page})=>{
  await fixture(page,'/organize');let query:URLSearchParams|undefined;await page.route('**/api/v1/library/activity?*',r=>{query=new URL(r.request().url()).searchParams;return r.fulfill({json:{data:{items:[],total:0}}})});
- await page.goto('/organize?tab=history');await page.getByLabel('历史开始时间',{exact:true}).fill('2026-10-27T23:30');await page.getByLabel('历史结束时间',{exact:true}).fill('2026-10-28T05:15');await page.getByRole('button',{name:'筛选',exact:true}).click();await expect.poll(()=>query?.get('from')).toBe('2026-10-27T15:30:00.000Z');expect(query?.get('to')).toBe('2026-10-27T21:15:00.000Z');
+ await page.goto('/organize?tab=history');await openHistoryMore(page);await page.getByLabel('历史开始时间',{exact:true}).fill('2026-10-27T23:30');await page.getByLabel('历史结束时间',{exact:true}).fill('2026-10-28T05:15');await expect.poll(()=>query?.get('from')).toBe('2026-10-27T15:30:00.000Z');expect(query?.get('to')).toBe('2026-10-27T21:15:00.000Z');
 });
 const capture=process.env.I5_SCREENSHOTS==='1'&&!process.env.CI&&!process.env.GITHUB_ACTIONS;
 const before=process.env.I5_BEFORE==='1';

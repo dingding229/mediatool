@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import FileBreadcrumbs from '../ui/FileBreadcrumbs.vue';
+import FileEntryRow from './FileEntryRow.vue';
+import {useDebouncedFilter} from '../composables/useDebouncedFilter';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -43,6 +46,7 @@ let hasLoaded=false;
       loading.value = false;
   }
 }
+const keywordFilter=useDebouncedFilter(query,()=>search());
 function search() {
   page.value = 1;
   directory.value = '';
@@ -103,54 +107,31 @@ defineExpose({ refresh: load });
       <h2>STRM 目录</h2>
       <span>{{ loading||error?'—':total }} 项资产</span>
     </header>
-    <form class="files-browser-toolbar" @submit.prevent="search">
+    <form class="files-browser-toolbar" @submit.prevent="keywordFilter.cancel();search()">
       <label>
         标题或路径
-        <el-input v-model="query" aria-label="托管输出关键词"/>
+        <el-input v-model="query" aria-label="托管输出关键词" placeholder="搜索标题或 STRM 路径" clearable/>
       </label>
       <label>
         媒体类型
-        <el-select v-model="kind" aria-label="STRM媒体类型" @change="search">
+        <el-select v-model="kind" aria-label="STRM媒体类型" @change="keywordFilter.cancel();search()">
           <el-option value="" label="全部类型"/>
           <el-option value="movie" label="电影"/>
           <el-option value="series" label="剧集"/>
         </el-select>
       </label>
-      <el-button native-type="submit">筛选受管输出</el-button>
+
     </form>
     <p>目录按当前页受管资产的真实 STRM 路径分组；筛选先于分页，不展示或删除已有 NFO。</p>
     <StateView v-if="loading" state="loading" title="正在读取受管目录…"/>
     <StateView v-else-if="error" :state="sourceState(error)" title="受管目录读取失败" :description="errorText(error)" @retry="load"/>
     <template v-else>
-      <nav class="files-breadcrumbs" aria-label="STRM目录路径">
-        <button v-for="crumb in crumbs" :key="crumb.path" @click="directory=crumb.path">{{ crumb.name }}</button>
-      </nav>
+      <FileBreadcrumbs :path="directory" root-label="STRM" empty-path="" label="STRM目录路径" @navigate="directory=$event"/>
       <StateView v-if="!items.length" state="empty" title="暂无匹配的受管 STRM"/>
       <ul class="files-list">
-        <li v-for="folder in folders" :key="folder" class="files-entry">
-          <button class="files-directory" @click="directory=directory?directory+'/'+folder:folder">
-            {{ folder }}
-            <small>文件夹</small>
-          </button>
-        </li>
-        <li v-for="row in directFiles" :key="row.path" class="files-entry">
-          <div class="files-entry-copy">
-            <strong>{{ row.path.split('/').pop() }}</strong>
-            <span>{{ row.asset.title||'—' }} · STRM</span>
-          </div>
-          <el-button @click="readContent(row.asset,row.path)">预览STRM内容</el-button>
-        </li>
+        <FileEntryRow v-for="folder in folders" :key="folder" :name="folder" directory @navigate="directory=directory?directory+'/'+folder:folder"/>
+        <FileEntryRow v-for="row in directFiles" :key="row.path" :name="row.path.split('/').pop()" :description="[row.asset.title,'STRM'].filter(Boolean).join(' · ')"><template #actions><el-button @click="readContent(row.asset,row.path)">预览STRM内容</el-button></template></FileEntryRow>
       </ul>
-      <details class="files-technical">
-        <summary>本页资产与输出</summary>
-        <article v-for="row in items" :key="row.id" class="organize-record">
-          <h3>{{ row.title||'—' }} {{ row.year||'' }}</h3>
-          <p>{{ row.source }} · {{ label(row.cloudState) }} · {{ label(row.artifactsState) }}</p>
-          <div class="media-actions">
-            <el-button @click="inspect(row)">资产与输出详情</el-button>
-          </div>
-        </article>
-      </details>
       <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next,total" @current-change="directory='';load()"/>
     </template>
   </section>

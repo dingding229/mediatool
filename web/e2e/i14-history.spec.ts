@@ -1,3 +1,4 @@
+import {openHistoryMore,resetHistory} from './history-filters-helper';
 import {test,expect,type Page} from '@playwright/test';
 import {mkdirSync,readFileSync} from 'node:fs';
 import {resolve,join,basename,extname} from 'node:path';
@@ -24,8 +25,8 @@ async function beforeBundle(page:Page){
 async function layout(page:Page,width:number){
    const row=page.locator('.f5-history-row').first();const geometry=await row.evaluate(el=>{const r=el.getBoundingClientRect(),parent=el.parentElement!.getBoundingClientRect(),actions=el.querySelector('.history-row-actions')!.getBoundingClientRect();return{width:r.width,parent:parent.width,right:Math.abs(r.right-actions.right),border:getComputedStyle(el.parentElement!).borderInlineStartWidth,before:getComputedStyle(el,'::before').content}});
    expect(Math.abs(geometry.width-geometry.parent)).toBeLessThan(1);expect(geometry.right).toBeLessThan(1);expect(geometry.border).toBe('0px');expect(geometry.before).toBe('none');
-   const filter=page.locator('.organize-history-filters');expect(await filter.getByRole('combobox').count()).toBe(4);
-   if(width===1440){const labels=await filter.locator(':scope > label').evaluateAll(es=>es.map(el=>Math.round(el.getBoundingClientRect().y)));expect(new Set(labels).size).toBe(2)}
+   const filter=page.locator('.organize-history-filters');expect(await filter.getByRole('combobox').count()).toBe(2);
+   if(width===1440){const labels=await filter.locator(':scope > label').evaluateAll(es=>es.map(el=>Math.round(el.getBoundingClientRect().y)));expect(new Set(labels).size).toBe(1)}
    else{
     for(const button of await row.getByRole('button').all()){await expect(button).toHaveCSS('height','44px');await expect(button).toHaveCSS('width','44px');const box=await button.boundingBox();expect(box!.width).toBeGreaterThanOrEqual(44);expect(box!.height).toBeGreaterThanOrEqual(44)}
     const paths=await row.locator('.history-paths').boundingBox(),bounds=await row.boundingBox();expect(paths!.width).toBeGreaterThanOrEqual(bounds!.width-1);
@@ -49,9 +50,9 @@ test('I14 stage, recovery shortcuts, reset and pagination retain exact queries',
  for(const state of ['pending','conflict']){await page.getByRole('button',{name:state==='pending'?'待恢复输出':'冲突输出',exact:true}).click();await expect.poll(()=>f.reads.at(-1)?.searchParams.get('state')).toBe(state);expect(f.reads.at(-1)?.searchParams.get('kind')).toBe('output');await expect(list.getByRole('listitem')).toHaveCount(1)}
  });
  await test.step('filter then reset',async()=>{
- await page.getByRole('textbox',{name:'历史关键词',exact:true}).fill('样片');await page.getByRole('textbox',{name:'历史批次ID',exact:true}).fill('11111111-1111-4111-8111-111111111111');await page.getByLabel('历史开始时间',{exact:true}).fill('2026-10-01T00:00');await page.getByLabel('历史结束时间',{exact:true}).fill('2026-10-29T00:00');
- await page.getByRole('button',{name:'筛选',exact:true}).click();await expect.poll(()=>f.reads.at(-1)?.searchParams.get('q')).toBe('样片');
- await page.getByRole('button',{name:'重置',exact:true}).click();await expect(list.getByRole('listitem')).toHaveCount(10);
+ await page.getByRole('textbox',{name:'历史关键词',exact:true}).fill('样片');await openHistoryMore(page);await page.getByRole('textbox',{name:'历史批次ID',exact:true}).fill('11111111-1111-4111-8111-111111111111');await page.getByLabel('历史开始时间',{exact:true}).fill('2026-10-01T00:00');await page.getByLabel('历史结束时间',{exact:true}).fill('2026-10-29T00:00');
+ await expect.poll(()=>f.reads.at(-1)?.searchParams.get('q')).toBe('样片');
+ await resetHistory(page);await expect(list.getByRole('listitem')).toHaveCount(10);
  const q=f.reads.at(-1)!.searchParams;for(const key of ['kind','state','q','batchId','origin','method'])expect(q.get(key)).toBe('');expect(q.has('from')).toBe(false);expect(q.has('to')).toBe(false);expect(q.get('pageSize')).toBe('10');expect(q.get('page')).toBe('1');
  });
  expect(f.writes).toEqual([]);
@@ -60,12 +61,12 @@ test('I14 keeps recovery retry and bulk removal behind their existing confirmati
  const f=await fixture(page);await page.goto('/organize?tab=history');await expect(page.locator('.f5-history-row')).toHaveCount(4);await page.getByRole('button',{name:'待恢复输出',exact:true}).click();await expect(page.locator('.f5-history-row')).toHaveCount(1);await page.getByRole('button',{name:'查看步骤详情',exact:true}).click();
  const detail=page.getByRole('dialog',{name:'整理步骤详情',exact:true});await detail.getByRole('button',{name:'重试恢复',exact:true}).click();expect(f.writes).toEqual([]);
  await page.getByRole('dialog',{name:'重试输出恢复',exact:true}).getByRole('button',{name:'确认重试恢复',exact:true}).click();await expect.poll(()=>f.writes.length).toBe(1);expect(f.writes[0]!.path).toBe('/api/v1/library/artifact-repairs/pending/retry');
- await page.getByRole('button',{name:'重置',exact:true}).click();const first=page.getByRole('list',{name:'整理历史列表',exact:true}).getByRole('listitem').first();await first.getByRole('checkbox').check();await page.getByRole('button',{name:'移除所选历史',exact:true}).click();expect(f.writes).toHaveLength(1);
+ await resetHistory(page);const first=page.getByRole('list',{name:'整理历史列表',exact:true}).getByRole('listitem').first();await page.getByRole('button',{name:'批量移除',exact:true}).click();await first.getByRole('checkbox').check();await page.getByRole('button',{name:'移除所选历史',exact:true}).click();expect(f.writes).toHaveLength(1);
  await page.getByRole('dialog',{name:'移除整理历史',exact:true}).getByRole('button',{name:'明确移除历史',exact:true}).click();await expect.poll(()=>f.writes.length).toBe(2);expect(f.writes[1]!.body).toEqual({confirm:true,items:[{id:'file-1',kind:'file',updatedAt:at}]});await expect(page.locator('.f5-history-row')).toHaveCount(3);
 });
 test('I14 unknown historical kinds have a neutral fallback; URL reset removes deep-link filters',async({page})=>{
  const f=await fixture(page);f.items.push({...f.items[0]!,id:'legacy',kind:'emby',media:{title:''},state:'visible'});
- await page.goto('/organize?tab=history&kind=output&state=pending&q=old&keep=yes');await page.getByRole('button',{name:'重置',exact:true}).click();
+ await page.goto('/organize?tab=history&kind=output&state=pending&q=old&keep=yes');await resetHistory(page);
  await expect.poll(()=>new URL(page.url()).searchParams.has('kind')).toBe(false);expect(new URL(page.url()).searchParams.get('keep')).toBe('yes');
  const legacy=page.getByRole('heading',{name:'其他/历史阶段',exact:true});await expect(legacy).toBeVisible();await legacy.locator('..').locator('..').getByRole('button',{name:'查看步骤详情',exact:true}).click();await expect(page.getByRole('dialog',{name:'整理步骤详情',exact:true}).getByRole('heading',{name:'其他/历史阶段',exact:true})).toBeVisible();
 });

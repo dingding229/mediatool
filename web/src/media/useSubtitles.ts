@@ -11,10 +11,10 @@ export function useSubtitles(item:()=>string){
  let originalEditLanguage='und';
  const form=reactive<SubtitleMetadata>({language:'und',languageTags:[],title:'',default:false,forced:false,hidden:false,revision:1}),editLanguage=ref('und');
  const rows=computed(()=>data.data.groups.flatMap(group=>group.items));
- const shownGroups=computed(()=>data.data.groups.filter(group=>group.items.some(row=>!row.hidden)));
+ const shownGroups=computed(()=>data.data.groups.filter(group=>group.assetId===asset.value&&group.items.some(row=>!row.hidden)));
  const selectedLanguage=computed(()=>choice.value==='auto'?detected.value:languageValue(choice.value));
  let sequence=0,controller:AbortController|undefined;
- async function load(){await data.load();if(data.error)return;if(!asset.value&&data.data.selectedAssetId)asset.value=data.data.selectedAssetId;if(op.pending){let p;try{p=JSON.parse(op.pending.key)}catch{op.clear();return}if(!data.data.groups.some(group=>group.assetId===p.asset))return;const row=rows.value.find(row=>row.id===p.id&&row.assetId===p.asset);if(p.kind==='delete'&&(!row||row.deleting)||p.kind==='upload'&&row||p.kind==='save'&&row&&row.revision!==p.revision)op.clear()}}
+ async function load(){await data.load();if(data.error)return;if(!asset.value&&!data.data.selectedAssetId&&data.data.versions.length===1){asset.value=data.data.versions[0]!.id;await data.load();if(data.error)return;}if(!asset.value&&data.data.selectedAssetId)asset.value=data.data.selectedAssetId;if(op.pending){let p;try{p=JSON.parse(op.pending.key)}catch{op.clear();return}if(!data.data.groups.some(group=>group.assetId===p.asset))return;const row=rows.value.find(row=>row.id===p.id&&row.assetId===p.asset);if(p.kind==='delete'&&(!row||row.deleting)||p.kind==='upload'&&row||p.kind==='save'&&row&&row.revision!==p.revision)op.clear()}}
  function resetFile(){sequence++;controller?.abort();file.value=undefined;detected.value=undefined;detecting.value=false;detectionError.value='';choice.value='auto';}
  watch(item,()=>{asset.value='';editing.value=undefined;resetFile();notice.value='';void load()},{immediate:true});
  async function selectAsset(value:string){asset.value=value;editing.value=undefined;resetFile();await load()}

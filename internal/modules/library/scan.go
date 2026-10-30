@@ -43,19 +43,21 @@ func scanCounts(ctx context.Context, q scanCountQueryer, scanID string) (int, in
 }
 
 type Scan struct {
-	ID                   string    `json:"id"`
-	ConnectionID         string    `json:"connectionId"`
-	Root                 string    `json:"root"`
-	State                string    `json:"state"`
-	Files                int       `json:"files"`
-	Directories          int       `json:"directories"`
-	Message              string    `json:"message"`
-	CompletedDirectories int       `json:"completedDirectories"`
-	CurrentDirectory     string    `json:"currentDirectory"`
-	Revision             int64     `json:"revision"`
-	Generation           int64     `json:"generation"`
-	UpdatedAt            time.Time `json:"updatedAt"`
-	CreatedAt            time.Time `json:"createdAt"`
+	StartedAt            *time.Time `json:"startedAt,omitempty"`
+	EndedAt              *time.Time `json:"endedAt,omitempty"`
+	ID                   string     `json:"id"`
+	ConnectionID         string     `json:"connectionId"`
+	Root                 string     `json:"root"`
+	State                string     `json:"state"`
+	Files                int        `json:"files"`
+	Directories          int        `json:"directories"`
+	Message              string     `json:"message"`
+	CompletedDirectories int        `json:"completedDirectories"`
+	CurrentDirectory     string     `json:"currentDirectory"`
+	Revision             int64      `json:"revision"`
+	Generation           int64      `json:"generation"`
+	UpdatedAt            time.Time  `json:"updatedAt"`
+	CreatedAt            time.Time  `json:"createdAt"`
 }
 
 func inside(root, p string) bool {
@@ -135,7 +137,7 @@ func startScanTx(ctx context.Context, tx pgx.Tx, connectionID, root string) (str
 }
 func (e Engine) Scans(ctx context.Context) ([]Scan, error) { return e.ScansPage(ctx, 0, 100) }
 func (e Engine) ScansPage(ctx context.Context, start, limit int) ([]Scan, error) {
-	rows, err := e.DB.Query(ctx, `SELECT id::text,integration_id::text,root,state,(SELECT count(*) FROM library_scan_seen s WHERE s.scan_id=library_scans.id),(SELECT count(*) FROM library_scan_directories d WHERE d.scan_id=library_scans.id),message,created_at,updated_at,integration_revision,generation,current_directory,(SELECT count(*) FROM library_scan_directories d WHERE d.scan_id=library_scans.id AND d.state='completed') FROM library_scans ORDER BY created_at DESC,id LIMIT $1 OFFSET $2`, limit, start)
+	rows, err := e.DB.Query(ctx, `SELECT id::text,integration_id::text,root,state,(SELECT count(*) FROM library_scan_seen s WHERE s.scan_id=library_scans.id),(SELECT count(*) FROM library_scan_directories d WHERE d.scan_id=library_scans.id),message,created_at,updated_at,integration_revision,generation,current_directory,(SELECT count(*) FROM library_scan_directories d WHERE d.scan_id=library_scans.id AND d.state='completed'),coverage_started_at,CASE WHEN state IN('succeeded','failed','cancelled') THEN updated_at END FROM library_scans ORDER BY created_at DESC,id LIMIT $1 OFFSET $2`, limit, start)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +145,7 @@ func (e Engine) ScansPage(ctx context.Context, start, limit int) ([]Scan, error)
 	out := []Scan{}
 	for rows.Next() {
 		var item Scan
-		if err = rows.Scan(&item.ID, &item.ConnectionID, &item.Root, &item.State, &item.Files, &item.Directories, &item.Message, &item.CreatedAt, &item.UpdatedAt, &item.Revision, &item.Generation, &item.CurrentDirectory, &item.CompletedDirectories); err != nil {
+		if err = rows.Scan(&item.ID, &item.ConnectionID, &item.Root, &item.State, &item.Files, &item.Directories, &item.Message, &item.CreatedAt, &item.UpdatedAt, &item.Revision, &item.Generation, &item.CurrentDirectory, &item.CompletedDirectories, &item.StartedAt, &item.EndedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)

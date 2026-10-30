@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {computed,reactive,ref,watch} from 'vue';
+import {ElDatePicker} from 'element-plus';
+import 'element-plus/es/components/date-picker/style/css';
 import {APIError} from '../api/client';
 import {ElMessageBox} from 'element-plus';
 import 'element-plus/es/components/message-box/style/css';
@@ -68,10 +70,11 @@ watch(()=>props.itemId,()=>{epoch++;opened.value=false;record.value=undefined;ac
      <label class="metadata-label" :for="`metadata-${key}`">{{label(key)}}<span class="metadata-lock">{{restore.has(key)?'待恢复':Object.hasOwn(record.overrides,key)?'人工锁定':'刮削值'}}</span></label>
      <div class="metadata-field">
       <textarea v-if="key==='overview'" :id="`metadata-${key}`" v-model="draft[key]" :disabled="busy" rows="5" maxlength="10000" @input="changed(key)"/>
-      <input v-else :id="`metadata-${key}`" v-model="draft[key]" :disabled="busy" :type="key==='premiereDate'?'date':['year','communityRating'].includes(key)?'number':'text'" :step="key==='communityRating'?'0.1':key==='year'?'1':undefined" :min="key==='year'?1800:key==='communityRating'?0:undefined" :max="key==='year'?2100:key==='communityRating'?10:undefined" :maxlength="key==='tagline'?1000:['genres','tags'].includes(key)?undefined:500" :placeholder="['genres','tags'].includes(key)?'用顿号或逗号分隔，最多50项':undefined" @input="changed(key)"/>
+      <el-date-picker v-else-if="key==='premiereDate'" :id="`metadata-${key}`" :model-value="draft[key]" type="date" value-format="YYYY-MM-DD" format="YYYY-MM-DD" aria-label="首播日期" :disabled="busy" @update:model-value="draft[key]=typeof $event==='string'?$event:'';changed(key)"/>
+      <input v-else :id="`metadata-${key}`" v-model="draft[key]" :disabled="busy" :type="['year','communityRating'].includes(key)?'number':'text'" :step="key==='communityRating'?'0.1':key==='year'?'1':undefined" :min="key==='year'?1800:key==='communityRating'?0:undefined" :max="key==='year'?2100:key==='communityRating'?10:undefined" :maxlength="key==='tagline'?1000:['genres','tags'].includes(key)?undefined:500" :placeholder="['genres','tags'].includes(key)?'用顿号或逗号分隔，最多50项':undefined" @input="changed(key)"/>
       <span v-if="showOrigin(key)" class="metadata-origin" :title="metadataValueLabel(record.base[key],key)">刮削值：{{metadataValueLabel(record.base[key],key)}}</span>
      </div>
-     <el-button class="metadata-restore" :disabled="busy||!Object.hasOwn(record.overrides,key)&&!restore.has(key)" @click="stageRestore(key)">恢复为刮削值</el-button>
+     <el-button class="metadata-restore" :style="{visibility:showOrigin(key)?undefined:'hidden'}" :aria-hidden="!showOrigin(key)" :tabindex="showOrigin(key)?undefined:-1" :disabled="busy||!Object.hasOwn(record.overrides,key)&&!restore.has(key)" @click="stageRestore(key)">恢复为刮削值</el-button>
     </div>
     <div v-if="!externalControls" class="mt-save-actions"><el-button class="mt-save-button" type="primary" native-type="submit" :loading="busy" :disabled="busy||blocked||!dirty">保存信息</el-button><el-button :disabled="busy" @click="assign(record);notice='已撤回未保存修改'">撤回草稿</el-button></div>
    </form>
@@ -82,9 +85,10 @@ watch(()=>props.itemId,()=>{epoch++;opened.value=false;record.value=undefined;ac
 <style scoped>
 .metadata-editor{margin-block:16px;min-width:0}.metadata-heading{display:flex;align-items:center;gap:12px;justify-content:space-between}.metadata-heading h3{margin:0}.metadata-note,.metadata-origin{color:var(--mt-text-muted);font-size:13px}
 .metadata-form{display:grid;gap:16px}.metadata-row{display:grid;grid-template-columns:112px minmax(0,1fr) auto;align-items:start;gap:12px;min-width:0}.metadata-label{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:44px;justify-content:center}.metadata-field{display:grid;gap:4px;min-width:0}
-.metadata-field input,.metadata-field textarea,.metadata-field select{width:100%;min-width:0;box-sizing:border-box;font:inherit;min-height:44px;padding:var(--mt-field-padding);border:1px solid var(--mt-border-color);border-radius:var(--el-border-radius-base);background:var(--mt-bg-surface);color:var(--mt-text-primary)}.metadata-field textarea{resize:vertical}.metadata-field input:focus-visible,.metadata-field textarea:focus-visible,.metadata-field select:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:2px}
+.metadata-field :deep(.el-date-editor){width:100%;min-height:44px}.metadata-field :deep(.el-input__wrapper){min-height:44px}
+.metadata-field input:not(.el-input__inner),.metadata-field textarea,.metadata-field select{width:100%;min-width:0;box-sizing:border-box;font:inherit;min-height:44px;padding:var(--mt-field-padding);border:1px solid var(--mt-border-color);border-radius:var(--el-border-radius-base);background:var(--mt-bg-surface);color:var(--mt-text-primary)}.metadata-field textarea{resize:vertical}.metadata-field input:focus-visible,.metadata-field textarea:focus-visible,.metadata-field select:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:2px}
 .metadata-origin{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.metadata-row .metadata-restore{margin:0;min-height:44px}.metadata-error{color:var(--el-color-danger);overflow-wrap:anywhere}
 .metadata-unmatched{padding:12px;border:1px solid var(--mt-border-color);border-radius:var(--radius-sm);margin-block:12px}.metadata-unmatched-items{max-height:240px;overflow:auto;display:flex;flex-wrap:wrap;gap:8px}.metadata-unmatched .el-button{margin:0;max-width:100%;white-space:normal;height:auto;min-height:44px}
-@media(max-width:480px){.metadata-row{grid-template-columns:minmax(0,1fr);gap:8px}.metadata-label{flex-direction:row;justify-content:space-between;align-items:center;min-height:0}.metadata-row .metadata-restore{justify-self:start;max-width:100%}}
+@media(max-width:480px){.metadata-row{grid-template-columns:minmax(0,1fr);gap:8px}.metadata-label{flex-direction:row;justify-content:space-between;align-items:center;min-height:0}.metadata-row .metadata-restore{justify-self:start;max-width:100%}.metadata-row .metadata-restore[aria-hidden="true"]{display:none}}
 .metadata-editor .mt-save-actions{position:sticky;bottom:0;z-index:2;display:flex;flex-wrap:wrap;gap:8px;padding-block:12px;margin-top:0;border-top:1px solid var(--mt-border-color);background:var(--mt-bg-surface)}
 </style>

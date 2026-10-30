@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { reactive, ref, onMounted, watch, nextTick } from 'vue';
+import {fileDescription} from './presentation';
+import FileBreadcrumbs from '../ui/FileBreadcrumbs.vue';
+import FileEntryRow from './FileEntryRow.vue';
+import {computed, reactive, ref, onMounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElDropdown, ElDropdownItem, ElDropdownMenu } from 'element-plus';
 import 'element-plus/es/components/dropdown/style/css'
@@ -35,6 +38,8 @@ function organize() {
   }
   void batch.value?.openFiles(browser.root, browser.selection);
 }
+const pageChoices=computed(()=>browser.shown.filter(r=>!r.directory&&permission('organize',r,browser.capability)).slice(0,20));
+const allSelected=computed(()=>!!pageChoices.value.length&&pageChoices.value.every(r=>browser.selection.some(s=>s.path===r.path)));
 function selectPage() {
   browser.selection = [];
   for (const row of browser.shown.filter(r => !r.directory && permission('organize', r, browser.capability)).slice(0, 20))
@@ -73,37 +78,24 @@ defineExpose({ refresh: browser.refresh });
       </label>
       <label>
         筛选当前页文件
-        <el-input v-model="browser.filter" aria-label="筛选当前页文件" clearable/>
+        <el-input v-model="browser.filter" aria-label="筛选当前页文件" placeholder="按文件名筛选当前页" clearable/>
       </label>
       <el-button :disabled="!browser.root||!allowed('mkdir',undefined,browser.capability)" @click="act('mkdir')">新建文件夹</el-button>
     </div>
-    <p class="f5-file-root">{{browser.root?browser.root.path+' · '+(roles[browser.capability?.role||'']||'目录权限待核对'):'正在读取目录范围…'}}</p>
-    <p class="f5-file-reason">{{browser.capability?.reason||'\u00a0'}}</p>
-    <nav class="files-breadcrumbs" aria-label="文件路径">
-      <button v-for="crumb in browser.crumbs" :key="crumb.path" :aria-current="browser.directory===crumb.path?'location':undefined" @click="browser.navigate(crumb.path)">{{ crumb.name }}</button>
-      <button type="button" v-if="browser.directory!=='.'" @click="browser.navigate(browser.directory.includes('/')?browser.directory.slice(0,browser.directory.lastIndexOf('/')):'.')">上级目录</button>
-      <button type="button" :disabled="!browser.root" @click="browser.navigate('.media-tool-trash')">查看回收目录</button>
-    </nav>
-    <div class="media-actions">
-      <el-button :disabled="browser.loading||!browser.shown.length" @click="selectPage">选择本页可整理文件（最多20项）</el-button>
-      <el-button :disabled="!browser.selection.length" @click="browser.selection=[]">清空选择</el-button>
-      <el-button :disabled="!browser.selection.length" @click="organize">批量整理预览（{{ browser.selection.length }}）</el-button>
-    </div>
+    <p class="f5-file-reason" :title="browser.capability?.reason">{{browser.capability?.reason||'\u00a0'}}</p>
+    <FileBreadcrumbs :path="browser.directory" :root-label="browser.root?.kind==='local'?'本地':'云盘'" :root-path="browser.root?.kind==='local'?browser.root.path.split('/').filter(Boolean).at(-1):browser.root?.path" @navigate="browser.navigate"><el-button link :disabled="!browser.root" @click="browser.navigate('.media-tool-trash')">回收目录</el-button></FileBreadcrumbs>
+    <div class="files-list-heading"><label class="files-selection"><input type="checkbox" aria-label="选择本页可整理文件（最多20项）" :checked="allSelected" :disabled="browser.loading||!pageChoices.length" @change="($event.target as HTMLInputElement).checked?selectPage():browser.selection=[]"/></label><span>文件名</span></div>
+    <div v-if="browser.selection.length" class="media-actions files-batch-toolbar"><span>已选 {{browser.selection.length}} 项</span><el-button @click="organize">批量整理预览</el-button><el-button @click="browser.selection=[]">清空选择</el-button></div>
     <StateView v-if="browser.rootsLoading||browser.loading&&!browser.entries.length" state="loading" title="正在读取目录…"/>
     <StateView v-else-if="browser.rootError||browser.error" :state="sourceState(browser.rootError||browser.error)" title="目录暂不可用" :description="errorText(browser.rootError||browser.error)" @retry="browser.refresh"/>
     <StateView v-else-if="!browser.roots.length" state="empty" title="尚无可浏览目录" description="先配置本地工作区或云盘连接。"/>
     <StateView v-else-if="!browser.shown.length" state="empty" title="当前页没有匹配的文件"/>
     <ul class="files-list" aria-label="文件列表">
-      <li v-for="file in browser.shown" :key="file.path" class="files-entry">
+      <FileEntryRow v-for="file in browser.shown" :key="file.path" :name="file.name" :directory="file.directory" :disabled="!!file.unsupported" :description="fileDescription(file)" @navigate="browser.navigate(file.path)"><template #selection>
         <label class="files-selection">
           <input type="checkbox" :aria-label="'选择 '+file.name" :disabled="file.directory||!allowed('organize',file,browser.capability)||browser.selection.length>=20&&!browser.selection.some(r=>r.path===file.path)" :checked="browser.selection.some(r=>r.path===file.path)" @change="browser.select(file,($event.target as HTMLInputElement).checked)"/>
         </label>
-        <component :is="file.directory?FolderOpened:Document" aria-hidden="true" class="files-entry-icon"/>
-        <div class="files-entry-copy">
-          <button v-if="file.directory" :disabled="!!file.unsupported" @click="browser.navigate(file.path)">{{ file.name }}</button>
-          <strong v-else>{{ file.name }}</strong>
-          <span>{{ file.unsupported?'不支持的文件类型':file.directory?'文件夹':'文件' }} · {{ file.directory?'—':size(file.size) }}</span>
-        </div>
+        </template><template #actions>
         <el-dropdown trigger="click" popper-class="media-dropdown">
           <el-button :aria-label="file.name+' 更多'">更多</el-button>
           <template #dropdown>
@@ -116,7 +108,7 @@ defineExpose({ refresh: browser.refresh });
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-      </li>
+      </template></FileEntryRow>
     </ul>
     <PagePagination v-model:current-page="browser.page" v-model:page-size="browser.pageSize" :total="browser.total" layout="prev,pager,next,total" @current-change="browser.selection=[];browser.load()"/>
   </section>

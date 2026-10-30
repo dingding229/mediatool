@@ -18,7 +18,7 @@ it('places label, input/helper and restore in one row, with an equal-width label
  const images=read('./ImageEditor.vue');expect(images).toMatch(/class="image-label"[\s\S]*class="image-preview"[\s\S]*class="image-actions"[\s\S]*class="image-restore"/);expect(images).not.toContain('PagePagination');
 });
 it('hides rather than unmounts read-only details on both host pages',()=>{
- const source=read('../views/MediaWorkspaceView.vue');expect(source).toContain('v-show="!editVisible" class="catalog-readonly"');expect(source).toContain('v-show="!editVisible" class="catalog-subtitle"');expect(source).toContain('<dl v-show="!editVisible">');expect(source).toContain('<MediaEditDialog');
+ const source=read('../views/MediaWorkspaceView.vue');expect(source).toContain('v-show="!editVisible" class="catalog-readonly"');expect(source).toContain('v-show="!editVisible" class="catalog-subtitle"');expect(source).toContain('<DescriptionGrid v-show="!editVisible"');expect(source).toContain('<MediaEditDialog');
  expect(source.indexOf('class="catalog-readonly"')).toBeLessThan(source.indexOf('aria-label="作品简介"'));expect(source.lastIndexOf('<SubtitlePanel')).toBeGreaterThan(source.indexOf('class="catalog-readonly"'));
  const organize=read('../views/OrganizeWorkspaceView.vue');expect(organize).toContain('v-show="!assetImagesOpen"');expect(organize).not.toContain('technical-data');
 });

@@ -6,6 +6,7 @@ const cronValid=ref(false);
 import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
+import {scanRecords} from './presentation';
 import ScanRecord from './ScanRecord.vue';
 import TaskControl from '../workflows/TaskControl.vue';
 import {scheduleLabel} from '../presentation/labels';
@@ -33,6 +34,7 @@ const props = defineProps<{
   changed: [
   ];
 }>();
+const displayScans=computed(()=>scanRecords(props.scans));
 const remembered = readPrivate('media-tool:scan-create:v1'), root = ref(remembered?.root || ''), useDefault = ref(!remembered?.root), roots = ref<any[]>([]), connection = ref(''), rootError = ref<unknown>(null), preview = ref<any>(null), busy = ref(false), error = ref<unknown>(null), pending = ref<any>(remembered), approveOpen = ref(false), detailOpen = ref(false), detail = ref<any>(null), cursorPage = usePageNumber('cursorPage'),cursorSize=usePageSize(25,'cursorPage'), scanPage = computed({get:()=>props.page||1,set:(n:number)=>emit('page',n)}), step = ref(remembered ? 3 : 1), controlTarget = ref<any>(null), controlOpen = ref(false);
 const scheduleOpen = ref(false), scheduleBusy = ref(false), conflict = ref<any>(null), form = ref<any>({ id: '', root: '', enabled: false, watchChanges: false, cron: '0 * * * *', revision: 0 });
 const controlPending = ref<any>(readPrivate('media-tool:scan-control:v1'));
@@ -231,18 +233,18 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
       <div class="media-form">
         <label>
           云盘目录来源
-          <el-select v-model="connection" aria-label="扫描目录来源" fit-input-width :disabled="!!pending" @change="root=roots.find(r=>r.id===connection)?.path||'';useDefault=false">
+          <el-select v-model="connection" aria-label="扫描目录来源" fit-input-width :disabled="!!pending||useDefault" @change="root=roots.find(r=>r.id===connection)?.path||'';useDefault=false">
             <template #label><MiddleEllipsis :path="roots.find(r=>r.id===connection)?.path" :copy="false"/></template>
             <el-option v-for="entry in roots" :key="entry.id" :value="entry.id" :label="entry.name+' · '+entry.path" :aria-label="entry.name+' · '+entry.path"><MiddleEllipsis :path="entry.path" :copy="false"/></el-option>
           </el-select>
         </label>
-        <el-checkbox class="mt-form-checkbox" v-model="useDefault" :disabled="!!pending">使用服务端默认云盘根目录</el-checkbox>
+        <el-checkbox class="mt-form-checkbox" v-model="useDefault" :disabled="!!pending">使用服务端默认云盘根目录</el-checkbox><p v-if="useDefault" class="mt-help">由服务端使用已配置的默认云盘根目录，无需选择目录来源。</p>
         <label v-if="!useDefault">
           扫描路径
           <el-input v-model="root" aria-label="扫描路径" :disabled="!!pending"/>
         </label>
         <StateView v-if="rootError" :state="sourceState(rootError)" title="目录浏览暂不可用" description="可以手工输入扫描范围；不会把未取得的数据当作完整预览。" @retry="readRoots"/>
-        <el-button :loading="busy" :disabled="!!pending||(!useDefault&&!root.trim())" @click="rangePreview">预览扫描范围</el-button>
+        <div class="scan-preview-actions"><el-button type="primary" :loading="busy" :disabled="!!pending||(!useDefault&&!root.trim())" @click="rangePreview">预览扫描范围</el-button></div>
         <section v-if="preview" aria-label="扫描范围预览">
           <h3><MiddleEllipsis class="mt-path" :path="preview.root||'服务端默认云盘根目录'" full/></h3>
           <p>只读查看范围，不移动文件；执行时由服务端按当前连接和授权校验。</p>
@@ -262,13 +264,13 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <StateView v-if="scanError" :state="sourceState(scanError)" title="扫描记录读取失败" @retry="emit('changed')"/>
     <p v-else-if="loading&&!scans.length">正在读取扫描记录…</p>
     <p v-else-if="!scans.length">尚无扫描记录</p>
-    <div class="mt-list-columns organize-list-columns organize-scan-columns" aria-hidden="true"><span>目录 / 任务</span><span>来源路径 / 进度</span><span>状态</span><span>更新时间</span><span>操作</span></div>
+    <div v-if="scans.length" class="mt-list-columns organize-list-columns organize-scan-columns" aria-hidden="true"><span>目录 / 任务</span><span>来源路径 / 进度</span><span>状态</span><span>更新时间</span><span>操作</span></div>
     <div class="mt-list" role="list" aria-label="扫描任务列表">
-    <article v-for="scan in scans" :key="scan.id" class="organize-record mt-list-row organize-list-row organize-scan-row f5-scan-row" role="listitem">
-      <div class="organize-list-identity"><el-icon class="organize-list-folder" aria-hidden="true"><Folder/></el-icon><div><h3><MiddleEllipsis :text="scan.root?.split('/').filter(Boolean).pop()||'根目录'" :copy="false"/></h3><p>目录扫描</p></div></div>
-      <div class="organize-list-path"><MiddleEllipsis class="mt-path" :path="scan.root"/><p>{{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</p><div v-if="scan.directories>0" class="scan-record-progress"><el-progress :show-text="false" :stroke-width="4" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/><span>{{ scanPercent(scan.completedDirectories||0,scan.directories) }}%</span></div></div>
+    <article v-for="scan in displayScans" :key="scan.id" class="organize-record mt-list-row organize-list-row organize-scan-row f5-scan-row" role="listitem">
+      <div class="organize-list-identity"><el-icon class="organize-list-folder" aria-hidden="true"><Folder/></el-icon><div><h3><MiddleEllipsis :text="scan.root?.split('/').filter(Boolean).pop()||'根目录'" :copy="false"/></h3><p>批次 {{scan.id.slice(0,8)}}<template v-if="scan.generation>1"> · 第 {{scan.generation}} 轮</template></p></div></div>
+      <div class="organize-list-path"><MiddleEllipsis class="mt-path" :path="scan.root" inline-copy/><p>{{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</p><div v-if="scan.directories>0" class="scan-record-progress"><el-progress :show-text="false" :stroke-width="4" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/><span>{{ scanPercent(scan.completedDirectories||0,scan.directories) }}%</span></div></div>
       <div class="organize-list-state"><StatusBadge :state="scan.state" :label="label(scan.state)"/></div>
-      <time class="organize-list-time">{{ date(scan.updatedAt||scan.createdAt) }}</time>
+      <div class="organize-list-time"><time v-if="scan.startedAt">开始 {{date(scan.startedAt)}}</time><time v-else-if="scan.createdAt">创建 {{date(scan.createdAt)}}</time><time v-if="scan.endedAt">结束 {{date(scan.endedAt)}}</time><time v-else-if="scan.updatedAt">更新 {{date(scan.updatedAt)}}</time></div>
       <div class="media-actions mt-list-actions organize-list-actions">
         <el-button aria-label="查看目录记录" title="查看目录记录" @click="inspect(scan)"><el-icon class="mt-list-action-icon"><Document/></el-icon><span class="mt-list-action-text">查看目录记录</span></el-button>
         <el-button v-if="['pending','running'].includes(scan.state)" aria-label="暂停扫描" title="暂停扫描" :disabled="!!scanError||busy" @click="askControl(scan,'pause')"><el-icon class="mt-list-action-icon"><VideoPause/></el-icon><span class="mt-list-action-text">暂停扫描</span></el-button>

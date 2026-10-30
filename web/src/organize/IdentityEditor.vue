@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {identityDraft} from './presentation';
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { APIError, post, request } from '../api/client';
 import ConfirmAction from '../ui/ConfirmAction.vue';
@@ -68,8 +69,8 @@ async function recognize(preserve = false) {
         return;
       row.fileDigest = out.fileDigest;
       if (!preserve) {
-        row.season = out.hint.season;
-        row.episodes = (out.hint.episodes || []).join(',');
+        row.season = out.hint.season||identityDraft(row.candidate).season;
+        row.episodes = out.hint.episodes?.length?out.hint.episodes.join(','):identityDraft(row.candidate).episodes;
       }
       evidence.value.push(`${row.candidate.name}：${(out.evidence || []).join('；')}`);
       if (batch.value.length === 1 && !preserve) {
@@ -95,13 +96,13 @@ async function open(files: any[], item: any = null, context: any = {}) {
   generation++;
   phase.value = null;
   asset.value = item ? { ...item } : null;
-  batch.value = files.map(candidate => ({ candidate: { ...candidate }, season: 0, episodes: '', fileDigest: '' }));
+  batch.value = files.map(candidate => ({ candidate: { ...candidate }, ...identityDraft(candidate), fileDigest: '' }));
   query.value = item?.title || files[0]?.name.replace(/\.[^.]+$/, '') || '';
   kind.value = item?.mediaType || 'movie';
   selected.value = null;
   results.value = [];
-  season.value = 1;
-  coverage.value = '';
+  season.value = item?identityDraft(item).season:1;
+  coverage.value = item?identityDraft(item).episodes:'';
   migrate.value = false;
   plan.value = null;
   payload.value = null;

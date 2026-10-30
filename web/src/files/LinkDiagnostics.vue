@@ -111,7 +111,7 @@ onUnmounted(() => {
       </label>
       <label>
         115 文件标识（可选）
-        <el-input v-model="pickCode" aria-label="115文件标识"/>
+        <el-input v-model="pickCode" aria-label="115文件标识" placeholder="如 abcd1234567（可留空）"/>
       </label>
       <p>文件标识可留空；只填写真实 PickCode，不用 CloudDrive 文件 ID 替代。</p>
       <div class="media-actions">
@@ -143,7 +143,7 @@ onUnmounted(() => {
     </section>
   </section>
   <details class="media-surface files-link-batch">
-    <summary>批量链接预览</summary>
+    <summary><span>批量链接预览</span><small v-if="!links.length">展开填写路径，生成预览</small></summary>
     <p>每行一个已有媒体路径；仅生成预览，不写入或修复文件。</p>
     <el-input v-model="paths" type="textarea" :rows="4" aria-label="批量媒体路径"/>
     <el-button :disabled="!paths.trim()" :loading="batchBusy" @click="batchPreview">预览这些路径</el-button>

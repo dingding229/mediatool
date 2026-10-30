@@ -16,7 +16,7 @@ export const targets:Target[]=[
  {id:'log',file:'operations/LogsPanel.vue',path:'/ops?tab=logs',title:'完整原始日志',open:button('查看完整链接')},
  {id:'log-settings',file:'operations/LogsPanel.vue',path:'/ops?tab=logs',title:'日志设置',open:button('日志设置')},
  {id:'cache',file:'operations/CachePanel.vue',path:'/ops?tab=cache',title:'缓存内容',open:button('缓存详情')},
- {id:'asset',file:'views/OrganizeWorkspaceView.vue',path:'/organize?tab=assets',title:'资产与输出详情',open:button('查看资产详情')},
+ {id:'asset',file:'views/OrganizeWorkspaceView.vue',path:'/organize?tab=assets',title:'资产与输出详情',open:async page=>{await page.locator('.organize-asset-row .organize-list-identity h3').first().click()}},
  {id:'scan',file:'organize/ScanPanel.vue',path:'/organize?tab=scans',title:'扫描目录覆盖',open:button('查看目录记录')},
  {id:'history',file:'organize/HistoryPanel.vue',path:'/organize?tab=history',title:'整理步骤详情',open:button('查看步骤详情')},
  {id:'users',file:'playback/UsersPanel.vue',path:'/playback?tab=users',title:'family · 用户详情',open:button('用户详情')},

@@ -3,6 +3,7 @@ import { tmdbImage } from '../utils/tmdb-image';
 export interface MediaItem {
   fileSize?:number|null;
   episodeCount?:number;
+  versionCount?:number;
   id: string;
   source: string;
   title: string;

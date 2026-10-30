@@ -23,6 +23,6 @@ export async function fixture(page:Page,mode:'batch'|'movie'|'migration'){
 export async function open(page:Page,mode:'batch'|'movie'|'migration'){
  if(mode==='batch'){
   await page.goto('/organize?tab=candidates');await page.locator('.organize-candidate-row').first().waitFor();for(const box of await page.locator('.organize-candidate-row input[type=checkbox]').all())await box.check();await page.getByRole('button',{name:'批量确认作品 · 8',exact:true}).click();
- }else{await page.goto('/organize?tab=assets');await page.getByRole('button',{name:'修正身份 / 季集',exact:true}).click();}
+ }else{await page.goto('/organize?tab=assets');await page.getByRole('button',{name:'修正身份',exact:true}).click();}
  const dialog=page.getByRole('dialog',{name:mode==='batch'?'确认候选媒体':'修正媒体身份与季集',exact:true});if(mode==='batch'){await dialog.locator('.el-select').filter({has:page.getByRole('combobox',{name:'媒体类型',exact:true})}).click();await page.getByRole('option',{name:'剧集',exact:true}).click();}await dialog.getByRole('textbox',{name:'媒体关键词',exact:true}).fill(mode==='movie'?'海边的故事':'嫁金钗');await dialog.getByRole('button',{name:'查询TMDB',exact:true}).click();await dialog.getByRole('button',{name:(mode==='movie'?'海边的故事':'嫁金钗')+' · 2026 · '+(mode==='movie'?'电影':'剧集'),exact:true}).click();return dialog;
 }

@@ -197,3 +197,38 @@ func TestCandidateRecognitionRequiresFreshFileAndUniqueExactIdentity(t *testing.
 		t.Fatal("replacement got old identity proof")
 	}
 }
+
+func TestI40bScanReadOnlyTimes(t *testing.T) {
+	ctx, e, connection := scanWorkbenchFixture(t)
+	if _, err := e.DB.Exec(ctx, `INSERT INTO storage_connections(id,name,provider)VALUES($1,'owned scan times','clouddrive2')`, connection); err != nil {
+		t.Fatal(err)
+	}
+	id, err := e.Start(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending, err := e.ScanByID(ctx, id)
+	if err != nil || pending.StartedAt != nil || pending.EndedAt != nil {
+		t.Fatal(pending, err)
+	}
+	start := time.Date(2026, 10, 31, 1, 0, 0, 0, time.UTC)
+	end := start.Add(time.Hour)
+	if _, err = e.DB.Exec(ctx, `UPDATE library_scans SET coverage_started_at=$2,state='succeeded',updated_at=$3 WHERE id=$1`, id, start, end); err != nil {
+		t.Fatal(err)
+	}
+	for _, read := range []func() (Scan, error){func() (Scan, error) { return e.ScanByID(ctx, id) }, func() (Scan, error) {
+		rows, err := e.ScansPage(ctx, 0, 25)
+		if err != nil {
+			return Scan{}, err
+		}
+		if len(rows) != 1 {
+			t.Fatal(rows)
+		}
+		return rows[0], nil
+	}} {
+		got, err := read()
+		if err != nil || got.StartedAt == nil || got.EndedAt == nil || !got.StartedAt.Equal(start) || !got.EndedAt.Equal(end) || !got.UpdatedAt.Equal(end) {
+			t.Fatal(got, err)
+		}
+	}
+}

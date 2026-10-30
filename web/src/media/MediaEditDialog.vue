@@ -39,7 +39,7 @@ defineExpose({dirty,busy,save,discard,requestClose});
     <p v-if="error" role="alert" class="media-edit-error">{{error}}</p>
    </div>
   </div>
-  <template #footer><div class="media-edit-save"><el-button type="primary" :loading="saving" :disabled="busy||!dirty||blocked" @click="save">保存</el-button><el-button :disabled="busy||!dirty" @click="discard">撤回草稿</el-button><el-button :disabled="busy" @click="requestClose()">取消</el-button></div></template>
+  <template #footer><div class="media-edit-save"><el-button :disabled="busy" @click="requestClose()">取消</el-button><el-button :disabled="busy||!dirty" @click="discard">撤回草稿</el-button><el-button type="primary" :loading="saving" :disabled="busy||!dirty||blocked" @click="save">保存</el-button></div></template>
  </el-dialog>
 </template>
 <style>
