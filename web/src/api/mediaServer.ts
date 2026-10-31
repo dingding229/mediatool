@@ -48,3 +48,17 @@ export const getNativeServerSettings = () => request<NativeServerSettings>('/med
 export const saveNativeServerSettings = (input: NativeServerInput) => request<NativeServerInput>('/media-server/native/settings', { method: 'PUT', body: JSON.stringify(input) })
 export interface NativeLibrary { id: string; itemId: string; name: string; collectionType: string; hidden: boolean; sortOrder: number; groupId: string; ruleId: string; groupName: string; ruleName: string; assetCount: number }
 export const listNativeLibraryMappings = (startIndex = 0, limit = 50) => request<ManagementPage<NativeLibrary>>('/media-server/native/library-mappings' + pageQuery(startIndex, limit))
+
+// The directory overview has no UI pagination; read each server-bounded page without changing its contract.
+export async function listAllNativeLibraryMappings(){
+ const items:NativeLibrary[]=[];
+ for(let start=0;;){
+  const page=await listNativeLibraryMappings(start,200);
+  if(page==null||Array.isArray(page)&&page.length===0){if(start===0)return [];throw Error('媒体库目录读取不完整，请刷新重试')}
+  if(!Array.isArray(page.items))throw Error('媒体库目录读取不完整，请刷新重试');
+  items.push(...page.items);
+  if(items.length>=page.total)return items;
+  if(!page.items.length)throw Error('媒体库目录读取不完整，请刷新重试');
+  start+=page.items.length;
+ }
+}

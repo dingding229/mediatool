@@ -1,3 +1,4 @@
+import {accessSegment,observationMenu} from './playback-navigation';
 import {expect,type Page,type Locator} from '@playwright/test';
 import {i3Fixture} from './i3-fixture';
 type Target={id:string;file:string;path:string;title:string;size?:'default'|'large';open:(p:Page)=>Promise<void>};
@@ -19,8 +20,8 @@ export const targets:Target[]=[
  {id:'asset',file:'views/OrganizeWorkspaceView.vue',path:'/organize?tab=assets',title:'资产与输出详情',open:async page=>{await page.locator('.organize-asset-row .organize-list-identity h3').first().click()}},
  {id:'scan',file:'organize/ScanPanel.vue',path:'/organize?tab=scans',title:'扫描目录覆盖',open:button('查看目录记录')},
  {id:'history',file:'organize/HistoryPanel.vue',path:'/organize?tab=history',title:'整理步骤详情',open:button('查看步骤详情')},
- {id:'users',file:'playback/UsersPanel.vue',path:'/playback?tab=users',title:'family · 用户详情',open:button('用户详情')},
- {id:'access',file:'playback/AccessPanel.vue',path:'/playback?tab=players',title:'完整 UA 与访问详情',open:button('查看完整 UA')},
+ {id:'users',file:'playback/UsersPanel.vue',path:'/playback?tab=users',title:'family · 用户详情',open:p=>p.locator('.media-user-identity').first().click()},
+ {id:'access',file:'playback/AccessPanel.vue',path:'/playback?tab=players',title:'完整 UA 与访问详情',open:async p=>{await accessSegment(p,'summary');await (await observationMenu(p,p.locator('.ua-observation-row').first())).getByRole('menuitem',{name:'查看完整 UA',exact:true}).click()}},
  {id:'sessions',file:'playback/SessionsPanel.vue',path:'/playback?tab=sessions',title:'在线会话详情',open:button('会话详情')},
  {id:'accounts',file:'sites/AccountsPanel.vue',path:'/sites?tab=accounts',title:'站点数据与趋势',open:p=>p.locator('.f5-site-name').first().click()},
  {id:'templates',file:'sites/TemplatesPanel.vue',path:'/sites?tab=templates',title:'内置模板详情',size:'default',open:button('模板详情')},

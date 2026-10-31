@@ -1,3 +1,4 @@
+import {accessSegment,openObservationAction} from './playback-navigation';
 import {waitForLayout} from './layout-stability';
 import {chooseUASelect,expectUASelect} from './ua-select';
 import {fixtureFulfill} from './collection-fixture'
@@ -942,11 +943,11 @@ test('player UA observations enforce resolver whitelist and blacklist while reti
  await page.goto('/player-access')
  await expect(page.getByRole('heading',{name:'播放器准入',exact:true})).toBeVisible()
  await expectUASelect(page,'UA 策略模式','off')
- await page.getByLabel('搜索UA记录',{exact:true}).fill(ua)
- await page.getByRole('button',{name:'搜索记录',exact:true}).click()
+ await accessSegment(page,'summary');await page.getByLabel('搜索UA记录',{exact:true}).fill(ua)
+ await accessSegment(page,'summary')
  const row=page.locator('.u5-ua-record').filter({hasText:ua})
  await expect(row).toBeVisible()
- await row.getByRole('button',{name:'查看完整 UA',exact:true}).click()
+ await openObservationAction(page,row,'查看完整 UA')
  let dialog=page.getByRole('dialog',{name:'完整 UA 与访问详情',exact:true})
  await expect(dialog.getByLabel('实际收到的完整 UA',{exact:true})).toHaveValue(ua)
  await dialog.getByRole('button',{name:'从此记录加入白名单',exact:true}).click()
@@ -955,7 +956,7 @@ test('player UA observations enforce resolver whitelist and blacklist while reti
  await expect(dialog.getByLabel('完整 User-Agent',{exact:true})).toHaveAttribute('readonly','')
  await dialog.getByLabel('播放器备注',{exact:true}).fill('Owned E2E player')
  await dialog.getByRole('button',{name:'保存规则',exact:true}).click()
- await expect(page.getByText('Owned E2E player',{exact:true})).toBeVisible()
+ await accessSegment(page,'rules');await expect(page.getByText('Owned E2E player',{exact:true})).toBeVisible()
  await chooseUASelect(page,'UA 策略模式','whitelist')
  await page.getByRole('dialog',{name:'切换 UA 策略为白名单（仅允许匹配规则）',exact:true}).getByRole('button',{name:'确认切换',exact:true}).click()
  await expectUASelect(page,'UA 策略模式','whitelist')
@@ -972,7 +973,7 @@ test('player UA observations enforce resolver whitelist and blacklist while reti
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
    if(process.env.I9_SCREENSHOTS==='1'&&!process.env.CI&&!process.env.GITHUB_ACTIONS)await page.screenshot({path:resolve(screenshots,`player-ua-access-${width}.png`),fullPage:true})
   }
-  await row.getByRole('button',{name:'加入黑名单',exact:true}).click()
+  await openObservationAction(page,row,'加入黑名单')
   dialog=page.getByRole('dialog',{name:'从访问记录加入黑名单',exact:true})
   await dialog.getByLabel('播放器备注',{exact:true}).fill('Owned E2E blocked player')
   await dialog.getByRole('button',{name:'保存规则',exact:true}).click()
@@ -992,9 +993,9 @@ test('player UA observations enforce resolver whitelist and blacklist while reti
   const disabled=await page.request.put('/api/v1/player-access/policy',{headers:{'X-Requested-With':'media-tool'},data:{enabled:false,revision:p.revision,rules:p.rules}});expect(disabled.status()).toBe(200)
  }
  await page.getByRole('button',{name:'刷新',exact:true}).click()
- await page.getByRole('button',{name:'清空访问记录',exact:true}).click()
+ await accessSegment(page,'summary');await page.getByRole('button',{name:'清空访问记录',exact:true}).click()
  await page.getByRole('dialog',{name:'清理 UA 访问记录',exact:true}).getByRole('button',{name:'清理记录',exact:true}).click()
- await expect(page.getByText('Owned E2E player',{exact:true})).toBeVisible()
+ await accessSegment(page,'rules');await expect(page.getByText('Owned E2E player',{exact:true})).toBeVisible()
  const p=(await(await page.request.get('/api/v1/player-access/policy')).json()).data
  expect(p.rules).toHaveLength(1);expect(p.enabled).toBe(false)
  expect((await page.request.put('/api/v1/player-access/policy',{headers:{'X-Requested-With':'media-tool'},data:{enabled:false,mode:'off',revision:p.revision,rules:[],blacklistRules:[]}})).status()).toBe(200)
@@ -1028,7 +1029,7 @@ test('STRM directory has posters and no NFO collection while tools persist repai
 
 test('UA visits expose IP and status without external server identity',async({page})=>{
  await page.route('**/api/v1/player-access/events?*',r=>fixtureFulfill(r,{json:{data:{items:[{id:'owned-visit',userAgent:'Owned-Player/1',clientIp:'192.0.2.50',entry:'emby',method:'GET',allowed:true,reason:'restriction_disabled',status:302,embyUserId:'actual-user',embyUserName:'已核验用户',embyVerified:true,createdAt:'2026-10-14T00:00:00Z'},{id:'unknown-visit',userAgent:'Owned-Player/1',clientIp:'192.0.2.51',entry:'strm',method:'HEAD',allowed:true,reason:'restriction_disabled',status:401,embyVerified:false,createdAt:'2026-10-14T00:00:01Z'}],total:2}}}))
- await fixtureLogin(page);await page.goto('/player-access');const visits=page.getByRole('list',{name:'访问明细列表',exact:true}).getByRole('listitem');await expect(visits).toHaveCount(2);await expect(visits.nth(0).getByRole('heading')).toHaveText('准入通过 · HTTP 302');await expect(visits.nth(1).getByRole('heading')).toHaveText('准入通过 · HTTP 401');await expect(page.getByText(/访客地址 局域网\/保留地址/)).toHaveCount(2);await expect(page.getByLabel('Emby访问用户筛选')).toHaveCount(0)
+ await fixtureLogin(page);await page.goto('/player-access');await accessSegment(page,'events');const visits=page.getByRole('list',{name:'访问明细列表',exact:true}).getByRole('listitem');await expect(visits).toHaveCount(2);await expect(visits.nth(0).getByRole('heading')).toHaveText('准入通过 · HTTP 302');await expect(visits.nth(1).getByRole('heading')).toHaveText('准入通过 · HTTP 401');await expect(page.getByText(/访客地址 局域网\/保留地址/)).toHaveCount(2);await expect(page.getByLabel('Emby访问用户筛选')).toHaveCount(0)
 })
 
 test('search promotion header sorts full results and history evidence starts folded',async({page})=>{
@@ -1301,7 +1302,7 @@ test('native preprocessing controls, statistics, retry confirmation and bounded 
  await page.route('**/api/v1/media-server/native/processing**',async route=>{const r=route.request(),path=new URL(r.url()).pathname;if(path.endsWith('/settings')){expect(r.method()).toBe('PUT');expect(r.headers()['x-requested-with']).toBe('media-tool');expect(r.postDataJSON()).toEqual({...c.settings.request,enabled:false});settings={...c.settings.response.data,enabled:false};return fixtureFulfill(route,{json:{data:settings}})}if(path.endsWith('/tasks'))return fixtureFulfill(route,{json:{data:{...c.tasks.response.data,items:queued?c.tasks.response.data.items.map((t:any)=>({...t,state:'pending',attempts:0})):c.tasks.response.data.items}}});if(path.endsWith('/retry')){const body=r.postDataJSON();expect(r.method()).toBe('POST');expect(r.headers()['x-requested-with']).toBe('media-tool');queued=true;if(body.bulk){batches++;expect(body).toEqual(c.batch.request);return fixtureFulfill(route,{status:202,json:c.batch.response})}single++;expect(body).toEqual(c.retry.request);return fixtureFulfill(route,{status:202,json:c.retry.response})}if(path.endsWith('/gc')){gcs++;expect(r.method()).toBe('POST');return fixtureFulfill(route,{json:c.gc.response})}return fixtureFulfill(route,{json:{data:{...c.summary.response.data,settings,probe:queued?[{state:'failed',count:0},{state:'pending',count:1}]:c.summary.response.data.probe}}})})
  await fixtureLogin(page);const realStatus=await page.request.get('/api/v1/media-server/native/processing');expect(realStatus.status()).toBe(200);expect((await realStatus.json()).data.settings.enabled).toBe(false);const realGC=await page.request.post('/api/v1/media-server/native/processing/gc',{headers:{'X-Requested-With':'media-tool'}});expect(realGC.status()).toBe(200);const report=(await realGC.json()).data;expect(report.scanned).toBeLessThanOrEqual(200);expect(report.reclaimed).toBe(0)
  await page.goto('/playback?tab=processing');await expect(page.getByRole('heading',{name:'探测与截图任务',exact:true})).toBeVisible();await expect(page.getByText(/失败 1/)).toBeVisible();await expect(page.getByText(/上限 2.00 GiB/)).toBeVisible();await expect(page.getByRole('checkbox',{name:'启用播放服务与预处理',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'管理播放服务开关',exact:true})).toHaveAttribute('href','/playback?tab=settings');await page.getByRole('button',{name:'保存预处理设置',exact:true}).click();expect(settings).toEqual({...c.settings.response.data,enabled:false})
- await page.getByRole('button',{name:'重试此任务',exact:true}).click();await page.getByRole('button',{name:'确认执行',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'服务回执：选中 1 条'})).toContainText('已排队 1 条');expect(single).toBe(1)
+ await page.getByRole('button',{name:'失败 1',exact:true}).click();await expect(page.locator('.el-select').filter({has:page.getByRole('combobox',{name:'预处理状态筛选',exact:true})})).toContainText('失败');await page.getByRole('button',{name:'重试此任务',exact:true}).click();await page.getByRole('button',{name:'确认执行',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'服务回执：选中 1 条'})).toContainText('已排队 1 条');expect(single).toBe(1)
  await page.getByRole('button',{name:'批量重试当前筛选',exact:true}).click();await page.getByRole('dialog',{name:'确认批量重试',exact:true}).getByRole('button',{name:'取消',exact:true}).click();expect(batches).toBe(0);await page.getByRole('button',{name:'批量重试当前筛选',exact:true}).click();await page.getByRole('button',{name:'确认执行',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'服务回执：选中 500 条'})).toContainText('失败 1 条');expect(batches).toBe(1)
  await page.getByRole('button',{name:'清理截图缓存',exact:true}).click();expect(gcs).toBe(0);await page.getByRole('button',{name:'确认执行',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'服务回执：扫描'})).toContainText('扫描 8 项，回收 2 个文件');expect(gcs).toBe(1)
  for(const width of [1440,390]){await page.setViewportSize({width,height:950});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:resolve(screenshots,`native-processing-${width}.png`),fullPage:true})}
@@ -1321,8 +1322,8 @@ test('P4 native settings, media user limits, device revoke and history (isolated
   await expect(page.getByRole('heading',{name:'Infuse 添加',exact:true})).toBeVisible()
   await expect(page.getByRole('heading',{name:'SenPlayer 添加',exact:true})).toBeVisible()
   await page.getByLabel('内置媒体库服务名称',{exact:true}).fill('P4 Synthetic Living Room')
-  const enabled=page.getByRole('checkbox',{name:'启用内置媒体库',exact:true})
-  await enabled.check()
+  const enabled=page.getByRole('switch',{name:'启用内置媒体库',exact:true})
+  if(!await enabled.isChecked())await page.locator('.el-switch').filter({has:enabled}).click();await expect(enabled).toBeChecked()
   await page.getByRole('button',{name:'保存服务设置',exact:true}).click()
   await expect(page.getByText('已重新读取当前设置',{exact:true})).toBeVisible()
   await expect.poll(async()=>{const info=await page.request.get('http://127.0.0.1:18087/System/Info/Public');expect(info.status()).toBe(200);return(await info.json()).ServerName}).toBe('P4 Synthetic Living Room')
@@ -1351,7 +1352,7 @@ test('P4 native settings, media user limits, device revoke and history (isolated
   for(const result of [token,other]){expect(result.User.Policy).not.toHaveProperty('MaxParentalRating');expect(result.User.Policy).not.toHaveProperty('BlockUnratedItems')}
   await page.reload()
   const row=page.locator('.media-user-row').filter({hasText:username})
-  await row.getByRole('button',{name:'用户详情',exact:true}).click()
+  await row.locator('.media-user-identity').click()
   dialog=page.getByRole('dialog',{name:username+' · 用户详情',exact:true})
   const deviceRow=dialog.locator('.organize-record').first()
   await expect(deviceRow).toContainText('Infuse')
@@ -1382,7 +1383,7 @@ test('P4 native settings, media user limits, device revoke and history (isolated
    await page.setViewportSize({width,height:1000});await page.goto('/media-server')
    await expect(page.getByRole('heading',{name:'服务设置',exact:true})).toBeVisible()
    await expect(page.getByLabel('内置媒体库服务名称',{exact:true})).toHaveValue('P4 Synthetic Living Room')
-   await expect(page.getByRole('checkbox',{name:'启用内置媒体库',exact:true})).toBeChecked()
+   await expect(page.getByRole('switch',{name:'启用内置媒体库',exact:true})).toBeChecked()
    await page.locator('.u5-workspace .page-tabs').getByRole('button',{name:'预处理',exact:true}).click();await expect(page.getByRole('button',{name:'保存预处理设置',exact:true})).toBeEnabled()
    await page.locator('.u5-workspace .page-tabs').getByRole('button',{name:'服务设置',exact:true}).click();await expect(page.getByText('服务器不中转流量。',{exact:true})).toBeVisible()
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)

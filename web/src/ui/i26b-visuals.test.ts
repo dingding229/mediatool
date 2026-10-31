@@ -1,3 +1,4 @@
+// I41 approves grouped directory reads, segmented access UI and debounced filtering; mutating functions remain pinned separately.
 // I40 ImageEditor/SubtitlePanel intentionally gain deferred saves and language recognition; behavioral tests live in media/i40-edit.test.ts and subtitles.test.ts.
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
@@ -29,11 +30,11 @@ it.each([
  ],
  [
   "playback/ServicePanel.vue",
-  "85521232caf82b862c197ac22550d5be308cfbe2c5ef2e9c95e8bac75d3d717f"
+  "a6595fb65d5cec6cde4ac652aeceea6660970c015bf10a17737d440690127f04"
  ],
  [
   "playback/AccessPanel.vue",
-  "939065ab747d4183fadd1356116d74d49a15db484ea672f5fc627bc452216739"
+  "510fb15e710fb56199ba541da798b66936468d261bc10b2ca7863d9f8a19002c"
  ],
  [
   "settings/AboutPanel.vue",
@@ -60,7 +61,7 @@ it('I26b field tokens no longer style Element inner inputs as nested native fram
 it('I26b friendly preference switches its original boolean, not the saved policy',()=>{
  const logs=read('operations/LogsPanel.vue');expect(logs).toContain('<ElSwitch v-model="friendly" aria-label="友好说明"/>');
  expect(logs).toContain("await policy.save(['logging','playbackRetentionDays'])");
- const service=read('playback/ServicePanel.vue');expect(service).toContain(':total="libraries.data?.total??0"');expect(service).toContain('empty-title="暂无媒体库目录"');
+ const service=read('playback/ServicePanel.vue');expect(service).not.toContain('PagePagination');expect(service).toContain('listAllNativeLibraryMappings');expect(service).toContain('empty-title="暂无媒体库目录"');
 });
 
 // I33 intentionally replaces the paged read and adds a retained-draft close guard.

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FilterChip from '../ui/FilterChip.vue';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { getProcessing, saveProcessing, listProcessing, retryProcessing, collectProcessing } from '../api/mediaServer';
@@ -13,9 +14,10 @@ const props = withDefaults(defineProps<{
   initialState?: string;
   jobId?: string;
 }>(), { initialKind: '', initialState: '', jobId: '' });
-const filter = reactive<any>({ kind: props.initialKind === 'still' ? 'still' : 'probe', state: props.jobId ? '' : 'failed', page: usePageNumber(), pageSize: usePageSize(25) }), summary = reactive(useResource(getProcessing)), tasks = reactive(useResource(() => listProcessing(filter.kind, filter.state, filter.page, filter.pageSize))), form = reactive({ enabled: false, probeEnabled: true, stillsEnabled: true, revision: 0 }), latest = ref<any>(null), op = reactive(useOperation('processing')), confirm = ref(false), action = ref<any>(null), notice = ref('');
+const filter = reactive<any>({ kind: props.initialKind === 'still' ? 'still' : 'probe', state: '', page: usePageNumber(), pageSize: usePageSize(25) }), summary = reactive(useResource(getProcessing)), tasks = reactive(useResource(() => listProcessing(filter.kind, filter.state, filter.page, filter.pageSize))), form = reactive({ enabled: false, probeEnabled: true, stillsEnabled: true, revision: 0 }), latest = ref<any>(null), op = reactive(useOperation('processing')), confirm = ref(false), action = ref<any>(null), notice = ref('');
 const states: Record<string, string> = { pending: '等待中', probing: '探测中', grabbing: '截图中', ready: '已就绪', failed: '失败', needs_action: '需人工处理', skipped: '已跳过' }, reasons: Record<string, string> = { not_exposable: '媒体暂不可用', file_missing: '文件不存在', strm_mismatch: '播放文件与记录不一致', authorization: '115 授权失效，请重新授权', rate_limited: '请求限流', timeout: '执行超时', unavailable: '处理工具不可用', unsafe_target: '播放地址不安全', ua_mismatch: '播放器标识不一致', ticket_unavailable: '播放授权暂不可用', lease_expired: '任务超时，需要核对', process_failed: '媒体处理失败', invalid_result: '结果无效', invalid_image: '截图无效', tmdb_still: '已有单集图片', source_unavailable: '没有可用截图来源', storage_unavailable: '截图缓存暂不可用', storage_full: '截图缓存空间不足', cache_evicted: '截图已被回收，可按条件重新获取', schema_outdated: '记录需要更新', link_timeout: '解析超时', probe_failed: '探测失败' };
 const validStates = computed(() => filter.kind === 'probe' ? ['pending', 'probing', 'ready', 'failed', 'needs_action'] : ['pending', 'grabbing', 'ready', 'failed', 'needs_action', 'skipped']);
+function toggleState(state:string){filter.state=filter.state===state?'':state;changeFilter()}
 const currentStates = computed(() => filter.kind === 'probe' ? summary.data?.probe : summary.data?.still), capacityPercent = computed(() => summary.data?.capacity?.limitBytes ? Math.min(100, Math.round(100 * (summary.data.capacity.usedBytes + summary.data.capacity.reservedBytes) / summary.data.capacity.limitBytes)) : 0);
 async function load() {
   const pristine = summary.data && ['enabled', 'probeEnabled', 'stillsEnabled', 'revision'].every(k => (form as any)[k] === (summary.data!.settings as any)[k]);
@@ -108,7 +110,7 @@ function reason(code: string) {
 }
 watch(() => [props.initialKind, props.initialState, props.jobId], () => {
   filter.kind = props.initialKind === 'still' ? 'still' : 'probe';
-  filter.state = props.initialState && validStates.value.includes(props.initialState) ? props.initialState : props.jobId ? '' : 'failed';
+  filter.state = props.initialState && validStates.value.includes(props.initialState) ? props.initialState : '';
   filter.page = 1;
   void load();
 });
@@ -122,16 +124,16 @@ defineExpose({ load, save, ask, apply, form, filter, summary, tasks, op, action,
       <p>提前读取媒体信息和生成截图，方便浏览；不会改变影片的播放方式。</p>
       <ResourceState overlay :stale="summary.loaded" :loading="summary.loading" :error="summary.error" @reload="load"/>
       <p>总开关与服务设置同步；关闭后，该服务的播放、探测和截图都会暂停。</p>
-      <div class="u5-form">
+      <div class="u5-form processing-options">
         <p>播放服务：{{form.enabled?'已启用':'已停用'}} · <RouterLink to="/playback?tab=settings">管理播放服务开关</RouterLink></p>
-        <label class="u5-check">
+        <div class="processing-toggles"><label class="u5-check">
           <input v-model="form.probeEnabled" type="checkbox" :disabled="op.busy||!summary.loaded" aria-label="允许媒体探测"/>
           允许媒体探测
         </label>
         <label class="u5-check">
           <input v-model="form.stillsEnabled" type="checkbox" :disabled="op.busy||!summary.loaded" aria-label="允许单集截图"/>
           允许单集截图
-        </label>
+        </label></div>
 
         <section v-if="latest">
           <p>当前设置已重新读取，输入保留供对照。</p>
@@ -156,16 +158,14 @@ defineExpose({ load, save, ask, apply, form, filter, summary, tasks, op, action,
         </label>
         <label>
           状态
-          <el-select v-model="filter.state" aria-label="预处理状态筛选" @change="changeFilter">
+          <el-select v-model="filter.state" :empty-values="[null, undefined]" aria-label="预处理状态筛选" @change="changeFilter">
             <el-option value="" :label="'全部状态'"/>
             <el-option v-for="value in validStates" :key="value" :value="value" :label="(states[value])"/>
           </el-select>
         </label>
         <el-button :disabled="!!op.pending||op.busy||summary.loading||tasks.loading||!!tasks.error" @click="ask()">批量重试当前筛选</el-button>
       </form>
-      <div class="media-actions">
-        <span v-for="state in currentStates||[]" :key="state.state">{{ states[state.state]||'其他' }} {{ state.count }}</span>
-      </div>
+      <div class="processing-state-chips" aria-label="预处理状态计数"><FilterChip v-for="state in currentStates||[]" :key="state.state" :active="filter.state===state.state" @click="toggleState(state.state)">{{states[state.state]||'其他'}} {{state.count}}</FilterChip></div>
       <ResourceState :stale="tasks.loaded" :loading="tasks.loading" :error="tasks.error" :empty="!tasks.data?.items.length" @reload="load"/>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <p v-if="notice" role="status">{{ notice }}</p>
@@ -181,3 +181,5 @@ defineExpose({ load, save, ask, apply, form, filter, summary, tasks, op, action,
   </div>
   <ConfirmAction v-model:visible="confirm" :title="action?.action==='gc'?'清理截图缓存':action?.id?'重试预处理任务':'确认批量重试'" :description="action?.action==='gc'?'按服务端限制分批检查并清理截图缓存。':`将处理 ${action?.kind==='probe'?'媒体探测':'单集截图'} / ${states[action?.state]||'全部状态'}，${action?.id?'仅所选任务':'本轮最多 500 条'}。`" impact-scope="只影响预处理任务或截图缓存，不修改媒体文件，不改变播放链路。" confirm-text="确认执行" :loading="op.busy" class="media-dialog" @confirm="apply"/>
 </template>
+
+<style scoped>.processing-options{gap:8px}.processing-options .u5-check{margin:0}.processing-toggles{display:flex;align-items:center;gap:8px 20px;flex-wrap:wrap}.processing-state-chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}</style>

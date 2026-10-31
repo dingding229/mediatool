@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FilterChip from '../ui/FilterChip.vue';
 import {ElPopover} from 'element-plus';
 import 'element-plus/es/components/popover/style/css';
 import DescriptionGrid from '../ui/DescriptionGrid.vue';
@@ -158,14 +159,14 @@ usePageRefresh(load, 'history');
       </label>
       <label>
         状态
-        <el-select v-model="state" aria-label="历史状态" @change="apply">
+        <el-select v-model="state" placeholder="全部" aria-label="历史状态" @change="apply">
           <el-option value="" label="全部状态"/>
           <el-option v-for="v in ['pending','conflict','running','paused','needs_reconcile','failed','partial','succeeded','imported','applied','verified','visible','cancelled']" :key="v" :value="v" :label="kind==='output'&&v==='pending'?'待恢复':label(v)"/>
         </el-select>
       </label>
       <label>
         阶段
-        <el-select v-model="kind" aria-label="历史阶段" @change="apply">
+        <el-select v-model="kind" placeholder="全部" aria-label="历史阶段" @change="apply">
           <el-option value="" label="全部阶段"/>
           <el-option v-for="(text,value) in stageOptions" :key="value" :value="value" :label="text"/>
         </el-select>
@@ -200,8 +201,9 @@ usePageRefresh(load, 'history');
         <input v-model="to" class="mt-native-time-input" type="datetime-local" aria-label="历史结束时间"/>
       </label>
       <el-button @click="resetFilters">重置筛选</el-button></div></ElPopover>
+    <nav class="history-output-filters" aria-label="输出恢复快捷筛选"><FilterChip :active="kind==='output'&&state==='pending'" @click="filterOutputs('pending')">待恢复输出</FilterChip><FilterChip :active="kind==='output'&&state==='conflict'" @click="filterOutputs('conflict')">冲突输出</FilterChip></nav><el-button class="history-bulk-toggle" :aria-pressed="bulkMode" @click="bulkMode=!bulkMode;selected=[]">{{bulkMode?'退出批量移除':'批量移除'}}</el-button>
     </form>
-    <div class="history-tools"><nav class="media-actions history-output-filters" aria-label="输出恢复快捷筛选"><el-button :aria-pressed="kind==='output'&&state==='pending'" @click="filterOutputs('pending')">待恢复输出</el-button><el-button :aria-pressed="kind==='output'&&state==='conflict'" @click="filterOutputs('conflict')">冲突输出</el-button></nav><el-button :aria-pressed="bulkMode" @click="bulkMode=!bulkMode;selected=[]">{{bulkMode?'退出批量移除':'批量移除'}}</el-button></div>
+
     <p v-if="error&&hasLoaded" class="f3-stale-warning" role="status">刷新失败，保留上次内容。<button @click="load">重试</button></p>
     <p v-if="uncertain">移除回执未知，请先重新读取，不重复提交。</p>
     <div v-if="selected.length" class="media-actions history-list-toolbar"><span>已选 {{selected.length}} 项</span><el-button :disabled="!selected.length||busy||uncertain" @click="removeOpen=true">移除所选历史</el-button></div>
@@ -234,7 +236,7 @@ usePageRefresh(load, 'history');
   <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" size="large" class="media-detail">
     <h3>{{ detail?.media?.title||stageLabel(detail?.kind) }}</h3>
     <p v-if="[label(detail?.state),detail?.message].some(present)">{{[label(detail?.state),detail?.message].filter(present).join(' · ')}}</p>
-    <DescriptionGrid :items="[{key:'source',label:'原位置',value:detail?.source},{key:'target',label:'目标位置',value:detail?.destination},{key:'category',label:'目录分类',value:detail?.category}]"><template #source><MiddleEllipsis :path="detail.source" full inline-copy/></template><template #target><MiddleEllipsis :path="detail.destination" full inline-copy/></template></DescriptionGrid>
+    <DescriptionGrid :items="[{key:'source',label:'原位置',value:detail?.source},{key:'target',label:'目标位置',value:detail?.destination},{key:'category',label:'目录分类',value:detail?.category}]"><template #source><MiddleEllipsis :path="detail.source" full/></template><template #target><MiddleEllipsis :path="detail.destination" full/></template></DescriptionGrid>
     <HistorySteps :detail="detail"/>
     <section v-if="detail?.kind==='transfer'">
       <p>{{ detail.details.bytesTransferred??'—' }} / {{ detail.details.size??'—' }} 字节已传输；上传完成不等于云端校验或输出完成。</p>

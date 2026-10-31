@@ -77,3 +77,7 @@ button.organize-list-thumb{cursor:pointer}button.organize-list-thumb:focus-visib
 @media(min-width:1241px){.organize-scan-columns,.organize-scan-row{grid-template-columns:minmax(150px,1fr) minmax(180px,1.4fr) 90px 180px minmax(230px,auto)}}
 .organize-scan-row .organize-list-time>time{white-space:nowrap}
 .history-more-fields .mt-native-time-input{width:100%;min-height:44px;box-sizing:border-box;border:1px solid var(--mt-border-color);border-radius:var(--el-border-radius-base);padding:var(--mt-field-padding);font:inherit;background:var(--mt-bg-surface);color:var(--mt-text-primary)}
+
+/* Compact quick filters share the first line; narrow layouts put chips directly below the keyword. */
+.organize-history-panel .organize-history-filters{grid-template-columns:minmax(170px,2fr) minmax(90px,1fr) minmax(90px,1fr) auto auto auto}.history-output-filters{display:flex;align-items:center;gap:4px;min-width:0}.organize-history-filters>.el-button{margin:0}.organize-asset-row .organize-list-state>p{margin:0;font-size:12px;line-height:16px}.organize-asset-row{padding-block:12px}
+@media(max-width:1000px){.organize-history-panel .organize-history-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.organize-history-filters>label:first-child{grid-column:1/-1}.history-output-filters{grid-column:1/-1;grid-row:2}.history-bulk-toggle{justify-self:end}}

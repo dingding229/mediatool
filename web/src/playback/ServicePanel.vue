@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import {usePageNumber,usePageSize} from '../ui/page-query';
+import {libraryGroups} from './presentation';
+import StatusBadge from '../components/StatusBadge.vue';
+import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { request } from '../api/client';
-import { getNativeServerSettings, saveNativeServerSettings, listNativeLibraryMappings } from '../api/mediaServer';
+import { getNativeServerSettings, saveNativeServerSettings, listAllNativeLibraryMappings } from '../api/mediaServer';
 import { useResource } from '../workflows/useResource';
 import { useOperation } from '../workflows/useOperation';
 import ResourceState from '../workflows/ResourceState.vue';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { errorText } from '../workflows/readiness';
-const status = reactive(useResource(getNativeServerSettings)), providers = reactive(useResource(() => request('/media-server/providers'))), page = usePageNumber(), pageSize = usePageSize(25), libraries = reactive(useResource(() => listNativeLibraryMappings((page.value - 1) * pageSize.value,pageSize.value))), op = reactive(useOperation('service')), form = reactive({ serverName: '', enabled: false, revision: 0 }), latest = ref<any>(null), notice = ref('');
+const status = reactive(useResource(getNativeServerSettings)), providers = reactive(useResource(() => request('/media-server/providers'))), libraries = reactive(useResource(listAllNativeLibraryMappings, [])), op = reactive(useOperation('service')), form = reactive({ serverName: '', enabled: false, revision: 0 }), latest = ref<any>(null), notice = ref('');
+const groups=computed(()=>libraryGroups(libraries.data||[]));
 async function load() {
   const pristine = status.data && form.serverName === status.data.serverName && form.enabled === status.data.enabled && form.revision === status.data.revision;
   const s = await status.load();
@@ -52,19 +55,14 @@ defineExpose({ load, form, save, status, libraries, op });
     <section class="media-surface">
       <h2>服务设置</h2>
       <ResourceState overlay :stale="status.loaded" :loading="status.loading" :error="status.error" @reload="load"/>
-      <p>服务状态：{{ status.data?status.data.enabled?'已启用':'已停用':'—' }}</p>
       <ResourceState :error="providers.error" @reload="providers.load"/>
       <form class="u5-form" @submit.prevent="save">
         <label>
           服务名称
           <input v-model="form.serverName" aria-label="内置媒体库服务名称" maxlength="100" :disabled="op.busy"/>
         </label>
-        <label class="u5-check">
-          <input v-model="form.enabled" type="checkbox" aria-label="启用内置媒体库" :disabled="op.busy"/>
-          启用播放服务
-        </label>
+        <div class="service-enabled"><el-switch v-model="form.enabled" aria-label="启用内置媒体库" :disabled="op.busy||!status.data"/><span>启用播放服务</span><StatusBadge :state="status.data?.enabled?'ready':'disabled'" :label="status.data?status.data.enabled?'已启用':'已停用':'待读取'"/></div>
         <p>停用后无法浏览和播放，探测和截图也会暂停；账号、授权和媒体文件保留。</p>
-        <p>播放地址：{{ status.data?.publicUrl||'—' }} · 监听端口：{{ status.data?.listenPort||'—' }}</p>
         <p v-if="notice" role="status">{{ notice }}</p>
         <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
         <section v-if="latest">
@@ -75,7 +73,7 @@ defineExpose({ load, form, save, status, libraries, op });
         <el-button native-type="submit" :loading="op.busy" :disabled="!status.data||!!status.error||!!latest||!!op.pending" class="mt-save-button" type="primary">保存服务设置</el-button>
       </form>
     </section>
-    <section class="media-surface">
+    <section class="media-surface playback-delivery">
       <h2>播放如何到达你的设备</h2>
       <ol class="u5-chain" aria-label="播放链路">
         <li>播放器</li>
@@ -95,17 +93,17 @@ defineExpose({ load, form, save, status, libraries, op });
       <p>在设置中添加共享，选择 Emby，输入服务地址、媒体用户名和密码，再选择已授权的媒体库。</p>
       <h3>SenPlayer 添加</h3>
       <p>在媒体源或服务器管理中添加 Emby 类型服务器，填写同一服务地址与媒体账号；无法连接时检查网络和播放器准入规则。</p>
-      <p>服务地址：{{ status.data?.publicUrl||'—' }}；地址和端口由部署配置提供，修改后需要重启服务。</p>
+      <div v-if="status.data?.publicUrl" class="service-address"><span>服务地址</span><MiddleEllipsis :text="status.data.publicUrl"/></div><p class="service-help">地址和端口由部署配置提供，修改后需要重启服务。</p>
     </section>
     <section class="media-surface">
       <h2>媒体库目录</h2>
       <p>目录名称来自分类规则；新媒体库默认未授权，请在媒体用户中分配。</p>
-      <ResourceState :stale="libraries.loaded" :loading="libraries.loading" :error="libraries.error" :empty="!libraries.data?.items?.length" empty-title="暂无媒体库目录" @reload="libraries.load"/>
-      <article v-for="library in libraries.data?.items||[]" :key="library.id" class="organize-record">
-        <h3>{{ library.name||'—' }}</h3>
-        <p>{{ library.groupName||'—' }} / {{ library.ruleName||'—' }} · {{ library.hidden?'已隐藏':'可见' }} · {{ library.assetCount??'—' }} 项</p>
-      </article>
-      <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="libraries.data?.total??0" layout="prev,pager,next,total" @current-change="libraries.load"/>
+      <ResourceState :stale="libraries.loaded" :loading="libraries.loading" :error="libraries.error" :empty="!libraries.data?.length" empty-title="暂无媒体库目录" @reload="libraries.load"/>
+      <div class="native-library-groups"><section v-for="group in groups" :key="group.name" class="native-library-group" :aria-label="group.name+'目录'"><h3>{{group.name}}</h3><ul><li v-for="row in group.items" :key="row.library.id"><span :title="row.name">{{row.name}}</span><small> · {{row.library.hidden?'已隐藏':'可见'}} · {{row.library.assetCount??0}} 项</small></li></ul></section></div>
     </section>
   </div>
 </template>
+
+<style scoped>
+.service-enabled{font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;min-height:44px;flex-wrap:wrap}.service-address{display:flex;gap:12px;align-items:center;min-width:0}.service-address>span:first-child{flex:none;font-size:13px}.service-address .middle-ellipsis{flex:1;min-width:0}.service-help{font-size:12px;color:var(--mt-text-muted)}.playback-delivery .media-actions{margin-bottom:0}.playback-delivery{min-height:0}.native-library-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.native-library-group{min-width:0}.native-library-group h3{font-size:14px;margin:8px 0}.native-library-group ul{list-style:none;margin:0;padding:0}.native-library-group li{display:flex;align-items:center;min-height:36px;font-size:13px;border-top:1px solid var(--mt-border-color)}.native-library-group li>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.native-library-group small{flex:none;font-size:12px;color:var(--mt-text-muted)}@media(max-width:600px){.native-library-groups{grid-template-columns:minmax(0,1fr)}}
+</style>

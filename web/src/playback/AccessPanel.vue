@@ -1,6 +1,14 @@
 <script setup lang="ts">
+import PageTabs from '../ui/PageTabs.vue';
+import {useRoute} from 'vue-router';
+import {useDebouncedFilter} from '../composables/useDebouncedFilter';
+import {accessAddresses} from './presentation';
+import {ElDropdown,ElDropdownMenu,ElDropdownItem} from 'element-plus';
+import 'element-plus/es/components/dropdown/style/css';
+import 'element-plus/es/components/dropdown-menu/style/css';
+import 'element-plus/es/components/dropdown-item/style/css';
 import IpAddress from '../ui/IpAddress.vue';
-import { Edit, Delete, View, CirclePlus, Remove } from '@element-plus/icons-vue';
+import { Edit, Delete, View } from '@element-plus/icons-vue';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import { computed, onMounted, reactive, ref } from 'vue';
@@ -14,6 +22,8 @@ import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import {getUAPolicy,saveUAPolicy,addUAObservation,type RuleList,type AccessMode} from '../api/playerAccess';
 import { date, errorText } from '../workflows/readiness';
 const query = ref(''), filter = ref(''), page = usePageNumber(),pageSize=usePageSize(25), visitPage = usePageNumber('visitPage'),visitSize=usePageSize(25,'visitPage'), policy = reactive(useResource<any>(async () => {const p=await getUAPolicy();return {...p,mode:p.mode||(p.enabled?'whitelist':'off'),blacklistRules:p.blacklistRules||[]}})), records = reactive(useResource<any>(() => request(`/player-access/observations?${new URLSearchParams({ q: query.value, filter: filter.value, page: String(page.value), pageSize: String(pageSize.value) })}`),{items:[],total:0})), visits = reactive(useResource<any>(() => request(`/player-access/events?page=${visitPage.value}&pageSize=${visitSize.value}&q=${encodeURIComponent(query.value)}`),{items:[],total:0})), op = reactive(useOperation('access')), editing = ref(false), form = reactive<any>({}), base = ref<any>(null), latest = ref<any>(null), confirm = ref(false), action = ref<any>(null), details = ref<any>(null), detailOpen = ref(false), notice = ref(''), copyNotice = ref('');
+const route=useRoute(),segments=[{id:'rules',label:'规则'},{id:'summary',label:'访问汇总'},{id:'events',label:'访问明细'}],segment=computed(()=>segments.some(s=>s.id===route?.query.accessTab)?String(route.query.accessTab):'rules');
+useDebouncedFilter(query,()=>search());
 const list=ref<RuleList>('rules'),modeName=(mode:string)=>({off:'关闭（全部允许）',whitelist:'白名单（仅允许匹配规则）',blacklist:'黑名单（拒绝匹配规则）'}[mode]||'待核对');
 const listName=(key:RuleList)=>key==='blacklistRules'?'黑名单':'白名单';
 const rules=computed(()=>policy.data?.[list.value]||[]);
@@ -91,8 +101,10 @@ onMounted(load);
 defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, query, filter, page, visitPage, form, base, latest, action, op, list });
 </script>
 <template>
-  <div class="media-stack">
-    <section class="media-surface">
+  <div class="media-stack ua-workspace"><section class="media-surface">
+    <PageTabs :tabs="segments" query-key="accessTab" default-tab="rules"/>
+    <form v-if="segment!=='rules'" class="ua-filters" @submit.prevent="search"><label class="u5-field">搜索 UA 或地址<el-input v-model="query" aria-label="搜索UA记录" placeholder="搜索 UA 或地址" clearable/></label><label v-if="segment==='summary'" class="ua-filter-field">名单状态<el-select v-model="filter" :empty-values="[null, undefined]" aria-label="UA记录筛选" @change="search"><el-option value="" label="全部访问"/><el-option value="whitelisted" label="已在白名单"/><el-option value="unlisted" label="未在白名单"/><el-option value="blacklisted" label="已在黑名单"/></el-select></label></form>
+    <section v-show="segment==='rules'" class="ua-panel" data-access-panel="rules">
       <header class="media-section-heading ua-policy-heading">
         <div class="ua-policy-intro"><h2>播放器准入</h2><p>播放器标识（UA）用于识别发起请求的设备或应用。</p></div>
         <div class="media-actions ua-policy-actions">
@@ -126,27 +138,12 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <p v-if="policy.data&&!rules.length">尚无{{ listName(list) }}规则。</p>
 </div>
     </section>
-    <section class="media-surface">
+    <section v-show="segment==='summary'" class="ua-panel" data-access-panel="summary">
       <header class="media-section-heading">
         <h2>播放器访问汇总</h2>
         <el-button :disabled="!policy.data||!!op.pending" @click="ask('clear')">清空访问记录</el-button>
       </header>
-      <form class="ua-filters" @submit.prevent="search">
-        <label class="u5-field">
-          搜索 UA
-          <input v-model="query" aria-label="搜索UA记录"/>
-        </label>
-        <label class="ua-filter-field">
-          名单状态
-          <el-select v-model="filter" :empty-values="[null, undefined]" aria-label="UA记录筛选" @change="search">
-            <el-option value="" label="全部访问"/>
-            <el-option value="whitelisted" label="已在白名单"/>
-            <el-option value="unlisted" label="未在白名单"/>
-            <el-option value="blacklisted" label="已在黑名单"/>
-          </el-select>
-        </label>
-        <el-button native-type="submit">搜索记录</el-button>
-      </form>
+
       <ResourceState :stale="records.loaded" :loading="records.loading" :error="records.error" :empty="!records.data?.items.length" @reload="records.load"/>
       <div class="ua-columns ua-observation-columns mt-list-columns" aria-hidden="true"><span>UA</span><span>访问统计 / 名单状态</span><span>最近访问</span><span>操作</span></div>
       <div class="ua-list mt-list" role="list" aria-label="播放器访问汇总列表">
@@ -157,28 +154,26 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
         </header>
         <div class="ua-recent"><p><IpAddress :ip="record.lastClientIp"/></p><p class="ua-secondary">{{ date(record.lastSeenAt) }} · {{ reason(record.lastReason) }}</p></div>
         <div class="media-actions ua-row-actions mt-list-actions" role="group" aria-label="UA 汇总操作">
-          <el-button size="small" aria-label="查看完整 UA" title="查看完整 UA" @click="details=record;copyNotice='';detailOpen=true"><el-icon class="ua-action-icon mt-list-action-icon" aria-hidden="true"><View/></el-icon><span class="ua-action-text mt-list-action-text">查看完整 UA</span></el-button>
-          <el-button size="small" aria-label="加入白名单" title="加入白名单" :disabled="!record.userAgent||record.whitelisted||!!op.pending||!policy.data" @click="edit(null,record,'rules')"><el-icon class="ua-action-icon mt-list-action-icon" aria-hidden="true"><CirclePlus/></el-icon><span class="ua-action-text mt-list-action-text">加入白名单</span></el-button>
-          <el-button size="small" aria-label="加入黑名单" title="加入黑名单" :disabled="!record.userAgent||record.blacklisted||!!op.pending||!policy.data" @click="edit(null,record,'blacklistRules')"><el-icon class="ua-action-icon mt-list-action-icon" aria-hidden="true"><Remove/></el-icon><span class="ua-action-text mt-list-action-text">加入黑名单</span></el-button>
+          <el-dropdown trigger="click" popper-class="media-dropdown"><el-button aria-label="UA 汇总更多" title="更多">更多</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item aria-label="查看完整 UA" @click="details=record;copyNotice='';detailOpen=true">查看完整 UA</el-dropdown-item><el-dropdown-item aria-label="加入白名单" v-if="!record.whitelisted" :disabled="!record.userAgent||!!op.pending||!policy.data" @click="edit(null,record,'rules')">加入白名单</el-dropdown-item><el-dropdown-item aria-label="加入黑名单" v-if="!record.blacklisted" :disabled="!record.userAgent||!!op.pending||!policy.data" @click="edit(null,record,'blacklistRules')">加入黑名单</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
         </div>
       </article>
       </div>
       <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="records.data.total" layout="prev,pager,next,total" @current-change="records.load"/>
     </section>
-    <section class="media-surface">
+    <section v-show="segment==='events'" class="ua-panel" data-access-panel="events">
       <h2>访问明细</h2>
       <ResourceState :stale="visits.loaded" :loading="visits.loading" :error="visits.error" :empty="!visits.data?.items.length" @reload="visits.load"/>
       <div class="ua-columns ua-visit-columns mt-list-columns" aria-hidden="true"><span>访问结果 / 时间</span><span>访客与连接地址</span><span>UA</span><span>操作</span></div>
       <div class="ua-list mt-list" role="list" aria-label="访问明细列表">
       <article v-for="visit in visits.data?.items||[]" :key="visit.id" class="organize-record ua-list-row ua-visit-row mt-list-row" role="listitem">
         <div class="ua-visit-result"><h3>{{ visit.allowed?'准入通过':'准入拒绝' }} · HTTP {{ visit.status??'—' }}</h3><p class="ua-secondary">{{ reason(visit.reason) }} · {{ visit.method||'—' }} · {{ date(visit.createdAt) }}</p></div>
-        <div class="ua-visit-context"><div class="ua-addresses"><p>访客地址 <IpAddress :ip="visit.clientIp"/></p><p>连接地址 <IpAddress :ip="visit.connectionIp"/></p><p class="ua-secondary">{{ ipSource(visit.ipSource) }} · {{ visit.ipPublic?'公网地址':'非公网或未核验' }}</p></div><p class="u5-original ua-summary-value" :title="visit.userAgent||'空 UA'">{{ visit.userAgent||'空 UA' }}</p></div>
+        <div class="ua-visit-context"><div class="ua-addresses"><p v-for="address in accessAddresses(visit.clientIp,visit.connectionIp)" :key="address.label">{{address.label}} <IpAddress :ip="address.ip"/></p><p class="ua-secondary">{{ ipSource(visit.ipSource) }} · {{ visit.ipPublic?'公网地址':'非公网或未核验' }}</p></div><p class="u5-original ua-summary-value" :title="visit.userAgent||'空 UA'">{{ visit.userAgent||'空 UA' }}</p></div>
         <div class="media-actions ua-row-actions mt-list-actions" role="group" aria-label="访问明细操作"><el-button size="small" aria-label="访问详情" title="访问详情" @click="details=visit;copyNotice='';detailOpen=true"><el-icon class="ua-action-icon mt-list-action-icon" aria-hidden="true"><View/></el-icon><span class="ua-action-text mt-list-action-text">访问详情</span></el-button></div>
       </article>
       </div>
       <PagePagination v-model:current-page="visitPage" v-model:page-size="visitSize" :total="visits.data.total" layout="prev,pager,next,total" @current-change="visits.load"/>
     </section>
-  </div>
+  </section></div>
   <el-dialog v-model="editing" :title="form.observationId?'从访问记录加入'+listName(form.list):(form.id?'编辑':'添加')+listName(form.list)+'规则'" width="min(680px,94vw)" class="media-dialog u5-dialog" :close-on-click-modal="false">
     <div class="u5-form">
       <label>
@@ -224,7 +219,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
     </label>
     <el-button @click="copyUA">复制完整 UA</el-button>
     <p role="status">{{ copyNotice }}</p>
-    <p>访客地址 <IpAddress :ip="details?.clientIp||details?.lastClientIp"/> · 连接地址 <IpAddress :ip="details?.connectionIp"/></p>
+    <p v-for="address in accessAddresses(details?.clientIp||details?.lastClientIp,details?.connectionIp)" :key="address.label">{{address.label}} <IpAddress :ip="address.ip"/></p>
     <el-button v-if="details?.requestCount!=null&&!details?.whitelisted&&details?.userAgent" :disabled="!policy.data||!!op.pending" @click="detailOpen=false;edit(null,details,'rules')">从此记录加入白名单</el-button>
     <el-button v-if="details?.requestCount!=null&&!details?.blacklisted&&details?.userAgent" :disabled="!policy.data||!!op.pending" @click="detailOpen=false;edit(null,details,'blacklistRules')">从此记录加入黑名单</el-button>
   </DetailDrawer>
@@ -233,6 +228,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
 </template>
 
 <style scoped>
+.ua-workspace .ua-filters{margin:16px 0}.ua-panel{position:relative;min-width:0}.ua-workspace>.ua-filters .el-input{width:100%}.ua-workspace :deep(.page-tabs){margin-bottom:0}.ua-workspace :deep(.tab-button){padding-inline:12px}
 .ua-policy-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
 .ua-policy-intro{min-width:0;flex:1 1 260px}
 .ua-policy-intro h2{margin:0 0 8px}
@@ -246,7 +242,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
 .ua-filters>label{flex:1;min-width:160px}
 .ua-policy-summary{margin:0 0 12px}
 .ua-rule-columns,.ua-rule-row{grid-template-columns:minmax(120px,1fr) 104px minmax(180px,2fr) 64px 172px}
-.ua-observation-columns,.ua-observation-row{grid-template-columns:minmax(150px,1.2fr) minmax(160px,1fr) minmax(180px,1.2fr) 320px}
+.ua-observation-columns,.ua-observation-row{grid-template-columns:minmax(150px,1.2fr) minmax(160px,1fr) minmax(180px,1.2fr) 76px}
 .ua-visit-columns,.ua-visit-row{grid-template-columns:minmax(180px,1.1fr) minmax(220px,1.4fr) minmax(180px,1.3fr) 82px}
 .ua-rule-identity,.ua-observation-identity,.ua-visit-context{display:contents}
 .ua-list-row .ua-secondary,.ua-match{color:var(--mt-text-muted);font-size:13px}

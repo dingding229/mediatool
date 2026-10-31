@@ -2,7 +2,7 @@
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { onMounted, reactive, ref } from 'vue';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
-import { Edit, Document, MoreFilled } from '@element-plus/icons-vue';
+import { Edit, MoreFilled } from '@element-plus/icons-vue';
 import 'element-plus/es/components/dropdown/style/css'
 import 'element-plus/es/components/dropdown-menu/style/css'
 import 'element-plus/es/components/dropdown-item/style/css'
@@ -20,8 +20,10 @@ import IpAddress from '../ui/IpAddress.vue';
 import type {MediaUser} from '../api/mediaServer';
 import { errorText, date } from '../workflows/readiness';
 const page=usePageNumber(),pageSize=usePageSize(25),users = reactive(useResource(()=>listMediaUsers(page.value,pageSize.value), {items:[],total:0})), libraries = reactive(useResource(listNativeLibraries, [])), editor = ref<InstanceType<typeof UserEditor>>(), activity = ref<any>(null), activityOpen = ref(false), target = ref<any>(null), confirm = ref(false), op = reactive(useOperation('users'));
+const activityPanel=ref<InstanceType<typeof UserActivityPanel>>();
 async function load() {
   await Promise.all([users.load(), libraries.load()]);
+  if(activityOpen.value)await activityPanel.value?.load();
   if (op.pending && !users.error) {
     const [kind, id] = op.pending.key.split(':');
     if (kind === 'delete' && !users.data.items.some(u => u.id === id) || kind === 'sessions' && users.data.items.some(u => u.id === id && u.activeSessions === 0))
@@ -64,7 +66,7 @@ defineExpose({ load, create });
       <span>用户</span><span>状态</span><span>最近播放</span><span>最近 IP 归属地</span><span>操作</span>
     </div>
     <div class="media-user-list" role="list" aria-label="媒体用户列表">
-    <article v-for="user in users.data.items" :key="user.id" class="media-user-row" role="listitem">
+    <article v-for="user in users.data.items" :key="user.id" class="media-user-row" role="listitem" tabindex="0" @click="activity=user;activityOpen=true" @keydown.enter.self="activity=user;activityOpen=true" @keydown.space.self.prevent="activity=user;activityOpen=true">
       <header class="media-user-identity">
         <span class="media-user-avatar" aria-hidden="true">{{ Array.from(user.displayName||user.username)[0]?.toLocaleUpperCase()||'用' }}</span>
         <div class="media-user-name"><h3 :title="user.displayName||user.username">{{ user.displayName||user.username }}</h3><p :title="user.username">{{ user.username }}</p></div>
@@ -74,9 +76,9 @@ defineExpose({ load, create });
         <div><dt>最近播放</dt><dd>{{ user.lastPlayedAt?date(user.lastPlayedAt):'暂无播放' }}</dd></div>
         <div><dt>最近 IP 归属地</dt><dd><IpAddress v-if="user.lastIp" :ip="user.lastIp"/><span v-else>暂无公网记录</span></dd></div>
       </dl>
-      <div class="media-actions media-user-actions" role="group" :aria-label="user.username+' 的操作'">
-        <el-button aria-label="编辑用户" title="编辑用户" :disabled="!!users.error||!!libraries.error" @click="editor?.open(user)"><el-icon class="media-user-action-icon" aria-hidden="true"><Edit/></el-icon><span class="media-user-action-text">编辑用户</span></el-button>
-        <el-button aria-label="用户详情" title="用户详情" @click="activity=user;activityOpen=true"><el-icon class="media-user-action-icon" aria-hidden="true"><Document/></el-icon><span class="media-user-action-text">用户详情</span></el-button>
+      <div class="media-actions media-user-actions" role="group" :aria-label="user.username+' 的操作'" @click.stop>
+        <el-button aria-label="编辑用户" title="编辑用户" :disabled="!!users.error||!!libraries.error" @click="editor?.open(user)"><el-icon class="media-user-action-icon" aria-hidden="true"><Edit/></el-icon><span class="media-user-action-text">编辑</span></el-button>
+
         <el-dropdown trigger="click" popper-class="media-dropdown">
           <el-button aria-label="更多" title="更多"><el-icon class="media-user-action-icon" aria-hidden="true"><MoreFilled/></el-icon><span class="media-user-action-text">更多</span></el-button>
           <template #dropdown>
@@ -102,7 +104,7 @@ defineExpose({ load, create });
     </dl>
     <RouterLink v-if="activity" class="el-button media-user-session-link" :to="{path:'/playback',query:{tab:'sessions',userId:activity.id}}" @click="activityOpen=false">查看会话与撤销登录</RouterLink>
     <h3>设备与历史</h3>
-    <UserActivityPanel v-if="activity&&activityOpen" :user-id="activity.id" :user-name="activity.username"/>
+    <UserActivityPanel ref="activityPanel" v-if="activity&&activityOpen" :user-id="activity.id" :user-name="activity.username"/>
   </DetailDrawer>
   <ConfirmAction v-model:visible="confirm" title="删除媒体用户" :description="`将处理 ${target?.username||'此用户'} 的账号或登录权限。`" impact-scope="删除账号、权限、登录及该用户的播放事件和 IP 统计；不删除媒体文件或其他用户的数据。" confirm-text="确认删除用户" :loading="op.busy" class="media-dialog" @confirm="apply"/>
 </template>
@@ -110,7 +112,7 @@ defineExpose({ load, create });
 <style scoped>
 .media-users-panel{min-width:0;max-width:100%;box-sizing:border-box}
 .media-user-list{width:100%;min-width:0}
-.media-user-columns,.media-user-row{display:grid;grid-template-columns:minmax(160px,1.1fr) 64px minmax(145px,.9fr) minmax(180px,1.3fr) 234px;gap:16px;align-items:center}
+.media-user-columns,.media-user-row{display:grid;grid-template-columns:minmax(160px,1.1fr) 64px minmax(145px,.9fr) minmax(180px,1.3fr) 150px;gap:16px;align-items:center}
 .media-user-columns{padding:12px 0;color:var(--mt-text-muted);font-size:13px}
 .media-user-columns>span:last-child{text-align:right}
 .media-user-row{padding:16px 0;min-width:0;margin:0;border-top:1px solid var(--mt-border-color)}
@@ -122,7 +124,7 @@ defineExpose({ load, create });
 .media-user-summary{display:grid;gap:10px;margin:0}
 .media-user-summary>div{display:grid;grid-template-columns:7.5em minmax(0,1fr);gap:8px;align-items:baseline}
 .media-user-summary dt{color:var(--el-text-color-secondary);font-size:.85rem}
-.media-user-summary dd{margin:0;overflow-wrap:anywhere}
+.media-user-summary dd{margin:0;overflow-wrap:anywhere}.media-user-row{font-size:13px}.media-user-recent dd{font-size:13px;line-height:1.6}.media-user-name h3{font-size:14px}.media-user-row:focus-visible{outline:2px solid var(--mt-color-primary);outline-offset:2px}
 .media-user-recent{display:contents}
 .media-user-recent>div{display:block;min-width:0}
 .media-user-recent dd{min-width:0}

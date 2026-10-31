@@ -16,8 +16,9 @@ const props = defineProps<{
   userId: string;
   userName: string;
 }>(), statsDevice=ref(''),tab = ref('devices'), page = usePageNumber('userActivityPage'),pageSize=usePageSize(25,'userActivityPage'), data = reactive(useResource<any>(() => tab.value === 'devices' ? listMediaDevices(props.userId, (page.value - 1) * pageSize.value,pageSize.value) : listMediaHistory(props.userId, (page.value - 1) * pageSize.value,pageSize.value))), op = reactive(useOperation('devices')), confirm = ref(false), target = ref<any>(null);
+const statistics=ref<InstanceType<typeof PlaybackStatistics>>();
 async function load() {
-  if(tab.value!=='statistics')await data.load();
+  if(tab.value==='statistics')await statistics.value?.load();else await data.load();
   if (op.pending) {
     try {
       const p = JSON.parse(op.pending.key), proof = await listMediaDevices(p.userId, p.startIndex, 50);
@@ -52,7 +53,7 @@ defineExpose({ load, tab, page, data, changeTab, revoke, target, op });
     <el-button :aria-pressed="tab==='statistics'" @click="changeTab('statistics')">播放统计 / IP</el-button>
     <el-button :aria-pressed="tab==='history'" @click="changeTab('history')">观看历史</el-button>
   </nav>
-  <PlaybackStatistics v-if="tab==='statistics'" :user-id="userId" :initial-device="statsDevice"/>
+  <PlaybackStatistics ref="statistics" v-if="tab==='statistics'" :user-id="userId" :initial-device="statsDevice"/>
  <template v-else>
   <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" :empty="!data.data?.items?.length" @reload="load"/>
   <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>

@@ -1,3 +1,4 @@
+import {accessSegment} from './playback-navigation';
 import {test,expect,type Page} from '@playwright/test';
 import {mkdirSync} from 'node:fs';
 import {resolve} from 'node:path';
@@ -51,13 +52,13 @@ test('I26b IP scope confirmation shrinks without changing self-block acknowledge
  await dialog.getByRole('button',{name:'返回修改',exact:true}).click();await expect(editor).toBeVisible();expect(f.writes).toEqual([]);
 });
 test('I26b history desktop actions already centered; mobile padding tightens and buttons stay 44px',async({page})=>{
- await i26bPlaybackFixture(page);await init(page,1440,'dark');await page.goto('/playback?tab=players');await expect(page.locator('.ua-observation-row')).toHaveCount(1);await stableLayout(page);
+ await i26bPlaybackFixture(page);await init(page,1440,'dark');await page.goto('/playback?tab=players');await expect(page.locator('.ua-observation-row')).toHaveCount(1);await accessSegment(page,'summary');await stableLayout(page);
  const row=page.locator('.ua-observation-row'),box=await row.boundingBox(),actions=await row.locator('.mt-list-actions').boundingBox();expect(Math.abs(box!.y+box!.height/2-actions!.y-actions!.height/2)).toBeLessThanOrEqual(1);
  await page.setViewportSize({width:390,height:1000});await expect(page.locator('html')).toHaveClass(/dark/);await expect(page.locator('.ua-visit-row')).toHaveCount(1);await stableLayout(page);
- for(const row of await page.locator('.ua-observation-row,.ua-visit-row').all()){
+ for(const segment of ['summary','events'] as const){await accessSegment(page,segment);await stableLayout(page);for(const row of await page.locator('.ua-observation-row:visible,.ua-visit-row:visible').all()){
   await expect(row).toHaveCSS('padding-top','8px');await expect(row).toHaveCSS('padding-bottom','8px');
   for(const button of await row.getByRole('button').all()){const b=await button.boundingBox();expect(b!.height).toBeGreaterThanOrEqual(44);expect(b!.width).toBeGreaterThanOrEqual(44)}
- }await noOverflow(page);await screenshot(page,'after-history-390-dark');
+ }}await noOverflow(page);await screenshot(page,'after-history-390-dark');
 });
 for(const value of [null,{items:[],total:0},[]])test(`I26b playback service empty ${JSON.stringify(value)} shows empty state without console errors`,async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});await u5PlaybackFixture(page);
@@ -77,5 +78,5 @@ test('I26b search history already centers desktop actions and uses compact mobil
 });
 test('I26b user activity empty mock does not read length from missing items',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});await i26bPlaybackFixture(page);
- await page.route('**/api/v1/media-server/users/*/devices?*',r=>r.fulfill({json:{data:[]}}));await page.goto('/playback?tab=users');await page.getByRole('button',{name:'用户详情',exact:true}).click();const dialog=page.getByRole('dialog',{name:'family · 用户详情',exact:true});await expect(dialog).toBeVisible();await expect(dialog.getByText('暂无记录',{exact:true})).toBeVisible();await stableLayout(page);expect(errors).toEqual([]);
+ await page.route('**/api/v1/media-server/users/*/devices?*',r=>r.fulfill({json:{data:[]}}));await page.goto('/playback?tab=users');await page.locator('.media-user-identity').click();const dialog=page.getByRole('dialog',{name:'family · 用户详情',exact:true});await expect(dialog).toBeVisible();await expect(dialog.getByText('暂无记录',{exact:true})).toBeVisible();await stableLayout(page);expect(errors).toEqual([]);
 });

@@ -6,7 +6,7 @@ import {u7Fixture} from './u7-fixture';
 type Target={name:string;path:string;trigger:(page:Page)=>Locator;setup?:(page:Page)=>Promise<void>};
 const targets:Target[]=[
  {name:'media-library',path:'/library',trigger:page=>page.locator('.catalog-poster').first()},
- {name:'user-detail',path:'/playback?tab=users',trigger:page=>page.getByRole('button',{name:'用户详情',exact:true}).first()},
+ {name:'user-detail',path:'/playback?tab=users',trigger:page=>page.locator('.media-user-row').first()},
  {name:'log-detail',path:'/ops?tab=logs',trigger:page=>page.getByRole('button',{name:'查看完整链接',exact:true})},
  {name:'site-account',path:'/sites',trigger:page=>page.locator('.f5-site-name').first()},
  {name:'organize-history',path:'/organize?tab=history',trigger:page=>page.getByRole('button',{name:'查看步骤详情',exact:true}).first(),setup:async page=>{
