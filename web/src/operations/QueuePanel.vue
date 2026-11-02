@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import {useDebouncedFilter} from '../composables/useDebouncedFilter';
+import {attentionFailure} from '../dashboard/summaries';
+import {failureText} from '../presentation/failures';
+import {computed} from 'vue';
+import {jobKindLabels} from './model';
 import {joinMetadata} from '../presentation/metadata';
 
 import DescriptionGrid from '../ui/DescriptionGrid.vue';
@@ -24,7 +29,7 @@ import { stateLabel, queueLabel, kindLabel, taskTarget } from './model';
 import ResourceState from '../workflows/ResourceState.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
 const route = useRoute();
-const filter = reactive({ state: '', kind: '', queue: '', q: typeof route.query.q === 'string' ? route.query.q : '', page: usePageNumber(), pageSize: usePageSize(25) }), jobs = reactive(useResource<any>(() => request('/jobs/browse?' + new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])))).then(pageResult))), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false);
+const filter = reactive({ hideRoutineSuccess:true, state: '', kind: '', queue: '', q: typeof route.query.q === 'string' ? route.query.q : '', page: usePageNumber(), pageSize: usePageSize(25) }), jobs = reactive(useResource<any>(() => request('/jobs/browse?' + new URLSearchParams(Object.fromEntries(Object.entries(filter).map(([k, v]) => [k, String(v)])))).then(pageResult))), error = ref<unknown>(null), detail = ref<any>(null), open = ref(false);
 async function load() { await jobs.load(); }
 const accounts=reactive(useResource(listConnections,[]));
 function jobTitle(row:any){const name=jobObject(row,accounts.data).name;return kindLabel(row.kind)+(name?' · '+name:'')}
@@ -37,6 +42,8 @@ async function inspect(id: string) {
     error.value = e;
   }
 }
+useDebouncedFilter(()=>[filter.q,filter.state,filter.kind,filter.queue,filter.hideRoutineSuccess],search);
+const queues=computed(()=>new Set((jobs.data?.items||[]).map((j:any)=>j.queue)));
 function search() {
   filter.page = 1;
   void load();
@@ -90,17 +97,17 @@ defineExpose({ load, filter, jobs });
         </label>
         <label>
           任务类别
-          <input v-model="filter.kind" aria-label="任务类别" placeholder="按任务类别筛选"/>
+          <el-select v-model="filter.kind" aria-label="任务类别" placeholder="全部类别"><el-option value="" label="全部类别"/><el-option v-for="(label,value) in jobKindLabels" :key="value" :value="value" :label="label"/></el-select>
         </label>
         <label>
           搜索任务
-          <input v-model="filter.q" aria-label="搜索任务" placeholder="搜索任务或错误内容"/>
+          <el-input v-model="filter.q" clearable aria-label="搜索任务" placeholder="搜索任务或错误内容"/>
         </label>
-        <el-button native-type="submit">筛选任务</el-button>
+        <el-switch v-model="filter.hideRoutineSuccess" active-text="隐藏例行成功任务" aria-label="隐藏例行成功任务"/>
       </form>
       <p>取消只停止本程序后续执行；重试先核对原业务状态，不能证明安全时保留未知状态。</p>
       <div class="mt-list" aria-label="后台任务列表">
-      <div class="mt-list-columns ops-job-columns" aria-hidden="true"><span>任务</span><span>状态 / 队列</span><span>执行摘要</span><span>操作</span></div>
+      <div class="mt-list-columns ops-job-columns" aria-hidden="true"><span>任务</span><span>{{queues.size>1?'状态 / 队列':'状态'}}</span><span>执行摘要</span><span>操作</span></div>
       <div class="f4-queue-rows ops-content-stage ops-job-list" :aria-busy="jobs.loading||jobs.refreshing">
       <div v-if="!jobs.loaded&&!jobs.error" class="ops-job-loading" role="status" aria-label="正在读取任务">
         <div v-for="n in 3" :key="n" class="ops-job-loading-row" aria-hidden="true"><el-skeleton :rows="1" animated/></div>
@@ -109,10 +116,10 @@ defineExpose({ load, filter, jobs });
       <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
       <article v-for="j in jobs.data?.items||[]" :key="j.id" class="mt-list-row f3-job-row">
         <div class="ops-job-name"><h3 :title="jobTitle(j)">{{ jobTitle(j) }}</h3></div>
-        <div class="ops-job-status"><StatusBadge :state="j.state" :label="stateLabel(j.state)" :title="j.lastError||undefined"/><span class="ops-job-queue">{{queueLabel(j.queue)}}</span></div>
+        <div class="ops-job-status"><StatusBadge :state="j.state" :label="stateLabel(j.state)" :title="j.lastError||undefined"/><span v-if="queues.size>1" class="ops-job-queue">{{queueLabel(j.queue)}}</span></div>
         <div class="ops-job-meta">
-          <p class="f3-job-meta"><span class="ops-job-meta-queue">{{queueLabel(j.queue)}} · </span>尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }}</p>
-          <p class="ops-job-progress">{{joinMetadata([joinMetadata(["耗时 ",(j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—')," 秒"], ''),(j.state==='succeeded'?'已完成':j.state==='running'?'业务进度见详情':'等待状态核对')])}}</p>
+          <p class="f3-job-meta"><span v-if="queues.size>1" class="ops-job-meta-queue">{{queueLabel(j.queue)}} · </span>尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }}</p>
+          <p class="ops-job-progress">{{joinMetadata([joinMetadata(["耗时 ",(j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—')," 秒"], ''),(j.state==='running'?'业务进度见详情':null)])}}</p>
         </div>
         <div class="mt-list-actions ops-job-actions">
           <el-button size="small" aria-label="任务详情" @click="inspect(j.id)"><el-icon class="mt-list-action-icon"><View/></el-icon><span class="mt-list-action-text">任务详情</span></el-button>
@@ -135,13 +142,13 @@ defineExpose({ load, filter, jobs });
     <DetailDrawer v-model:visible="open" title="任务详情" size="large" class="media-detail">
       <template v-if="detail">
         <h3>{{jobTitle(detail)}}</h3>
+        <el-alert v-if="detail.state==='failed'" type="error" :closable="false" :title="(attentionFailure(detail.lastError)||failureText(detail.lastError))||'任务执行失败'" description="请先核对相关业务与连接配置，确认原因后再重试。"/>
         <DescriptionGrid :items="[
           {key:'state',label:'状态',value:detail.state},
           {key:'queue',label:'队列',value:queueLabel(detail.queue)},
           {key:'attempts',label:'执行次数',value:detail.attempts==null?null:detail.attempts+' / '+(detail.maxAttempts??'—')},
           {key:'createdAt',label:'创建时间',value:date(detail.createdAt)},
-          {key:'updatedAt',label:'最近更新',value:date(detail.updatedAt)},
-          {key:'error',label:'失败原因',value:detail.lastError}
+          {key:'updatedAt',label:'最近更新',value:date(detail.updatedAt)}
         ]"><template #state><StatusBadge :state="detail.state" :label="stateLabel(detail.state)"/></template></DescriptionGrid>
 
       </template>

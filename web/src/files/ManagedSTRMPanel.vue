@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DescriptionGrid from "../ui/DescriptionGrid.vue";
 import {joinMetadata} from '../presentation/metadata';
 
 import FileBreadcrumbs from '../ui/FileBreadcrumbs.vue';
@@ -140,8 +141,7 @@ defineExpose({ refresh: load });
   <DetailDrawer v-model:visible="visible" title="受管 STRM 与媒体详情" size="large" class="media-detail">
     <h3>{{ asset?.title||'—' }}</h3>
     <img v-if="image(asset?.poster)" :src="image(asset.poster)" :alt="asset?.title" class="files-detail-poster"/>
-    <p>{{ asset?.source||'—' }}</p>
-    <p>{{joinMetadata([(label(asset?.cloudState)),(label(asset?.artifactsState))])}}</p>
+    <DescriptionGrid :items="[{key:'source',label:'来源',value:asset?.source},{key:'cloud',label:'云端文件',value:asset?.cloudState?label(asset.cloudState):null},{key:'outputs',label:'输出状态',value:asset?.artifactsState?label(asset.artifactsState):null}]"/>
     <p v-for="report in asset?.scrapeReport||[]" :key="report.kind">{{joinMetadata([(report.kind),(label(report.state)),(report.message||'—')])}}</p>
     <p v-for="out in asset?.outputs?.filter((o:any)=>o.kind==='strm')||[]" :key="out.path">
       {{ out.path }}

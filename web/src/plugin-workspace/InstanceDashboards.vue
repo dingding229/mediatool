@@ -19,7 +19,7 @@ watch([()=>props.instanceId,()=>props.pluginId,()=>props.running],()=>{cards.val
 onUnmounted(()=>{dead=true;generation++;});
 </script>
 <template>
- <p v-if="declared.length&&!running" class="plugin-paused-note">插件停用时不读取概览，不会为显示此区块启动插件。</p>
+
  <section v-if="declared.length&&running" class="media-surface f6-plugin-overview" aria-label="插件概览" :aria-busy="loading">
   <h2>概览</h2>
   <p v-if="loading&&!cards.length" role="status">正在读取插件概览…</p>

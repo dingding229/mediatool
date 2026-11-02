@@ -1,3 +1,4 @@
+// I42b: approved display/projection snapshots; destructive functions retain independent I36 hashes.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
@@ -7,10 +8,10 @@ const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it('I19-2 leaves system detection and dashboard loading unchanged (I26a expands connection buttons)',()=>{
  const runtime=read('operations/RuntimeChecks.vue').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { View, Setting } from '@element-plus/icons-vue';\n",'');
- expect(sha(runtime)).toBe('28ad4d3256cfca63bf351ab7420a6a1171296804527cc8cdc152fc6d400e8513');
+ expect(sha(runtime)).toBe('157623eefe87f885763540486dec6fd2f9b030bf635f8c65d7aaec1a22bba467');
  // I26a explicitly permits adding CD2/qB to the same receipt/reconciliation flow.
  // Keep freezing the loader and shared header; behavior is covered in readiness-test and i26a-cards.
- expect(sha(read('dashboard/useDashboard.ts'))).toBe('5fd2936401cf867786efa104576fe68af637abc13959ad8f2323f0699980b8c7');
+ expect(sha(read('dashboard/useDashboard.ts'))).toBe('09017bde004391cd4b81c71843309caf24b2e8ceaa4652578cb4fcdea0d108fc');
  expect(sha(read('ui/PageHeader.vue'))).toBe('e03eb2e098b252e7e494d15c1601c80f3915aaf8ccd60bfd5921f85938057de4');
 });
 it('I19-2 retains full detail data and original confirmation without any queue controls',()=>{

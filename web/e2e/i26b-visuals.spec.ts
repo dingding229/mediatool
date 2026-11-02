@@ -65,7 +65,7 @@ for(const value of [null,{items:[],total:0},[]])test(`I26b playback service empt
  await page.route('**/api/v1/media-server/native/library-mappings?*',r=>r.fulfill({json:{data:value}}));await page.goto('/playback?tab=settings');await expect(page.getByText('暂无媒体库目录',{exact:true})).toBeVisible();await stableLayout(page);expect(errors).toEqual([]);
 });
 test('I26b fields inherit Element frames and native token spacing rather than nested input padding',async({page})=>{
- await policyLogFixture(page);await page.goto('/ops?tab=maintenance');await page.getByRole('navigation',{name:'备份与告警功能'}).getByRole('button',{name:'维护策略',exact:true}).click();await expect(page.getByRole('textbox',{name:'备份Cron',exact:true})).toBeVisible();await stableLayout(page);
+ await policyLogFixture(page);await page.goto('/ops?tab=maintenance');await page.getByRole('navigation',{name:'备份与告警功能'}).getByRole('button',{name:'维护策略',exact:true}).click();await page.getByRole('checkbox',{name:'启用定时备份',exact:true}).check();await expect(page.getByRole('combobox',{name:'备份计划预设',exact:true})).toBeVisible();await stableLayout(page);
  for(const input of await page.locator('.ops-policy-grid .el-input__inner').all())await expect(input).toHaveCSS('padding-left','0px');
  for(const wrapper of await page.locator('.ops-policy-grid .el-input__wrapper').all())await expect(wrapper).toHaveCSS('border-top-left-radius','8px');
 });

@@ -12,7 +12,7 @@ export const targets:Target[]=[
  {id:'managed-strm',file:'files/ManagedSTRMPanel.vue',path:'/files?tab=strm',title:'受管 STRM 与媒体详情',open:button('预览STRM内容')},
  {id:'queue',file:'operations/QueuePanel.vue',path:'/ops?tab=jobs',title:'任务详情',open:button('任务详情')},
  {id:'runtime',file:'operations/RuntimeChecks.vue',path:'/ops?tab=attention',title:'运行检查详情',size:'default',open:async p=>{await summary(p,'运行计划与执行器详情');await button('执行器详情')(p)}},
- {id:'maintenance',file:'operations/MaintenancePanel.vue',path:'/ops?tab=maintenance',title:'维护详情',open:button('备份详情')},
+ {id:'maintenance',file:'operations/MaintenancePanel.vue',path:'/ops?tab=maintenance',title:'维护详情',open:async p=>{await button('更多备份操作')(p);await p.getByRole('menuitem',{name:'备份详情',exact:true}).click()}},
  {id:'restore',file:'operations/WebRestorePanel.vue',path:'/ops?tab=maintenance',title:'网页恢复预览',open:async p=>{await button('恢复与回滚')(p);await button('预览网页恢复')(p)}},
  {id:'log',file:'operations/LogsPanel.vue',path:'/ops?tab=logs',title:'完整原始日志',open:button('查看完整链接')},
  {id:'log-settings',file:'operations/LogsPanel.vue',path:'/ops?tab=logs',title:'日志设置',open:button('日志设置')},

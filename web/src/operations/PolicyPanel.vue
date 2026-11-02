@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import CronInput from '../ui/CronInput.vue';
+import CronField from '../ui/CronField.vue';
 const cronValid=ref(false);
 import {usePageRefresh} from '../ui/page-refresh';
 import {scheduleLabel} from '../presentation/labels';
@@ -57,10 +57,11 @@ usePageRefresh(load,'maintenance');
     <form v-if="form" class="u5-form" @submit.prevent="save">
       <div class="u6-policy ops-policy-grid">
         <label class="u5-check">
-          <input v-model="form.backupEnabled" type="checkbox"/>
+          <input v-model="form.backupEnabled" type="checkbox" aria-label="启用定时备份"/>
           启用定时备份
+          <small>{{form.backupEnabled?'已启用':'已停用'}}；关闭计划不删除已有备份，固定备份不参与保留清理。</small>
         </label>
-        <CronInput v-model="form.backupCron" purpose="backup" label="备份Cron" :disabled="op.busy||!!op.pending" @valid="cronValid=$event"/>
+        <CronField v-show="form.backupEnabled" v-model="form.backupCron" purpose="backup" label="备份计划" :disabled="!form.backupEnabled||op.busy||!!op.pending" @valid="cronValid=$event"/>
         <label class="u5-check">
           <input v-model="form.alertsEnabled" type="checkbox"/>
           启用阈值告警
@@ -70,7 +71,6 @@ usePageRefresh(load,'maintenance');
           <input v-model.number="form[field.key]" type="number" :aria-label="field.label" :min="field.min" :max="field.max" :step="field.step||1" required/>
         </label>
       </div>
-      <p>{{ read.data?.policy.value.backupEnabled?'下次备份 '+(read.data?.policy.nextBackupAt===null?'计划已结束':date(read.data?.policy.nextBackupAt)):'已停用' }}；关闭计划不删除已有备份，固定备份不参与保留清理。</p>
       <p v-if="latest">配置已被修改，已重新读取；你的输入已保留。</p>
       <details v-if="latest?.value">
         <summary>对照当前保存策略（只读）</summary>
@@ -95,3 +95,5 @@ usePageRefresh(load,'maintenance');
     </form>
   </section>
 </template>
+
+<style scoped>.ops-policy-grid>.cron-field{grid-column:1/-1}.ops-policy-grid>.u5-check small{font-size:12px;font-weight:400;color:var(--mt-text-muted)}</style>

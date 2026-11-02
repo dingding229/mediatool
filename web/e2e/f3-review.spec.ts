@@ -16,11 +16,11 @@ test('F3 review queue has aligned cards, unambiguous empty filters and complete 
  await u6OpsFixture(page);let pageNumber='1',withError=false;const rows=Array.from({length:25},(_,i)=>({id:'job-review-'+i,kind:i%2?'system.check':'download.manual.import',queue:'default',state:'succeeded',attempts:1,maxAttempts:3,startedAt:'2026-10-22T00:00:00Z',updatedAt:'2026-10-22T00:00:03Z'}))
  await page.route('**/api/v1/jobs/browse?*',r=>{pageNumber=new URL(r.request().url()).searchParams.get('page')||'1';return r.fulfill({json:{data:{items:rows.map((j,i)=>({...j,lastError:withError&&i===0?'上一轮重试的原始错误':''})),total:50}}})})
  await page.goto('/ops?tab=jobs');await expect(page.locator('.f3-job-row')).toHaveCount(25)
- await expect(page.getByLabel('搜索任务',{exact:true})).toHaveValue('');await expect(page.getByLabel('搜索任务',{exact:true})).toHaveAttribute('placeholder','搜索任务或错误内容');await expect(page.getByLabel('任务类别',{exact:true})).toHaveAttribute('placeholder','按任务类别筛选')
+ await expect(page.getByLabel('搜索任务',{exact:true})).toHaveValue('');await expect(page.getByLabel('搜索任务',{exact:true})).toHaveAttribute('placeholder','搜索任务或错误内容');await expect(page.getByRole('combobox',{name:'任务类别',exact:true})).toHaveAttribute('aria-expanded','false')
  await expect(page.locator('.f4-runtime-card')).toHaveCount(0);expect(await page.locator('.f4-queue-rows').evaluate(e=>getComputedStyle(e).overflowY)).toBe('visible')
  await expect(page.locator('.f3-job-row').last()).toContainText('耗时 3 秒')
  const first=await page.locator('.f3-job-row').first().boundingBox();expect(first!.height).toBeLessThan(100)
- withError=true;await page.getByRole('button',{name:'筛选任务',exact:true}).click();await expect(page.locator('.f3-job-row').first().locator('.status-badge')).toHaveAttribute('title','上一轮重试的原始错误');expect((await page.locator('.f3-job-row').first().boundingBox())!.height).toBe(first!.height)
+ withError=true;await page.getByRole('switch',{name:'隐藏例行成功任务',exact:true}).click();await expect(page.locator('.f3-job-row').first().locator('.status-badge')).toHaveAttribute('title','上一轮重试的原始错误');expect((await page.locator('.f3-job-row').first().boundingBox())!.height).toBe(first!.height)
  await page.getByRole('button',{name:'下一页',exact:true}).click();await expect.poll(()=>pageNumber).toBe('2');await page.getByRole('button',{name:'上一页',exact:true}).click();await expect.poll(()=>pageNumber).toBe('1')
  await shots(page,'queue')
 })
@@ -62,6 +62,6 @@ for(const [environment,label]of [['development','开发环境'],['production','�
 for(const width of [1440,390])test(`F5a delayed runtime reads do not affect the task list at ${width}px`,async({page})=>{
  await page.setViewportSize({width,height:1000});await u6OpsFixture(page);let reads=0;
  await page.route('**/api/v1/system/operations',r=>{reads++;return r.fulfill({json:{data:{postgres:{state:'ready'},workers:Array.from({length:11},(_,i)=>({owner:'worker-'+i,queue:'default',online:true})),queues:[],schedules:[]}}})})
- await page.goto('/ops?tab=jobs');await expect(page.locator('.f3-job-row')).toHaveCount(1);const before=await page.locator('.f3-queue-list').boundingBox();await page.getByRole('button',{name:'筛选任务',exact:true}).click();expect(await page.locator('.f3-queue-list').boundingBox()).toEqual(before);expect(reads).toBe(0)
+ await page.goto('/ops?tab=jobs');await expect(page.locator('.f3-job-row')).toHaveCount(1);const before=await page.locator('.f3-queue-list').boundingBox();await page.getByRole('switch',{name:'隐藏例行成功任务',exact:true}).click();expect(await page.locator('.f3-queue-list').boundingBox()).toEqual(before);expect(reads).toBe(0)
  await page.goto('/ops?tab=attention');await expect(page.locator('.f5-runtime-summary')).toContainText('11 / 11');await expect(page.getByRole('button',{name:'运行系统检查',exact:true})).toBeVisible()
 })

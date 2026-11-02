@@ -1,17 +1,17 @@
 import {test,expect,type Page} from '@playwright/test';
 import {maintenancePolicy,policyLogFixture} from './i19-4-fixture';
 import {policyFields} from '../src/operations/model';
-async function openPolicy(page:Page){await page.goto('/ops?tab=maintenance');await page.getByRole('navigation',{name:'备份与告警功能'}).getByRole('button',{name:'维护策略',exact:true}).click();await expect(page.getByRole('button',{name:'保存维护策略',exact:true})).toBeEnabled()}
+async function openPolicy(page:Page){await page.goto('/ops?tab=maintenance');await page.getByRole('navigation',{name:'备份与告警功能'}).getByRole('button',{name:'维护策略',exact:true}).click();await expect(page.getByRole('button',{name:'保存维护策略',exact:true})).toBeEnabled();await page.getByRole('checkbox',{name:'启用定时备份',exact:true}).check()}
 async function openLogs(page:Page){await page.goto('/ops?tab=logs');await page.getByRole('button',{name:'日志设置',exact:true}).click();return page.getByRole('dialog',{name:'日志设置',exact:true})}
 
 test('I19-4 policy switches/Cron span the row; numeric fields use two/one columns without double borders',async({page})=>{
  const f=await policyLogFixture(page);await openPolicy(page);
  for(const width of [1440,390]){
   await page.setViewportSize({width,height:1000});const grid=await page.locator('.ops-policy-grid').boundingBox();
-  for(const e of await page.locator('.ops-policy-grid>.u5-check,.ops-policy-grid>.cron-input').all()){const b=await e.boundingBox();expect(Math.abs(b!.width-grid!.width)).toBeLessThanOrEqual(1)}
+  for(const e of await page.locator('.ops-policy-grid>.u5-check,.ops-policy-grid>.cron-field').all()){const b=await e.boundingBox();expect(Math.abs(b!.width-grid!.width)).toBeLessThanOrEqual(1)}
   const fields=await page.locator('.ops-policy-grid>label:not(.u5-check)').evaluateAll(es=>es.map(el=>{const b=el.getBoundingClientRect();return {x:b.x,y:b.y,width:b.width}}));
   expect(fields).toHaveLength(policyFields.length);if(width===1440){expect(fields[0]!.y).toBe(fields[1]!.y);expect(fields[0]!.x).toBeLessThan(fields[1]!.x)}else{expect(fields[0]!.x).toBe(fields[1]!.x);expect(fields[0]!.y).toBeLessThan(fields[1]!.y)}
-  const input=page.getByRole('textbox',{name:'备份Cron',exact:true});await expect(input).toHaveCSS('border-top-width','0px');const wrapper=input.locator('..');await expect(wrapper).toHaveCSS('min-height','44px');expect(await wrapper.evaluate(e=>getComputedStyle(e).boxShadow)).not.toBe('none');expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  const input=page.getByRole('combobox',{name:'备份计划预设',exact:true});await expect(input).toHaveCSS('border-top-width','0px');const wrapper=page.locator('.cron-field .el-select__wrapper');await expect(wrapper).toHaveCSS('min-height','44px');expect(await wrapper.evaluate(e=>getComputedStyle(e).boxShadow)).not.toBe('none');expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  }
  expect(f.writes).toEqual([]);
 });
@@ -26,12 +26,12 @@ test('I19-4 every native policy constraint still blocks invalid/empty submit and
 });
 
 test('I19-4 policy saves original JSON/revision, and the shared Cron generator only fills back until save',async({page})=>{
- const f=await policyLogFixture(page);await openPolicy(page);await page.getByRole('button',{name:'备份Cron生成',exact:true}).click();const dialog=page.getByRole('dialog',{name:'备份Cron生成器',exact:true});await dialog.locator('.cron-generator-fields .el-select__wrapper').first().click();await page.getByRole('option',{name:'自定义',exact:true}).click();await dialog.getByRole('textbox',{name:'备份Cron自定义表达式',exact:true}).fill('0 4 * * *');await expect(dialog.getByRole('button',{name:'确定',exact:true})).toBeEnabled();await dialog.getByRole('button',{name:'确定',exact:true}).click();await expect(page.getByRole('textbox',{name:'备份Cron',exact:true})).toHaveValue('0 4 * * *');expect(f.writes).toEqual([]);
- await page.getByRole('button',{name:'保存维护策略',exact:true}).click();await expect.poll(()=>f.writes.length).toBe(1);expect(f.writes[0]).toEqual({path:'/api/v1/ops/policy',body:{revision:7,value:{...maintenancePolicy,backupCron:'0 4 * * *'}}});expect(f.previews.every(p=>p.purpose==='backup')).toBe(true);
+ const f=await policyLogFixture(page);await openPolicy(page);await page.locator('.cron-field .el-select__wrapper').click();await page.getByRole('option',{name:'自定义',exact:true}).click();await page.getByRole('textbox',{name:'备份计划自定义 Cron',exact:true}).fill('0 4 * * *');await expect(page.getByRole('button',{name:'保存维护策略',exact:true})).toBeEnabled();expect(f.writes).toEqual([]);
+ await page.getByRole('button',{name:'保存维护策略',exact:true}).click();await expect.poll(()=>f.writes.length).toBe(1);expect(f.writes[0]).toEqual({path:'/api/v1/ops/policy',body:{revision:7,value:{...maintenancePolicy,backupEnabled:true,backupCron:'0 4 * * *'}}});expect(f.previews.every(p=>p.purpose==='backup')).toBe(true);
 });
 
 for(const expression of ['* *','* * * * *','0 0 0 1 1 * 1970'])test(`I19-4 invalid/frequent/ended Cron ${expression} cannot enable policy save`,async({page})=>{
- const f=await policyLogFixture(page);await openPolicy(page);await page.getByRole('textbox',{name:'备份Cron',exact:true}).fill(expression);await expect(page.getByRole('button',{name:'保存维护策略',exact:true})).toBeDisabled();await expect(page.locator('.ops-policy-panel .cron-feedback')).toContainText(expression.includes('1970')?'计划已结束':expression==='* *'?'请输入':'未满足备份最小间隔');expect(f.writes).toEqual([]);
+ const f=await policyLogFixture(page);await openPolicy(page);await page.locator('.cron-field .el-select__wrapper').click();await page.getByRole('option',{name:'自定义',exact:true}).click();await page.getByRole('textbox',{name:'备份计划自定义 Cron',exact:true}).fill(expression);await expect(page.getByRole('button',{name:'保存维护策略',exact:true})).toBeDisabled();await expect(page.locator('.ops-policy-panel .cron-field-feedback')).toContainText(expression.includes('1970')?'计划已结束':expression==='* *'?'请输入':'未满足备份最小间隔');expect(f.writes).toEqual([]);
 });
 
 test('I19-4 policy conflict preserves draft/revision and disables saving until explicit reconciliation',async({page})=>{

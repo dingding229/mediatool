@@ -8,8 +8,8 @@ async function confirmRestore(page:Page,backup=restoreID(1)){
 
 test('I19-7 original ready filter, backup/snapshot IDs, full digests and labels remain unchanged; initial reads never preview',async({page})=>{
  const f=await webRestoreFixture(page);const panel=await open(page);await expect(panel.locator('.ops-web-backup-row')).toHaveCount(2);await expect(panel.locator('.ops-web-record-row')).toHaveCount(4);expect(f.writes).toEqual([]);
- await expect(panel.locator('.ops-web-backup-row').nth(0)).toContainText(restoreID(1));await expect(panel.locator('.ops-web-backup-row').nth(1)).toContainText(restoreID(2));await expect(panel.locator('.ops-web-backup-row').filter({hasText:restoreID(3)})).toHaveCount(0);
- await expect(panel.locator('.ops-web-backup-row').nth(0)).toContainText(restoreDigest);await expect(panel.locator('.ops-web-backup-row').nth(1)).toContainText(snapshotDigest);await expect(panel.locator('.ops-web-backup-row').nth(1).getByRole('button',{name:'预览回滚到恢复前',exact:true})).toBeVisible();
+ for(const [index,id,digest] of [[0,restoreID(1),restoreDigest],[1,restoreID(2),snapshotDigest]] as const){const row=panel.locator('.ops-web-backup-row').nth(index);await row.getByText('校验信息',{exact:true}).click();const values=row.locator('.middle-ellipsis-text');await expect(values.nth(0)).toHaveAttribute('aria-label',digest);await expect(values.nth(1)).toHaveAttribute('aria-label',id);await row.getByText('校验信息',{exact:true}).click()}
+ await expect(panel.locator('.ops-web-backup-row').nth(1).getByRole('button',{name:'预览回滚到恢复前',exact:true})).toBeVisible();
  await expect(panel.getByRole('note')).toContainText('确认需10分钟内的新近登录；执行前自动保留恢复前快照。');await expect(panel.getByRole('note')).toContainText('账号、115授权、连接、设置、媒体记录、插件配置及KV全部随备份回退');await expect(panel.getByText('包含数据库、清单和登记的受管输出',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'刷新',exact:true}).click();expect(f.writes).toEqual([]);
 });
@@ -17,8 +17,8 @@ test('I19-7 original ready filter, backup/snapshot IDs, full digests and labels 
 test('I19-7 desktop full-width rows and mobile 44px actions preserve complete identifiers without overflow',async({page})=>{
  const f=await webRestoreFixture(page,true);const panel=await open(page);await expect(panel.locator('.ops-web-backup-row')).toHaveCount(26);await expect(panel.locator('.ops-web-record-row')).toHaveCount(27);
  for(const width of [1440,390]){
-  await page.setViewportSize({width,height:1000});await expect(panel.locator('.ops-web-backup-row button').first()).toHaveCSS('height',width===1440?'32px':'44px');expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-  if(width===390)for(const b of await panel.locator('article button').all()){await expect(b).toHaveCSS('height','44px');const box=await b.boundingBox();expect(box!.width).toBeGreaterThanOrEqual(44)}
+  await page.setViewportSize({width,height:1000});await expect(panel.locator('.ops-web-backup-row .mt-list-actions button').first()).toHaveCSS('height',width===1440?'32px':'44px');expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  if(width===390)for(const b of await panel.locator('article .mt-list-actions button').all()){await expect(b).toHaveCSS('height','44px');const box=await b.boundingBox();expect(box!.width).toBeGreaterThanOrEqual(44)}
   for(const proof of await panel.locator('.ops-web-restore-digest').all())await expect(proof).toHaveCSS('text-overflow','clip');
  }
  expect(f.writes).toEqual([]);

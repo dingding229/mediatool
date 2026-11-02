@@ -26,20 +26,20 @@ for(const kind of ['tmdb','search'])test(`I19-3 ${kind} compact rows and paginat
 });
 for(const kind of ['tmdb','search'])for(const whole of [false,true])test(`I19-3 ${kind} ${whole?'whole':'single'} clear keeps original confirmation and scoped request`,async({page})=>{
  const f=await cacheAlertFixture(page);await page.goto('/ops?tab=cache&cacheKind='+kind);await expect(page.locator('.ops-cache-row')).toHaveCount(4);
- await page.getByRole('button',{name:whole?'清理此类缓存':'删除缓存项',exact:true}).first().click();const dialog=page.getByRole('dialog',{name:whole?'清理此类缓存':'删除缓存项',exact:true});await expect(dialog).toContainText(kind==='search'?'保留底层结果、下载记录和媒体':'不删除媒体或其他业务数据');expect(f.writes).toEqual([]);
+ await page.getByRole('button',{name:whole?/清理全部.*缓存/:'删除缓存项',exact:true}).first().click();const dialog=page.getByRole('dialog',{name:whole?'清理此类缓存':'删除缓存项',exact:true});await expect(dialog).toContainText(kind==='search'?'保留底层结果、下载记录和媒体':'不删除媒体或其他业务数据');expect(f.writes).toEqual([]);
  const request=page.waitForRequest(r=>!['GET','HEAD'].includes(r.method())&&r.url().includes('/cache/'));await dialog.getByRole('button',{name:'确认清理',exact:true}).click();const sent=await request;await expect.poll(()=>f.writes.length).toBe(1);expect(sent.method()).toBe(whole?'POST':'DELETE');expect(new URL(sent.url()).pathname).toBe(`/api/v1/cache/${kind}/`+(whole?'clear':`i193-${kind}-0`));
- if(whole)expect(sent.postDataJSON()).toEqual({confirm:true});else expect(new URL(sent.url()).searchParams.get('confirm')).toBe('true');await expect(page.getByRole('button',{name:'清理此类缓存',exact:true})).toBeEnabled();expect(f.writes).toHaveLength(1);
+ if(whole)expect(sent.postDataJSON()).toEqual({confirm:true});else expect(new URL(sent.url()).searchParams.get('confirm')).toBe('true');await expect(page.getByRole('button',{name:/清理全部.*缓存/,exact:true})).toBeEnabled();expect(f.writes).toHaveLength(1);
 });
 
 for(const whole of [false,true])test(`I19-3 unknown ${whole?'whole':'single'} cache clear never replays across readback/reload`,async({page})=>{
- const f=await cacheAlertFixture(page);f.lose();await page.goto('/ops?tab=cache&cacheKind=search');await expect(page.locator('.ops-cache-row')).toHaveCount(4);await page.getByRole('button',{name:whole?'清理此类缓存':'删除缓存项',exact:true}).first().click();await page.getByRole('dialog',{name:whole?'清理此类缓存':'删除缓存项',exact:true}).getByRole('button',{name:'确认清理',exact:true}).click();
- await expect(page.getByRole('button',{name:'清理此类缓存',exact:true})).toBeDisabled();await page.getByRole('button',{name:'核对结果',exact:true}).click();const readback=!whole?page.waitForResponse(r=>r.request().method()==='GET'&&new URL(r.url()).pathname==='/api/v1/cache/search/i193-search-0'):null;await page.reload();if(readback)expect((await readback).status()).toBe(200);await expect(page.getByRole('button',{name:'清理此类缓存',exact:true})).toBeDisabled();expect(f.writes).toHaveLength(1);
- if(!whole){expect(f.detailReads).toContain('i193-search-0');f.removeOriginal('search','i193-search-0');await page.getByRole('button',{name:'核对结果',exact:true}).click();await expect(page.getByRole('button',{name:'清理此类缓存',exact:true})).toBeEnabled();expect(f.writes).toHaveLength(1)}
+ const f=await cacheAlertFixture(page);f.lose();await page.goto('/ops?tab=cache&cacheKind=search');await expect(page.locator('.ops-cache-row')).toHaveCount(4);await page.getByRole('button',{name:whole?/清理全部.*缓存/:'删除缓存项',exact:true}).first().click();await page.getByRole('dialog',{name:whole?'清理此类缓存':'删除缓存项',exact:true}).getByRole('button',{name:'确认清理',exact:true}).click();
+ await expect(page.getByRole('button',{name:/清理全部.*缓存/,exact:true})).toBeDisabled();await page.getByRole('button',{name:'核对结果',exact:true}).click();const readback=!whole?page.waitForResponse(r=>r.request().method()==='GET'&&new URL(r.url()).pathname==='/api/v1/cache/search/i193-search-0'):null;await page.reload();if(readback)expect((await readback).status()).toBe(200);await expect(page.getByRole('button',{name:/清理全部.*缓存/,exact:true})).toBeDisabled();expect(f.writes).toHaveLength(1);
+ if(!whole){expect(f.detailReads).toContain('i193-search-0');f.removeOriginal('search','i193-search-0');await page.getByRole('button',{name:'核对结果',exact:true}).click();await expect(page.getByRole('button',{name:/清理全部.*缓存/,exact:true})).toBeEnabled();expect(f.writes).toHaveLength(1)}
 });
 for(const mode of ['empty','failed','rejected']as const)test(`I19-3 cache ${mode} stays explicit without lost content or automatic clearing`,async({page})=>{
  const f=await cacheAlertFixture(page);if(mode==='empty')f.emptyCache();if(mode==='failed')f.failCache();await page.goto('/ops?tab=cache');
  if(mode==='empty')await expect(page.locator('.ops-cache-stage').getByText('暂无记录',{exact:true})).toBeVisible();
- else if(mode==='failed'){await expect(page.getByText('暂时无法读取',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'清理此类缓存',exact:true})).toBeDisabled();await expect(page.getByText('暂无记录',{exact:true})).toHaveCount(0)}
+ else if(mode==='failed'){await expect(page.getByText('暂时无法读取',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/清理全部.*缓存/,exact:true})).toBeDisabled();await expect(page.getByText('暂无记录',{exact:true})).toHaveCount(0)}
  else{f.reject();await page.getByRole('button',{name:'删除缓存项',exact:true}).first().click();await page.getByRole('dialog',{name:'删除缓存项',exact:true}).getByRole('button',{name:'确认清理',exact:true}).click();await expect(page.getByText('本地模拟：拒绝清理',{exact:true})).toBeVisible();await expect(page.locator('.ops-cache-row')).toHaveCount(4)}
  expect(f.writes).toHaveLength(mode==='rejected'?1:0);await expect(page.locator('.ops-cache-panel .ops-cache-ttl')).toBeVisible();
 });
@@ -59,18 +59,18 @@ test('I19-3 alerts retain independent active/acknowledged/normal states, row-end
 
 for(const mode of ['empty','failed','unknown']as const)test(`I19-3 alert ${mode} retains the common warning and original pending protection`,async({page})=>{
  const f=await cacheAlertFixture(page);if(mode==='empty')f.emptyAlerts();if(mode==='failed')f.failOps();if(mode==='unknown')f.lose();await openAlerts(page);
- const warning=page.getByRole('note').filter({hasText:'确认告警不等于问题已解决'});await expect(warning).toBeVisible();
+ const warning=page.getByRole('note').filter({hasText:'确认告警不等于问题已解决'});if(mode==='unknown')await expect(warning).toBeVisible();else await expect(warning).toHaveCount(0);
  if(mode==='empty'){await expect(page.getByText('暂无告警记录',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'确认告警',exact:true})).toHaveCount(0)}
  else if(mode==='failed'){await expect(page.getByText('暂时无法读取',{exact:true})).toBeVisible();await expect(page.getByText('暂无告警记录',{exact:true})).toHaveCount(0)}
  else{
   await page.getByRole('button',{name:'确认告警',exact:true}).first().click();await page.getByRole('dialog',{name:'确认告警',exact:true}).getByRole('button',{name:'确认继续',exact:true}).click();await expect(page.getByRole('button',{name:'确认告警',exact:true}).first()).toBeDisabled();await page.getByRole('button',{name:'核对结果',exact:true}).click();await openAlerts(page);await expect(page.getByRole('button',{name:'确认告警',exact:true}).first()).toBeDisabled();expect(f.writes).toHaveLength(1);
  }
- await expect(warning).toBeVisible();if(mode!=='unknown')expect(f.writes).toEqual([]);
+ if(mode==='unknown')await expect(warning).toBeVisible();else await expect(warning).toHaveCount(0);if(mode!=='unknown')expect(f.writes).toEqual([]);
 });
 
 test('I19-3 cache first load never invents empty data and refresh retains original rows',async({page})=>{
  const f=await cacheAlertFixture(page);f.hold();try{await page.goto('/ops?tab=cache');await expect(page.locator('.ops-cache-stage .state-view.state-loading')).toBeVisible();await expect(page.getByText('暂无记录',{exact:true})).toHaveCount(0)}finally{f.release()}
- await expect(page.locator('.ops-cache-row')).toHaveCount(4);f.lose();await page.getByRole('button',{name:'清理此类缓存',exact:true}).click();await page.getByRole('dialog',{name:'清理此类缓存',exact:true}).getByRole('button',{name:'确认清理',exact:true}).click();await expect(page.getByRole('button',{name:'核对结果',exact:true})).toBeVisible();
+ await expect(page.locator('.ops-cache-row')).toHaveCount(4);f.lose();await page.getByRole('button',{name:/清理全部.*缓存/,exact:true}).click();await page.getByRole('dialog',{name:'清理此类缓存',exact:true}).getByRole('button',{name:'确认清理',exact:true}).click();await expect(page.getByRole('button',{name:'核对结果',exact:true})).toBeVisible();
  f.hold();try{await page.getByRole('button',{name:'核对结果',exact:true}).click();await expect(page.locator('.ops-cache-row')).toHaveCount(4);await expect(page.locator('.ops-cache-stage .state-view.state-loading')).toHaveCount(0)}finally{f.release()}
  f.failCache();await page.getByRole('button',{name:'核对结果',exact:true}).click();await expect(page.getByText(/刷新失败，保留上次数据/)).toBeVisible();await expect(page.locator('.ops-cache-row')).toHaveCount(4);expect(f.writes).toHaveLength(1);
 });

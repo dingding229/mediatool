@@ -26,3 +26,5 @@ onUnmounted(()=>{dead=true;revision++;esm.value=undefined})
 <style scoped>.f3-plugin-surface{position:relative;min-height:0}.f3-plugin-surface[aria-busy="true"]{min-height:160px}.f3-plugin-stale{position:absolute;top:0;right:0;z-index:2;max-width:360px}.f3-plugin-retry{position:absolute;top:48px;right:0;z-index:2}</style>
 
 <style>.plugin-json-value{display:grid;grid-template-columns:minmax(72px,max-content) minmax(0,1fr);gap:12px;align-items:baseline;margin-block:8px;font-size:13px;line-height:1.7}.plugin-value-label{color:var(--mt-text-muted);font-weight:600}.plugin-value-text{overflow-wrap:anywhere}.plugin-json-row{display:flex;flex-wrap:wrap;gap:12px 28px;min-width:0}</style>
+
+<style>.plugin-json-value{display:flex!important;flex-direction:column;align-items:flex-start!important;gap:6px!important;min-width:0}.plugin-json-value .plugin-value-label{font-size:13px;color:var(--mt-text-muted);font-weight:600}.plugin-json-value .plugin-value-text{font-size:14px}</style>

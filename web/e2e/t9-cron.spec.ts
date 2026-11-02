@@ -18,13 +18,14 @@ async function fixture(page:Page,ended=false){
  await page.route('**/api/v1/ops',r=>fixtureFulfill(r,{json:{data:{...opsSnapshot,policy:{...opsSnapshot.policy,value:{...opsSnapshot.policy.value,backupEnabled:true},nextBackupAt:ended?null:schedule.nextRunAt}}}}));
  await page.route('**/api/v1/jobs/browse?*',r=>fixtureFulfill(r,{json:{data:{items:[{id:'j1',kind:'site.metrics.refresh',state:'succeeded'},{id:'j2',kind:'native.tmdb.fetch',state:'failed'}],total:2}}}));
  await page.route('**/api/v1/plugins/'+plugin.id,r=>fixtureFulfill(r,{json:{data:{instance:{...plugin,pluginId:'site-checkin',metadata:{...plugin.metadata,id:'site-checkin',name:'站点签到'}},config:{value:{active:false,cron:'0 8 * * *'},revision:2},entries:[],fingerprint:'owned'}}}));
+ if(ended)await page.route('**/api/v1/scheduling/cron/preview',r=>r.fulfill({json:{data:{timezone:'Asia/Shanghai',fieldCount:5,exhausted:true,next:[],minimumIntervalSeconds:3600}}}));
  return writes;
 }
 async function open(page:Page,kind:string){
  if(kind==='settings'){await page.goto('/settings?tab=automation');await expect(page.getByRole('combobox',{name:'订阅调度时间预设',exact:true})).toBeVisible()}
  if(kind==='metrics'){await page.goto('/sites');await page.getByRole('button',{name:'编辑采集计划',exact:true}).click();await expect(page.getByRole('dialog',{name:'指标采集计划',exact:true})).toBeVisible()}
  if(kind==='scan'){await page.goto('/organize?tab=scans');await page.getByRole('button',{name:'新增定时扫描',exact:true}).click();await expect(page.getByRole('dialog',{name:'定时扫描设置',exact:true})).toBeVisible()}
- if(kind==='backup'){await page.goto('/ops?tab=maintenance');await page.getByRole('button',{name:'维护策略',exact:true}).click();await expect(page.getByLabel('备份Cron',{exact:true})).toBeVisible()}
+ if(kind==='backup'){await page.goto('/ops?tab=maintenance');await page.getByRole('button',{name:'维护策略',exact:true}).click();await page.getByRole('checkbox',{name:'启用定时备份',exact:true}).check();await expect(page.getByRole('combobox',{name:'备份计划预设',exact:true})).toBeVisible()}
  if(kind==='jobs'){await page.goto('/ops?tab=jobs');await expect(page.locator('.f3-job-row')).toHaveCount(2)}
  if(kind==='plugin'){await page.goto('/plugins/'+plugin.id);await expect(page.getByRole('heading',{name:'插件配置',exact:true})).toBeVisible()}
 }
@@ -35,7 +36,8 @@ test('T9 consumer geometry 1440/390 light/dark (screenshots local opt-in)' ,asyn
   if(before&&existsSync(join(dir,`before-${kind}-${width}-${theme}.png`)))continue;
   await page.setViewportSize({width,height:1000});await page.addInitScript(t=>localStorage.setItem('media-tool:theme-mode:v1',t),theme);await open(page,kind);await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
   if(!before&&kind==='settings'){await expect(page.locator('.cron-field')).toBeVisible();await expect(page.getByRole('combobox',{name:'订阅调度时间预设',exact:true})).toBeVisible();await expect(page.locator('.cron-field-feedback')).toContainText('下次执行时间');await expect(page.locator('.cron-preview')).toHaveCount(0)}
-  if(!before&&kind!=='jobs'&&kind!=='settings'){await expect(page.locator('.cron-input').first()).toBeVisible();await expect(page.locator('.cron-preview')).toHaveCount(0);await expect(page.locator('.cron-input').first().getByRole('button',{name:/生成$/})).toBeVisible()}
+  if(!before&&kind!=='jobs'&&kind!=='settings'&&kind!=='backup'){await expect(page.locator('.cron-input').first()).toBeVisible();await expect(page.locator('.cron-preview')).toHaveCount(0);await expect(page.locator('.cron-input').first().getByRole('button',{name:/生成$/})).toBeVisible()}
+  if(!before&&kind==='backup'){await expect(page.locator('.cron-field')).toBeVisible();await expect(page.locator('.cron-field-feedback')).toContainText('下次执行时间')}
   if(!before&&kind==='jobs'){
    const boxes=await page.locator('.ops-job-actions').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();const buttons=e.querySelectorAll('button');return {width:r.width,right:buttons[buttons.length-1]!.getBoundingClientRect().right}}));
    expect(boxes[0]!.width).toBe(boxes[1]!.width);expect(Math.abs(boxes[0]!.right-boxes[1]!.right)).toBeLessThanOrEqual(1);
@@ -58,7 +60,7 @@ test('T9 generation, manual validation and stale preview cannot enable save',asy
  await input.fill('* *');await expect(save).toBeDisabled();release();await expect.poll(()=>settled).toBe(true);await expect(save).toBeDisabled();await expect(input).toHaveValue('* *');expect(writes).toEqual([]);
 });
 test('T9 exhausted summaries remain explicit and NULL is not a date error',async({page})=>{
- await fixture(page,true);await page.goto('/subscriptions?tab=list');await expect(page.getByText('计划已结束',{exact:true})).toBeVisible();await page.goto('/sites');await expect(page.getByText(/下次 计划已结束/)).toBeVisible();await page.goto('/organize?tab=scans');await expect(page.getByText(/下次 计划已结束/)).toBeVisible();await page.goto('/ops?tab=maintenance');await expect(page.getByText(/计划已结束/).first()).toBeVisible();
+ await fixture(page,true);await page.goto('/subscriptions?tab=list');await expect(page.getByText('计划已结束',{exact:true})).toBeVisible();await page.goto('/sites');await expect(page.getByText(/下次 计划已结束/)).toBeVisible();await page.goto('/organize?tab=scans');await expect(page.getByText(/下次 计划已结束/)).toBeVisible();await page.goto('/ops?tab=maintenance');await page.getByRole('button',{name:'维护策略',exact:true}).click();await expect(page.locator('.cron-field-feedback')).toContainText('计划已结束');
 });
 
 test('T9 validation feedback is compact and remains authoritative without a future-times list',async({page})=>{

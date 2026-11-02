@@ -64,7 +64,7 @@ func (a *API) mediaDetails(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if ttl > 0 && a.Deps.Redis != nil {
-			raw, _ := json.Marshal(map[string]any{"item": envelope.Item, "query": envelope.Item.Title, "mediaType": kind, "createdAt": time.Now().UTC()})
+			raw, _ := json.Marshal(map[string]any{"item": envelope.Item, "query": envelope.Item.Title, "mediaType": kind, "language": profile.String("language"), "createdAt": time.Now().UTC()})
 			if len(raw) <= 1<<20 {
 				small, stop := context.WithTimeout(ctx, 250*time.Millisecond)
 				a.Deps.Redis.Set(small, key, raw, ttl)

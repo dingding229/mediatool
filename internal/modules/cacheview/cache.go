@@ -19,17 +19,43 @@ type Store struct {
 	DB    *pgxpool.Pool
 }
 type Entry struct {
-	Reusable   bool      `json:"reusable"`
-	PosterPath string    `json:"posterPath,omitempty"`
-	CreatedAt  time.Time `json:"createdAt"`
-	ID         string    `json:"id"`
-	Key        string    `json:"-"`
-	Bytes      int       `json:"bytes"`
-	TTLSeconds int64     `json:"ttlSeconds"`
-	Query      string    `json:"query"`
-	State      string    `json:"state"`
-	Count      int       `json:"count"`
-	Data       any       `json:"data,omitempty"`
+	Conditions *TMDBConditions `json:"conditions,omitempty"`
+	Reusable   bool            `json:"reusable"`
+	PosterPath string          `json:"posterPath,omitempty"`
+	CreatedAt  time.Time       `json:"createdAt"`
+	ID         string          `json:"id"`
+	Key        string          `json:"-"`
+	Bytes      int             `json:"bytes"`
+	TTLSeconds int64           `json:"ttlSeconds"`
+	Query      string          `json:"query"`
+	State      string          `json:"state"`
+	Count      int             `json:"count"`
+	Data       any             `json:"data,omitempty"`
+}
+
+type TMDBConditions struct {
+	Operation string `json:"operation"`
+	MediaType string `json:"mediaType,omitempty"`
+	Year      string `json:"year,omitempty"`
+	Language  string `json:"language,omitempty"`
+	TMDBID    int    `json:"tmdbId,omitempty"`
+}
+
+func tmdbConditions(m map[string]any) *TMDBConditions {
+	c := &TMDBConditions{Operation: "search"}
+	c.MediaType, _ = m["mediaType"].(string)
+	c.Year, _ = m["year"].(string)
+	c.Language, _ = m["language"].(string)
+	if item, ok := m["item"].(map[string]any); ok {
+		c.Operation = "details"
+		if id, ok := item["id"].(float64); ok {
+			c.TMDBID = int(id)
+		}
+		if c.Year == "" {
+			c.Year, _ = item["year"].(string)
+		}
+	}
+	return c
 }
 
 var hexID = regexp.MustCompile(`^[a-f0-9]{64}$`)
@@ -153,6 +179,7 @@ func (s Store) Get(ctx context.Context, kind, id string, detail bool) (Entry, er
 			return x, nil
 		}
 		if m, ok := data.(map[string]any); ok {
+			x.Conditions = tmdbConditions(m)
 			x.Query, _ = m["query"].(string)
 			if created, ok := m["createdAt"].(string); ok {
 				x.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)

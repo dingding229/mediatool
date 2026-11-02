@@ -47,7 +47,7 @@ func (a *API) browseJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	f := jobs.Filter{State: q.Get("state"), Kind: q.Get("kind"), Queue: q.Get("queue"), Query: q.Get("q"), Limit: p.Limit, Offset: p.Offset}
+	f := jobs.Filter{State: q.Get("state"), Kind: q.Get("kind"), Queue: q.Get("queue"), Query: q.Get("q"), Limit: p.Limit, Offset: p.Offset, HideRoutineSuccess: q.Get("hideRoutineSuccess") == "true", UnresolvedOnly: q.Get("unresolvedOnly") == "true"}
 	if len(f.State) > 32 || len(f.Kind) > 100 || len(f.Queue) > 100 || len(f.Query) > 200 {
 		fail(w, 400, "invalid_filter", "筛选参数过长")
 		return

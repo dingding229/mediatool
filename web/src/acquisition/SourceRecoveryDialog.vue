@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DescriptionGrid from "../ui/DescriptionGrid.vue";
 import { ref, watch, onUnmounted } from 'vue';
 import { APIError, post, request } from '../api/client';
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
@@ -92,20 +93,11 @@ defineExpose({ open });
       <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
       <div v-if="preview" class="source-proof">
         <h3>{{ preview.candidateTitle||'当前任务尚不能确认来源' }}</h3>
-        <dl class="acquire-facts">
-          <div>
-            <dt>原 InfoHash</dt>
-            <dd>{{ preview.originalHash||'尚无已确认的种子身份' }}</dd>
-          </div>
-          <div>
-            <dt>新来源 InfoHash</dt>
-            <dd>{{ preview.candidateHash||'尚未取得' }}</dd>
-          </div>
-          <div>
-            <dt>下载器观察</dt>
-            <dd>{{ preview.downloaderObservation==='present'?'已有相同任务，先核对，不重复添加':preview.downloaderObservation==='absent'?'当前未找到此任务':'尚未确认' }}</dd>
-          </div>
-        </dl>
+        <DescriptionGrid :items="[
+         {key:'original',label:'原 InfoHash',value:preview.originalHash},
+         {key:'candidate',label:'新来源 InfoHash',value:preview.candidateHash},
+         {key:'observation',label:'下载器观察',value:preview.downloaderObservation==='present'?'已有相同任务，先核对，不重复添加':preview.downloaderObservation==='absent'?'当前未找到此任务':'尚未确认'}
+        ]"/>
         <p v-for="reason in preview.reasons||[]" :key="reason">{{ reason }}</p>
         <label v-if="preview.eligible" class="acquire-consent">
           <input v-model="confirmed" type="checkbox" :disabled="applying||!!intent"/>

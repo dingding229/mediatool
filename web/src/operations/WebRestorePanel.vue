@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import ExpandableSection from '../ui/ExpandableSection.vue';
+import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
+
 import { View, Refresh } from '@element-plus/icons-vue';
 import { useRefresh } from '../composables/useRefresh';
 import {pendingRestore,rememberRestore,clearRestore} from '../workflows/restore-session';
@@ -10,7 +13,7 @@ import {formatBytes} from './model';
 import ResourceState from '../workflows/ResourceState.vue';
 import ConfirmAction from '../ui/ConfirmAction.vue';
 import DetailDrawer from '../ui/DetailDrawer.vue';
-const props=defineProps<{backups:any[];backupError?:unknown;backupsLoading?:boolean}>();
+const props=defineProps<{backups:any[];backupError?:unknown;backupsLoading?:boolean;currentSchema?:number}>();
 const records=ref<any[]>([]),loading=ref(true),error=ref<unknown>(),preview=ref<any>(),previewOpen=ref(false),previewLoading=ref(false),previewError=ref<unknown>(),writeError=ref<unknown>(),confirm=ref(false),busy=ref(false),notice=ref('');
 let alive=true,epoch=0;
 async function load(){const version=++epoch;loading.value=epoch===1;error.value=undefined;try{const out=await request<any[]>('/ops/restores');if(alive&&version===epoch){records.value=out;const receipt=out.find(r=>r.id===pendingRestore());if(receipt&&['completed','rolled_back','failed'].includes(receipt.state)){notice.value='已读取恢复结果：'+label(receipt.state)+'；'+receipt.message;clearRestore(receipt.id)}}}catch(e){if(alive&&version===epoch)error.value=e}finally{if(alive&&version===epoch)loading.value=false}}
@@ -34,8 +37,8 @@ usePageRefresh(()=>load());
  <p class="ops-web-restore-scope">包含数据库、清单和登记的受管输出</p>
  <div v-if="!props.backupError&&props.backups.some(b=>b.state==='ready')" class="mt-list-columns ops-web-restore-columns" aria-hidden="true"><span>备份 / 来源 / 时间</span><span>SHA256 / 完整性</span><span>操作</span></div>
  <article v-for="b in (props.backupError?[]:props.backups).filter(b=>b.state==='ready')" :key="b.id" class="mt-list-row ops-web-backup-row">
-  <div class="ops-web-backup-name"><h3>{{b.id}}</h3><p>来源 {{b.origin}} · {{date(b.createdAt)}}</p><p>数据结构 {{b.manifest?.schema??'—'}} · {{formatBytes(b.bytes)}}</p></div>
-  <div class="ops-web-restore-meta"><p class="ops-web-restore-digest">SHA256 {{b.digest}}</p><p>完整性：{{records.some(r=>r.backupId===b.id&&r.digest===b.digest)?'上次预览校验通过；再次执行前会重检':'尚未校验，请先预览'}}</p></div>
+  <div class="ops-web-backup-name"><h3>{{date(b.createdAt)}}</h3><p>{{b.origin==='pre-restore'?'恢复前自动备份':b.origin?.startsWith('cron:')?'定时备份':'手动备份'}} · {{formatBytes(b.bytes)}}</p><p v-if="currentSchema&&b.manifest?.schema&&b.manifest.schema!==currentSchema">{{b.manifest.schema<currentSchema?'备份版本较旧':'备份版本较新'}}（结构 {{b.manifest.schema}}，当前 {{currentSchema}}）</p></div>
+  <div class="ops-web-restore-meta"><p>完整性：{{records.some(r=>r.backupId===b.id&&r.digest===b.digest)?'已校验':'未校验'}}</p><ExpandableSection title="校验信息"><p>SHA256 <MiddleEllipsis :text="b.digest"/></p><p>备份编号 <MiddleEllipsis :text="b.id"/></p></ExpandableSection></div>
   <div class="media-actions mt-list-actions"><el-button size="small" :aria-label="b.origin==='pre-restore'?'预览回滚到恢复前':'预览网页恢复'" :disabled="busy||previewLoading||!!props.backupError||props.backupsLoading" @click="inspect(b.id)"><el-icon class="mt-list-action-icon"><Refresh v-if="b.origin==='pre-restore'"/><View v-else/></el-icon><span class="mt-list-action-text">{{b.origin==='pre-restore'?'预览回滚到恢复前':'预览网页恢复'}}</span></el-button></div>
  </article>
  <ResourceState :empty="!props.backupsLoading&&!props.backupError&&!props.backups.some(b=>b.state==='ready')" empty-title="暂无可恢复备份"/>

@@ -106,6 +106,7 @@ ownRefresh.register(load,()=>true);
    <p v-if="row.reason">{{reasonName(row.reason)}}</p>
    <p v-if="unavailable">此插件当前不可用，已有配置和数据仍保留。</p>
    <el-button v-if="row.reason==='permission_review_required'" :disabled="!!op.pending" @click="review">确认访问范围变化</el-button>
+   <p v-if="row.state!=='running'" class="plugin-paused-note">插件停用时不读取概览，不会为显示此区块启动插件。</p>
    <div class="media-actions">
     <RouterLink class="el-button" :to="{path:'/ops',query:{tab:'logs',module:'plugins',instance:id}}">查看实例日志</RouterLink>
     <RouterLink v-for="key in pages" v-show="row.state==='running'" :key="key" :to="'/plugins/'+encodeURIComponent(id)+'/pages/'+encodeURIComponent(key)">打开插件应用</RouterLink>

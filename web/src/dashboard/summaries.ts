@@ -1,4 +1,4 @@
-import { failureText, jobNames } from '../presentation/failures';
+import { failureText, failureReasons, jobNames } from '../presentation/failures';
 import {jobObject} from '../presentation/job-object';
 import type { InboxItem, Slot } from './model';
 const list = (data: any): any[] => Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
@@ -20,6 +20,12 @@ export function failedJobTarget(row: any):Pick<InboxItem,'path'|'query'> {
   const id = p.accountId || p.integrationId;
   return row.kind?.startsWith('site.') && typeof id === 'string' && id ? { path: '/sites', query: { tab: 'accounts', accountId: id } } : { path: '/ops', query: { tab: 'jobs', q: row.id } };
 }
+export function attentionFailure(raw?:string){
+ if(!raw)return undefined;
+ const specific=failureReasons.slice(1).find(r=>r.match.test(raw));
+ if(specific)return specific.text;
+ return failureReasons[0]!.match.test(raw)?undefined:failureText(raw);
+}
 export function failedJobs(slots: Record<string, Slot>): InboxItem[] {
   const groups = new Map<string, InboxItem>();
   for (const r of list(slots.jobs?.data)) {
@@ -31,7 +37,7 @@ export function failedJobs(slots: Record<string, Slot>): InboxItem[] {
       old.count = count;
       continue;
     }
-    groups.set(key, { id: r.id, title: (jobNames[r.kind] || r.kind || '后台任务') + '失败' + (title ? ' · ' + title : ''), note: failureText(r.lastError), count, latestAt,
+    groups.set(key, { id: r.id, title: (jobNames[r.kind] || r.kind || '后台任务') + '失败' + (title ? ' · ' + title : ''), note: attentionFailure(r.lastError), count, latestAt,
       ...failedJobTarget(r) });
   }
   return [...groups.values()].sort((a, b) => time({ updatedAt: b.latestAt }) - time({ updatedAt: a.latestAt }));

@@ -1,3 +1,4 @@
+// I42b: approved display/projection snapshots; destructive functions retain independent I36 hashes.
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
@@ -7,7 +8,7 @@ import postcss from 'postcss';
 const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it.each([
- ['operations/PolicyPanel.vue','a38f122b7e1c996ba52cb4b5a98429ca77c545a9a0985a1be8015df4b2aff445'],
+ ['operations/PolicyPanel.vue','c16ce7665bc03fdf5af04deb94e2ef7e7eeb7b115f84a0a89d9af3bfba5f88a9'],
  ['operations/LogsPanel.vue','38fe7895e48a8bf4a6c3946e0322682fbf7f6d00824af3bf4dba2db800b9b1f4'],
 ])('I19-4 leaves requests, settings revisions and Debug logic byte-identical in %s',(file,hash)=>expect(sha(read(file).match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!)).toBe(hash));
 it.each([
@@ -22,7 +23,7 @@ it('I19-4 does not touch the log console, filters, exports or cleanup confirmati
 });
 it('I19-4 retains native numeric validation and all original operation guards',()=>{
  const policy=read('operations/PolicyPanel.vue'),logs=read('operations/LogsPanel.vue');
- for(const token of ['purpose="backup"',':disabled="op.busy||!!op.pending"','@valid="cronValid=$event"',':min="field.min"',':max="field.max"',':step="field.step||1" required','!!op.pending||!!latest||!!read.error||!cronValid','@click="reloadPolicy"'])expect(policy).toContain(token);
+ for(const token of ['purpose="backup"',':disabled="!form.backupEnabled||op.busy||!!op.pending"','@valid="cronValid=$event"',':min="field.min"',':max="field.max"',':step="field.step||1" required','!!op.pending||!!latest||!!read.error||!cronValid','@click="reloadPolicy"'])expect(policy).toContain(token);
  for(const token of [':min="1" :max="730"',':min="1" :max="90"','@change="durationTouched=true"',':disabled="policy.conflict.value"','mt-list-row ops-log-file-row','bytes(file.size)','formatLogTime(file.modified)','不采集登录请求体。'])expect(logs).toContain(token);
  const files=logs.split('aria-label="日志文件列表"')[1]!.split('</section>')[0]!;expect(files).not.toMatch(/@click|el-button|<a |RouterLink/);
 });

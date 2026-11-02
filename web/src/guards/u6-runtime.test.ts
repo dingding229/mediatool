@@ -1,3 +1,4 @@
+// I42b: approved display/projection snapshots; destructive functions retain independent I36 hashes.
 // I42 approves readonly Text label/value fallback, adaptive loaded surface height and catalog metadata; all writable controls/transport/trust logic remain unchanged.
 // I41b: PluginMetadata only adopts the shared display delimiter; plugin runtime/security helpers remain byte-pinned.
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
@@ -17,10 +18,10 @@ import {createHash} from 'node:crypto'
 // B4 renames the read-state callback from fetch to read; transport remains unchanged.
 // B3 explicitly adds fixed access guidance; arbitrary provider text remains excluded.
 const baseline={
-  "PluginMetadata.vue": "75665c7e64a98d5ed8a7e25adb65e112261cfef9f86451905affa3a22929d986",
+  "PluginMetadata.vue": "55c95486af7972ded0c37d75aaf15e06779efb3de920f696a080a0004e24feb3",
   "operation-error.ts": "e9420bd2615fa8326d33a0b558fd8a90c538f788fb45b648de2e34665464d6dd",
-  "PluginJson.ts": "2949892a3d8b5c1ab72f28045a29528b56f785595dfd4f8c6748b9c317916505",
-  "PluginSurface.vue": "2521d3ee21be4313ce9334581904e10db34dcda6ddf32526b0a9c3794708e688",
+  "PluginJson.ts": "1c63b9d534580211a9817959ad7748cddd88764b8a0fd8eb453d2e8ef394c4cc",
+  "PluginSurface.vue": "f68216cf2b855d1c0a01116b5ad8810d3c6a5232b8cacd80c7b009db256a3cc7",
   "ui-runtime.ts": "3a5fc7b65458ca877eacdc862f27251c2ba7bc61a99830c12b1f8f4d68b1adb2",
   "install-intent.ts": "fa056b05a6532fa495fa8cad9679d447c2738ca4a163ad73e12badf8f17facc2",
   "ReadFeedback.vue": "d0126ad4884bc3e63bbbf8087949c7c45e557efc4cc7398838e8abc41f384d13",

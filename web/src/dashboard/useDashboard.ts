@@ -2,14 +2,15 @@ import {useRefresh} from '../composables/useRefresh';
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { request } from '../api/client';
 import { guideSteps, inboxGroups, type Slot } from './model';
-import { readGuideHidden, writeGuideHidden } from '../workflows/readiness';
-const endpoints: Record<string, string> = { readiness: '/readiness', runtime: '/system/runtime', recent: '/search', jobs: '/jobs/browse?state=failed&page=1&pageSize=100', candidates: '/library/candidates?state=needs_confirmation&page=1&pageSize=5', transfers: '/transfers', manual: '/downloads/manual', batches: '/library/activity?state=needs_reconcile&page=1&pageSize=5', alerts: '/ops', plugins: '/plugins?page=1&pageSize=200', accounts: '/integrations', classification: '/classification' };
+import { readGuideHidden, writeGuideHidden, guidePreference } from '../workflows/readiness';
+const endpoints: Record<string, string> = { readiness: '/readiness', runtime: '/system/runtime', recent: '/search', jobs: '/jobs/browse?state=failed&unresolvedOnly=true&page=1&pageSize=100', candidates: '/library/candidates?state=needs_confirmation&page=1&pageSize=5', transfers: '/transfers', manual: '/downloads/manual', batches: '/library/activity?state=needs_reconcile&page=1&pageSize=5', alerts: '/ops', plugins: '/plugins?page=1&pageSize=200', accounts: '/integrations', classification: '/classification' };
+function readRequestedGuide(){try{return localStorage.getItem(guidePreference)==='0'}catch{return false}}
 export function useDashboard(options:{overview?:boolean}={}) {
   const activeKeys=options.overview===true?['runtime','recent','readiness']:Object.keys(endpoints);
   const slots = reactive<Record<string, Slot>>(Object.fromEntries(Object.keys(endpoints).map(k => [k, { data: null, loading: true, error: null }])));
-  const hidden = ref(readGuideHidden());
+  const hidden = ref(readGuideHidden()), requested=ref(readRequestedGuide());
   const groups = computed(() => inboxGroups(slots)), steps = computed(() => guideSteps(slots.readiness?.data, slots.accounts?.data, slots.classification?.data));
-  const complete = computed(() => steps.value.every(s => s.done)), guideVisible = computed(() => !complete.value || !hidden.value);
+  const complete = computed(() => steps.value.every(s => s.done)), guideVisible = computed(() => !complete.value || requested.value);
   let disposed = false;
   async function load(key: string) {
     const slot = slots[key]!;
@@ -37,11 +38,13 @@ export function useDashboard(options:{overview?:boolean}={}) {
   }
   function hideGuide() {
     if (complete.value) {
+      requested.value=false;
       hidden.value = true;
       writeGuideHidden(true);
     }
   }
   function reopen() {
+    requested.value=true;
     hidden.value = false;
     writeGuideHidden(false);
   }

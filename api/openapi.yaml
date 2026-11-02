@@ -20555,6 +20555,16 @@
             "format": "int64",
             "type": "integer"
           },
+          "conditions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/modules_cacheview_TMDBConditions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "count": {
             "format": "int64",
             "type": "integer"
@@ -20620,6 +20630,32 @@
         ],
         "type": "object",
         "x-go-type": "media-tool/internal/modules/cacheview.Entry"
+      },
+      "modules_cacheview_TMDBConditions": {
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "type": "string"
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "tmdbId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "year": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "type": "object",
+        "x-go-type": "media-tool/internal/modules/cacheview.TMDBConditions"
       },
       "modules_catalog_Category": {
         "additionalProperties": false,
@@ -61499,6 +61535,14 @@
         "parameters": [
           {
             "in": "query",
+            "name": "hideRoutineSuccess",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "kind",
             "required": false,
             "schema": {
@@ -61544,6 +61588,14 @@
           {
             "in": "query",
             "name": "state",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unresolvedOnly",
             "required": false,
             "schema": {
               "type": "string"
@@ -61590,6 +61642,14 @@
         "parameters": [
           {
             "in": "query",
+            "name": "hideRoutineSuccess",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "kind",
             "required": false,
             "schema": {
@@ -61635,6 +61695,14 @@
           {
             "in": "query",
             "name": "state",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unresolvedOnly",
             "required": false,
             "schema": {
               "type": "string"

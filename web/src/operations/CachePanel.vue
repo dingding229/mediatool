@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {tmdbConditionText} from './cache-conditions';
 import {joinMetadata} from '../presentation/metadata';
 
 import { View, Delete, Search, Picture } from '@element-plus/icons-vue';
@@ -83,12 +84,14 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
     <section class="media-surface ops-cache-panel" :class="{'is-search':kind==='search'}">
       <header class="media-section-heading">
         <h2>缓存管理</h2>
-        <el-button :disabled="!!op.pending||!!data.error" @click="ask()">清理此类缓存</el-button>
+
       </header>
-      <nav class="media-actions mt-segments" aria-label="缓存范围">
+      <div class="ops-cache-toolbar"><nav class="media-actions mt-segments" aria-label="缓存范围">
         <el-button :aria-pressed="kind==='tmdb'" @click="setKind('tmdb')">TMDB</el-button>
         <el-button :aria-pressed="kind==='search'" @click="setKind('search')">搜索缓存</el-button>
       </nav>
+        <el-button class="ops-cache-clear" :disabled="!!op.pending||!!data.error" @click="ask()">{{kind==='tmdb'?'清理全部 TMDB 缓存':'清理全部搜索缓存'}}</el-button>
+      </div>
       <p class="ops-cache-note">只管理缓存复用；清理搜索缓存会隐藏记录，底层结果、下载证明和媒体保留。</p>
       <div class="ops-content-stage ops-cache-stage" :aria-busy="data.loading||data.refreshing">
       <ResourceState :stale="!!data.data" :loading="(!data.loaded||!data.data)&&!data.error" :error="data.error" :empty="!!data.data&&!data.data.items?.length" @reload="load"/>
@@ -103,7 +106,7 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
         <div class="u6-cache-content">
           <img v-if="tmdbImage(row.posterPath)&&!posterErrors.has(row.id)" :src="tmdbImage(row.posterPath)" :alt="row.query+'海报'" loading="lazy" @error="posterErrors.add(row.id)"/>
           <span v-else class="ops-cache-poster-placeholder" aria-hidden="true"><el-icon><Picture/></el-icon></span>
-          <h3>{{ row.query||'媒体查询' }}</h3>
+          <div><h3>{{ row.query||'媒体查询' }}</h3><p v-if="kind==='tmdb'" class="ops-cache-conditions">{{tmdbConditionText(row.conditions)}}</p></div>
         </div>
         <div class="ops-cache-meta">
           <p>{{joinMetadata([joinMetadata([(row.count??'—')," 个结果"], ''),(cacheTime(kind,row,(now-loadedAt)/1000))])}}</p>
@@ -134,3 +137,5 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
     </DetailDrawer>
   </div>
 </template>
+
+<style scoped>.ops-cache-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.ops-cache-toolbar>nav{margin:0}.ops-cache-clear{margin-left:auto!important}.ops-cache-conditions{font-size:12px;color:var(--mt-text-muted);overflow-wrap:anywhere}.u6-cache-content>div{min-width:0}</style>

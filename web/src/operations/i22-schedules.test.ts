@@ -13,8 +13,7 @@ const fragment=(file:string,marker:string)=>{
 };
 const cases=[
  {name:'运行计划',template:fragment('RuntimeChecks.vue',"s.enabled?'下次 '"),bindings:(enabled:boolean,next:string|null)=>({s:{enabled,nextRunAt:next},date})},
- {name:'备份页头',template:fragment('MaintenancePanel.vue','当前备份 {{'),bindings:(enabled:boolean,next:string|null)=>({data:{data:{totalBytes:1024,policy:{value:{backupEnabled:enabled},nextBackupAt:next}}},bytes:()=> '1 KiB',date})},
- {name:'备份策略',template:fragment('PolicyPanel.vue',"?'下次备份 '"),bindings:(enabled:boolean,next:string|null)=>({read:{data:{policy:{value:{backupEnabled:enabled},nextBackupAt:next}}},date})},
+
 ];
 const next='2026-10-26T03:00:00+08:00';
 for(const c of cases){
@@ -31,3 +30,7 @@ for(const c of cases){
   expect(await render(true,next)).not.toContain('已停用');
  });
 }
+
+it('backup heading explicitly distinguishes latest backup from automatic schedule',()=>{const s=readFileSync(new URL('MaintenancePanel.vue',import.meta.url),'utf8');expect(s).toContain('最近备份 {{date(latestBackup?.createdAt)}}');expect(s).toContain('自动备份：');expect(s).not.toContain('当前备份 {{')});
+
+it('backup next execution preview comes only from CronField, not duplicated persisted/draft status',()=>{const s=readFileSync(new URL('PolicyPanel.vue',import.meta.url),'utf8');expect(s).toContain('<CronField');expect(s).not.toContain('<p>{{ read.data?.policy.value.backupEnabled?')});

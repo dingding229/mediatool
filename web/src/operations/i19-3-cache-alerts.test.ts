@@ -1,3 +1,4 @@
+// I42b: approved display/projection snapshots; destructive functions retain independent I36 hashes.
 import {stripMetadataImport} from '../test/metadata-import';
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
@@ -9,20 +10,20 @@ import {cacheTime} from '../utils/cache-time';
 const read=(p:string)=>stripMetadataImport(readFileSync(new URL('../'+p,import.meta.url),'utf8'));
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it.each([
- ['CachePanel.vue',"import { View, Delete, Search, Picture } from '@element-plus/icons-vue';\n",'38d129f248f0dc1dcef500cf2170a052d6c7b17c38974c8d9b5e61847ead628a'],
- ['MaintenancePanel.vue',"import { Check } from '@element-plus/icons-vue';\n",'e89b4dd415f0c5e806223d8002798f1e0360ec334c9144860131a40a66b437fa'],
+ ['CachePanel.vue',"import { View, Delete, Search, Picture } from '@element-plus/icons-vue';\n",'f8ab03cc615948eec8a096d567cf4187a8c8b4155358fcb823b2bb819806e078'],
+ ['MaintenancePanel.vue',"import { Check } from '@element-plus/icons-vue';\n",'f356d30bc5f9c85dd62ce0bb00bfcdde0d6fea091bd02113dde46b5ec74fc5b6'],
 ])('I19-3 preserves all request/state/confirmation/paging code in %s',(file,icons,hash)=>{
  const script=read('operations/'+file).match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { Check, View, Refresh, Download, Lock, Unlock, Delete, Close } from '@element-plus/icons-vue';\n","import { Check } from '@element-plus/icons-vue';\n").replace(icons,'');expect(sha(script)).toBe(hash);
 });
 it('I19-3 keeps its alert section and all shared dangerous confirmation markup unchanged after approved D/F layout work',()=>{
  const template=read('operations/MaintenancePanel.vue');
  const a=template.indexOf("    <section v-else-if=\"section==='alerts'\""),b=template.indexOf('    <PolicyPanel v-else/>',a);
- expect(sha(template.slice(a,b))).toBe('7af82a954f955a3d1f558a6659ae1ff0a59f74b5c7dc0532f6455638655a7825');
- expect(sha(template.slice(template.indexOf('    <ConfirmAction v-model:visible="confirm"')))).toBe('8c90de9dec9a2ddb3ab1372386da727d9c03a282f0866a5ce535bfb794728588');
+ expect(sha(template.slice(a,b))).toBe('35940f54e1af106c6ef265ca45acd94ca1d60e01fc249e50b5f2355acecc5a66');
+ expect(sha(template.slice(template.indexOf('    <ConfirmAction v-model:visible="confirm"')))).toBe('b4f2072e1764e09a891dce2dddef7dcb831bf9768f2eb5388838809d2f81776e');
 });
 it('I19-3 keeps exact time semantics, including no expiry, elapsed TTL and historical results',()=>{
- expect(sha(read('utils/cache-time.ts'))).toBe('7765233cad54bf3968df481283684152b7c12db19be53a387247a418b378b628');
- expect(cacheTime('tmdb',{ttlSeconds:3600,state:'cached'},1800)).toBe('0.50 小时');expect(cacheTime('tmdb',{ttlSeconds:-1,state:'cached'})).toBe('无自动到期');
+ expect(sha(read('utils/cache-time.ts'))).toBe('838515e8ecd0db2c871ec4ee4927205d2fa1bec4f87e70df453aaa77af3c19da');
+ expect(cacheTime('tmdb',{ttlSeconds:3600,state:'cached'},1800)).toBe('剩余 0.50 小时');expect(cacheTime('tmdb',{ttlSeconds:-1,state:'cached'})).toBe('无自动到期');
  expect(cacheTime('search',{ttlSeconds:3600,state:'succeeded',reusable:false})).toBe('历史结果');expect(cacheTime('search',{ttlSeconds:60,state:'running',reusable:true})).toBe('查询中');
 });
 it('I19-3 reuses lists and pagination while keeping acknowledgement separate from recovery',()=>{

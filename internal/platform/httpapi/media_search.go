@@ -97,7 +97,7 @@ func (a *API) tmdbMediaSearch(w http.ResponseWriter, r *http.Request) {
 			items = filtered
 		}
 		if ttl > 0 && a.Deps.Redis != nil {
-			raw, _ := json.Marshal(map[string]any{"items": items, "query": q, "mediaType": kind, "year": year, "createdAt": time.Now().UTC()})
+			raw, _ := json.Marshal(map[string]any{"items": items, "query": q, "mediaType": kind, "year": year, "language": profile.String("language"), "createdAt": time.Now().UTC()})
 			if len(raw) <= 1<<20 {
 				bounded, stop := context.WithTimeout(ctx, 250*time.Millisecond)
 				a.Deps.Redis.Set(bounded, key, raw, ttl)

@@ -1,3 +1,4 @@
+import ExpandableSection from '../ui/ExpandableSection.vue'
 import CronInput from '../ui/CronInput.vue'
 import { defineComponent, h, watch, type PropType, type Component as VueComponent } from 'vue'
 import { ElInput,ElInputNumber,ElSwitch,ElCheckbox,ElSelect,ElOption,ElAlert,ElTag,ElButton,ElDivider } from 'element-plus'
@@ -35,9 +36,9 @@ export default defineComponent({name:'PluginJson',props:{nodes:{type:Array as Pr
   if(++count>256||depth>12)return h('p',{role:'status'},'插件界面超过安全上限')
   if(n.when&&(!safeKey(n.when.model)||JSON.stringify(props.model[n.when.model])!==JSON.stringify(n.when.equals)))return null
   const p=n.props??{},key=n.key??index,children=()=>n.children?.map((c,i)=>render(c,depth+1,i))??[]
-  if(n.component==='VDetails')return h('details',{key},[h('summary',text(p.label,120)||'更多设置'),...children()])
+  if(n.component==='VDetails')return h(ExpandableSection,{key,title:text(p.label,120)||'更多设置'},children)
   if(containers[n.component])return h(n.component==='VCardTitle'?'h3':'div',{key,class:containers[n.component]},children())
-  if(n.component==='Text'){const value=text(p.text??p.count)||(props.readonly?'—':'');const label=text(p.label,120);return label?h('div',{key,class:'plugin-json-value'},[h('span',{class:'plugin-value-label'},label),h('span',{class:'plugin-value-text'},value||'—')]):h('p',{key},value)}
+  if(n.component==='Text'){const value=(text(p.text??p.count)||(props.readonly?'—':'')).replace(/^前\s*(\d+)\s*项$/, '前 $1 项');const label=text(p.label,120);return label?h('div',{key,class:'plugin-json-value'},[h('span',{class:'plugin-value-label'},label),h('span',{class:'plugin-value-text'},value||'—')]):h('p',{key},value)}
   if(n.component==='VDivider')return h(ElDivider,{key})
   if(n.component==='VAlert')return h(ElAlert,{key,title:text(p.title??p.text),type:['success','info','warning','error'].includes(String(p.type))?p.type as 'info':'info',closable:false})
   if(n.component==='VChip')return h(ElTag,{key},()=>text(p.text))

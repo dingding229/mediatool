@@ -14,7 +14,7 @@ async function fixture(page:Page,enabled=false,ended=false){
   {id:'ops-backup',name:'系统备份',cron:'0 3 * * *',enabled,nextRunAt,link:'/ops?tab=maintenance'},
  ]}}}));
  await page.route('**/api/v1/ops',r=>r.fulfill({json:{data:{...opsSnapshot,alerts:[],schema:93,policy:{...opsSnapshot.policy,value:{...opsSnapshot.policy.value,backupEnabled:enabled},nextBackupAt:nextRunAt}}}}));
- await page.route('**/api/v1/scheduling/cron/preview',r=>fixtureFulfill(r,{}));
+ await page.route('**/api/v1/scheduling/cron/preview',r=>r.fulfill({json:{data:{timezone:'Asia/Shanghai',fieldCount:5,exhausted:ended,next:ended?[]:[next],minimumIntervalSeconds:3600}}}));
  return f;
 }
 for(const enabled of [false,true])test(`I22 schedules and backup summaries enabled=${enabled}`,async({page})=>{
@@ -29,11 +29,11 @@ for(const enabled of [false,true])test(`I22 schedules and backup summaries enabl
  else{await expect(backup).toContainText('已停用');await expect(backup).not.toContainText('下次');await expect(backup).not.toContainText('计划已结束');await expect(backup).not.toContainText('2026-10-26')}
  await page.goto('/ops?tab=maintenance');
  const header=page.locator('.ops-panel-header');
- if(enabled)await expect(header).toContainText('下次 2026-10-26');
+ if(enabled){await expect(header).toContainText('最近备份');await expect(header).toContainText('自动备份：已启用');await expect(header).not.toContainText('下次')}
  else{await expect(header).toContainText('已停用');await expect(header).not.toContainText('下次');await expect(header).not.toContainText('计划已结束')}
  await page.getByRole('navigation',{name:'备份与告警功能'}).getByRole('button',{name:'维护策略',exact:true}).click();
  const policy=page.locator('.ops-policy-panel');
- if(enabled)await expect(policy).toContainText('下次备份 2026-10-26');
+ if(enabled)await expect(policy.locator('.cron-field-feedback')).toContainText('下次执行时间：2026-10-26');
  else{await expect(policy).toContainText('已停用；关闭计划不删除已有备份');await expect(policy).not.toContainText('计划已结束')}
  expect(f.writes).toEqual([]);
 });
@@ -42,7 +42,7 @@ test('I22 enabled exhausted backup remains ended, not disabled',async({page})=>{
  await fixture(page,true,true);await page.goto('/ops?tab=attention');await page.getByText('运行计划与执行器详情',{exact:true}).click();
  const row=page.locator('.ops-schedule-row').filter({has:page.getByRole('heading',{name:'系统备份',exact:true})});
  await expect(row).toContainText('计划已结束');await expect(row).not.toContainText('已停用');
- await page.goto('/ops?tab=maintenance');await expect(page.locator('.ops-panel-header')).toContainText('计划已结束');
+ await page.goto('/ops?tab=maintenance');await expect(page.locator('.ops-panel-header')).toContainText('自动备份：已启用');await page.getByRole('button',{name:'维护策略',exact:true}).click();await expect(page.locator('.cron-field-feedback')).toContainText('计划已结束');
 });
 
 test('I22 local-only 1440 light attention screenshot',async({page})=>{

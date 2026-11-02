@@ -27,7 +27,7 @@ test('dashboard keeps configured STRM pending player verification and isolates o
  await expect(page.getByRole('article',{name:'待确认识别'})).toContainText('待识别影片')
 })
 test('completed setup can be hidden then reopened from settings with guarded local preference',async({page})=>{
- await page.goto('/ops?tab=attention');const guide=page.getByRole('region',{name:'首次使用引导'});await guide.getByRole('button',{name:'收起引导',exact:true}).click();await expect(guide).toHaveCount(0);await page.reload();await expect(guide).toHaveCount(0)
+ await page.goto('/ops?tab=attention');const guide=page.getByRole('region',{name:'首次使用引导'});await expect(guide).toHaveCount(0);await page.reload();await expect(guide).toHaveCount(0)
  await page.goto('/settings?tab=security');await page.getByRole('button',{name:'重新打开配置引导',exact:true}).click();await expect(guide).toBeVisible()
 })
 test('saved connection keys stay hidden by default and conflict keeps typed input until explicit revision confirmation',async({page})=>{

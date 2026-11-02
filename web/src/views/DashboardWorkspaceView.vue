@@ -49,7 +49,7 @@ usePageRefresh(refresh,props.attention?'attention':'*');
       <StateView v-else-if="!visibleGroups.length" compact state="empty" title="暂无待处理事项"/>
       <div v-if="visibleGroups.length" class="inbox-grid">
         <article v-for="group in visibleGroups" :key="group.id" :aria-label="group.title">
-          <h3>{{ group.title }}</h3>
+          <h3>{{ group.title }}</h3><small v-if="group.id==='jobs'&&group.items.some(i=>!i.note)">任务失败，请核对相关连接、业务页面及日志。</small>
           <p v-if="(group.id === 'uploads' ? ['transfers','manual'] : [group.id]).some(k=>slots[k]?.loading)" role="status">正在读取…</p>
           <template v-else>
             <StateView v-for="source in group.errors" :key="source" :state="stateFor(slots[source]?.error)" title="这一组部分数据暂不可用，数量未知。" :description="errorText(slots[source]?.error)" @retry="load(source)"/>
@@ -70,12 +70,12 @@ usePageRefresh(refresh,props.attention?'attention':'*');
       <header>
         <div>
           <h2>完成配置，开始自动跟进</h2>
-          <p>{{ steps.filter(s=>s.done).length }} / 4 项已完成。</p>
+          <p>{{ steps.filter(s=>s.done).length }} / {{steps.length}} 项已完成。</p>
         </div>
         <el-button v-if="complete" @click="hideGuide">收起引导</el-button>
       </header>
       <ol>
-        <li v-for="(step,index) in steps" :key="step.label">
+        <li v-for="(step,index) in steps" :key="step.label" :class="{'is-incomplete':!step.done}">
           <span>{{ step.done?'✓':index+1 }}</span>
           <div>
             <strong>{{ step.label }}</strong>
@@ -308,3 +308,5 @@ header>span,small,.setup-guide p,.dashboard-empty {
 }
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 </style>
+
+<style scoped>.setup-guide li.is-incomplete{border-left:3px solid var(--el-color-warning);padding-left:12px}.ops-attention-dashboard :deep(.readiness-card){display:flex;flex-direction:column}.ops-attention-dashboard :deep(.readiness-card .media-actions){margin-top:auto}</style>

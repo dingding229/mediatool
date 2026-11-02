@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DescriptionGrid from "../ui/DescriptionGrid.vue";
+import ExpandableSection from "../ui/ExpandableSection.vue";
 import { View, Setting } from '@element-plus/icons-vue';
 import { computed, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
@@ -44,7 +46,7 @@ defineExpose({load,create,health,op});
   </dl>
   <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
   <AsyncResultBanner v-if="op.phase" :status="op.phase" message="检查请求尚未核验完成，先读取原任务，不重复提交。" @refresh="load"/>
-  <details class="ops-runtime-details"><summary>运行计划与执行器详情</summary>
+  <ExpandableSection class="ops-runtime-details" title="运行计划与执行器详情">
    <div class="ops-runtime-lists">
     <section aria-label="执行器列表">
      <h3>执行器</h3>
@@ -77,10 +79,10 @@ defineExpose({load,create,health,op});
      <p v-if="health.loaded&&!health.data?.schedules?.length" class="ops-runtime-empty">暂无运行计划</p>
     </section>
    </div>
-  </details>
+  </ExpandableSection>
   <ConfirmAction v-model:visible="confirm" title="运行系统检查" description="创建一次新的系统检查任务？" impact-scope="只检查当前服务状态，不重放失败业务或修改媒体文件。" confirm-text="确认运行检查" :loading="op.busy" @confirm="create"/>
   <DetailDrawer v-model:visible="open" title="运行检查详情">
-   <template v-if="detail"><h3>{{queueLabel(detail.queue)}}</h3><p>{{detail.online?'在线':'离线'}}</p><p>最近在线 {{date(detail.lastSeenAt)}}</p></template>
+   <template v-if="detail"><DescriptionGrid :items="[{key:'queue',label:'队列',value:queueLabel(detail.queue)},{key:'online',label:'状态',value:detail.online?'在线':'离线'},{key:'time',label:'最近在线',value:date(detail.lastSeenAt)}]"/></template>
   </DetailDrawer>
  </section>
 </template>

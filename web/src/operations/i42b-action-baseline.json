@@ -1,0 +1,43 @@
+{
+  "operations/PolicyPanel.vue": {
+    "load": "156e9f3d6a238b014af2c2a98c83ac1dda548e632cd2460f9fc6d8a75ad482a3",
+    "reloadPolicy": "6ca29e31408130f71501d105a3253312f1d5c790cb46f993e0085761b536ae50",
+    "save": "71345dce96aafac05e817c162bb1a29ade40b1983e4588088dd75a3abaaa48fa"
+  },
+  "operations/CachePanel.vue": {
+    "setKind": "e4a925dada50c11ebbc6dd3c1c2d31afe20a81b9f496db6404aeb0f2126c9f02",
+    "load": "cfc95a02e9c928725c4e81ab2324da2602db9270705490b8d0a8215f37bede29",
+    "inspect": "103eed98d6ff7391b2e80ef1517fe119f489dc0244383946cc183d58f6bda7af",
+    "ask": "6691e8bcdc095c36c89f73bef7006683643d49239ba554fd5895b102c7ab224f",
+    "apply": "6f925131c84fa6fe94a0e514b120c4ddcf211471306ce7627070fd0dae545315"
+  },
+  "operations/MaintenancePanel.vue": {
+    "recordRows": "3d02807f87e14f26e1f1d11e3eff2b4398b4f95ced18520ec7a9baab60f51e5a",
+    "load": "44187383fc2fdc2914534b74f1923659733b1ee6ccf95939658ad46a0fad9e49",
+    "ask": "2a429e61935b71d4c279939ddcdb47589af963aaa4cbeeb033b531b6dd57b5b8",
+    "apply": "3455fd173e6a25283465ebad72d3b7a5b6acc842c322677e12965a9e36e01717",
+    "showPreview": "9d92001b61f6938404787116d4375f26ff9e125c1095264a31be3a8b62a18585",
+    "approve": "e3ba5e8f83fd5246000e45dfc25b69276768a945b543bce800507d73a652ca86",
+    "inspect": "c0d4727c3be9490e3535c4c408597611f4ced2051d4538ab585dfc464c950a0e"
+  },
+  "operations/WebRestorePanel.vue": {
+    "load": "a754e4ee953c09d3a4e2e57fcb8835d310bd93bf2f564a9e1a7b5786093f0b74",
+    "inspect": "585559a7ed06365e75141f31dced61e7fce37b839c2ae321b568c1b3b06c07a6",
+    "execute": "cfe5772cbefe6dd643c4fe120eb83d572f336f825278e0407c049cf7db984e5b",
+    "reconcile": "a6f6edc817cfc3d11608086bfb9f7959df7b6fb26c65388c827247bc0307129c"
+  },
+  "operations/RuntimeChecks.vue": {
+    "load": "31eacc8353ca1ea46405fab9341f7a464ed9a96c4e33ad6b04cea8bb1f768b17",
+    "create": "46c258a56b7ad48d232372e737404d3ec29db7bc9d1a2d144ef85d3652eca86d"
+  },
+  "plugins/PluginAutomation.vue": {
+    "load": "66cf8e964455688b36b43a4c54489823139669363ad33a94011869a266ae1624",
+    "retryDetail": "368bfc8ca8cf9d7a2702df214476facf76a85cfbf3ab1e22105e29c34c0a5389",
+    "open": "d934ffa0437cbcd3e83dab55dd513b480f59a96b010c611f7ec7fa68c5ca5a25",
+    "refreshRuns": "665bc4d9c24c4bb8d57cebcf26d61b3fc2054cd477289f5b9efcc8884bd4d7cb",
+    "move": "1956e1d5f3495e175822bb758454ef26c3e589068b26c2c450a3d9eb231965dc",
+    "historyMove": "b91f8c6267bb1ac7e9914981a130e60ee38ec9355d74e93ff6241696b8ba1a88",
+    "newWorkflow": "6745f152e6c82fdeaad5aacc5fc5e51492d0e796f447091567d2da209308fbdc",
+    "perform": "a93ced538096b5bf30e70be75222b1729529073ae56a36bb5970f20593fed044"
+  }
+}

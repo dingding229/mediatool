@@ -19,10 +19,22 @@ type Detail struct {
 type Filter struct {
 	State, Kind, Queue, Query string
 	Limit, Offset             int
+	HideRoutineSuccess        bool
+	UnresolvedOnly            bool
 }
 type Page struct {
 	Items []Detail `json:"items"`
 	Total int      `json:"total"`
+}
+
+// Object identity includes the field name, so unlike objects never recover each other.
+// Unknown payloads are deliberately job-local; only system.check is a singleton.
+func objectSQL(alias string) string {
+	out := "CASE"
+	for _, field := range []string{"accountId", "integrationId", "subscriptionId", "assetId", "downloadId", "transferId", "batchId", "fileId"} {
+		out += " WHEN jsonb_typeof(" + alias + ".payload->'" + field + "')='string' AND " + alias + ".payload->>'" + field + "'<>'' THEN '" + field + ":'||(" + alias + ".payload->>'" + field + "')"
+	}
+	return out + " ELSE CASE WHEN " + alias + ".kind='system.check' THEN 'system' ELSE " + alias + ".id::text END END"
 }
 
 const detailColumns = `id::text,kind,state,payload,attempts,max_attempts,coalesce(last_error,'') AS last_error,created_at,queue,updated_at,available_at,lease_until,locked_by,started_at`
@@ -32,10 +44,10 @@ func (r Repository) Browse(ctx context.Context, f Filter) (Page, error) {
 	if f.Limit < 1 || f.Limit > 100 || f.Offset < 0 || len(f.Query) > 200 || len(f.Kind) > 100 || len(f.Queue) > 100 {
 		return out, errors.New("invalid task filter")
 	}
-	where := ` WHERE ($1='' OR state=$1) AND ($2='' OR kind=$2) AND ($3='' OR queue=$3) AND ($4='' OR strpos(lower(id::text||' '||kind||' '||coalesce(last_error,'')),lower($4))>0)`
+	where := ` WHERE ($1='' OR state=$1) AND ($2='' OR kind=$2) AND ($3='' OR queue=$3) AND ($4='' OR strpos(lower(id::text||' '||kind||' '||coalesce(last_error,'')),lower($4))>0) AND (NOT $7 OR NOT(state='succeeded' AND kind IN ('site.metrics.refresh'))) AND (NOT $8 OR (state='failed' AND NOT EXISTS (SELECT 1 FROM jobs recovered WHERE recovered.state='succeeded' AND recovered.kind=jobs.kind AND ` + objectSQL("recovered") + `=` + objectSQL("jobs") + ` AND (recovered.updated_at,recovered.id)>(jobs.updated_at,jobs.id))))`
 	// A single statement gives the count and page the same MVCC snapshot, including empty pages.
 	var raw []byte
-	err := r.DB.QueryRow(ctx, `WITH filtered AS (SELECT `+detailColumns+` FROM jobs`+where+`), paged AS (SELECT * FROM filtered ORDER BY created_at DESC,id DESC LIMIT $5 OFFSET $6) SELECT (SELECT count(*) FROM filtered),coalesce((SELECT jsonb_agg(to_jsonb(paged)) FROM paged),'[]')`, f.State, f.Kind, f.Queue, f.Query, f.Limit, f.Offset).Scan(&out.Total, &raw)
+	err := r.DB.QueryRow(ctx, `WITH filtered AS (SELECT `+detailColumns+` FROM jobs`+where+`), paged AS (SELECT * FROM filtered ORDER BY created_at DESC,id DESC LIMIT $5 OFFSET $6) SELECT (SELECT count(*) FROM filtered),coalesce((SELECT jsonb_agg(to_jsonb(paged)) FROM paged),'[]')`, f.State, f.Kind, f.Queue, f.Query, f.Limit, f.Offset, f.HideRoutineSuccess, f.UnresolvedOnly).Scan(&out.Total, &raw)
 	if err != nil {
 		return out, err
 	}

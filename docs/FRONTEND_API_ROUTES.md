@@ -744,3 +744,7 @@ T13：`PUT /system/updates/settings` 同时要求 enabled 与 intervalHours（1�
 - 上述参数非法、为空或重复时返回 400；GET 对应的 HEAD 采用相同契约。
 
 I40b 只读展示字段：`GET /api/v1/library/scans` 与扫描详情返回可选 `startedAt`（当前覆盖轮次开始）和 `endedAt`（终态落定），不改变扫描控制；入库媒体季下的集列表按季集号聚合物理版本，`versionCount` 为当前集的物理版本数，容量每个物理文件累计一次，分页计数按集。schema 保持 94，无迁移。
+
+### I42b 运维只读投影
+- `GET /api/v1/jobs/browse`：新增可选 `hideRoutineSuccess=true`（只隐藏已完成的 `site.metrics.refresh`），`unresolvedOnly=true`（仅返回同类别、同对象后无更新成功的失败任务）；计数与分页使用同一数据库快照。默认不影响其他调用方。
+- `GET /api/v1/cache/tmdb` 及条目详情：新增只读 `conditions`（`operation`、`mediaType`、`year`、`language`、`tmdbId`），来自缓存信封；旧信封缺失的条件保持未知，不反解哈希、不猜测语言、不改变键和 TTL。

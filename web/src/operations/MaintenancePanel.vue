@@ -1,4 +1,12 @@
 <script setup lang="ts">
+import ExpandableSection from "../ui/ExpandableSection.vue";
+import MiddleEllipsis from "../ui/MiddleEllipsis.vue";
+import DescriptionGrid from '../ui/DescriptionGrid.vue';
+import {ElDropdown,ElDropdownMenu,ElDropdownItem} from 'element-plus';
+import 'element-plus/es/components/dropdown/style/css';
+import 'element-plus/es/components/dropdown-menu/style/css';
+import 'element-plus/es/components/dropdown-item/style/css';
+
 import { Check, View, Refresh, Download, Lock, Unlock, Delete, Close } from '@element-plus/icons-vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import {alertPresentation} from './alerts';
@@ -26,6 +34,9 @@ const recordSizes=reactive({backups:usePageSize(25,'backupsPage'),drills:usePage
 function recordRows(kind:keyof typeof recordPages){return (data.data?.[kind]||[]).slice((recordPages[kind]-1)*recordSizes[kind],recordPages[kind]*recordSizes[kind])}
 const data = reactive(useResource<any>(() => request('/ops'))), op = reactive(useOperation('maintenance')), section = ref(useRoute().query.restore?'recovery':'backups'), confirm = ref(false), action = ref<any>(null), detail = ref<any>(null), detailOpen = ref(false), restoreID = ref(''), rollbackID = ref(''), preview = ref<any>(null), previewLoading = ref(false), previewError = ref<unknown>(null), previewDialog = ref(false), approval = ref(false), copied = ref(''), commandCopy = ref('');
 const alertRows=computed(()=>recordRows('alerts').map((a:any)=>({...a,display:alertPresentation(a)})));
+const latestBackup=computed(()=>[...(data.data?.backups||[])].filter((b:any)=>b.state==='ready').sort((a:any,b:any)=>Date.parse(b.createdAt)-Date.parse(a.createdAt))[0]);
+const hasAlertActions=computed(()=>alertRows.value.some((a:any)=>a.state==='active'&&!a.acknowledged_at));
+const hasTriggeredAlerts=computed(()=>(data.data?.alerts||[]).some((a:any)=>a.state==='active'||a.acknowledged_at));
 async function load() {
   await data.load();
   if (preview.value && !data.error) {
@@ -97,7 +108,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <ResourceState :stale="data.loaded" :error="data.error" @reload="load"/>
       <div class="f5-maint-summary">
       <p v-if="data.data&&!data.data.toolsReady">备份工具暂不可用，无法创建备份或演练；已有记录仍可查看。</p>
-      <p v-if="data.data">当前备份 {{ bytes(data.data.totalBytes) }} · {{ data.data.policy?.value.backupEnabled?'下次 '+(data.data.policy?.nextBackupAt===null?'计划已结束':date(data.data.policy?.nextBackupAt)):'已停用' }}</p>
+      <p v-if="data.data">最近备份 {{date(latestBackup?.createdAt)}} · {{bytes(latestBackup?.bytes)}} · 自动备份：{{data.data.policy?.value.backupEnabled?'已启用':'已停用'}}</p>
       <div v-if="data.data?.mode.paused">
         <p>业务暂停：{{ data.data.mode.reason }}</p>
         <el-button :disabled="!!op.pending" @click="ask('resume')">核对后解除维护</el-button>
@@ -108,7 +119,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <nav class="media-actions mt-segments" aria-label="备份与告警功能">
         <el-button v-for="(name,key) in {backups:'备份管理',recovery:'恢复与回滚',alerts:'运维告警',policy:'维护策略'}" :key="key" :aria-pressed="section===key" @click="section=String(key)">{{ name }}</el-button>
       </nav>
-      <p v-if="section==='alerts'" class="ops-alert-warning" role="note">确认告警不等于问题已解决</p>
+      <p v-if="section==='alerts'&&hasTriggeredAlerts" class="ops-alert-warning" role="note">确认告警不等于问题已解决</p>
     </section>
     <div class="ops-content-stage" :aria-busy="data.loading||data.refreshing">
       <StateView v-if="!data.loaded&&!data.error" state="loading" title="正在读取备份与告警…"/>
@@ -121,13 +132,15 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <div v-if="data.data?.backups?.length" class="mt-list-columns ops-backup-columns" aria-hidden="true"><span>备份时间 / 状态</span><span>大小 / 固定 / 说明</span><span>操作</span></div>
       <article v-for="b in recordRows('backups')" :key="b.id" class="mt-list-row ops-backup-row">
         <div class="ops-backup-name"><h3>{{ date(b.createdAt) }}</h3><p>{{ stateLabel(b.state) }}</p></div>
-        <div class="ops-record-meta"><p>{{ bytes(b.bytes) }} · {{ b.pinned?'已固定':'未固定' }}</p><p>{{ b.message||'—' }}</p></div>
+        <div class="ops-record-meta"><p>{{ bytes(b.bytes) }} · {{ b.pinned?'已固定':'未固定' }}</p><p>{{ b.message?.replace(/未连接业务\s*Worker/gi,'后台执行服务尚未就绪')||'—' }}</p></div>
         <div class="media-actions mt-list-actions">
-          <el-button size="small" aria-label="备份详情" @click="inspect(b)"><el-icon class="mt-list-action-icon"><View/></el-icon><span class="mt-list-action-text">备份详情</span></el-button>
-          <el-button size="small" aria-label="恢复演练" v-if="b.state==='ready'" :disabled="!!op.pending||!!data.error||data.loading||!data.data?.toolsReady" @click="ask('drill',b)"><el-icon class="mt-list-action-icon"><Refresh/></el-icon><span class="mt-list-action-text">恢复演练</span></el-button>
-          <a class="mt-link-button ops-maint-link" aria-label="下载备份" v-if="b.state==='ready'" :href="`/api/v1/ops/backups/${b.id}/download`"><el-icon class="mt-list-action-icon"><Download/></el-icon><span class="mt-list-action-text">下载备份</span></a>
-          <el-button size="small" :aria-label="b.pinned?'取消固定':'固定备份'" v-if="canPinBackup(b.state)" :disabled="!!op.pending" @click="ask('pin',b)"><el-icon class="mt-list-action-icon"><Unlock v-if="b.pinned"/><Lock v-else/></el-icon><span class="mt-list-action-text">{{ b.pinned?'取消固定':'固定备份' }}</span></el-button>
-          <el-button size="small" aria-label="删除备份" v-if="canDeleteBackup(b.state)" :disabled="!!op.pending||b.pinned" @click="ask('delete',b)"><el-icon class="mt-list-action-icon"><Delete/></el-icon><span class="mt-list-action-text">删除备份</span></el-button>
+          <a class="mt-link-button ops-maint-link" aria-label="下载备份" v-if="b.state==='ready'" :href="`/api/v1/ops/backups/${b.id}/download`"><el-icon><Download/></el-icon>下载</a>
+          <ElDropdown trigger="click"><el-button size="small" aria-label="更多备份操作">更多</el-button><template #dropdown><ElDropdownMenu>
+           <ElDropdownItem @click="inspect(b)">备份详情</ElDropdownItem>
+           <ElDropdownItem v-if="b.state==='ready'" :disabled="!!op.pending||!!data.error||data.loading||!data.data?.toolsReady" @click="ask('drill',b)">恢复演练</ElDropdownItem>
+           <ElDropdownItem v-if="canPinBackup(b.state)" :disabled="!!op.pending" @click="ask('pin',b)">{{b.pinned?'取消固定':'固定备份'}}</ElDropdownItem>
+           <ElDropdownItem v-if="canDeleteBackup(b.state)" divided class="ops-delete-item" :disabled="!!op.pending||b.pinned" @click="ask('delete',b)">删除备份</ElDropdownItem>
+          </ElDropdownMenu></template></ElDropdown>
         </div>
       </article>
 
@@ -139,7 +152,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
       <div v-if="data.data?.drills?.length" class="mt-list-columns ops-drill-columns" aria-hidden="true"><span>状态 / 时间</span><span>说明</span><span>操作</span></div>
       <article v-for="d in recordRows('drills')" :key="d.id" class="mt-list-row ops-drill-row">
         <div><h3>{{ stateLabel(d.state) }}</h3><p>{{ date(d.createdAt) }}</p></div>
-        <p class="ops-record-meta">{{ d.message||'—' }}</p>
+        <p class="ops-record-meta">{{ d.message?.replace(/未连接业务\s*Worker/gi,'后台执行服务尚未就绪')||'—' }}</p>
         <div class="media-actions mt-list-actions">
           <el-button size="small" aria-label="演练详情" @click="inspect(d)"><el-icon class="mt-list-action-icon"><View/></el-icon><span class="mt-list-action-text">演练详情</span></el-button>
           <el-button size="small" aria-label="清理临时库" v-if="['failed','interrupted'].includes(d.state)" :disabled="!!op.pending" @click="ask('cleanup',d)"><el-icon class="mt-list-action-icon"><Delete/></el-icon><span class="mt-list-action-text">清理临时库</span></el-button>
@@ -150,7 +163,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     </section>
     <section v-else-if="section==='recovery'" class="media-surface ops-recovery-panel">
       <h2>受控恢复与回滚</h2>
-      <WebRestorePanel :backups="data.data?.backups||[]" :backup-error="data.error" :backups-loading="data.loading"/>
+      <WebRestorePanel :current-schema="data.data?.schema" :backups="data.data?.backups||[]" :backup-error="data.error" :backups-loading="data.loading"/>
       <section class="ops-cli-maintenance" aria-label="命令行维护与维护单">
       <h3 class="ops-recovery-subtitle">命令行维护</h3>
       <p>以下保留原命令行审批流程；网页恢复请使用上方的预览与确认。</p>
@@ -191,12 +204,12 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     </section>
     <section v-else-if="section==='alerts'" class="media-surface ops-alerts-panel">
       <header class="media-section-heading"><h3>阈值告警</h3><RouterLink to="/connections?tab=notifications">查看通知投递记录</RouterLink></header>
-      <div v-if="data.data?.alerts?.length" class="mt-list-columns ops-alert-columns" aria-hidden="true"><span>告警 / 状态</span><span>当前值</span><span>连续次数 / 最近发生</span><span>操作</span></div>
-      <article v-for="a in alertRows" :key="a.code" class="mt-list-row ops-alert-row">
+      <div v-if="data.data?.alerts?.length" class="mt-list-columns ops-alert-columns" :class="{'no-actions':!hasAlertActions}" aria-hidden="true"><span>告警 / 状态</span><span>当前值</span><span>连续次数 / 最近发生</span><span v-if="hasAlertActions">操作</span></div>
+      <article v-for="a in alertRows" :key="a.code" class="mt-list-row ops-alert-row" :class="{'no-actions':!hasAlertActions}">
         <div class="ops-alert-name"><h3>{{ a.display.name }}</h3><StatusBadge :state="a.display.badgeState" :label="a.display.badgeLabel"/><p v-if="a.display.description">{{ a.display.description }}</p></div>
         <div class="ops-alert-value"><p><span class="ops-mobile-label">当前 </span>{{ a.display.value }}</p><small v-if="a.display.threshold" class="ops-alert-threshold">{{ a.display.threshold }}</small></div>
-        <div class="ops-alert-time"><p>连续 {{ a.hits??'—' }} 次</p><p>{{ date(a.last_seen_at) }}</p></div>
-        <div class="media-actions mt-list-actions">
+        <div class="ops-alert-time"><p>连续 {{ a.hits??'—' }} 次</p><p>{{a.hits>0?date(a.last_seen_at):'—'}}</p></div>
+        <div v-if="hasAlertActions" class="media-actions mt-list-actions">
           <el-button size="small" aria-label="确认告警" v-if="a.state==='active'&&!a.acknowledged_at" :disabled="!!op.pending" @click="ask('ack',a)"><el-icon class="mt-list-action-icon"><Check/></el-icon><span class="mt-list-action-text">确认告警</span></el-button>
           <span v-else-if="a.acknowledged_at">已确认</span>
         </div>
@@ -223,11 +236,15 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     <ConfirmAction v-model:visible="approval" title="确认维护审批" description="确认预览范围后，批准管理员在服务器执行受控恢复或回滚。" :impact-scope="preview?.request.kind==='restore'?'审批不会立即执行；执行时走app内共享恢复器，成功后恢复调度，旧任务仍需核对。':'审批不会立即执行；镜像回滚执行后必须再核验，核验通过也不自动解除维护。'" :confirm-phrase="preview?.confirmText" confirm-text="审批维护单（不立即执行）" :loading="op.busy" class="media-dialog" @confirm="approve"/>
     <DetailDrawer v-model:visible="detailOpen" title="维护详情" size="large" class="media-detail">
       <template v-if="detail">
-        <p>{{stateLabel((detail.request||detail).state)}} · {{(detail.request||detail).message||'—'}}</p>
-        <p v-if="detail.createdAt">创建时间 {{date(detail.createdAt)}}</p>
-        <p v-if="detail.bytes!=null">备份大小 {{bytes(detail.bytes)}} · {{detail.pinned?'已固定':'未固定'}}</p>
-        <p v-if="detail.request?.expiresAt||detail.expiresAt">有效至 {{date(detail.request?.expiresAt||detail.expiresAt)}}</p>
-        <p v-if="detail.request?.digest||detail.digest" class="u6-wrap">核对摘要 {{detail.request?.digest||detail.digest}}</p>
+        <DescriptionGrid :items="[
+         {key:'state',label:'状态',value:stateLabel((detail.request||detail).state)},
+         {key:'message',label:'说明',value:(detail.request||detail).message?.replace(/未连接业务\s*Worker/gi,'后台执行服务尚未就绪')},
+         {key:'created',label:'创建时间',value:date(detail.createdAt)},
+         {key:'bytes',label:'备份大小',value:detail.bytes==null?null:bytes(detail.bytes)},
+         {key:'pinned',label:'保留方式',value:detail.bytes==null?null:detail.pinned?'已固定':'未固定'},
+         {key:'expires',label:'有效至',value:date(detail.request?.expiresAt||detail.expiresAt)}
+        ]"><template #state><StatusBadge :state="(detail.request||detail).state" :label="stateLabel((detail.request||detail).state)"/></template></DescriptionGrid>
+        <ExpandableSection v-if="detail.digest||detail.request?.digest" title="校验信息"><MiddleEllipsis :text="detail.request?.digest||detail.digest"/></ExpandableSection>
       </template>
       <label v-if="detail?.command" class="u5-field">
         服务器受控执行命令
@@ -239,3 +256,5 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     </DetailDrawer>
   </div>
 </template>
+
+<style>.ops-delete-item{color:var(--el-color-danger)!important}.t8-ops .ops-alert-columns.no-actions,.t8-ops .ops-alert-row.no-actions{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr)}@media(max-width:700px){.t8-ops .ops-alert-row.no-actions{grid-template-columns:minmax(0,1fr)}}</style>

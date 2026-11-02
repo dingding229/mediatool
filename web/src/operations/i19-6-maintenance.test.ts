@@ -1,3 +1,4 @@
+// I42b: approved display/projection snapshots; destructive functions retain independent I36 hashes.
 // I38: PreviewApprove step-content no longer reserves a fixed minimum height; confirmation bindings are unchanged.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
@@ -8,8 +9,8 @@ const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it('I19-6 leaves all maintenance request/paging/reconciliation functions byte-identical, apart from icon imports',()=>{
  const script=read('operations/MaintenancePanel.vue').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { Check, View, Refresh, Download, Lock, Unlock, Delete, Close } from '@element-plus/icons-vue';\n",'');
- expect(sha(script)).toBe('e89b4dd415f0c5e806223d8002798f1e0360ec334c9144860131a40a66b437fa');
- const source=read('operations/MaintenancePanel.vue');expect(sha(source.slice(source.indexOf('    <ConfirmAction v-model:visible="confirm"')))).toBe('8c90de9dec9a2ddb3ab1372386da727d9c03a282f0866a5ce535bfb794728588');
+ expect(sha(script)).toBe('f356d30bc5f9c85dd62ce0bb00bfcdde0d6fea091bd02113dde46b5ec74fc5b6');
+ const source=read('operations/MaintenancePanel.vue');expect(sha(source.slice(source.indexOf('    <ConfirmAction v-model:visible="confirm"')))).toBe('b4f2072e1764e09a891dce2dddef7dcb831bf9768f2eb5388838809d2f81776e');
 });
 it('I19-6 preserves every original action guard and all safety text, including recent-two backup protection',()=>{
  const source=read('operations/MaintenancePanel.vue');
@@ -21,7 +22,7 @@ it('I19-6 preserves every original action guard and all safety text, including r
   ["ask('cancel',r)","['preview','approved'].includes(r.state)",'!!op.pending'],["ask('verify',r)","r.state==='completed'&&!r.verifiedAt",'!!op.pending'],
   ["showPreview('restore',restoreID)",undefined,'!restoreID||!!op.pending'],["showPreview('rollback',rollbackID)",undefined,'!rollbackID||!!op.pending'],
  ];
- for(const [click,condition,disabled]of expected){const tags=[...source.matchAll(/<el-button\b([^>]*)>/g)].map(m=>m[1]!).filter(tag=>tag.includes(`@click="${click}"`));expect(tags,click).toHaveLength(1);expect(tags[0]).toContain(`:disabled="${disabled}"`);if(condition)expect(tags[0]).toContain(`v-if="${condition}"`)}
+ for(const [click,condition,disabled]of expected){const tags=[...source.matchAll(/<(?:el-button|ElDropdownItem)\b([^>]*)>/g)].map(m=>m[1]!).filter(tag=>tag.includes(`@click="${click}"`));expect(tags,click).toHaveLength(1);expect(tags[0]).toContain(`:disabled="${disabled}"`);if(condition)expect(tags[0]).toContain(`v-if="${condition}"`)}
  for(const text of ['保留最近两份成功备份，固定及维护单使用中的备份不参与自动清理；最多显示最近200条。','以下保留原命令行审批流程；网页恢复请使用上方的预览与确认。',":href=\"`/api/v1/ops/backups/${b.id}/download`\"",'label="系统备份分页"','label="恢复演练分页"','label="维护单分页"',"r.state==='approved'&&r.flow?.reason!=='approval_expired'"])expect(source).toContain(text);
  expect(source).toContain('<el-option value="" label="请选择"/>');expect(source.match(/<el-option value="" label="请选择"\/>/g)).toHaveLength(2);
 });

@@ -26,12 +26,12 @@ defineEmits<{
       <ConnectionHealth v-if="service.key!=='strm'&&value?.components?.[service.key]?.state!=='not_configured'" :state="value?.components?.[service.key]?.state||'unavailable'" :checked-at="value?.components?.[service.key]?.lastCheckedAt" :message="value?.components?.[service.key]?.message"/>
       <StatusBadge v-else :state="value?.components?.[service.key]?.state || 'unavailable'" :label="readinessLabel(value?.components?.[service.key])" />
       <p v-if="service.key==='strm'||value?.components?.[service.key]?.state==='not_configured'">{{ readinessReason(value?.components?.[service.key]) }}</p>
-      <el-button v-if="!overview&&service.key!=='strm'&&value?.components?.[service.key]?.state!=='disabled'&&tests?.[service.key]?.available" class="readiness-test" :loading="tests?.[service.key]?.busy" :disabled="tests?.[service.key]?.locked||tests?.[service.key]?.busy" @click="$emit('test',service.key)">立即检测</el-button>
+      <div class="readiness-actions"><el-button v-if="!overview&&service.key!=='strm'&&value?.components?.[service.key]?.state!=='disabled'&&tests?.[service.key]?.available" class="readiness-test" :loading="tests?.[service.key]?.busy" :disabled="tests?.[service.key]?.locked||tests?.[service.key]?.busy" @click="$emit('test',service.key)">立即检测</el-button>
       <RouterLink :to="{ path: '/connections', query: { tab: service.tab } }">
         {{value?.components?.[service.key]?.state==='ready'?'查看':'去处理'}}
         <span class="sr-only">{{ service.name }}</span>
         →
-      </RouterLink>
+      </RouterLink></div>
     </article>
   </div>
 </section>
@@ -109,3 +109,5 @@ defineEmits<{
 .readiness-test{min-height:44px;margin:0 8px 0 0}
 @media(max-width:600px){.readiness-test{grid-column:1;justify-self:start;grid-row:3}.readiness-cards article:has(.readiness-test) a{grid-row:3}}
 </style>
+
+<style scoped>@media(min-width:601px){.readiness-cards article{display:flex;flex-direction:column}.readiness-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:auto;min-height:44px}.readiness-actions .el-button{margin:0}}@media(max-width:600px){.readiness-actions{display:contents}}</style>
