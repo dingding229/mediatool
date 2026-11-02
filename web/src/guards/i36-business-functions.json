@@ -151,7 +151,7 @@
   },
   "sites/TemplatesPanel.vue": {
     "load": "853d712bbe5269e480a168fcf6e66020eb4f54c429976d4af0d568367249c956",
-    "selectAll": "6fb01921eacd6a905f1a6ce2590e4e75e64d1db1c521a401ce686a64b44cffae",
+    "selectAll": "f1bdc83958ae02a4013f37bd8d910764a834e4dfbd65bd23501ce4b82e88d419",
     "loadSelected": "1aa292dfff3f11ea254c16192573008cf46819c69a81640855f150a6443981d3"
   },
   "views/DownloadsWorkspaceView.vue": {

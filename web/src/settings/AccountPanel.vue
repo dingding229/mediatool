@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {usePageRefresh} from '../ui/page-refresh';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -57,7 +59,7 @@ usePageRefresh(session.load, 'security');
       <p v-else-if="session.loading.value" role="status">正在读取登录会话…</p>
       <template v-else-if="session.data.value">
         <p>管理员：{{session.data.value.account.username||'—'}}</p>
-        <p>{{session.data.value.authenticated?'已登录':'未登录'}} · {{session.data.value.account.mustChangePassword?'需要修改密码':'密码可正常使用'}}</p>
+        <p>{{joinMetadata([(session.data.value.authenticated?'已登录':'未登录'),(session.data.value.account.mustChangePassword?'需要修改密码':'密码可正常使用')])}}</p>
         <p>下方可查看并撤销指定的管理端登录；修改密码会撤销该账号所有会话。</p>
         <el-button :loading="busy" @click="logout">退出当前会话</el-button>
         <p v-if="error" role="alert">{{error}}</p>

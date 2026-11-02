@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {recentSearches} from '../dashboard/summaries';
 import {date} from '../workflows/readiness';
 import {usePageRefresh} from '../ui/page-refresh';
@@ -125,7 +127,7 @@ usePageRefresh(load, 'query');
         </p>
         <div class="acquire-history">
           <RouterLink v-for="item in recentSearches(history)" :key="item.id" class="recent-search-row" :to="`/search/results/${item.id}`">
-            <strong>{{item.keyword}}</strong><span>{{label(item.state)}} · {{item.total??'—'}} 个资源 · {{date(item.createdAt)}}</span><span aria-hidden="true">查看结果</span>
+            <strong>{{item.keyword}}</strong><span>{{joinMetadata([(label(item.state)),joinMetadata([(item.total??'—')," 个资源"], ''),(date(item.createdAt))])}}</span><span aria-hidden="true">查看结果</span>
           </RouterLink>
         </div>
         <p v-if="!loading&&!history.length&&!historyError">暂无搜索记录</p>

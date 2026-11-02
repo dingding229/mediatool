@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { computed } from 'vue';
 import { trendSegments } from './model';
 import {formatBytes} from '../utils/format-bytes';
@@ -19,7 +21,7 @@ function display(value?:number){if(props.stretch)return formatTrendValue(value,p
     <h3>{{ title }}<template v-if="unit||!stretch"> · {{ unit||'—' }}</template></h3>
     <p v-if="!values.length">暂无有效采样</p>
     <template v-else>
-      <p>最近 {{ display(values.at(-1)) }} · 最低 {{ display(Math.min(...values)) }} · 最高 {{ display(Math.max(...values)) }}</p>
+      <p>{{joinMetadata([joinMetadata(["最近 ",(display(values.at(-1)))], ''),joinMetadata(["最低 ",(display(Math.min(...values)))], ''),joinMetadata(["最高 ",(display(Math.max(...values)))], '')])}}</p>
       <div v-if="stretch" class="trend-frame">
         <div class="trend-y-axis" aria-label="纵轴刻度"><span v-for="tick in plot.yTicks" :key="tick.position" :style="{top:tick.position+'%'}">{{ tick.label }}</span></div>
         <div class="trend-plot">

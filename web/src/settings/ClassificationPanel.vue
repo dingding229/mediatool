@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {usePageRefresh} from '../ui/page-refresh';
 import { requestUUID } from '../utils/request-uuid';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
@@ -118,7 +120,7 @@ usePageRefresh(settings.load, 'naming');
           <div>
             <span class="settings-index">{{g+1}}</span>
             <h3>{{group.name}}</h3>
-            <p>{{typeLabel(group.mediaType)}} · {{genreLabel(group.genreIds)}} → {{group.directory||'—'}}</p>
+            <p>{{joinMetadata([(typeLabel(group.mediaType)),joinMetadata([(genreLabel(group.genreIds))," → ",(group.directory||'—')], '')])}}</p>
           </div>
           <el-switch v-model="group.enabled" :aria-label="`启用${group.name}`"/>
         </header>
@@ -140,7 +142,7 @@ usePageRefresh(settings.load, 'naming');
           <li v-for="(rule,r) in group.rules" :key="rule.id">
             <div>
               <strong>{{rule.name}}</strong>
-              <p>{{genreLabel(rule.genreIds)}} · {{countryLabel(rule.countries)||'不限地区'}} · {{(rule.languages||[]).map(languageLabel).join('、')||'不限语言'}}</p>
+              <p>{{joinMetadata([(genreLabel(rule.genreIds)),(countryLabel(rule.countries)||'不限地区'),((rule.languages||[]).map(languageLabel).join('、')||'不限语言')])}}</p>
               <p>目录：{{rule.directory||'—'}}</p>
             </div>
             <div class="settings-actions">

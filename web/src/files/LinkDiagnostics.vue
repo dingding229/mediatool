@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { onUnmounted, ref, watch } from 'vue';
 import { post } from '../api/client';
 import StateView from '../ui/StateView.vue';
@@ -134,12 +136,12 @@ onUnmounted(() => {
     </section>
     <section v-if="diagnosis" class="organize-plan">
       <h3>诊断结果</h3>
-      <p>文件：{{ diagnosis.file?.name||'—' }} · {{ diagnosis.file?.path||'—' }}</p>
+      <p>{{joinMetadata([joinMetadata(["文件：",(diagnosis.file?.name||'—')], ''),(diagnosis.file?.path||'—')])}}</p>
       <p>大小：{{ diagnosis.file?.size??'—' }} 字节</p>
       <p>投递方式：{{ diagnosis.playback?.mode==='redirect'?'支持跳转':'此文件暂不能按直链方式投递' }}</p>
-      <p>目标地址校验：{{ diagnosis.playback?.targetValidated?'已校验':'尚未确认' }} · 媒体字节校验：{{ diagnosis.playback?.mediaBytesChecked?'已核对':'未核对' }}</p>
-      <p>播放器标识要求：{{ diagnosis.playback?.requiresUserAgent?'需使用实际播放器标识':'无额外要求' }} · 请求头要求：{{ diagnosis.playback?.requiresHeaders?'存在额外请求头要求':'无额外要求' }}</p>
-      <p>有效期 {{ date(diagnosis.playback?.expiresAt) }} · {{ diagnosis.note||'—' }}</p>
+      <p>{{joinMetadata([joinMetadata(["目标地址校验：",(diagnosis.playback?.targetValidated?'已校验':'尚未确认')], ''),joinMetadata(["媒体字节校验：",(diagnosis.playback?.mediaBytesChecked?'已核对':'未核对')], '')])}}</p>
+      <p>{{joinMetadata([joinMetadata(["播放器标识要求：",(diagnosis.playback?.requiresUserAgent?'需使用实际播放器标识':'无额外要求')], ''),joinMetadata(["请求头要求：",(diagnosis.playback?.requiresHeaders?'存在额外请求头要求':'无额外要求')], '')])}}</p>
+      <p>{{joinMetadata([joinMetadata(["有效期 ",(date(diagnosis.playback?.expiresAt))], ''),(diagnosis.note||'—')])}}</p>
     </section>
   </section>
   <details class="media-surface files-link-batch">
@@ -150,7 +152,7 @@ onUnmounted(() => {
     <StateView v-if="batchError" :state="sourceState(batchError)" title="批量链接预览失败" :description="errorText(batchError)" retry-text="重新预览路径" @retry="batchPreview"/>
     <article v-for="(row,index) in links" :key="index" class="organize-record">
       <h3>{{ row.path }}</h3>
-      <p>{{ row.valid?'已取得链接预览':'此项未通过' }} · {{ row.message||'—' }}</p>
+      <p>{{joinMetadata([(row.valid?'已取得链接预览':'此项未通过'),(row.message||'—')])}}</p>
       <el-input v-if="row.content||row.url" :model-value="row.content||row.url" type="textarea" readonly :aria-label="'路径预览 '+(index+1)"/>
     </article>
   </details>

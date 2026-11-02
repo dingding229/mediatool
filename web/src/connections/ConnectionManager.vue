@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
+import SecretInput from './SecretInput.vue';
+import {credentialLabel} from './model';
+import {connectionState,connectionMessage} from './health';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import ConnectionHealth from './ConnectionHealth.vue';
 import {usePageRefresh} from '../ui/page-refresh';
@@ -53,6 +58,7 @@ usePageRefresh(load);
       <el-button v-if="!(selectedKind==='tmdb'&&visible.length)" @click="create(selectedKind)">添加连接</el-button>
     </div>
   </header>
+  <p v-if="allowedKinds.includes('telegram')" class="notification-channel-help">测试连接只核对账号与收件目标是否可访问，不会发送测试消息。实际送达请在投递记录和收件端核对；失败或结果未知的通知可核对后人工重发。</p>
   <el-alert v-if="notice" :title="notice" type="info" :closable="false" />
   <el-alert v-if="error&&!editing&&!loadError" :title="error" type="error" :closable="false" />
   <AsyncResultBanner v-if="testState" :status="testState" :message="notice" @refresh="reconcile" />
@@ -61,12 +67,12 @@ usePageRefresh(load);
   <article v-for="row in visible.slice((connectionPage-1)*connectionSize,connectionPage*connectionSize)" :key="row.id" class="saved-connection">
     <div>
       <h3>{{ row.name }}</h3>
-      <p>{{ kinds[row.kind]?.name }} · {{ row.enabled?'已启用':'已停用' }}</p>
-      <ConnectionHealth :state="row.enabled?(row.lastCheckState==='ready'?'ready':'unavailable'):'disabled'" :checked-at="row.lastCheckedAt" :message="row.lastCheckMessage"/>
+      <p>{{joinMetadata([(kinds[row.kind]?.name),(row.enabled?'已启用':'已停用')])}}</p>
+      <ConnectionHealth :state="connectionState(row)" :checked-at="row.lastCheckedAt" :message="connectionMessage(row)"/>
       <p>{{ row.secretFields?.length?'凭据已设置':'凭据未设置' }}</p>
     </div>
     <div class="connection-buttons">
-      <el-button @click="edit(row)">{{ row.kind==='tmdb'?'编辑TMDB Token':'编辑' }}</el-button>
+      <el-button @click="edit(row)">编辑</el-button>
       <el-button :disabled="!row.enabled||!!testState" :loading="testing===row.id" @click="test(row)">测试连接</el-button>
       <el-button v-if="row.kind==='open115'" @click="authorize(row)">115扫码授权</el-button>
       <el-button type="danger" plain @click="askRemove(row)">删除</el-button>
@@ -75,7 +81,7 @@ usePageRefresh(load);
 
 
 </div>
-<PagePagination label="服务连接分页" v-model:current-page="connectionPage" v-model:page-size="connectionSize" :status="loading?'loading':loadError&&!visible.length?'error':''" :total="!loading&&(!loadError||visible.length)?visible.length:undefined"/>
+<PagePagination v-if="visible.length>connectionSize" label="服务连接分页" v-model:current-page="connectionPage" v-model:page-size="connectionSize" :status="loading?'loading':loadError&&!visible.length?'error':''" :total="!loading&&(!loadError||visible.length)?visible.length:undefined"/>
 
   <el-dialog v-model="editing" :title="form.id?'编辑连接':'添加连接'" width="min(760px,94vw)" :close-on-click-modal="false" class="u2-connection-dialog" :show-close="!saving" :close-on-press-escape="!saving">
     <form :id="editorFormId" class="connection-editor" @submit.prevent="save()">
@@ -85,21 +91,13 @@ usePageRefresh(load);
         <el-input v-model="form.name" aria-label="连接名称" />
       </label>
       <div v-for="field in kinds[form.kind]?.fields" :key="field.key" class="connection-field">
-        {{ field.label }}
+        <label class="connection-label" :for="editorFormId+'-'+field.key">{{field.label}}</label>
         <template v-if="field.secret">
-          <small>{{ saved?.secretFields.includes(field.key)?'已设置（默认隐藏）':'未设置' }}</small>
-          <el-input v-model="form.secrets[field.key]" :type="'password'" :aria-label="field.label" autocomplete="new-password" placeholder="留空保留；填写新值替换" />
-          <div v-if="saved?.secretFields.includes(field.key)" class="saved-secret-controls">
-            <el-button v-if="!(field.key in reveal.values)" :loading="reveal.busy[field.key]" :aria-label="`显示${field.label}`" @click="reveal.show(field.key)">显示</el-button>
-            <template v-else>
-              <el-input :model-value="reveal.values[field.key]" :aria-label="`${field.label}已保存值`" readonly />
-              <el-button :aria-label="`隐藏${field.label}`" @click="reveal.hide(field.key)">隐藏</el-button>
-              <el-button :aria-label="`复制${field.label}`" @click="reveal.copy(field.key)">复制</el-button>
-            </template>
-          </div>
-          <el-checkbox class="mt-form-checkbox" v-if="saved?.secretFields.includes(field.key)" v-model="form.clear" :value="field.key">明确清除{{ field.label }}</el-checkbox>
+          <small>{{saved?.secretFields.includes(field.key)?'已设置（默认隐藏）':'未设置'}}</small>
+          <SecretInput :id="editorFormId+'-'+field.key" v-model="form.secrets[field.key]" :label="field.label" :has-saved="saved?.secretFields.includes(field.key)" :saved-value="reveal.values[field.key]" :busy="reveal.busy[field.key]" :active="editing" @show="reveal.show(field.key)" @hide="reveal.hide(field.key)" @copy="reveal.copy(field.key)"/>
+          <el-checkbox class="mt-form-checkbox" v-if="saved?.secretFields.includes(field.key)" v-model="form.clear" :value="field.key">清除已保存的 {{credentialLabel(field.label)}}</el-checkbox>
         </template>
-        <el-input v-else v-model="form.settings[field.key]" :aria-label="field.label" />
+        <el-input v-else :id="editorFormId+'-'+field.key" v-model="form.settings[field.key]" :aria-label="field.label"/>
         <small v-if="field.hint">{{ field.hint }}</small>
       </div>
       <el-checkbox class="mt-form-checkbox" v-model="form.enabled">启用连接</el-checkbox>
@@ -108,7 +106,7 @@ usePageRefresh(load);
       <el-alert v-if="error" :title="error" type="warning" :closable="false" />
       <section v-if="conflict" class="connection-conflict">
         <h3>当前已保存配置（供对照）</h3>
-        <p>{{ conflict.name }} · {{ conflict.enabled?'已启用':'未启用' }}</p>
+        <p>{{joinMetadata([(conflict.name),(conflict.enabled?'已启用':'未启用')])}}</p>
         <dl>
           <template v-for="(value,key) in safeSettings(conflict.settings)" :key="key">
             <dt>{{ kinds[form.kind]?.fields.find(field=>field.key===key)?.label || '其他设置' }}</dt>

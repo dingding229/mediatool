@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { computed, ref } from 'vue'
 import StateView from '../ui/StateView.vue'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -37,7 +39,7 @@ const submitted = computed(() => props.run?.decisions?.filter(d => d.action === 
           <dl v-if="decision.checks?.length">
             <div v-for="check in decision.checks" :key="check.key">
               <dt><el-tag :type="check.state === 'rejected' ? 'danger' : check.state === 'matched' ? 'success' : 'info'">{{ check.label }} · {{ check.state === 'rejected' ? '拒绝' : check.state === 'matched' ? '通过' : '不限' }}</el-tag></dt>
-              <dd>{{ check.message || '—' }}<small v-if="check.actual || check.expected">要求：{{ check.expected || '—' }} · 识别：{{ check.actual || '—' }}</small></dd>
+              <dd>{{ check.message || '—' }}<small v-if="check.actual || check.expected">{{joinMetadata([joinMetadata(["要求：",(check.expected || '—')], ''),joinMetadata(["识别：",(check.actual || '—')], '')])}}</small></dd>
             </div>
           </dl>
           <p v-if="decision.episodes?.length">覆盖集：{{ decision.episodes.join('、') }}</p>

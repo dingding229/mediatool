@@ -1,3 +1,4 @@
+import {joinMetadata} from '../presentation/metadata';
 import type {Media,Resource} from './model';
 import {sourceLabel} from '../utils/resource-source';
 // The site's subtitle is not a media-type field. Season/episode release markers
@@ -8,5 +9,5 @@ export function resourceKind(row:Resource,media?:Media|null){
 }
 export function resourceSummary(row:Resource,media?:Media|null){
  const subtitle=row.metadata?.subtitle?.trim();
- return [resourceKind(row,media),subtitle&&!/^(电影|剧集|电视剧)资源$/.test(subtitle)?subtitle:'',row.siteName,row.metadata?.attributes?.codec?.toUpperCase(),sourceLabel(row.metadata?.attributes?.source),row.metadata?.attributes?.resolution].filter(Boolean).join(' · ');
+ return joinMetadata([resourceKind(row,media),subtitle&&!/^(电影|剧集|电视剧)资源$/.test(subtitle)?subtitle:'',row.siteName,row.metadata?.attributes?.codec?.toUpperCase(),sourceLabel(row.metadata?.attributes?.source),row.metadata?.attributes?.resolution].filter(Boolean));
 }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {tmdbImage} from '../api/images';
 const props=defineProps<{identity:any;draft:any;disabled?:boolean;batch?:boolean}>();
 const name=(normal:string,bulk:string)=>props.batch?bulk:normal;
@@ -8,7 +10,7 @@ const name=(normal:string,bulk:string)=>props.batch?bulk:normal;
   <header><h3>识别作品</h3><span v-if="identity.loading" role="status">正在匹配 TMDB…</span><span v-else-if="draft.tmdbId">TMDB {{draft.tmdbId}}</span></header>
   <div class="f6-identity-selected">
    <img v-if="identity.selected?.posterPath" :src="tmdbImage(identity.selected.posterPath,'w185')" alt="所选作品海报" loading="lazy" width="44" height="66"/>
-   <div><strong>{{identity.selected?.title||draft.title||'选择作品身份'}}</strong><p v-if="identity.selected">{{identity.selected.year||'年份未知'}} · {{identity.selected.mediaType==='movie'?'电影':'剧集'}} · 已选中</p><p v-else role="status">{{identity.warning||'识别后可更换作品；未识别时仍可手动填写。'}}</p></div>
+   <div><strong>{{identity.selected?.title||draft.title||'选择作品身份'}}</strong><p v-if="identity.selected">{{joinMetadata([(identity.selected.year||'年份未知'),(identity.selected.mediaType==='movie'?'电影':'剧集'),"已选中"])}}</p><p v-else role="status">{{identity.warning||'识别后可更换作品；未识别时仍可手动填写。'}}</p></div>
    <el-button v-if="draft.tmdbId" :disabled="disabled||identity.loading" @click="identity.manual">手动填写</el-button>
   </div>
   <div class="f6-identity-search">
@@ -18,7 +20,7 @@ const name=(normal:string,bulk:string)=>props.batch?bulk:normal;
   </div>
   <div class="f6-identity-candidates" aria-label="TMDB 候选">
    <button v-for="item in identity.matches" :key="item.mediaType+':'+item.id" type="button" :aria-pressed="draft.tmdbId===item.id&&draft.mediaType===item.mediaType" :disabled="disabled||identity.loading" @click="identity.choose(item)">
-    <img v-if="item.posterPath" :src="tmdbImage(item.posterPath,'w185')" alt="" loading="lazy" width="32" height="48"/><span><strong>{{item.title}}</strong><small>{{item.year||'年份未知'}} · {{item.mediaType==='movie'?'电影':'剧集'}} · {{item.id}}</small></span>
+    <img v-if="item.posterPath" :src="tmdbImage(item.posterPath,'w185')" alt="" loading="lazy" width="32" height="48"/><span><strong>{{item.title}}</strong><small>{{joinMetadata([(item.year||'年份未知'),(item.mediaType==='movie'?'电影':'剧集'),(item.id)])}}</small></span>
    </button>
    <p v-if="!identity.matches.length">{{identity.loading?'正在读取候选…':'暂无候选，可搜索或手动填写。'}}</p>
   </div>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {useDebouncedFilter} from '../composables/useDebouncedFilter';
 import {playbackIPScope} from './presentation';
 import {computed,onMounted,reactive,ref,watch} from 'vue';
@@ -43,7 +45,7 @@ defineExpose({load});
   <p v-else class="f7-scope">{{mode==='deviceIps'?'设备 IP 历史统计已鉴权的设备请求，不等同于播放次数；直接 STRM 访问不计入。':playbackIPScope}}</p>
   <template v-if="!onlyIPs&&mode==='events'">
    <ResourceState :stale="summary.loaded" :loading="summary.loading" :error="summary.error" @reload="load"/>
-   <dl class="f7-metrics"><div><dt>播放次数</dt><dd>{{summary.data?.count??'—'}}</dd></div><div><dt>累计时长</dt><dd>{{playbackDuration(summary.data?.seconds)}}</dd></div><div><dt>观看内容</dt><dd>{{summary.data?.movies??0}} 部电影 / {{summary.data?.series??0}} 部剧 · {{summary.data?.episodes??0}} 集</dd></div></dl>
+   <dl class="f7-metrics"><div><dt>播放次数</dt><dd>{{summary.data?.count??'—'}}</dd></div><div><dt>累计时长</dt><dd>{{playbackDuration(summary.data?.seconds)}}</dd></div><div><dt>观看内容</dt><dd>{{joinMetadata([joinMetadata([(summary.data?.movies??0)," 部电影 / ",(summary.data?.series??0)," 部剧"], ''),joinMetadata([(summary.data?.episodes??0)," 集"], '')])}}</dd></div></dl>
    <div class="f7-chart"><TrendChart title="每日播放" unit="次" :rows="chart" metric="count" :gap-ms="2*86400000"/></div>
    <details class="f7-top"><summary>最常观看 · Top 10</summary><ol><li v-for="row in summary.data?.top||[]" :key="row.itemId">{{mediaTitle(row)}} · {{row.count}} 次 · {{playbackDuration(row.seconds)}}</li></ol></details>
   </template>
@@ -51,8 +53,8 @@ defineExpose({load});
 
   <div v-if="mode==='ips'" class="ip-report-shell" :aria-busy="ips.loading"><ResourceState overlay :stale="ips.loaded" :loading="ips.loading" :error="ips.error" @reload="load"/><IPStatisticsReport @block="blockEditor?.open($event)" v-show="!ips.error||ips.loaded" :rows="ips.data?.items||[]" :summary="ips.data?.summary" :user-scoped="Boolean(user)"/></div>
   <div v-else class="f7-results" :aria-busy="current.loading">
-   <template v-if="mode==='events'"><article v-for="row in events.data?.items||[]" :key="row.id" class="organize-record"><h3>{{mediaTitle(row)}}</h3><p>{{date(row.startedAt)}} · {{row.userName}} / {{row.deviceName||row.client}} · {{playbackDuration(row.durationSeconds)}}</p><p><IpAddress :ip="row.ip"/> · {{row.state==='stopped'?'已结束':row.state==='paused'?'暂停':'播放中'}} · 302 {{row.redirectCount}} 次</p></article></template>
-   <template v-else><article v-for="row in ips.data?.items||[]" :key="row.ip" class="organize-record"><h3><IpAddress :ip="row.ip"/></h3><p>{{row.count}} 次已鉴权请求</p><el-button class="ip-block-quick-button" @click="blockEditor?.open(row.ip)">加入 IP 黑名单</el-button><p>首次 {{date(row.firstSeenAt)}} · 最近 {{date(row.lastSeenAt)}}</p></article></template>
+   <template v-if="mode==='events'"><article v-for="row in events.data?.items||[]" :key="row.id" class="organize-record"><h3>{{mediaTitle(row)}}</h3><p>{{joinMetadata([(date(row.startedAt)),joinMetadata([(row.userName)," / ",(row.deviceName||row.client)], ''),(playbackDuration(row.durationSeconds))])}}</p><p><IpAddress :ip="row.ip"/> · {{row.state==='stopped'?'已结束':row.state==='paused'?'暂停':'播放中'}} · 302 {{row.redirectCount}} 次</p></article></template>
+   <template v-else><article v-for="row in ips.data?.items||[]" :key="row.ip" class="organize-record"><h3><IpAddress :ip="row.ip"/></h3><p>{{row.count}} 次已鉴权请求</p><el-button class="ip-block-quick-button" @click="blockEditor?.open(row.ip)">加入 IP 黑名单</el-button><p>{{joinMetadata([joinMetadata(["首次 ",(date(row.firstSeenAt))], ''),joinMetadata(["最近 ",(date(row.lastSeenAt))], '')])}}</p></article></template>
   </div>
   <PagePagination v-model:current-page="page" v-model:page-size="size" :total="current.data?.total||0" label="播放统计分页"/>
 
@@ -61,4 +63,4 @@ defineExpose({load});
 </template>
 <style scoped>
 .ip-block-quick-button{min-height:44px}.ip-stat-filters{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(140px,1fr) minmax(140px,1fr) minmax(220px,1.6fr);align-items:end;gap:12px;margin:12px 0}.ip-stat-filters>label{display:grid;gap:8px;min-width:0;font-size:13px}.ip-stat-filters .el-input,.ip-stat-filters .el-select{width:100%;min-width:0}@media(max-width:1000px){.ip-stat-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.ip-stat-filters{grid-template-columns:minmax(0,1fr)}}
-.f7-statistics{min-height:480px}.f7-statistics>.media-actions{align-items:flex-end}.ip-report-shell{position:relative;min-height:650px}.f7-scope{font-size:.8rem;color:var(--mt-text-muted,#64748b)}.f7-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;min-height:75px}.f7-metrics div{padding:10px;border:1px solid var(--el-border-color);border-radius:8px}.f7-metrics dt{font-size:.8rem}.f7-metrics dd{margin:6px 0 0;font-weight:600;font-variant-numeric:tabular-nums}.f7-chart{min-height:220px}.f7-chart :deep(.u6-trend){min-height:210px}.f7-results{height:460px;overflow:auto;overscroll-behavior:contain;padding:6px;border:1px solid var(--el-border-color);border-radius:8px;box-shadow:inset 0 -8px 8px -10px #0006}.f7-top{margin:12px 0}.f7-top li{padding:4px 0}.f7-statistics .organize-record{padding:10px}.f7-statistics .organize-record h3,.f7-statistics .organize-record p{margin:4px 0}@media(max-width:600px){.f7-metrics{grid-template-columns:1fr}.f7-statistics .media-actions>label{display:flex;align-items:center;gap:8px}}</style>
+.f7-statistics{min-height:0}.f7-statistics>.media-actions{align-items:flex-end}.ip-report-shell{position:relative;min-height:0}.f7-scope{font-size:.8rem;color:var(--mt-text-muted,#64748b)}.f7-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;min-height:75px}.f7-metrics div{padding:10px;border:1px solid var(--el-border-color);border-radius:8px}.f7-metrics dt{font-size:.8rem}.f7-metrics dd{margin:6px 0 0;font-weight:600;font-variant-numeric:tabular-nums}.f7-chart{min-height:220px}.f7-chart :deep(.u6-trend){min-height:210px}.f7-results{height:auto;overflow:visible;overscroll-behavior:contain;padding:6px;border:1px solid var(--el-border-color);border-radius:8px;box-shadow:inset 0 -8px 8px -10px #0006}.f7-top{margin:12px 0}.f7-top li{padding:4px 0}.f7-statistics .organize-record{padding:10px}.f7-statistics .organize-record h3,.f7-statistics .organize-record p{margin:4px 0}@media(max-width:600px){.f7-metrics{grid-template-columns:1fr}.f7-statistics .media-actions>label{display:flex;align-items:center;gap:8px}}</style>

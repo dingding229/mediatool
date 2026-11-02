@@ -59,3 +59,5 @@ export function safeSettings(value: Record<string, any>) {
     return [key, v];
   }));
 }
+
+export const credentialLabel=(label:string)=>label.replace(/（[^）]*）|\([^)]*\)/g,'').trim();

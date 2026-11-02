@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {downloadDetailGroups} from '../acquisition/download-details';
 import DescriptionGrid from '../ui/DescriptionGrid.vue';
 import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
@@ -62,7 +64,7 @@ usePageRefresh(()=>refresh(),'uploads');
         <header class="acquire-section-heading">
           <div>
             <h2>下载任务</h2>
-            <p>共 {{ loading.tasks||errors.tasks?'—':tasks.length }} 项 · 处理中 {{ loading.tasks||errors.tasks?'—':tasks.filter(t=>!['imported','failed','cancelled'].includes(t.state)).length }} 项</p>
+            <p>{{joinMetadata([joinMetadata(["共 ",(loading.tasks||errors.tasks?'—':tasks.length)," 项"], ''),joinMetadata(["处理中 ",(loading.tasks||errors.tasks?'—':tasks.filter(t=>!['imported','failed','cancelled'].includes(t.state)).length)," 项"], '')])}}</p>
             <p>下载进度与做种状态独立，原文件保留在下载器中。</p>
           </div>
           <RouterLink to="/search?tab=query">搜索并创建下载</RouterLink>
@@ -88,7 +90,7 @@ usePageRefresh(()=>refresh(),'uploads');
         <header class="acquire-section-heading">
           <div>
             <h2>115上传与入库</h2>
-            <p>共 {{ loading.transfers||errors.transfers?'—':transfers.length }} 项 · 待跟进 {{ loading.transfers||errors.transfers?'—':transfers.filter(t=>!['imported','cancelled'].includes(t.state)).length }} 项</p>
+            <p>{{joinMetadata([joinMetadata(["共 ",(loading.transfers||errors.transfers?'—':transfers.length)," 项"], ''),joinMetadata(["待跟进 ",(loading.transfers||errors.transfers?'—':transfers.filter(t=>!['imported','cancelled'].includes(t.state)).length)," 项"], '')])}}</p>
             <p>先核对远端会话、文件和哈希，再确认输出与入库；保留本地做种源。</p>
           </div>
           <RouterLink to="/organize?tab=history&amp;kind=transfer">查看上传与入库记录</RouterLink>

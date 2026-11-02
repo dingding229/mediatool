@@ -78,9 +78,9 @@ for(const width of [1440,390])for(const theme of ['light','dark'])test(`I4 behav
  });
 });
 test('I4 behavior label clicks and clear/save payload remain unchanged',async({page})=>{
- const proxy=await openProxy(page),box=proxy.getByRole('checkbox',{name:'明确清除已保存的代理地址',exact:true}),label=box.locator('xpath=ancestor::label[1]');
+ const proxy=await openProxy(page),box=proxy.getByRole('checkbox',{name:'清除已保存的代理地址',exact:true}),label=box.locator('xpath=ancestor::label[1]');
  await expect(box).not.toBeChecked();await label.click();await expect(box).toBeChecked();await label.click();await expect(box).not.toBeChecked();
- const dialog=await openConnection(page,'open115'),clear=dialog.getByRole('checkbox',{name:'明确清除Access Token（可选手动录入）',exact:true});
+ const dialog=await openConnection(page,'open115'),clear=dialog.getByRole('checkbox',{name:'清除已保存的 Access Token',exact:true});
  await clear.locator('xpath=ancestor::label[1]').click();await expect(clear).toBeChecked();
  let body:any;await page.route('**/api/v1/integrations/i4-115',r=>{body=r.request().postDataJSON();return r.fulfill({json:{data:connections[0]}})});
  await dialog.getByRole('button',{name:'加密保存',exact:true}).click();await expect.poll(()=>body).toBeTruthy();expect(body.secrets).toEqual({accessToken:''});expect(body.enabled).toBe(true);

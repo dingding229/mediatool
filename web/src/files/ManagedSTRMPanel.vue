@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import FileBreadcrumbs from '../ui/FileBreadcrumbs.vue';
 import FileEntryRow from './FileEntryRow.vue';
 import {useDebouncedFilter} from '../composables/useDebouncedFilter';
@@ -130,7 +132,7 @@ defineExpose({ refresh: load });
       <StateView v-if="!items.length" state="empty" title="暂无匹配的受管 STRM"/>
       <ul class="files-list">
         <FileEntryRow v-for="folder in folders" :key="folder" :name="folder" directory @navigate="directory=directory?directory+'/'+folder:folder"/>
-        <FileEntryRow v-for="row in directFiles" :key="row.path" :name="row.path.split('/').pop()" :description="[row.asset.title,'STRM'].filter(Boolean).join(' · ')"><template #actions><el-button @click="readContent(row.asset,row.path)">预览STRM内容</el-button></template></FileEntryRow>
+        <FileEntryRow v-for="row in directFiles" :key="row.path" :name="row.path.split('/').pop()" :description="joinMetadata([row.asset.title,'STRM'].filter(Boolean))"><template #actions><el-button @click="readContent(row.asset,row.path)">预览STRM内容</el-button></template></FileEntryRow>
       </ul>
       <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="prev,pager,next,total" @current-change="directory='';load()"/>
     </template>
@@ -139,8 +141,8 @@ defineExpose({ refresh: load });
     <h3>{{ asset?.title||'—' }}</h3>
     <img v-if="image(asset?.poster)" :src="image(asset.poster)" :alt="asset?.title" class="files-detail-poster"/>
     <p>{{ asset?.source||'—' }}</p>
-    <p>{{ label(asset?.cloudState) }} · {{ label(asset?.artifactsState) }}</p>
-    <p v-for="report in asset?.scrapeReport||[]" :key="report.kind">{{ report.kind }} · {{ label(report.state) }} · {{ report.message||'—' }}</p>
+    <p>{{joinMetadata([(label(asset?.cloudState)),(label(asset?.artifactsState))])}}</p>
+    <p v-for="report in asset?.scrapeReport||[]" :key="report.kind">{{joinMetadata([(report.kind),(label(report.state)),(report.message||'—')])}}</p>
     <p v-for="out in asset?.outputs?.filter((o:any)=>o.kind==='strm')||[]" :key="out.path">
       {{ out.path }}
       <el-button @click="readContent(asset,out.path)">读取原文</el-button>

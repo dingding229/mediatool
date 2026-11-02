@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { ElIcon } from 'element-plus'
 import 'element-plus/es/components/icon/style/css'
@@ -59,20 +61,20 @@ onUnmounted(() => { disposed = true; ++sequence })
             <el-input v-model="query" :prefix-icon="Search" aria-label="订阅TMDB关键词" placeholder="输入准确的影视名称" @keydown.enter.prevent="findMedia" />
             <el-button :disabled="!query.trim()" :loading="finding" @click="findMedia">查询TMDB</el-button>
           </div>
-          <p v-if="cache" class="composer-cache">{{ cache.cached ? '来自TMDB缓存' : '已查询TMDB' }} · 缓存有效期 {{ cache.seconds }} 秒（0 表示禁用缓存）</p>
+          <p v-if="cache" class="composer-cache">{{joinMetadata([(cache.cached ? '来自TMDB缓存' : '已查询TMDB'),joinMetadata(["缓存有效期 ",(cache.seconds)," 秒（0 表示禁用缓存）"], '')])}}</p>
           <StateView v-if="finding" state="loading" title="正在匹配影视…" />
           <StateView v-else-if="findError" :state="stateFor(findError)" title="影视查询未完成" :description="findError.message" @retry="findMedia" />
           <StateView v-else-if="searched && !matches.length" state="empty" title="没有找到匹配的影视" description="试试完整片名或切换电影／剧集后重新搜索。" />
           <div v-else-if="matches.length" class="composer-matches" role="group" aria-label="匹配影视">
             <button v-for="media in matches" :key="media.mediaType+':'+media.id" type="button" :aria-pressed="sameMedia(draft.media, media)" @click="choose(media)">
-              <span><strong>{{ media.title }}</strong><small>{{ media.mediaType === 'movie' ? '电影' : '剧集' }} · {{ media.year || '—' }} · TMDB {{ media.id }}</small></span>
+              <span><strong>{{ media.title }}</strong><small>{{joinMetadata([(media.mediaType === 'movie' ? '电影' : '剧集'),(media.year || '—'),joinMetadata(["TMDB ",(media.id)], '')])}}</small></span>
               <el-icon v-if="sameMedia(draft.media, media)"><Check /></el-icon>
             </button>
           </div>
           <p v-else class="composer-search-hint">从一部想看的影视开始，搜索后即可选择。</p>
         </template>
         <template v-else-if="step === 1">
-          <div class="composer-target"><strong>{{ draft.media?.title || '—' }}</strong><span>{{ draft.media?.mediaType === 'movie' ? '电影' : '剧集' }} · {{ draft.media?.year || '—' }}</span><small v-if="draft.id">媒体身份已绑定，编辑时不可更换。</small></div>
+          <div class="composer-target"><strong>{{ draft.media?.title || '—' }}</strong><span>{{joinMetadata([(draft.media?.mediaType === 'movie' ? '电影' : '剧集'),(draft.media?.year || '—')])}}</span><small v-if="draft.id">媒体身份已绑定，编辑时不可更换。</small></div>
           <section class="mt-form-group" role="group" aria-label="从哪些站点寻找">
             <h3 class="mt-form-group-title">从哪些站点寻找</h3>
             <StateView v-if="accountError" :state="stateFor(accountError)" title="站点账号暂不可用" :description="accountError.message" @retry="emit('retryAccounts')" />
@@ -125,7 +127,7 @@ onUnmounted(() => { disposed = true; ++sequence })
             <div><dt>质量要求</dt><dd>{{ quality(draft) }}</dd></div>
             <div><dt>站点搜索词</dt><dd>{{ draft.keyword || '—' }}</dd></div>
             <div><dt>{{ draft.regexKeywords ? '正则筛选' : '关键词筛选' }}</dt><dd>包含：{{ draft.includeText || '—' }}<br />排除：{{ draft.excludeText || '—' }}</dd></div>
-            <div v-if="draft.media?.mediaType === 'series'"><dt>跟进范围</dt><dd>第 {{ draft.season }} 季 · {{ draft.episodeText || '已播集' }}</dd></div>
+            <div v-if="draft.media?.mediaType === 'series'"><dt>跟进范围</dt><dd>{{joinMetadata([joinMetadata(["第 ",(draft.season)," 季"], ''),(draft.episodeText || '已播集')])}}</dd></div>
           </dl>
           <div class="composer-enable"><el-checkbox class="mt-form-checkbox" v-model="draft.enabled" :disabled="previewRun?.state !== 'succeeded'">保存后启用自动下载</el-checkbox><p class="mt-form-checkbox-help">{{ draft.enabled ? '你已选择直接启用。请确认以上匹配规则与下载保护符合预期。' : '预演已完成。可以保持停用；确认匹配结果后，也可显式启用。' }}</p></div>
         </template>

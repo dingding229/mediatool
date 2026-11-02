@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { onUnmounted, reactive, ref, watch, computed } from 'vue';
 import { request } from '../api/client';
 import { useOperation } from '../workflows/useOperation';
@@ -135,7 +137,7 @@ defineExpose({ open, load, save, form, current, latest, op });
           <el-option v-for="site in templates" :key="site.id" :value="site.id" :disabled="!form.id&&accounts.some(a=>a.definitionId===site.id)" :label="(site.name) + (!form.id&&accounts.some(a=>a.definitionId===site.id)?' · 已添加':'')"/>
         </el-select>
       </label>
-      <p v-if="form.definitionId">{{ templates.find(t=>t.id===form.definitionId)?.name||'—' }} · {{ templates.find(t=>t.id===form.definitionId)?.domain||'—' }}</p>
+      <p v-if="form.definitionId">{{joinMetadata([(templates.find(t=>t.id===form.definitionId)?.name||'—'),(templates.find(t=>t.id===form.definitionId)?.domain||'—')])}}</p>
       <p>同一站点只添加一个账号；请先在站点模板标签加载所需模板。</p>
       <label>
         登录 Cookie

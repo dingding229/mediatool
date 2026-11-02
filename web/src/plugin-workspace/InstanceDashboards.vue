@@ -26,4 +26,4 @@ onUnmounted(()=>{dead=true;generation++;});
   <article v-for="card in cards" :key="card.key"><h3>{{card.title}}</h3><PluginSurface :instance-id="instanceId" :plugin-id="pluginId" kind="dashboard" :page-key="card.key" :refresh="card.refresh"/></article>
  </section>
 </template>
-<style scoped>.f6-plugin-overview{min-height:160px}.f6-plugin-overview article{min-width:0}.f6-plugin-overview article+article{margin-top:16px}</style>
+<style scoped>.f6-plugin-overview{min-height:0}.f6-plugin-overview article{min-width:0}.f6-plugin-overview article+article{margin-top:16px}</style>

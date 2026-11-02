@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import FilterChip from '../ui/FilterChip.vue';
 import {ElPopover} from 'element-plus';
 import 'element-plus/es/components/popover/style/css';
@@ -148,7 +150,7 @@ usePageRefresh(load, 'history');
     <header class="media-section-heading">
       <div>
         <h2>文件与入库历史</h2>
-        <p>全部 {{ loading||error?'—':total }} 项 · 本页进行中 {{ loading||error?'—':summary.active }} · 需处理 {{ loading||error?'—':summary.attention }} · 已完成阶段 {{ loading||error?'—':summary.done }}</p>
+        <p>{{joinMetadata([joinMetadata(["全部 ",(loading||error?'—':total)," 项"], ''),joinMetadata(["本页进行中 ",(loading||error?'—':summary.active)], ''),joinMetadata(["需处理 ",(loading||error?'—':summary.attention)], ''),joinMetadata(["已完成阶段 ",(loading||error?'—':summary.done)], '')])}}</p>
       </div>
 
     </header>
@@ -218,7 +220,7 @@ usePageRefresh(load, 'history');
       <div class="f5-row-summary">
         <h3>{{stageLabel(item.kind)}}</h3>
         <HistoryPaths :source="item.source" :target="item.destination"/>
-        <p v-if="item.media?.title||item.category">识别结果：{{item.media?.title?item.media.title+(item.media.year?' ('+item.media.year+')':''):'暂无识别结果'}}<span v-if="item.category"> · {{item.category}}</span></p>
+        <p v-if="item.media?.title||item.category">识别结果：{{joinMetadata([item.media?.title?item.media.title+(item.media.year?' ('+item.media.year+')':''):'暂无识别结果',item.category])}}</p>
         <div class="history-record-meta"><StatusBadge :state="item.state" :label="label(item.state)"/><time>{{date(item.updatedAt||item.createdAt)}}</time></div>
       </div>
       <div class="media-actions mt-list-actions history-row-actions">
@@ -235,7 +237,7 @@ usePageRefresh(load, 'history');
   </section>
   <DetailDrawer :key="detail?.id" v-model:visible="open" title="整理步骤详情" size="large" class="media-detail">
     <h3>{{ detail?.media?.title||stageLabel(detail?.kind) }}</h3>
-    <p v-if="[label(detail?.state),detail?.message].some(present)">{{[label(detail?.state),detail?.message].filter(present).join(' · ')}}</p>
+    <p v-if="[label(detail?.state),detail?.message].some(present)">{{joinMetadata([label(detail?.state),detail?.message].filter(present))}}</p>
     <DescriptionGrid :items="[{key:'source',label:'原位置',value:detail?.source},{key:'target',label:'目标位置',value:detail?.destination},{key:'category',label:'目录分类',value:detail?.category}]"><template #source><MiddleEllipsis :path="detail.source" full/></template><template #target><MiddleEllipsis :path="detail.destination" full/></template></DescriptionGrid>
     <HistorySteps :detail="detail"/>
     <section v-if="detail?.kind==='transfer'">

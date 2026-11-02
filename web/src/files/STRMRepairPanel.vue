@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import TaskControl from '../workflows/TaskControl.vue';
@@ -207,10 +209,10 @@ defineExpose({ readback });
       <section v-if="batch" aria-label="修复批次">
         <TaskControl v-if="batch.state!=='preview'" kind="repairs" :id="batch.id" :state="batch.state==='needs_reconcile'?'unknown':batch.state" @changed="readback(batch.id)"/>
         <h3>{{ phase&&!readVerified?(phase==='queued'?'已排队，待核验':'正在核对上次结果'):repairLabel(batch.state) }}</h3>
-        <p>预览有效至 {{ date(batch.expiresAt) }} · {{ batch.items?.length??'—' }} 项</p>
+        <p>{{joinMetadata([joinMetadata(["预览有效至 ",(date(batch.expiresAt))], ''),joinMetadata([(batch.items?.length??'—')," 项"], '')])}}</p>
         <article v-for="row in batch.items" :key="row.ordinal" class="organize-record">
           <h3>{{ row.path||'所选资产的受管输出' }}</h3>
-          <p>{{ phase&&!readVerified?'等待核验':repairLabel(row.state) }} · {{ !phase||readVerified?row.message||'—':'以重新读取的记录为准' }}</p>
+          <p>{{joinMetadata([(phase&&!readVerified?'等待核验':repairLabel(row.state)),(!phase||readVerified?row.message||'—':'以重新读取的记录为准')])}}</p>
         </article>
         <AsyncResultBanner v-if="phase" :status="phase" :message="phase==='queued'?'修复已排队，尚未核验完成。':'正在核对上次修复结果，不重复批准。'" @refresh="readback(pending?.id)"/>
         <div class="media-actions">

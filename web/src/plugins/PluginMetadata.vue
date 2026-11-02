@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { computed, ref } from 'vue'
 import type { PluginMetadata } from '../api/plugins'
 import inventory from '../../../internal/modules/plugins/v2/library.json'
@@ -8,7 +10,7 @@ const icon=computed(()=>{const m=props.metadata;return m.icon&&inventory.resourc
 const history=computed(()=>Object.entries(props.metadata.history??{}).sort(([a],[b])=>b.localeCompare(a,undefined,{numeric:true})))
 </script>
 <template>
- <div class="metadata-heading"><img v-if="icon&&!failed" :key="icon" :src="icon" alt="" width="40" height="40" loading="lazy" @error="failed=true"><span v-else class="icon-fallback" aria-hidden="true">P</span><div><h3>{{metadata.name}}</h3><span>版本 {{metadata.version}} · 作者 {{metadata.author||'未提供'}} · 等级 {{metadata.level??'未提供'}}</span></div></div>
+ <div class="metadata-heading"><img v-if="icon&&!failed" :key="icon" :src="icon" alt="" width="40" height="40" loading="lazy" @error="failed=true"><span v-else class="icon-fallback" aria-hidden="true">P</span><div><h3>{{metadata.name}}</h3><span>{{joinMetadata([joinMetadata(["版本 ",(metadata.version)], ''),joinMetadata(["作者 ",(metadata.author||'未提供')], ''),joinMetadata(["等级 ",(metadata.level??'未提供')], '')])}}</span></div></div>
  <p>{{metadata.description}}</p>
  <details><summary>版本记录</summary><dl v-if="history.length"><template v-for="[version,note] in history" :key="version"><dt>{{version}}</dt><dd>{{note}}</dd></template></dl><p v-else>暂无版本记录</p></details>
  <p>安装前会提示此插件需要的访问范围。</p>

@@ -1,3 +1,4 @@
+// I41b: PluginMetadata only adopts the shared display delimiter; plugin runtime/security helpers remain byte-pinned.
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // F6 removes only the homepage dashboard aggregator; per-instance dashboards reuse PluginSurface.
 import {expect,it} from 'vitest'
@@ -15,7 +16,7 @@ import {createHash} from 'node:crypto'
 // B4 renames the read-state callback from fetch to read; transport remains unchanged.
 // B3 explicitly adds fixed access guidance; arbitrary provider text remains excluded.
 const baseline={
-  "PluginMetadata.vue": "122730e4c54c9b2b76b2246841912fe0e08a1f75c59cde36f0058a5cab0496a2",
+  "PluginMetadata.vue": "536bdd571f4104f65d91b0cbd8125fad7fc27902b39104ba82e3fb54201a49f3",
   "operation-error.ts": "e9420bd2615fa8326d33a0b558fd8a90c538f788fb45b648de2e34665464d6dd",
   "PluginJson.ts": "5d3388aa60d750e4f71e34ea9f7accf081f585efd4d725831d1355357f294efb",
   "PluginSurface.vue": "b4abeb837918d1e8257cce61cd898a8137933f454c4d087da58672866bda0be3",

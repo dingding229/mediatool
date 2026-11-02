@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
 import {libraryGroups} from './presentation';
 import StatusBadge from '../components/StatusBadge.vue';
 import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
@@ -99,7 +100,7 @@ defineExpose({ load, form, save, status, libraries, op });
       <h2>媒体库目录</h2>
       <p>目录名称来自分类规则；新媒体库默认未授权，请在媒体用户中分配。</p>
       <ResourceState :stale="libraries.loaded" :loading="libraries.loading" :error="libraries.error" :empty="!libraries.data?.length" empty-title="暂无媒体库目录" @reload="libraries.load"/>
-      <div class="native-library-groups"><section v-for="group in groups" :key="group.name" class="native-library-group" :aria-label="group.name+'目录'"><h3>{{group.name}}</h3><ul><li v-for="row in group.items" :key="row.library.id"><span :title="row.name">{{row.name}}</span><small> · {{row.library.hidden?'已隐藏':'可见'}} · {{row.library.assetCount??0}} 项</small></li></ul></section></div>
+      <div class="native-library-groups"><section v-for="group in groups" :key="group.name" class="native-library-group" :aria-label="group.name+'目录'"><h3>{{group.name}}</h3><ul><li v-for="row in group.items" :key="row.library.id"><span :title="row.name">{{joinMetadata([row.name,row.library.hidden?'已隐藏':'可见',`${row.library.assetCount??0} 项`])}}</span></li></ul></section></div>
     </section>
   </div>
 </template>

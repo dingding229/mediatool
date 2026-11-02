@@ -85,6 +85,6 @@ defineExpose({load,create,health,op});
  </section>
 </template>
 <style scoped>
-.f5-runtime-checks{min-height:180px;margin-bottom:24px}.f5-runtime-summary{min-height:44px;font-size:13px;line-height:1.8;color:var(--mt-text-muted)}summary{cursor:pointer;min-height:44px;display:flex;align-items:center}.organize-record{overflow-wrap:anywhere}
+.f5-runtime-checks{min-height:0;margin-bottom:24px}.f5-runtime-summary{min-height:44px;font-size:13px;line-height:1.8;color:var(--mt-text-muted)}summary{cursor:pointer;min-height:44px;display:flex;align-items:center}.organize-record{overflow-wrap:anywhere}
 @media(max-width:600px){.f5-runtime-summary{min-height:88px}}
 </style>

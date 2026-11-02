@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {useDebouncedFilter} from '../composables/useDebouncedFilter'
 import DescriptionGrid from '../ui/DescriptionGrid.vue'
 import {usePageRefresh} from '../ui/page-refresh';
@@ -74,11 +76,11 @@ usePageRefresh(refresh,'*');
               <span class="subscription-media-symbol"><el-icon :size="22"><VideoPlay /></el-icon></span>
               <div>
                 <button class="subscription-title" @click="inspect(record)">{{ record.title || '—' }}<el-icon><ArrowRight /></el-icon></button>
-                <p>{{ record.media.mediaType === 'movie' ? '电影' : '剧集' }} · {{ record.media.year || '—' }}<span v-if="record.media.mediaType === 'series'"> · 第 {{ record.rules.season }} 季</span></p>
+                <p>{{joinMetadata([record.media.mediaType==='movie'?'电影':'剧集',record.media.year,record.media.mediaType==='series'?`第 ${record.rules.season} 季`:null])}}</p>
                 <StatusBadge :state="record.enabled ? 'running' : 'disabled'" :label="record.enabled ? '已启用' : '已停用'" />
               </div>
             </div>
-            <div class="subscription-rule-summary"><strong>{{ quality(record.rules) }}</strong><p>{{ siteNames(record.rules.accountIds) }}</p><small>{{ discovery[record.source] || '—' }} · {{ record.rules.freeOnly ? '仅免费资源' : '不限促销' }}</small></div>
+            <div class="subscription-rule-summary"><strong>{{ quality(record.rules) }}</strong><p>{{ siteNames(record.rules.accountIds) }}</p><small>{{joinMetadata([(discovery[record.source] || '—'),(record.rules.freeOnly ? '仅免费资源' : '不限促销')])}}</small></div>
             <div class="subscription-schedule"><StatusBadge v-if="record.lastState" :state="record.lastState" /><span v-else>尚未运行</span><p>{{ record.nextRunAt===null?'计划已结束':timestamp(record.nextRunAt) }}</p></div>
             <div class="subscription-row-actions">
               <template v-if="scope === 'current'">

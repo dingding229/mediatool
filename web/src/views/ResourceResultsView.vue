@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {resourceSummary} from '../acquisition/resource-summary';
 import MiddleEllipsis from '../ui/MiddleEllipsis.vue';
 import {computed,ref} from 'vue';
@@ -45,9 +47,9 @@ ownRefresh.register(()=>refresh(),()=>true);
         <button class="f3-summary-toggle" :aria-expanded="sitesOpen" @click="sitesOpen=!sitesOpen">站点查询状态 · 成功 {{siteCounts.success}} / 失败 {{siteCounts.failed}} / 进行中 {{siteCounts.running}} <span>{{sitesOpen?'收起':'查看各站点'}} {{sitesOpen?'▴':'▾'}}</span></button>
         <div v-show="sitesOpen" class="acquire-site-status f3-site-details f4-site-grid" role="list" aria-label="各站点查询结果">
           <ElTooltip v-for="site in sortedSites" :key="site.accountId" :content="site.message" :disabled="!site.message" placement="top">
-            <article role="listitem" tabindex="0" :data-state="site.state" :aria-label="site.name+' · '+label(site.state)+' · '+(site.count??'—')">
+            <article role="listitem" tabindex="0" :data-state="site.state" :aria-label="joinMetadata([site.name,label(site.state),site.count])">
               <CircleClose v-if="failedSite(site.state)" class="f4-site-icon is-failed" aria-hidden="true"/><CircleCheck v-else-if="site.state==='succeeded'" class="f4-site-icon is-success" aria-hidden="true"/><Loading v-else class="f4-site-icon" aria-hidden="true"/>
-              <strong>{{site.name}}</strong><span>{{label(site.state)}} · {{site.count??'—'}}</span>
+              <strong>{{site.name}}</strong><span>{{joinMetadata([(label(site.state)),(site.count??'—')])}}</span>
             </article>
           </ElTooltip>
         </div>

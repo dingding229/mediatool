@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {computed,onUnmounted,ref} from 'vue';
 import {getIdleUpdate,saveIdleUpdate,checkIdleUpdate,type IdleUpdatePolicy,type IdleUpdateCheck} from '../api/updates';
 import {useRefresh} from '../composables/useRefresh';
@@ -28,7 +30,7 @@ onUnmounted(()=>{password.value=''});
   </form>
   <p v-if="!valid" role="alert">请输入合法且不同的开始、结束时间；安静时长为15–360分钟整数。</p>
   <p v-if="policy?.reason" role="status">{{policy.reason}}</p><p v-if="notice" role="status">{{notice}}</p><p v-if="error" role="alert">{{error}}</p>
-  <template v-if="check"><p class="idle-hint">服务器时区：{{check.timezone}} · {{date(check.checkedAt)}} · {{check.ready?'全部条件通过':'暂不满足执行条件'}}（只读检查，不会触发更新）</p>
+  <template v-if="check"><p class="idle-hint">{{joinMetadata([joinMetadata(["服务器时区：",(check.timezone)], ''),(date(check.checkedAt)),joinMetadata([(check.ready?'全部条件通过':'暂不满足执行条件'),"（只读检查，不会触发更新）"], '')])}}</p>
    <ul class="idle-conditions"><li v-for="condition in check.conditions" :key="condition.key"><span>{{condition.label}}</span><span :class="{'idle-blocked':!condition.passed}">{{condition.passed?'通过':condition.reason}}</span></li></ul>
   </template>
   <el-dialog v-model="open" title="授权闲时自动更新" width="min(560px,94vw)" :close-on-click-modal="false" @closed="password='';confirm=false">

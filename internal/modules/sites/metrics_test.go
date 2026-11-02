@@ -2,6 +2,7 @@ package sites
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -42,5 +43,39 @@ func TestDeclaredTTGZeroActivityProvesZeroVolumeOnlyForExactZero(t *testing.T) {
 		} else if m.SeedingBytes != nil {
 			t.Fatal("nonzero/unknown inferred volume", m)
 		}
+	}
+}
+
+func TestSeedingUnknownAndRealZeroRemainDistinct(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		value any
+		known bool
+	}{{"missing", nil, false}, {"empty", "", false}, {"invalid", "not-a-number", false}, {"negative", -1, false}, {"zero", 0, true}, {"string zero", "0", true}} {
+		t.Run(test.name, func(t *testing.T) {
+			value := metricBytes(test.value)
+			if (value != nil) != test.known {
+				t.Fatal(value)
+			}
+			if test.known && *value != 0 {
+				t.Fatal(value)
+			}
+		})
+	}
+}
+
+func TestSeedingJSONKeepsUnknownNullVersusConfirmedZero(t *testing.T) {
+	zero := int64(0)
+	for _, test := range []struct {
+		name  string
+		value *int64
+		want  string
+	}{{"unknown", nil, `"seeding":null`}, {"confirmed zero", &zero, `"seeding":0`}} {
+		t.Run(test.name, func(t *testing.T) {
+			raw, err := json.Marshal(Metrics{Seeding: test.value, SeedingBytes: test.value})
+			if err != nil || !strings.Contains(string(raw), test.want) {
+				t.Fatal(string(raw), err)
+			}
+		})
 	}
 }

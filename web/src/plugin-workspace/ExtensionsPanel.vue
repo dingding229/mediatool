@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import { safePluginError } from './model';
@@ -90,7 +92,7 @@ onMounted(load);
     <h3>执行历史</h3>
     <p v-if="read.loaded&&!read.error&&!read.data?.[1].length" class="f5-empty">暂无执行记录</p>
     <article v-for="r in read.data?.[1]||[]" :key="r.id" class="organize-record">
-      <p>{{ states[r.state]||'状态待核对' }} · {{ date(r.createdAt) }}</p>
+      <p>{{joinMetadata([(states[r.state]||'状态待核对'),(date(r.createdAt))])}}</p>
       <p>{{ r.reason?'请查看实例日志核对原因。':'—' }}</p>
       <RouterLink :to="{path:'/ops',query:{tab:'logs',module:'plugins',instance:id}}">查看运行日志</RouterLink>
     </article>

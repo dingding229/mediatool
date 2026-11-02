@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { onUnmounted, ref, watch } from 'vue';
 import { request } from '../api/client';
 import { tmdbImage } from '../utils/tmdb-image';
@@ -96,7 +98,7 @@ onUnmounted(() => {
           {{ item.title }}
           <small>{{ item.year||'—' }}</small>
         </h2>
-        <p>{{ item.mediaType==='series'?'剧集':'电影' }} · {{ item.genres?.join(' / ')||'—' }}</p>
+        <p>{{joinMetadata([(item.mediaType==='series'?'剧集':'电影'),(item.genres?.join(' / ')||'—')])}}</p>
 
         <p class="acquire-overview">{{ item.overview||'暂无简介' }}</p>
         <div class="acquire-actions">
@@ -122,7 +124,7 @@ onUnmounted(() => {
   </el-dialog>
   <el-dialog v-model="details" title="媒体详情" width="min(680px,94vw)" class="acquire-dialog">
     <h2>{{ item?.title }}</h2>
-    <p>{{ item?.originalTitle||'—' }} · {{ item?.year||'—' }}</p>
+    <p>{{joinMetadata([(item?.originalTitle||'—'),(item?.year||'—')])}}</p>
     <p>{{ item?.overview||'暂无简介' }}</p>
   </el-dialog>
 </template>

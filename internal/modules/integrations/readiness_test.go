@@ -56,3 +56,39 @@ func TestHealthReadinessNeverReturnsLegacyOrSecretMessage(t *testing.T) {
 		}
 	}
 }
+
+func TestNonHeartbeatReadinessRetainsActualCheckTime(t *testing.T) {
+	now := time.Now()
+	checked := now.Add(-time.Hour)
+	for _, test := range []struct {
+		name, state             string
+		enabled, missing, stale bool
+		want                    string
+	}{
+		{"ready", "ready", true, false, false, "ready"}, {"missing", "ready", true, true, false, "check_required"},
+		{"failed", "failed", true, false, false, "check_failed"}, {"expired", "ready", true, false, true, "check_required"},
+		{"disabled", "ready", false, false, false, "disabled"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			at := checked
+			if test.stale {
+				at = now.Add(-48 * time.Hour)
+			}
+			r := Record{Kind: "tmdb", Enabled: test.enabled, LastCheckState: test.state, LastCheckedAt: &at, UpdatedAt: now.Add(-72 * time.Hour)}
+			if test.missing {
+				r.LastCheckedAt = nil
+			}
+			p := ConnectionReadiness(r, now)
+			if p.State != test.want {
+				t.Fatal(p)
+			}
+			if r.LastCheckedAt == nil {
+				if p.LastCheckedAt != nil {
+					t.Fatal("invented check time")
+				}
+			} else if p.LastCheckedAt == nil || !p.LastCheckedAt.Equal(*r.LastCheckedAt) {
+				t.Fatal("actual check timestamp lost", p)
+			}
+		})
+	}
+}

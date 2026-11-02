@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {computed,ref,watch} from 'vue';
 import {usePageRefresh} from '../ui/page-refresh';
 import { Refresh } from '@element-plus/icons-vue';
@@ -84,12 +86,12 @@ async function metadataSaved(){await load();if(detail.value){try{const updated=a
           <section v-if="series" aria-label="季与集">
             <StateView v-if="childLoading" state="loading"/>
             <StateView v-else-if="childError" :state="sourceState(childError)" :description="errorText(childError)" @retry="readChildren"/>
-            <template v-else><div class="catalog-season-list"><div v-for="season in children" :key="season.id" class="catalog-season"><button class="catalog-season-toggle" type="button" :aria-expanded="expandedSeasons.has(season.id)" @click="expandSeason(season.id)"><el-icon class="season-chevron" :class="{'is-expanded':expandedSeasons.has(season.id)}"><ArrowRight/></el-icon><strong>{{seasonLabel(season,series.title)}}</strong><span>{{season.episodeCount??'—'}} 集 · {{displayMediaSize(season.fileSize??season.size)}}</span></button><SeasonEpisodes v-if="expandedSeasons.has(season.id)" :season-id="season.id" @select="inspect($event,true)"/></div></div><StateView v-if="!children.length" state="empty" title="来源尚未返回季集内容"/><PagePagination v-if="childTotal>childSize" v-model:current-page="childPage" :total="childTotal" v-model:page-size="childSize" @current-change="readChildren"/></template>
+            <template v-else><div class="catalog-season-list"><div v-for="season in children" :key="season.id" class="catalog-season"><button class="catalog-season-toggle" type="button" :aria-expanded="expandedSeasons.has(season.id)" @click="expandSeason(season.id)"><el-icon class="season-chevron" :class="{'is-expanded':expandedSeasons.has(season.id)}"><ArrowRight/></el-icon><strong>{{seasonLabel(season,series.title)}}</strong><span>{{joinMetadata([joinMetadata([(season.episodeCount??'—')," 集"], ''),(displayMediaSize(season.fileSize??season.size))])}}</span></button><SeasonEpisodes v-if="expandedSeasons.has(season.id)" :season-id="season.id" @select="inspect($event,true)"/></div></div><StateView v-if="!children.length" state="empty" title="来源尚未返回季集内容"/><PagePagination v-if="childTotal>childSize" v-model:current-page="childPage" :total="childTotal" v-model:page-size="childSize" @current-change="readChildren"/></template>
           </section>
           <div v-else-if="detail.filePath" class="catalog-file-summary"><MiddleEllipsis :path="detail.filePath"/><span v-if="mediaFileFacts(detail)">{{mediaFileFacts(detail)}}</span></div>
           <section v-if="detail.episodeDetails?.length">
             <h4>剧集资料</h4>
-            <p v-for="episode in detail.episodeDetails" :key="episode.id">第 {{episode.season}} 季 · 第 {{episode.number}} 集 · {{episode.title}}</p>
+            <p v-for="episode in detail.episodeDetails" :key="episode.id">{{joinMetadata([joinMetadata(["第 ",(episode.season)," 季"], ''),joinMetadata(["第 ",(episode.number)," 集"], ''),(episode.title)])}}</p>
           </section>
         </section>
         <SubtitlePanel v-if="source==='managed'&&['movie','series'].includes(detail.mediaType||'')" :key="detail.id" :item-id="detail.id"/>

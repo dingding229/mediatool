@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import DescriptionGrid from '../ui/DescriptionGrid.vue';
 import { View, MoreFilled } from '@element-plus/icons-vue';
 import {ElDropdown,ElDropdownMenu,ElDropdownItem} from 'element-plus';
@@ -110,7 +112,7 @@ defineExpose({ load, filter, jobs });
         <div class="ops-job-status"><StatusBadge :state="j.state" :label="stateLabel(j.state)" :title="j.lastError||undefined"/><span class="ops-job-queue">{{queueLabel(j.queue)}}</span></div>
         <div class="ops-job-meta">
           <p class="f3-job-meta"><span class="ops-job-meta-queue">{{queueLabel(j.queue)}} · </span>尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }}</p>
-          <p class="ops-job-progress">耗时 {{ j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—' }} 秒 · {{ j.state==='succeeded'?'已完成':j.state==='running'?'业务进度见详情':'等待状态核对' }}</p>
+          <p class="ops-job-progress">{{joinMetadata([joinMetadata(["耗时 ",(j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—')," 秒"], ''),(j.state==='succeeded'?'已完成':j.state==='running'?'业务进度见详情':'等待状态核对')])}}</p>
         </div>
         <div class="mt-list-actions ops-job-actions">
           <el-button size="small" aria-label="任务详情" @click="inspect(j.id)"><el-icon class="mt-list-action-icon"><View/></el-icon><span class="mt-list-action-text">任务详情</span></el-button>

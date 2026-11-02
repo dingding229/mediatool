@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {Film} from '@element-plus/icons-vue';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 
@@ -77,7 +79,7 @@ usePageRefresh(load, 'history');
       <RouterLink v-for="row in rows" :key="row.id" class="search-history-row" :to="`/search/results/${row.id}`">
         <img v-if="tmdbImage(row.posterPath||row.media?.posterPath)&&!broken.has(row.id)" class="acquire-history-cover" :src="tmdbImage(row.posterPath||row.media?.posterPath)" alt="作品海报" @error="broken.add(row.id)"/>
         <span v-else class="acquire-history-cover history-cover-placeholder" aria-label="暂无海报"><Film aria-hidden="true"/></span>
-        <span class="history-row-copy"><strong>{{row.query||row.keyword||'—'}}</strong><span class="history-row-meta"><StatusBadge :state="row.state" :label="label(row.state)"/><span>{{date(row.createdAt)}} · {{row.count??row.total??'—'}} 个资源</span></span></span>
+        <span class="history-row-copy"><strong>{{row.query||row.keyword||'—'}}</strong><span class="history-row-meta"><StatusBadge :state="row.state" :label="label(row.state)"/><span>{{joinMetadata([(date(row.createdAt)),joinMetadata([(row.count??row.total??'—')," 个资源"], '')])}}</span></span></span>
         <span aria-hidden="true">查看结果</span>
       </RouterLink>
     </div>

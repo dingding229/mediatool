@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import CronInput from '../ui/CronInput.vue';
 const cronValid=ref(false);
 import {scheduleLabel} from '../presentation/labels';
@@ -48,7 +50,7 @@ defineExpose({ load, open, save, form, data, latest, op });
       <el-button @click="open">编辑采集计划</el-button>
     </header>
     <ResourceState :stale="data.loaded" :loading="data.loading" :error="data.error" @reload="load"/>
-    <p v-if="data.data">{{ data.data.enabled?'已启用':'已停用' }} · {{ scheduleLabel(data.data.cron) }} · 下次 {{ data.data.nextRunAt===null?'计划已结束':date(data.data.nextRunAt) }}</p>
+    <p v-if="data.data">{{joinMetadata([(data.data.enabled?'已启用':'已停用'),(scheduleLabel(data.data.cron)),joinMetadata(["下次 ",(data.data.nextRunAt===null?'计划已结束':date(data.data.nextRunAt))], '')])}}</p>
 
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'计划变更已排队，尚未核验。':'正在核对当前计划，不重复保存。'" @refresh="load"/>
   </section>

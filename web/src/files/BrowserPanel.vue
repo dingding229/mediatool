@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {fileDescription} from './presentation';
 import FileBreadcrumbs from '../ui/FileBreadcrumbs.vue';
 import FileEntryRow from './FileEntryRow.vue';
@@ -119,7 +121,7 @@ defineExpose({ refresh: browser.refresh });
     <StateView v-else-if="!browser.history.length" state="empty" title="暂无文件操作记录"/>
     <article v-for="item in browser.history" :key="item.id" class="organize-record">
       <h3>{{ item.plan?.items?.[0]?.source?.name||'文件变更' }}</h3>
-      <p>{{ label(item.state) }} · {{ date((item as any).updatedAt) }}</p>
+      <p>{{joinMetadata([(label(item.state)),(date((item as any).updatedAt))])}}</p>
       <p>{{ item.message||'—' }}</p>
       <el-button @click="historyOpen=false;action?.inspect(item)">查看步骤与核对</el-button>
     </article>

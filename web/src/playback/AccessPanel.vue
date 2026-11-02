@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import PageTabs from '../ui/PageTabs.vue';
 import {useRoute} from 'vue-router';
 import {useDebouncedFilter} from '../composables/useDebouncedFilter';
@@ -150,9 +152,9 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <article v-for="record in records.data?.items||[]" :key="record.id" class="organize-record u5-ua-record ua-list-row ua-observation-row mt-list-row" role="listitem">
         <header class="ua-observation-identity">
           <p class="u5-original ua-summary-value" :title="record.userAgent||'空 UA'">{{ record.userAgent||'空 UA' }}</p>
-          <div class="ua-counts"><p>访问 {{ record.requestCount??'—' }} · 通过 {{ record.allowedCount??'—' }} · 拒绝 {{ record.deniedCount??'—' }}</p><p class="ua-secondary">{{ record.whitelisted?'已在白名单':'未在白名单' }} · {{ record.blacklisted?'已在黑名单':'未在黑名单' }}</p></div>
+          <div class="ua-counts"><p>{{joinMetadata([joinMetadata(["访问 ",(record.requestCount??'—')], ''),joinMetadata(["通过 ",(record.allowedCount??'—')], ''),joinMetadata(["拒绝 ",(record.deniedCount??'—')], '')])}}</p><p class="ua-secondary">{{joinMetadata([(record.whitelisted?'已在白名单':'未在白名单'),(record.blacklisted?'已在黑名单':'未在黑名单')])}}</p></div>
         </header>
-        <div class="ua-recent"><p><IpAddress :ip="record.lastClientIp"/></p><p class="ua-secondary">{{ date(record.lastSeenAt) }} · {{ reason(record.lastReason) }}</p></div>
+        <div class="ua-recent"><p><IpAddress :ip="record.lastClientIp"/></p><p class="ua-secondary">{{joinMetadata([(date(record.lastSeenAt)),(reason(record.lastReason))])}}</p></div>
         <div class="media-actions ua-row-actions mt-list-actions" role="group" aria-label="UA 汇总操作">
           <el-dropdown trigger="click" popper-class="media-dropdown"><el-button aria-label="UA 汇总更多" title="更多">更多</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item aria-label="查看完整 UA" @click="details=record;copyNotice='';detailOpen=true">查看完整 UA</el-dropdown-item><el-dropdown-item aria-label="加入白名单" v-if="!record.whitelisted" :disabled="!record.userAgent||!!op.pending||!policy.data" @click="edit(null,record,'rules')">加入白名单</el-dropdown-item><el-dropdown-item aria-label="加入黑名单" v-if="!record.blacklisted" :disabled="!record.userAgent||!!op.pending||!policy.data" @click="edit(null,record,'blacklistRules')">加入黑名单</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
         </div>
@@ -166,8 +168,8 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <div class="ua-columns ua-visit-columns mt-list-columns" aria-hidden="true"><span>访问结果 / 时间</span><span>访客与连接地址</span><span>UA</span><span>操作</span></div>
       <div class="ua-list mt-list" role="list" aria-label="访问明细列表">
       <article v-for="visit in visits.data?.items||[]" :key="visit.id" class="organize-record ua-list-row ua-visit-row mt-list-row" role="listitem">
-        <div class="ua-visit-result"><h3>{{ visit.allowed?'准入通过':'准入拒绝' }} · HTTP {{ visit.status??'—' }}</h3><p class="ua-secondary">{{ reason(visit.reason) }} · {{ visit.method||'—' }} · {{ date(visit.createdAt) }}</p></div>
-        <div class="ua-visit-context"><div class="ua-addresses"><p v-for="address in accessAddresses(visit.clientIp,visit.connectionIp)" :key="address.label">{{address.label}} <IpAddress :ip="address.ip"/></p><p class="ua-secondary">{{ ipSource(visit.ipSource) }} · {{ visit.ipPublic?'公网地址':'非公网或未核验' }}</p></div><p class="u5-original ua-summary-value" :title="visit.userAgent||'空 UA'">{{ visit.userAgent||'空 UA' }}</p></div>
+        <div class="ua-visit-result"><h3>{{joinMetadata([(visit.allowed?'准入通过':'准入拒绝'),joinMetadata(["HTTP ",(visit.status??'—')], '')])}}</h3><p class="ua-secondary">{{joinMetadata([(reason(visit.reason)),(visit.method||'—'),(date(visit.createdAt))])}}</p></div>
+        <div class="ua-visit-context"><div class="ua-addresses"><p v-for="address in accessAddresses(visit.clientIp,visit.connectionIp)" :key="address.label">{{address.label}} <IpAddress :ip="address.ip"/></p><p class="ua-secondary">{{joinMetadata([(ipSource(visit.ipSource)),(visit.ipPublic?'公网地址':'非公网或未核验')])}}</p></div><p class="u5-original ua-summary-value" :title="visit.userAgent||'空 UA'">{{ visit.userAgent||'空 UA' }}</p></div>
         <div class="media-actions ua-row-actions mt-list-actions" role="group" aria-label="访问明细操作"><el-button size="small" aria-label="访问详情" title="访问详情" @click="details=visit;copyNotice='';detailOpen=true"><el-icon class="ua-action-icon mt-list-action-icon" aria-hidden="true"><View/></el-icon><span class="ua-action-text mt-list-action-text">访问详情</span></el-button></div>
       </article>
       </div>
@@ -201,7 +203,7 @@ defineExpose({ load, search, edit, submit, ask, apply, policy, records, visits, 
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <section v-if="latest">
         <el-button v-if="latest.revision==null" @click="policy.load().then(p=>latest=p||latest)">核对准入策略</el-button>
-        <p>当前策略：{{ modeName(latest.mode) }} · {{ (latest[form.list]||[]).length }} 条{{ listName(form.list) }}规则</p>
+        <p>{{joinMetadata([joinMetadata(["当前策略：",(modeName(latest.mode))], ''),joinMetadata([((latest[form.list]||[]).length)," 条",(listName(form.list)),"规则"], '')])}}</p>
         <p v-for="rule in latest[form.list]||[]" :key="rule.id" class="u5-original">{{ rule.label||'—' }}：{{ rule.userAgent }}</p>
 
         <el-button :disabled="latest.revision==null" @click="base=JSON.parse(JSON.stringify(latest));latest=null">保留输入并采用最新修订</el-button>

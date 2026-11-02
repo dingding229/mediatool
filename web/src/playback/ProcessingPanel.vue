@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import FilterChip from '../ui/FilterChip.vue';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -141,7 +143,7 @@ defineExpose({ load, save, ask, apply, form, filter, summary, tasks, op, action,
         </section>
       </div>
       <div class="mt-save-actions"><el-button :disabled="!summary.data||!!summary.error||!!op.pending||!!latest" :loading="op.busy" @click="save" type="primary" class="mt-save-button">保存预处理设置</el-button></div>
-      <p>已用 {{ bytes(summary.data?.capacity?.usedBytes) }} · 预留 {{ bytes(summary.data?.capacity?.reservedBytes) }} · 上限 {{ bytes(summary.data?.capacity?.limitBytes) }} · 大小待核对 {{ summary.data?.capacity?.unknownSizes??'—' }} 项</p>
+      <p>{{joinMetadata([joinMetadata(["已用 ",(bytes(summary.data?.capacity?.usedBytes))], ''),joinMetadata(["预留 ",(bytes(summary.data?.capacity?.reservedBytes))], ''),joinMetadata(["上限 ",(bytes(summary.data?.capacity?.limitBytes))], ''),joinMetadata(["大小待核对 ",(summary.data?.capacity?.unknownSizes??'—')," 项"], '')])}}</p>
       <el-progress v-if="summary.data?.capacity?.limitBytes" :percentage="capacityPercent"/>
       <el-button :disabled="!!op.pending||op.busy||!!summary.error" @click="ask(null,true)">清理截图缓存</el-button>
     </section>
@@ -172,8 +174,8 @@ defineExpose({ load, save, ask, apply, form, filter, summary, tasks, op, action,
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'任务已排队，尚未完成。':'正在核对上次结果，不重复发起任务。'" @refresh="load"/>
       <article v-for="task in tasks.data?.items||[]" :key="task.id" class="organize-record">
         <h3>{{ task.name||'—' }}</h3>
-        <p>{{ states[task.state]||'状态待核对' }} · {{ reason(task.errorReason) }}</p>
-        <p>已尝试 {{ task.attempts??'—' }} 次 · 下次 {{ date(task.nextAttemptAt||undefined) }}</p>
+        <p>{{joinMetadata([(states[task.state]||'状态待核对'),(reason(task.errorReason))])}}</p>
+        <p>{{joinMetadata([joinMetadata(["已尝试 ",(task.attempts??'—')," 次"], ''),joinMetadata(["下次 ",(date(task.nextAttemptAt||undefined))], '')])}}</p>
         <el-button :disabled="!!op.pending||op.busy||tasks.loading||!!tasks.error" @click="ask(task)">重试此任务</el-button>
       </article>
       <PagePagination v-model:current-page="filter.page" v-model:page-size="filter.pageSize" :total="tasks.data?.total??0" layout="prev,pager,next,total" @current-change="load"/>

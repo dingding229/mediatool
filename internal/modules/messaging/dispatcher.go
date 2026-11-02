@@ -227,7 +227,7 @@ type Message struct {
 
 func (d Dispatcher) List(ctx context.Context) ([]Message, error) { return d.Page(ctx, 0, 200) }
 func (d Dispatcher) Page(ctx context.Context, start, limit int) ([]Message, error) {
-	rows, err := d.DB.Query(ctx, `SELECT m.id::text,m.title,m.body,m.created_at,m.read_at,coalesce(n.state,'not_configured'),n.id::text,coalesce(n.last_error,'') FROM notification_messages m LEFT JOIN notification_deliveries n ON n.event_id=m.event_id ORDER BY m.created_at DESC,m.id,n.id LIMIT $1 OFFSET $2`, limit, start)
+	rows, err := d.DB.Query(ctx, `SELECT m.id::text,m.title,m.body,m.created_at,m.read_at,coalesce(n.state,'not_configured'),n.id::text,coalesce(n.last_error,''),coalesce(e.event_type,''),e.payload FROM notification_messages m LEFT JOIN notification_deliveries n ON n.event_id=m.event_id LEFT JOIN outbox_events e ON e.id=m.event_id ORDER BY m.created_at DESC,m.id,n.id LIMIT $1 OFFSET $2`, limit, start)
 	if err != nil {
 		return nil, err
 	}
@@ -235,9 +235,12 @@ func (d Dispatcher) Page(ctx context.Context, start, limit int) ([]Message, erro
 	out := []Message{}
 	for rows.Next() {
 		var m Message
-		if err = rows.Scan(&m.ID, &m.Title, &m.Body, &m.CreatedAt, &m.ReadAt, &m.TelegramState, &m.DeliveryID, &m.DeliveryError); err != nil {
+		var kind string
+		var payload []byte
+		if err = rows.Scan(&m.ID, &m.Title, &m.Body, &m.CreatedAt, &m.ReadAt, &m.TelegramState, &m.DeliveryID, &m.DeliveryError, &kind, &payload); err != nil {
 			return nil, err
 		}
+		m.Title, m.Body = presentNotice(kind, payload, m.Title, m.Body)
 		out = append(out, m)
 	}
 	return out, rows.Err()

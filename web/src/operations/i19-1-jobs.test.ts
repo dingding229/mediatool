@@ -1,10 +1,11 @@
+import {stripMetadataImport} from '../test/metadata-import';
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import postcss from 'postcss';
-const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const read=(p:string)=>stripMetadataImport(readFileSync(new URL('../'+p,import.meta.url),'utf8'));
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it('I19-1 preserves task flow; I25 only adds the approved once-per-mount account label read',()=>{
  const script=read('operations/QueuePanel.vue').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { View, MoreFilled } from '@element-plus/icons-vue';\n",'');

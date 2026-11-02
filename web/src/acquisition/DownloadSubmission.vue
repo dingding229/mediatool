@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import AsyncResultBanner from '../ui/AsyncResultBanner.vue';
 import { errorText } from '../workflows/readiness';
 defineProps<{
@@ -14,12 +16,7 @@ defineProps<{
         <h3>已使用搜索中的媒体身份</h3>
         <strong>{{ model.chosen.title }}</strong>
         <p>
-          {{ model.chosen.mediaType==='series'?'剧集':'电影' }}
-          ·
-          {{ model.chosen.year||'—' }}
-          · TMDB
-
-        </p>
+          {{joinMetadata([(model.chosen.mediaType==='series'?'剧集':'电影'),(model.chosen.year||'—'),"TMDB "])}}</p>
         <p>{{ model.chosen.originalTitle||'—' }}</p>
         <el-button :disabled="!!model.intent" @click="model.usingIdentity=false">更正媒体身份</el-button>
       </section>

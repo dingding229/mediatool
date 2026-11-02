@@ -39,14 +39,15 @@ func ConnectionReadiness(r Record, now time.Time) Readiness {
 		return p
 	}
 
+	p := Readiness{LastCheckedAt: r.LastCheckedAt}
 	if !r.Enabled {
-		return Readiness{State: "disabled", NextAction: "enable_connection", Reason: "administrator_enable_required"}
+		p.State, p.NextAction, p.Reason = "disabled", "enable_connection", "administrator_enable_required"
+	} else if r.LastCheckedAt == nil || r.LastCheckState == "unchecked" || r.LastCheckedAt.Before(r.UpdatedAt) || r.LastCheckedAt.Add(24*time.Hour).Before(now) {
+		p.State, p.NextAction, p.Reason = "check_required", "test_connection", "probe_missing_or_stale"
+	} else if r.LastCheckState != "ready" {
+		p.State, p.NextAction, p.Reason = "check_failed", "inspect_connection", "last_probe_failed"
+	} else {
+		p.State, p.NextAction, p.Reason = "ready", "none", "fresh_saved_probe"
 	}
-	if r.LastCheckedAt == nil || r.LastCheckState == "unchecked" || r.LastCheckedAt.Before(r.UpdatedAt) || r.LastCheckedAt.Add(24*time.Hour).Before(now) {
-		return Readiness{State: "check_required", NextAction: "test_connection", Reason: "probe_missing_or_stale"}
-	}
-	if r.LastCheckState != "ready" {
-		return Readiness{State: "check_failed", NextAction: "inspect_connection", Reason: "last_probe_failed"}
-	}
-	return Readiness{State: "ready", NextAction: "none", Reason: "fresh_saved_probe"}
+	return p
 }

@@ -33,9 +33,9 @@ test('I17 structured fields have two protocols, compact checks and secret-free k
  await panel.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect.poll(()=>writes.length).toBe(1);
  expect(writes[0]).toMatchObject({protocol:'http',host:'proxy.fixture',port:7890,username:'fixture-user',password:'',clearPassword:false,revision:2});expect(writes[0]).not.toHaveProperty('url');
  await panel.getByLabel('代理主机',{exact:true}).fill('new.fixture');await expect(panel.getByRole('button',{name:'保存代理设置',exact:true})).toBeDisabled();
- await panel.getByLabel('代理密码',{exact:true}).fill('discarded-synthetic');await panel.getByText('明确清除已保存的代理密码',{exact:true}).click();await expect(panel.getByLabel('代理密码',{exact:true})).toHaveValue('');
+ await panel.getByLabel('代理密码',{exact:true}).fill('discarded-synthetic');await panel.getByText('清除已保存的代理密码',{exact:true}).click();await expect(panel.getByLabel('代理密码',{exact:true})).toHaveValue('');
  await panel.getByRole('button',{name:'保存代理设置',exact:true}).click();await expect.poll(()=>writes.length).toBe(2);expect(writes[1].clearPassword).toBe(true);expect(writes[1].password).toBe('');
- await expect(panel.getByRole('checkbox',{name:'明确清除已保存的代理密码',exact:true})).toHaveCount(0);
+ await expect(panel.getByRole('checkbox',{name:'清除已保存的代理密码',exact:true})).toHaveCount(0);
 });
 test('I17 old payload exposes needsInput without disabling routes or silently saving empty settings',async({page})=>{
  const writes=await fixture(page,true);await page.goto('/connections?tab=aux');const panel=page.getByRole('region',{name:'网络代理',exact:true});

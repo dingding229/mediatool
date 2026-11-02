@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { ref, watch, onUnmounted } from 'vue';
 import { APIError, post, request } from '../api/client';
 import PreviewApprove from '../ui/PreviewApprove.vue';
@@ -193,7 +195,7 @@ defineExpose({ open, inspect });
     <PreviewApprove :current-step="!plan?1:verified&&['succeeded','failed','expired'].includes(result?.state)?4:phase?3:2">
       <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
       <div v-if="!plan" class="media-form">
-        <p>{{ root?.name }} · {{ file?.path||form.destination }}</p>
+        <p>{{joinMetadata([(root?.name),(file?.path||form.destination)])}}</p>
         <label v-if="form.operation==='mkdir'">
           文件夹名称
           <el-input v-model="form.name" aria-label="新文件夹名称" :disabled="busy"/>
@@ -256,17 +258,17 @@ defineExpose({ open, inspect });
         <el-button type="primary" :loading="busy" :disabled="identity?.loading" @click="preview">预览变更</el-button>
       </div>
       <template v-else>
-        <p>预览有效至 {{ date(plan.expiresAt) }} · {{ result&&verified?label(result.state):phase==='queued'?'已排队':phase?'正在核对':'等待核对' }}</p>
+        <p>{{joinMetadata([joinMetadata(["预览有效至 ",(date(plan.expiresAt))], ''),(result&&verified?label(result.state):phase==='queued'?'已排队':phase?'正在核对':'等待核对')])}}</p>
         <article v-for="(item,index) in plan.items" :key="index" class="organize-record files-plan-item">
           <strong>{{ item.source?.name||'文件变更' }}</strong>
           <p>最终路径：{{ plan.root }}/{{ item.target }}</p>
-          <p>目录分类：{{plan.category||'—'}} · 命名结果：{{item.target.split('/').pop()}}</p>
+          <p>{{joinMetadata([joinMetadata(["目录分类：",(plan.category||'—')], ''),joinMetadata(["命名结果：",(item.target.split('/').pop())], '')])}}</p>
           <p>原路径：{{item.source?.path||'—'}}</p>
         </article>
         <details v-if="result&&verified" class="files-technical">
           <summary>执行步骤与核验</summary>
           <article v-for="(step,index) in plan.steps" :key="index">
-            <strong>{{ step.action==='mkdir'?'创建目录':'移动或改名' }} · {{ label(stepState(result.state,result.completedSteps||0,Number(index))) }}</strong>
+            <strong>{{joinMetadata([(step.action==='mkdir'?'创建目录':'移动或改名'),(label(stepState(result.state,result.completedSteps||0,Number(index))))])}}</strong>
             <p>{{ step.source?.path||'—' }} → {{ step.target }}</p>
           </article>
         </details>

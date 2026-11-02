@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {usePageNumber,usePageSize} from '../ui/page-query';
 import { onMounted, reactive, ref } from 'vue';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
@@ -96,7 +98,7 @@ defineExpose({ load, create });
   <UserEditor ref="editor" :libraries="libraries.data" @saved="load"/>
   <DetailDrawer v-model:visible="activityOpen" :title="(activity?.username||'媒体用户')+' · 用户详情'" size="large" class="media-detail">
     <dl v-if="activity" class="media-user-summary media-user-detail-summary">
-      <div><dt>设备与登录</dt><dd>{{ activity.deviceCount??'—' }} 台设备 · {{ activity.activeSessions??'—' }} 个有效登录</dd></div>
+      <div><dt>设备与登录</dt><dd>{{joinMetadata([joinMetadata([(activity.deviceCount??'—')," 台设备"], ''),joinMetadata([(activity.activeSessions??'—')," 个有效登录"], '')])}}</dd></div>
       <div><dt>权限摘要</dt><dd>{{ permission(activity) }}</dd></div>
       <div><dt>同时播放上限</dt><dd>{{ activity.maxStreams??'—' }}</dd></div>
       <div><dt>到期</dt><dd>{{ date(activity.expiresAt||undefined) }}</dd></div>

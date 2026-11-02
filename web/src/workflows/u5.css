@@ -5,3 +5,7 @@
 .u5-template a{display:flex;align-items:center;min-height:44px;overflow-wrap:anywhere;color:var(--mt-color-primary)}
 
 @media(max-width:700px){.u5-sites .u5-stats>div{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px;padding:14px}.u5-sites .u5-stats small{grid-column:1/-1;color:var(--mt-text-muted)}.u5-sites .u5-metric-card .u5-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.u5-sites .u5-metric-card .u5-stats>div{display:block;padding:12px 8px;font-size:13px}.u5-sites .u5-metric-card .u5-stats strong{font-size:16px;margin-top:8px}}
+
+/* Shared form rhythm and normal input values; label weight must not leak into controls. */
+.media-surface>h2+.u5-form{margin-top:var(--mt-form-section-gap,16px)}.u5-form input:not([type=checkbox]),.u5-form textarea{font-weight:400}
+.u5-form input:not([type=checkbox]):not(.el-input__inner):not(.el-select__input),.u5-form textarea:not(.el-textarea__inner),.u5-form .el-input__inner,.u5-form .el-textarea__inner{font-weight:400}

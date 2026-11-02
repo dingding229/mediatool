@@ -1,0 +1,9 @@
+{
+  "input": {
+    "kind": "ops.alert.active",
+    "payload": {"metric": "memoryPercent", "value": 92, "threshold": 90},
+    "title": "系统运维告警",
+    "body": "message: 宿主内存使用率过高；指标 memoryPercent，阈值 90.00\nassetId: 85091f83-1111-4111-8111-111111111111"
+  },
+  "expected": {"title": "系统运维告警", "body": "内存使用率92%，超过阈值90%"}
+}

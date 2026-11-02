@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import PlaybackStatistics from './PlaybackStatistics.vue';
 import IpAddress from '../ui/IpAddress.vue';
 import {mediaTitle,playbackDuration} from '../utils/media-title';
@@ -61,12 +63,12 @@ defineExpose({ load, tab, page, data, changeTab, revoke, target, op });
   <article v-for="row in data.data?.items||[]" :key="row.id||row.itemId" class="organize-record">
     <h3>{{tab==='history'?mediaTitle(row):row.name||'—'}}</h3>
     <template v-if="tab==='devices'">
-      <p>{{ row.client||'—' }} · {{ row.appVersion||'—' }} · 有效登录 {{ row.activeTokens??'—' }}</p>
+      <p>{{joinMetadata([(row.client||'—'),(row.appVersion||'—'),joinMetadata(["有效登录 ",(row.activeTokens??'—')], '')])}}</p>
       <p>最近活动 {{ date(row.lastSeenAt) }} · <IpAddress :ip="row.lastIp"/></p>
       <el-button @click="statsDevice=row.id;changeTab('statistics')">此设备 IP 与播放历史</el-button>
       <el-button :disabled="!!op.pending||op.busy||!!data.error" @click="target=row;confirm=true">撤销设备登录</el-button>
     </template>
-    <p v-else>观看 {{ row.playCount??'—' }} 次 · 累计播放 {{playbackDuration(row.durationSeconds)}} · {{ row.played?'已看完':'未看完' }} · {{ date(row.lastPlayedAt) }}</p>
+    <p v-else>{{joinMetadata([joinMetadata(["观看 ",(row.playCount??'—')," 次"], ''),joinMetadata(["累计播放 ",(playbackDuration(row.durationSeconds))], ''),(row.played?'已看完':'未看完'),(date(row.lastPlayedAt))])}}</p>
   </article>
   <PagePagination v-model:current-page="page" v-model:page-size="pageSize" :total="data.data?.total||0" layout="prev,pager,next,total" @current-change="load"/>
   <p v-if="tab==='history'">次数按本功能启用后的播放会话计（未看完也计 1 次）；累计时长为有效进度增量，不是影片总时长。旧条目保留续播状态，不推算历史事件。</p>

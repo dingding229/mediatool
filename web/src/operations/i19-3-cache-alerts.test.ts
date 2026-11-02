@@ -1,3 +1,4 @@
+import {stripMetadataImport} from '../test/metadata-import';
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
@@ -5,7 +6,7 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import postcss from 'postcss';
 import {cacheTime} from '../utils/cache-time';
-const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const read=(p:string)=>stripMetadataImport(readFileSync(new URL('../'+p,import.meta.url),'utf8'));
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it.each([
  ['CachePanel.vue',"import { View, Delete, Search, Picture } from '@element-plus/icons-vue';\n",'38d129f248f0dc1dcef500cf2170a052d6c7b17c38974c8d9b5e61847ead628a'],

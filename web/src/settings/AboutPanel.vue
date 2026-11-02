@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {computed,onMounted,ref,watch} from 'vue';
 import {useUpdateStore} from '../stores/updates';
 import {checkUpdates,setUpdateChecks} from '../api/updates';
@@ -36,7 +38,7 @@ onMounted(()=>{updates.dismiss();void updates.refresh()});usePageRefresh(updates
    </form>
    <p id="update-interval-help" v-if="!intervalValid" role="alert">检查间隔必须是1–168小时的整数。</p><p v-if="error||updates.error" role="alert">{{error||updates.error}}</p>
    <template v-if="latest"><p>最新版本 {{latest.tag}}</p><ReleaseNotes :key="latest.tag" :notes="latest.notes" :tag="latest.tag" :expanded="!newerStable(latest.version,updates.build?.version||'')"/></template>
-   <p v-else-if="currentAtLeastLatest">最新版本 {{version}} · 已是最新版本</p>
+   <p v-else-if="currentAtLeastLatest">{{joinMetadata([joinMetadata(["最新版本 ",(version)], ''),"已是最新版本"])}}</p>
    <p v-else class="f8-empty">完成可信校验后，这里显示最新版本与变更说明。</p>
    <OnlineUpdatePanel :check-summary="checkSummary"/>
   </section>

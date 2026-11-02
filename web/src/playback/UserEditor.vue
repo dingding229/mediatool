@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { ref, reactive, watch, onUnmounted } from 'vue';
 import { saveMediaUser } from '../api/mediaServer';
 import { APIError, post, request } from '../api/client';
@@ -178,7 +180,7 @@ defineExpose({ open, save, reread, form, op, latest });
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
       <section v-if="latest">
         <el-button v-if="latest.revision==null&&!op.phase" @click="reread().catch(e=>op.error=e)">核对账号配置</el-button>
-        <p>当前用户：{{ latest.username }} · {{ latest.enabled?'启用':'停用' }} · 同时播放 {{ latest.maxStreams }}</p>
+        <p>{{joinMetadata([joinMetadata(["当前用户：",(latest.username)], ''),(latest.enabled?'启用':'停用'),joinMetadata(["同时播放 ",(latest.maxStreams)], '')])}}</p>
         <p v-if="!form.id">新建时遇到重复账号，请关闭后编辑已有账号。</p>
 
         <el-button :disabled="!form.id||latest.revision==null" @click="form.revision=latest.revision;latest=null">保留输入并采用最新修订</el-button>

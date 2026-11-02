@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { ref, onUnmounted, watch } from 'vue';
 import FileIdentityFields from '../files/FileIdentityFields.vue';
 import {createFileIdentity,filePayload,validateFileIdentity} from '../files/identity';
@@ -216,7 +218,7 @@ defineExpose({ open, openFiles });
               <el-option value="direct" label="逐项自定义名称"/>
             </el-select>
           </label>
-          <p>{{ root?.name }} · {{ root?.path }}</p>
+          <p>{{joinMetadata([(root?.name),(root?.path)])}}</p>
           <p>
             电影模板：
             <code>{{ templates.movieTemplate||'—' }}</code>
@@ -236,12 +238,12 @@ defineExpose({ open, openFiles });
           <el-button type="primary" :loading="busy" :disabled="items.some(row=>row.identity?.loading)" @click="preview">预览全部变更</el-button>
         </template>
         <template v-else>
-          <p>{{ phase&&!verified?(phase==='queued'?'已排队，待核验':'正在核对上次结果'):label(batch.state) }} · 预览截止 {{ date(batch.expiresAt) }}</p>
+          <p>{{joinMetadata([(phase&&!verified?(phase==='queued'?'已排队，待核验':'正在核对上次结果'):label(batch.state)),joinMetadata(["预览截止 ",(date(batch.expiresAt))], '')])}}</p>
           <article v-for="row in batch.items" :key="row.ordinal" class="organize-record">
             <h3>{{ row.source }}</h3>
-            <p>{{ phase&&!verified?'等待核验':label(row.state) }} · {{ !phase||verified?row.message||'—':'以重新读取的记录为准' }}</p>
+            <p>{{joinMetadata([(phase&&!verified?'等待核验':label(row.state)),(!phase||verified?row.message||'—':'以重新读取的记录为准')])}}</p>
             <p>目录分类：{{row.result?.plan?.category||'—'}}</p>
-            <p v-for="(item,index) in row.result?.plan?.items||[]" :key="index">最终路径：{{row.result.plan.root}}/{{item.target}} · 命名结果：{{item.target.split('/').pop()}}</p>
+            <p v-for="(item,index) in row.result?.plan?.items||[]" :key="index">{{joinMetadata([joinMetadata(["最终路径：",(row.result.plan.root),"/",(item.target)], ''),joinMetadata(["命名结果：",(item.target.split('/').pop())], '')])}}</p>
           </article>
           <AsyncResultBanner v-if="phase" :can-refresh="false" :status="phase" message="批准不等于文件整理完成，先读取或只读核对，不重放写入。" @refresh="readback(false)"/>
           <div class="media-actions">

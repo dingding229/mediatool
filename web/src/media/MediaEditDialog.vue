@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {computed,nextTick,ref,watch} from 'vue';
 import {ElMessageBox} from 'element-plus';
 import 'element-plus/es/components/message-box/style/css';
@@ -32,7 +34,7 @@ defineExpose({dirty,busy,save,discard,requestClose});
 <template>
  <el-dialog v-model="visible" title="编辑作品" class="media-edit-dialog" width="min(1120px,calc(100vw - 32px))" align-center :close-on-click-modal="false" :before-close="requestClose" :close-on-press-escape="!busy" :show-close="!busy">
   <div class="media-edit-layout">
-   <aside class="media-edit-summary"><PosterArtwork :src="image(item.poster)" :title="item.title"/><div><h2>{{item.title}}</h2><p>{{item.year||'年份未标注'}} · {{mediaType(item.mediaType||item.type)}}</p></div></aside>
+   <aside class="media-edit-summary"><PosterArtwork :src="image(item.poster)" :title="item.title"/><div><h2>{{item.title}}</h2><p>{{joinMetadata([(item.year||'年份未标注'),(mediaType(item.mediaType||item.type))])}}</p></div></aside>
    <div class="media-edit-workspace">
     <nav class="media-edit-tabs mt-segments" aria-label="编辑内容"><button type="button" :aria-pressed="tab==='metadata'" :disabled="busy" @click="tab='metadata'">信息</button><button type="button" :aria-pressed="tab==='images'" :disabled="busy" @click="tab='images'">图片</button></nav>
     <div class="media-edit-scroll"><MetadataEditor :key="'metadata'+session" v-show="tab==='metadata'" ref="metadata" :item-id="item.id" hide-trigger external-controls/><ImageEditor :key="'images'+session" v-show="tab==='images'" ref="images" :item-id="item.id" hide-trigger external-controls deferred/></div>

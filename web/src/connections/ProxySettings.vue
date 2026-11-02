@@ -57,8 +57,8 @@ usePageRefresh(()=>load(true));
    </div>
   </div>
   <div class="proxy-options">
-   <el-checkbox v-if="saved.hasPassword||saved.needsInput" v-model="form.clearPassword" class="mt-form-checkbox" :disabled="busy||form.clear" @change="form.clearPassword&&(form.password='')">明确清除已保存的代理密码</el-checkbox>
-   <el-checkbox v-model="form.clear" class="mt-form-checkbox" :disabled="busy">明确清除已保存的代理地址</el-checkbox>
+   <el-checkbox v-if="saved.hasPassword||saved.needsInput" v-model="form.clearPassword" class="mt-form-checkbox" :disabled="busy||form.clear" @change="form.clearPassword&&(form.password='')">清除已保存的代理密码</el-checkbox>
+   <el-checkbox v-if="saved.configured||saved.needsInput" v-model="form.clear" class="mt-form-checkbox" :disabled="busy">清除已保存的代理地址</el-checkbox>
    <el-checkbox v-model="form.tmdb" class="mt-form-checkbox" :disabled="busy">TMDB查询与海报使用代理</el-checkbox>
    <el-checkbox v-model="form.sites" class="mt-form-checkbox" :disabled="busy">PT站点搜索、RSS与站点请求使用代理</el-checkbox>
    <p class="mt-form-checkbox-help">不会影响 115、CloudDrive2 或下载器。关闭两个路由即可停用代理。</p>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { View, Delete, Search, Picture } from '@element-plus/icons-vue';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 
@@ -91,7 +93,7 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
       <div class="ops-content-stage ops-cache-stage" :aria-busy="data.loading||data.refreshing">
       <ResourceState :stale="!!data.data" :loading="(!data.loaded||!data.data)&&!data.error" :error="data.error" :empty="!!data.data&&!data.data.items?.length" @reload="load"/>
       <template v-if="data.loaded||data.error">
-      <p class="ops-cache-summary">当前检索共 {{ data.loading||data.error?'—':data.data?.total??'—' }} 项 · 本页 {{ data.loading||data.error?'—':bytes(data.data?.items.reduce((n:number,r:any)=>n+(r.bytes||0),0)) }}</p>
+      <p class="ops-cache-summary">{{joinMetadata([joinMetadata(["当前检索共 ",(data.loading||data.error?'—':data.data?.total??'—')," 项"], ''),joinMetadata(["本页 ",(data.loading||data.error?'—':bytes(data.data?.items.reduce((n:number,r:any)=>n+(r.bytes||0),0)))], '')])}}</p>
       <p v-if="notice" role="status">{{ notice }}</p>
       <p v-if="data.data?.truncated">扫描存在上限，当前列表未必覆盖全部缓存；可分批清理并重新读取。</p>
       <el-alert v-if="op.error" :title="errorText(op.error)" type="error" :closable="false"/>
@@ -104,7 +106,7 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
           <h3>{{ row.query||'媒体查询' }}</h3>
         </div>
         <div class="ops-cache-meta">
-          <p>{{ row.count??'—' }} 个结果 · {{ cacheTime(kind,row,(now-loadedAt)/1000) }}</p>
+          <p>{{joinMetadata([joinMetadata([(row.count??'—')," 个结果"], ''),(cacheTime(kind,row,(now-loadedAt)/1000))])}}</p>
           <p>{{ date(row.createdAt) }}</p>
         </div>
         <div class="media-actions mt-list-actions">
@@ -128,7 +130,7 @@ defineExpose({ load, op, apply, ask, data, kind, inspect });
     <DetailDrawer v-model:visible="open" title="缓存内容" size="large" class="media-detail">
       <ResourceState :error="detailError" @reload="load"/>
       <h3>{{ detail?.query||detail?.data?.query||detail?.title||detail?.data?.title||'—' }}</h3>
-      <ul v-if="detail?.data?.items?.length"><li v-for="(item,index) in detail.data.items" :key="index">{{item.title||item.name||'—'}}<span v-if="item.year"> · {{item.year}}</span></li></ul>
+      <ul v-if="detail?.data?.items?.length"><li v-for="(item,index) in detail.data.items" :key="index">{{joinMetadata([item.title||item.name,item.year])}}</li></ul>
     </DetailDrawer>
   </div>
 </template>

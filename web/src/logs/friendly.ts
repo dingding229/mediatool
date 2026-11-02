@@ -1,3 +1,4 @@
+import {joinMetadata} from '../presentation/metadata';
 import { logLevel, type LogRecord } from "./format";
 const modules: Record<string, string> = {
   app: "主程序",
@@ -161,5 +162,5 @@ export function friendlyFields(row: LogRecord): string {
   if (row.stage != null) parts.push(stageLabel(row.stage));
   if (row.count != null) parts.push(`${row.count} 项`);
 
-  return parts.join(" · ");
+  return joinMetadata(parts);
 }

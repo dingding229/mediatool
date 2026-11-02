@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import IpAddress from '../ui/IpAddress.vue';
 import {beijingTime as date} from '../presentation/time';
 
@@ -27,7 +29,7 @@ onMounted(sessions.load);usePageRefresh(sessions.load,'security');
 <StateView v-else-if="!sessions.data.value?.items.length" state="empty" title="暂无有效的管理端登录"/>
 <article v-else v-for="row in sessions.data.value.items" :key="row.id" class="organize-record">
 <h3>{{row.username}}<span v-if="row.current"> · 当前会话</span></h3>
-<p>创建 {{date(row.createdAt)}} · 最后活动 {{date(row.lastActiveAt)}} · 到期 {{date(row.expiresAt)}}</p>
+<p>{{joinMetadata([joinMetadata(["创建 ",(date(row.createdAt))], ''),joinMetadata(["最后活动 ",(date(row.lastActiveAt))], ''),joinMetadata(["到期 ",(date(row.expiresAt))], '')])}}</p>
 <p class="admin-session-raw">IP：<IpAddress :ip="row.ip"/></p><p class="admin-session-raw">UA：{{row.userAgent||'—'}}</p>
 <el-button :disabled="busy" @click="target=row">{{row.current?'撤销当前登录':'撤销此登录'}}</el-button>
 </article>

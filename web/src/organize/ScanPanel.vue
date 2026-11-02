@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import StatusBadge from '../components/StatusBadge.vue';
 import {Folder,Document,VideoPause,Refresh,Close} from '@element-plus/icons-vue';
 import CronInput from '../ui/CronInput.vue';
@@ -235,7 +237,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
           云盘目录来源
           <el-select v-model="connection" aria-label="扫描目录来源" fit-input-width :disabled="!!pending||useDefault" @change="root=roots.find(r=>r.id===connection)?.path||'';useDefault=false">
             <template #label><MiddleEllipsis :path="roots.find(r=>r.id===connection)?.path" :copy="false"/></template>
-            <el-option v-for="entry in roots" :key="entry.id" :value="entry.id" :label="entry.name+' · '+entry.path" :aria-label="entry.name+' · '+entry.path"><MiddleEllipsis :path="entry.path" :copy="false"/></el-option>
+            <el-option v-for="entry in roots" :key="entry.id" :value="entry.id" :label="joinMetadata([entry.name,entry.path])" :aria-label="joinMetadata([entry.name,entry.path])"><MiddleEllipsis :path="entry.path" :copy="false"/></el-option>
           </el-select>
         </label>
         <el-checkbox class="mt-form-checkbox" v-model="useDefault" :disabled="!!pending">使用服务端默认云盘根目录</el-checkbox><p v-if="useDefault" class="mt-help">由服务端使用已配置的默认云盘根目录，无需选择目录来源。</p>
@@ -268,7 +270,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <div class="mt-list" role="list" aria-label="扫描任务列表">
     <article v-for="scan in displayScans" :key="scan.id" class="organize-record mt-list-row organize-list-row organize-scan-row f5-scan-row" role="listitem">
       <div class="organize-list-identity"><el-icon class="organize-list-folder" aria-hidden="true"><Folder/></el-icon><div><h3><MiddleEllipsis :text="scan.root?.split('/').filter(Boolean).pop()||'根目录'" :copy="false"/></h3><p>批次 {{scan.id.slice(0,8)}}<template v-if="scan.generation>1"> · 第 {{scan.generation}} 轮</template></p></div></div>
-      <div class="organize-list-path"><MiddleEllipsis class="mt-path" :path="scan.root"/><p>{{ scan.files??'—' }} 个文件 · 已知目录 {{ scan.completedDirectories??'—' }} / {{ scan.directories??'—' }}</p><div v-if="scan.directories>0" class="scan-record-progress"><el-progress :show-text="false" :stroke-width="4" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/><span>{{ scanPercent(scan.completedDirectories||0,scan.directories) }}%</span></div></div>
+      <div class="organize-list-path"><MiddleEllipsis class="mt-path" :path="scan.root"/><p>{{joinMetadata([joinMetadata([(scan.files??'—')," 个文件"], ''),joinMetadata(["已知目录 ",(scan.completedDirectories??'—')," / ",(scan.directories??'—')], '')])}}</p><div v-if="scan.directories>0" class="scan-record-progress"><el-progress :show-text="false" :stroke-width="4" :percentage="scanPercent(scan.completedDirectories||0,scan.directories)"/><span>{{ scanPercent(scan.completedDirectories||0,scan.directories) }}%</span></div></div>
       <div class="organize-list-state"><StatusBadge :state="scan.state" :label="label(scan.state)"/></div>
       <div class="organize-list-time"><time v-if="scan.startedAt">开始 {{date(scan.startedAt)}}</time><time v-else-if="scan.createdAt">创建 {{date(scan.createdAt)}}</time><time v-if="scan.endedAt">结束 {{date(scan.endedAt)}}</time><time v-else-if="scan.updatedAt">更新 {{date(scan.updatedAt)}}</time></div>
       <div class="media-actions mt-list-actions organize-list-actions">
@@ -292,15 +294,15 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
     <StateView v-else-if="!schedules.length" state="empty" title="尚无定时扫描" description="新增计划默认停用，核对目录与周期后再启用。"/>
     <article v-for="schedule in schedules" :key="schedule.id" class="organize-record">
       <h3><MiddleEllipsis class="mt-path" :path="schedule.root"/></h3>
-      <p>{{ scheduleLabel(schedule.cron) }} · {{ schedule.enabled?'已启用':'未启用' }} · 下次 {{ schedule.nextRunAt===null?'计划已结束':date(schedule.nextRunAt) }}</p>
-      <p>文件变化推送：{{ label(schedule.watchState) }} · {{ schedule.watchMessage||'—' }}</p>
+      <p>{{joinMetadata([(scheduleLabel(schedule.cron)),(schedule.enabled?'已启用':'未启用'),joinMetadata(["下次 ",(schedule.nextRunAt===null?'计划已结束':date(schedule.nextRunAt))], '')])}}</p>
+      <p>{{joinMetadata([joinMetadata(["文件变化推送：",(label(schedule.watchState))], ''),(schedule.watchMessage||'—')])}}</p>
       <p>{{ schedule.lastError||'—' }}</p>
       <el-button @click="editSchedule(schedule)">编辑</el-button>
     </article>
   </section>
   <DetailDrawer v-model:visible="detailOpen" title="扫描目录覆盖" size="large" class="media-detail">
     <ScanRecord v-if="detail?.scan" :path="detail.scan.root" :state="detail.scan.state" :time="detail.scan.updatedAt||detail.scan.createdAt" :percent="detail.scan.directories>0?scanPercent(detail.scan.completedDirectories||0,detail.scan.directories):undefined">
-      <span>{{detail.scan.files??'—'}} 个文件 · 已知目录 {{detail.scan.completedDirectories??'—'}} / {{detail.scan.directories??'—'}}</span>
+      <span>{{joinMetadata([joinMetadata([(detail.scan.files??'—')," 个文件"], ''),joinMetadata(["已知目录 ",(detail.scan.completedDirectories??'—')," / ",(detail.scan.directories??'—')], '')])}}</span>
       <template #details><p>当前目录：<MiddleEllipsis class="mt-path" :path="detail.scan.currentDirectory" full/></p><p>{{detail.scan.message||'—'}}</p></template>
     </ScanRecord>
     <ScanRecord v-for="directory in detail?.directories||[]" :key="directory.path" :path="directory.path" :state="directory.state" :time="directory.updatedAt">
@@ -327,7 +329,7 @@ usePageRefresh(()=>{emit('changed');return readRoots()}, 'scans');
       <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
       <section v-if="conflict">
         <el-button @click="checkSchedule">核对上次保存</el-button>
-        <p>当前配置：{{ conflict.root }} · {{ scheduleLabel(conflict.cron) }} · {{ conflict.enabled?'启用':'停用' }}</p>
+        <p>{{joinMetadata([joinMetadata(["当前配置：",(conflict.root)], ''),(scheduleLabel(conflict.cron)),(conflict.enabled?'启用':'停用')])}}</p>
         <el-button :disabled="conflict.revision==null" @click="form.id=conflict.id||form.id;form.revision=conflict.revision;conflict=null;savePrivate('media-tool:scan-schedule-write:v1',null)">保留输入并采用最新修订</el-button>
       </section>
     </div>

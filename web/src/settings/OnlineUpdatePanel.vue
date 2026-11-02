@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {computed,ref,onUnmounted} from 'vue';
 import ReleaseNotes from './ReleaseNotes.vue';
 import IdleUpdatePanel from './IdleUpdatePanel.vue';
@@ -13,7 +15,7 @@ const updates=useUpdateStore(),status=ref<OnlineUpdateStatus>(),error=ref(''),op
 const target=computed(()=>updates.state?.result.status==='verified'?updates.state.result.latest:null);
 const running=computed(()=>Boolean(status.value?.job&&!updateDone(status.value.job.phase)));
 const ready=computed(()=>!(status.value?.recoveryRequired?.length)&&status.value?.available&&status.value.policyVerified&&!running.value&&target.value&&newerStable(updates.build?.version||'',target.value.version));
-const result=computed(()=>{const job=status.value?.job;return[props.checkSummary,job?'最近更新：'+(job.failure?updateFailures[job.failure]||'更新未完成，请查看详情':updatePhases[job.phase]||'等待核对状态'):status.value?'尚无在线更新记录':'读取更新状态中',status.value&&!status.value.available?status.value.reason:''].filter(Boolean).join(' · ')});
+const result=computed(()=>{const job=status.value?.job;return joinMetadata([props.checkSummary,job?'最近更新：'+(job.failure?updateFailures[job.failure]||'更新未完成，请查看详情':updatePhases[job.phase]||'等待核对状态'):status.value?'尚无在线更新记录':'读取更新状态中',status.value&&!status.value.available?status.value.reason:''].filter(Boolean))});
 async function load(){try{status.value=await getOnlineUpdate();error.value=''}catch(e){error.value=errorText(e)}}
 const refresh=useRefresh(load,{interval:()=>running.value?3000:0});usePageRefresh(refresh.refresh,'about');
 function prepare(id=''){recoveryId.value=id;error.value='';password.value='';confirmed.value=false;open.value=true}

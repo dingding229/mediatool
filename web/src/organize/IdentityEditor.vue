@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {identityDraft} from './presentation';
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { APIError, post, request } from '../api/client';
@@ -277,7 +279,7 @@ defineExpose({ open });
   <el-dialog v-model="visible" :title="asset?'修正媒体身份与季集':'确认候选媒体'" width="920px" align-center :close-on-click-modal="false" :show-close="!saving" :close-on-press-escape="!saving" class="media-dialog identity-editor-dialog">
     <div class="media-form identity-editor-content">
       <section class="identity-step" aria-label="1 找到正确作品">
-        <header class="identity-step-heading"><h3>1 找到正确作品</h3><span class="identity-selected" aria-label="已选作品" :title="selected?.title">{{selected?selected.title+' · '+(selected.year||'—'):'—'}}</span></header>
+        <header class="identity-step-heading"><h3>1 找到正确作品</h3><span class="identity-selected" aria-label="已选作品" :title="selected?.title">{{selected?joinMetadata([selected.title,selected.year]):'—'}}</span></header>
         <p>逐文件核对准确作品与季集；未提供分段边界时，多集别名都播放同一个完整源文件。</p>
         <div class="media-filter-row identity-search">
           <label>媒体类型<el-select v-model="kind" aria-label="媒体类型" :disabled="!!phase||saving"><el-option value="movie" label="电影"/><el-option value="series" label="剧集"/></el-select></label>
@@ -286,9 +288,9 @@ defineExpose({ open });
         </div>
         <p v-if="!lookup&&!results.length">请输入标题查询，或先重新读取识别线索。</p>
         <div class="media-choice-list identity-matches" role="group" aria-label="匹配影视">
-          <button v-for="item in results" :key="item.mediaType+item.id" type="button" class="identity-choice" :disabled="!!phase||saving" :aria-label="item.title+' · '+(item.year||'—')+' · '+(item.mediaType==='series'?'剧集':'电影')" :aria-pressed="selected?.id===item.id&&selected?.mediaType===item.mediaType" @click="selected=item">
+          <button v-for="item in results" :key="item.mediaType+item.id" type="button" class="identity-choice" :disabled="!!phase||saving" :aria-label="joinMetadata([item.title,item.year,item.mediaType==='series'?'剧集':'电影'])" :aria-pressed="selected?.id===item.id&&selected?.mediaType===item.mediaType" @click="selected=item">
             <PosterArtwork :src="cachedTMDBImage(item.posterPath||item.poster)" :title="item.title" aria-hidden="true"/>
-            <span class="identity-choice-copy"><strong :title="item.title">{{item.title}}</strong><span>{{item.year||'—'}} · {{item.mediaType==='series'?'剧集':'电影'}}</span><small :title="item.originalTitle">{{item.originalTitle||'—'}}</small></span>
+            <span class="identity-choice-copy"><strong :title="item.title">{{item.title}}</strong><span>{{joinMetadata([(item.year||'—'),(item.mediaType==='series'?'剧集':'电影')])}}</span><small :title="item.originalTitle">{{item.originalTitle||'—'}}</small></span>
           </button>
         </div>
         <div class="media-actions identity-read-actions">
@@ -326,7 +328,7 @@ defineExpose({ open });
         <el-button v-if="selected?.mediaType==='series'" :disabled="saving||!!phase" :loading="episodeBusy" @click="previewEpisodes">预览单集信息</el-button>
         <p v-if="episodeError" role="alert">{{episodeError}}</p>
         <div v-if="episodeItems.length" class="identity-episodes">
-          <article v-for="ep in episodeItems" :key="ep.id"><strong>S{{String(ep.season).padStart(2,'0')}}E{{String(ep.number).padStart(2,'0')}} · {{ep.title}}</strong><p>{{ep.airDate||'播出日期 —'}} · {{ep.runtimeMinutes?ep.runtimeMinutes+' 分钟':'时长 —'}}</p><p>{{ep.overview||'—'}}</p></article>
+          <article v-for="ep in episodeItems" :key="ep.id"><strong>{{joinMetadata([joinMetadata(["S",(String(ep.season).padStart(2,'0')),"E",(String(ep.number).padStart(2,'0'))], ''),(ep.title)])}}</strong><p>{{joinMetadata([(ep.airDate||'播出日期 —'),(ep.runtimeMinutes?ep.runtimeMinutes+' 分钟':'时长 —')])}}</p><p>{{ep.overview||'—'}}</p></article>
         </div>
       </section>
       <section class="identity-step" aria-label="3 预览输出">
@@ -356,7 +358,7 @@ defineExpose({ open });
         </template>
         <p v-else>确认后可能生成 STRM / NFO；保留媒体和做种源，播放仍需真实播放器验证。</p>
         <el-alert v-if="error" :title="errorText(error)" type="error" :closable="false"/>
-        <p v-for="result in outcomes" :key="result.id">{{result.succeeded?'输出确认已受理':'需处理'}} · {{result.message||'—'}}</p>
+        <p v-for="result in outcomes" :key="result.id">{{joinMetadata([(result.succeeded?'输出确认已受理':'需处理'),(result.message||'—')])}}</p>
         <AsyncResultBanner v-if="phase" :can-refresh="false" :status="phase" message="确认结果需核对输出与记录，不重复提交同一确认。" @refresh="reconcile"/>
       </section>
     </div>

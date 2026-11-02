@@ -1,3 +1,4 @@
+import {stripMetadataImport} from '../test/metadata-import';
 // I41 approves grouped directory reads, segmented access UI and debounced filtering; mutating functions remain pinned separately.
 // I40 ImageEditor/SubtitlePanel intentionally gain deferred saves and language recognition; behavioral tests live in media/i40-edit.test.ts and subtitles.test.ts.
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
@@ -5,7 +6,7 @@
 import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-const read=(p:string)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const read=(p:string)=>stripMetadataImport(readFileSync(new URL('../'+p,import.meta.url),'utf8'));
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it.each([
  [

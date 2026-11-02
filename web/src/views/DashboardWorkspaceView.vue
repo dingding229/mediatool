@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {usePageRefresh} from '../ui/page-refresh';
 import { computed } from 'vue';
 import PageHeader from '../ui/PageHeader.vue';
@@ -54,7 +56,7 @@ usePageRefresh(refresh,props.attention?'attention':'*');
             <div v-for="item in group.items.slice(0,5)" :key="item.id" class="inbox-item">
               <strong>{{item.title}}</strong>
               <small v-if="item.note">{{item.note}}</small>
-              <small v-if="item.count">近期记录 {{item.count}} 次 · 最近 {{date(item.latestAt)}}</small>
+              <small v-if="item.count">{{joinMetadata([joinMetadata(["近期记录 ",(item.count)," 次"], ''),joinMetadata(["最近 ",(date(item.latestAt))], '')])}}</small>
               <RouterLink :to="{path:item.path,query:item.query}">去处理<span class="sr-only">{{item.title}}</span></RouterLink>
               <small v-if="item.alert">请在运维页确认；确认告警不等于问题已解决。</small>
             </div>

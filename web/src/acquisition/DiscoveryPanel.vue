@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {usePageRefresh} from '../ui/page-refresh';
 import { Refresh } from '@element-plus/icons-vue';
 import { useDiscovery } from './useDiscovery';
@@ -47,7 +49,7 @@ usePageRefresh(load, 'discover');
     <DetailDrawer v-model:visible="detailOpen" :title="detail?.title||'作品详情'" class="catalog-detail">
       <StateView v-if="detailLoading" state="loading"/>
       <StateView v-else-if="detailError" :state="sourceState(detailError)" :description="errorText(detailError)" @retry="detail&&inspect(detail)"/>
-      <p>{{detail?.year||'—'}} · {{detail?.genres?.join('、')||'—'}}</p>
+      <p>{{joinMetadata([(detail?.year||'—'),(detail?.genres?.join('、')||'—')])}}</p>
       <p>{{detail?.overview||'—'}}</p>
       <p>来源：{{detail?.source||'—'}}</p>
       <el-button :disabled="!detail?.tmdbId" @click="detail&&emit('select',detail)">搜索资源</el-button>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import {mediaTitle} from '../utils/media-title';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 
@@ -88,7 +90,7 @@ defineExpose({ load, data, page, accountEntry, showSession });
     <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.phase==='queued'?'操作已排队，尚未核验完成。':'正在核对上次结果，不重复提交。'" @refresh="load"/>
     <article v-for="session in data.data?.items||[]" :key="session.id" class="organize-record" :class="{highlighted:route.query.userId===session.userId}">
       <h3>{{mediaTitle({...session,name:session.itemName})}}</h3>
-      <p>{{ session.userName||'—' }} · {{ session.deviceName||'—' }} · {{ session.state==='playing'?'播放中':session.state==='paused'?'已暂停':'状态待核对' }}</p>
+      <p>{{joinMetadata([(session.userName||'—'),(session.deviceName||'—'),(session.state==='playing'?'播放中':session.state==='paused'?'已暂停':'状态待核对')])}}</p>
       <p>最近进度 {{ date(session.lastProgressAt) }}</p>
       <el-button @click="showSession(session)">会话详情</el-button>
     </article>
@@ -96,8 +98,8 @@ defineExpose({ load, data, page, accountEntry, showSession });
   </section>
   <DetailDrawer v-model:visible="open" title="在线会话详情" size="large" class="media-detail">
     <h3>{{mediaTitle({...detail,name:detail?.itemName})}}</h3>
-    <p>{{ detail?.userName||'—' }} · {{ detail?.deviceName||'—' }}</p>
-    <p v-if="detail?.account">有效登录 {{detail.account.activeSessions??'—'}} · {{detail.account.enabled?'账号已启用':'账号已停用'}}</p>
+    <p>{{joinMetadata([(detail?.userName||'—'),(detail?.deviceName||'—')])}}</p>
+    <p v-if="detail?.account">{{joinMetadata([joinMetadata(["有效登录 ",(detail.account.activeSessions??'—')], ''),(detail.account.enabled?'账号已启用':'账号已停用')])}}</p>
     <p v-else>已播放 {{ detail?.positionTicks==null?'—':Math.floor(detail.positionTicks/600000000)+' 分钟' }}</p>
     <el-button :disabled="!!op.pending||op.busy||detail?.account?.activeSessions===0" @click="confirm=true">撤销该用户全部登录</el-button>
   </DetailDrawer>

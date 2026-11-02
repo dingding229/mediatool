@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {joinMetadata} from '../presentation/metadata';
+
 import { usePageRefresh } from '../ui/page-refresh';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -15,7 +17,7 @@ import NotificationHistory from '../connections/NotificationHistory.vue';
 import '../connections/connections.css';
 const route = useRoute(), tabs = pageById('connections').tabs;
 const tab = computed(() => tabs.some(t => t.id === route.query.tab) ? String(route.query.tab) : 'storage');
-const statusServices = computed(() => services.filter(s => tab.value === 'storage' ? s.tab === 'storage' : false));
+const statusServices = computed(() => services.filter(s => tab.value === 'storage' ? s.key === 'strm' : false));
 const readiness = ref<Readiness | null>(null), loading = ref(false), error = ref<unknown>(null), account = ref<any>(null), accountBusy = ref(false), accountError = ref<unknown>(null);
 async function load() {
   loading.value = !readiness.value;
@@ -86,9 +88,9 @@ usePageRefresh(() => Promise.all([load(), ...(tab.value === 'storage' ? [loadAcc
               <dd>{{ bytes(account.info.space?.free) }}</dd>
             </div>
           </dl>
-          <p>{{ account.info.userName||'—' }} · {{ date(account.info.checkedAt) }}</p>
+          <p>{{joinMetadata([(account.info.userName||'—'),(date(account.info.checkedAt))])}}</p>
           <p v-if="account.info.spaceError">空间信息暂不可用</p>
-          <p v-for="(member,index) in account.info.memberships||[]" :key="index">{{ member.identity||'—' }} {{ member.level||'—' }} · 到期 {{ date(member.expiresAt) }}</p>
+          <p v-for="(member,index) in account.info.memberships||[]" :key="index">{{joinMetadata([joinMetadata([(member.identity||'—')," ",(member.level||'—')], ''),joinMetadata(["到期 ",(date(member.expiresAt))], '')])}}</p>
           <p v-if="!account.info.memberships?.length">会员信息：—</p>
         </template>
         <p v-else>尚未取得账号信息，请先完成 115 授权。</p>

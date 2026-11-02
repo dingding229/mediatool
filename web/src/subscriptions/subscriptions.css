@@ -40,7 +40,7 @@
 .history-subject-picker label { font-size: 13px; }
 .history-subject-picker .el-select { width: 260px; }
 .history-subject-picker > span { color: var(--mt-text-muted); font-size: 13px; }
-.subscription-history-workspace { display: grid; grid-template-columns: 260px minmax(0,1fr); border-top: 1px solid var(--mt-border-color); min-height: 420px; }
+.subscription-history-workspace { display: grid; grid-template-columns: 260px minmax(0,1fr); border-top: 1px solid var(--mt-border-color); min-height: 0; }
 .run-timeline { padding: 20px; border-right: 1px solid var(--mt-border-color); }
 .run-timeline > header { display: flex; align-items: center; justify-content: space-between; }
 .run-timeline h3 { font-size: 14px; }
