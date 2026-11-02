@@ -20,6 +20,7 @@ COPY --from=plugin-resources /src/web/plugin-ui/ ./plugin-ui/
 # D1 Vue tests/typechecks import the same public contract fixtures as Go.
 COPY internal/platform/httpapi/testdata/contracts/ /src/internal/platform/httpapi/testdata/contracts/
 COPY internal/modules/plugins/v2/library.json /src/internal/modules/plugins/v2/library.json
+COPY internal/modules/messaging/testdata/notice-display.json /src/internal/modules/messaging/testdata/notice-display.json
 RUN npm run build
 
 FROM --platform=$BUILDPLATFORM golang:1.26.9-alpine@sha256:cdfd4fe2da6b225d8b40c6b7a105736e548e83ff56d5d8f9394446eeb5eb84e0 AS backend

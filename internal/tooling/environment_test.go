@@ -190,9 +190,10 @@ func TestNativeMediaAndPluginCIPolicies(t *testing.T) {
 		t.Fatal("emulated gate")
 	}
 	docker := source(t, "deploy/Dockerfile")
-	has(t, docker, "COPY internal/platform/httpapi/testdata/contracts/ /src/internal/platform/httpapi/testdata/contracts/", "COPY internal/modules/plugins/v2/library.json /src/internal/modules/plugins/v2/library.json", "COPY --from=plugin-resources /src/web/public/")
+	has(t, docker, "COPY internal/modules/messaging/testdata/notice-display.json /src/internal/modules/messaging/testdata/notice-display.json", "COPY internal/platform/httpapi/testdata/contracts/ /src/internal/platform/httpapi/testdata/contracts/", "COPY internal/modules/plugins/v2/library.json /src/internal/modules/plugins/v2/library.json", "COPY --from=plugin-resources /src/web/public/")
 	frontend := strings.Split(strings.Split(docker, " AS frontend")[1], " AS backend")[0]
-	if strings.Index(frontend, "COPY internal/platform/httpapi/testdata/contracts/") > strings.Index(frontend, "RUN npm run build") {
+	has(t, frontend, "COPY internal/modules/messaging/testdata/notice-display.json", "COPY internal/platform/httpapi/testdata/contracts/")
+	if strings.Index(frontend, "COPY internal/modules/messaging/testdata/notice-display.json") > strings.Index(frontend, "RUN npm run build") || strings.Index(frontend, "COPY internal/platform/httpapi/testdata/contracts/") > strings.Index(frontend, "RUN npm run build") {
 		t.Fatal("late contracts")
 	}
 	has(t, source(t, "web/src/api/plugins.ts"), "internal/modules/plugins/v2/library.json")
