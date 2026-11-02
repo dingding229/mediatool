@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Time24Field from "./Time24Field.vue";
 import {ref,watch} from 'vue';
 import type {CronPurpose} from '../api/scheduling';
 import {beijingTime} from '../presentation/time';
@@ -18,7 +19,7 @@ function time(value:string){clock.value=value;update(presetCron('daily',value))}
 <template>
  <div class="cron-field" :aria-busy="pending">
   <div class="cron-field-controls"><label>{{label}}<el-select :model-value="preset" :aria-label="label+'预设'" :disabled="disabled" @change="select"><el-option v-for="[value,text] in cronPresets" :key="value" :value="value" :label="text"/></el-select></label>
-   <label v-if="preset==='daily'">执行时刻（上海）<el-input :model-value="clock" :aria-label="label+'执行时刻'" type="time" :disabled="disabled" @update:model-value="time"/></label>
+   <label v-if="preset==='daily'">执行时刻（上海）<Time24Field :model-value="clock" :label="label+'执行时刻'" :disabled="disabled" @update:model-value="time"/></label>
    <label v-if="preset==='custom'">自定义 Cron<el-input :model-value="modelValue" :aria-label="label+'自定义 Cron'" :disabled="disabled" :aria-invalid="!!error" @update:model-value="update($event)"/></label>
   </div>
   <div class="cron-field-feedback" aria-live="polite"><p v-if="error" role="alert">{{error}}</p><small v-else-if="pending" role="status">正在校验计划…</small>
@@ -27,5 +28,5 @@ function time(value:string){clock.value=value;update(presetCron('daily',value))}
  </div>
 </template>
 <style scoped>
-.cron-field{display:grid;gap:8px;min-width:0}.cron-field-controls{display:flex;align-items:end;flex-wrap:wrap;gap:12px}.cron-field label{display:grid;gap:6px;min-width:0;flex:1 1 180px;font-size:13px;font-weight:600}.cron-field :deep(.el-select__wrapper),.cron-field :deep(.el-input__wrapper){min-height:44px;box-sizing:border-box}.cron-field-feedback{min-height:36px;line-height:1.5;overflow-wrap:anywhere}.cron-field small{font-size:12px;color:var(--mt-text-muted)}.cron-field p{color:var(--mt-color-danger);margin:0;font-size:12px}
+.cron-field{display:grid;gap:8px;min-width:0}.cron-field-controls{display:flex;align-items:end;flex-wrap:wrap;gap:12px}.cron-field label{display:grid;gap:6px;min-width:0;flex:1 1 180px;font-size:var(--mt-form-label-size);font-weight:600}.cron-field :deep(.el-select__wrapper),.cron-field :deep(.el-input__wrapper){min-height:44px;box-sizing:border-box}.cron-field-feedback{min-height:36px;line-height:1.5;overflow-wrap:anywhere}.cron-field small{font-size:12px;color:var(--mt-text-muted)}.cron-field p{color:var(--mt-color-danger);margin:0;font-size:12px}
 </style>

@@ -5,7 +5,7 @@
 .catalog-toolbar [aria-pressed=true],.catalog-subnav [aria-pressed=true]{color:var(--mt-color-primary);border-color:var(--mt-color-primary);background:var(--mt-color-primary-light)}
 .catalog-toolbar small{display:block;font-size:11px}
 .catalog-filters{display:grid;grid-template-columns:minmax(0,1fr) 180px auto;gap:16px;align-items:end;padding:20px 0;border-block:1px solid var(--mt-border-color);margin:20px 0 28px}
-.catalog-filters label{display:grid;gap:8px;font-size:13px;min-width:0}
+.catalog-filters label{display:grid;gap:8px;font-size:var(--mt-form-label-size);min-width:0}
 .catalog-filters .el-input__wrapper{min-height:44px;box-sizing:border-box}
 .catalog-workspace .el-button,.catalog-workspace .el-select__wrapper{min-height:44px}
 .catalog-section{margin:28px 0 40px}

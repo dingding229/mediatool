@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {jobDuration} from "./job-duration";
 import {useDebouncedFilter} from '../composables/useDebouncedFilter';
 import {attentionFailure} from '../dashboard/summaries';
 import {failureText} from '../presentation/failures';
@@ -80,7 +81,7 @@ defineExpose({ load, filter, jobs });
   <div class="media-stack">
     <section class="media-surface f3-queue-list">
       <h2>任务列表</h2>
-      <form class="u5-filters ops-job-filters" @submit.prevent="search">
+      <form class="u5-filters ops-job-filters" :class="{'has-queues':queues.size!==1||!!filter.queue}" @submit.prevent="search">
         <label>
           任务状态
           <el-select v-model="filter.state" aria-label="任务状态" placeholder="全部状态">
@@ -88,7 +89,7 @@ defineExpose({ load, filter, jobs });
             <el-option v-for="v in ['pending','running','retry','succeeded','failed','paused','cancelled','unknown','checking']" :key="v" :value="v" :label="stateLabel(v)"/>
           </el-select>
         </label>
-        <label>
+        <label v-if="queues.size!==1||filter.queue">
           队列
           <el-select v-model="filter.queue" aria-label="任务队列" placeholder="全部队列">
             <el-option value="" label="全部队列"/>
@@ -99,7 +100,7 @@ defineExpose({ load, filter, jobs });
           任务类别
           <el-select v-model="filter.kind" aria-label="任务类别" placeholder="全部类别"><el-option value="" label="全部类别"/><el-option v-for="(label,value) in jobKindLabels" :key="value" :value="value" :label="label"/></el-select>
         </label>
-        <label>
+        <label class="ops-job-keyword">
           搜索任务
           <el-input v-model="filter.q" clearable aria-label="搜索任务" placeholder="搜索任务或错误内容"/>
         </label>
@@ -119,7 +120,7 @@ defineExpose({ load, filter, jobs });
         <div class="ops-job-status"><StatusBadge :state="j.state" :label="stateLabel(j.state)" :title="j.lastError||undefined"/><span v-if="queues.size>1" class="ops-job-queue">{{queueLabel(j.queue)}}</span></div>
         <div class="ops-job-meta">
           <p class="f3-job-meta"><span v-if="queues.size>1" class="ops-job-meta-queue">{{queueLabel(j.queue)}} · </span>尝试 {{ j.attempts??'—' }}/{{ j.maxAttempts??'—' }} · {{ date(j.updatedAt) }}</p>
-          <p class="ops-job-progress">{{joinMetadata([joinMetadata(["耗时 ",(j.startedAt ? Math.max(0,Math.round(((j.state==='running'?Date.now():Date.parse(j.updatedAt))-Date.parse(j.startedAt))/1000)) : '—')," 秒"], ''),(j.state==='running'?'业务进度见详情':null)])}}</p>
+          <p class="ops-job-progress">{{joinMetadata([jobDuration(j),j.state==='running'?'业务进度见详情':null])}}</p>
         </div>
         <div class="mt-list-actions ops-job-actions">
           <el-button size="small" aria-label="任务详情" @click="inspect(j.id)"><el-icon class="mt-list-action-icon"><View/></el-icon><span class="mt-list-action-text">任务详情</span></el-button>
@@ -155,3 +156,5 @@ defineExpose({ load, filter, jobs });
     </DetailDrawer>
   </div>
 </template>
+
+<style scoped>@media(max-width:700px){.ops-job-filters:not(.has-queues)>.ops-job-keyword,.ops-job-filters>.el-switch{grid-column:1/-1}.ops-job-filters>.el-switch{min-height:44px}}</style>

@@ -11,7 +11,7 @@
 .acquire-workspace p,.acquire-dialog p {font-size:13px;color:var(--mt-text-muted);line-height:1.7;overflow-wrap:anywhere;margin:8px 0}
 .acquire-section-heading {display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
 .acquire-section-heading>.el-select {width:180px}
-.acquire-form {display:grid;gap:16px}.acquire-form label,.acquire-filters label {display:grid;gap:6px;min-width:0;font-size:13px}
+.acquire-form {display:grid;gap:16px}.acquire-form label,.acquire-filters label {display:grid;gap:6px;min-width:0;font-size:var(--mt-form-label-size)}
 .acquire-query-row {display:grid;grid-template-columns:minmax(0,2fr) minmax(130px,1fr) minmax(100px,1fr);gap:12px;align-items:end}
 .acquire-actions {display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .acquire-mode {display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}

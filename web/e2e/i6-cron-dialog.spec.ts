@@ -23,7 +23,7 @@ async function mode(page:Page,d:Locator,name:string){await d.locator('.cron-gene
 test('I39 settings daily preset saves and echoes the existing settings DTO',async({page})=>{
  await fixture(page,'settings');let current=structuredClone(settingsRecord),body:any;
  await page.route('**/api/v1/settings/application',r=>{if(r.request().method()==='PUT'){body=r.request().postDataJSON();current={revision:current.revision+1,value:{...current.value,...body.value}}}return r.fulfill({json:{data:current}})});
- const label=await open(page,'settings');const field=page.locator('.cron-field');await field.locator('.el-select__wrapper').click();await page.getByRole('option',{name:'每天某个时刻',exact:true}).click();await page.getByLabel(label+'执行时刻',{exact:true}).fill('10:35');
+ const label=await open(page,'settings');const field=page.locator('.cron-field');await field.locator('.el-select__wrapper').click();await page.getByRole('option',{name:'每天某个时刻',exact:true}).click();await page.getByLabel(label+'执行时刻',{exact:true}).fill('10:35');await page.getByLabel(label+'执行时刻',{exact:true}).press('Tab');
  const save=page.getByRole('button',{name:'保存搜索订阅设置',exact:true});await expect(save).toBeEnabled();await save.click();await expect.poll(()=>body).toBeTruthy();expect(body.revision).toBe(3);expect(body.value).toMatchObject({subscriptionCron:'35 10 * * *',searchCacheSeconds:600,tmdbCacheSeconds:86400});await page.reload();await expect(field.locator('.el-select__wrapper')).toContainText('每天某个时刻');await expect(page.getByLabel(label+'执行时刻',{exact:true})).toHaveValue('10:35');
 });
 test('I6 behavior nested site generator confirms and saves without changing enabled or revision fields',async({page})=>{

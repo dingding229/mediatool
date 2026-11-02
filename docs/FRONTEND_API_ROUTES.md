@@ -748,3 +748,6 @@ I40b 只读展示字段：`GET /api/v1/library/scans` 与扫描详情返回可�
 ### I42b 运维只读投影
 - `GET /api/v1/jobs/browse`：新增可选 `hideRoutineSuccess=true`（只隐藏已完成的 `site.metrics.refresh`），`unresolvedOnly=true`（仅返回同类别、同对象后无更新成功的失败任务）；计数与分页使用同一数据库快照。默认不影响其他调用方。
 - `GET /api/v1/cache/tmdb` 及条目详情：新增只读 `conditions`（`operation`、`mediaType`、`year`、`language`、`tmdbId`），来自缓存信封；旧信封缺失的条件保持未知，不反解哈希、不猜测语言、不改变键和 TTL。
+
+### I42c 更新缓存读取投影
+- `GET /api/v1/system/updates`（以及返回同一更新状态的已注册接口）新增只读 `currentAtLeastLatest`。已校验缓存版本低于当前程序时不返回旧 `result.latest`；保持原 checkedAt/检查间隔，不改持久缓存、不触发检查、不伪造当前发布记录。相等时保留同版说明，高于当前时保留正常更新提示。

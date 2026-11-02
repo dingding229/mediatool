@@ -16,7 +16,7 @@ for(const width of [1440,390])for(const theme of ['light','dark'])test(`H1 about
  await expect(page.locator('.f8-about')).toContainText('0.29.0');
  await page.screenshot({path:resolve(dir,`${baseline?'before':'after'}-about-${width}-${theme}.png`),fullPage:true,animations:'disabled'});
  if(!baseline){
-  await expect(page.locator('.f8-about > .settings-card')).toHaveCount(3);
+  await expect(page.locator('.f8-about > .settings-card')).toHaveCount(2);
   await expect(page.locator('.f8-about')).not.toContainText(current.commit);
   await expect(page.locator('.f8-about')).not.toContainText(current.pluginPin);
   await expect(page.locator('.f8-about')).not.toContainText('IP 归属地');

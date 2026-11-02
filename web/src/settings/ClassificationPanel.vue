@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {genreSummary,countrySummary,fullCountries,languagesSummary} from "./classification-summary";
 import {joinMetadata} from '../presentation/metadata';
 
 import {usePageRefresh} from '../ui/page-refresh';
@@ -13,7 +14,7 @@ import StateView from '../ui/StateView.vue';
 import RulePicker from './RulePicker.vue';
 import RevisionFeedback from './RevisionFeedback.vue';
 import { clone, useRevision } from './revision';
-import { genreChoices, countryChoices, languageChoices, languageLabel, genres } from '../classification/options';
+import { genreChoices, countryChoices, languageChoices } from '../classification/options';
 interface Rule {
   id: string;
   name: string;
@@ -41,8 +42,6 @@ const settings = useRevision<{
 const form = ref({ name: '', directory: '', enabled: true, mediaType: 'movie', genreIds: [] as number[], countries: [] as string[], languages: [] as string[] });
 const genreOptions = computed(() => genreChoices(groupMode.value ? form.value.mediaType : data.value?.groups[groupIndex.value]?.mediaType || 'movie', form.value.genreIds));
 const typeLabel = (type: string) => ({ movie: '电影', series: '电视剧', anime: '动漫' }[type] || type || '—');
-const genreLabel = (ids: number[] | null) => (ids || []).map(id => genres.find(x => x.value === id)?.label || String(id)).join('、') || '不限题材';
-const countryLabel = (codes: string[] | null) => (codes || []).map(id => countryChoices(codes || []).find(x => x.value === id)?.label || id).join('、');
 function edit(g: number, r = -1, group = true) {
   groupIndex.value = g;
   ruleIndex.value = r;
@@ -118,13 +117,11 @@ usePageRefresh(settings.load, 'naming');
       <article v-for="(group,g) in data.groups" :key="group.id" class="classification-card" :aria-label="group.name">
         <header>
           <div>
-            <span class="settings-index">{{g+1}}</span>
-            <h3>{{group.name}}</h3>
-            <p>{{joinMetadata([(typeLabel(group.mediaType)),joinMetadata([(genreLabel(group.genreIds))," → ",(group.directory||'—')], '')])}}</p>
+            <h3><span class="settings-index" aria-hidden="true">{{g+1}}.</span>{{group.name}}</h3>
+            <p>{{joinMetadata([typeLabel(group.mediaType),genreSummary(group.genreIds),group.directory?'目录：'+group.directory:null])}}</p>
           </div>
+        <div class="settings-actions classification-group-actions">
           <el-switch v-model="group.enabled" :aria-label="`启用${group.name}`"/>
-        </header>
-        <div class="settings-actions">
           <el-button @click="edit(g)">编辑分组</el-button>
           <el-button :aria-label="`为${group.name}添加规则`" @click="edit(g,-1,false)">添加规则</el-button>
           <el-dropdown trigger="click">
@@ -137,15 +134,15 @@ usePageRefresh(settings.load, 'naming');
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-        </div>
+        </div></header>
         <ol class="classification-rules">
           <li v-for="(rule,r) in group.rules" :key="rule.id">
             <div>
               <strong>{{rule.name}}</strong>
-              <p>{{joinMetadata([(genreLabel(rule.genreIds)),(countryLabel(rule.countries)||'不限地区'),((rule.languages||[]).map(languageLabel).join('、')||'不限语言')])}}</p>
+              <p class="classification-conditions" v-if="rule.genreIds?.length||rule.countries?.length||rule.languages?.length"><span v-if="rule.genreIds?.length">{{genreSummary(rule.genreIds)}}</span><el-tooltip popper-class="settings-country-tooltip" v-if="rule.countries?.length" :content="fullCountries(rule.countries)" :trigger="['hover','focus']"><span tabindex="0" :aria-label="fullCountries(rule.countries)">{{countrySummary(rule.countries)}}</span></el-tooltip><span v-if="rule.languages?.length">{{languagesSummary(rule.languages)}}</span></p>
               <p>目录：{{rule.directory||'—'}}</p>
             </div>
-            <div class="settings-actions">
+            <div class="settings-actions classification-rule-actions">
               <el-switch v-model="rule.enabled" :aria-label="`启用${rule.name}`"/>
               <el-button :aria-label="`编辑${rule.name}`" @click="edit(g,r,false)">编辑</el-button>
               <el-dropdown trigger="click">
@@ -203,3 +200,10 @@ usePageRefresh(settings.load, 'naming');
     <ConfirmAction class="settings-dialog" :visible="!!removal" title="删除分类规则" description="只从草稿移除，保存后用于新入库。不会移动或删除已有媒体。" confirm-text="从草稿删除" @update:visible="v=>{if(!v)removal=undefined}" @confirm="remove"/>
   </section>
 </template>
+
+<style scoped>
+.classification-card>header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px}.classification-group-actions{justify-content:flex-end;flex-wrap:nowrap}.classification-rules li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}.classification-rule-actions{align-content:start;align-items:center;justify-content:flex-end;flex-wrap:nowrap}.classification-conditions{display:flex;flex-wrap:wrap;gap:0 8px}.classification-conditions>span:not(:last-child)::after{content:' ·';color:var(--mt-text-muted)}
+@media(max-width:680px){.classification-group-actions{display:grid;grid-template-columns:60px 104px;gap:4px 8px}.classification-group-actions>.el-button,.classification-group-actions :deep(.el-dropdown .el-button){max-width:100%;white-space:normal}.classification-rule-actions{display:grid;grid-template-columns:44px 60px;gap:4px 8px}.classification-rule-actions>.el-dropdown{grid-column:2}.classification-rule-actions>.el-button{padding-inline:8px}}
+</style>
+
+<style>.settings-country-tooltip{max-width:min(560px,calc(100vw - 32px));white-space:normal;overflow-wrap:anywhere}</style>

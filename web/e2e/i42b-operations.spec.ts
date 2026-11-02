@@ -14,7 +14,7 @@ async function fixture(page:Page){const f=await i42Fixture(page);const at='2026-
  const caches=[{id:'a'.repeat(64),query:'嫁金钗',count:1,bytes:2048,ttlSeconds:7200,state:'cached',createdAt:at,conditions:{operation:'search',mediaType:'auto',year:'',language:'zh-CN'}},{id:'b'.repeat(64),query:'嫁金钗',count:1,bytes:4096,ttlSeconds:7100,state:'cached',createdAt:at,conditions:{operation:'details',mediaType:'series',year:'2026',language:'zh-CN',tmdbId:300146}}];
  await page.route('**/api/v1/cache/tmdb?*',r=>r.fulfill({json:{data:{items:caches,total:2}}}));await page.route('**/api/v1/cache/search?*',r=>r.fulfill({json:{data:{items:[],total:0}}}));
  await page.route('**/api/v1/logs/summary',r=>r.fulfill({json:{data:{level:'info',totalBytes:100,files:[]}}}));await page.route('**/api/v1/logs/query?*',r=>r.fulfill({json:{data:{items:[{...rawLog,url:'https://example.invalid',location:'https://cdn.invalid'}],total:1,modules:['httpapi'],before:at}}}));
- await page.route('**/api/v1/scheduling/cron/preview',r=>r.fulfill({json:{data:{timezone:'Asia/Shanghai',fieldCount:5,exhausted:false,minimumIntervalSeconds:3600,next:['2026-11-03T03:00:00+08:00']}}}));
+ await page.route('**/api/v1/scheduling/cron/preview',r=>{const {expression}=r.request().postDataJSON(),[minute,hour]=expression.split(/\s+/);return r.fulfill({json:{data:{timezone:'Asia/Shanghai',fieldCount:5,exhausted:false,minimumIntervalSeconds:3600,next:[`2026-11-03T${/^\d+$/.test(hour)?hour.padStart(2,'0'):'02'}:${/^\d+$/.test(minute)?minute.padStart(2,'0'):'00'}:00+08:00`]}}})});
  return f;
 }
 for(const width of [1440,375]){

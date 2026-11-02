@@ -153,7 +153,7 @@
 
 /* I19-4: policy layout and one explicitly named, teleported log-settings caller. */
 .t8-ops .ops-policy-grid{gap:16px 20px}
-.t8-ops .ops-policy-grid>label{font-size:13px}
+.t8-ops .ops-policy-grid>label{font-size:var(--mt-form-label-size)}
 .t8-ops .ops-policy-grid>.u5-check,.t8-ops .ops-policy-grid>.cron-input{grid-column:1/-1}
 .t8-ops .ops-policy-grid>.u5-check{min-height:44px}
 /* Keep CronInput's own wrapper frame; remove only the inherited native-input frame. */

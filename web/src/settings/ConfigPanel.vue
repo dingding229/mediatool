@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import CacheDurationField from './CacheDurationField.vue';
+import {namingFields,insertNamingField} from './naming-fields';
+import {nextTick} from 'vue';
+
 import CronField from '../ui/CronField.vue';
 const cronValid=ref(false);
 import {usePageRefresh} from '../ui/page-refresh';
@@ -21,13 +25,18 @@ const automationErrors=computed(()=>({
  tmdbCacheSeconds:a.value?integerInputError(a.value.tmdbCacheSeconds,0,2592000,'TMDB 搜索缓存有效期（秒）'):'',
  subscriptionCron:cronValid.value?'':'请先通过订阅计划校验'
 }));
-const invalidAutomation=computed(()=>Object.values(automationErrors.value).some(Boolean));
+const cacheValidity=reactive({search:true,tmdb:true});
+const invalidAutomation=computed(()=>Object.values(automationErrors.value).some(Boolean)||!cacheValidity.search||!cacheValidity.tmdb);
 async function saveAutomation(){
  if(!a.value||invalidAutomation.value)return false;
  a.value.searchCacheSeconds=Number(String(a.value.searchCacheSeconds).trim());
  a.value.tmdbCacheSeconds=Number(String(a.value.tmdbCacheSeconds).trim());
  return app.save(['searchCacheSeconds','tmdbCacheSeconds','subscriptionCron']);
 }
+type NamingKey='movieTemplate'|'seriesTemplate';
+const namingInputs=ref<Record<string,any>>({}),activeNaming=ref<NamingKey>('movieTemplate'),namingSelection=ref({start:Number.MAX_SAFE_INTEGER,end:Number.MAX_SAFE_INTEGER});
+function rememberNaming(key:NamingKey){activeNaming.value=key;const input=namingInputs.value[key]?.input;const value=String(a.value?.[key]||'');namingSelection.value={start:input?.selectionStart??value.length,end:input?.selectionEnd??value.length}}
+async function insertField(field:string){if(!a.value)return;const key=activeNaming.value,value=String(a.value[key]||'');const result=insertNamingField(value,field,namingSelection.value.start,namingSelection.value.end);a.value[key]=result.value;namingSelection.value={start:result.cursor,end:result.cursor};await nextTick();const input=namingInputs.value[key]?.input;input?.focus();input?.setSelectionRange(result.cursor,result.cursor);namingSelection.value={start:result.cursor,end:result.cursor}}
 const touched=reactive(new Set<string>());
 function originValue(key:string){return touched.has(key)?domains.value?.[key]||'':domains.value?.[key]||effective.value?.[key]||''}
 function setOrigin(key:string,value:string){touched.add(key);if(domains.value)domains.value[key]=value}
@@ -137,25 +146,21 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
       <RevisionFeedback :form="app"/>
       <form v-if="a" @submit.prevent="section==='naming'?saveNaming():section==='automation'?saveAutomation():app.save(['trustedProxyCidrs'])">
         <template v-if="section==='general'">
-          <label for="trusted-proxies">可信反代 IP / CIDR（每行一个）</label>
-          <el-input id="trusted-proxies" v-model="proxyText" type="textarea" :rows="4"/>
+          <div class="settings-field"><label for="trusted-proxies">可信反代 IP / CIDR（每行一个）</label>
+          <el-input id="trusted-proxies" v-model="proxyText" type="textarea" :rows="4"/></div>
           <p>只填写实际代理来源。错误信任会导致访客地址被伪造；留空仅记录直接连接地址。</p>
 
         </template>
         <template v-else-if="section==='naming'">
           <div class="settings-field">
             <label for="movie-naming-template">电影命名模板</label>
-            <el-input id="movie-naming-template" v-model="a.movieTemplate"/>
+            <el-input :ref="(el:any)=>namingInputs.movieTemplate=el" id="movie-naming-template" v-model="a.movieTemplate" @focus="rememberNaming('movieTemplate')" @select="rememberNaming('movieTemplate')" @keyup="rememberNaming('movieTemplate')" @click="rememberNaming('movieTemplate')"/>
           </div>
           <div class="settings-field">
             <label for="series-naming-template">剧集命名模板</label>
-            <el-input id="series-naming-template" v-model="a.seriesTemplate"/>
+            <el-input :ref="(el:any)=>namingInputs.seriesTemplate=el" id="series-naming-template" v-model="a.seriesTemplate" @focus="rememberNaming('seriesTemplate')" @select="rememberNaming('seriesTemplate')" @keyup="rememberNaming('seriesTemplate')" @click="rememberNaming('seriesTemplate')"/>
           </div>
-          <details>
-            <summary>可用命名字段</summary>
-            <p v-pre>{title}、{year}、{videoFormat}、{season_episode}、{season}、{episode}、{resolution}、{source}、{codec}、{group}、{original}、{ext}</p>
-            <p>支持相对文件夹，自动保留扩展名；不支持绝对路径和上级目录。实际输出会保留版本标识。</p>
-          </details>
+          <section class="naming-fields" aria-label="可用命名字段"><h3>可用命名字段</h3><div class="naming-field-chips"><el-button v-for="field in namingFields" :key="field" size="small" @mousedown.prevent @click="insertField(field)">{{'{'+field+'}'}}</el-button></div><small>点击字段插入当前光标处。支持相对文件夹，自动保留扩展名；不支持绝对路径和上级目录。实际输出会保留版本标识。</small></section>
           <section class="settings-preview" aria-label="命名实时预览" aria-live="polite">
             <strong>命名预览</strong>
             <p class="f5-preview-status" role="status">{{previewing?'正在预览…':previewError||'\u00a0'}}</p>
@@ -191,18 +196,8 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
         </template>
         <template v-else>
           <div class="settings-grid">
-            <div class="settings-field">
-              <label for="pt-cache-seconds">站点搜索缓存有效期（秒）</label>
-              <el-input id="pt-cache-seconds" v-model="a.searchCacheSeconds" inputmode="numeric" :aria-invalid="!!automationErrors.searchCacheSeconds" aria-describedby="pt-cache-hint"/>
-              <small id="pt-cache-hint">0～86400 秒，0 表示禁用缓存。</small>
-              <p v-if="automationErrors.searchCacheSeconds" role="alert" class="settings-input-error">{{automationErrors.searchCacheSeconds}}</p>
-            </div>
-            <div class="settings-field">
-              <label for="tmdb-cache-seconds">TMDB 搜索缓存有效期（秒）</label>
-              <el-input id="tmdb-cache-seconds" v-model="a.tmdbCacheSeconds" inputmode="numeric" :aria-invalid="!!automationErrors.tmdbCacheSeconds" aria-describedby="tmdb-cache-hint"/>
-              <small id="tmdb-cache-hint">0～2592000 秒，0 表示禁用缓存。</small>
-              <p v-if="automationErrors.tmdbCacheSeconds" role="alert" class="settings-input-error">{{automationErrors.tmdbCacheSeconds}}</p>
-            </div>
+            <CacheDurationField v-model="a.searchCacheSeconds" id="pt-cache-seconds" label="站点搜索缓存有效期" :max="86400" @valid="cacheValidity.search=$event"/>
+            <CacheDurationField v-model="a.tmdbCacheSeconds" id="tmdb-cache-seconds" label="TMDB 搜索缓存有效期" :max="2592000" @valid="cacheValidity.tmdb=$event"/>
           </div>
           <p>
             0 表示禁用缓存。修改有效期不会删除搜索历史。
@@ -221,3 +216,5 @@ usePageRefresh(()=>Promise.all([app.load(),...(props.section==='general'?[access
     <ConfirmAction class="settings-dialog" v-model:visible="confirmCleanup" title="启用上传后清理" description="仅新任务全部校验并入库后生效。有做种要求或要求未知时，仍须逐项确认完成做种。" impact-scope="允许删除符合条件的本地文件及下载种子，不自动清理历史任务。" confirm-text="确认启用并保存" @confirm="approveCleanup"/>
   </div>
 </template>
+
+<style scoped>.naming-field-chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.naming-field-chips .el-button{margin:0;min-height:32px}.naming-fields>small{display:block;font-size:var(--mt-form-help-size)}</style>

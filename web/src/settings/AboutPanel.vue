@@ -16,7 +16,7 @@ watch(()=>updates.state,value=>{if(value&&!dirty.value){hours.value=String(value
 const currentVersion=computed(()=>{const value=updates.build?.version||updates.state?.current?.version;return typeof value==='string'?value:''});
 const cachedLatest=computed(()=>updates.state?.result.status==='verified'?updates.state.result.latest:null);
 // A persisted verified release belongs to a previous check, not necessarily this binary.
-const currentAtLeastLatest=computed(()=>{const cached=cachedLatest.value;if(!cached)return false;const order=compareVersions(currentVersion.value,cached.version);return order!==null&&order>=0});
+const currentAtLeastLatest=computed(()=>{const cached=cachedLatest.value;if(updates.state?.currentAtLeastLatest)return true;if(!cached)return false;const order=compareVersions(currentVersion.value,cached.version);return order!==null&&order>=0});
 const latest=computed(()=>{const cached=cachedLatest.value;if(!cached)return null;const order=compareVersions(currentVersion.value,cached.version);return order!==null&&order<=0?cached:null});
 const version=computed(()=>{const value=currentVersion.value;return value?`v${value.replace(/^v/,'')}`:'读取中'});
 const publishedAt=computed(()=>latest.value&&latest.value.version===updates.build?.version?latest.value.publishedAt:updates.build?.buildTime);
@@ -28,8 +28,7 @@ onMounted(()=>{updates.dismiss();void updates.refresh()});usePageRefresh(updates
 </script>
 <template>
  <section class="f8-about" aria-label="关于 Media Tool">
-  <section class="settings-card"><h2>当前版本</h2><p class="f8-version">{{version}}</p></section>
-  <section class="settings-card"><h2>发布时间</h2><p>{{date(publishedAt)||'尚未提供发布时间'}}</p></section>
+  <section class="settings-card f8-current"><h2>当前版本</h2><p class="f8-version">{{version}}</p><p>发布时间：{{date(publishedAt)||'尚未提供发布时间'}}</p></section>
   <section class="settings-card f8-update"><h2>版本更新</h2>
    <form class="f8-check-settings" @submit.prevent="saveSettings">
     <label class="f8-auto">自动检查更新 <el-switch v-model="enabled" :disabled="busy||!updates.state" aria-label="自动检查更新" @change="dirty=true"/></label>
@@ -47,3 +46,5 @@ onMounted(()=>{updates.dismiss();void updates.refresh()});usePageRefresh(updates
 <style scoped>
 .f8-check-settings{display:flex;align-items:end;gap:12px;flex-wrap:wrap}.f8-check-settings .el-button+.el-button{margin-left:0}.f8-check-settings .settings-field{max-width:180px}.f8-check-settings input{height:44px;min-width:0;width:100%;box-sizing:border-box;padding:var(--mt-field-padding);border:1px solid var(--mt-border-color);border-radius:var(--el-border-radius-base);background:var(--mt-bg-surface);color:var(--mt-text-primary)}.f8-about{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.f8-about>.settings-card{margin:0;min-width:0;min-height:0}.f8-update{grid-column:1/-1}.f8-version{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}.f8-auto{display:inline-flex;align-items:center;gap:8px;min-height:44px}.f8-result,.f8-empty{color:var(--mt-text-muted);line-height:1.6;overflow-wrap:anywhere}@media(max-width:600px){.f8-about{grid-template-columns:1fr}}
 </style>
+
+<style scoped>.f8-current{grid-column:1/-1}.f8-current .f8-version{margin:8px 0}</style>

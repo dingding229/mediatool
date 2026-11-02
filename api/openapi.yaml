@@ -31075,6 +31075,10 @@
           "current": {
             "$ref": "#/components/schemas/platform_buildinfo_Info"
           },
+          "currentAtLeastLatest": {
+            "readOnly": true,
+            "type": "boolean"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -31094,6 +31098,7 @@
         },
         "required": [
           "current",
+          "currentAtLeastLatest",
           "enabled",
           "hasUpdate",
           "intervalHours",

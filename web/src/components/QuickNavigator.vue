@@ -21,7 +21,7 @@ function keydown(event: KeyboardEvent) {
 <template>
   <el-dialog v-model="open" title="快速前往" width="min(620px, 94vw)" class="quick-navigator" @open-auto-focus="focusInput" @opened="focusInput()">
     <div class="destination-search"><Search aria-hidden="true" /><input ref="input" v-model="query" role="combobox" aria-label="搜索功能入口" aria-autocomplete="list" aria-controls="quick-options" aria-expanded="true" :aria-activedescendant="results[selected] ? `quick-option-${results[selected].id}` : undefined" placeholder="搜索页面或标签，例如 日志、115、命名模板" autocomplete="off" @keydown="keydown" /></div>
-    <div id="quick-options" role="listbox" aria-label="功能入口" class="destination-results"><button v-for="(item, index) in results" :id="`quick-option-${item.id}`" :key="item.id" type="button" role="option" tabindex="-1" :aria-selected="selected === index" @pointermove="selected = index" @click="go(item)"><component :is="item.icon" aria-hidden="true" /><span>{{ item.name }}<small>{{ item.group || '首页' }}</small></span><ArrowRight aria-hidden="true" /></button></div>
+    <div id="quick-options" role="listbox" aria-label="功能入口" class="destination-results"><button v-for="(item, index) in results" :id="`quick-option-${item.id}`" :key="item.id" type="button" role="option" tabindex="-1" :aria-selected="selected === index" @pointermove="selected = index" @click="go(item)"><component :is="item.icon" aria-hidden="true" /><span>{{ item.name }}<small>{{ item.description }}</small></span><ArrowRight aria-hidden="true" /></button></div>
     <p v-if="!results.length" role="status">没有匹配的功能，请尝试其他关键词。</p>
     <footer class="destination-help">↑ ↓ 选择 · Enter 前往 · Esc 关闭</footer>
   </el-dialog>

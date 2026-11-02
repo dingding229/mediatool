@@ -1,3 +1,4 @@
+// I42c: approved display/import changes; original mutation functions remain independently pinned.
 // I42b: approved display/projection snapshots; destructive functions retain independent I36 hashes.
 import {stripMetadataImport} from '../test/metadata-import';
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
@@ -10,7 +11,7 @@ const read=(p:string)=>stripMetadataImport(readFileSync(new URL('../'+p,import.m
 const sha=(s:string)=>createHash('sha256').update(s).digest('hex');
 it('I19-1 preserves task flow; I25 only adds the approved once-per-mount account label read',()=>{
  const script=read('operations/QueuePanel.vue').match(/<script[^>]*>([\s\S]*?)<\/script>/)![1]!.replace("import { View, MoreFilled } from '@element-plus/icons-vue';\n",'');
- expect(sha(script)).toBe('af408504edce19c180348440e92dddf0321b38bffb821e72c8adfd3f7b9f4b19');
+ expect(sha(script)).toBe('caa6565f3e34fb31adf63419bdce763b48b94fe9d1e9338726fde957e8292fb2');
 });
 it.each([
  ['workflows/TaskControl.vue','1754c6a35624517dccf545cb2e34ccc6daa8fa30d74f296e3c5ebe73663bad5b'],

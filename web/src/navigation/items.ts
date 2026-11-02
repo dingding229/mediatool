@@ -6,9 +6,9 @@ export interface NavigationGroup { id: string; name: string; items: NavigationIt
 const icons = [Monitor, DataLine, Search, Star, Download, Film, FolderChecked, FolderOpened, VideoPlay, Connection, Tickets, MagicStick, Operation, Setting]
 export const navigationItems: NavigationItem[] = primaryPages.map((page, index) => ({ id: page.id, name: page.name, group: page.group, icon: icons[index]!, path: `/${page.id}`, keywords: page.description }))
 export const navigationGroups: NavigationGroup[] = [{ id: 'home', name: '', items: navigationItems.filter(p => !p.group) }, ...['获取', '媒体', '系统'].map((name, index) => ({ id: ['acquire','media','system'][index]!, name, items: navigationItems.filter(p => p.group === name) }))]
-export interface QuickSearchMatch extends NavigationItem { pageId: string; to: { path: string; query?: Record<string, string> } }
-const primaryDestinations: QuickSearchMatch[] = navigationItems.map((item,index) => ({ ...item, pageId: item.id, keywords: primaryPages[index]?.keywords??item.name, to: { path: item.path } }))
-const tabDestinations: QuickSearchMatch[] = primaryPages.flatMap(page => page.tabs.filter(tab => tab.id).map(tab => ({ ...navigationItems.find(item => item.id === page.id)!, id: `${page.id}:${tab.id}`, pageId: page.id, name: `${page.name} · ${tab.label}`, keywords: tab.keywords ?? '', to: { path: `/${page.id}`, query: { tab: tab.id } } })))
+export interface QuickSearchMatch extends NavigationItem { pageId: string; description:string; to: { path: string; query?: Record<string, string> } }
+const primaryDestinations: QuickSearchMatch[] = navigationItems.map((item,index) => ({ ...item, description:primaryPages[index]!.description, pageId: item.id, keywords: primaryPages[index]?.keywords??item.name, to: { path: item.path } }))
+const tabDestinations: QuickSearchMatch[] = primaryPages.flatMap(page => page.tabs.filter(tab => tab.id).map(tab => ({ ...navigationItems.find(item => item.id === page.id)!, id: `${page.id}:${tab.id}`, pageId: page.id, name: `${page.name} › ${tab.label}`, description:`${page.group||'首页'} · ${tab.label}`, keywords: tab.keywords ?? '', to: { path: `/${page.id}`, query: { tab: tab.id } } })))
 export function searchNavigation(query: string): QuickSearchMatch[] {
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
   if (!terms.length) return primaryDestinations

@@ -28,3 +28,5 @@ it('uses fresh state provenance while build metadata is loading, never flashes a
  const s=mount(About);expect(s.version).toBe('v0.51.0');expect(s.latest).toBeNull();expect(s.currentAtLeastLatest).toBe(true);
  store.state.current=undefined;expect(s.latest).toBeNull();expect(s.version).toBe('读取中');
 });
+
+it('uses the server ignored-cache flag when no older release is returned, without showing update execution',async()=>{store.state={...state(),hasUpdate:false,currentAtLeastLatest:true,result:{status:'verified',checkedAt:'2026-11-02T00:00:00Z',latest:null}};store.build={version:'0.51.0'};const s=mount(About);await flush();expect(s.currentAtLeastLatest).toBe(true);expect(s.latest).toBeNull();expect(s.status).toBe('已是最新版本');const online=mount(Online);await flush();expect(online.target).toBeFalsy();expect(executeOnlineUpdate).not.toHaveBeenCalled()});

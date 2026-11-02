@@ -1,3 +1,4 @@
+// I42c: approved display/import changes; original mutation functions remain independently pinned.
 // I42b: approved display/projection snapshots; destructive functions retain independent I36 hashes.
 import {stripMetadataImport} from '../test/metadata-import';
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
@@ -22,8 +23,8 @@ it('I19-3 keeps its alert section and all shared dangerous confirmation markup u
  expect(sha(template.slice(template.indexOf('    <ConfirmAction v-model:visible="confirm"')))).toBe('b4f2072e1764e09a891dce2dddef7dcb831bf9768f2eb5388838809d2f81776e');
 });
 it('I19-3 keeps exact time semantics, including no expiry, elapsed TTL and historical results',()=>{
- expect(sha(read('utils/cache-time.ts'))).toBe('838515e8ecd0db2c871ec4ee4927205d2fa1bec4f87e70df453aaa77af3c19da');
- expect(cacheTime('tmdb',{ttlSeconds:3600,state:'cached'},1800)).toBe('剩余 0.50 小时');expect(cacheTime('tmdb',{ttlSeconds:-1,state:'cached'})).toBe('无自动到期');
+ expect(sha(read('utils/cache-time.ts'))).toBe('022931a45cdb44ce23386689bc29d7d6bb7d7c15b7ea95828cce716dcd4a7e79');
+ expect(cacheTime('tmdb',{ttlSeconds:3600,state:'cached'},1800)).toBe('剩余约 30 分钟');expect(cacheTime('tmdb',{ttlSeconds:-1,state:'cached'})).toBe('无自动到期');
  expect(cacheTime('search',{ttlSeconds:3600,state:'succeeded',reusable:false})).toBe('历史结果');expect(cacheTime('search',{ttlSeconds:60,state:'running',reusable:true})).toBe('查询中');
 });
 it('I19-3 reuses lists and pagination while keeping acknowledgement separate from recovery',()=>{

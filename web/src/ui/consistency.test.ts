@@ -66,11 +66,11 @@ it('single-value native time fields use the shared cross-workspace contract with
  expect(css).toContain(':root.dark input.mt-native-time-input,:root.dark input.mt-native-form-input{color-scheme:dark}');
  expect(read('../settings/IdleUpdatePanel.vue').match(/class="mt-native-form-input/g)).toHaveLength(1);
  expect(read('../settings/AboutPanel.vue')).toContain('class="mt-native-form-input" aria-label="检查间隔（小时）"');
- for(const [file,count,type] of [['../settings/IdleUpdatePanel.vue',2,'time'],['../organize/HistoryPanel.vue',2,'datetime-local'],['../playback/UserEditor.vue',1,'datetime-local']] as const){
+ for(const [file,count,type] of [['../organize/HistoryPanel.vue',2,'datetime-local'],['../playback/UserEditor.vue',1,'datetime-local']] as const){
   expect(read(file).match(new RegExp('class="mt-native-time-input" type="'+type+'"','g'))).toHaveLength(count);
  }
  for(const file of ['../media/media.css','../organize/workspaces.css'])expect(read(file)).not.toContain('input[type=datetime-local]');
- expect(read('./CronInput.vue')).not.toContain('mt-native-time-input');
+ expect(read('../settings/IdleUpdatePanel.vue').match(/<Time24Field/g)).toHaveLength(2);expect(read('./Time24Field.vue')).toContain('placeholder="HH:mm"');expect(read('./CronInput.vue')).not.toContain('mt-native-time-input');
  expect(read('../operations/LogsPanel.vue')).toContain('type="datetimerange"');
 });
 it('clamps a known shortened collection before hiding its single-page controls, not unknown/zero/error reads',()=>{

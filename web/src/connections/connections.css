@@ -170,7 +170,7 @@
 
 .connections-workspace>.connection-manager{margin-bottom:0}
 
-.connection-editor>label,.connection-field>.connection-label{font-size:13px;font-weight:600}.connection-field>.connection-label{display:block}.connection-editor .el-input__inner{font-weight:400}.notification-entry{display:block}.notification-entry-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.notification-entry-heading h3{margin:0}.notification-entry-heading .el-tag{flex:none}.notification-entry-body{white-space:pre-line}.notification-entry-status{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.notification-entry-status:empty{display:none}
+.connection-editor>label,.connection-field>.connection-label{font-size:var(--mt-form-label-size);font-weight:600}.connection-field>.connection-label{display:block}.connection-editor .el-input__inner{font-weight:400}.notification-entry{display:block}.notification-entry-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.notification-entry-heading h3{margin:0}.notification-entry-heading .el-tag{flex:none}.notification-entry-body{white-space:pre-line}.notification-entry-status{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.notification-entry-status:empty{display:none}
 
 .u2-connection-dialog .connection-editor-footer{justify-content:flex-end;width:100%}.connection-editor-footer .mt-save-button{order:10}.connection-field>.mt-form-checkbox{margin:0}.connection-field:has(>.mt-form-checkbox){row-gap:6px}.connection-field>.mt-form-checkbox .el-checkbox__label{font-weight:400}
 /* Keep a full touch target, but centre the clear-label inside it instead of

@@ -21,3 +21,5 @@
 /* Keep TaskControl mounted for unknown receipts; only collapse genuinely empty chrome. */
 .el-dialog.download-detail>.el-dialog__footer:not(:has(button,[role=status],[role=alert])){display:none}
 .download-detail .detail-body>section:last-child>.mt-description-grid{margin-bottom:0}
+
+.download-heading h3>.el-tooltip__trigger,.download-heading h3>.t8-download-title{min-width:0;flex:1}.download-heading .t8-download-title{overflow:visible;text-overflow:clip}.resource-entry h3{min-width:0}

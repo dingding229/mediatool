@@ -37,7 +37,7 @@
 .subscription-list-footer { padding: 16px 24px; border-top: 1px solid var(--mt-border-color); }
 .mt-subscriptions .flow-hint { flex-wrap: wrap; }
 .history-subject-picker { display: flex; align-items: center; gap: 16px; padding: 20px 24px; }
-.history-subject-picker label { font-size: 13px; }
+.history-subject-picker label { font-size: var(--mt-form-label-size); }
 .history-subject-picker .el-select { width: 260px; }
 .history-subject-picker > span { color: var(--mt-text-muted); font-size: 13px; }
 .subscription-history-workspace { display: grid; grid-template-columns: 260px minmax(0,1fr); border-top: 1px solid var(--mt-border-color); min-height: 0; }
@@ -104,7 +104,7 @@
 .composer-body fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .composer-body legend { margin-bottom: 8px; font-size: 14px; font-weight: 600; }
 .composer-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.composer-fields label { display: grid; gap: 6px; min-width: 0; font-size: 13px; }
+.composer-fields label { display: grid; gap: 6px; min-width: 0; font-size: var(--mt-form-label-size); }
 .quality-fields { grid-template-columns: repeat(3,minmax(0,1fr)); }
 .subscription-composer .el-checkbox { min-height: 44px; height: auto; white-space: normal; }
 .subscription-composer .el-checkbox__label { white-space: normal; }

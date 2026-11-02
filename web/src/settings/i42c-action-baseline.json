@@ -1,0 +1,31 @@
+{
+  "settings/ConfigPanel.vue": {
+    "saveAutomation": "b95cdfbbe0084633331c3dc1f2d607a6e8514b69e5008daca8dc03212da98bf2",
+    "originValue": "9e3745d716bd0f2f04a396855833fc09809f73377d49d54ac7c5cfdacf211066",
+    "setOrigin": "7424abcd3db42eb7b102ab260ebc7cd2396c2ba57fa87f0fe74303e5d0e65fe5",
+    "previewNames": "1574de1f62b60a54860770c1c053a18231b5176ec1c0b5f0a2ecf6c5362ae20a",
+    "saveNaming": "1c68d30c3a87ea6a4a120d3469f5932fe162f9874a6d2323d96c4e5e4e7cb415",
+    "approveCleanup": "cab2cb1cfd4636c54c01c32b087ee93f94de8c4401207abb999d594309b58480"
+  },
+  "settings/ClassificationPanel.vue": {
+    "edit": "7a2b23fe39fcccd5416d1b97a82eeb7b71f280aa6ad71dbceea3eebcc0da72ea",
+    "apply": "c96363749ed719a9a531132b6646e9ffc9f5e0444b3f271742f3596cdbc1c585",
+    "move": "d9e33579f0f69598ddc880b6e3b157098282fa477b779c77e516e53c1206a86d",
+    "remove": "4384e4741bac78fcd89b12e58e5ebb51fd41b9b154c934275d445cd4ebffe6b0"
+  },
+  "settings/AboutPanel.vue": {
+    "check": "3289de6df67e631a7e0d5909c7c8d88eabac8bfadbec54e9e2096fe2ece3842d",
+    "saveSettings": "70cf73d74ec1fac4a987d0d50643e00633e8c81f2890fe23537de1044d18185f"
+  },
+  "settings/IdleUpdatePanel.vue": {
+    "accept": "c1c7be80459e45e4729eb746a646ee0272dc0d9a50b56ced1e76cb4cdebd4dab",
+    "load": "c25528cc252829da0d11e4125378774fbea85969e0b36d4decd9fe14ef0278e0",
+    "save": "188de902160a54a841651990325c36328fc24cb3a104431dd3973347cad481cd",
+    "evaluate": "60b02fa87c81cce032daa7afdabff2f31987b4fe7419fb118d60901859757939"
+  },
+  "settings/OnlineUpdatePanel.vue": {
+    "load": "3e55ed7f7a0ecd6ed1770c8e9d54d5f5b0508e93ead3fe47edef7a6cc5249211",
+    "prepare": "fdb026f438edf97ff0e72620bbad5c090d3bdf150a1c9b5e04e355787c679a00",
+    "execute": "320ab4d1c67f7ddcee42cc126ab4949f760208b3431b0bd8a8e893d6a48d95db"
+  }
+}

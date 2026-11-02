@@ -1,3 +1,4 @@
+// I42c: local label sizes now reference the global token; log values/transport are untouched.
 // I38: approved global pagination/defaults, FilePicker adapters, display-only imports/layout and version projection. Payload/action guards remain.
 // I36: refresh display-only snapshots after removing developer details; action functions are pinned in i36-business-functions.test.ts.
 import {expect,it} from 'vitest';
@@ -19,7 +20,7 @@ it('I19-5 changes only console layout, keeps raw text wrapping and semantic leve
 it.each([
  ['operations/LogsPanel.vue','12d03f78e9b996a3fafa5098350c931b785660e8deeb1eb97f279a755fe5f5fe'],
  ['logs/format.ts','55b8c1f115e293fdd87c02807cdaf1b2ea805c43b1192bb671d92b710e7a56e8'],
- ['ui/stability.css','3b8b50e54d7a5e3a2038ca08aaf9842f9707d21a002999a054a1696ebffb6860'],
+ ['ui/stability.css','7a2a435b0231ff9055e53b801596c7e5d2fe0571e561dd76ba4e7562b82df4ed'],
  ['api/client.ts','bca6d6605ca0a9507b6f9975a05f388031da8b705df6896bddf81432052b42e4'],
 ])('I19-5 preserves console/transport; normalize only I26b approved settings and field tokens: %s',(file,hash)=>{
  let source=read(file);

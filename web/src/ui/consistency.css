@@ -60,7 +60,7 @@ label.mt-form-checkbox:not(.el-checkbox)>input[type=checkbox]{width:20px;height:
 }
 
 /* I38 form contract; controls retain normal-weight values, labels/help use tokens. */
-:root{--mt-form-label-size:13px;--mt-form-label-weight:600;--mt-form-help-size:12px;--mt-form-control-height:44px;--el-component-size:var(--mt-form-control-height)}
+:root{--mt-form-field-gap:8px;--mt-form-help-gap:4px;--mt-form-label-size:13px;--mt-form-label-weight:600;--mt-form-help-size:12px;--mt-form-control-height:44px;--el-component-size:var(--mt-form-control-height)}
 :root:root :is(label:not(.el-checkbox,.el-radio,.el-switch),.connection-field,.settings-field,.media-filter-label,.u5-field){font-size:var(--mt-form-label-size);font-weight:var(--mt-form-label-weight)}
 :root:root :is(input:not([type=checkbox],[type=radio]),textarea,.el-select__selected-item){font-size:14px;font-weight:400}
 :root:root :is(.mt-help,.connection-field>small,.settings-card small,.mt-form-checkbox-help,.metadata-note,.image-note){font-size:var(--mt-form-help-size);font-weight:400;color:var(--mt-text-muted)}
@@ -72,3 +72,8 @@ label.mt-form-checkbox:not(.el-checkbox)>input[type=checkbox]{width:20px;height:
 .u2-connection-dialog>.el-dialog__footer{border-top:1px solid var(--mt-border-color);background:var(--mt-bg-surface)}
 
 :root :is(.settings-card form>p,.connection-editor>p,.u5-form>p,.cron-input>small){font-size:var(--mt-form-help-size);font-weight:400}
+
+/* I42c: one field spacing contract for global form wrappers and contained controls. */
+:root:root :is(.settings-field,.connection-field,.u5-field,label:has(>.el-input,>.el-select,>.mt-time24-field,>textarea,>input:not([type=checkbox],[type=radio]))){row-gap:var(--mt-form-field-gap)}
+:root:root :is(.el-form-item__label,.el-checkbox__label,.el-radio__label,.el-switch__label){font-size:var(--mt-form-label-size);font-weight:var(--mt-form-label-weight)}
+:root:root :is(form small,.idle-hint,.el-form-item__error,.settings-input-error,.cron-field-feedback p){font-size:var(--mt-form-help-size);font-weight:400}

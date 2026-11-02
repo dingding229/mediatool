@@ -33,12 +33,13 @@ type Result struct {
 	Latest    *Release  `json:"latest"`
 }
 type State struct {
-	Enabled       bool           `json:"enabled"`
-	Result        Result         `json:"result"`
-	NoticeVersion string         `json:"noticeVersion"`
-	Current       buildinfo.Info `json:"current"`
-	HasUpdate     bool           `json:"hasUpdate"`
-	IntervalHours int            `json:"intervalHours"`
+	Enabled              bool           `json:"enabled"`
+	Result               Result         `json:"result"`
+	NoticeVersion        string         `json:"noticeVersion"`
+	Current              buildinfo.Info `json:"current"`
+	CurrentAtLeastLatest bool           `json:"currentAtLeastLatest"`
+	HasUpdate            bool           `json:"hasUpdate"`
+	IntervalHours        int            `json:"intervalHours"`
 }
 type Service struct {
 	DB      *pgxpool.Pool
@@ -75,13 +76,26 @@ func (s *Service) Get(ctx context.Context) (State, error) {
 	if out.IntervalHours < MinIntervalHours || out.IntervalHours > MaxIntervalHours {
 		return out, ErrUnavailable
 	}
+	out = projectCachedRelease(out)
+	return out, nil
+}
+
+// projectCachedRelease ignores a verified release older than this executable.
+// This is a read-only view: preserve the stored result/check time and checker cadence,
+// never fabricate release provenance, re-check the network, or touch the updater.
+func projectCachedRelease(out State) State {
 	out.HasUpdate = false
+	out.CurrentAtLeastLatest = false
 	if out.Result.Status == "verified" && out.Result.Latest != nil {
-		if n, ok := buildinfo.Compare(strings.Split(out.Current.Version, "-dev+")[0], out.Result.Latest.Version); ok && n < 0 {
-			out.HasUpdate = true
+		if order, ok := buildinfo.Compare(strings.Split(out.Current.Version, "-dev+")[0], out.Result.Latest.Version); ok {
+			out.HasUpdate = order < 0
+			out.CurrentAtLeastLatest = order >= 0
+			if order > 0 {
+				out.Result.Latest = nil
+			}
 		}
 	}
-	return out, nil
+	return out
 }
 
 // SetSettings changes only configuration keys: a racing check cannot overwrite
