@@ -5,7 +5,12 @@ export async function waitForLayout(page:Page,selector='body'){
  await page.locator(selector).evaluate(async root=>{
   await document.fonts.ready;
   await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);
-  await Promise.all(root.getAnimations({subtree:true})
+  // Element Plus animates .el-overlay-dialog, an ancestor of the dialog.
+  // Descendant-only waits can sample its final translateY frames as layout drift.
+  const animations=new Set(root.getAnimations({subtree:true}));
+  for(let parent=root.parentElement;parent;parent=parent.parentElement)
+   for(const animation of parent.getAnimations())animations.add(animation);
+  await Promise.all([...animations]
    .filter(a=>a.effect?.getTiming().iterations!==Infinity)
    .map(a=>a.finished.catch(()=>{})));
  });

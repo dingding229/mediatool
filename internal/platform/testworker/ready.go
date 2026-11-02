@@ -17,7 +17,17 @@ import (
 // only AFTER this barrier. A partial registry can never satisfy it.
 func Ready(t testing.TB, db *pgxpool.Pool, id string, probe func(context.Context) error) {
 	t.Helper()
-	ctx, stop := context.WithTimeout(context.Background(), 20*time.Second)
+	ReadyWithin(t, db, id, 20*time.Second, probe)
+}
+
+// ReadyWithin reuses the same full-registry/real-lane barrier for a restarted
+// generation without enlarging the caller's existing readiness budget.
+func ReadyWithin(t testing.TB, db *pgxpool.Pool, id string, budget time.Duration, probe func(context.Context) error) {
+	t.Helper()
+	if budget <= 0 || budget > 20*time.Second {
+		t.Fatal("readiness budget must stay within the original 20 second bound")
+	}
+	ctx, stop := context.WithTimeout(context.Background(), budget)
 	defer stop()
 	var last error
 	for ctx.Err() == nil {

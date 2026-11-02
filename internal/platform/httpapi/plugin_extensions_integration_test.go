@@ -347,7 +347,7 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wait("intercept generation", func() bool { snap, err := s.Snapshot(ctx, in.ID); return err == nil && snap.Hash != "" })
+	testworker.ReadyWithin(t, s.DB, in.ID, 15*time.Second, func(c context.Context) error { _, err := s.UI(c, in.ID, "form", ""); return err })
 	if status, b := request("POST", "/api/v1/media/recognize-name", true, map[string]string{"Origin": c.PublicURL, "X-Requested-With": "media-tool"}, `{"name":"Owned.2026.mkv"}`); status != 200 || !strings.Contains(string(b), "Intercepted") {
 		t.Fatal("interception", status, string(b))
 	}
@@ -361,7 +361,7 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 		if _, err = s.Apply(ctx, "admin", pluginv2.Request{Kind: pluginv2.Configure, OperationKey: jobs.UUID(), InstanceID: in.ID, Fingerprint: d.Fingerprint, ExpectedRevision: current[0].Revision, Confirm: true, Config: json.RawMessage(config)}); err != nil {
 			t.Fatal(err)
 		}
-		wait("fallback generation", func() bool { _, err := s.Snapshot(ctx, in.ID); return err == nil })
+		testworker.ReadyWithin(t, s.DB, in.ID, 15*time.Second, func(c context.Context) error { _, err := s.UI(c, in.ID, "form", ""); return err })
 		start := time.Now()
 		status, b := request("POST", "/api/v1/media/recognize-name", true, map[string]string{"Origin": c.PublicURL, "X-Requested-With": "media-tool"}, `{"name":"Owned.2026.mkv"}`)
 		if status != 200 || !strings.Contains(string(b), `"title":"Owned"`) || time.Since(start) > 2500*time.Millisecond {
