@@ -67,7 +67,7 @@ usePageRefresh(load);
   <article v-for="row in visible.slice((connectionPage-1)*connectionSize,connectionPage*connectionSize)" :key="row.id" class="saved-connection">
     <div>
       <h3>{{ row.name }}</h3>
-      <p>{{joinMetadata([(kinds[row.kind]?.name),(row.enabled?'已启用':'已停用')])}}</p>
+      <p>{{kinds[row.kind]?.name}}</p>
       <ConnectionHealth :state="connectionState(row)" :checked-at="row.lastCheckedAt" :message="connectionMessage(row)"/>
       <p>{{ row.secretFields?.length?'凭据已设置':'凭据未设置' }}</p>
     </div>
@@ -119,7 +119,8 @@ usePageRefresh(load);
 
     </form>
     <template #footer>
-      <div class="connection-buttons">
+      <div class="connection-buttons connection-editor-footer">
+        <el-button :disabled="saving" @click="editing=false">取消</el-button>
         <el-button :disabled="saving||blocked||!!conflict" :loading="saving" native-type="submit" :form="editorFormId" type="primary" class="mt-save-button">{{ form.kind==='tmdb'?'保存TMDB Token':'加密保存' }}</el-button>
         <ElDropdown v-if="form.kind==='open115'" trigger="click">
           <el-button :disabled="saving||blocked||!!conflict">更多保存方式</el-button>

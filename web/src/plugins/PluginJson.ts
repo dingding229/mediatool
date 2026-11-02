@@ -37,7 +37,7 @@ export default defineComponent({name:'PluginJson',props:{nodes:{type:Array as Pr
   const p=n.props??{},key=n.key??index,children=()=>n.children?.map((c,i)=>render(c,depth+1,i))??[]
   if(n.component==='VDetails')return h('details',{key},[h('summary',text(p.label,120)||'更多设置'),...children()])
   if(containers[n.component])return h(n.component==='VCardTitle'?'h3':'div',{key,class:containers[n.component]},children())
-  if(n.component==='Text')return h('p',{key},text(p.text??p.count))
+  if(n.component==='Text'){const value=text(p.text??p.count)||(props.readonly?'—':'');const label=text(p.label,120);return label?h('div',{key,class:'plugin-json-value'},[h('span',{class:'plugin-value-label'},label),h('span',{class:'plugin-value-text'},value||'—')]):h('p',{key},value)}
   if(n.component==='VDivider')return h(ElDivider,{key})
   if(n.component==='VAlert')return h(ElAlert,{key,title:text(p.title??p.text),type:['success','info','warning','error'].includes(String(p.type))?p.type as 'info':'info',closable:false})
   if(n.component==='VChip')return h(ElTag,{key},()=>text(p.text))

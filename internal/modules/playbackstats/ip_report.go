@@ -2,6 +2,7 @@ package playbackstats
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"sort"
@@ -39,27 +40,47 @@ type IPReport struct {
 	Summary IPOverview `json:"summary"`
 }
 
-// IPReport counts sessions per IP, never redirects or repeated progress updates.
-// Geography is resolved offline at read time. Search/KPIs/ranks use the complete
-// filtered set, not the visible page. One snapshot also supplies all-time firsts
-// within the retained history, so selecting 7 days does not turn every old IP new.
+// IPFactsSQL is the shared SELECT used by the report and operator read-only verification.
+// IPs are recorded canonically by the original recorders. Trust/public validation
+// is reused, never inferred from a matching session IP or a spoofable UA.
+//
+//go:embed ip_sources.sql
+var ipSourcesSQL string
+
+//go:embed ip_facts.sql
+var ipAggregateSQL string
+
+var IPFactsSQL = ipSourcesSQL + ipAggregateSQL
+
+// IPReport merges retained playback sessions and verified allowed public 302s.
+// The latter carry no user/device identity; never guess one from IP/UA proximity.
+// Reading the original records includes retained historical traffic without writes.
 func (r Repository) IPReport(ctx context.Context, f Filter, locate func(string) ipgeo.Location) (IPReport, error) {
-	out := IPReport{Page: Page[IPRow]{Items: []IPRow{}, StartIndex: f.Start, Limit: f.Limit}}
-	if e := f.Validate(); e != nil {
-		return out, e
-	}
-	rows, e := r.DB.Query(ctx, `WITH facts AS MATERIALIZED (
- SELECT p.ip,p.first_seen_at,p.last_seen_at,e.id,e.user_id,e.device_id,e.started_at
- FROM media_playback_ips p JOIN media_playback_events e ON e.id=p.event_id
- WHERE ($1::text='' OR e.user_id=nullif($1,'')::uuid) AND ($2::text='' OR e.device_id=nullif($2,'')::uuid)
- ), firsts AS (SELECT ip,min(first_seen_at) AS first_seen_at FROM facts GROUP BY ip)
- SELECT host(p.ip),count(DISTINCT p.user_id),count(DISTINCT p.device_id),count(DISTINCT p.id),min(f.first_seen_at),max(p.last_seen_at),
- jsonb_agg(DISTINCT jsonb_build_object('id',u.id::text,'name',coalesce(nullif(u.display_name,''),u.username))),
- jsonb_agg(DISTINCT jsonb_build_object('id',d.id::text,'name',d.name,'client',d.client))
- FROM facts p JOIN firsts f ON f.ip=p.ip JOIN media_users u ON u.id=p.user_id JOIN media_user_devices d ON d.user_id=p.user_id AND d.id=p.device_id
- WHERE p.started_at >= $3 GROUP BY p.ip ORDER BY max(p.last_seen_at) DESC,p.ip LIMIT 100001`, f.args()[:3]...)
+	return r.ipReportAt(ctx, f, locate, time.Now())
+}
+
+func (r Repository) ipReportAt(ctx context.Context, f Filter, locate func(string) ipgeo.Location, now time.Time) (IPReport, error) {
+	all, e := r.ipFactsAt(ctx, f, now)
 	if e != nil {
-		return out, e
+		return IPReport{Page: Page[IPRow]{Items: []IPRow{}, StartIndex: f.Start, Limit: f.Limit}}, e
+	}
+	return buildIPReport(all, f, locate, now), nil
+}
+
+func ipWindowArgs(f Filter, now time.Time) []any {
+	since := time.Unix(0, 0)
+	if f.Days > 0 {
+		since = now.AddDate(0, 0, -f.Days)
+	}
+	return []any{f.UserID, f.DeviceID, since, now}
+}
+func (r Repository) ipFactsAt(ctx context.Context, f Filter, now time.Time) ([]IPRow, error) {
+	if e := f.Validate(); e != nil {
+		return nil, e
+	}
+	rows, e := r.DB.Query(ctx, IPFactsSQL, ipWindowArgs(f, now)...)
+	if e != nil {
+		return nil, e
 	}
 	defer rows.Close()
 	all := []IPRow{}
@@ -67,29 +88,27 @@ func (r Repository) IPReport(ctx context.Context, f Filter, locate func(string) 
 	for rows.Next() {
 		scanned++
 		if scanned > 100000 {
-			return out, errors.New("IP report scope exceeds the bounded read limit")
+			return nil, errors.New("IP report scope exceeds the bounded read limit")
 		}
 		var v IPRow
 		var accounts, clients []byte
-		if e = rows.Scan(&v.IP, &v.Users, &v.Devices, &v.Count, &v.FirstSeenAt, &v.LastSeenAt, &accounts, &clients); e != nil {
-			return out, e
+		if e = rows.Scan(&v.IP, &v.Users, &v.Devices, &v.Count, &v.FirstSeenAt, &v.LastSeenAt, &accounts, &clients, &v.SessionCount, &v.Direct302Count); e != nil {
+			return nil, e
 		}
 		if !clientip.PublicString(v.IP) {
 			continue
 		}
 		if e = json.Unmarshal(accounts, &v.Accounts); e != nil {
-			return out, e
+			return nil, e
 		}
 		if e = json.Unmarshal(clients, &v.Clients); e != nil {
-			return out, e
+			return nil, e
 		}
 		all = append(all, v)
 	}
-	if e = rows.Err(); e != nil {
-		return out, e
-	}
-	return buildIPReport(all, f, locate, time.Now()), nil
+	return all, rows.Err()
 }
+
 func geography(parts ...string) string {
 	out := []string{}
 	for _, s := range parts {
@@ -161,9 +180,9 @@ func buildIPReport(all []IPRow, f Filter, locate func(string) ipgeo.Location, no
 		if o == "" {
 			o = "未知运营商"
 		}
-		province[p] += v.Count
-		city[c] += v.Count
-		operator[o] += v.Count
+		province[p]++
+		city[c]++
+		operator[o]++
 	}
 	ranked := distribution(primary)
 	if len(ranked) > 0 {

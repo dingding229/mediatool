@@ -14,4 +14,4 @@ export function accessAddresses(client?:string,connection?:string){
  if(client&&client===connection)return [{label:'地址',ip:client}];
  return [{label:'访客地址',ip:client},{label:'连接地址',ip:connection}].filter(value=>value.ip);
 }
-export const playbackIPScope='仅统计已登录内置媒体服务的播放会话公网 IP；直接 STRM 302、登录与浏览请求、被拒绝访问及未核验来源不计入。';
+export const playbackIPScope='统计播放会话及准入已通过、可信来源核验的公网 302；按 IP 去重。全部用户包含直连 STRM，指定用户或设备仅统计已关联部分；拒绝、内网及未核验来源不计入。';

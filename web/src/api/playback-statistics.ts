@@ -6,7 +6,7 @@ export interface PlayEvent extends MediaTitle{id:string;itemId:string;userId:str
 export interface PlaySummary{count:number;seconds:number;movies:number;series:number;episodes:number;top:Array<MediaTitle&{itemId:string;count:number;seconds:number}>;trend:Array<{date:string;count:number;seconds:number}>}
 export interface IPAccount{id:string;name:string}
 export interface IPClient{id:string;name:string;client:string}
-export interface IPStats{ip:string;users:number;devices:number;count:number;firstSeenAt:string;lastSeenAt:string;location?:string;label?:string;country?:string;province?:string;city?:string;isp?:string;accounts:IPAccount[]|null;clients:IPClient[]|null;newIP:boolean;differentRegion:boolean}
+export interface IPStats{sessionCount?:number;direct302Count?:number;ip:string;users:number;devices:number;count:number;firstSeenAt:string;lastSeenAt:string;location?:string;label?:string;country?:string;province?:string;city?:string;isp?:string;accounts:IPAccount[]|null;clients:IPClient[]|null;newIP:boolean;differentRegion:boolean}
 export interface IPDistribution{name:string;count:number}
 export interface IPOverview{uniqueIPs:number;regions:number;activeUsers:number;primaryRegion?:string;provinces:IPDistribution[];cities:IPDistribution[];operators:IPDistribution[]}
 export interface IPStatsPage extends ManagementPage<IPStats>{summary?:IPOverview}

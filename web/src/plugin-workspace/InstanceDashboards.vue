@@ -19,11 +19,12 @@ watch([()=>props.instanceId,()=>props.pluginId,()=>props.running],()=>{cards.val
 onUnmounted(()=>{dead=true;generation++;});
 </script>
 <template>
- <section v-if="declared.length" class="media-surface f6-plugin-overview" aria-label="插件概览" :aria-busy="loading">
-  <h2>概览</h2><p v-if="!running">插件停用时不读取概览，不会为显示此区块启动插件。</p>
-  <p v-else-if="loading&&!cards.length" role="status">正在读取插件概览…</p>
+ <p v-if="declared.length&&!running" class="plugin-paused-note">插件停用时不读取概览，不会为显示此区块启动插件。</p>
+ <section v-if="declared.length&&running" class="media-surface f6-plugin-overview" aria-label="插件概览" :aria-busy="loading">
+  <h2>概览</h2>
+  <p v-if="loading&&!cards.length" role="status">正在读取插件概览…</p>
   <p v-if="error" role="status">{{error}} <el-button @click="load">重试概览</el-button></p>
   <article v-for="card in cards" :key="card.key"><h3>{{card.title}}</h3><PluginSurface :instance-id="instanceId" :plugin-id="pluginId" kind="dashboard" :page-key="card.key" :refresh="card.refresh"/></article>
  </section>
 </template>
-<style scoped>.f6-plugin-overview{min-height:0}.f6-plugin-overview article{min-width:0}.f6-plugin-overview article+article{margin-top:16px}</style>
+<style scoped>.plugin-paused-note{font-size:13px;color:var(--mt-text-muted);margin:0}.f6-plugin-overview{min-height:0}.f6-plugin-overview article{min-width:0}.f6-plugin-overview article+article{margin-top:16px}</style>

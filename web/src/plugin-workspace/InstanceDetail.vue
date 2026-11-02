@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {usePageBreadcrumbs} from '../ui/page-breadcrumbs';
 import {useRefresh} from '../composables/useRefresh';
 import {providePageRefresh,usePageRefresh} from '../ui/page-refresh';
 const ownRefresh=providePageRefresh();
@@ -26,6 +27,7 @@ import '../workflows/u5.css';
 import '../operations/u6.css';
 const route = useRoute(), id = String(route.params.id), data = reactive(useResource(() => inspect(id))), plan = reactive(useResource(() => reviewPlan(id))), op = reactive(usePluginOperation()), config = ref(''), draftLoaded = ref(false), draftRevision = ref(0), latest = ref(false), confirm = ref(false), kind = ref(''), consent = ref(false), confirmed = ref(false), formValid = ref(false);
 const row = computed(() => data.data?.instance), unavailable = computed(() => !!row.value && ((row.value.availability && row.value.availability !== 'available') || ['definition_missing', 'definition_unsupported'].includes(row.value.reason))), pages = computed(() => inventory.manifests.find(m => m.id === row.value?.pluginId)?.extensions.pages || []);
+const displayName=computed(()=>row.value?.metadata?.name||inventory.manifests.find(m=>m.id===row.value?.pluginId)?.name||'插件详情');usePageBreadcrumbs(computed(()=>[{label:'插件',to:'/plugins?tab=installed'},{label:displayName.value}]));
 async function read() {
   await data.load();
   if (data.error)
@@ -92,7 +94,7 @@ ownRefresh.register(load,()=>true);
 <template>
  <div class="media-workspace u5-workspace u6-workspace f5-plugin-detail">
   <PageHeader :title="row?.metadata?.name||inventory.manifests.find(m=>m.id===row?.pluginId)?.name||'插件详情'" description="设置插件、查看日志与执行常用操作。"/>
-  <RouterLink to="/plugins?tab=installed">返回已安装插件</RouterLink>
+
   <ResourceState :stale="data.loaded" :loading="data.loading" :error="safePluginError(data.error)" @reload="load"/>
   <el-alert v-if="op.error" :title="op.error" type="error" :closable="false"/>
   <p v-if="op.notice" role="status">{{op.notice}}</p>
@@ -100,12 +102,12 @@ ownRefresh.register(load,()=>true);
   <RouterLink v-if="op.pending?.input.instanceId&&op.pending.input.instanceId!==id" :to="'/plugins/'+encodeURIComponent(op.pending.input.instanceId)">返回待核对插件</RouterLink>
   <el-button v-if="op.canReconcile&&op.pending?.input.kind!=='configure'" :disabled="op.busy" @click="op.replay(read).then(load)">核对原请求</el-button>
   <section v-if="row" class="media-surface plugin-status">
-   <header class="media-section-heading"><div><h2>插件状态</h2><p>{{pluginState(row)}}</p></div><el-switch :model-value="row.desiredState==='enabled'" :disabled="!!op.pending||op.busy||!!unavailable||row.reason==='permission_review_required'" aria-label="启用插件" active-text="启用" :before-change="()=>{ask(row.desiredState==='enabled'?'disable':'enable');return false}"/></header>
+   <header class="media-section-heading"><div><h2>插件状态</h2></div><div class="plugin-status-controls"><el-tag disable-transitions :type="row.state==='running'?'success':row.state==='failed'?'danger':'info'">{{pluginState(row)}}</el-tag><el-switch :model-value="row.desiredState==='enabled'" :disabled="!!op.pending||op.busy||!!unavailable||row.reason==='permission_review_required'" aria-label="启用插件" :before-change="()=>{ask(row.desiredState==='enabled'?'disable':'enable');return false}"/></div></header>
    <p v-if="row.reason">{{reasonName(row.reason)}}</p>
    <p v-if="unavailable">此插件当前不可用，已有配置和数据仍保留。</p>
    <el-button v-if="row.reason==='permission_review_required'" :disabled="!!op.pending" @click="review">确认访问范围变化</el-button>
    <div class="media-actions">
-    <RouterLink :to="{path:'/ops',query:{tab:'logs',module:'plugins',instance:id}}">查看实例日志</RouterLink>
+    <RouterLink class="el-button" :to="{path:'/ops',query:{tab:'logs',module:'plugins',instance:id}}">查看实例日志</RouterLink>
     <RouterLink v-for="key in pages" v-show="row.state==='running'" :key="key" :to="'/plugins/'+encodeURIComponent(id)+'/pages/'+encodeURIComponent(key)">打开插件应用</RouterLink>
     <el-dropdown trigger="click"><el-button aria-label="更多插件操作">更多</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item :disabled="!!op.pending||!!unavailable" @click="ask('clone')">创建分身</el-dropdown-item><el-dropdown-item :disabled="!!op.pending" @click="ask('remove')">卸载插件</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
    </div>
@@ -145,3 +147,5 @@ ownRefresh.register(load,()=>true);
 .plugin-config-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 @media(max-width:700px){.f5-plugin-detail .plugin-config :deep(.plugin-json){grid-template-columns:minmax(0,1fr)}}
 </style>
+
+<style scoped>.plugin-status-controls{display:flex;align-items:center;gap:12px}.plugin-status .media-actions>a.el-button{color:var(--mt-text-primary)}</style>

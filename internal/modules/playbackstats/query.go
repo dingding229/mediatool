@@ -167,6 +167,8 @@ func (r Repository) Events(ctx context.Context, f Filter) (Page[Event], error) {
 }
 
 type IPRow struct {
+	SessionCount    int         `json:"sessionCount"`
+	Direct302Count  int         `json:"direct302Count"`
 	Country         string      `json:"country,omitempty"`
 	Province        string      `json:"province,omitempty"`
 	City            string      `json:"city,omitempty"`
@@ -218,44 +220,35 @@ func (r Repository) GroupedIPs(ctx context.Context, f Filter, locate func(string
 	if e := f.Validate(); e != nil {
 		return out, e
 	}
-	args := f.args()[:3]
-	rows, e := r.DB.Query(ctx, `SELECT DISTINCT host(p.ip) FROM media_playback_ips p JOIN media_playback_events e ON e.id=p.event_id`+where, args...)
+	now := time.Now()
+	facts, e := r.ipFactsAt(ctx, f, now)
 	if e != nil {
 		return out, e
 	}
 	locations := map[string]string{}
 	groups := map[string]bool{}
-	for rows.Next() {
-		var ip string
-		if e = rows.Scan(&ip); e != nil {
-			break
-		}
-		label := locate(clientip.Sanitize(ip))
+	for _, v := range facts {
+		label := locate(v.IP)
 		if label == "" {
 			label = "未知归属地"
 		}
-		locations[ip] = label
+		locations[v.IP] = label
 		groups[label] = true
-	}
-	e = errors.Join(e, rows.Err())
-	rows.Close()
-	if e != nil {
-		return out, e
 	}
 	out.Total = len(groups)
 	raw, e := json.Marshal(locations)
 	if e != nil {
 		return out, e
 	}
-	args = append(args, raw, f.Limit, f.Start)
-	rows, e = r.DB.Query(ctx, `SELECT coalesce($4::jsonb->>host(p.ip),'未知归属地') AS location,count(DISTINCT e.user_id),count(DISTINCT e.device_id),count(DISTINCT e.id),min(p.first_seen_at),max(p.last_seen_at) FROM media_playback_ips p JOIN media_playback_events e ON e.id=p.event_id`+where+`GROUP BY 1 ORDER BY max(p.last_seen_at) DESC,location LIMIT $5 OFFSET $6`, args...)
+	args := append(ipWindowArgs(f, now), raw, f.Limit, f.Start)
+	rows, e := r.DB.Query(ctx, ipSourcesSQL+`SELECT coalesce($5::jsonb->>p.ip,'未知归属地'),count(DISTINCT p.user_id),count(DISTINCT p.device_id),count(DISTINCT p.session_id)+count(DISTINCT p.direct_id),min(p.first_seen_at),max(p.last_seen_at),count(DISTINCT p.session_id),count(DISTINCT p.direct_id) FROM facts p WHERE p.started_at>=$3 AND p.started_at<=$4 AND $5::jsonb ? p.ip GROUP BY 1 ORDER BY max(p.last_seen_at) DESC,1 LIMIT $6 OFFSET $7`, args...)
 	if e != nil {
 		return out, e
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var v IPRow
-		if e = rows.Scan(&v.Location, &v.Users, &v.Devices, &v.Count, &v.FirstSeenAt, &v.LastSeenAt); e != nil {
+		if e = rows.Scan(&v.Location, &v.Users, &v.Devices, &v.Count, &v.FirstSeenAt, &v.LastSeenAt, &v.SessionCount, &v.Direct302Count); e != nil {
 			return out, e
 		}
 		out.Items = append(out.Items, v)

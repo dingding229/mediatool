@@ -8,8 +8,8 @@ function toggle(){if(revealed.value)emit('hide');else if(props.modelValue||!prop
 watch(()=>[props.active,props.label,props.modelValue],()=>{if(!props.active||!props.modelValue)draftVisible.value=false});
 </script>
 <template>
- <el-input :id="id" :model-value="revealed?savedValue:modelValue" :type="showing?'text':'password'" :readonly="revealed" :aria-label="revealed?label+'已保存值':label" autocomplete="new-password" placeholder="留空保留；填写新值替换" @update:model-value="!revealed&&emit('update:modelValue',$event)">
-  <template #suffix><button type="button" class="secret-input-action" :aria-label="(showing?'隐藏':'显示')+label" :title="(showing?'隐藏':'显示')+label" :disabled="busy" :aria-pressed="showing" @click="toggle"><el-icon><Hide v-if="showing"/><View v-else/></el-icon></button><button v-if="revealed" type="button" class="secret-input-action" :aria-label="'复制'+label" :title="'复制'+label" @click="emit('copy')"><el-icon><CopyDocument/></el-icon></button></template>
+ <el-input :id="id" :model-value="revealed?savedValue:modelValue" :type="showing?'text':'password'" :readonly="revealed" :aria-label="revealed?label+'已保存值':label" autocomplete="new-password" :placeholder="hasSaved?'留空保留；填写新值替换':'未设置，可填写'" @update:model-value="!revealed&&emit('update:modelValue',$event)">
+  <template v-if="hasSaved" #suffix><button v-if="hasSaved" type="button" class="secret-input-action" :aria-label="(showing?'隐藏':'显示')+label" :title="(showing?'隐藏':'显示')+label" :disabled="busy" :aria-pressed="showing" @click="toggle"><el-icon><Hide v-if="showing"/><View v-else/></el-icon></button><button v-if="revealed" type="button" class="secret-input-action" :aria-label="'复制'+label" :title="'复制'+label" @click="emit('copy')"><el-icon><CopyDocument/></el-icon></button></template>
  </el-input>
  <small v-if="revealed">已保存值只读展示，不作为替换提交；隐藏后可填写新值。</small>
 </template>

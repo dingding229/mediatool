@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useDebouncedFilter} from '../composables/useDebouncedFilter';
 import {usePageNumber,usePageSize} from '../ui/page-query';
 
 import {usePageRefresh} from '../ui/page-refresh';
@@ -19,7 +20,8 @@ import '../media/media.css';
 import '../workflows/u5.css';
 import '../operations/u6.css';
 const route = useRoute(), tab = computed(() => route.query.tab === 'catalog' ? 'catalog' : 'installed'), page = usePageNumber(),pageSize=usePageSize(25), catalogPage = usePageNumber('catalogPage'),catalogSize=usePageSize(25,'catalogPage'), query = ref(''), list = reactive(useResource(() => instances(page.value,pageSize.value), [])), directory = reactive(useResource(() => catalog(catalogPage.value,catalogSize.value))), op = reactive(usePluginOperation()), consent = ref<PluginDefinition | null>(null), confirmed = ref(false), automation = ref(false);
-const shown = computed(() => list.data.filter(i => (i.metadata?.name || i.pluginId).toLowerCase().includes(query.value.toLowerCase()))), definitions = computed(() => directory.data?.items.filter(d => (d.manifest.name + ' ' + d.manifest.description).toLowerCase().includes(query.value.toLowerCase())) || []);
+const appliedQuery=ref('');useDebouncedFilter(query,value=>{appliedQuery.value=value.trim()});
+const shown = computed(() => list.data.filter(i => (i.metadata?.name || i.pluginId).toLowerCase().includes(appliedQuery.value.toLowerCase()))), definitions = computed(() => directory.data?.items.filter(d => (d.manifest.name + ' ' + d.manifest.description).toLowerCase().includes(appliedQuery.value.toLowerCase())) || []);
 async function read() {
   await Promise.all([list.load(), directory.load()]);
   if (list.error || directory.error)
@@ -55,13 +57,10 @@ usePageRefresh(load,'*');
     <section class="media-surface">
       <header class="media-section-heading">
         <h2>{{ tab==='installed'?'已安装插件':'插件目录' }}</h2>
-        <el-button @click="automation=true">工作流管理</el-button>
+        <el-input class="plugin-search" v-model="query" aria-label="查找插件" placeholder="搜索插件名称" clearable/><el-button @click="automation=true">工作流管理</el-button>
       </header>
-      <label class="u5-field">
-        查找插件
-        <input v-model="query" aria-label="查找插件"/>
-      </label>
-      <p>扩展权限后插件会停用；需要重新确认权限，再明确启用。不可用插件的配置和数据仍然保留。</p>
+
+      <p>扩展权限后插件会停用；需要重新确认权限，再明确启用。不可用插件的配置和数据仍然保留。安装前会提示需要的访问范围。</p>
       <el-alert v-if="op.error" :title="op.error" type="error" :closable="false"/>
       <p v-if="op.notice" role="status">{{ op.notice }}</p>
       <AsyncResultBanner v-if="op.phase" :status="op.phase" :message="op.pending?.input.kind==='install'?'上次安装结果未确认，正在核对，不会重复安装。':'上次操作尚未确认，请先核对当前实例。'" @refresh="load"/>
@@ -69,12 +68,11 @@ usePageRefresh(load,'*');
       <template v-if="tab==='installed'"><div class="f5-plugin-list-stage">
         <ResourceState :stale="list.loaded" :loading="list.loading" :error="safePluginError(list.error)" :empty="!shown.length" empty-title="尚未安装匹配的插件" @reload="load"/>
         <div v-if="!list.error" class="u6-card-grid">
-          <article v-for="i in shown" :key="i.id" class="u6-card">
-            <h3>{{ i.metadata?.name||'不可用的插件' }}</h3>
-            <p>{{ pluginState(i) }}</p>
-            <p v-if="i.reason">{{ reasonName(i.reason) }}</p>
-            <RouterLink :to="'/plugins/'+encodeURIComponent(i.id)" class="el-button">管理插件</RouterLink>
-          </article>
+          <RouterLink v-for="i in shown" :key="i.id" :to="'/plugins/'+encodeURIComponent(i.id)" class="u6-card installed-plugin-card" aria-label="管理插件">
+            <header><h3>{{i.metadata?.name||'不可用的插件'}}</h3><el-tag disable-transitions size="small" :type="i.state==='running'?'success':i.state==='failed'?'danger':'info'">{{pluginState(i)}}</el-tag></header>
+            <p class="plugin-description" :title="i.metadata?.description">{{i.metadata?.description||'当前版本未提供此插件定义；已有配置和数据仍保留。'}}</p>
+            <p v-if="i.reason">{{reasonName(i.reason)}}</p>
+          </RouterLink>
         </div>
         </div><PagePagination v-model:page-size="pageSize" v-model:current-page="page" :item-count="list.data.length" :has-next="list.data.length>=pageSize" :disabled="list.loading" @current-change="load"/>
       </template>
@@ -110,3 +108,5 @@ usePageRefresh(load,'*');
     </el-dialog>
   </div>
 </template>
+
+<style scoped>.plugin-search{width:240px;max-width:100%;margin-left:auto}.installed-plugin-card{display:block;text-decoration:none;color:inherit}.installed-plugin-card header{display:flex;align-items:center;gap:12px;justify-content:space-between}.installed-plugin-card h3{margin:0}.plugin-description{font-size:13px;color:var(--mt-text-muted);white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.installed-plugin-card:hover,.installed-plugin-card:focus-visible{border-color:var(--mt-color-primary);outline:2px solid var(--mt-color-primary);outline-offset:2px}</style>

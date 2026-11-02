@@ -28132,6 +28132,10 @@
           "differentRegion": {
             "type": "boolean"
           },
+          "direct302Count": {
+            "format": "int64",
+            "type": "integer"
+          },
           "firstSeenAt": {
             "format": "date-time",
             "type": "string"
@@ -28158,6 +28162,10 @@
           "province": {
             "type": "string"
           },
+          "sessionCount": {
+            "format": "int64",
+            "type": "integer"
+          },
           "users": {
             "format": "int64",
             "type": "integer"
@@ -28169,10 +28177,12 @@
           "count",
           "devices",
           "differentRegion",
+          "direct302Count",
           "firstSeenAt",
           "ip",
           "lastSeenAt",
           "newIP",
+          "sessionCount",
           "users"
         ],
         "type": "object",
