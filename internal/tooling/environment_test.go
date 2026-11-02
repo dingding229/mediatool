@@ -174,12 +174,14 @@ func has(t *testing.T, s string, terms ...string) {
 }
 func TestNativeMediaAndPluginCIPolicies(t *testing.T) {
 	w := source(t, ".github/workflows/build.yml")
-	verify := strings.Split(strings.Split(w, "  verify:")[1], "  publish:")[0]
+	verify := strings.Split(strings.Split(w, "  verify:")[1], "  browser:")[0]
+	browser := strings.Split(strings.Split(w, "  browser:")[1], "  publish:")[0]
 	has(t, verify, "timeout-minutes: 60", "sudo apt-get install -y ffmpeg", "go test -race -count=3 -v ./internal/modules/mediaprobe/...", `MEDIA_TOOL_REQUIRE_FFMPEG: "1"`, "bash scripts/test-go.sh", "bash scripts/test-plugin-kernel.sh", "go run ./cmd/media-tool-dev plugins check", "go run ./cmd/media-tool-dev plugins assets --check", "-ignoretests ./cmd/... ./internal/... ./migrations/... ./tests/...")
 	if strings.Index(verify, "sudo apt-get install") > strings.Index(verify, "bash scripts/test-go.sh") {
 		t.Fatal("tools installed too late")
 	}
-	has(t, strings.Split(w, "  publish:")[1], "needs: verify")
+	has(t, browser, "needs: verify", "timeout-minutes: 60", "POSTGRES_DB: media_tool_test", "redis:8-alpine@sha256:", "bash scripts/test-e2e.sh", "CGO_ENABLED=0 go build -trimpath", "go run ./cmd/media-tool-dev plugins assets --check")
+	has(t, strings.Split(w, "  publish:")[1], "needs: [verify, browser]")
 	s := source(t, "scripts/test-go.sh")
 	has(t, s, "command -v ffmpeg", "-race -count=1 -v", "-p 1", "-timeout=20m", "isolated_test")
 	k := source(t, "scripts/test-plugin-kernel.sh")
