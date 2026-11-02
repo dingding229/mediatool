@@ -265,7 +265,7 @@ SDK 提供51个 typed 标识（32广播/19链），其中 N/A 项不接受注册
 | `library-refresh-notify` | 1.2.0 | active=false；7日原事实重投/8日完成账本滚动 |
 | `seeding-cleanup` | 1.0.0 | active=false / execute=false / deleteFiles=false |
 | `site-checkin` | 1.0.0 | active=false；宿主持有凭据 |
-| `torrent-assistant` | 1.0.0 | active=false / write=false / recheck=false；活跃监控即使不写也可能通知 |
+| `torrent-assistant` | 1.0.1 | active=false / write=false / recheck=false；活跃监控即使不写也可能通知 |
 | `watch-organize` | 1.1.0 | active=false；默认深度3/上限5，叶文件size+mtime静默，总项≤200/轮提交≤10 |
 | `wishlist-subscribe` | 1.0.0 | active=false / create=false；公开来源，唯一匹配只创建停用订阅 |
 
