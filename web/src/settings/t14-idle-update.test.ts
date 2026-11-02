@@ -29,3 +29,15 @@ it('styles quiet minutes with the same rounded native input contract as the refe
  expect(css).toContain('height:44px;min-height:44px;box-sizing:border-box;padding:var(--mt-field-padding)');
  expect(css).toContain('border-radius:var(--el-border-radius-base)');
 });
+
+it('I43 hides inactive idle actions but retains saving after switching an enabled policy off',async()=>{
+ await flush();expect(view.state.showSave).toBe(false);
+ view.state.enabled=true;expect(view.state.showSave).toBe(true);
+ view.state.accept({...policy,enabled:true});view.state.enabled=false;
+ expect(view.state.dirty).toBe(true);expect(view.state.showSave).toBe(true);
+ vi.mocked(saveIdleUpdate).mockResolvedValue({...policy,revision:2});await view.state.save();
+ expect(saveIdleUpdate).toHaveBeenCalledWith({...policy,enabled:false},'',false);
+ expect(view.state.showSave).toBe(false);
+ const {readFileSync}=await import('node:fs');const source=readFileSync(new URL('./IdleUpdatePanel.vue',import.meta.url),'utf8');
+ expect(source).toContain('v-if="showSave" native-type="submit"');expect(source).toContain('v-if="enabled" :disabled="busy||!policy" :loading="busy" @click="evaluate"');
+});

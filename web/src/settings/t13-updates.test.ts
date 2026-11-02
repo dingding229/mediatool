@@ -30,3 +30,14 @@ it('uses fresh state provenance while build metadata is loading, never flashes a
 });
 
 it('uses the server ignored-cache flag when no older release is returned, without showing update execution',async()=>{store.state={...state(),hasUpdate:false,currentAtLeastLatest:true,result:{status:'verified',checkedAt:'2026-11-02T00:00:00Z',latest:null}};store.build={version:'0.51.0'};const s=mount(About);await flush();expect(s.currentAtLeastLatest).toBe(true);expect(s.latest).toBeNull();expect(s.status).toBe('已是最新版本');const online=mount(Online);await flush();expect(online.target).toBeFalsy();expect(executeOnlineUpdate).not.toHaveBeenCalled()});
+
+it('I43 keeps check/detail actions together and presents the latest status only once',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const about=readFileSync(new URL('./AboutPanel.vue',import.meta.url),'utf8');
+ const online=readFileSync(new URL('./OnlineUpdatePanel.vue',import.meta.url),'utf8');
+ expect(about).toContain('class="settings-field f8-auto"');
+ expect(about).toContain('<OnlineUpdatePanel><template #check-actions>');
+ expect(about).not.toContain(':check-summary="checkSummary"');
+ expect(online).toContain('class="media-actions f8-update-actions"><slot name="check-actions"/>');
+ expect(about.match(/已是最新版本/g)).toHaveLength(1);
+});

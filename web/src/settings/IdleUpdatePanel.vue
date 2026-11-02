@@ -11,6 +11,7 @@ const policy=ref<IdleUpdatePolicy>(),enabled=ref(false),start=ref('02:00'),end=r
 const valid=computed(()=>/^\d+$/.test(minutes.value)&&Number(minutes.value)>=15&&Number(minutes.value)<=360&&/^([01]\d|2[0-3]):[0-5]\d$/.test(start.value)&&/^([01]\d|2[0-3]):[0-5]\d$/.test(end.value)&&start.value!==end.value);
 function accept(p:IdleUpdatePolicy){policy.value=p;enabled.value=p.enabled;start.value=p.startTime;end.value=p.endTime;minutes.value=String(p.quietMinutes)}
 const dirty=computed(()=>policy.value&&(enabled.value!==policy.value.enabled||start.value!==policy.value.startTime||end.value!==policy.value.endTime||minutes.value!==String(policy.value.quietMinutes)));
+const showSave=computed(()=>Boolean(enabled.value||dirty.value));
 async function load(){try{const p=await getIdleUpdate();if(!dirty.value)accept(p)}catch(e){error.value=errorText(e)}}
 const refresh=useRefresh(load,{interval:()=>policy.value?.enabled?60000:0});usePageRefresh(refresh.refresh,'about');
 async function save(){if(!valid.value||!policy.value||busy.value)return;if(enabled.value&&!open.value){open.value=true;return}if(enabled.value&&(!password.value||!confirm.value))return;busy.value=true;error.value='';notice.value='';const secret=password.value;password.value='';try{accept(await saveIdleUpdate({...policy.value,enabled:enabled.value,startTime:start.value,endTime:end.value,quietMinutes:Number(minutes.value)},secret,confirm.value));open.value=false;check.value=undefined;notice.value=enabled.value?'闲时更新已授权，满足全部条件后才执行':'闲时自动更新已关闭'}catch(e){error.value=errorText(e)}finally{busy.value=false}}
@@ -26,8 +27,8 @@ onUnmounted(()=>{password.value=''});
    <div v-show="enabled" class="idle-time-settings"><label class="settings-field">开始时间<Time24Field v-model="start" label="开始时间" :disabled="busy||!policy"/></label>
    <label class="settings-field">结束时间<Time24Field v-model="end" label="结束时间" :disabled="busy||!policy"/></label>
    <label class="settings-field">安静时长（分钟）<input v-model="minutes" class="mt-native-form-input" inputmode="numeric" aria-label="安静时长（分钟）" :aria-invalid="!valid" :disabled="busy||!policy"/></label>
-   </div><el-button native-type="submit" :disabled="busy||!policy||!valid">保存闲时设置</el-button>
-   <el-button :disabled="busy||!policy" :loading="busy" @click="evaluate">检查执行条件</el-button>
+   </div><el-button v-if="showSave" native-type="submit" :disabled="busy||!policy||!valid">保存闲时设置</el-button>
+   <el-button v-if="enabled" :disabled="busy||!policy" :loading="busy" @click="evaluate">检查执行条件</el-button>
   </form>
   <p v-if="!valid" role="alert">请输入合法且不同的开始、结束时间；安静时长为15–360分钟整数。</p>
   <p v-if="policy?.reason" role="status">{{policy.reason}}</p><p v-if="notice" role="status">{{notice}}</p><p v-if="error" role="alert">{{error}}</p>

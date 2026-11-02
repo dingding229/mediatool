@@ -31,20 +31,21 @@ onMounted(()=>{updates.dismiss();void updates.refresh()});usePageRefresh(updates
   <section class="settings-card f8-current"><h2>当前版本</h2><p class="f8-version">{{version}}</p><p>发布时间：{{date(publishedAt)||'尚未提供发布时间'}}</p></section>
   <section class="settings-card f8-update"><h2>版本更新</h2>
    <form class="f8-check-settings" @submit.prevent="saveSettings">
-    <label class="f8-auto">自动检查更新 <el-switch v-model="enabled" :disabled="busy||!updates.state" aria-label="自动检查更新" @change="dirty=true"/></label>
+    <label class="settings-field f8-auto">自动检查更新 <el-switch v-model="enabled" :disabled="busy||!updates.state" aria-label="自动检查更新" @change="dirty=true"/></label>
     <label class="settings-field">检查间隔（小时）<input v-model="hours" class="mt-native-form-input" aria-label="检查间隔（小时）" inputmode="numeric" :disabled="busy||!updates.state" :aria-invalid="!intervalValid" aria-describedby="update-interval-help" @input="dirty=true"/></label>
-    <el-button native-type="submit" :disabled="busy||!updates.state||!intervalValid">保存检查设置</el-button><el-button :loading="busy" @click="check">检查更新</el-button>
+    <el-button native-type="submit" :disabled="busy||!updates.state||!intervalValid">保存检查设置</el-button>
    </form>
    <p id="update-interval-help" v-if="!intervalValid" role="alert">检查间隔必须是1–168小时的整数。</p><p v-if="error||updates.error" role="alert">{{error||updates.error}}</p>
    <template v-if="latest"><p>最新版本 {{latest.tag}}</p><ReleaseNotes :key="latest.tag" :notes="latest.notes" :tag="latest.tag" :expanded="!newerStable(latest.version,updates.build?.version||'')"/></template>
-   <p v-else-if="currentAtLeastLatest">{{joinMetadata([joinMetadata(["最新版本 ",(version)], ''),"已是最新版本"])}}</p>
+   <p v-else-if="currentAtLeastLatest">最新版本 {{version}}</p>
    <p v-else class="f8-empty">完成可信校验后，这里显示最新版本与变更说明。</p>
-   <OnlineUpdatePanel :check-summary="checkSummary"/>
+   <p class="f8-result" role="status">{{checkSummary}}</p>
+   <OnlineUpdatePanel><template #check-actions><el-button :loading="busy" @click="check">检查更新</el-button></template></OnlineUpdatePanel>
   </section>
  </section>
 </template>
 <style scoped>
-.f8-check-settings{display:flex;align-items:end;gap:12px;flex-wrap:wrap}.f8-check-settings .el-button+.el-button{margin-left:0}.f8-check-settings .settings-field{max-width:180px}.f8-check-settings input{height:44px;min-width:0;width:100%;box-sizing:border-box;padding:var(--mt-field-padding);border:1px solid var(--mt-border-color);border-radius:var(--el-border-radius-base);background:var(--mt-bg-surface);color:var(--mt-text-primary)}.f8-about{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.f8-about>.settings-card{margin:0;min-width:0;min-height:0}.f8-update{grid-column:1/-1}.f8-version{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}.f8-auto{display:inline-flex;align-items:center;gap:8px;min-height:44px}.f8-result,.f8-empty{color:var(--mt-text-muted);line-height:1.6;overflow-wrap:anywhere}@media(max-width:600px){.f8-about{grid-template-columns:1fr}}
+.f8-check-settings{display:flex;align-items:end;gap:12px;flex-wrap:wrap}.f8-check-settings .el-button+.el-button{margin-left:0}.f8-check-settings .settings-field{max-width:180px}.f8-check-settings input{height:44px;min-width:0;width:100%;box-sizing:border-box;padding:var(--mt-field-padding);border:1px solid var(--mt-border-color);border-radius:var(--el-border-radius-base);background:var(--mt-bg-surface);color:var(--mt-text-primary)}.f8-about{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.f8-about>.settings-card{margin:0;min-width:0;min-height:0}.f8-update{grid-column:1/-1}.f8-version{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}.f8-auto .el-switch{height:44px}.f8-auto{min-width:130px}.f8-result,.f8-empty{color:var(--mt-text-muted);line-height:1.6;overflow-wrap:anywhere}@media(max-width:600px){.f8-about{grid-template-columns:1fr}}
 </style>
 
 <style scoped>.f8-current{grid-column:1/-1}.f8-current .f8-version{margin:8px 0}</style>
