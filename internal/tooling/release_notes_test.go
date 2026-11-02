@@ -55,7 +55,7 @@ func TestCurrentChangelogCanGenerateStableReleaseBeforePublication(t *testing.T)
 
 func TestV0520FinalizerCannotRebuildOrMovePublishedImageOrTag(t *testing.T) {
 	s := source(t, ".github/workflows/finalize-v0520.yml")
-	has(t, s, "workflow_dispatch:", "2a612d39386ec3caa25590b568303e9dda73641c", "sha256:900c575f87bbd1dd8560ac985d83d79df885a4fa08930d4ad51622f208668c9b", "Require original gates and current full main verification", "Unexpected runtime change:", "Build and push linux/amd64 only", "Create stable GitHub Release", ".conclusion==\"success\"", "git rev-parse", "docker image inspect", "gh release create", "--verify-tag")
+	has(t, s, "workflow_dispatch:", "actions: read", "2a612d39386ec3caa25590b568303e9dda73641c", "sha256:900c575f87bbd1dd8560ac985d83d79df885a4fa08930d4ad51622f208668c9b", "Require original gates and current full main verification", "Unexpected runtime change:", "Build and push linux/amd64 only", "Create stable GitHub Release", ".conclusion==\"success\"", "git rev-parse", "docker image inspect", "gh release create", "--verify-tag")
 	for _, bad := range []string{"docker build ", "docker buildx build", "docker push ", "git push ", "git tag ", "rerun", "--force"} {
 		if strings.Contains(s, bad) {
 			t.Fatal("immutable finalizer contains forbidden operation", bad)
