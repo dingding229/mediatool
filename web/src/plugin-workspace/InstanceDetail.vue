@@ -93,7 +93,7 @@ ownRefresh.register(load,()=>true);
 </script>
 <template>
  <div class="media-workspace u5-workspace u6-workspace f5-plugin-detail">
-  <PageHeader :title="row?.metadata?.name||inventory.manifests.find(m=>m.id===row?.pluginId)?.name||'插件详情'" description="设置插件、查看日志与执行常用操作。"/>
+  <PageHeader class="plugin-detail-heading" :title="row?.metadata?.name||inventory.manifests.find(m=>m.id===row?.pluginId)?.name||'插件详情'" description="设置插件、查看日志与执行常用操作。"/>
 
   <ResourceState :stale="data.loaded" :loading="data.loading" :error="safePluginError(data.error)" @reload="load"/>
   <el-alert v-if="op.error" :title="op.error" type="error" :closable="false"/>
@@ -153,4 +153,8 @@ ownRefresh.register(load,()=>true);
 
 <style scoped>
 .plugin-config :deep(.plugin-json-switch){grid-template-columns:max-content minmax(0,1fr);column-gap:12px;row-gap:var(--mt-form-field-gap,8px);align-items:center;align-content:start}.plugin-config :deep(.plugin-json-switch>label){grid-column:1/-1}.plugin-config :deep(.plugin-json-switch>.plugin-json-hint){margin:0;align-self:center}.plugin-config :deep(.plugin-json-switch>.el-switch){margin:0}
+</style>
+
+<style scoped>
+@media(max-width:700px){.f5-plugin-detail>.plugin-detail-heading{flex-direction:row;align-items:flex-start;flex-wrap:nowrap}.plugin-detail-heading :deep(.heading-actions){width:auto;flex:none}}
 </style>

@@ -65,3 +65,17 @@ func TestReadableInterruptedDeliveryError(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestWorkerDisplayMappingPreservesIdentifiersAndCase(t *testing.T) {
+	for _, tt := range []struct{ input, want string }{
+		{"plugin-worker", "plugin-worker"},
+		{"worker WorkER myWorker WorkerPool", "worker WorkER myWorker WorkerPool"},
+		{"Worker unavailable", "后台执行器 unavailable"},
+		{"未连接业务 Worker", "后台执行器未就绪"},
+		{"未连接业务Worker", "后台执行器未就绪"},
+	} {
+		if got := cleanNoticeText(tt.input); got != tt.want {
+			t.Errorf("%q: got %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}

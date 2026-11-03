@@ -21,7 +21,7 @@ onUnmounted(()=>{dead=true;generation++;});
 <template>
 
  <section v-if="declared.length&&running" class="media-surface f6-plugin-overview" aria-label="插件概览" :aria-busy="loading">
-  <h2>概览</h2><p class="field-hint">概览任务数不是执行次数；界面读取不计入执行历史。</p>
+  <h2>概览</h2><p class="field-hint">任务数为最近一次后台检查的任务数量，不含页面查看。</p>
   <p v-if="loading&&!cards.length" role="status">正在读取插件概览…</p>
   <p v-if="error" role="status">{{error}} <el-button @click="load">重试概览</el-button></p>
   <article v-for="card in cards" :key="card.key"><h3>{{card.title}}</h3><PluginSurface :instance-id="instanceId" :plugin-id="pluginId" kind="dashboard" :page-key="card.key" :refresh="card.refresh"/></article>

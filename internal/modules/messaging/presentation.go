@@ -12,7 +12,7 @@ var noticeUUID = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[
 var noticeInternalLine = regexp.MustCompile(`(?i)^\s*(?:asset_?id|batch_?id|operation_?id|event_?id|notification_?id)\s*[:：]`)
 var noticeMessagePrefix = regexp.MustCompile(`(?i)^\s*message\s*[:：]\s*`)
 var noticeMetric = regexp.MustCompile(`指标\s+([a-zA-Z_][a-zA-Z0-9_]*)[，,]\s*阈值\s*([0-9]+(?:\.[0-9]+)?)`)
-var noticeWorker = regexp.MustCompile(`(?i)未连接业务\s*Worker|Worker`)
+var noticeWorker = regexp.MustCompile(`未连接业务\s*Worker\b|\bWorker\b`)
 var neutralNoticeNames = strings.NewReplacer(
 	"Emby 媒体库刷新已请求", "媒体库更新已请求",
 	"媒体已在Emby库中可见（待客户端播放验收）", "媒体库已更新（待播放器验证）",
