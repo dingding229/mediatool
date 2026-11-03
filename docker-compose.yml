@@ -26,6 +26,7 @@ services:
       DATABASE_URL: postgres://media_tool:CHANGE_ME_POSTGRES_PASSWORD@postgres:5432/media_tool?sslmode=disable
       REDIS_URL: redis://:CHANGE_ME_REDIS_PASSWORD@redis:6379/0
       STRM_ALLOWED_ROOTS: /115
+      STRM_RESOLVER_ORIGINS: "" # 仅列明仍需认可的旧解析origin，逗号分隔，不含路径/通配
       STRM_OUTPUT_DIR: /data/strm
       LOCAL_BROWSE_ROOTS: /data,/mnt,/media
       PASSWORD_RESET_FILE: /data/password

@@ -36,6 +36,7 @@ type Config struct {
 	SecretKey                                                string
 	DatabaseURL, RedisURL, STRMOutputDir                     string
 	STRMAllowedRoots                                         []string
+	STRMResolverOrigins                                      []string
 	CloudDriveEndpoint, CloudDriveToken                      string
 	CloudDriveUsername, CloudDrivePassword, CloudDriveCAFile string
 	CloudDriveRequestTimeout                                 time.Duration
@@ -133,6 +134,32 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		return c, errors.New("production APP_PUBLIC_URL requires https")
 	}
 	c.PublicURL = strings.TrimRight(c.PublicURL, "/")
+	if raw := get("STRM_RESOLVER_ORIGINS", ""); raw != "" {
+		parts := strings.Split(raw, ",")
+		if len(parts) > 16 {
+			return c, errors.New("STRM_RESOLVER_ORIGINS permits at most 16 exact origins")
+		}
+		seen := map[string]bool{}
+		for _, part := range parts {
+			origin := strings.TrimSpace(part)
+			u, err := url.Parse(origin)
+			if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.Path != "" || u.RawPath != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.RawFragment != "" || strings.ContainsAny(u.Host, "*\\ \t\r\n") || origin != u.Scheme+"://"+u.Host {
+				return c, errors.New("STRM_RESOLVER_ORIGINS requires exact HTTP(S) origins without credentials, paths, queries, fragments or wildcards")
+			}
+			if u.Port() != "" {
+				if _, err := net.LookupPort("tcp", u.Port()); err != nil {
+					return c, errors.New("STRM_RESOLVER_ORIGINS has an invalid port")
+				}
+			}
+			if ip := net.ParseIP(u.Hostname()); ip != nil && (ip.IsUnspecified() || ip.IsMulticast()) {
+				return c, errors.New("STRM_RESOLVER_ORIGINS requires a concrete origin host")
+			}
+			if !seen[origin] {
+				c.STRMResolverOrigins = append(c.STRMResolverOrigins, origin)
+				seen[origin] = true
+			}
+		}
+	}
 	for _, raw := range strings.Split(get("AUTH_ALLOWED_ORIGINS", ""), ",") {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {

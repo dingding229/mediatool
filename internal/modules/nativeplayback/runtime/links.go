@@ -60,6 +60,17 @@ func New(db *pgxpool.Pool, c config.Config, m *integrations.Manager, cache *redi
 	return &Service{Subtitles: subtitles.Repository{DB: db, Root: subtitles.Root(c)}, DB: db, Browse: catalog.NewBrowseRepository(db, logger), Links: &Resolver{Logger: logger, DB: db, Config: c, Manager: m, Source: source, Policy: playback.Policy{BlockedHosts: blocked, AllowedHosts: c.PlaybackAllowedHosts, AllowHTTP: c.PlaybackAllowHTTP}}}
 }
 
+// The playback origin is the same one used to generate STRM. Other origins
+// must be explicitly configured; a production management URL is not an extra
+// playback authority. Keep the previous fallback only in development.
+func (r *Resolver) strmParseOptions(playbackOrigin string) strm.ParseOptions {
+	origins := append([]string(nil), r.Config.STRMResolverOrigins...)
+	if r.Config.Development() {
+		origins = append(origins, r.Config.PublicURL)
+	}
+	return strm.ParseOptions{Builder: strm.Builder{BaseURL: playbackOrigin, APIKey: r.Config.STRMKey, AllowedRoots: r.Config.STRMAllowedRoots}, Origins: origins, LegacyEnabled: r.Config.LegacyPlaybackEnabled}
+}
+
 type evidence struct {
 	Path, Pick, Output string
 	Size, Revision     int64
@@ -110,8 +121,7 @@ func (r *Resolver) Resolve(parent context.Context, id, ua, ip string) (nativepla
 	if err != nil {
 		return nativeplayback.RedirectTarget{}, nativeplayback.ErrUpstream
 	}
-	builder := strm.Builder{BaseURL: origin, APIKey: r.Config.STRMKey, AllowedRoots: r.Config.STRMAllowedRoots}
-	opts := strm.ParseOptions{Builder: builder, Origins: []string{r.Config.PublicURL}, LegacyEnabled: r.Config.LegacyPlaybackEnabled}
+	opts := r.strmParseOptions(origin)
 	if r.Manager != nil {
 		profile, e := r.Manager.Repository.Default(ctx, "clouddrive2")
 		if e == nil {

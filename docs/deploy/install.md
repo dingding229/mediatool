@@ -30,6 +30,7 @@
 | --- | --- |
 | `APP_PUBLIC_URL`、`AUTH_ALLOWED_ORIGINS` | 管理入口及允许的完整 Origin；多个 Origin 用逗号分隔，不带路径 |
 | `MEMBER_PUBLIC_URL` | 内置媒体服务对播放器公开的地址 |
+| `STRM_RESOLVER_ORIGINS` | 内置播放器额外认可的精确旧解析 origin，逗号分隔，最多16项；空值不增加来源，不接受路径或通配 |
 | `STRM_ALLOWED_ROOTS`、`STRM_OUTPUT_DIR` | 允许的云盘根与受管输出位置 |
 | `LOCAL_BROWSE_ROOTS` | 文件管理允许浏览的本地容器目录 |
 | `PASSWORD_RESET_FILE` | 部署所有者密码恢复标记路径 |

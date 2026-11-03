@@ -15,6 +15,13 @@
 3. 查看运行任务和需要核对的上传，避免在未知外部操作上重复执行。
 4. 使用与部署匹配的宿主 `media-toolctl`，不把 Docker Socket 加到 app。
 
+## 管理入口迁移到 HTTPS
+
+1. 只读核对既有 STRM 的 origin（协议、主机、端口）和后台的播放域名。固定路径 `strm.Endpoint` 不包含主机信息，不能表达旧来源。
+2. 如果现有播放域名与旧 STRM 来源不同，在**私有 Compose** 中设置 `STRM_RESOLVER_ORIGINS` 为仍需保留的精确旧 origin，例如 `http://192.0.2.10:8080`；最多16项，逗号分隔。不可使用通配符、URL路径、凭据、查询或片段；不自动从文件内容信任任意地址。
+3. 先备份数据库及私有 Compose，再与 app 镜像更新一起设置 `APP_ENV=production`、HTTPS `APP_PUBLIC_URL` 和上述精确来源。保留显式播放域名、MEMBER_PUBLIC_URL、原 STRM 正文和密钥不变。
+4. 先通过内置播放器验证全部原文件仍被认可并302至官方CDN。任一失败即恢复旧Compose和上一版镜像，不改写STRM或关闭来源/签名校验。development保留原管理来源回退；生产不再额外信任管理地址。
+
 ## 更新应用
 
 在自己的部署目录运行，替换下列镜像占位内容：
