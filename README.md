@@ -53,6 +53,12 @@ docker compose up -d --wait
 
 “已排队”只表示请求已受理，不表示下载、入库或恢复已经完成。结果不明确时先核对原记录，不重复提交。
 
+## 开发与发布分支
+
+日常开发在 `dev` 提交、推送，并等待完整 Actions 验证（包含浏览器门禁）。`dev` 不发布 Docker Hub 镜像、不创建 Release；GitHub 默认分支保持 `main`。
+
+经授权发版时，将 `dev` **快进合并**至 `main`，不做 squash 或 rebase 重写，在 `main` 打稳定 tag；再按 Actions → Docker Hub 不可变摘要 → 数据库备份与验证 → 仅更新 app 的流程发布。详见[升级与版本登记](docs/deploy/upgrade.md)。
+
 ## 文档导航
 
 - [文档目录](docs/INDEX.md)：13 个主页面和部署手册。

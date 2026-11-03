@@ -2,6 +2,12 @@
 
 [文档目录](../INDEX.md) · [备份与恢复](backup.md) · [命令参考](../CLI_REFERENCE.md)
 
+## 开发验证与正式发布
+
+- `dev`：日常开发分支，推送只运行完整验证（含浏览器门禁），不推送 Docker Hub 镜像，不创建 Release。
+- `main`：默认分支及生产发布分支。发版需将已验证的 `dev` 快进合并到 `main`，不 squash、不 rebase 重写历史，并在 `main` 打 `vX.Y.Z` tag。
+- `main` 推送与稳定 tag 延续既有发布门禁；pull request 只验证。正式部署必须等待 Actions 全部通过并取得 Docker Hub 不可变 digest，先备份并验证数据库，再仅更新 app，保留近期回滚备份。
+
 ## 升级前
 
 1. 选择已发布的 Docker Hub Linux AMD64 不可变镜像。只接受 `dingding229/mediatool` 的摘要地址或符合工具要求的固定镜像标签。

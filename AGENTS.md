@@ -6,9 +6,14 @@
   media-service dependency. External Emby integration was removed per the owner’s
   2026-10-25 instruction; the external Emby service/data are not removed by this change.
   Preserve CloudDrive2 configuration/data and the built-in Emby-compatible protocol.
-- For every subsequent update: test, commit and push to dingding229/mediatool,
-  wait for its Actions AMD64 Docker Hub publication, then update/test the owned
-  server at /root/docker/mediatool using the published immutable Hub image.
+- Daily development: test, commit and push to the dev branch of dingding229/mediatool,
+  then wait for full Actions verification, including browser gates. dev must not
+  publish Docker Hub images or GitHub Releases. Keep main as the GitHub default
+  branch and production branch.
+- For an authorized release: fast-forward dev into main (no squash or rebase
+  history rewriting), tag the release on main, then wait for its Actions AMD64
+  Docker Hub publication, back up and verify the database, and update/test the
+  owned server at /root/docker/mediatool using the published immutable Hub image.
   Never substitute local image archives or another registry. Report blockers
   honestly instead of claiming deployment when publication/testing is incomplete.
 - Deployment parameters are direct values in the operator-private docker-compose.yml (no .env interpolation). Never commit the initialized Compose or production credentials. Actions credentials stay in Secrets. Per the owner’s explicit 2026-10-12 instruction, authenticated administrator logs/data views show original values and full request/302 URLs. Treat runtime logs and databases as private: never commit them or export secrets into public Actions/release artifacts. Login bodies are not additionally collected. The owner-triggered one-time recovery password remains startup-stdout-only, never copied into the web log store. Do not
