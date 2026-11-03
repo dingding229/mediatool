@@ -4,6 +4,10 @@
 
 ## 未发布
 
+## [0.52.1] - 2026-11-03
+
+- 统一发布 I44 真实数据界面修复与 I45 运维改进；schema 94 无迁移。下载器助手 1.0.3（pin `989e05c`），site pin 不变。管理入口切换 HTTPS 时，应按升级说明配置精确的旧 STRM 来源，不改写原文件。
+
 - I45 隔离 HTTPS 管理地址与内置播放器的 STRM 来源：优先复用播放域名，新增仅允许明确 origin 的 `STRM_RESOLVER_ORIGINS` 以保留旧文件来源；生产不再额外信任管理地址，development 保持原回退。不修改 STRM 正文、签名/准入/UA 或官方 CDN 302 交付，schema 94 无迁移。
 
 - I45 建立 dev 开发、main 生产分支模型：dev 与 PR 仅跑完整验证，不发布镜像或 Release；授权发版时从 dev 快进 main 并在 main 打 tag，沿用不可变镜像、备份验证与 app-only 部署。退役已完成的 v0.52.0 一次性收尾工作流。
