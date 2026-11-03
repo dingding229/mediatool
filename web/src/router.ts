@@ -1,3 +1,4 @@
+import {navigationScroll} from './router/scroll';
 import {beginActivity} from './api/activity'
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
@@ -11,7 +12,8 @@ export { routes }
 
 export const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  scrollBehavior:navigationScroll
 })
 
 installPageRedirects(router)

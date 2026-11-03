@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/modules/strm"
 	"net/http/httptest"
@@ -32,5 +33,41 @@ func TestWorkflowReadinessDoesNotProbeOrEnableCredentials(t *testing.T) {
 	var enabled bool
 	if e = s.DB.QueryRow(ctx, `SELECT enabled FROM integrations WHERE id=$1`, id).Scan(&enabled); e != nil || enabled {
 		t.Fatal("readiness enabled connection", e)
+	}
+}
+
+func TestSetupGuideUsesSavedConfigurationWithoutRequiringNewProbe(t *testing.T) {
+	ctx, s := pluginHTTPFixture(t)
+	for i, kind := range []string{"open115", "clouddrive2"} {
+		id := []string{"11111111-0000-4000-8000-000000000081", "11111111-0000-4000-8000-000000000082"}[i]
+		cipher, e := s.Vault.Seal(id, map[string]string{"token": "synthetic"})
+		if e != nil {
+			t.Fatal(e)
+		}
+		if _, e = s.DB.Exec(ctx, `INSERT INTO integrations(id,kind,name,credentials_ciphertext,enabled)VALUES($1,$2,'Synthetic',$3,true)`, id, kind, cipher); e != nil {
+			t.Fatal(e)
+		}
+	}
+	api := API{Deps: Dependencies{DB: s.DB, Integrations: &integrations.Manager{Repository: integrations.Repository{DB: s.DB, Vault: s.Vault}}}, Builder: strm.Builder{BaseURL: "http://127.0.0.1", APIKey: "synthetic", AllowedRoots: []string{"/Synthetic"}}}
+	w := httptest.NewRecorder()
+	api.workflowReadiness(w, httptest.NewRequest("GET", "/", nil))
+	if w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	// Both stored connections are recognised while no probe was performed; the
+	// browser combines this with site/classification evidence, not an Emby probe.
+	var response struct {
+		Data struct {
+			Components map[string]integrations.Readiness `json:"components"`
+		} `json:"data"`
+	}
+	if e := json.Unmarshal(w.Body.Bytes(), &response); e != nil {
+		t.Fatal(e)
+	}
+	for _, key := range []string{"open115", "clouddrive2"} {
+		state := response.Data.Components[key].State
+		if state != "check_required" && response.Data.Components[key].Reason != "probe_missing_or_stale" {
+			t.Fatal(key, state)
+		}
 	}
 }

@@ -123,7 +123,7 @@ ownRefresh.register(load,()=>true);
    </div>
   </section>
   <InstanceDashboards v-if="row" :instance-id="id" :plugin-id="row.pluginId" :running="row.state==='running'"/>
-  <section v-if="row?.state==='running'" class="media-surface"><ExtensionsPanel :id="id" :running="row.state==='running'"/></section>
+  <section v-if="row?.state==='running'" class="media-surface"><ExtensionsPanel :id="id" :plugin-id="row.pluginId" :running="row.state==='running'"/></section>
   <ConfirmAction v-model:visible="confirm" title="确认插件操作" :description="({enable:'启用此插件？',disable:'停用此插件？',clone:'创建独立分身？',remove:'停止并卸载此插件？',configure:'保存此插件配置？'} as any)[kind]" :impact-scope="kind==='remove'?'停止实例并卸载，保留加密数据。':kind==='clone'?'复制配置和数据，分身默认停用。':kind==='enable'?'插件可能处理媒体、网络或系统数据；只启用你信任的插件。':kind==='configure'?'只保存此实例配置，不会自动启用。':'停止后台处理，保留配置和数据。'" confirm-text="确认操作" :danger-level="kind==='remove'?'danger':'warning'" :loading="op.busy" @confirm="apply"/>
   <el-dialog v-model="consent" title="插件权限确认" width="min(760px,94vw)">
    <ResourceState :error="safePluginError(plan.error)" @reload="review"/>
@@ -150,3 +150,7 @@ ownRefresh.register(load,()=>true);
 </style>
 
 <style scoped>.plugin-status-controls{display:flex;align-items:center;gap:12px}.plugin-status .media-actions>a.el-button{color:var(--mt-text-primary)}</style>
+
+<style scoped>
+.plugin-config :deep(.plugin-json-switch){grid-template-columns:max-content minmax(0,1fr);column-gap:12px;row-gap:var(--mt-form-field-gap,8px);align-items:center;align-content:start}.plugin-config :deep(.plugin-json-switch>label){grid-column:1/-1}.plugin-config :deep(.plugin-json-switch>.plugin-json-hint){margin:0;align-self:center}.plugin-config :deep(.plugin-json-switch>.el-switch){margin:0}
+</style>

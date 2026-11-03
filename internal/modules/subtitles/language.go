@@ -68,7 +68,7 @@ func LanguageLabel(language string, tags []string) string {
 				return "繁体中文"
 			}
 		}
-		return "中文（简繁待核对）"
+		return "中文"
 	}
 	switch CanonicalLanguage(language) {
 	case "eng":

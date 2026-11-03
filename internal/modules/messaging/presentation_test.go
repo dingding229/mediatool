@@ -51,3 +51,17 @@ func TestReadableNoticeFrontendFixture(t *testing.T) {
 		t.Fatal(title, body)
 	}
 }
+
+func TestLegacyWorkerNoticeIsReadProjectionOnly(t *testing.T) {
+	raw := "临时库恢复、表摘要、密文和迁移幂等已验证；未连接业务Worker"
+	_, body := presentNotice("ops.drill.verified", nil, "恢复演练通过", raw)
+	if body != "临时库恢复、表摘要、密文和迁移幂等已验证；后台执行器未就绪" || !strings.Contains(raw, "Worker") {
+		t.Fatal(body)
+	}
+}
+
+func TestReadableInterruptedDeliveryError(t *testing.T) {
+	if got := cleanNoticeText("Worker stopped before a confirmed send receipt; manual verification required"); got != "通知结果尚未确认，后台执行器已停止，请先人工核对" {
+		t.Fatal(got)
+	}
+}

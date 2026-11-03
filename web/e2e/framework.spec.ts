@@ -1404,8 +1404,8 @@ test('F2 plugin command confirmation shows durable queued and unknown states (UI
  await page.route(`**/api/v1/plugins/${id}/runs?*`,route=>fixtureFulfill(route,{json:{data:fixture.history}}))
  await page.route(`**/api/v1/plugins/${id}/run`,route=>{submitted.push(route.request().postDataJSON());return fixtureFulfill(route,{status:202,json:{data:{runId:'owned-run'}}})})
  await fixtureLogin(page);await page.goto('/plugins/'+id);const dialog=page.getByRole('region',{name:'插件服务与命令',exact:true});await expect(dialog).toContainText('结果未知');expect(submitted).toHaveLength(0)
- await dialog.getByRole('button',{name:/^执行 /}).click();await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'取消',exact:true}).click();expect(submitted).toHaveLength(0)
- await dialog.getByRole('button',{name:/^执行 /}).click();await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click();await expect(dialog).toContainText('不是执行成功');expect(submitted).toHaveLength(1);expect(submitted[0]).toMatchObject({kind:'command',id:'hello',confirm:true});await page.screenshot({path:resolve(screenshots,'plugin-extensions.png'),animations:'disabled'})
+ await dialog.getByRole('button',{name:/^执行$/}).click();await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'取消',exact:true}).click();expect(submitted).toHaveLength(0)
+ await dialog.getByRole('button',{name:/^执行$/}).click();await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click();await expect(dialog).toContainText('不是执行成功');expect(submitted).toHaveLength(1);expect(submitted[0]).toMatchObject({kind:'command',id:'hello',confirm:true});await page.screenshot({path:resolve(screenshots,'plugin-extensions.png'),animations:'disabled'})
 })
 
 test('F6 static plugin form, shared ESM, multi-key detail dashboards and sidebar (UI contract)',async({page})=>{
@@ -1496,17 +1496,17 @@ test('R-F3 HTTP plugin install, enable and execute recover from failures with bo
  await page.setViewportSize({width:1440,height:1000});await expect(page.getByRole('region',{name:'插件服务与命令',exact:true})).toBeVisible()
  const extensions=page.getByRole('region',{name:'插件服务与命令',exact:true})
  for(const width of [1440,375]){
-  await page.setViewportSize({width,height:1000});await extensions.getByRole('button',{name:/^执行 /}).click()
+  await page.setViewportSize({width,height:1000});await extensions.getByRole('button',{name:/^执行$/}).click()
   await bounded('执行插件扩展',width)
   await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).locator('.el-dialog__body').screenshot({path:resolve(screenshots,`plugin-confirm-${width}.png`)})
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'执行插件扩展',exact:true})).toBeHidden()
  }
  await page.setViewportSize({width:1440,height:1000})
  for(let attempt=0;attempt<2;attempt++){
-  if(!attempt){await extensions.getByRole('button',{name:/^执行 /}).click();await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click()}else await extensions.getByRole('button',{name:'核对原执行请求',exact:true}).click()
+  if(!attempt){await extensions.getByRole('button',{name:/^执行$/}).click();await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click()}else await extensions.getByRole('button',{name:'核对原执行请求',exact:true}).click()
   if(!attempt)await expect(page.getByRole('alert').filter({hasText:'执行请求结果尚未确认，请先核对。'})).toBeVisible()
   else await expect(extensions).toContainText('不是执行成功')
-  await expect(extensions.getByRole('button',{name:/^执行 /})).toBeDisabled()
+  await expect(extensions.getByRole('button',{name:/^执行$/})).toBeDisabled()
  }
  await expect.poll(()=>runs.length).toBe(2);expect(runs[0].operationKey).toBe(runs[1].operationKey)
  for(const input of [...operations,...runs])expect(input.operationKey).toMatch(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
@@ -1530,7 +1530,7 @@ test('R-F3 HTTP clicks install, enable, execute and disable the real same-binary
   await expect.poll(async()=>{await page.getByRole('button',{name:'刷新',exact:true}).click();return (await card.getByRole('switch',{name:'启用插件',exact:true}).isChecked())&&((await (await page.request.get(`/api/v1/plugins/${id}`)).json()).data.instance.state==='running')},{timeout:20000}).toBe(true)
   await expect(page.getByRole('region',{name:'插件服务与命令',exact:true})).toBeVisible()
   const dialog=page.getByRole('region',{name:'插件服务与命令',exact:true})
-  await dialog.getByRole('button',{name:/^执行 /}).first().click()
+  await dialog.getByRole('button',{name:/^执行$/}).first().click()
   const execution=page.waitForResponse(r=>r.url().endsWith(`/plugins/${id}/run`))
   await page.getByRole('dialog',{name:'执行插件扩展',exact:true}).getByRole('button',{name:'确认执行',exact:true}).click();expect((await execution).status()).toBe(202)
   await expect.poll(async()=>((await (await page.request.get(`/api/v1/plugins/${id}/runs?page=1&pageSize=50`,{timeout:5000})).json()).data as any[]).some(r=>r.state==='succeeded'),{timeout:20000}).toBe(true)

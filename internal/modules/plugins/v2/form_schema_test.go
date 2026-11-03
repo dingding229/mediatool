@@ -81,3 +81,53 @@ func TestSettingsInspectionDoesNotReadOrRewriteInstanceKV(t *testing.T) {
 		t.Fatal("fixture did not exercise a KV value that cannot be decrypted")
 	}
 }
+
+func TestDisplayTitlesDoNotMaskExecutionSurfaceChanges(t *testing.T) {
+	defs, e := Catalog()
+	if e != nil {
+		t.Fatal(e)
+	}
+	base := defs[0].Manifest
+	changed := base
+	changed.Extensions.Titles = map[string]string{"command:hello": "中文显示标题"}
+	if requiresReview(base, changed) {
+		t.Fatal("read-only labels requested execution consent")
+	}
+	if changed.Extensions.Titles["command:hello"] != "中文显示标题" {
+		t.Fatal("consent comparison mutated metadata")
+	}
+	changed.Extensions.Commands = append(append([]string{}, base.Extensions.Commands...), "additional-command")
+	if !requiresReview(base, changed) {
+		t.Fatal("new command bypassed consent")
+	}
+	changed = base
+	changed.Permissions = append(append([]contracts.Permission{}, base.Permissions...), contracts.Permission{Scope: "downloads.control"})
+	if !requiresReview(base, changed) {
+		t.Fatal("new scope bypassed consent")
+	}
+	changed = base
+	changed.Resources.RSSMiB++
+	if !requiresReview(base, changed) {
+		t.Fatal("resource change bypassed consent")
+	}
+}
+func TestTitleOnlyRefreshRetainsApprovedEnabledInstance(t *testing.T) {
+	s, _ := activeFixture(t)
+	defs, e := Catalog()
+	if e != nil {
+		t.Fatal(e)
+	}
+	d := defs[0]
+	d.Manifest.Extensions.Titles = map[string]string{"command:hello": "中文显示标题"}
+	d.Fingerprint = digest([]byte("title-only-test-build"))
+	if e = s.refresh(context.Background(), []Definition{d}); e != nil {
+		t.Fatal(e)
+	}
+	var desired, reason, approved string
+	if e = s.DB.QueryRow(context.Background(), `SELECT desired_state,reason,approved_fingerprint FROM plugin_v2_instances WHERE plugin_id=$1`, d.Manifest.ID).Scan(&desired, &reason, &approved); e != nil {
+		t.Fatal(e)
+	}
+	if desired != "enabled" || reason != "" || approved != d.Fingerprint {
+		t.Fatal("display titles disabled the instance", desired, reason, approved)
+	}
+}

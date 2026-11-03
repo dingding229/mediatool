@@ -33,7 +33,8 @@
       "state": "unknown",
       "reason": "worker_lost",
       "createdAt": "2026-10-17T00:00:00Z",
-      "instanceId": "11111111-0000-4000-8000-000000000062"
+      "instanceId": "11111111-0000-4000-8000-000000000062",
+      "operationName": "hello"
     }
   ]
 }

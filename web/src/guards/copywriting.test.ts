@@ -9,6 +9,7 @@ const allowlistPath = resolve(__dirname, 'copywriting-allowlist.json')
 const allowlist: Record<string, string[]> = JSON.parse(readFileSync(allowlistPath, 'utf8'))
 
 const FORBIDDEN_WORDS = [
+  'Worker',
   '工程框架',
   '实施计划',
   'docs/',

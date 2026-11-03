@@ -99,3 +99,12 @@ func TestLanguageMarkerDoesNotForceFileEncoding(t *testing.T) {
 		})
 	}
 }
+
+func TestUnspecifiedChineseScriptHasNeutralDisplayLabel(t *testing.T) {
+	if got := LanguageLabel("chi", nil); got != "中文" {
+		t.Fatal(got)
+	}
+	if got := DisplayTitle(Metadata{Language: "chi"}, "srt"); strings.Contains(got, "待核对") || !strings.Contains(got, "中文") {
+		t.Fatal(got)
+	}
+}

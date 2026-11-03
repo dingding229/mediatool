@@ -114,3 +114,18 @@ func TestIPReportRealAggregationRetainsFirstAndDeduplicatesUsers(t *testing.T) {
 		t.Fatal(e, out)
 	}
 }
+
+func TestIPReportChineseCountriesAndUnknownOperatorLast(t *testing.T) {
+	now := time.Now()
+	all := []IPRow{{IP: "8.8.8.8", Count: 1}, {IP: "1.1.1.1", Count: 1}, {IP: "9.9.9.9", Count: 1}}
+	locate := func(ip string) ipgeo.Location {
+		if ip == "8.8.8.8" {
+			return ipgeo.Location{Country: "United States", Province: "California", City: "Los Angeles", ISP: "Known"}
+		}
+		return ipgeo.Location{Country: "NL", Province: "North Holland"}
+	}
+	got := buildIPReport(all, Filter{Limit: 25}, locate, now)
+	if got.Items[0].Location != "美国 California Los Angeles" || got.Items[1].Country != "荷兰" || got.Summary.Operators[len(got.Summary.Operators)-1].Name != "未知运营商" || got.Summary.Operators[len(got.Summary.Operators)-1].Count != 2 {
+		t.Fatal(got)
+	}
+}

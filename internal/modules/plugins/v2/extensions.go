@@ -57,14 +57,15 @@ type Snapshot struct {
 	Metadata      contracts.Snapshot `json:"metadata"`
 }
 type Run struct {
-	ID         string     `json:"id"`
-	InstanceID string     `json:"instanceId"`
-	Kind       RunKind    `json:"kind"`
-	Handler    string     `json:"handler"`
-	State      RunState   `json:"state"`
-	Reason     RunReason  `json:"reason"`
-	CreatedAt  time.Time  `json:"createdAt"`
-	FinishedAt *time.Time `json:"finishedAt,omitempty"`
+	OperationName string     `json:"operationName"`
+	ID            string     `json:"id"`
+	InstanceID    string     `json:"instanceId"`
+	Kind          RunKind    `json:"kind"`
+	Handler       string     `json:"handler"`
+	State         RunState   `json:"state"`
+	Reason        RunReason  `json:"reason"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	FinishedAt    *time.Time `json:"finishedAt,omitempty"`
 }
 
 func (s Store) Publish(ctx context.Context, l Lease, metadata contracts.Snapshot) error {

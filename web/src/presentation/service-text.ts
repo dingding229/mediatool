@@ -1,0 +1,1 @@
+export function serviceText(value?:string|null){return (value||'').replace(/Worker stopped before a confirmed send receipt; manual verification required/gi,'通知结果尚未确认，后台执行器已停止，请先人工核对').replace(/未连接业务\s*Worker/gi,'后台执行器未就绪').replace(/Worker/gi,'后台执行器')}

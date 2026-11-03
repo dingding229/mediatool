@@ -141,6 +141,7 @@ func buildIPReport(all []IPRow, f Filter, locate func(string) ipgeo.Location, no
 			continue
 		}
 		l := locate(v.IP)
+		l.Country = ipgeo.ChineseCountry(l.Country)
 		v.IP = clientip.Sanitize(v.IP)
 		v.Country, v.Province, v.City, v.ISP = l.Country, l.Province, l.City, l.ISP
 		v.Location = geography(l.Country, l.Province, l.City)
@@ -196,6 +197,9 @@ func buildIPReport(all []IPRow, f Filter, locate func(string) ipgeo.Location, no
 	out.Summary.Regions = len(regions)
 	out.Summary.ActiveUsers = len(users)
 	out.Summary.Provinces, out.Summary.Cities, out.Summary.Operators = distribution(province), distribution(city), distribution(operator)
+	sort.SliceStable(out.Summary.Operators, func(i, j int) bool {
+		return out.Summary.Operators[i].Name != "未知运营商" && out.Summary.Operators[j].Name == "未知运营商"
+	})
 	start := min(f.Start, len(matched))
 	out.Items = matched[start:min(start+f.Limit, len(matched))]
 	return out

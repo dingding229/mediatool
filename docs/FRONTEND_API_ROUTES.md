@@ -751,3 +751,7 @@ I40b 只读展示字段：`GET /api/v1/library/scans` 与扫描详情返回可�
 
 ### I42c 更新缓存读取投影
 - `GET /api/v1/system/updates`（以及返回同一更新状态的已注册接口）新增只读 `currentAtLeastLatest`。已校验缓存版本低于当前程序时不返回旧 `result.latest`；保持原 checkedAt/检查间隔，不改持久缓存、不触发检查、不伪造当前发布记录。相等时保留同版说明，高于当前时保留正常更新提示。
+
+### I44 插件只读展示口径
+
+`GET /api/v1/plugins/{id}/extensions` 保留签名快照原样，宿主共用编译期manifest的`extensions.titles`中文标题；缺失时依次取同操作历史显示名、命令/服务ID的可读形式，保留签名快照原样。`GET /api/v1/plugins/{id}/runs` 在分页之前排除 `kind=ui` 的界面读取审计，并增加只读 `operationName`（优先取当前编译manifest标题，未声明时取该次执行所绑定的历史快照名称）；原审计不删除，概览任务数不等于执行次数。

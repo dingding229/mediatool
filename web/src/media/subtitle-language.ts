@@ -6,4 +6,4 @@ export function languageValue(choice:string):SubtitleLanguage{
  return {language:choice,languageTags:({eng:['en'],jpn:['ja'],kor:['ko']} as Record<string,string[]>)[choice]||[]};
 }
 export function languageChoice(value:SubtitleLanguage){const code=value.language.toLowerCase();const tags=value.languageTags||[];if(['chi','zho','zh','chs','cht','zh-cn','zh-tw'].includes(code)){if(tags.includes('en'))return 'dual';if(tags.includes('zh-Hant')||['cht','zh-tw'].includes(code))return 'hant';if(tags.includes('zh-Hans')||['chs','zh-cn'].includes(code))return 'hans';return 'chi'}return ({en:'eng',ja:'jpn',jp:'jpn',ko:'kor'} as Record<string,string>)[code]||code||'und'}
-export function subtitleLanguageLabel(value:SubtitleLanguage){const choice=languageChoice(value);return choice==='chi'?'中文（简繁待核对）':choice==='und'?'未知':subtitleLanguages.find(v=>v.value===choice)?.label||'其他语言'}
+export function subtitleLanguageLabel(value:SubtitleLanguage){const choice=languageChoice(value);return choice==='chi'?'中文':choice==='und'?'未知':subtitleLanguages.find(v=>v.value===choice)?.label||'其他语言'}

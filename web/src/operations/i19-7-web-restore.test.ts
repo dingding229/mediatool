@@ -34,7 +34,13 @@ it.each([
  ['workflows/restore-session.ts','0215778c804dc3c98505816adcc505a2dc0cbb2cf176f29803e843a9c203e425'],
  ['ui/ConfirmAction.vue','abb54b05b33a408a385aef0ad5d32b311be6d7b77ab7125c481cd10f8773278b'],
  ['ui/DetailDrawer.vue','eaa99d7f3387e32631c19655b2dac03f45e0c19bcaa8fb40d31fa7ec1b3c29a2'],
-])('I19-7 preserves parent selector values, restore session and shared dialogs unchanged: %s',(file,hash)=>expect(sha(read(file))).toBe(hash));
+])('I19-7 preserves parent selector values, restore session and shared dialogs unchanged: %s',(file,hash)=>{
+ let source=read(file);
+ // I44 permits only the atomic first-read wrapper; parent selectors, actions
+ // and every other byte stay pinned to the prior approved presentation.
+ if(file==='operations/MaintenancePanel.vue')source=source.replace('    <StateView v-if="!data.loaded&&!data.error" class="f5-first-read" state="loading" title="正在读取备份与告警…"/>\n    <template v-else>\n','').replace('    </template>\n    <ConfirmAction v-model:visible="confirm"','    <ConfirmAction v-model:visible="confirm"');
+ expect(sha(source)).toBe(hash);
+});
 it('I19-7 keeps the existing rendered risk text and review/rollback receipt labels without adding local expiry/default behavior',()=>{
  const source=read('operations/WebRestorePanel.vue');for(const token of ['结果未知，需核对','失败后已自动回滚','未执行恢复','没有再次执行恢复','已排队，尚未恢复。请查看执行记录；成功后需要重新登录。','先核对执行记录；需要重新登录时，登录后重新预览。'])expect(source).toContain(token);
  expect(source).toContain('<MiddleEllipsis :text="b.digest"/>');expect(source).toContain("b.origin==='pre-restore'?'预览回滚到恢复前':'预览网页恢复'");

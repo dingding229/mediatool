@@ -1,0 +1,2 @@
+import {expect,it} from 'vitest';import {navigationScroll} from './scroll';
+it('new workspaces reset scroll while tab/filter changes and back history retain their position',async()=>{expect(await navigationScroll({path:'/playback'} as any,{path:'/settings'} as any,null)).toEqual({top:0,left:0});expect(await navigationScroll({path:'/playback'} as any,{path:'/playback'} as any,null)).toBe(false);expect(await navigationScroll({path:'/playback'} as any,{path:'/settings'} as any,{left:0,top:123})).toEqual({left:0,top:123})});

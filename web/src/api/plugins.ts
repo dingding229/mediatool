@@ -2,7 +2,7 @@ import { post, request } from './client'
 import inventory from '../../../internal/modules/plugins/v2/library.json'
 export const pluginPin = inventory.pin
 export interface Permission { scope:string; resources?:Record<string,string[]> }
-export interface PluginMetadata { id:string;name:string;version:string;description:string;author?:string;icon?:string;level?:number;history?:Record<string,string>;permissions:Permission[] }
+export interface PluginMetadata { id:string;name:string;version:string;description:string;author?:string;icon?:string;level?:number;history?:Record<string,string>;permissions:Permission[];extensions?:{titles?:Record<string,string>;services?:string[];commands?:string[];actions?:string[]} }
 export interface PluginDefinition { manifest:PluginMetadata; fingerprint:string;installedCount?:number }
 export interface PluginInstance { id:string;pluginId:string;desiredState:'enabled'|'disabled'|'absent';state:string;revision:number;reason:string;metadata?:PluginMetadata;availability?:string }
 export interface PluginOperation { operationKey:string;kind:'install'|'enable'|'disable'|'clone'|'configure'|'review'|'remove';instanceId?:string;pluginId?:string;fingerprint:string;expectedRevision:number;confirm:boolean;scopes:string[];config?:unknown }
@@ -16,7 +16,7 @@ export const inspect=(id:string)=>request<Inspection>(`/plugins/${encodeURICompo
 export const operate=(input:PluginOperation)=>post<PluginInstance>('/plugins/operations',input)
 export interface ExtensionDescriptor {kind:string;id:string;handler:string;name?:string;cmd?:string;description?:string;trigger?:string;cron?:string;intervalMs?:number;auth?:string;path?:string;priority?:number;requiredScopes:string[]}
 export interface ExtensionSnapshot {id:string;instanceId:string;hash:string;metadata:{version:number;descriptors:ExtensionDescriptor[]}}
-export interface PluginRun {id:string;kind:string;handler:string;state:string;reason:string;createdAt:string;finishedAt?:string}
+export interface PluginRun {id:string;kind:string;handler:string;operationName?:string;state:string;reason:string;createdAt:string;finishedAt?:string}
 export const extensions=(id:string)=>request<ExtensionSnapshot>(`/plugins/${encodeURIComponent(id)}/extensions`)
 export const runHistory=(id:string,page=1,pageSize=50)=>request<PluginRun[]>(`/plugins/${encodeURIComponent(id)}/runs?page=${page}&pageSize=${pageSize}`)
 export const runExtension=(id:string,input:{kind:string;id:string;operationKey:string;confirm:boolean;args?:unknown})=>post<{runId?:string;jobId?:string}>(`/plugins/${encodeURIComponent(id)}/run`,input)

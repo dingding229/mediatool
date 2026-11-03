@@ -1,3 +1,4 @@
+import {serviceText} from './service-text';
 // Short explanations for inboxes only; original errors remain in task/log details.
 export const failureReasons = [
   { match: /site request failed|site collection failed/i, text: '站点请求失败，请检查登录信息、网络或站点兼容性。' },
@@ -11,6 +12,6 @@ export const failureReasons = [
   { match: /rate limit|too many requests/i, text: '请求过于频繁，请稍后核对服务状态。' },
 ];
 export function failureText(raw?: string) {
-  return raw ? failureReasons.find(r => r.match.test(raw))?.text || raw : '—';
+  return raw ? failureReasons.find(r => r.match.test(raw))?.text || serviceText(raw) : '—';
 }
 export const jobNames: Record<string, string> = { 'site.metrics.refresh': '站点数据更新', 'system.check': '系统检查', 'native.probe': '媒体信息读取', 'native.still': '媒体截图', 'search.run': '站点搜索', 'subscription.evaluate': '订阅运行', 'library.scan': '目录扫描', 'files.batch': '批量文件整理', 'library.strm.repair': 'STRM 修复', 'library.refresh': '媒体库更新', 'download.add': '添加下载', 'download.manual.add': '添加手动下载', 'download.cleanup': '下载清理', 'transfer.upload': '云盘上传',     'native.tmdb.fetch': '媒体资料更新', 'plugin.v2.service': '插件服务', 'plugin.v2.workflow': '插件工作流', 'ops.backup': '系统备份', 'ops.drill': '备份演练', 'transfer.import.resume': '入库恢复' };

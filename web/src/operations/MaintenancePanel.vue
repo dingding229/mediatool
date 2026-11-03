@@ -101,6 +101,8 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
 </script>
 <template>
   <div class="media-stack">
+    <StateView v-if="!data.loaded&&!data.error" class="f5-first-read" state="loading" title="正在读取备份与告警…"/>
+    <template v-else>
     <section class="media-surface ops-panel-header">
       <header class="media-section-heading">
         <h2>备份与告警</h2>
@@ -221,6 +223,7 @@ defineExpose({ load, apply, ask, showPreview, approve, data, op, preview, sectio
     <PolicyPanel v-else/>
       </template>
     </div>
+    </template>
     <ConfirmAction v-model:visible="confirm" :title="actionTitle" :description="'请核对：'+actionTitle" :impact-scope="impact" :confirm-phrase="action?.kind==='resume'?'解除维护并恢复业务':undefined" confirm-text="确认继续" :loading="op.busy" class="media-dialog" @confirm="apply"/>
     <el-dialog v-model="previewDialog" title="恢复与回滚预览" width="min(920px,94vw)" class="media-dialog u5-dialog">
       <ResourceState :loading="previewLoading" :error="previewError" @reload="load"/>

@@ -256,17 +256,32 @@ func (s Store) History(ctx context.Context, id string, start, limit int) ([]Run,
 	if !validUUID(id) || start < 0 || start > 10000 || limit < 1 || limit > 200 {
 		return nil, ErrInvalid
 	}
-	rows, e := s.DB.Query(ctx, `SELECT id::text,instance_id::text,kind,handler,state,reason,created_at,finished_at FROM plugin_v2_runs WHERE instance_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2 OFFSET $3`, id, limit, start)
+	rows, e := s.DB.Query(ctx, `SELECT r.id::text,r.instance_id::text,r.kind,r.handler,r.state,r.reason,r.created_at,r.finished_at,s.descriptors,i.plugin_id FROM plugin_v2_runs r JOIN plugin_v2_snapshots s ON s.id=r.snapshot_id JOIN plugin_v2_instances i ON i.id=r.instance_id WHERE r.instance_id=$1 AND r.kind<>'ui' ORDER BY r.created_at DESC,r.id DESC LIMIT $2 OFFSET $3`, id, limit, start)
 	if e != nil {
 		return nil, e
 	}
 	defer rows.Close()
 	out := []Run{}
+	var titles map[string]string
+	titlesLoaded := false
 	for rows.Next() {
 		var v Run
-		if e = rows.Scan(&v.ID, &v.InstanceID, &v.Kind, &v.Handler, &v.State, &v.Reason, &v.CreatedAt, &v.FinishedAt); e != nil {
+		var raw []byte
+		var pluginID string
+		if e = rows.Scan(&v.ID, &v.InstanceID, &v.Kind, &v.Handler, &v.State, &v.Reason, &v.CreatedAt, &v.FinishedAt, &raw, &pluginID); e != nil {
 			return nil, e
 		}
+		var metadata contracts.Snapshot
+		if e = json.Unmarshal(raw, &metadata); e != nil {
+			return nil, e
+		}
+		if !titlesLoaded {
+			if def, err := definition(pluginID); err == nil {
+				titles = def.Manifest.Extensions.Titles
+			}
+			titlesLoaded = true
+		}
+		v.OperationName = runOperationName(v, metadata, titles)
 		out = append(out, v)
 	}
 	return out, rows.Err()

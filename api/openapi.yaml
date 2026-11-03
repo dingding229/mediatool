@@ -19686,6 +19686,15 @@
               "array",
               "null"
             ]
+          },
+          "titles": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": [
+              "object",
+              "null"
+            ]
           }
         },
         "type": "object",
@@ -29242,6 +29251,9 @@
           "kind": {
             "$ref": "#/components/schemas/modules_plugins_v2_RunKind"
           },
+          "operationName": {
+            "type": "string"
+          },
           "reason": {
             "$ref": "#/components/schemas/modules_plugins_v2_RunReason"
           },
@@ -29255,6 +29267,7 @@
           "id",
           "instanceId",
           "kind",
+          "operationName",
           "reason",
           "state"
         ],

@@ -183,8 +183,12 @@ func (s Store) refresh(ctx context.Context, defs []Definition) error {
 }
 func requiresReview(a, b contracts.Manifest) bool {
 	// Conservative: any change in the execution surface, even a restriction,
-	// requests fresh consent; release notes/version/name alone do not.
-	return !reflect.DeepEqual(a.Permissions, b.Permissions) || !reflect.DeepEqual(a.Resources, b.Resources) || !reflect.DeepEqual(a.Extensions, b.Extensions) || !reflect.DeepEqual(a.UI, b.UI)
+	// requests fresh consent; release notes/version/display titles alone do not.
+	// Copy before dropping only non-executable names. IDs, scopes, resources,
+	// schedule declarations and UI entrypoints remain part of the consent check.
+	oldSurface, newSurface := a.Extensions, b.Extensions
+	oldSurface.Titles, newSurface.Titles = nil, nil
+	return !reflect.DeepEqual(a.Permissions, b.Permissions) || !reflect.DeepEqual(a.Resources, b.Resources) || !reflect.DeepEqual(oldSurface, newSurface) || !reflect.DeepEqual(a.UI, b.UI)
 }
 func reviewGrants(ctx context.Context, tx pgx.Tx, id string, d Definition) error {
 	if _, e := tx.Exec(ctx, `DELETE FROM plugin_v2_grants WHERE instance_id=$1`, id); e != nil {

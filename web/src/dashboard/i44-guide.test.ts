@@ -1,0 +1,7 @@
+import {expect,it} from 'vitest';
+import {createSSRApp} from 'vue';import {renderToString} from 'vue/server-renderer';
+import SetupGuide from './SetupGuide.vue';import {guideSteps} from './model';
+const steps=guideSteps({components:{open115:{state:'ready',reason:'',nextAction:''},clouddrive2:{state:'check_required',reason:'probe_missing_or_stale',nextAction:''}}},[{kind:'ptsite',enabled:true}],{value:{groups:[{enabled:true,directory:'电影'}]}});
+it('all configuration evidence completes the guide without declaring player acceptance',()=>{expect(steps.every(s=>s.done)).toBe(true);expect(guideSteps(null,[],null).every(s=>s.done)).toBe(false)});
+it('an explicitly reopened completed guide is only a dismissible status line',async()=>{const app=createSSRApp(SetupGuide,{complete:true,steps});app.component('ElButton',{template:'<button><slot/></button>'});const html=await renderToString(app);expect(html).toContain('初始配置已全部完成');expect(html).toContain('收起');expect(html).not.toContain('<ol>');expect(html).not.toContain('3 / 3')});
+it('incomplete guide lists the full counted scope',async()=>{const app=createSSRApp(SetupGuide,{complete:false,steps:[...steps.slice(0,2),{...steps[2]!,done:false}]});app.component('RouterLink',{template:'<a><slot/></a>'});const html=await renderToString(app);expect(html).toContain('2 / 3');expect(html.match(/<li /g)).toHaveLength(3);expect(html).toContain('is-incomplete')});

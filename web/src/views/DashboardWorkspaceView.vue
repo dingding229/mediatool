@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SetupGuide from '../dashboard/SetupGuide.vue';
 import {joinMetadata} from '../presentation/metadata';
 
 import {usePageRefresh} from '../ui/page-refresh';
@@ -66,26 +67,7 @@ usePageRefresh(refresh,props.attention?'attention':'*');
       </div>
       <small v-if="slots.jobs?.data?.total>100">失败次数按最近 100 条任务记录统计，更多记录请在运维页查看。</small>
     </section>
-    <section v-if="attention&&guideVisible" class="setup-guide u2-surface" aria-label="首次使用引导">
-      <header>
-        <div>
-          <h2>完成配置，开始自动跟进</h2>
-          <p>{{ steps.filter(s=>s.done).length }} / {{steps.length}} 项已完成。</p>
-        </div>
-        <el-button v-if="complete" @click="hideGuide">收起引导</el-button>
-      </header>
-      <ol>
-        <li v-for="(step,index) in steps" :key="step.label" :class="{'is-incomplete':!step.done}">
-          <span>{{ step.done?'✓':index+1 }}</span>
-          <div>
-            <strong>{{ step.label }}</strong>
-            <small>{{ step.note||(step.done?'已完成':'待完成或尚未取得有效数据') }}</small>
-            <RouterLink :to="{path:step.path,query:{tab:step.tab}}">{{ step.done?'查看配置':'去配置' }}</RouterLink>
-          </div>
-        </li>
-      </ol>
-      <p v-if="slots.accounts?.error||slots.classification?.error" role="alert">部分配置读取失败，完成度暂不确定；可刷新状态后再核对。</p>
-    </section>
+    <SetupGuide v-if="attention&&guideVisible" :complete="complete" :steps="steps" :uncertain="!!slots.accounts?.error||!!slots.classification?.error" @dismiss="hideGuide"/>
     <section v-if="!attention" class="dashboard-counters" aria-label="业务规模">
       <RouterLink v-for="counter in counters" :key="counter.key" :to="counter.path">
         <span>{{ counter.label }}</span>
@@ -154,7 +136,7 @@ header {
   flex-wrap:wrap;
   margin-bottom:20px
 }
-header>span,small,.setup-guide p,.dashboard-empty {
+header>span,small,.dashboard-empty {
   font-size:12px;
   color:var(--mt-text-muted)
 }
@@ -192,39 +174,6 @@ header>span,small,.setup-guide p,.dashboard-empty {
 }
 .dashboard-workspace :deep(.el-button) {
   min-height:44px
-}
-.setup-guide ol {
-  list-style:none;
-  padding:0;
-  margin:0;
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:16px
-}
-.setup-guide li {
-  display:flex;
-  gap:12px
-}
-.setup-guide li>span {
-  display:grid;
-  place-items:center;
-  width:28px;
-  height:28px;
-  flex-shrink:0;
-  border-radius:50%;
-  background:var(--mt-color-primary-light);
-  color:var(--mt-color-primary)
-}
-.setup-guide small {
-  display:block;
-  margin-top:6px
-}
-.setup-guide a {
-  display:inline-flex;
-  align-items:center;
-  min-height:44px;
-  color:var(--mt-color-primary);
-  font-size:13px
 }
 .dashboard-counters {
   display:grid;
@@ -277,7 +226,7 @@ header>span,small,.setup-guide p,.dashboard-empty {
   font-size:13px
 }
 @media(max-width:1100px) {
-  .inbox-grid,.setup-guide ol,.dashboard-server dl {
+  .inbox-grid,.dashboard-server dl {
     grid-template-columns:1fr 1fr
   }
 }
@@ -285,7 +234,7 @@ header>span,small,.setup-guide p,.dashboard-empty {
   .u2-surface {
     padding:16px
   }
-  .inbox-grid,.setup-guide ol,.dashboard-server dl {
+  .inbox-grid,.dashboard-server dl {
     grid-template-columns:1fr
   }
   .dashboard-searches>a {
@@ -309,4 +258,4 @@ header>span,small,.setup-guide p,.dashboard-empty {
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 </style>
 
-<style scoped>.setup-guide li.is-incomplete{border-left:3px solid var(--el-color-warning);padding-left:12px}.ops-attention-dashboard :deep(.readiness-card){display:flex;flex-direction:column}.ops-attention-dashboard :deep(.readiness-card .media-actions){margin-top:auto}</style>
+<style scoped>.ops-attention-dashboard :deep(.readiness-card){display:flex;flex-direction:column}.ops-attention-dashboard :deep(.readiness-card .media-actions){margin-top:auto}</style>

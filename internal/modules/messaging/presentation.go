@@ -12,6 +12,7 @@ var noticeUUID = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[
 var noticeInternalLine = regexp.MustCompile(`(?i)^\s*(?:asset_?id|batch_?id|operation_?id|event_?id|notification_?id)\s*[:：]`)
 var noticeMessagePrefix = regexp.MustCompile(`(?i)^\s*message\s*[:：]\s*`)
 var noticeMetric = regexp.MustCompile(`指标\s+([a-zA-Z_][a-zA-Z0-9_]*)[，,]\s*阈值\s*([0-9]+(?:\.[0-9]+)?)`)
+var noticeWorker = regexp.MustCompile(`(?i)未连接业务\s*Worker|Worker`)
 var neutralNoticeNames = strings.NewReplacer(
 	"Emby 媒体库刷新已请求", "媒体库更新已请求",
 	"媒体已在Emby库中可见（待客户端播放验收）", "媒体库已更新（待播放器验证）",
@@ -47,6 +48,13 @@ func cleanNoticeText(text string) string {
 		}
 		line = noticeMessagePrefix.ReplaceAllString(line, "")
 		line = neutralNoticeNames.Replace(line)
+		line = strings.ReplaceAll(line, "Worker stopped before a confirmed send receipt; manual verification required", "通知结果尚未确认，后台执行器已停止，请先人工核对")
+		line = noticeWorker.ReplaceAllStringFunc(line, func(value string) string {
+			if strings.HasPrefix(value, "未连接") {
+				return "后台执行器未就绪"
+			}
+			return "后台执行器"
+		})
 		line = strings.TrimSpace(noticeUUID.ReplaceAllString(line, ""))
 		line = strings.Trim(line, " \t：:；;")
 		if line != "" {

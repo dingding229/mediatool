@@ -241,6 +241,7 @@ func (d Dispatcher) Page(ctx context.Context, start, limit int) ([]Message, erro
 			return nil, err
 		}
 		m.Title, m.Body = presentNotice(kind, payload, m.Title, m.Body)
+		m.DeliveryError = cleanNoticeText(m.DeliveryError)
 		out = append(out, m)
 	}
 	return out, rows.Err()

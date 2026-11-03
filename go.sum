@@ -39,6 +39,8 @@ github.com/dingding229/mediatool-plugin v0.0.0-20261028132231-ff3dc35bb375 h1:C8
 github.com/dingding229/mediatool-plugin v0.0.0-20261028132231-ff3dc35bb375/go.mod h1:T1SEoDYojXZfkBb9vWtS05b9MVPBipgQGceCmPw2N1c=
 github.com/dingding229/mediatool-plugin v0.0.0-20261102020429-27ba5ec26938 h1:VyhcUiFkCd39WYHZuwBFYiQ/h8ztfUTRjxqJ+5OyNyg=
 github.com/dingding229/mediatool-plugin v0.0.0-20261102020429-27ba5ec26938/go.mod h1:T1SEoDYojXZfkBb9vWtS05b9MVPBipgQGceCmPw2N1c=
+github.com/dingding229/mediatool-plugin v0.0.0-20261103015214-cb057dc43920 h1:iIryO8ChM3FdorK0xwXqbU81hKCCdzg0uWj8Ewf9F34=
+github.com/dingding229/mediatool-plugin v0.0.0-20261103015214-cb057dc43920/go.mod h1:T1SEoDYojXZfkBb9vWtS05b9MVPBipgQGceCmPw2N1c=
 github.com/dingding229/mediatool-site v0.0.0-20261013180133-7dfba442a392 h1:ghB0kwmHdsc/7gkNVFMnVU8H9vg6gfS6ywquCzMsSSs=
 github.com/dingding229/mediatool-site v0.0.0-20261013180133-7dfba442a392/go.mod h1:3JW8lsY4a1VvCoIe0LiZwkOjeCDtdJlxQPY+Y6fzxQQ=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
