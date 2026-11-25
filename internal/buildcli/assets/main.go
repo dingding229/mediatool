@@ -244,31 +244,15 @@ func sourceDigest(root, id string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// Build-time migration evidence is restricted to module versions already locked
-// by this repository's go.sum. No historical factories/code run or ship at runtime.
+// No historical factories/code run or ship at runtime. The build-only lock
+// preserves existing fingerprint migration evidence independently of go mod tidy.
 func legacyContents(defs []registry.Definition, current, dir string) (map[string]string, error) {
-	raw, e := os.ReadFile("go.sum")
+	sources, e := legacyPluginSources(current, dir)
 	if e != nil {
 		return nil, e
 	}
 	out := map[string]string{}
-	for _, line := range strings.Split(string(raw), "\n") {
-		f := strings.Fields(line)
-		if len(f) != 3 || f[0] != "github.com/dingding229/mediatool-plugin" || strings.HasSuffix(f[1], "/go.mod") {
-			continue
-		}
-		source := dir
-		if f[1] != current {
-			data, e := exec.Command("go", "mod", "download", "-json", f[0]+"@"+f[1]).Output()
-			if e != nil {
-				return nil, e
-			}
-			var module struct{ Dir, Version, Sum string }
-			if json.Unmarshal(data, &module) != nil || module.Version != f[1] || module.Sum != f[2] || module.Dir == "" {
-				return nil, errors.New("legacy content evidence does not match locked checksum")
-			}
-			source = module.Dir
-		}
+	for version, source := range sources {
 		for _, d := range defs {
 			manifest, e := os.ReadFile(filepath.Join(source, "plugins", d.Manifest.ID, "manifest.json"))
 			if errors.Is(e, os.ErrNotExist) {
@@ -285,7 +269,7 @@ func legacyContents(defs []registry.Definition, current, dir string) (map[string
 			if e != nil {
 				return nil, e
 			}
-			legacy := sha256.Sum256(append(append([]byte{}, old...), []byte(f[1])...))
+			legacy := sha256.Sum256(append(append([]byte{}, old...), []byte(version)...))
 			decoder := json.NewDecoder(strings.NewReader(string(old)))
 			decoder.UseNumber()
 			var value any

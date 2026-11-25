@@ -69,6 +69,7 @@ jobs:
           go run ./cmd/media-tool-dev plugins assets --check
           go run ./cmd/media-tool-dev plugins assets
           go run ./cmd/media-tool-dev plugins matrix --check
+          git diff --exit-code -- go.mod go.sum
       - run: npm ci --prefix web --no-fund --no-audit
       - name: Install pinned browser for DOM sanitization and E2E tests
         run: npx --prefix web playwright install --with-deps --only-shell chromium
@@ -167,6 +168,7 @@ jobs:
           go run ./cmd/media-tool-dev plugins assets --check
           go run ./cmd/media-tool-dev plugins assets
           go run ./cmd/media-tool-dev plugins matrix --check
+          git diff --exit-code -- go.mod go.sum
       - run: npm ci --prefix web --no-fund --no-audit
       - name: Install pinned browser for DOM sanitization and E2E tests
         run: npx --prefix web playwright install --with-deps --only-shell chromium
