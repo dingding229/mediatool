@@ -12,6 +12,6 @@ case "$root" in /tmp/media-tool-test-worker.*) ;; *) echo 'Invalid test artifact
 # -p 1 guarantees no package shares this executable while it is running.
 install -m 755 "$1" "$root/native-host.test"
 shift
-# Only fixture configuration is retained; no GitHub token/runner credentials.
-keep=TEST_DATABASE_URL,TEST_REDIS_URL,DATABASE_URL,REDIS_URL,APP_SECRET_KEY,SESSION_SECRET_KEY,STRM_API_KEY,TEST_DB_EXEC_MODE,TEST_POSTGRES_CONTAINER,MEDIA_TOOL_REQUIRE_FFMPEG,MEDIA_TOOL_PLUGIN_BINARY,MEDIA_TOOL_TEST_PLUGIN_UID,GOTOOLCHAIN
+# Retain only fixture configuration and the serial test-lock marker; no runner credentials.
+keep=TEST_DATABASE_URL,TEST_REDIS_URL,DATABASE_URL,REDIS_URL,APP_SECRET_KEY,SESSION_SECRET_KEY,STRM_API_KEY,TEST_DB_EXEC_MODE,TEST_POSTGRES_CONTAINER,MEDIA_TOOL_REQUIRE_FFMPEG,MEDIA_TOOL_PLUGIN_BINARY,MEDIA_TOOL_TEST_PLUGIN_UID,MEDIA_TOOL_TEST_LOCKED,GOTOOLCHAIN
 exec sudo --preserve-env="$keep" setpriv --reuid=65532 --regid=65532 --clear-groups --bounding-set=-all --no-new-privs env PATH="$PATH" HOME="$root/uid-home" TMPDIR="$root/uid-tmp" GOCACHE="$root/uid-cache" "$root/native-host.test" "$@"

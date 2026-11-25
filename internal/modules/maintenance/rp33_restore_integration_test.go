@@ -136,7 +136,7 @@ func seedRP33NativeToken(t *testing.T, ctx context.Context, e Engine) string {
 		t.Fatal(err)
 	}
 	var id string
-	if err = e.DB.QueryRow(ctx, `INSERT INTO media_users(id,username,display_name,password_hash,enabled) VALUES($1,$2,'Restore fixture',$3,true) RETURNING id::text`, newID(), rp33User, pw).Scan(&id); err != nil {
+	if err = e.DB.QueryRow(ctx, `INSERT INTO media_users(id,username,display_name,password_hash,enabled,must_change_password) VALUES($1,$2,'Restore fixture',$3,true,false) RETURNING id::text`, newID(), rp33User, pw).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
