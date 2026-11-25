@@ -26,7 +26,7 @@ func TestDeclaredRequiredHeadersAcceptExplicitValuesWithoutGuessingAuthenticatio
 				fmt.Fprint(w, "owned")
 			}))
 			defer server.Close()
-			client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}}
+			client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}, HTTP: server.Client()}
 			rule := Map{"path": "/", "parser": "None", "headers": Map{header: "owned {authValue}"}, "required_headers": []any{header}}
 			_, _, err := client.call(context.Background(), rule, map[string]string{"authValue": "PRIVATE-HEADER-VALUE"}, nil)
 			if err != nil || received.Load() != 1 {
@@ -51,7 +51,7 @@ func TestAllowedOriginRedirectDoesNotForwardDeclaredCredentialHeaders(t *testing
 	defer other.Close()
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, other.URL, http.StatusFound) }))
 	defer origin.Close()
-	client := Client{Config: Config{Domain: origin.URL, AdditionalDomains: []string{other.URL}}, Account: Account{Endpoint: origin.URL, Cookie: "owned=PRIVATE-COOKIE", APIKey: "PRIVATE-API-KEY"}}
+	client := Client{Config: Config{Domain: origin.URL, AdditionalDomains: []string{other.URL}}, Account: Account{Endpoint: origin.URL, Cookie: "owned=PRIVATE-COOKIE", APIKey: "PRIVATE-API-KEY"}, HTTP: origin.Client()}
 	rule := Map{"path": "/", "parser": "None", "headers": Map{"Authorization": "Bearer PRIVATE-AUTH", "X-Csrf-Token": "PRIVATE-CSRF", "X-Owned-Secret": "PRIVATE-EXTRA"}, "required_headers": []any{"x-api-key"}}
 	_, _, err := client.call(context.Background(), rule, nil, nil)
 	if err != nil || received.Load() != 1 || leaked.Load() {
@@ -96,7 +96,7 @@ func TestCrossOrigin307DoesNotResubmitRequestBody(t *testing.T) {
 		http.Redirect(w, r, other.URL, http.StatusTemporaryRedirect)
 	}))
 	defer origin.Close()
-	client := Client{Config: Config{Domain: origin.URL, AdditionalDomains: []string{other.URL}}, Account: Account{Endpoint: origin.URL}}
+	client := Client{Config: Config{Domain: origin.URL, AdditionalDomains: []string{other.URL}}, Account: Account{Endpoint: origin.URL}, HTTP: origin.Client()}
 	_, _, err := client.call(context.Background(), Map{"path": "/", "parser": "None", "method": "POST", "body": Map{"auth": "{private}"}}, map[string]string{"private": "PRIVATE-BODY-VALUE"}, nil)
 	if !errors.Is(err, ErrRequest) || received.Load() != 0 {
 		t.Fatal("cross-origin redirect resubmitted original body", received.Load(), err)
@@ -118,7 +118,7 @@ func TestSameOriginRedirectPreservesRequiredCredentials(t *testing.T) {
 		fmt.Fprint(w, "owned")
 	}))
 	defer server.Close()
-	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL, Cookie: "owned=PRIVATE-COOKIE", APIKey: "PRIVATE-API-KEY"}}
+	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL, Cookie: "owned=PRIVATE-COOKIE", APIKey: "PRIVATE-API-KEY"}, HTTP: server.Client()}
 	_, _, err := client.call(context.Background(), Map{"path": "/", "parser": "None", "headers": Map{"X-Owned-Secret": "PRIVATE-EXTRA"}, "required_headers": []any{"x-api-key"}}, nil, nil)
 	if err != nil || received.Load() != 1 {
 		t.Fatal("same-origin request lost valid credentials", err)
@@ -129,7 +129,7 @@ func TestRequiredHeadersMustHaveNonemptyTypedValuesBeforeHTTP(t *testing.T) {
 	var received atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { received.Add(1); fmt.Fprint(w, "owned") }))
 	defer server.Close()
-	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}}
+	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}, HTTP: server.Client()}
 	for _, headers := range []Map{{}, {"Authorization": ""}, {"Authorization": "{missing}"}, {"Authorization": 12}, {"Authorization": "bad\r\nInjected: secret"}} {
 		_, _, err := client.call(context.Background(), Map{"path": "/", "parser": "None", "headers": headers, "required_headers": []any{"Authorization"}}, nil, nil)
 		if err == nil || strings.Contains(err.Error(), "secret") {
@@ -173,7 +173,7 @@ func TestRedirectChainCannotRestoreCredentialsWhenReturningToInitialOrigin(t *te
 	}))
 	defer origin.Close()
 	originURL = origin.URL
-	client := Client{Config: Config{Domain: origin.URL, AdditionalDomains: []string{other.URL}}, Account: Account{Endpoint: origin.URL, Cookie: "owned=PRIVATE-COOKIE"}}
+	client := Client{Config: Config{Domain: origin.URL, AdditionalDomains: []string{other.URL}}, Account: Account{Endpoint: origin.URL, Cookie: "owned=PRIVATE-COOKIE"}, HTTP: origin.Client()}
 	_, _, err := client.call(context.Background(), Map{"path": "/", "parser": "None", "headers": Map{"Authorization": "Bearer PRIVATE-AUTH", "X-Owned-Secret": "PRIVATE-EXTRA"}}, nil, nil)
 	if err != nil || checked.Load() != 1 || leaked.Load() {
 		t.Fatal("later redirect restored original headers", leaked.Load(), err)
@@ -210,7 +210,7 @@ func TestMalformedAndAmbiguousHeaderDefinitionsAreRejectedWithoutHTTP(t *testing
 	var received atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { received.Add(1); fmt.Fprint(w, "owned") }))
 	defer server.Close()
-	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}}
+	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}, HTTP: server.Client()}
 	for _, rule := range []Map{
 		{"headers": "Authorization: secret"},
 		{"headers": Map{"Host": "other.invalid"}},

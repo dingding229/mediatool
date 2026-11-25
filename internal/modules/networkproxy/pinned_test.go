@@ -3,6 +3,8 @@ package networkproxy
 import (
 	"bufio"
 	"context"
+	"errors"
+
 	"io"
 	"media-tool/internal/modules/playback"
 	"net"
@@ -223,5 +225,61 @@ func TestFaviconPublicClientPinsDirectAndProxyTargetDNS(t *testing.T) {
 			response.Body.Close()
 			t.Fatal("private target permitted")
 		}
+	}
+}
+
+func TestRP34PTClientRechecksSameOriginHopAndPinsProxy(t *testing.T) {
+	var lookups, tunnels atomic.Int32
+	gateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tunnels.Add(1)
+		if r.Method != http.MethodConnect || r.Host != "93.184.216.34:80" {
+			t.Error("PT proxy must receive only the checked numeric destination", r.Method, r.Host)
+			w.WriteHeader(400)
+			return
+		}
+		c, rw, e := w.(http.Hijacker).Hijack()
+		if e != nil {
+			t.Error(e)
+			return
+		}
+		defer c.Close()
+		_ = c.SetDeadline(time.Now().Add(3 * time.Second))
+		_, _ = rw.WriteString("HTTP/1.1 200 Connection Established\r\n\r\n")
+		_ = rw.Flush()
+		first, e := http.ReadRequest(rw.Reader)
+		if e != nil || first.Host != "tracker.example" || first.URL.Path != "/first" {
+			t.Error("original origin not preserved", e)
+			return
+		}
+		_, _ = rw.WriteString("HTTP/1.1 302 Found\r\nLocation: /next\r\nContent-Length: 0\r\n\r\n")
+		_ = rw.Flush()
+		if _, e = http.ReadRequest(rw.Reader); e == nil {
+			t.Error("redirect reused an established connection without a fresh DNS check")
+		}
+	}))
+	defer gateway.Close()
+	p := playback.Policy{AllowHTTP: true, Lookup: func(ctx context.Context, host string) ([]net.IPAddr, error) {
+		if host != "tracker.example" {
+			t.Error("unexpected DNS host", host)
+		}
+		if lookups.Add(1) == 1 {
+			return publicTestDNS(ctx, host)
+		}
+		return []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}, nil
+	}}
+	config := recordAt(gateway.URL)
+	config.Sites = true
+	client, err := PublicClient(config, "ptsite", p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.CloseIdleConnections()
+	client.CheckRedirect = nil // sites.Client has its own origin-guarded redirect handler.
+	response, err := client.Get("http://tracker.example/first")
+	if response != nil {
+		_ = response.Body.Close()
+	}
+	if !errors.Is(err, playback.ErrUnsafeTarget) || lookups.Load() != 2 || tunnels.Load() != 1 {
+		t.Fatal("redirect did not fail at checked DNS boundary", err, lookups.Load(), tunnels.Load())
 	}
 }

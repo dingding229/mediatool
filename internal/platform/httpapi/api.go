@@ -81,11 +81,12 @@ type Dependencies struct {
 	Playback          *playback.Engine
 }
 type API struct {
-	Config  config.Config
-	Deps    Dependencies
-	Auth    auth.Auth
-	Builder strm.Builder
-	Engine  *playback.Engine
+	Config     config.Config
+	Deps       Dependencies
+	Auth       auth.Auth
+	Builder    strm.Builder
+	Engine     *playback.Engine
+	tmdbImages tmdbImageAdmission
 }
 type Envelope struct {
 	Data  any       `json:"data,omitempty"`

@@ -3,7 +3,7 @@ package buildinfo
 
 import "runtime/debug"
 
-const Schema int64 = 96
+const Schema int64 = 97
 const MinimumSchema int64 = 79
 
 // Official builds inject these three values. The sentinel is intentionally not

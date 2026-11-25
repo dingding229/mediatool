@@ -95,3 +95,22 @@ func TestControlledBinaryUTF8JSONReceiptAndLowerLimits(t *testing.T) {
 		}
 	}
 }
+
+func TestRP34SiteDefaultAndControlledClientRejectPrivateDestinations(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		_, _ = w.Write([]byte("unreachable fixture"))
+	}))
+	defer server.Close()
+	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}}
+	if _, _, err := client.call(context.Background(), Map{"path": "/private"}, nil, nil); err == nil {
+		t.Fatal("default PT transport allowed private destination")
+	}
+	if _, err := client.Controlled(context.Background(), ControlledRequest{Origin: server.URL, Path: "/private", Method: "GET"}); err == nil {
+		t.Fatal("controlled sites.request transport allowed private destination")
+	}
+	if calls.Load() != 0 {
+		t.Fatal("a private destination was contacted")
+	}
+}

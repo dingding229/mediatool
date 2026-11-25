@@ -9,7 +9,6 @@ import (
 	"io"
 	"media-tool/internal/adapters/tmdb"
 	"media-tool/internal/modules/integrations"
-	"media-tool/internal/modules/playback"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -105,16 +104,6 @@ func (s Service) Fetch(ctx context.Context, in Request) (Page, error) {
 	client.Jar = nil
 	client.Timeout = 10 * time.Second
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	// This facade never accepts a URL. Bind public DNS at dial time unless the
-	// operator has configured the existing proxy; controlled transports are tests.
-	if s.Connections.OutboundHTTP == nil {
-		tr := base.Transport.(*http.Transport).Clone()
-		if tr.Proxy == nil {
-			tr.DialContext = (playback.Policy{AllowedHosts: []string{"movie.douban.com"}}).DialContext
-		}
-		client.Transport = tr
-		defer tr.CloseIdleConnections()
-	}
 	req, e := http.NewRequestWithContext(ctx, "GET", "https://movie.douban.com"+path, nil)
 	if e != nil {
 		return out, e

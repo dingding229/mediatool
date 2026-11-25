@@ -48,7 +48,7 @@ func TestAccountHeadersApplyOnlyToExactRequiredNamesAndAreNotTemplates(t *testin
 		fmt.Fprint(w, "owned")
 	}))
 	defer server.Close()
-	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL, Passkey: "PRIVATE-PASSKEY", RequestHeaders: map[string]string{"authorization": "Bearer literal{passkey}", "X-Csrf-Token": "PRIVATE-CSRF", "X-Owned-Unused": "PRIVATE-EXTRA"}}}
+	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL, Passkey: "PRIVATE-PASSKEY", RequestHeaders: map[string]string{"authorization": "Bearer literal{passkey}", "X-Csrf-Token": "PRIVATE-CSRF", "X-Owned-Unused": "PRIVATE-EXTRA"}}, HTTP: server.Client()}
 	_, _, err := client.call(context.Background(), Map{"path": "/", "parser": "None", "required_headers": []any{"Authorization", "X-Csrf-Token"}, "headers": Map{"Authorization": "public-template"}}, client.vars("", 1), nil)
 	if err != nil || received.Load() != 1 {
 		t.Fatal("explicit required account headers not applied literally", err)
@@ -73,7 +73,7 @@ func TestAccountHeaderPrecedenceKeepsExistingAPIKeyAndSameOriginRedirect(t *test
 		fmt.Fprint(w, "owned")
 	}))
 	defer server.Close()
-	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL, APIKey: "PRIVATE-API-KEY", RequestHeaders: map[string]string{"x-api-key": "PRIVATE-OTHER", "Authorization": "PRIVATE-AUTH"}}}
+	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL, APIKey: "PRIVATE-API-KEY", RequestHeaders: map[string]string{"x-api-key": "PRIVATE-OTHER", "Authorization": "PRIVATE-AUTH"}}, HTTP: server.Client()}
 	_, _, err := client.call(context.Background(), Map{"path": "/", "parser": "None", "required_headers": []any{"x-api-key", "Authorization"}}, nil, nil)
 	if err != nil || received.Load() != 1 {
 		t.Fatal("account API key or same-origin header contract changed", err)
@@ -95,7 +95,7 @@ func TestEncryptedAccountHeadersCannotEscapeAcrossRedirectOrUnusedRequest(t *tes
 	defer other.Close()
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, other.URL, http.StatusFound) }))
 	defer origin.Close()
-	client := Client{Config: Config{Domain: origin.URL, AdditionalDomains: []string{other.URL}}, Account: Account{Endpoint: origin.URL, RequestHeaders: map[string]string{"Authorization": "PRIVATE-AUTH", "X-Csrf-Token": "PRIVATE-CSRF", "X-Owned-Required": "PRIVATE-EXTRA"}}}
+	client := Client{Config: Config{Domain: origin.URL, AdditionalDomains: []string{other.URL}}, Account: Account{Endpoint: origin.URL, RequestHeaders: map[string]string{"Authorization": "PRIVATE-AUTH", "X-Csrf-Token": "PRIVATE-CSRF", "X-Owned-Required": "PRIVATE-EXTRA"}}, HTTP: origin.Client()}
 	_, _, err := client.call(context.Background(), Map{"path": "/", "parser": "None", "required_headers": []any{"Authorization", "X-Csrf-Token", "X-Owned-Required"}}, nil, nil)
 	if err != nil || hits.Load() != 1 || leaked.Load() {
 		t.Fatal("account-required credentials escaped across origin", leaked.Load(), err)

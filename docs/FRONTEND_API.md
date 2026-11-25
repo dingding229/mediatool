@@ -436,3 +436,7 @@ X-Requested-With: media-tool
 - 115 只经原 officialCall/officialToken 行锁刷新；refreshBlocked 不刷新，固定提示“115授权不可用，请重新扫码授权；现有授权已保留”，文案定义在 integrations/health.go。refreshAfter 冷却期只探测现有 Access Token。
 - 正常令牌轮换及失败安全标记不再作为配置编辑增加 revision/updated_at；失败保留原令牌对，仅原刷新函数写 refreshAfter/refreshBlocked，不修改配置、启停或其他授权字段。
 - 首次启动即安排无回执/到期连接；已有新鲜回执立即显示并遵守持久化退避；保存/启用立即置为到期并唤醒循环。每进程最多三条定时探测并行，跨进程同连接只持有一个有效租约；首次结果/状态翻转才记录安全日志。
+
+### 外部 STRM（`library.read`）
+
+`GET /api/external/v1/strm` 固定只列有自有 STRM 的资产，`outputs` 仅含这类 STRM，不披露 NFO、字幕、图片输出或刮削报告。`kind` 不能扩大范围。`GET /api/external/v1/strm/{id}/content?path=…` 在打开磁盘文件前验证资产归属与记录的类型；NFO 和其他非 STRM 输出一律返回 `409 output_conflict`。通过校验仅返回磁盘上的原始 STRM，不重写正文。管理端原有 STRM/NFO 查看接口与权限不变。

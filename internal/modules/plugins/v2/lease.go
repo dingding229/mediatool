@@ -111,7 +111,7 @@ func (s Store) Finish(ctx context.Context, l Lease, why Reason) error {
 	delay := RetryDelay(n)
 	delay += time.Duration(rand.Int64N(int64(delay/5) + 1))
 	state := Backoff
-	if n >= 9 {
+	if n >= 9 || why == SandboxUnavailable {
 		state = NeedsAction
 	}
 	tag, e := s.DB.Exec(ctx, `UPDATE plugin_v2_instances SET generation=NULL,owner_id=NULL,lease_until=NULL,runtime_state=CASE WHEN runtime_state='needs_action' AND desired_state='disabled' THEN 'needs_action' WHEN reason IN('permission_review_required','definition_missing','definition_unsupported') THEN 'needs_action' WHEN runtime_state='stopping' OR desired_state<>'enabled' OR $5='' THEN 'stopped' ELSE $4 END,reason=CASE WHEN reason IN('permission_review_required','definition_missing','definition_unsupported') THEN reason WHEN runtime_state='stopping' OR desired_state<>'enabled' OR $5='' THEN '' ELSE $5 END,restart_count=CASE WHEN runtime_state='stopping' OR desired_state<>'enabled' OR $5='' THEN restart_count ELSE $7 END,restart_window=CASE WHEN restart_window<now()-interval '1 hour' THEN now() ELSE restart_window END,next_restart_at=CASE WHEN runtime_state='stopping' OR $5='' THEN now() ELSE now()+$6::interval END,updated_at=now() WHERE id=$1 AND generation=$2 AND owner_id=$3 AND lease_until>now()`, l.ID, l.Token, l.Owner, state, why, delay.String(), min(n+1, 10))

@@ -28,7 +28,7 @@ func requestSearchClient(t *testing.T, searchRule Map, handler http.HandlerFunc)
 	searchRule["parser"] = "JsonPath"
 	searchRule["list"] = Map{"selector": "data.items"}
 	searchRule["fields"] = Map{"id": Map{"selector": "id"}, "title": Map{"selector": "name"}}
-	return Client{Config: Config{ID: "owned_contract", Schema: "mTorrent", Domain: server.URL, API: server.URL, Requests: map[string]Map{"profile": {"path": "/profile", "parser": "JsonPath", "fields": Map{"username": Map{"selector": "data.username"}}}, "search": searchRule}}, Account: Account{Endpoint: server.URL, UserID: "1", APIKey: "PRIVATE-FIXTURE-KEY"}}
+	return Client{Config: Config{ID: "owned_contract", Schema: "mTorrent", Domain: server.URL, API: server.URL, Requests: map[string]Map{"profile": {"path": "/profile", "parser": "JsonPath", "fields": Map{"username": Map{"selector": "data.username"}}}, "search": searchRule}}, Account: Account{Endpoint: server.URL, UserID: "1", APIKey: "PRIVATE-FIXTURE-KEY"}, HTTP: server.Client()}
 }
 
 func TestMTorrentExplicitSearchBodyIsNotOverwrittenByDefaultJSON(t *testing.T) {

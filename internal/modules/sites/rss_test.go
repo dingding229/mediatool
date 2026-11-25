@@ -15,7 +15,7 @@ func feedClient(t *testing.T, handler http.HandlerFunc) (Client, string) {
 	t.Helper()
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	return Client{Config: Config{ID: "owned_feed", Domain: server.URL, Schema: "NexusPHP"}, Account: Account{ID: "ACCOUNT-FIXTURE", Endpoint: server.URL}}, server.URL
+	return Client{Config: Config{ID: "owned_feed", Domain: server.URL, Schema: "NexusPHP"}, Account: Account{ID: "ACCOUNT-FIXTURE", Endpoint: server.URL}, HTTP: server.Client()}, server.URL
 }
 
 func feedItem(id, extra, link string) string {

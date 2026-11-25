@@ -68,7 +68,7 @@ func TestAPIAuthenticationSearchAndDownload(t *testing.T) {
 		"search":       {"parser": "JsonPath", "method": "POST", "path": "/search", "use_api": true, "required_headers": []any{"x-api-key"}, "list": Map{"selector": "data.data"}, "fields": Map{"id": Map{"selector": "id"}, "title": Map{"selector": "name"}, "size": Map{"selector": "size"}, "seeders": Map{"selector": "status.seeders"}, "downloadvolumefactor": Map{"selector": "status.discount", "filters": []any{Map{"name": "case", "args": Map{"FREE": "0"}}}}}},
 		"gen_dl_token": {"parser": "JsonPath", "method": "POST", "path": "/token", "use_api": true, "required_headers": []any{"x-api-key"}, "form_data": Map{"id": []any{"{id}"}}, "fields": Map{"url": Map{"selector": "data"}}},
 	}}
-	client := Client{Config: config, Account: Account{Endpoint: server.URL, APIKey: "api-secret", UserID: "1"}}
+	client := Client{Config: config, Account: Account{Endpoint: server.URL, APIKey: "api-secret", UserID: "1"}, HTTP: server.Client()}
 	resources, err := client.Search(context.Background(), SearchQuery{Keyword: "Movie", Page: 1})
 	if err != nil || len(resources) != 1 || resources[0].DownloadFactor == nil || *resources[0].DownloadFactor != 0 {
 		t.Fatal(err, resources)

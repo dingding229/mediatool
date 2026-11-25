@@ -1,4 +1,4 @@
-FROM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 AS ip2region-data
+FROM alpine:3.23.8@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 AS ip2region-data
 RUN apk add --no-cache ca-certificates curl
 COPY scripts/prepare-ip2region.sh /prepare-ip2region.sh
 RUN sh /prepare-ip2region.sh /out
@@ -10,7 +10,7 @@ RUN go mod download
 COPY . .
 RUN go run ./cmd/media-tool-dev plugins check && go run ./cmd/media-tool-dev plugins assets --check && go run ./cmd/media-tool-dev plugins assets
 
-FROM --platform=$BUILDPLATFORM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS frontend
+FROM --platform=$BUILDPLATFORM node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a AS frontend
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-fund --no-audit
@@ -37,9 +37,9 @@ ARG SOURCE_BUILD_TIME
 RUN test -n "$SOURCE_VERSION" && test -n "$SOURCE_REVISION" && test -n "$SOURCE_BUILD_TIME" && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X media-tool/internal/platform/buildinfo.Version=${SOURCE_VERSION} -X media-tool/internal/platform/buildinfo.Commit=${SOURCE_REVISION} -X media-tool/internal/platform/buildinfo.BuildTime=${SOURCE_BUILD_TIME}" -o /out/media-tool ./cmd/media-tool && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X media-tool/internal/platform/buildinfo.Version=${SOURCE_VERSION} -X media-tool/internal/platform/buildinfo.Commit=${SOURCE_REVISION} -X media-tool/internal/platform/buildinfo.BuildTime=${SOURCE_BUILD_TIME}" -o /out/media-toolctl ./cmd/media-toolctl
 
-FROM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 AS runtime
+FROM alpine:3.23.8@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 AS runtime
 RUN apk add --no-cache ca-certificates postgresql18-client ffmpeg docker-cli docker-cli-compose && addgroup -S -g 65532 app && adduser -S -u 65532 -G app app && mkdir -p /data/plugins && mkdir -p /data/strm /data/downloads /data/files /data/native-media/stills && chown -R app:app /data
-LABEL org.opencontainers.image.schema="96"
+LABEL org.opencontainers.image.schema="97"
 WORKDIR /app
 COPY --from=backend /out/media-tool /app/media-tool
 COPY --from=backend /out/media-toolctl /app/media-toolctl

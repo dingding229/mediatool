@@ -220,6 +220,14 @@ func (a *API) libraryActivity(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{"items": items, "total": total})
 }
 func (a *API) managedOutputs(w http.ResponseWriter, r *http.Request) {
+	a.listManagedOutputs(w, r, false)
+}
+
+func (a *API) externalSTRMOutputs(w http.ResponseWriter, r *http.Request) {
+	a.listManagedOutputs(w, r, true)
+}
+
+func (a *API) listManagedOutputs(w http.ResponseWriter, r *http.Request, externalOnly bool) {
 	e := a.library()
 	if e == nil {
 		fail(w, 503, "library_unavailable", "数据库不可用")
@@ -230,12 +238,18 @@ func (a *API) managedOutputs(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_page", "筛选无效")
 		return
 	}
-	kind := r.URL.Query().Get("kind")
-	if kind != "" && kind != "strm" {
-		fail(w, 400, "invalid_kind", "输出类型无效")
-		return
+	var items []library.ManagedAsset
+	var total int
+	if externalOnly {
+		items, total, err = e.ExternalSTRMAssets(r.Context(), p.Limit, p.Offset, r.URL.Query().Get("q"))
+	} else {
+		kind := r.URL.Query().Get("kind")
+		if kind != "" && kind != "strm" {
+			fail(w, 400, "invalid_kind", "输出类型无效")
+			return
+		}
+		items, total, err = e.ManagedAssetsKind(r.Context(), p.Limit, p.Offset, r.URL.Query().Get("q"), kind == "strm")
 	}
-	items, total, err := e.ManagedAssetsKind(r.Context(), p.Limit, p.Offset, r.URL.Query().Get("q"), kind == "strm")
 	if err != nil {
 		fail(w, 503, "outputs_unavailable", "托管输出清单暂不可用")
 		return
@@ -259,6 +273,14 @@ func isWorkbenchUUID(s string) bool {
 }
 
 func (a *API) managedOutputContent(w http.ResponseWriter, r *http.Request) {
+	a.readManagedOutput(w, r, false)
+}
+
+func (a *API) externalSTRMContent(w http.ResponseWriter, r *http.Request) {
+	a.readManagedOutput(w, r, true)
+}
+
+func (a *API) readManagedOutput(w http.ResponseWriter, r *http.Request, externalOnly bool) {
 	if !isWorkbenchUUID(r.PathValue("id")) {
 		fail(w, 400, "invalid_id", "资产ID无效")
 		return
@@ -268,7 +290,14 @@ func (a *API) managedOutputContent(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "library_unavailable", "数据库不可用")
 		return
 	}
-	out, err := e.OutputContent(r.Context(), r.PathValue("id"), r.URL.Query().Get("path"))
+	id, relative := r.PathValue("id"), r.URL.Query().Get("path")
+	var out library.OutputContent
+	var err error
+	if externalOnly {
+		out, err = e.STRMOutputContent(r.Context(), id, relative)
+	} else {
+		out, err = e.OutputContent(r.Context(), id, relative)
+	}
 	if err != nil {
 		fail(w, 409, "output_conflict", "输出不存在、已改变或不属于当前资产，不读取未知文件，请使用修复流程核对")
 		return

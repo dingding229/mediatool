@@ -2,7 +2,9 @@ package networkproxy
 
 import (
 	"context"
+	"errors"
 	"io"
+	"media-tool/internal/modules/playback"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -39,10 +41,12 @@ func TestProxyScopeAndNoSilentFallback(t *testing.T) {
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "direct") }))
 	defer target.Close()
 	response, err = direct.Get(target.URL)
-	if err != nil {
-		t.Fatal(err)
+	if response != nil {
+		_ = response.Body.Close()
 	}
-	response.Body.Close()
+	if !errors.Is(err, playback.ErrUnsafeTarget) {
+		t.Fatal("PT direct scope must reject private targets", err)
+	}
 	if hits != 1 {
 		t.Fatal("scope leaked")
 	}

@@ -24,12 +24,20 @@ type OutputContent struct {
 // Return the existing body, never reconstruct or rotate a STRM grant for viewing.
 // Ownership plus current content digest is mandatory; handmade files are not read.
 func (e Engine) OutputContent(ctx context.Context, assetID, relative string) (OutputContent, error) {
+	return e.outputContent(ctx, assetID, relative, "")
+}
+
+func (e Engine) STRMOutputContent(ctx context.Context, assetID, relative string) (OutputContent, error) {
+	return e.outputContent(ctx, assetID, relative, "strm")
+}
+
+func (e Engine) outputContent(ctx context.Context, assetID, relative, requiredKind string) (OutputContent, error) {
 	out := OutputContent{Path: relative}
 	if relative == "" || len(relative) > 2048 || path.IsAbs(relative) || path.Clean(relative) != relative || relative == ".." || strings.HasPrefix(relative, "../") {
 		return out, errors.New("invalid output path")
 	}
 	var expected []byte
-	if err := e.DB.QueryRow(ctx, `SELECT artifact_kind,owner_scope,content_digest FROM managed_media_artifacts WHERE asset_id=$1 AND relative_path=$2`, assetID, relative).Scan(&out.Kind, &out.Owner, &expected); err != nil {
+	if err := e.DB.QueryRow(ctx, `SELECT artifact_kind,owner_scope,content_digest FROM managed_media_artifacts WHERE asset_id=$1 AND relative_path=$2 AND ($3='' OR artifact_kind=$3)`, assetID, relative, requiredKind).Scan(&out.Kind, &out.Owner, &expected); err != nil {
 		return out, ErrArtifactConflict
 	}
 	if out.Kind != "strm" && out.Kind != "nfo" {

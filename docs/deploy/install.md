@@ -64,3 +64,7 @@ docker compose ps
 ## v0.43.0 外部 Emby 对接退役
 
 程序不再连接或代理外部 Emby；原外部网关 8091（本机生产映射 25015）退役，旧 EMBY 配置不再读取。内置媒体服务 8092（生产 25018）的账号、协议别名及 STRM 解析入口不变。无需修改 Compose 或清理外部服务；外部 Emby 服务和数据留待独立维护。
+
+### 插件文件系统沙箱
+
+插件 worker 默认必须成功启用 Landlock，否则不加载插件业务代码，实例保留原有配置及 KV，显示 `needs_action / sandbox_unavailable`。请优先在支持 Landlock 且允许相关系统调用的 Linux 内核运行；修复后在管理端重新启用实例。若明确接受退化风险，可只在私有 Compose 的 `app.environment` 中显式设置 `MEDIATOOL_PLUGIN_ALLOW_NO_LANDLOCK: "1"` 并重建 app 容器，再重新启用实例。每次向 worker 下发该开关前都必须写入 `plugins.sandbox.override` 审计；审计失败则不启动。开关只允许在 ABI 不可用时继续，不放行规则安装失败，也不会取消 worker 的其他限制。处理完毕后移除此设置并重建 app 容器。

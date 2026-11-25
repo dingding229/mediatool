@@ -139,6 +139,18 @@ func (s Supervisor) execute(parent context.Context, l Lease) Reason {
 	cmd.Dir = dir
 	cmd.WaitDelay = 5 * time.Second
 	cmd.Env = workerEnvironment(dir, l.ID)
+	if os.Getenv(sandbox.AllowWithoutLandlockEnv) == "1" {
+		// Record approval of the weaker isolation before starting a child.
+		// A failed audit write cannot silently open the override.
+		bounded, cancel := context.WithTimeout(parent, 3*time.Second)
+		_, err := s.Store.DB.Exec(bounded, `INSERT INTO audit_logs(actor,action,details) VALUES('system','plugins.sandbox.override',jsonb_build_object('instanceId',$1::text,'generation',$2::text,'mode','allow_without_landlock'))`, l.ID, l.Token)
+		cancel()
+		if err != nil {
+			s.Logger.Warn("Plugin sandbox override audit failed; worker not started", "module", "plugins", "instance", l.ID)
+			return SandboxUnavailable
+		}
+		cmd.Env = append(cmd.Env, sandbox.AllowWithoutLandlockEnv+"=1")
+	}
 	cmd.ExtraFiles = nil
 	sandbox.Configure(cmd)
 	input, e := cmd.StdinPipe()
@@ -151,7 +163,7 @@ func (s Supervisor) execute(parent context.Context, l Lease) Reason {
 		return WorkerFailed
 	}
 	tail := &stderrLimit{exceeded: make(chan struct{}), onLandlock: func() {
-		s.Logger.Warn("Plugin Landlock unavailable; trusted-code mode", "module", "plugins", "instance", l.ID, "reason", "landlock_unavailable")
+		s.Logger.Warn("Plugin Landlock unavailable; explicit degraded mode", "module", "plugins", "instance", l.ID, "reason", "landlock_unavailable")
 	}}
 	cmd.Stderr = tail
 	if e = sandbox.PrepareFDs(); e != nil {
@@ -174,6 +186,9 @@ func (s Supervisor) execute(parent context.Context, l Lease) Reason {
 	if scanErr != nil || stamp == "" {
 		_ = sandbox.KillGroup(cmd.Process.Pid)
 		_ = cmd.Wait()
+		if tail.sandboxRejected() {
+			return SandboxUnavailable
+		}
 		return ResourceLimit
 	}
 	registerCtx, registerCancel := context.WithTimeout(parent, 3*time.Second)
@@ -456,6 +471,9 @@ loop:
 	if reaped {
 		s.Store.logInfo(context.Background(), l.ID, "Plugin worker reaped", "pluginId", l.PluginID, "generation", l.Token, "pid", cmd.Process.Pid, "result", "reaped")
 	}
+	if !running && result == WorkerFailed && tail.sandboxRejected() {
+		result = SandboxUnavailable
+	}
 	if tail.warned() {
 		s.Logger.Warn("Plugin reported best-effort isolation or stderr output", "module", "plugins", "instance", l.ID, "reason", tail.category())
 	}
@@ -523,6 +541,12 @@ func (s *stderrLimit) Write(b []byte) (int, error) {
 	}
 	return len(b), nil
 }
+func (s *stderrLimit) sandboxRejected() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return bytes.Contains(s.tail, []byte("reason=sandbox_unavailable stage=landlock"))
+}
+
 func (s *stderrLimit) warned() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -540,6 +564,9 @@ func workerEnvironment(dir, instance string) []string {
 func (s *stderrLimit) category() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if bytes.Contains(s.tail, []byte("reason=sandbox_unavailable stage=landlock")) {
+		return string(SandboxUnavailable)
+	}
 	if s.fatalCategory != "" {
 		return s.fatalCategory
 	}

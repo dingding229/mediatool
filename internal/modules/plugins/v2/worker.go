@@ -23,7 +23,9 @@ func Worker(args []string) (failure error) {
 		if failure != nil {
 			reason := "unavailable"
 			var rpc *contracts.Error
-			if errors.As(failure, &rpc) {
+			if errors.Is(failure, sandbox.ErrLandlockUnavailable) {
+				reason = string(SandboxUnavailable)
+			} else if errors.As(failure, &rpc) {
 				reason = contracts.Reason(rpc.Code)
 			}
 			slog.New(slog.NewTextHandler(os.Stderr, nil)).Warn("Plugin worker stopped", "module", "plugins", "reason", reason, "stage", phase)
@@ -63,8 +65,8 @@ func Worker(args []string) (failure error) {
 	}
 	phase = "landlock"
 	ok, e := sandbox.Landlock(filepath.Join(cwd, "data"), filepath.Join(cwd, "tmp"), nil)
-	if e != nil {
-		return ErrUnavailable
+	if err := sandbox.RequireLandlock(ok, e, os.Getenv(sandbox.AllowWithoutLandlockEnv) == "1"); err != nil {
+		return err
 	}
 	if !ok {
 		sandbox.WarnUnavailable(slog.New(slog.NewTextHandler(os.Stderr, nil)), *instance)

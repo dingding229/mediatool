@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"media-tool/internal/modules/networkproxy"
 	deferutil "media-tool/internal/platform/cleanup"
 	"media-tool/internal/platform/trace"
 	"net/http"
@@ -26,6 +27,13 @@ type Client struct {
 	HTTP                  *http.Client
 	SourceRevision        int64
 	DefinitionFingerprint string
+}
+
+func (c Client) httpClient() (*http.Client, error) {
+	if c.HTTP != nil {
+		return c.HTTP, nil
+	}
+	return networkproxy.Client(networkproxy.Record{}, "ptsite")
 }
 
 func (c Client) base(rule Map) (*url.URL, error) {
@@ -152,9 +160,9 @@ func (c Client) callWithTarget(ctx context.Context, rule Map, vars map[string]st
 	if _, configured := request.Header["User-Agent"]; !configured {
 		request.Header.Set("User-Agent", "MediaTool/0.3")
 	}
-	client := c.HTTP
-	if client == nil {
-		client = &http.Client{Timeout: 20 * time.Second}
+	client, err := c.httpClient()
+	if err != nil {
+		return nil, "", ErrRequest
 	}
 	copy := *client
 	// Cookie is an explicit, origin-bound account credential. A caller's Jar

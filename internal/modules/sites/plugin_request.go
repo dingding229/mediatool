@@ -77,9 +77,9 @@ func (c Client) Controlled(ctx context.Context, in ControlledRequest) (Controlle
 	if in.Method == "POST" {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
-	client := c.HTTP
-	if client == nil {
-		client = &http.Client{Timeout: 15 * time.Second}
+	client, err := c.httpClient()
+	if err != nil {
+		return out, ErrRequest
 	}
 	copy := *client
 	copy.Timeout = 15 * time.Second

@@ -170,6 +170,14 @@ func (e Engine) ManagedAssets(ctx context.Context, limit, offset int, q string) 
 	return e.ManagedAssetsKind(ctx, limit, offset, q, false)
 }
 func (e Engine) ManagedAssetsKind(ctx context.Context, limit, offset int, q string, strmOnly bool) ([]ManagedAsset, int, error) {
+	return e.managedAssets(ctx, limit, offset, q, strmOnly, false)
+}
+
+func (e Engine) ExternalSTRMAssets(ctx context.Context, limit, offset int, q string) ([]ManagedAsset, int, error) {
+	return e.managedAssets(ctx, limit, offset, q, true, true)
+}
+
+func (e Engine) managedAssets(ctx context.Context, limit, offset int, q string, strmOnly, externalOnly bool) ([]ManagedAsset, int, error) {
 	if limit < 1 || limit > 200 || offset < 0 || len(q) > 256 {
 		return nil, 0, errors.New("invalid output filter")
 	}
@@ -181,7 +189,13 @@ func (e Engine) ManagedAssetsKind(ctx context.Context, limit, offset int, q stri
 	if err := e.DB.QueryRow(ctx, `SELECT count(*)`+where, q).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := e.DB.Query(ctx, `SELECT a.id::text,coalesce(m.title,''),coalesce(m.media_type,''),coalesce(m.release_year,''),f.full_path,f.state,a.artifacts_state,a.revision,coalesce((SELECT jsonb_agg(jsonb_build_object('path',path,'kind',kind,'owner',owner) ORDER BY path) FROM (SELECT s.output_path AS path,'strm' AS kind,'asset:'||a.id::text AS owner FROM strm_entries s WHERE s.asset_id=a.id UNION ALL SELECT relative_path,artifact_kind,owner_scope FROM managed_media_artifacts WHERE asset_id=a.id AND artifact_kind<>'strm') outputs),'[]'),coalesce(g.revoked_at IS NOT NULL,false),a.scrape_report,coalesce(m.metadata->>'posterPath','')`+where+` ORDER BY a.created_at DESC,a.id DESC LIMIT $2 OFFSET $3`, q, limit, offset)
+	outputs := `SELECT s.output_path AS path,'strm' AS kind,'asset:'||a.id::text AS owner FROM strm_entries s WHERE s.asset_id=a.id UNION ALL SELECT relative_path,artifact_kind,owner_scope FROM managed_media_artifacts WHERE asset_id=a.id AND artifact_kind<>'strm'`
+	scrapeReport := `a.scrape_report`
+	if externalOnly {
+		scrapeReport = `'{}'::jsonb`
+		outputs = `SELECT owned.relative_path AS path,owned.artifact_kind AS kind,owned.owner_scope AS owner FROM strm_entries s JOIN managed_media_artifacts owned ON owned.relative_path=s.output_path AND owned.asset_id=s.asset_id WHERE s.asset_id=a.id AND owned.artifact_kind='strm'`
+	}
+	rows, err := e.DB.Query(ctx, `SELECT a.id::text,coalesce(m.title,''),coalesce(m.media_type,''),coalesce(m.release_year,''),f.full_path,f.state,a.artifacts_state,a.revision,coalesce((SELECT jsonb_agg(jsonb_build_object('path',path,'kind',kind,'owner',owner) ORDER BY path) FROM (`+outputs+`) outputs),'[]'),coalesce(g.revoked_at IS NOT NULL,false),`+scrapeReport+`,coalesce(m.metadata->>'posterPath','')`+where+` ORDER BY a.created_at DESC,a.id DESC LIMIT $2 OFFSET $3`, q, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}

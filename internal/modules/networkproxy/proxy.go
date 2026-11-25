@@ -114,6 +114,13 @@ func (r Repository) Save(ctx context.Context, in Update) (Record, error) {
 	return r.open(out, raw), nil
 }
 func Client(r Record, scope string) (*http.Client, error) {
+	if scope == "ptsite" {
+		return PublicClient(r, scope, playback.Policy{AllowHTTP: true})
+	}
+	return scopedClient(r, scope)
+}
+
+func scopedClient(r Record, scope string) (*http.Client, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
 	if (scope == "tmdb" && r.TMDB) || (scope == "ptsite" && r.Sites) || (scope == "plugin" && (r.Configured || r.NeedsInput || !empty(r.Fields))) {
@@ -141,11 +148,18 @@ func (r Repository) Revision(ctx context.Context) (int64, error) {
 // PublicClient reuses the existing DNS-pinned direct/proxy transport. A proxy
 // must not perform a second target lookup that could resolve a private address.
 func PublicClient(r Record, scope string, policy playback.Policy) (*http.Client, error) {
-	client, err := Client(r, scope)
+	client, err := scopedClient(r, scope)
 	if err != nil {
 		return nil, err
 	}
 	transport := client.Transport.(*http.Transport)
+	if scope == "ptsite" {
+		// Every hop, even a same-origin redirect, resolves and dials afresh.
+		// Do not let keep-alive or HTTP/2 multiplexing skip that check.
+		transport.DisableKeepAlives = true
+		transport.Protocols = new(http.Protocols)
+		transport.Protocols.SetHTTP1(true)
+	}
 	raw := ""
 	if transport.Proxy != nil {
 		raw = r.proxyURL()

@@ -961,6 +961,14 @@ func (s *source) build(t *testing.T) object {
 					op["description"] = "仅返回凭据元数据和15字符前缀脱敏提示；不返回token、摘要或密文。明文仅在POST创建成功的201回执中返回一次。"
 				}
 			}
+			if path == "/api/external/v1/strm" {
+				op["description"] = "始终筛选自有 STRM；kind 参数不能扩大范围，outputs 仅含自有 STRM，且不返回刮削报告。"
+				delete(o.params, "kind")
+			}
+			if path == "/api/external/v1/strm/{id}/content" {
+				op["description"] = "只读取已归属该资产且摘要匹配的 STRM 原文；NFO 和其他文件在读取磁盘前拒绝（409）。kind 参数不能扩大范围。"
+			}
+
 			if r.externalScope != "" {
 				op["x-required-scope"] = r.externalScope
 			}

@@ -11,7 +11,7 @@ import (
 	"unsafe"
 )
 
-// Landlock is deliberately small and best effort. It adds no network/syscall broker.
+// Landlock reports whether kernel filesystem restrictions were installed. It adds no network/syscall broker.
 // All Go threads must restrict themselves; release workers are built without CGO.
 func Landlock(data, tmp string, extra []string) (bool, error) {
 	return landlock(data, tmp, extra, landlockABI)
@@ -22,7 +22,7 @@ func landlockABI() (uintptr, syscall.Errno) {
 }
 func landlock(data, tmp string, extra []string, query func() (uintptr, syscall.Errno)) (bool, error) {
 	abi, errno := query()
-	if errno == unix.ENOSYS || errno == unix.EOPNOTSUPP || errno == unix.ENOMSG {
+	if errno == unix.ENOSYS || errno == unix.EOPNOTSUPP || errno == unix.ENOMSG || errno == unix.EPERM || errno == unix.EACCES {
 		return false, nil
 	}
 	if errno != 0 {

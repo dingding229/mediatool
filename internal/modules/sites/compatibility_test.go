@@ -156,7 +156,7 @@ func TestJSONBodyQueryAndFormAreSeparateAndSubstitutionIsSinglePass(t *testing.T
 		fmt.Fprint(w, `{}`)
 	}))
 	defer server.Close()
-	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}}
+	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}, HTTP: server.Client()}
 	for _, kind := range []string{"json", "form"} {
 		rule := Map{"method": "POST", "parser": "JsonPath", "path": "/" + kind + "?trace=fixed", "params": Map{"q": "{keyword}"}}
 		if kind == "json" {
@@ -196,7 +196,7 @@ func TestGroupedSearchKeepsParentFieldsAndChildIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client := Client{Config: config, Account: Account{Endpoint: server.URL}}
+	client := Client{Config: config, Account: Account{Endpoint: server.URL}, HTTP: server.Client()}
 	resources, err := client.Search(context.Background(), SearchQuery{Keyword: "Record", Page: 1})
 	if err != nil || len(resources) != 2 {
 		t.Fatal(err, len(resources))
@@ -262,7 +262,7 @@ func TestHTTPFailuresRemainRedacted(t *testing.T) {
 		io.WriteString(w, "fixture-private-response")
 	}))
 	defer server.Close()
-	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL, Cookie: "fixture-cookie"}}
+	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL, Cookie: "fixture-cookie"}, HTTP: server.Client()}
 	_, _, err := client.call(context.Background(), Map{"path": "/search?passkey=fixture-passkey"}, nil, nil)
 	if !errors.Is(err, ErrRequest) || strings.Contains(err.Error(), "fixture-") {
 		t.Fatal("request failure contains private data")
@@ -279,7 +279,7 @@ func TestExplicitLegacyEncodingDecodesHTMLTitles(t *testing.T) {
 		fmt.Fprint(w, "<a class=title>"+encoded+"</a>")
 	}))
 	defer server.Close()
-	client := Client{Config: Config{Domain: server.URL, Encoding: "GBK"}, Account: Account{Endpoint: server.URL}}
+	client := Client{Config: Config{Domain: server.URL, Encoding: "GBK"}, Account: Account{Endpoint: server.URL}, HTTP: server.Client()}
 	raw, mode, err := client.call(context.Background(), Map{"path": "/search", "parser": "CssSelector"}, nil, nil)
 	if err != nil {
 		t.Fatal(err)

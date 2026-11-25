@@ -17,7 +17,7 @@ func TestNonexecutableRequestsAreRejectedBeforeHTTP(t *testing.T) {
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests.Add(1); fmt.Fprint(w, `<p>authenticated</p>`) }))
 	defer server.Close()
-	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL, Cookie: "owned=PRIVATE-COOKIE"}}
+	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL, Cookie: "owned=PRIVATE-COOKIE"}, HTTP: server.Client()}
 	cases := []struct {
 		name string
 		rule Map
@@ -67,7 +67,7 @@ func TestSupportedParserDefaultsAndAliasesRemainExecutable(t *testing.T) {
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests.Add(1); fmt.Fprint(w, "owned") }))
 	defer server.Close()
-	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}}
+	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}, HTTP: server.Client()}
 	for _, mode := range []string{"", "CssSelector", "cssselector", "cSsSeLeCtOr", "XPath", "xpath", "JsonPath", "jsonpath", "XML", "Xml", "xml", "None", "none"} {
 		rule := Map{"path": "/", "parser": mode, "chrome": false, "disabled": false}
 		raw, actual, err := client.call(context.Background(), rule, nil, nil)
@@ -107,7 +107,7 @@ func TestSearchPreflightsExecutionContractBeforeLogin(t *testing.T) {
 		client := Client{Config: Config{Domain: server.URL, Schema: "NexusPHP", Requests: map[string]Map{
 			"user_basic_info": {"path": "/profile", "parser": "JsonPath", "fields": Map{"is_login": Map{"selector": "login"}}},
 			"search":          {"path": "/search", "parser": "JsonPath", "list": Map{"selector": "items"}},
-		}}, Account: Account{Endpoint: server.URL, Cookie: "owned=PRIVATE-COOKIE"}}
+		}}, Account: Account{Endpoint: server.URL, Cookie: "owned=PRIVATE-COOKIE"}, HTTP: server.Client()}
 		for key, value := range override {
 			client.Config.Requests["search"][key] = value
 		}
@@ -125,7 +125,7 @@ func TestBrowserLoginCannotBeReportedAsVerified(t *testing.T) {
 	defer server.Close()
 	client := Client{Config: Config{Domain: server.URL, Schema: "NexusPHP", Requests: map[string]Map{
 		"user_basic_info": {"path": "/profile", "parser": "JsonPath", "chrome": true, "fields": Map{"is_login": Map{"selector": "login"}}},
-	}}, Account: Account{Endpoint: server.URL}}
+	}}, Account: Account{Endpoint: server.URL}, HTTP: server.Client()}
 	if err := client.Test(context.Background()); !errors.Is(err, ErrConfig) || requests.Load() != 0 {
 		t.Fatal("ordinary HTTP satisfied browser login", requests.Load(), err)
 	}
@@ -139,7 +139,7 @@ func TestMissingDisabledOrUnsupportedDownloadTokenDoesNotCallRoot(t *testing.T) 
 	}))
 	defer server.Close()
 	for _, rule := range []Map{nil, {}, {"path": "/token", "disabled": true}, {"path": "/token", "chrome": true}, {"path": "/token", "parser": "PRIVATE-UNKNOWN"}, {"path": "/token", "parser": "None"}} {
-		client := Client{Config: Config{Domain: server.URL, Schema: "mTorrent", Requests: map[string]Map{"gen_dl_token": rule}}, Account: Account{Endpoint: server.URL}}
+		client := Client{Config: Config{Domain: server.URL, Schema: "mTorrent", Requests: map[string]Map{"gen_dl_token": rule}}, Account: Account{Endpoint: server.URL}, HTTP: server.Client()}
 		if _, err := client.Torrent(context.Background(), "42", server.URL+"/download"); !errors.Is(err, ErrConfig) || requests.Load() != 0 {
 			t.Fatal("nonexecutable token request called root/download", requests.Load(), err)
 		}
@@ -154,13 +154,13 @@ func TestRSSCannotBypassDeclaredBrowserOrExecutionFlags(t *testing.T) {
 	}))
 	defer server.Close()
 	for _, rule := range []Map{{"chrome": true}, {"chrome": "false"}, {"parser": "PRIVATE-UNKNOWN"}, {"disabled": "false"}} {
-		client := Client{Config: Config{Domain: server.URL, Requests: map[string]Map{"rss": rule}}, Account: Account{Endpoint: server.URL}}
+		client := Client{Config: Config{Domain: server.URL, Requests: map[string]Map{"rss": rule}}, Account: Account{Endpoint: server.URL}, HTTP: server.Client()}
 		if _, err := client.RSS(context.Background(), server.URL+"/feed"); !errors.Is(err, ErrConfig) || requests.Load() != 0 {
 			t.Fatal("raw feed request bypassed declaration", requests.Load(), err)
 		}
 	}
 	// A manually configured feed does not require an invented rss request rule.
-	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}}
+	client := Client{Config: Config{Domain: server.URL}, Account: Account{Endpoint: server.URL}, HTTP: server.Client()}
 	items, err := client.RSS(context.Background(), server.URL+"/feed")
 	if err != nil || len(items) != 0 || requests.Load() != 1 {
 		t.Fatal("manual feed contract changed", err)
