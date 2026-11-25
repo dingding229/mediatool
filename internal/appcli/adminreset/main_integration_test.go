@@ -46,7 +46,7 @@ func TestOfflineResetImmediatelyInvalidatesSlidingSession(t *testing.T) {
 			t.Error(e)
 		}
 	}()
-	for _, table := range []string{"administrator_accounts", "administrator_sessions", "administrator_recovery_codes", "audit_logs"} {
+	for _, table := range []string{"administrator_accounts", "administrator_sessions", "administrator_recovery_codes", "administrator_initialization", "audit_logs"} {
 		if _, e = base.Exec(ctx, `CREATE TABLE `+pgx.Identifier{schema, table}.Sanitize()+` (LIKE public.`+pgx.Identifier{table}.Sanitize()+` INCLUDING ALL)`); e != nil {
 			t.Fatal(e)
 		}
