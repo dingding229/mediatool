@@ -925,6 +925,10 @@ func (s *source) build(t *testing.T) object {
 			if r.externalScope != "" {
 				s.commonErrors("external", o)
 			}
+			if r.admin || r.externalScope != "" && method != "get" && method != "head" {
+				s.commonErrors("admitMaintenanceWrite", o)
+				s.commonErrors("maintenanceWritePaused", o)
+			}
 			s.collect(r.fn, strings.ToUpper(method), o, map[*ast.FuncDecl]bool{})
 			if r.fn == nil {
 				if lit, ok := r.expr.(*ast.FuncLit); ok {

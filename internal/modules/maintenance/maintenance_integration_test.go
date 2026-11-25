@@ -289,7 +289,7 @@ func TestRealPostgresBackupDrillAndPermanentKeyProof(t *testing.T) {
 	if err = os.Remove(filepath.Join(e.OutputRoot, "Synthetic.strm")); err != nil {
 		t.Fatal(err)
 	}
-	if err = e.restoreOutputs(ctx, filepath.Join(dir, "outputs.tar"), m.Files); err != nil {
+	if _, err = e.restoreOutputs(ctx, filepath.Join(dir, "outputs.tar"), m.Files); err != nil {
 		t.Fatal(err)
 	}
 	restored, err := os.ReadFile(filepath.Join(e.OutputRoot, "Synthetic.strm"))

@@ -70,6 +70,7 @@ type Engine struct {
 	Redis                                          *redis.Client
 	DSN, Root, OutputRoot, Key, HostProc, Revision string
 	Run                                            Command
+	outputIO                                       *restoreOutputIO
 	prepareRestore                                 func(context.Context, WebRestore, Manifest, string) (string, func() error, error)
 	validateRestore                                func(context.Context, Manifest, string) error
 }

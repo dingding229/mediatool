@@ -374,25 +374,8 @@ func (a *API) protected(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if r.Method != "GET" && r.Method != "HEAD" && !strings.HasPrefix(r.URL.Path, "/api/v1/ops/") && r.URL.Path != "/api/v1/auth/logout" {
-			if paused, err := maintenance.Paused(r.Context(), a.Deps.DB); err != nil {
-				fail(w, 503, "maintenance_unavailable", "维护状态不可读取")
-				return
-			} else if paused {
-				fail(w, 423, "maintenance_paused", "当前处于恢复/回滚维护窗口，业务写入暂停")
-				return
-			}
-		}
-		if r.Method != "GET" && r.Method != "HEAD" && !strings.HasPrefix(r.URL.Path, "/api/v1/ops/") && r.URL.Path != "/api/v1/auth/logout" {
-			select {
-			case maintenanceWriteSlots <- struct{}{}:
-				defer func() { <-maintenanceWriteSlots }()
-			case <-r.Context().Done():
-				fail(w, 503, "maintenance_busy", "写入请求等待超时，请稍后重试")
-				return
-			}
-			release, gateErr := maintenance.BeginWork(r.Context(), a.Deps.DB)
-			if gateErr != nil {
-				fail(w, 423, "maintenance_paused", "恢复维护中，业务写入暂停")
+			release := a.admitMaintenanceWrite(w, r)
+			if release == nil {
 				return
 			}
 			defer release()
@@ -402,6 +385,38 @@ func (a *API) protected(next http.HandlerFunc) http.HandlerFunc {
 }
 
 var maintenanceWriteSlots = make(chan struct{}, 3)
+
+// All synchronous business writes share the same slots and advisory gate.
+// One request owns one slot/connection, including plugin gateway auth modes.
+func (a *API) admitMaintenanceWrite(w http.ResponseWriter, r *http.Request) func() {
+	if paused, err := maintenance.Paused(r.Context(), a.Deps.DB); err != nil {
+		fail(w, 503, "maintenance_unavailable", "维护状态不可读取")
+		return nil
+	} else if paused {
+		maintenanceWritePaused(w)
+		return nil
+	}
+	select {
+	case maintenanceWriteSlots <- struct{}{}:
+	case <-r.Context().Done():
+		fail(w, 503, "maintenance_busy", "写入请求等待超时，请稍后重试")
+		return nil
+	}
+	release, err := maintenance.BeginWork(r.Context(), a.Deps.DB)
+	if err != nil {
+		<-maintenanceWriteSlots
+		maintenanceWritePaused(w)
+		return nil
+	}
+	return func() {
+		release()
+		<-maintenanceWriteSlots
+	}
+}
+
+func maintenanceWritePaused(w http.ResponseWriter) {
+	fail(w, 423, "maintenance_paused", "当前处于恢复/回滚维护窗口，业务写入暂停")
+}
 
 func (a *API) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

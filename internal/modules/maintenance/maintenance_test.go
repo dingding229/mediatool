@@ -46,15 +46,15 @@ func TestRestoreOutputsNeverOverwritesAndRejectsSymlinks(t *testing.T) {
 	os.WriteFile(file, archive.Bytes(), 0600)
 	e := Engine{OutputRoot: root}
 	proof := []FileProof{{Path: "Movies/Owned.strm", Bytes: int64(len(raw)), Digest: hash(raw)}}
-	if err := e.restoreOutputs(context.Background(), file, proof); err != nil {
+	if _, err := e.restoreOutputs(context.Background(), file, proof); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.restoreOutputs(context.Background(), file, proof); err != nil {
+	if _, err := e.restoreOutputs(context.Background(), file, proof); err != nil {
 		t.Fatal("same original should remain untouched", err)
 	}
 	os.WriteFile(filepath.Join(root, "Movies/Owned.strm"), []byte("manual"), 0600)
-	if err := e.restoreOutputs(context.Background(), file, proof); err == nil {
-		t.Fatal("manual file overwritten")
+	if results, err := e.restoreOutputs(context.Background(), file, proof); err != nil || len(results) != 1 || results[0].Status != outputMismatch {
+		t.Fatal("different existing file was not skipped", results, err)
 	}
 	current, _ := os.ReadFile(filepath.Join(root, "Movies/Owned.strm"))
 	if string(current) != "manual" {
@@ -63,7 +63,7 @@ func TestRestoreOutputsNeverOverwritesAndRejectsSymlinks(t *testing.T) {
 	os.Remove(filepath.Join(root, "Movies/Owned.strm"))
 	os.Remove(filepath.Join(root, "Movies"))
 	os.Symlink(t.TempDir(), filepath.Join(root, "Movies"))
-	if err := e.restoreOutputs(context.Background(), file, proof); err == nil {
+	if _, err := e.restoreOutputs(context.Background(), file, proof); err == nil {
 		t.Fatal("symlink parent allowed")
 	}
 }

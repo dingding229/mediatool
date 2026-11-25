@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"media-tool/internal/modules/acquisition"
+	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/modules/search"
 	"net/http"
 	"time"
@@ -55,6 +56,10 @@ func (a *API) startDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := engine.StartFromRunIdentity(r.Context(), body.SearchRunID, body.ResourceID, body.MediaType, body.TMDBID, body.CorrectMediaIdentity, body.ConfirmYearMismatch)
 	if err != nil {
+		if errors.Is(err, maintenance.ErrConflict) {
+			maintenanceWritePaused(w)
+			return
+		}
 		if errors.Is(err, search.ErrMediaYearConfirmation) {
 			fail(w, 409, "media_year_confirmation_required", err.Error())
 			return

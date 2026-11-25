@@ -66,7 +66,10 @@ docker compose exec -T app /app/media-tool ops restore-reconcile -id <预览UUID
 - 导入只替换public业务数据：保持当前已迁移的表/索引/约束，不DROP/TRUNCATE在线账号表，不禁用触发器或外键。按外键依赖先删子表、再COPY父表；SHARE ROW EXCLUSIVE锁排除其他写入但允许普通SELECT。认证/进度通过MVCC读取提交前版本，提交后读新账号和已撤销会话。进度查询不写活动时间，其他活动记录写入有100ms上限且失败不影响认证。
 - 仅下列协调/备份账本保留当前值：`ops_mode`、`ops_releases`、`ops_backups`、`ops_drills`、`ops_requests`、`ops_request_verifications`、`ops_web_restores`；另保留`goose_db_version`，`ops_restore_commit`由导入事务更新。**ops_policy、ops_samples、ops_alerts不在例外中，也随备份回退。**
 - 运行态安全归一化：旧管理端/媒体会话撤销，旧pending/retry/running任务暂停，未决通知/插件运行核对后再执行，worker generation/lease失效；插件旧事件消费游标收敛到已备份日志末尾，旧磁盘状态任务标失败且不执行清理，旧wake-job绑定清除；不会因恢复重放外部副作用。插件配置、KV与业务字段仍来自备份；已安装定义按当前pin校验，扩权仍停用待确认。序列只前进，保留备份/当前计数器与已恢复行的最大值，失败可留ID空洞，不回退复用ID。
-- 包含database.dump、清单、登记的受管输出；**只补当前缺失且包内摘要正确的STRM/NFO/字幕**。现存输出相同则不写、不同仍拒绝覆盖；失败后已补回的文件保留，不做删除。
+- 包含 database.dump、清单及登记的受管输出。**只补当前缺失且包内摘要正确的受管文件**：同目录暂存并复验 SHA-256、同步文件，使用硬链接原子发布且不替换目标，然后移除临时名并同步目录。现有文件相同不写、不同跳过；不会更改现存媒体、STRM 或下载目录的字节。若目录同步失败，完整发布的文件仍保留，但结果记失败，不能当作已安全持久化。
+- 恢复回执的 `outputReceipt.files` 逐文件记录 `filled`、`exists_match`、`exists_mismatch` 或 `failed`，`published` 表示已建立最终名。失败或自动补偿**不删除已补文件**；回执会标明 DB 未提交目标状态、已补偿或结果待核对。进程异常中断时 `outputReceipt.state=writing` 表示结果尚未完整持久化，请人工核对；不要重放或据此删除文件。
 - master key、Compose、环境变量、其他/data配置不随备份；不删除磁盘媒体、STRM正文、downloads、qbittorrent-downloads、logs，不接触Emby/CD2等外部卷，不下载媒体或字幕正文。
 - 最近恢复前快照计入保留策略且不可被清理；固定快照继续保留。自动补偿只允许返回本次刚创建、同schema、完整库存/摘要匹配的快照，即使原库密文本来已损坏，也按原样返还；**这不豁免手动预览/恢复的密文校验**。物理损坏若导致强制快照失败，仍中止，不能绕过安全底线。
 - 其他schema不参与；外键循环、缺少候选数据对象、schema与程序不匹配会明确拒绝，不擅自关闭完整性约束。生产恢复测试禁止，集成/E2E只用media_tool_test与Redis DB15。
+
+恢复导入事务（含自动补偿和离线候选初始化）撤销旧管理员会话及内置 Emby `media_user_tokens`，在提交前校验媒体令牌已撤销；保留业务账号及设备元数据，播放器须重新登录。外部 JWT、115 授权与插件配置/KV 的既有回档语义不变。

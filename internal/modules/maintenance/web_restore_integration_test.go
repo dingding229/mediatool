@@ -22,6 +22,11 @@ import (
 // and the production state machine run unchanged.
 func webFixture(t *testing.T) (Engine, string) {
 	t.Helper()
+	return webFixtureWithSetup(t, false, nil)
+}
+
+func webFixtureWithSetup(t *testing.T, native bool, seed func(Engine)) (Engine, string) {
+	t.Helper()
 	e := fixture(t)
 	if os.Getenv("MEDIA_TOOL_TEST_LOCKED") != "1" {
 		t.Fatal("test-lock required")
@@ -69,6 +74,14 @@ func webFixture(t *testing.T) (Engine, string) {
 		}
 		return basePG(ctx, name, args, env, in, out)
 	}
+	if native {
+		for _, name := range []string{"psql", "pg_dump", "pg_restore"} {
+			if _, err := exec.LookPath(name); err != nil {
+				t.Fatalf("native PostgreSQL client required: %s: %v", name, err)
+			}
+		}
+		e.Run = runCommand
+	}
 	e.DB.Exec(context.Background(), `DELETE FROM audit_logs WHERE action='b4.live'`)
 	t.Cleanup(func() { e.DB.Exec(context.Background(), `DELETE FROM audit_logs WHERE action='b4.live'`) })
 	ctx := context.Background()
@@ -78,6 +91,9 @@ func webFixture(t *testing.T) (Engine, string) {
 	e.validateRestore = func(ctx context.Context, m Manifest, dir string) error {
 		// Production uses the same bundle/key/schema checks and a clone verifier.
 		return nil
+	}
+	if seed != nil {
+		seed(e)
 	}
 	target := newID()
 	if _, err := e.DB.Exec(ctx, `INSERT INTO ops_backups(id,origin)VALUES($1,'web-test')`, target); err != nil {

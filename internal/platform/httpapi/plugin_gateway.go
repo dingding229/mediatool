@@ -6,7 +6,6 @@ import (
 	"errors"
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 	"io"
-	"media-tool/internal/modules/maintenance"
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"net/http"
 	"strings"
@@ -117,15 +116,11 @@ func (a *API) pluginGateway(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if r.Method != "GET" && r.Method != "HEAD" && d.Auth != "admin" {
-			paused, e := maintenance.Paused(r.Context(), s.DB)
-			if e != nil {
-				pluginV2Error(w, e)
+			release := a.admitMaintenanceWrite(w, r)
+			if release == nil {
 				return
 			}
-			if paused {
-				fail(w, 423, "maintenance_paused", "维护期间暂停插件写入")
-				return
-			}
+			defer release()
 		}
 		a.dispatchPluginAPI(w, r, s, d, path)
 	}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	deferutil "media-tool/internal/platform/cleanup"
 	"path/filepath"
 	"strings"
@@ -33,15 +34,16 @@ type Payload struct {
 	ManifestDigest  string            `json:"manifestDigest,omitempty"`
 }
 type Request struct {
-	VerifiedAt *time.Time `json:"verifiedAt,omitempty"`
-	ID         string     `json:"id"`
-	Kind       string     `json:"kind"`
-	State      string     `json:"state"`
-	Payload    Payload    `json:"payload"`
-	Digest     string     `json:"digest"`
-	ExpiresAt  time.Time  `json:"expiresAt"`
-	CreatedAt  time.Time  `json:"createdAt"`
-	Message    string     `json:"message"`
+	VerifiedAt    *time.Time            `json:"verifiedAt,omitempty"`
+	ID            string                `json:"id"`
+	Kind          string                `json:"kind"`
+	State         string                `json:"state"`
+	Payload       Payload               `json:"payload"`
+	Digest        string                `json:"digest"`
+	ExpiresAt     time.Time             `json:"expiresAt"`
+	CreatedAt     time.Time             `json:"createdAt"`
+	Message       string                `json:"message"`
+	OutputReceipt *RestoreOutputReceipt `json:"outputReceipt,omitempty"`
 }
 
 func (e Engine) RegisterRelease(ctx context.Context, r Release) error {
@@ -78,14 +80,17 @@ func (e Engine) Releases(ctx context.Context) ([]Release, error) {
 	return out, rows.Err()
 }
 
-const requestColumns = `SELECT id::text,kind,state,payload,digest,expires_at,created_at,message,(SELECT verified_at FROM ops_request_verifications v WHERE v.request_id=ops_requests.id AND v.request_digest=ops_requests.digest AND v.revision=$1) FROM ops_requests`
+const requestColumns = `SELECT id::text,kind,state,payload,digest,expires_at,created_at,message,(SELECT verified_at FROM ops_request_verifications v WHERE v.request_id=ops_requests.id AND v.request_digest=ops_requests.digest AND v.revision=$1),output_receipt FROM ops_requests`
 
 func scanRequest(row interface{ Scan(...any) error }) (Request, error) {
 	var r Request
 	var raw []byte
-	e := row.Scan(&r.ID, &r.Kind, &r.State, &raw, &r.Digest, &r.ExpiresAt, &r.CreatedAt, &r.Message, &r.VerifiedAt)
+	e := row.Scan(&r.ID, &r.Kind, &r.State, &raw, &r.Digest, &r.ExpiresAt, &r.CreatedAt, &r.Message, &r.VerifiedAt, &r.OutputReceipt)
 	if e == nil {
 		e = json.Unmarshal(raw, &r.Payload)
+		if r.State == "executing" && r.OutputReceipt != nil {
+			r.Message = withOutputOutcome(r.Message, "prepared", r.OutputReceipt)
+		}
 	}
 	return r, e
 }
@@ -369,17 +374,34 @@ func (e Engine) PrepareCandidate(ctx context.Context, id string) (candidate stri
 	if err = e.copyCurrentMetadata(ctx, db); err != nil {
 		return "", err
 	}
-	_, err = db.Exec(ctx, restoreRuntimeSQL+`UPDATE ops_mode SET paused=true,reason='恢复后只读核对，须显式解除维护',revision=revision+1 WHERE singleton;`)
+	if err = prepareOfflineRestore(ctx, db, id); err != nil {
+		return "", err
+	}
+	receipt, err := e.recordOutputRestore(ctx, id, true, filepath.Join(dir, "outputs.tar"), m.Files)
 	if err != nil {
-		return "", err
+		return "", errors.New(withOutputOutcome(err.Error(), "failed", &receipt))
 	}
-	if _, err = db.Exec(ctx, `UPDATE ops_requests SET state='failed',message='恢复后旧批准无效' WHERE state IN('preview','approved','executing')AND id<>$1`, id); err != nil {
-		return "", err
-	}
-	if err = e.restoreOutputs(ctx, filepath.Join(dir, "outputs.tar"), m.Files); err != nil {
-		return "", err
+	// The original ledger has the outcome already; carry it into the candidate
+	// too, without treating preparation as a successful switch.
+	if err = writeOutputReceipt(ctx, db, id, true, receipt); err != nil {
+		return "", errors.New(withOutputOutcome(err.Error(), "failed", &receipt))
 	}
 	candidateCommitted = true
 	return name, nil
 }
+func prepareOfflineRestore(ctx context.Context, db *pgxpool.Pool, id string) error {
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer deferutil.Rollback(ctx, tx)
+	if _, err = tx.Exec(ctx, restoreRuntimeSQL+`UPDATE ops_mode SET paused=true,reason='恢复后只读核对，须显式解除维护',revision=revision+1 WHERE singleton;`); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE ops_requests SET state='failed',message='恢复后旧批准无效' WHERE state IN('preview','approved','executing')AND id<>$1`, id); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func stripID(s string) string { return strings.ReplaceAll(s, "-", "") }

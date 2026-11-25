@@ -18,6 +18,12 @@ const restoreRuntimeSQL = `
 DELETE FROM administrator_initialization;
 UPDATE administrator_sessions SET revoked_at=clock_timestamp();
 UPDATE media_user_sessions SET revoked_at=clock_timestamp();
+UPDATE public.media_user_tokens SET revoked_at=clock_timestamp() WHERE revoked_at IS NULL AND expires_at>clock_timestamp();
+DO $$ BEGIN
+ IF EXISTS(SELECT 1 FROM public.media_user_tokens WHERE revoked_at IS NULL AND expires_at>clock_timestamp()) THEN
+  RAISE EXCEPTION 'native media token revocation not verified';
+ END IF;
+END $$;
 UPDATE jobs SET state='paused',lease_until=NULL,lease_token=NULL,locked_by=NULL,last_error='恢复后需人工核对，不自动重放' WHERE state IN('pending','retry','running');
 UPDATE outbox_events SET dispatched_at=now() WHERE dispatched_at IS NULL;
 UPDATE notification_deliveries SET state='outcome_unknown',last_error='恢复后需人工核对，不自动重发' WHERE state IN('pending','retry','sending');

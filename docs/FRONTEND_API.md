@@ -388,7 +388,9 @@ X-Requested-With: media-tool
 
 `POST /api/v1/ops/restores/preview` 接收 `{backupId}`。全部public业务表随备份回退，不比较当前保护表是否与备份一致；当前业务数据为空/逻辑损坏也允许。候选校验完整性、当前master key下全部备份密文及向上迁移，高schema拒绝。`tableChanges`给出每张将回退表的当前/原备份行数差异；相同行数不表示不回退。
 
-`POST /api/v1/ops/restores/{id}/execute` 仍接收 `{digest,text}`，精确短语 `恢复 <备份UUID>`；CSRF及10分钟内新近登录不变。202仅排队，重复同ID不重复执行。执行先暂停/排空任务和写入，强制恢复前快照，单事务按外键顺序DELETE/COPY全部业务表。导入期间认证/进度SELECT可读；提交时账号、密码与会话一起切换，旧会话失效，401不证明失败或未执行。前端只记回执UUID，提示备份账号重新登录后进入运维恢复页GET结果，禁止自动重放POST。
+`POST /api/v1/ops/restores/{id}/execute` 仍接收 `{digest,text}`，精确短语 `恢复 <备份UUID>`；CSRF及10分钟内新近登录不变。202仅排队，重复同ID不重复执行。执行先暂停/排空任务和写入，强制恢复前快照，单事务按外键顺序DELETE/COPY全部业务表。导入期间认证/进度SELECT可读；提交时账号、密码与会话一起切换，旧会话失效，401不证明失败或未执行。前端只记回执UUID，提示备份账号重新登录后进入运维恢复页GET结果，禁止自动重放POST。 原生 Emby 的旧设备令牌在导入事务内撤销，设备资料保留；播放器需要重新登录（自动补偿同样如此）。
+
+回执 `outputReceipt` 为可选，`state` 是 `writing`（结果未完整保存）或 `recorded`，`files[].status` 为 `filled`、`exists_match`、`exists_mismatch`、`failed`；`published=true` 表示已经建立最终名，即使之后目录同步或 DB 导入失败。现存文件不一致时跳过，不改字节。DB 未提交、已补偿或结果待核对都不删除已补文件；请结合 `state`、`appliedBackup` 和 `message` 核对。外部业务写请求与管理员写请求共用恢复闸门；若恢复先进入队列，尚未提交的外部搜索/下载返回 423，不会先发 202。恢复前已完成的业务回执随业务数据按备份回退，读路由不变。
 
 `POST /api/v1/ops/restores/{id}/reconcile` 接收 `{confirm:true}`，仅核对中断提交标记及已应用备份的数据，不重跑。失败自动补偿，仍不明则unknown并保持维护。CLI使用同一执行器。API路径无增删；保留的协调账本、运行态安全归一化、磁盘不覆盖边界详见[部署恢复说明](deploy/backup.md)。
 

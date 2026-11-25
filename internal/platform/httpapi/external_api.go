@@ -5,6 +5,7 @@ import (
 	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/platform/buildinfo"
+	dbutil "media-tool/internal/platform/database"
 	"net/http"
 	"strconv"
 	"strings"
@@ -204,10 +205,12 @@ func (a *API) external(scope string, next http.HandlerFunc) http.HandlerFunc {
 			a.Deps.ExternalCalls.Submit(externalapi.Observation{KeyID: keyID, CallID: call, IP: ip, Source: source, Status: status})
 		}()
 		if r.Method != "GET" && r.Method != "HEAD" {
-			if paused, err := maintenance.Paused(r.Context(), a.Deps.DB); err != nil || paused {
-				fail(w, 423, "maintenance_paused", "维护期间暂停外部业务写入")
+			release := a.admitMaintenanceWrite(out, r)
+			if release == nil {
 				return
 			}
+			defer release()
+			r = r.WithContext(dbutil.WithCommitGuard(r.Context(), maintenance.CheckExternalWriteCommit))
 		}
 		next(out, r)
 	}

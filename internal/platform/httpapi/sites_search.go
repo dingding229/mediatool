@@ -3,8 +3,10 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"media-tool/internal/modules/maintenance"
 	"media-tool/internal/modules/search"
 	"media-tool/internal/modules/sites"
+	dbutil "media-tool/internal/platform/database"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -75,6 +77,13 @@ func (a *API) startSearch(w http.ResponseWriter, r *http.Request) {
 		id, cached, err = engine.StartMediaCached(r.Context(), body.Keyword, body.AccountIDs, body.Refresh, item)
 	} else {
 		id, cached, err = engine.StartCached(r.Context(), body.Keyword, body.AccountIDs, body.Refresh)
+	}
+	if err == nil && cached {
+		err = dbutil.CheckPrepared(r.Context(), a.Deps.DB)
+	}
+	if errors.Is(err, maintenance.ErrConflict) {
+		maintenanceWritePaused(w)
+		return
 	}
 	if err != nil {
 		fail(w, 400, "search_create_failed", err.Error())

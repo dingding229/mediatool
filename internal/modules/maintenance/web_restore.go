@@ -22,38 +22,40 @@ import (
 // Restore uses the existing private bundle, clone verifier and PostgreSQL clients.
 // It never edits Compose, the master key, downloads or an existing output file.
 type WebRestore struct {
-	BackupSchema  int64                `json:"backupSchema"`
-	ProgramSchema int64                `json:"programSchema"`
-	ID            string               `json:"id"`
-	BackupID      string               `json:"backupId"`
-	SnapshotID    *string              `json:"snapshotId"`
-	State         string               `json:"state"`
-	Digest        string               `json:"digest"`
-	Protected     map[string]string    `json:"-"`
-	TableChanges  []RestoreTableChange `json:"tableChanges"`
-	AppliedBackup *string              `json:"appliedBackup"`
-	Message       string               `json:"message"`
-	CreatedAt     time.Time            `json:"createdAt"`
-	ExpiresAt     time.Time            `json:"expiresAt"`
-	CompletedAt   *time.Time           `json:"completedAt"`
+	BackupSchema  int64                 `json:"backupSchema"`
+	ProgramSchema int64                 `json:"programSchema"`
+	ID            string                `json:"id"`
+	BackupID      string                `json:"backupId"`
+	SnapshotID    *string               `json:"snapshotId"`
+	State         string                `json:"state"`
+	Digest        string                `json:"digest"`
+	Protected     map[string]string     `json:"-"`
+	TableChanges  []RestoreTableChange  `json:"tableChanges"`
+	AppliedBackup *string               `json:"appliedBackup"`
+	Message       string                `json:"message"`
+	CreatedAt     time.Time             `json:"createdAt"`
+	ExpiresAt     time.Time             `json:"expiresAt"`
+	OutputReceipt *RestoreOutputReceipt `json:"outputReceipt,omitempty"`
+	CompletedAt   *time.Time            `json:"completedAt"`
 }
 
-var RestoreIncludes = []string{"全部 public 业务表：账号、115授权、连接、设置、云盘索引、媒体及STRM记录、插件配置/KV等均回到备份状态", "旧会话撤销；旧待执行任务暂停、投递和插件运行核对后再执行", "outputs.tar：仅补回缺失且摘要匹配的受管输出"}
+var RestoreIncludes = []string{"全部 public 业务表：账号、115授权、连接、设置、云盘索引、媒体及STRM记录、插件配置/KV等均回到备份状态", "旧管理员及原生 Emby 会话令牌撤销（保留设备）；旧待执行任务暂停、投递和插件运行核对后再执行", "outputs.tar：只补齐缺失且摘要匹配的受管输出；不一致的现存输出跳过"}
 var RestoreExcludes = []string{"主密钥、Compose、环境变量、其他 /data 配置", "现存STRM正文与输出、媒体、downloads、qbittorrent-downloads、logs", "Emby、CloudDrive2及其他外部服务配置/卷、插件磁盘数据", "仅备份目录、恢复回执、维护协调账本保留当前值（ops_mode/ops_releases/ops_backups/ops_drills/ops_requests/ops_request_verifications/ops_web_restores）；goose_db_version保留、ops_restore_commit由事务更新"}
-var RestoreWarnings = []string{"管理员账号与密码将回到备份时状态", "115授权将回到备份时的令牌，可能需要重新授权", "当前登录会话将失效；请使用备份中的账号密码重新登录，在运维页查看持久化结果", "外部API令牌、权限与插件启用/定时配置也会回退，请核对"}
+var RestoreWarnings = []string{"管理员账号与密码将回到备份时状态", "115授权将回到备份时的令牌，可能需要重新授权", "当前登录会话将失效；请使用备份中的账号密码重新登录，在运维页查看持久化结果", "外部API令牌、权限与插件启用/定时配置也会回退，请核对", "已补文件不会因数据库失败或补偿被删除，请查看逐文件回执"}
 
-const webRestoreColumns = `SELECT id::text,backup_id::text,snapshot_id::text,state,manifest_digest,protected,applied_backup::text,message,created_at,expires_at,completed_at,table_changes,(SELECT coalesce((b.manifest->>'schema')::bigint,0)FROM ops_backups b WHERE b.id=backup_id) FROM ops_web_restores`
+const webRestoreColumns = `SELECT id::text,backup_id::text,snapshot_id::text,state,manifest_digest,protected,applied_backup::text,message,created_at,expires_at,completed_at,table_changes,(SELECT coalesce((b.manifest->>'schema')::bigint,0)FROM ops_backups b WHERE b.id=backup_id),output_receipt FROM ops_web_restores`
 
 func scanWebRestore(row interface{ Scan(...any) error }) (WebRestore, error) {
 	var r WebRestore
 	var raw, changes []byte
-	err := row.Scan(&r.ID, &r.BackupID, &r.SnapshotID, &r.State, &r.Digest, &raw, &r.AppliedBackup, &r.Message, &r.CreatedAt, &r.ExpiresAt, &r.CompletedAt, &changes, &r.BackupSchema)
+	err := row.Scan(&r.ID, &r.BackupID, &r.SnapshotID, &r.State, &r.Digest, &raw, &r.AppliedBackup, &r.Message, &r.CreatedAt, &r.ExpiresAt, &r.CompletedAt, &changes, &r.BackupSchema, &r.OutputReceipt)
 	if err == nil {
 		err = json.Unmarshal(raw, &r.Protected)
 		if err == nil {
 			err = json.Unmarshal(changes, &r.TableChanges)
 		}
 		r.ProgramSchema = buildinfo.Schema
+		r.Message = withOutputOutcome(r.Message, r.State, r.OutputReceipt)
 	}
 	return r, err
 }
@@ -142,7 +144,7 @@ func (e Engine) previewWebRestore(ctx context.Context, id, requestID string) (We
 	if err != nil {
 		return WebRestore{}, err
 	}
-	if err = e.applyOutputs(ctx, filepath.Join(dir, "outputs.tar"), m.Files, false); err != nil {
+	if err = validateOutputArchive(ctx, filepath.Join(dir, "outputs.tar"), m.Files); err != nil {
 		return WebRestore{}, err
 	}
 	r := WebRestore{ID: requestID, BackupID: id}
@@ -196,8 +198,14 @@ func (e Engine) QueueWebRestore(ctx context.Context, id, digest, text string) (W
 	} else if !errors.Is(approvalErr, pgx.ErrNoRows) {
 		return r, approvalErr
 	}
-	var busy bool
-	if err = tx.QueryRow(ctx, `SELECT (SELECT paused FROM ops_mode WHERE singleton) OR EXISTS(SELECT 1 FROM ops_backups WHERE state IN('pending','running','deleting')) OR EXISTS(SELECT 1 FROM ops_drills WHERE state IN('pending','running')) OR EXISTS(SELECT 1 FROM ops_web_restores WHERE state IN('pending','running','unknown'))`).Scan(&busy); err != nil {
+	var paused, busy bool
+	if err = tx.QueryRow(ctx, `SELECT paused FROM ops_mode WHERE singleton FOR UPDATE`).Scan(&paused); err != nil {
+		return r, err
+	}
+	if paused {
+		return r, ErrConflict
+	}
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ops_backups WHERE state IN('pending','running','deleting')) OR EXISTS(SELECT 1 FROM ops_drills WHERE state IN('pending','running')) OR EXISTS(SELECT 1 FROM ops_web_restores WHERE state IN('pending','running','unknown'))`).Scan(&busy); err != nil {
 		return r, err
 	}
 	if busy {
@@ -347,7 +355,7 @@ func (e Engine) executeWebRestore(ctx context.Context, id string) (result error)
 	if err != nil {
 		return e.finishUnchanged(ctx, id, err)
 	}
-	if err = e.restoreOutputs(ctx, filepath.Join(dir, "outputs.tar"), m.Files); err != nil {
+	if _, err = e.recordOutputRestore(ctx, id, false, filepath.Join(dir, "outputs.tar"), m.Files); err != nil {
 		return e.finishUnchanged(ctx, id, err)
 	}
 	if err = e.restoreStage(ctx, id, "正在原子替换全部业务数据；提交前认证可读，提交后会话失效"); err != nil {
