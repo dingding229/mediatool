@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/modules/plugins/v2/sandbox"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"

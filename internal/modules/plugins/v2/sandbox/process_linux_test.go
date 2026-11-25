@@ -286,12 +286,16 @@ func TestPdeathsigAndLimitsConfiguration(t *testing.T) {
 		t.Fatal("process ownership attributes missing")
 	}
 }
-func TestLandlockUnavailableIsNonfatal(t *testing.T) {
-	ok, e := landlock("/none", "/none", nil, func() (uintptr, syscall.Errno) { return 0, unix.ENOSYS })
-	if e != nil || ok {
-		t.Fatal(ok, e)
+func TestLandlockUnavailableRequiresExplicitOverride(t *testing.T) {
+	for _, errno := range []syscall.Errno{unix.ENOSYS, unix.EOPNOTSUPP, unix.EPERM} {
+		ok, err := landlock("/none", "/none", nil, func() (uintptr, syscall.Errno) { return 0, errno })
+		if err != nil || ok || !errors.Is(RequireLandlock(ok, err, false), ErrLandlockUnavailable) || RequireLandlock(ok, err, true) != nil {
+			t.Fatal("unavailable ABI did not require override", errno, ok, err)
+		}
 	}
-	t.Log("unsupported ABI yields warning mode, not fail closed")
+	if RequireLandlock(true, nil, false) != nil || !errors.Is(RequireLandlock(false, unix.EIO, true), ErrLandlockUnavailable) {
+		t.Fatal("active isolation or genuine ruleset errors handled incorrectly")
+	}
 }
 
 func TestParentDeathReallyKillsChild(t *testing.T) {

@@ -88,22 +88,15 @@ func (a *API) tmdbImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer leave()
-	key := fmt.Sprintf("media-tool:tmdb-image-cache:%x", sha256.Sum256([]byte(size+"/"+file)))
-	value, err, _ := a.tmdbImages.flight.Do(key, func() (any, error) {
-		// This fetch belongs to all waiters. One disconnected client must not
-		// cancel others, and it still owns a slot until the bounded work ends.
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
-		defer cancel()
-		return a.loadTMDBThumbnail(ctx, key, size, file)
-	})
+	result := <-a.thumbnailFlight(r.Context(), size, file)
 	if r.Context().Err() != nil {
 		return
 	}
-	if err != nil {
+	if result.Err != nil {
 		http.Error(w, "image unavailable or invalid", http.StatusBadGateway)
 		return
 	}
-	image := value.(tmdbThumbnail)
+	image := result.Val.(tmdbThumbnail)
 	w.Header().Set("Content-Type", image.contentType)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -115,6 +108,17 @@ func (a *API) tmdbImage(w http.ResponseWriter, r *http.Request) {
 	if _, checkedErr := w.Write(image.body); checkedErr != nil {
 		deferutil.Report(checkedErr, "internal/platform/httpapi/tmdb_image.go:tmdbImage")
 	}
+}
+
+func (a *API) thumbnailFlight(ctx context.Context, size, file string) <-chan singleflight.Result {
+	key := fmt.Sprintf("media-tool:tmdb-image-cache:%x", sha256.Sum256([]byte(size+"/"+file)))
+	return a.tmdbImages.flight.DoChan(key, func() (any, error) {
+		// This fetch belongs to all waiters. One disconnected client must not
+		// cancel others, and each still owns its slot until bounded work ends.
+		bounded, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		return a.loadTMDBThumbnail(bounded, key, size, file)
+	})
 }
 
 func (a *API) loadTMDBThumbnail(ctx context.Context, key, size, file string) (tmdbThumbnail, error) {

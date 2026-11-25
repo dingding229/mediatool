@@ -6,9 +6,11 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/singleflight"
 	"image"
 	"image/png"
 	"io"
@@ -134,5 +136,50 @@ func TestRP34TMDBImageCacheHitDoesNotRefreshTTL(t *testing.T) {
 	}
 	if ttl, err := rc.PTTL(ctx, key).Result(); err != nil || ttl > time.Minute || ttl < 0 {
 		t.Fatal("cache hit rewrote expiry", ttl, err)
+	}
+}
+
+func TestRP34TMDBImageSameKeySharesOneFetch(t *testing.T) {
+	var data bytes.Buffer
+	if err := png.Encode(&data, image.NewRGBA(image.Rect(0, 0, 1, 1))); err != nil {
+		t.Fatal(err)
+	}
+	var calls atomic.Int32
+	start, release := make(chan struct{}), make(chan struct{})
+	manager := &integrations.Manager{OutboundHTTP: &http.Client{Transport: mediaCacheTransport(func(r *http.Request) (*http.Response, error) {
+		if calls.Add(1) == 1 {
+			close(start)
+		}
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return nil, r.Context().Err()
+		}
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(bytes.NewReader(data.Bytes()))}, nil
+	})}}
+	a := &API{Deps: Dependencies{Integrations: manager}}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	first := a.thumbnailFlight(ctx, "w500", "owned.png")
+	select {
+	case <-start:
+	case <-time.After(3 * time.Second):
+		t.Fatal("upstream not contacted")
+	}
+	second := a.thumbnailFlight(context.Background(), "w500", "owned.png")
+	cancel() // The fetch belongs to both clients, not the first caller's lifetime.
+	close(release)
+	for _, c := range []<-chan singleflight.Result{first, second} {
+		select {
+		case result := <-c:
+			if result.Err != nil || !result.Shared || !bytes.Equal(result.Val.(tmdbThumbnail).body, data.Bytes()) {
+				t.Fatal("fetch not shared", result.Err)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatal("coalesced fetch not completed")
+		}
+	}
+	if calls.Load() != 1 {
+		t.Fatal("duplicate upstream requests", calls.Load())
 	}
 }
