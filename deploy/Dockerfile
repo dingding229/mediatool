@@ -3,7 +3,7 @@ RUN apk add --no-cache ca-certificates curl
 COPY scripts/prepare-ip2region.sh /prepare-ip2region.sh
 RUN sh /prepare-ip2region.sh /out
 
-FROM --platform=$BUILDPLATFORM golang:1.26.9-alpine@sha256:cdfd4fe2da6b225d8b40c6b7a105736e548e83ff56d5d8f9394446eeb5eb84e0 AS plugin-resources
+FROM --platform=$BUILDPLATFORM golang:1.26.11-alpine@sha256:ecb67f987aa1a57794c91d19ade7ae0209f2f0f5496aaef9e6ae85ddf92d02ab AS plugin-resources
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
@@ -23,7 +23,7 @@ COPY internal/modules/plugins/v2/library.json /src/internal/modules/plugins/v2/l
 COPY internal/modules/messaging/testdata/notice-display.json /src/internal/modules/messaging/testdata/notice-display.json
 RUN npm run build
 
-FROM --platform=$BUILDPLATFORM golang:1.26.9-alpine@sha256:cdfd4fe2da6b225d8b40c6b7a105736e548e83ff56d5d8f9394446eeb5eb84e0 AS backend
+FROM --platform=$BUILDPLATFORM golang:1.26.11-alpine@sha256:ecb67f987aa1a57794c91d19ade7ae0209f2f0f5496aaef9e6ae85ddf92d02ab AS backend
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
