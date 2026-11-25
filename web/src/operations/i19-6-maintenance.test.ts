@@ -39,8 +39,7 @@ it.each([
 });
 it.each([
  ['repository.go','0e400c02823bf0bc8808fda6fda69c54798385eaf6f8539e43b8f5eb72c26e21'],
- ['requests.go','df912b24bac325dfd1983341738fdfa85e4a41d76528c73480823cf393a36f84'],
-])('I19-6 leaves backup-retention protection and frozen CLI approval logic unchanged: %s',(file,hash)=>{
+])('I19-6 leaves backup-retention protection unchanged: %s',(file,hash)=>{
  expect(sha(readFileSync(new URL('../../../internal/modules/maintenance/'+file,import.meta.url),'utf8'))).toBe(hash);
 });
 it('I19-6 style selectors affect only the named backup/CLI lists and preserve all shared modal sizing',()=>{

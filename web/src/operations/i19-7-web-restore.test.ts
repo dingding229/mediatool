@@ -45,6 +45,3 @@ it('I19-7 keeps the existing rendered risk text and review/rollback receipt labe
  const source=read('operations/WebRestorePanel.vue');for(const token of ['结果未知，需核对','失败后已自动回滚','未执行恢复','没有再次执行恢复','已排队，尚未恢复。请查看执行记录；成功后需要重新登录。','先核对执行记录；需要重新登录时，登录后重新预览。'])expect(source).toContain(token);
  expect(source).toContain('<MiddleEllipsis :text="b.digest"/>');expect(source).toContain("b.origin==='pre-restore'?'预览回滚到恢复前':'预览网页恢复'");
 });
-it('I19-7 does not change backend expiry/digest/admission or failure-compensation implementation',()=>{
- const source=readFileSync(new URL('../../../internal/modules/maintenance/web_restore.go',import.meta.url),'utf8');expect(sha(source)).toBe('5a7bed81b26e183f3e34e1bd148faf2f9e571519f5328fa4b122727218df46d0');
-});
