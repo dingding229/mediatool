@@ -35,8 +35,9 @@ func landlock(data, tmp string, extra []string, query func() (uintptr, syscall.E
 	if abi >= 3 {
 		rights |= unix.LANDLOCK_ACCESS_FS_TRUNCATE
 	}
-	attr := unix.LandlockRulesetAttr{Access_fs: rights}
-	fd, _, errno := unix.Syscall(unix.SYS_LANDLOCK_CREATE_RULESET, uintptr(unsafe.Pointer(&attr)), 8, 0)
+	attr := unix.LandlockRulesetAttr{Handled_access_fs: rights}
+	// Keep sending only the filesystem field; the rest of the ABI is unused.
+	fd, _, errno := unix.Syscall(unix.SYS_LANDLOCK_CREATE_RULESET, uintptr(unsafe.Pointer(&attr)), unsafe.Sizeof(attr.Handled_access_fs), 0)
 	if errno != 0 {
 		return false, errno
 	}
