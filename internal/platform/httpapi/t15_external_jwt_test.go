@@ -8,6 +8,7 @@ import (
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/platform/auth"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -122,7 +123,7 @@ func TestT15HTTPRepeatedDisclosureIsAuditedAndFailClosed(t *testing.T) {
 	c := cfg()
 	signer, _ := externalapi.NewSigner(strings.Repeat("a", 64))
 	session := legacyAdminCookie(c.SessionKey, time.Now().Add(time.Hour))
-	if _, e := (accounts.Repository{DB: store.DB}).Register(ctx, "t15_admin", "synthetic-password", session); e != nil {
+	if _, e := fixtures.Register(t, ctx, (accounts.Repository{DB: store.DB}), "t15_admin", "synthetic-password", session); e != nil {
 		t.Fatal(e)
 	}
 	h := New(c, Dependencies{DB: store.DB, ExternalSigner: signer})

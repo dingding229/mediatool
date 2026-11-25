@@ -23,3 +23,12 @@ func (a *API) observedAddress(r *http.Request) clientip.Address {
 	}
 	return clientip.ClientAddress(r, prefs.Value.TrustedProxyCIDRs)
 }
+
+// Security budgets use the verified transport address, not the public-only
+// statistics value. If proxy settings were unavailable, use the direct peer.
+func requestAdmissionIP(r *http.Request) string {
+	if evidence, ok := r.Context().Value(ipEvidenceKey{}).(ipEvidence); ok && evidence.err == nil {
+		return evidence.address.ClientIP
+	}
+	return clientip.AdmissionAddress(r, nil).ClientIP
+}

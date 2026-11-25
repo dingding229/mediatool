@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"media-tool/internal/adapters/clouddrive2"
 	"media-tool/internal/appcli"
+	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/acquisition"
 	sourcecatalog "media-tool/internal/modules/catalog"
 	"media-tool/internal/modules/externalapi"
@@ -236,6 +237,11 @@ func run() error {
 		}
 		return runWorker(ctx, c, db, manager, logger, *queue, rc, blocks)
 	case "server":
+		if db != nil {
+			if err = printAdminInitialization(ctx, db); err != nil {
+				return err
+			}
+		}
 		if stills != nil {
 			return supervise(ctx, blocks.Run, func(ctx context.Context) error {
 				return runServer(ctx, c, db, rc, manager, logger, logStore, blocks, stills)
@@ -265,6 +271,9 @@ func run() error {
 		if err != nil {
 			return err
 		}
+		if err = printAdminInitialization(ctx, db); err != nil {
+			return err
+		}
 		return supervise(ctx, blocks.Run,
 			func(ctx context.Context) error {
 				return runServer(ctx, c, db, rc, manager, logger, logStore, blocks, stills)
@@ -284,6 +293,12 @@ func run() error {
 		return fmt.Errorf("unknown role %q", *role)
 	}
 }
+func printAdminInitialization(parent context.Context, db *pgxpool.Pool) error {
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+	defer cancel()
+	return (accounts.Repository{DB: db}).PrintInitialization(ctx, os.Stdout)
+}
+
 func healthcheck() error {
 	address := os.Getenv("APP_ADDR")
 	if address == "" {

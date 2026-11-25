@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/platform/database"
 	"media-tool/internal/platform/logging"
 	"media-tool/internal/platform/ownerrecovery"
 	"media-tool/internal/platform/secrets"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -59,7 +61,7 @@ func TestPostgresWorkbenchMandatoryResetAndReadOnlyTools(t *testing.T) {
 		h.ServeHTTP(w, r)
 		return w
 	}
-	registered := call("POST", "/api/v1/auth/register", `{"username":"reset_admin","password":"Original-2026","confirmPassword":"Original-2026"}`, nil)
+	registered := call("POST", "/api/v1/auth/register", `{"username":"reset_admin","password":"Original-2026","confirmPassword":"Original-2026","initializationToken":"`+fixtures.Initialization(t, ctx, accounts.Repository{DB: db})+`"}`, nil)
 	if registered.Code != 201 {
 		t.Fatal(registered.Code)
 	}

@@ -7,6 +7,7 @@ import (
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/auth"
 	"media-tool/internal/platform/updateidle"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -101,7 +102,7 @@ func TestT14PasswordReauthenticationPersistsOnlyScopedGrantAndNoSecretAudit(t *t
 	c := cfg()
 	repo := accounts.Repository{DB: store.DB}
 	token := legacyAdminCookie(c.SessionKey, time.Now().Add(time.Hour))
-	account, e := repo.Register(ctx, "t14_fixture", "synthetic-password", token)
+	account, e := fixtures.Register(t, ctx, repo, "t14_fixture", "synthetic-password", token)
 	if e != nil {
 		t.Fatal(e)
 	}

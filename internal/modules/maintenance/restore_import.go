@@ -15,6 +15,7 @@ import (
 // These runtime leases must never resurrect external side effects from a backup.
 // Configuration, credentials, grants, KV, media and settings are not preserved.
 const restoreRuntimeSQL = `
+DELETE FROM administrator_initialization;
 UPDATE administrator_sessions SET revoked_at=clock_timestamp();
 UPDATE media_user_sessions SET revoked_at=clock_timestamp();
 UPDATE jobs SET state='paused',lease_until=NULL,lease_token=NULL,locked_by=NULL,last_error='恢复后需人工核对，不自动重放' WHERE state IN('pending','retry','running');

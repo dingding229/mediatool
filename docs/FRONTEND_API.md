@@ -53,11 +53,13 @@ Origin: https://admin.example.invalid
 
 - 搜索/订阅、手动下载、文件批次、扫描、115授权、jobs、插件snapshot/journal等宿主状态枚举也列在schema；qB/外部provider状态是开放值，不应把未知值强转“失败”。
 - `flow={phase,retryable,nextAction,reason}` 是**观察/指引**，不是操作授权。重试仍受服务端状态、lease、revision、digest、权限和确认约束。
-- 202/queued/approved 仅是排队/批准。请轮询原任务或读取 SSE 失效提示后GET；不要显示“已下载/已整理/已入库/已恢复”。SSE `/api/v1/jobs/events` 的 tick 不是持久事件总线，重连后GET对账。
+- 202/queued/approved 仅是排队/批准。请轮询原任务或读取 SSE 失效提示后GET；不要显示“已下载/已整理/已入库/已恢复”。SSE `/api/v1/jobs/events` 使用同源管理员会话 Cookie。连接建立后发出 `event: tick`、`data: {}`，随后每约 3 秒发一个心跳，写/刷帧超过 2 秒即结束（每会话最多 4 路、每 app 进程最多 64 路，满时 429）。不发送事件 ID，不支持 `Last-Event-ID` 或补放。断线、拒绝或不可用时关闭订阅，立即回退到 GET `/api/v1/jobs` 并按页面策略轮询；重连后仍以任务列表为准。HEAD 不占流配额，不发送正文。
 - 一般分页 `page/pageSize`；用户/部分列表用 `startIndex/limit`；数据视图等另有游标/offset。**具体默认值/上限看每个 operation**，不能全局硬编码同一上限。坏编码、重复、空字符串、负数、越界要保留服务端拒绝，禁止客户端悄悄折叠重复参数。
 - 标记 `revision` / `expectedRevision` / `fingerprint` / `digest` 的表单须保存读时基线；提交失败先读现状。确认参数默认false，不能在通用客户端自动补true。
 
 以下示例均为人工合成、脱敏值。标注“响应节选”的例子只展示相关字段，完整字段、nullable/omitempty、枚举和各状态响应看 OpenAPI。
+
+- `POST /api/v1/auth/register` 需要 JSON 字段 `initializationToken` 和两次相同的密码。初始化令牌由安装者提供，不随 `/auth/setup` 或注册响应返回；只放在注册 JSON 正文里，不进入 URL 或浏览器持久存储。空库缺失、无效或过期返回 403；已有管理员返回 409。
 
 ## 2. 登录、管理员账号与会话
 

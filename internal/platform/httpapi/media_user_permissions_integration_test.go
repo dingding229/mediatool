@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"media-tool/internal/modules/accounts"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -68,7 +70,7 @@ func TestNativeMediaUserPermissionGetPutContractAndNullableUpdates(t *testing.T)
 			t.Fatalf("status %d: %s", w.Code, w.Body.String())
 		}
 	}
-	w := call("POST", "/api/v1/auth/register", map[string]any{"username": "permission_admin", "password": "admin123", "confirmPassword": "admin123"}, nil)
+	w := call("POST", "/api/v1/auth/register", map[string]any{"username": "permission_admin", "password": "admin123", "confirmPassword": "admin123", "initializationToken": fixtures.Initialization(t, ctx, accounts.Repository{DB: db})}, nil)
 	expect(w, 201)
 	admin := w.Result().Cookies()[0]
 	fixture := readPermissionContract(t)

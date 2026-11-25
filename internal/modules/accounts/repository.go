@@ -48,12 +48,8 @@ func (r Repository) Registered(ctx context.Context) (bool, error) {
 	}
 	return exists, nil
 }
-func (r Repository) Register(ctx context.Context, username, password, token string, metadata ...SessionMetadata) (Account, error) {
+func (r Repository) Register(ctx context.Context, username, password, token, initializationToken string, metadata ...SessionMetadata) (Account, error) {
 	value, err := NormalizeUsername(username)
-	if err != nil {
-		return Account{}, err
-	}
-	hash, err := auth.HashPassword(password)
 	if err != nil {
 		return Account{}, err
 	}
@@ -65,15 +61,19 @@ func (r Repository) Register(ctx context.Context, username, password, token stri
 		return Account{}, ErrUnavailable
 	}
 	defer deferutil.Rollback(ctx, tx)
-	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(716)`); err != nil {
+	registered, err := lockRegistration(ctx, tx)
+	if err != nil {
 		return Account{}, ErrUnavailable
 	}
-	var exists bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM administrator_accounts)`).Scan(&exists); err != nil {
-		return Account{}, ErrUnavailable
-	}
-	if exists {
+	if registered {
 		return Account{}, ErrClosed
+	}
+	if err = consumeInitialization(ctx, tx, initializationToken); err != nil {
+		return Account{}, err
+	}
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		return Account{}, err
 	}
 	account := Account{ID: jobs.UUID(), Username: value, Version: 1}
 	if _, err = tx.Exec(ctx, `INSERT INTO administrator_accounts(id,username,password_hash)VALUES($1,$2,$3)`, account.ID, account.Username, hash); err != nil {

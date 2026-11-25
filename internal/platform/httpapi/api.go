@@ -744,36 +744,6 @@ func (a *API) createJob(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 201, j)
 }
-func (a *API) events(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("X-Accel-Buffering", "no")
-	controller := http.NewResponseController(w)
-	if checkedErr := controller.SetWriteDeadline(time.Time{}); checkedErr != nil && !errors.Is(checkedErr, http.ErrNotSupported) {
-		deferutil.Report(checkedErr, "internal/platform/httpapi/api.go:events")
-		return
-	}
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-	for {
-		// The SSE stream is an invalidation hint, not a durable event bus. Reconnect
-		// then GET /jobs to reconcile current PostgreSQL state.
-		if !a.authorized(r) {
-			return
-		}
-		if _, err := io.WriteString(w, "event: tick\ndata: {}\n\n"); err != nil {
-			return
-		}
-		if err := controller.Flush(); err != nil {
-			return
-		}
-		select {
-		case <-r.Context().Done():
-			return
-		case <-ticker.C:
-		}
-	}
-}
 func notImplemented(w http.ResponseWriter, r *http.Request) {
 	fail(w, 501, "not_implemented", "模块接口已预留，业务适配将在后续里程碑实现")
 }

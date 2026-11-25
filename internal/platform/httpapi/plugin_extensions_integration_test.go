@@ -226,14 +226,39 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 		}
 	}
 	path := "/api/v1/plugin/" + in.ID
+	type quota struct {
+		used   int
+		bucket string
+	}
+	readQuota := func() quota {
+		t.Helper()
+		var state quota
+		if err := s.DB.QueryRow(ctx, `SELECT coalesce(used,0),coalesce(bucket::text,'') FROM (SELECT $1::uuid AS id)b LEFT JOIN plugin_v2_api_limits l ON l.instance_id=b.id`, in.ID).Scan(&state.used, &state.bucket); err != nil {
+			t.Fatal(err)
+		}
+		return state
+	}
 	if status, _ := request("GET", path+"/admin", false, nil, ""); status != 401 {
 		t.Fatal("admin GET anonymous", status)
+	}
+	if status, _ := request("DELETE", path+"/public", false, nil, ""); status != 405 {
+		t.Fatal("undeclared method accepted", status)
+	}
+	if readQuota().used != 0 {
+		t.Fatal("anonymous or undeclared requests charged instance quota")
 	}
 	if status, b := request("GET", path+"/admin", true, nil, ""); status != 200 || !strings.Contains(string(b), "ticks") {
 		t.Fatal(status, string(b))
 	}
+	firstQuota := readQuota()
+	if firstQuota.used != 1 {
+		t.Fatal("authorized request did not charge instance quota")
+	}
 	if status, _ := request("POST", path+"/admin", true, nil, `{}`); status != 403 {
 		t.Fatal("CSRF", status)
+	}
+	if readQuota() != firstQuota {
+		t.Fatal("CSRF rejection charged instance quota")
 	}
 	if status, _ := request("POST", path+"/admin", true, map[string]string{"Origin": c.PublicURL, "X-Requested-With": "media-tool"}, `{}`); status != 200 {
 		items, _ := s.List(ctx, 0, 50)
@@ -253,6 +278,7 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 			t.Fatal(x.route, status)
 		}
 	}
+	lastQuota := readQuota()
 	if status, _ := request("GET", path+"/bearer", false, map[string]string{"Authorization": "Bearer " + c.STRMKey}, ""); status != 401 {
 		t.Fatal("global key accepted", status)
 	}
@@ -273,6 +299,9 @@ func TestPluginRealBinaryHTTPServicesTransferAndDisable(t *testing.T) {
 	}
 	if status, _ := request("GET", path+"/apikey", false, map[string]string{"X-API-Key": key.Token}, ""); status != 401 {
 		t.Fatal("revoked key accepted", status)
+	}
+	if readQuota() != lastQuota {
+		t.Fatal("invalid or revoked key charged instance quota")
 	}
 	wait("scheduled service writes KV", func() bool {
 		data, e := s.Inspect(ctx, in.ID, "")

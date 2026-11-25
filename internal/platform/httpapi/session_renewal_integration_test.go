@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -74,7 +75,7 @@ func TestT1LegacyEightHourTokenRenewalAndReadOnlySSEChecks(t *testing.T) {
 	if (auth.Auth{Key: c.SessionKey}).Verify(token, time.Now()) || !(auth.Auth{Key: c.SessionKey}).VerifySignature(token) {
 		t.Fatal("legacy fixture")
 	}
-	if _, e := repo.Register(ctx, "t1_legacy", "synthetic-password", token, accounts.SessionMetadata{IP: "8.8.8.8", UserAgent: "T1/1"}); e != nil {
+	if _, e := fixtures.Register(t, ctx, repo, "t1_legacy", "synthetic-password", token, accounts.SessionMetadata{IP: "8.8.8.8", UserAgent: "T1/1"}); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := s.DB.Exec(ctx, `UPDATE administrator_sessions SET created_at=now()-interval '9 hours',last_active_at=now(),expires_at=now()+interval '6 days 22 hours' WHERE token_digest=$1`, sum[:]); e != nil {
@@ -132,7 +133,7 @@ func TestT1InitialLoginCookieAndThirtyDayCap(t *testing.T) {
 	repo := accounts.Repository{DB: s.DB}
 	c := cfg()
 	seed, _ := (auth.Auth{Key: c.SessionKey}).Issue(time.Now())
-	if _, e := repo.Register(ctx, "t1_login", "synthetic-password", seed); e != nil {
+	if _, e := fixtures.Register(t, ctx, repo, "t1_login", "synthetic-password", seed); e != nil {
 		t.Fatal(e)
 	}
 	r := httptest.NewRequest("POST", "/api/v1/auth/login", strings.NewReader(`{"username":"t1_login","password":"synthetic-password"}`))
@@ -171,7 +172,7 @@ func TestT1InvalidationNeverRenewed(t *testing.T) {
 			c := cfg()
 			token, _ := (auth.Auth{Key: c.SessionKey}).Issue(time.Now())
 			sum := sha256.Sum256([]byte(token))
-			a, e := repo.Register(ctx, "t1_invalidate", "synthetic-password", token)
+			a, e := fixtures.Register(t, ctx, repo, "t1_invalidate", "synthetic-password", token)
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -226,7 +227,7 @@ func TestT1ConcurrentRequestsRefreshOneCookie(t *testing.T) {
 	c := cfg()
 	token, _ := (auth.Auth{Key: c.SessionKey}).Issue(time.Now())
 	sum := sha256.Sum256([]byte(token))
-	if _, e := repo.Register(ctx, "t1_parallel", "synthetic-password", token, accounts.SessionMetadata{IP: "8.8.8.8", UserAgent: "T1/1"}); e != nil {
+	if _, e := fixtures.Register(t, ctx, repo, "t1_parallel", "synthetic-password", token, accounts.SessionMetadata{IP: "8.8.8.8", UserAgent: "T1/1"}); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := s.DB.Exec(ctx, `UPDATE administrator_sessions SET created_at=now()-interval '2 hours',expires_at=now()+interval '6 days 22 hours',last_active_at=now() WHERE token_digest=$1`, sum[:]); e != nil {
@@ -263,7 +264,7 @@ func TestT1FailedRenewalDoesNotAdvertiseCookieSuccess(t *testing.T) {
 	c := cfg()
 	token, _ := (auth.Auth{Key: c.SessionKey}).Issue(time.Now())
 	sum := sha256.Sum256([]byte(token))
-	if _, e := repo.Register(ctx, "t1_failed_touch", "synthetic-password", token); e != nil {
+	if _, e := fixtures.Register(t, ctx, repo, "t1_failed_touch", "synthetic-password", token); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := s.DB.Exec(ctx, `UPDATE administrator_sessions SET expires_at=now()+interval '1 hour' WHERE token_digest=$1`, sum[:]); e != nil {

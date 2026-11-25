@@ -5,7 +5,6 @@ import (
 	"errors"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/auth"
-	"media-tool/internal/platform/clientip"
 	"net/http"
 	"time"
 )
@@ -34,20 +33,12 @@ func (a *API) checkAuthRequest(w http.ResponseWriter, r *http.Request) bool {
 		fail(w, 503, "auth_unavailable", "账号登录需要PostgreSQL和已执行的数据库迁移")
 		return false
 	}
-	host := clientip.Observed(r).ClientIP
+	return true
+}
+func (a *API) admitAuthAttempt(w http.ResponseWriter, r *http.Request) bool {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	globalAllowed, globalErr := a.accountRepository().TakeAttempt(ctx, a.Config.SessionKey, "global", 120)
-	if globalErr != nil {
-		fail(w, 503, "auth_unavailable", "登录服务暂不可用")
-		return false
-	}
-	if !globalAllowed {
-		w.Header().Set("Retry-After", "60")
-		fail(w, 429, "rate_limited", "登录请求过于频繁，请稍后重试")
-		return false
-	}
-	allowed, err := a.accountRepository().TakeAttempt(ctx, a.Config.SessionKey, "ip:"+host, 20)
+	allowed, err := a.accountRepository().AdmitAuthentication(ctx, a.Config.SessionKey, requestAdmissionIP(r))
 	if err != nil {
 		fail(w, 503, "auth_unavailable", "登录服务暂不可用")
 		return false
@@ -74,9 +65,10 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Confirm  string `json:"confirmPassword"`
+		Username            string `json:"username"`
+		Password            string `json:"password"`
+		Confirm             string `json:"confirmPassword"`
+		InitializationToken string `json:"initializationToken"`
 	}
 	if !decode(w, r, &in) {
 		return
@@ -104,6 +96,13 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "password_mismatch", "两次输入的密码不一致")
 		return
 	}
+	if !accounts.ValidInitializationToken(in.InitializationToken) {
+		invalidInitialization(w)
+		return
+	}
+	if !a.admitAuthAttempt(w, r) {
+		return
+	}
 	release := passwordPermit(w)
 	if release == nil {
 		return
@@ -114,9 +113,13 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 		fail(w, 500, "session_failed", "无法建立管理会话")
 		return
 	}
-	account, err := a.accountRepository().Register(ctx, in.Username, in.Password, token, adminSessionMetadata(r))
+	account, err := a.accountRepository().Register(ctx, in.Username, in.Password, token, in.InitializationToken, adminSessionMetadata(r))
 	if errors.Is(err, accounts.ErrClosed) {
 		fail(w, 409, "registration_closed", "管理员已注册，公开注册已关闭")
+		return
+	}
+	if errors.Is(err, accounts.ErrInitialization) {
+		invalidInitialization(w)
 		return
 	}
 	if err != nil {
@@ -125,6 +128,9 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 	}
 	a.Auth.SetCookieUntil(w, token, account.SessionExpiresAt, account.SessionObservedAt)
 	write(w, 201, map[string]any{"authenticated": true, "account": account, "registrationOpen": false})
+}
+func invalidInitialization(w http.ResponseWriter) {
+	fail(w, 403, "invalid_initialization_token", "初始化令牌缺失、无效或已过期，请核对启动控制台")
 }
 func (a *API) login(w http.ResponseWriter, r *http.Request) {
 	if !a.checkAuthRequest(w, r) {
@@ -137,8 +143,11 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	if len(in.Username) > 128 || len(in.Password) > 512 {
+	if _, err := accounts.NormalizeUsername(in.Username); err != nil || in.Password == "" || len(in.Password) > 512 {
 		fail(w, 401, "invalid_credentials", "账号或密码不正确")
+		return
+	}
+	if !a.admitAuthAttempt(w, r) {
 		return
 	}
 	release := passwordPermit(w)

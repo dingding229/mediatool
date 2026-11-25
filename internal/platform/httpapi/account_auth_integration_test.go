@@ -9,6 +9,7 @@ import (
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/auth"
 	"media-tool/internal/platform/database"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -35,7 +36,7 @@ func TestPostgresAdministratorRegistrationLoginLogoutAndPasswordChange(t *testin
 	if name != "media_tool_test" {
 		t.Fatal("isolated DB required")
 	}
-	cleanup := `TRUNCATE administrator_accounts,administrator_auth_limits CASCADE`
+	cleanup := `TRUNCATE administrator_accounts,administrator_auth_limits,administrator_initialization CASCADE`
 	if _, err = db.Exec(ctx, cleanup); err != nil {
 		t.Fatal(err)
 	}
@@ -70,10 +71,27 @@ func TestPostgresAdministratorRegistrationLoginLogoutAndPasswordChange(t *testin
 		t.Fatal("setup advertised old policy")
 	}
 	password := "abc123" // inclusive minimum; new password below tests inclusive maximum.
-	body, _ := json.Marshal(map[string]string{"username": "Media_Admin", "password": password, "confirmPassword": password})
-	w := call("POST", "/api/v1/auth/register", string(body), nil)
-	if w.Code != 201 || strings.Contains(w.Body.String(), password) {
+	repo := accounts.Repository{DB: db}
+	initialization := fixtures.Initialization(t, ctx, repo)
+	makeBody := func(token string) string {
+		body, _ := json.Marshal(map[string]string{"username": "Media_Admin", "password": password, "confirmPassword": password, "initializationToken": token})
+		return string(body)
+	}
+	if w := call("POST", "/api/v1/auth/register", makeBody(""), nil); w.Code != 403 {
+		t.Fatal("missing initialization token accepted", w.Code)
+	}
+	wrong := strings.Repeat("A", 43)
+	if w := call("POST", "/api/v1/auth/register", makeBody(wrong), nil); w.Code != 403 {
+		t.Fatal("wrong initialization token accepted", w.Code)
+	}
+	body := makeBody(initialization)
+	w := call("POST", "/api/v1/auth/register", body, nil)
+	if w.Code != 201 || strings.Contains(w.Body.String(), password) || strings.Contains(w.Body.String(), initialization) {
 		t.Fatal("registration failed or leaked", w.Code)
+	}
+	var remaining int
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM administrator_initialization`).Scan(&remaining); err != nil || remaining != 0 {
+		t.Fatal("initialization token was not atomically removed")
 	}
 	cookies := w.Result().Cookies()
 	if len(cookies) != 1 || !cookies[0].HttpOnly || cookies[0].SameSite != http.SameSiteStrictMode {
@@ -85,7 +103,7 @@ func TestPostgresAdministratorRegistrationLoginLogoutAndPasswordChange(t *testin
 	if strings.Contains(hash, password) || !strings.HasPrefix(hash, "$argon2id$") {
 		t.Fatal("plaintext password")
 	}
-	if w = call("POST", "/api/v1/auth/register", string(body), nil); w.Code != 409 {
+	if w = call("POST", "/api/v1/auth/register", body, nil); w.Code != 409 {
 		t.Fatal("second admin accepted")
 	}
 	if w = call("GET", "/api/v1/auth/session", "", first); w.Code != 200 || !strings.Contains(w.Body.String(), "media_admin") {
@@ -146,7 +164,7 @@ func TestPostgresAdministratorRegistrationLoginLogoutAndPasswordChange(t *testin
 	if w = call("GET", "/api/v1/auth/session", "", &http.Cookie{Name: auth.CookieName, Value: token}); w.Code != 401 {
 		t.Fatal("signature alone bypassed session DB")
 	}
-	if strings.Contains(logs.String(), password) || strings.Contains(logs.String(), next) || strings.Contains(logs.String(), first.Value) {
+	if strings.Contains(logs.String(), password) || strings.Contains(logs.String(), next) || strings.Contains(logs.String(), first.Value) || strings.Contains(logs.String(), initialization) {
 		t.Fatal("password/cookie logged")
 	}
 }
@@ -166,15 +184,16 @@ func TestPostgresConcurrentRegistrationHasOneWinnerAndDurableRateLimit(t *testin
 	if name != "media_tool_test" {
 		t.Fatal("test DB required")
 	}
-	cleanup := `TRUNCATE administrator_accounts,administrator_auth_limits CASCADE`
+	cleanup := `TRUNCATE administrator_accounts,administrator_auth_limits,administrator_initialization CASCADE`
 	db.Exec(ctx, cleanup)
 	defer db.Exec(ctx, cleanup)
 	r := accounts.Repository{DB: db}
+	initialization := fixtures.Initialization(t, ctx, r)
 	var wg sync.WaitGroup
 	results := make(chan error, 4)
 	for i := 0; i < 4; i++ {
 		wg.Go(func() {
-			_, err := r.Register(ctx, "admin_fixture", "Owned-pass-2026", "synthetic-session-"+time.Now().String())
+			_, err := r.Register(ctx, "admin_fixture", "Owned-pass-2026", "synthetic-session-"+time.Now().String(), initialization)
 			results <- err
 		})
 	}

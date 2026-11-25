@@ -8,8 +8,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dingding229/mediatool-plugin/sdk/contracts"
 )
@@ -84,5 +86,27 @@ func TestPrivatePluginLogPreservesOwnerApprovedOriginalURL(t *testing.T) {
 	}
 	if entry["url"] != "http://example.com"+raw || strings.Contains(output.String(), "redacted") {
 		t.Fatal("private request URL was altered", entry["url"])
+	}
+}
+
+func TestRP31PluginIngressBudgets(t *testing.T) {
+	var ingress pluginIngressBudget
+	now := time.Unix(60, 0)
+	for i := 0; i < pluginSourceRequests; i++ {
+		if !ingress.admit("10.0.0.1", now) {
+			t.Fatal("source capacity lost")
+		}
+	}
+	if ingress.admit("10.0.0.1", now) || !ingress.admit("10.0.0.2", now) || ingress.used != pluginSourceRequests+1 {
+		t.Fatal("source denial charged the shared ingress budget")
+	}
+	var global pluginIngressBudget
+	for i := 0; i < pluginIngressRequests; i++ {
+		if !global.admit(strconv.Itoa(i), now) {
+			t.Fatal("global ingress capacity lost")
+		}
+	}
+	if global.admit("other", now) || len(global.bySource) != pluginIngressRequests || !global.admit("other", now.Add(time.Minute)) || len(global.bySource) != 1 {
+		t.Fatal("global ingress cap or window reset failed")
 	}
 }

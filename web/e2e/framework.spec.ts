@@ -83,10 +83,13 @@ test('first registration creates the administrator and closes public registratio
  await page.getByLabel('管理员账号',{exact:true}).fill(username);await page.getByLabel('密码',{exact:true}).fill(password);await page.getByLabel('确认密码',{exact:true}).fill(password+'X')
  mkdirSync(screenshots,{recursive:true});await page.screenshot({path:resolve(screenshots,'account-registration-desktop.png'),fullPage:true,mask:[page.getByLabel('密码',{exact:true}),page.getByLabel('确认密码',{exact:true})]})
  await page.getByRole('button',{name:'注册并进入工作台'}).click();await expect(page.getByText('两次输入的密码不一致',{exact:true})).toBeVisible()
- await page.getByLabel('确认密码',{exact:true}).fill(password);const registered=page.waitForResponse(r=>r.url().endsWith('/auth/register'));await page.getByRole('button',{name:'注册并进入工作台'}).click();const reply=await registered;expect(reply.status()).toBe(201);expect(await reply.text()).not.toContain(password)
+ await page.getByLabel('确认密码',{exact:true}).fill(password);
+ await page.getByRole('button',{name:'注册并进入工作台'}).click();await expect(page.getByText('请输入初始化令牌',{exact:true})).toBeVisible()
+ const initializationToken=process.env.E2E_ADMIN_INITIALIZATION_TOKEN!;
+ await page.getByLabel('初始化令牌',{exact:true}).fill(initializationToken);const registered=page.waitForResponse(r=>r.url().endsWith('/auth/register'));await page.getByRole('button',{name:'注册并进入工作台'}).click();const reply=await registered;expect(reply.status()).toBe(201);const responseText=await reply.text();expect(responseText.includes(password)||responseText.includes(initializationToken)).toBe(false)
  await expect(page.getByRole('heading',{name:'首页'})).toBeVisible();const setup=await request.get('/api/v1/auth/setup');expect((await setup.json()).data.registrationOpen).toBe(false)
  const second=await request.post('/api/v1/auth/register',{headers:{'X-Requested-With':'media-tool'},data:{username:'second_admin',password,confirmPassword:password}});expect(second.status()).toBe(409)
- await page.getByRole('button',{name:'退出',exact:true}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible();await expect(page.getByLabel('确认密码',{exact:true})).toHaveCount(0)
+ await page.getByRole('button',{name:'退出',exact:true}).click();await expect(page.getByRole('heading',{name:'进入管理工作台',exact:true})).toBeVisible();await expect(page.getByLabel('确认密码',{exact:true})).toHaveCount(0);await expect(page.getByLabel('初始化令牌',{exact:true})).toHaveCount(0)
 })
 test('login, honest dependency states, module navigation and logout',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))

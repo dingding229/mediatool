@@ -15,6 +15,7 @@ async function ensureRegisteredAndLogin(page: import('@playwright/test').Page) {
     await page.getByLabel('管理员账号', { exact: true }).fill(username)
     await page.getByLabel('密码', { exact: true }).fill(password)
     await page.getByLabel('确认密码', { exact: true }).fill(password)
+    await page.getByLabel('初始化令牌', { exact: true }).fill(process.env.E2E_ADMIN_INITIALIZATION_TOKEN!)
     await page.getByRole('button', { name: '注册并进入工作台' }).click()
     await expect(page.getByRole('heading', { name: '首页' })).toBeVisible()
     return

@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/mediaprobe/admin"
 	"media-tool/internal/modules/mediaprobe/stillstore"
+	"media-tool/internal/platform/buildinfo"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/httpapi"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,7 +25,7 @@ import (
 func TestNativeProcessingAdminRealHTTPSettingsRetryGCAndBoundaries(t *testing.T) {
 	f := newStillFixture(t)
 	// These assertions execute the current runtime, not the historical DTOs.
-	if _, err := f.provider.UpTo(f.ctx, 73); err != nil {
+	if _, err := f.provider.UpTo(f.ctx, buildinfo.Schema); err != nil {
 		t.Fatal(err)
 	}
 	service, root := stillRuntime(t, f)
@@ -54,7 +57,7 @@ func TestNativeProcessingAdminRealHTTPSettingsRetryGCAndBoundaries(t *testing.T)
 			t.Fatal(w.Code, w.Body.String())
 		}
 	}
-	w := call("POST", "/api/v1/auth/register", map[string]string{"username": "processing_admin", "password": "Admin26Pass", "confirmPassword": "Admin26Pass"}, false, true)
+	w := call("POST", "/api/v1/auth/register", map[string]string{"username": "processing_admin", "password": "Admin26Pass", "confirmPassword": "Admin26Pass", "initializationToken": fixtures.Initialization(t, f.ctx, accounts.Repository{DB: f.pool})}, false, true)
 	check(w, 201)
 	cookie = w.Result().Cookies()[0]
 	base := "/api/v1/media-server/native/processing"

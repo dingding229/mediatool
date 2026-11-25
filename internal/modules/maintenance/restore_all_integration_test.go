@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"io"
+	"media-tool/tests/fixtures"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,7 +48,7 @@ func allBusinessFixture(t *testing.T) (Engine, string, string, string, string) {
 			t.Error(err)
 		}
 	})
-	account, err := (accounts.Repository{DB: e.DB}).Register(ctx, "restore_owner", "BackupPassword1", "backup-cookie")
+	account, err := fixtures.Register(t, ctx, (accounts.Repository{DB: e.DB}), "restore_owner", "BackupPassword1", "backup-cookie")
 	if err != nil {
 		t.Fatal(err)
 	}

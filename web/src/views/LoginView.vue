@@ -10,6 +10,7 @@ import StateView from '../ui/StateView.vue';
 let alive = true;
 const username = ref(''), password = ref(''), confirmation = ref(''), loading = ref(false), checking = ref(true), error = ref(''), registrationOpen = ref(false), available = ref(false), router = useRouter(), auth = useAuthStore();
 const loginRoute = useRoute();
+const initializationToken = ref('');
 async function loadSetup() {
   checking.value = true;
   error.value = '';
@@ -54,22 +55,29 @@ async function submit() {
       error.value = '两次输入的密码不一致';
       return;
     }
+    if (!initializationToken.value.trim()) {
+      error.value = '请输入初始化令牌';
+      return;
+    }
   }
   loading.value = true;
   error.value = '';
   try {
     if (registrationOpen.value)
-      await auth.register(username.value.trim(), password.value, confirmation.value);
+      await auth.register(username.value.trim(), password.value, confirmation.value, initializationToken.value.trim());
     else
       await auth.login(username.value.trim(), password.value);
     password.value = '';
     confirmation.value = '';
+    initializationToken.value = '';
     if (!alive)
       return;
     await router.push(auth.account?.mustChangePassword ? '/reset-password' : pendingRestore()?{path:'/ops',query:{tab:'maintenance',restore:pendingRestore()}}:'/dashboard');
   }
   catch (e) {
     error.value = e instanceof Error ? e.message : '登录或注册失败';
+    if (e instanceof APIError && (e.code === 'registration_closed' || e.code === 'invalid_initialization_token'))
+      initializationToken.value = '';
     if (e instanceof APIError && e.code === 'registration_closed') {
       registrationOpen.value = false;
       password.value = '';
@@ -85,10 +93,11 @@ onUnmounted(() => {
   alive = false;
   password.value = '';
   confirmation.value = '';
+  initializationToken.value = '';
 });
 </script>
 <template>
-  <AuthShell v-if="available||!checking" :title="registrationOpen?'注册管理员账号':'进入管理工作台'" :description="registrationOpen?'创建唯一管理员账号。完成注册后，将自动关闭公开注册。':'使用你的管理员账号和密码登录。'">
+  <AuthShell v-if="available||!checking" :title="registrationOpen?'注册管理员账号':'进入管理工作台'" :description="registrationOpen?'使用初始化令牌创建唯一管理员账号。完成后将自动关闭注册。':'使用你的管理员账号和密码登录。'">
     <p v-if="pendingRestore()||loginRoute.query.restore" role="status">恢复已切换账号与会话，当前登录可能已失效。请使用备份时的管理员账号和密码登录；恢复可能已经完成，登录后在运维页查看持久化结果，不要重复执行。</p>
     <p v-if="loginRoute.query.sessionRevoked==='1'" role="status">当前管理端登录已撤销，请重新登录。</p>
     <el-alert v-if="error" :title="error" type="error" :closable="false"/>
@@ -107,6 +116,11 @@ onUnmounted(() => {
       <div v-if="registrationOpen">
         <label for="admin-password-confirm">确认密码</label>
         <el-input id="admin-password-confirm" v-model="confirmation" type="password" show-password autocomplete="new-password" :maxlength="PASSWORD_MAX_LENGTH" :disabled="loading||checking"/>
+      </div>
+      <div v-if="registrationOpen">
+        <label for="admin-initialization-token">初始化令牌</label>
+        <el-input id="admin-initialization-token" v-model="initializationToken" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="admin-initialization-hint" :disabled="loading||checking"/>
+        <p id="admin-initialization-hint" class="field-hint">请向安装者获取一次性令牌，有效期 24 小时。</p>
       </div>
       <el-button type="primary" native-type="submit" :loading="loading" :disabled="checking||!available">{{registrationOpen?'注册并进入工作台':'进入工作台'}}</el-button>
     </form>

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"media-tool/tests/fixtures"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -63,7 +64,7 @@ func TestOfflineResetImmediatelyInvalidatesSlidingSession(t *testing.T) {
 		t.Fatal(e)
 	}
 	digest := sha256.Sum256([]byte(token))
-	if _, e = repo.Register(ctx, "t1_reset_admin", "original-password", token); e != nil {
+	if _, e = fixtures.Register(t, ctx, repo, "t1_reset_admin", "original-password", token); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = db.Exec(ctx, `UPDATE administrator_sessions SET expires_at=now()+interval '1 hour' WHERE token_digest=$1`, digest[:]); e != nil {

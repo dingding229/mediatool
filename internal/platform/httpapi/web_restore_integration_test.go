@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -38,7 +39,7 @@ func TestWebRestoreRecentSessionCSRFAndMaintenanceGate(t *testing.T) {
 	}
 	defer db.Exec(ctx, `TRUNCATE administrator_accounts,administrator_auth_limits,ops_web_restores,ops_backups CASCADE`)
 	token, _ := (auth.Auth{Key: cfg().SessionKey}).Issue(time.Now())
-	if _, err = (accounts.Repository{DB: db}).Register(ctx, "b4_admin", "owned-password", token); err != nil {
+	if _, err = fixtures.Register(t, ctx, (accounts.Repository{DB: db}), "b4_admin", "owned-password", token); err != nil {
 		t.Fatal(err)
 	}
 	backupID := "11111111-0000-4000-8000-000000000075"

@@ -10,6 +10,7 @@ import (
 	pluginv2 "media-tool/internal/modules/plugins/v2"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -24,6 +25,37 @@ func (a *API) pluginExtensionStore() (pluginv2.Store, error) {
 	}
 	return s, nil
 }
+
+// This bounded ingress window is independent of plugin IDs, routes and keys.
+// Valid callers still pass through it; only authenticated/authorized calls can
+// subsequently charge the smaller, durable instance budget.
+const pluginSourceRequests = 240
+const pluginIngressRequests = 3600
+
+type pluginIngressBudget struct {
+	mu       sync.Mutex
+	minute   int64
+	used     int
+	bySource map[string]int
+}
+
+var pluginIngress pluginIngressBudget
+
+func (b *pluginIngressBudget) admit(source string, now time.Time) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	window := now.Unix() / 60
+	if b.bySource == nil || b.minute != window {
+		b.minute, b.used, b.bySource = window, 0, make(map[string]int)
+	}
+	if b.used >= pluginIngressRequests || b.bySource[source] >= pluginSourceRequests {
+		return false
+	}
+	b.used++
+	b.bySource[source]++
+	return true
+}
+
 func (a *API) pluginGateway(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -47,16 +79,6 @@ func (a *API) pluginGateway(w http.ResponseWriter, r *http.Request) {
 		pluginV2Error(w, pluginv2.ErrInvalid)
 		return
 	}
-	s, e := a.pluginExtensionStore()
-	if e != nil {
-		pluginV2Error(w, e)
-		return
-	}
-	snap, d, e := s.Descriptor(ctx, id, "api", path)
-	if e != nil {
-		pluginV2Error(w, e)
-		return
-	}
 	headersSize := 0
 	for k, values := range r.Header {
 		headersSize += len(k)
@@ -68,13 +90,19 @@ func (a *API) pluginGateway(w http.ResponseWriter, r *http.Request) {
 		fail(w, 431, "plugin_headers_too_large", "插件请求头超限")
 		return
 	}
-	if e = s.LimitAPI(ctx, id); e != nil {
-		if errors.Is(e, pluginv2.ErrRateLimited) {
-			w.Header().Set("Retry-After", "60")
-			fail(w, 429, "plugin_rate_limited", "插件接口每分钟最多60次")
-		} else {
-			pluginV2Error(w, e)
-		}
+	if !pluginIngress.admit(requestAdmissionIP(r), time.Now()) {
+		w.Header().Set("Retry-After", "60")
+		fail(w, 429, "plugin_ingress_rate_limited", "插件入口请求过于频繁，请稍后重试")
+		return
+	}
+	s, e := a.pluginExtensionStore()
+	if e != nil {
+		pluginV2Error(w, e)
+		return
+	}
+	snap, d, e := s.Descriptor(ctx, id, "api", path)
+	if e != nil {
+		pluginV2Error(w, e)
 		return
 	}
 	call := func(w http.ResponseWriter, r *http.Request) {
@@ -173,6 +201,15 @@ func (a *API) dispatchPluginAPI(w http.ResponseWriter, r *http.Request, s plugin
 	operationKey := r.Header.Get("Idempotency-Key")
 	if len(operationKey) > 100 || len(r.Header.Values("Idempotency-Key")) > 1 {
 		pluginV2Error(w, pluginv2.ErrInvalid)
+		return
+	}
+	if e = s.LimitAPI(r.Context(), r.PathValue("instance")); e != nil {
+		if errors.Is(e, pluginv2.ErrRateLimited) {
+			w.Header().Set("Retry-After", "60")
+			fail(w, 429, "plugin_rate_limited", "插件接口每分钟最多60次")
+		} else {
+			pluginV2Error(w, e)
+		}
 		return
 	}
 	out, e := s.Invoke(r.Context(), r.PathValue("instance"), "api", d.ID, args, operationKey)

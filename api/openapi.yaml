@@ -1364,6 +1364,9 @@
       "HTTP200_3926035aa324": {
         "description": "原生Emby协议，PascalCase，不包管理员Envelope。"
       },
+      "HTTP200_397680a43f63": {
+        "description": "SSE元数据，HEAD没有响应正文。"
+      },
       "HTTP200_39d5510d04ae": {
         "content": {
           "application/json": {
@@ -4628,16 +4631,6 @@
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
       },
-      "HTTP200_cab0fdb4cb48": {
-        "content": {
-          "text/event-stream": {
-            "schema": {
-              "type": "string"
-            }
-          }
-        },
-        "description": "SSE事件流，客户端处理event/data与断线重连，不作为普通JSON响应解析。"
-      },
       "HTTP200_cbbc326b81a3": {
         "content": {
           "application/json": {
@@ -4879,6 +4872,17 @@
           }
         },
         "description": "实际业务响应；排队/批准不等于执行完成。"
+      },
+      "HTTP200_d26444febf6f": {
+        "content": {
+          "text/event-stream": {
+            "example": "event: tick\ndata: {}\n\n",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "任务失效提示，不是持久事件总线。"
       },
       "HTTP200_d462b140cb99": {
         "content": {
@@ -11336,6 +11340,39 @@
           "unauthorized"
         ]
       },
+      "HTTP403_0051757e11ac": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "csrf_rejected",
+                            "invalid_initialization_token"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "csrf_rejected",
+          "invalid_initialization_token"
+        ]
+      },
       "HTTP403_0f88b694a6d2": {
         "content": {
           "application/json": {
@@ -14564,7 +14601,17 @@
           "maintenance_paused"
         ]
       },
-      "HTTP429_1d5f5f43f88c": {
+      "HTTP429_3eb1791c4d8d": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/NativeError"
+            }
+          }
+        },
+        "description": "固定原生错误，ResponseStatus.ErrorCode/Message；429参照Retry-After，不显示驱动SQL。"
+      },
+      "HTTP429_4654fe67b3fa": {
         "content": {
           "application/json": {
             "schema": {
@@ -14578,8 +14625,7 @@
                       "properties": {
                         "code": {
                           "enum": [
-                            "plugin_busy",
-                            "plugin_rate_limited"
+                            "job_stream_limit"
                           ],
                           "type": "string"
                         }
@@ -14592,20 +14638,17 @@
           }
         },
         "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
-        "x-error-codes": [
-          "plugin_busy",
-          "plugin_rate_limited"
-        ]
-      },
-      "HTTP429_3eb1791c4d8d": {
-        "content": {
-          "application/json": {
+        "headers": {
+          "Retry-After": {
             "schema": {
-              "$ref": "#/components/schemas/NativeError"
+              "const": 3,
+              "type": "integer"
             }
           }
         },
-        "description": "固定原生错误，ResponseStatus.ErrorCode/Message；429参照Retry-After，不显示驱动SQL。"
+        "x-error-codes": [
+          "job_stream_limit"
+        ]
       },
       "HTTP429_67fa3fe812e4": {
         "content": {
@@ -14762,6 +14805,41 @@
         "x-error-codes": [
           "auth_busy",
           "rate_limited"
+        ]
+      },
+      "HTTP429_e2f1924b93d0": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "plugin_busy",
+                            "plugin_ingress_rate_limited",
+                            "plugin_rate_limited"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "plugin_busy",
+          "plugin_ingress_rate_limited",
+          "plugin_rate_limited"
         ]
       },
       "HTTP431_ad06584fd93b": {
@@ -16471,6 +16549,41 @@
         "x-error-codes": [
           "assets_unavailable",
           "integrations_unavailable",
+          "maintenance_busy",
+          "maintenance_unavailable"
+        ]
+      },
+      "HTTP503_42cb46f6b118": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "job_stream_unavailable",
+                            "maintenance_busy",
+                            "maintenance_unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。",
+        "x-error-codes": [
+          "job_stream_unavailable",
           "maintenance_busy",
           "maintenance_unavailable"
         ]
@@ -55206,6 +55319,12 @@
                   "confirmPassword": {
                     "type": "string"
                   },
+                  "initializationToken": {
+                    "description": "安装者从空库启动 stdout 取得的一次性令牌，24小时有效；不放在URL。",
+                    "pattern": "^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$",
+                    "type": "string",
+                    "writeOnly": true
+                  },
                   "password": {
                     "type": "string"
                   },
@@ -55215,7 +55334,9 @@
                 },
                 "required": [
                   "username",
-                  "password"
+                  "password",
+                  "confirmPassword",
+                  "initializationToken"
                 ],
                 "type": "object"
               }
@@ -55231,7 +55352,7 @@
             "$ref": "#/components/responses/HTTP400_eecfa28b9702"
           },
           "403": {
-            "$ref": "#/components/responses/HTTP403_7260f52f6ff9"
+            "$ref": "#/components/responses/HTTP403_0051757e11ac"
           },
           "409": {
             "$ref": "#/components/responses/HTTP409_a248a4147e51"
@@ -61764,11 +61885,11 @@
     },
     "/api/v1/jobs/events": {
       "get": {
-        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "description": "使用同源管理员会话Cookie。连接后发出tick及空JSON对象，此后约每3秒发送一次；单次写/刷帧期限2秒。每会话最多4路、每进程最多64路。不支持Last-Event-ID或重放；断线或不可用时关闭订阅并回退GET /api/v1/jobs。",
         "operationId": "get_api_v1_jobs_events_858af73b",
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_cab0fdb4cb48"
+            "$ref": "#/components/responses/HTTP200_d26444febf6f"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -61779,8 +61900,11 @@
           "423": {
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
+          "429": {
+            "$ref": "#/components/responses/HTTP429_4654fe67b3fa"
+          },
           "503": {
-            "$ref": "#/components/responses/HTTP503_8cc23fd4604e"
+            "$ref": "#/components/responses/HTTP503_42cb46f6b118"
           }
         },
         "security": [
@@ -61798,11 +61922,11 @@
         "x-source": "api.go:260"
       },
       "head": {
-        "description": "当前注册入口；业务调用顺序、确认/幂等/unknown处理见docs/FRONTEND_API.md。",
+        "description": "使用同源管理员会话Cookie。仅返回事件流元数据，不占订阅配额，不发送正文。",
         "operationId": "head_api_v1_jobs_events_858af73b",
         "responses": {
           "200": {
-            "$ref": "#/components/responses/HTTP200_cab0fdb4cb48"
+            "$ref": "#/components/responses/HTTP200_397680a43f63"
           },
           "401": {
             "$ref": "#/components/responses/HTTP401_171de3e3d8d6"
@@ -74273,7 +74397,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "429": {
-            "$ref": "#/components/responses/HTTP429_1d5f5f43f88c"
+            "$ref": "#/components/responses/HTTP429_e2f1924b93d0"
           },
           "431": {
             "$ref": "#/components/responses/HTTP431_ad06584fd93b"
@@ -74362,7 +74486,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "429": {
-            "$ref": "#/components/responses/HTTP429_1d5f5f43f88c"
+            "$ref": "#/components/responses/HTTP429_e2f1924b93d0"
           },
           "431": {
             "$ref": "#/components/responses/HTTP431_ad06584fd93b"
@@ -74451,7 +74575,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "429": {
-            "$ref": "#/components/responses/HTTP429_1d5f5f43f88c"
+            "$ref": "#/components/responses/HTTP429_e2f1924b93d0"
           },
           "431": {
             "$ref": "#/components/responses/HTTP431_ad06584fd93b"
@@ -74572,7 +74696,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "429": {
-            "$ref": "#/components/responses/HTTP429_1d5f5f43f88c"
+            "$ref": "#/components/responses/HTTP429_e2f1924b93d0"
           },
           "431": {
             "$ref": "#/components/responses/HTTP431_ad06584fd93b"
@@ -74693,7 +74817,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "429": {
-            "$ref": "#/components/responses/HTTP429_1d5f5f43f88c"
+            "$ref": "#/components/responses/HTTP429_e2f1924b93d0"
           },
           "431": {
             "$ref": "#/components/responses/HTTP431_ad06584fd93b"
@@ -74814,7 +74938,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "429": {
-            "$ref": "#/components/responses/HTTP429_1d5f5f43f88c"
+            "$ref": "#/components/responses/HTTP429_e2f1924b93d0"
           },
           "431": {
             "$ref": "#/components/responses/HTTP431_ad06584fd93b"
@@ -74935,7 +75059,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "429": {
-            "$ref": "#/components/responses/HTTP429_1d5f5f43f88c"
+            "$ref": "#/components/responses/HTTP429_e2f1924b93d0"
           },
           "431": {
             "$ref": "#/components/responses/HTTP431_ad06584fd93b"
@@ -75056,7 +75180,7 @@
             "$ref": "#/components/responses/HTTP423_9c3cf62a8281"
           },
           "429": {
-            "$ref": "#/components/responses/HTTP429_1d5f5f43f88c"
+            "$ref": "#/components/responses/HTTP429_e2f1924b93d0"
           },
           "431": {
             "$ref": "#/components/responses/HTTP431_ad06584fd93b"

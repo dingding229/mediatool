@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/auth"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,7 +19,7 @@ func TestAdminSessionEnumerationAndSingleRevoke(t *testing.T) {
 	c := cfg()
 	// Real auth repository, not a SessionReader stub; every request must consult PG.
 	accountToken, _ := (auth.Auth{Key: c.SessionKey}).Issue(time.Now())
-	account, err := repo.Register(ctx, "b2_admin", "owned-password", accountToken, accounts.SessionMetadata{IP: "8.8.8.8", UserAgent: "Original <UA> 原值"})
+	account, err := fixtures.Register(t, ctx, repo, "b2_admin", "owned-password", accountToken, accounts.SessionMetadata{IP: "8.8.8.8", UserAgent: "Original <UA> 原值"})
 	if err != nil {
 		t.Fatal(err)
 	}

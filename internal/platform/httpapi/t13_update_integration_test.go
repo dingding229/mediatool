@@ -4,6 +4,7 @@ import (
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/modules/jobs"
 	"media-tool/internal/platform/auth"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -19,7 +20,7 @@ func TestT13AuthenticatedUpdateStillRequiresCurrentPasswordAndConfirmation(t *te
 		t.Fatal(e)
 	}
 	name := "t13_" + strings.ReplaceAll(jobs.UUID(), "-", "")[:12]
-	if _, e = (accounts.Repository{DB: s.DB}).Register(ctx, name, "owned-pass-123", token); e != nil {
+	if _, e = fixtures.Register(t, ctx, (accounts.Repository{DB: s.DB}), name, "owned-pass-123", token); e != nil {
 		t.Fatal(e)
 	}
 	h := New(c, Dependencies{DB: s.DB})

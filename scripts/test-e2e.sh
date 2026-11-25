@@ -16,7 +16,7 @@ go run ./cmd/media-tool migrate -test-only -cleanup-test-plugins >/dev/null
 test_db_exec 'TRUNCATE ops_samples,ops_alerts,ops_requests,ops_drills,ops_backups,ops_releases CASCADE'
 test_db_exec "UPDATE ops_policy SET value='{}',revision=1,next_sample_at=now(),next_backup_at=now()+interval '1 day' WHERE singleton"
 test_db_exec "UPDATE ops_mode SET paused=false,reason='',revision=1 WHERE singleton"
-test_db_exec 'TRUNCATE site_template_loads,subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,external_api_keys,administrator_accounts,administrator_auth_limits,media_users,media_user_auth_limits CASCADE'
+test_db_exec 'TRUNCATE site_template_loads,subscriptions,integrations,cloud_files,storage_connections,media_items,media_assets,jobs,outbox_events,external_api_keys,administrator_accounts,administrator_auth_limits,administrator_initialization,media_users,media_user_auth_limits CASCADE'
 test_db_exec "INSERT INTO directory_classification(singleton,value,revision)VALUES(true,'null',1) ON CONFLICT(singleton) DO UPDATE SET value='null',revision=1"
 test_db_exec "INSERT INTO native_server_settings(server_id)VALUES(replace(gen_random_uuid()::text,'-','')) ON CONFLICT(singleton)DO NOTHING"
 test_db_exec "UPDATE native_server_settings SET enabled=false,probe_enabled=true,stills_enabled=true,revision=revision+1 WHERE singleton"
@@ -29,7 +29,7 @@ test_db_exec "INSERT INTO site_metric_schedule(singleton,enabled,cron_expression
 private=$(mktemp -d)
 private=$(cd "$private" && pwd -P)
 pids=()
-cleanup(){ for pid in "${pids[@]}";do kill "$pid" 2>/dev/null||true;done;for pid in "${pids[@]}";do wait "$pid" 2>/dev/null||true;done;test_db_exec "UPDATE network_proxy_settings SET tmdb_enabled=false,sites_enabled=false,url_ciphertext=''::bytea,revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE external_api_keys,administrator_accounts,administrator_auth_limits,media_users,media_user_auth_limits CASCADE' >/dev/null 2>&1 || true;test_db_exec "UPDATE player_ua_policy SET enabled=false,mode='off',revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE player_ua_rules,player_ua_observations,player_access_events' >/dev/null 2>&1 || true; rm -rf "$private"; }
+cleanup(){ for pid in "${pids[@]}";do kill "$pid" 2>/dev/null||true;done;for pid in "${pids[@]}";do wait "$pid" 2>/dev/null||true;done;test_db_exec "UPDATE network_proxy_settings SET tmdb_enabled=false,sites_enabled=false,url_ciphertext=''::bytea,revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE external_api_keys,administrator_accounts,administrator_auth_limits,administrator_initialization,media_users,media_user_auth_limits CASCADE' >/dev/null 2>&1 || true;test_db_exec "UPDATE player_ua_policy SET enabled=false,mode='off',revision=1 WHERE id='main'" >/dev/null 2>&1 || true;test_db_exec 'TRUNCATE player_ua_rules,player_ua_observations,player_access_events' >/dev/null 2>&1 || true; rm -rf "$private"; }
 trap cleanup EXIT INT TERM
 export MEMBER_ADDR=127.0.0.1:18087
 export AUTH_ALLOWED_ORIGINS=https://proxy.fixture.invalid
@@ -59,4 +59,8 @@ if [[ -n "${MEDIA_TOOL_STATIC_TEST_BINARY:-}" ]];then copy_test_app "$private/me
 
 for ((i=0;i<60;i++));do if curl -fsS --max-time 2 "$E2E_BASE_URL/readyz" >/dev/null 2>&1;then break;fi;sleep .5;done
 curl -fsS --max-time 2 "$E2E_BASE_URL/readyz" >/dev/null
+# Read only the synthetic token from this run's private startup log. Never echo it.
+E2E_ADMIN_INITIALIZATION_TOKEN=$(sed -nE 's/^\[ADMIN INITIALIZATION\] Token: ([A-Za-z0-9_-]{43}) \| .*/\1/p' "$private/server.log")
+[[ "$E2E_ADMIN_INITIALIZATION_TOKEN" =~ ^[A-Za-z0-9_-]{43}$ ]] || { echo 'Isolated startup did not issue an initialization token.' >&2; exit 1; }
+export E2E_ADMIN_INITIALIZATION_TOKEN
 npm run test:e2e --prefix web -- "$@"

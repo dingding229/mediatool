@@ -3,6 +3,8 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"media-tool/internal/modules/accounts"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -56,7 +58,7 @@ func TestNativeMediaUsersAdminManagementKeepsCredentialsPrivate(t *testing.T) {
 			t.Fatalf("want %d got %d %s", status, w.Code, w.Body.String())
 		}
 	}
-	w := call("POST", "/api/v1/auth/register", map[string]any{"username": "media_admin", "password": "admin123", "confirmPassword": "admin123"}, nil)
+	w := call("POST", "/api/v1/auth/register", map[string]any{"username": "media_admin", "password": "admin123", "confirmPassword": "admin123", "initializationToken": fixtures.Initialization(t, ctx, accounts.Repository{DB: db})}, nil)
 	expect(w, 201)
 	admin := w.Result().Cookies()[0]
 	expect(call("GET", "/api/v1/media-server/providers", nil, admin), 200)

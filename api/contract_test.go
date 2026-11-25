@@ -1021,6 +1021,10 @@ func (s *source) build(t *testing.T) object {
 							props["confirm"].(object)["const"] = true
 						}
 					}
+					if r.handler == "register" {
+						keys = append(keys, "confirmPassword", "initializationToken")
+						props["initializationToken"] = object{"type": "string", "writeOnly": true, "pattern": "^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$", "description": "安装者从空库启动 stdout 取得的一次性令牌，24小时有效；不放在URL。"}
+					}
 					if len(keys) > 0 {
 						o.body[0]["required"] = keys
 					}
@@ -1178,7 +1182,13 @@ func (s *source) build(t *testing.T) object {
 				}
 			}
 			if path == "/api/v1/jobs/events" {
-				responses = object{"200": object{"description": "SSE事件流，客户端处理event/data与断线重连，不作为普通JSON响应解析。", "content": object{"text/event-stream": object{"schema": object{"type": "string"}}}}}
+				if method == "head" {
+					op["description"] = "使用同源管理员会话Cookie。仅返回事件流元数据，不占订阅配额，不发送正文。"
+					responses = object{"200": object{"description": "SSE元数据，HEAD没有响应正文。"}}
+				} else {
+					op["description"] = "使用同源管理员会话Cookie。连接后发出tick及空JSON对象，此后约每3秒发送一次；单次写/刷帧期限2秒。每会话最多4路、每进程最多64路。不支持Last-Event-ID或重放；断线或不可用时关闭订阅并回退GET /api/v1/jobs。"
+					responses = object{"200": object{"description": "任务失效提示，不是持久事件总线。", "content": object{"text/event-stream": object{"schema": object{"type": "string"}, "example": "event: tick\ndata: {}\n\n"}}}}
+				}
 			}
 
 			for code, codes := range o.errors {
@@ -1188,6 +1198,9 @@ func (s *source) build(t *testing.T) object {
 				}
 				sort.Strings(names)
 				responses[strconv.Itoa(code)] = object{"description": "错误Envelope；code按分支判断，不通过message猜测是否可重试。", "x-error-codes": names, "content": object{"application/json": object{"schema": errorSchema(names)}}}
+			}
+			if path == "/api/v1/jobs/events" && method == "get" {
+				responses["429"].(object)["headers"] = object{"Retry-After": object{"schema": object{"type": "integer", "const": 3}}}
 			}
 			if r.admin {
 				for _, code := range []string{"401", "403"} {
@@ -1339,6 +1352,14 @@ func TestOpenAPIRoutesDTOAndGolden(t *testing.T) {
 		t.Fatal("OpenAPI must be JSON-compatible YAML", e)
 	}
 	if !bytes.Equal(actual, raw) {
+		generated := filepath.Join(t.TempDir(), "generated-openapi.yaml")
+		if err := os.WriteFile(generated, raw, 0600); err == nil {
+			diff, _ := exec.Command("diff", "-u", "openapi.yaml", generated).CombinedOutput()
+			if len(diff) > 8192 {
+				diff = diff[:8192]
+			}
+			t.Logf("OpenAPI diff (first 8 KiB):\n%s", diff)
+		}
 		t.Fatal("OpenAPI differs from router/Go DTO contract; run UPDATE_OPENAPI=1 go test ./api after reviewing the diff")
 	}
 	expected := map[string]bool{}

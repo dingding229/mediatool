@@ -7,6 +7,8 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"media-tool/internal/modules/accounts"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,6 +22,7 @@ import (
 	"media-tool/internal/modules/mediausers/nativeauth"
 	"media-tool/internal/modules/nativelibrary"
 	"media-tool/internal/modules/nativelibrary/catalog"
+	"media-tool/internal/platform/buildinfo"
 	"media-tool/internal/platform/config"
 	"media-tool/internal/platform/httpapi"
 )
@@ -27,10 +30,7 @@ import (
 func TestNativeManagementDevicesHistorySettingsRealHTTP(t *testing.T) {
 	f := newBrowseFixture(t)
 	// These assertions execute the current runtime, not the historical DTOs.
-	if _, err := f.provider.UpTo(f.ctx, 79); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.provider.UpTo(f.ctx, 79); err != nil {
+	if _, err := f.provider.UpTo(f.ctx, buildinfo.Schema); err != nil {
 		t.Fatal(err)
 	}
 	repo := mediausers.Repository{DB: f.pool}
@@ -99,7 +99,7 @@ func TestNativeManagementDevicesHistorySettingsRealHTTP(t *testing.T) {
 		call(admin, "GET", p, nil, false, 401)
 		call(member, "GET", p, nil, false, 404)
 	}
-	w := call(admin, "POST", "/api/v1/auth/register", map[string]string{"username": "management_admin", "password": "Admin123", "confirmPassword": "Admin123"}, true, 201)
+	w := call(admin, "POST", "/api/v1/auth/register", map[string]string{"username": "management_admin", "password": "Admin123", "confirmPassword": "Admin123", "initializationToken": fixtures.Initialization(t, f.ctx, accounts.Repository{DB: f.pool})}, true, 201)
 	cookie = w.Result().Cookies()[0]
 	w = call(admin, "GET", path+"/devices?limit=1", nil, false, 200)
 	var devices struct {

@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -42,7 +43,7 @@ func sessionRepository(t *testing.T) (context.Context, Repository, Account, []by
 		}
 		base.Close()
 	})
-	for _, name := range []string{"administrator_accounts", "administrator_sessions", "administrator_recovery_codes", "audit_logs"} {
+	for _, name := range []string{"administrator_accounts", "administrator_sessions", "administrator_recovery_codes", "administrator_initialization", "audit_logs"} {
 		if _, e = base.Exec(ctx, `CREATE TABLE `+pgx.Identifier{schema, name}.Sanitize()+` (LIKE public.`+pgx.Identifier{name}.Sanitize()+` INCLUDING ALL)`); e != nil {
 			t.Fatal(e)
 		}
@@ -58,7 +59,13 @@ func sessionRepository(t *testing.T) (context.Context, Repository, Account, []by
 	if e != nil {
 		t.Fatal(e)
 	}
-	account, e := repo.Register(ctx, "t1_admin", "synthetic-password", token, SessionMetadata{IP: "8.8.8.8", UserAgent: "T1/1"})
+	var console bytes.Buffer
+	if e = repo.PrintInitialization(ctx, &console); e != nil {
+		t.Fatal(e)
+	}
+	line, _ := strings.CutPrefix(console.String(), "[ADMIN INITIALIZATION] Token: ")
+	initialization, _, _ := strings.Cut(line, " | ")
+	account, e := repo.Register(ctx, "t1_admin", "synthetic-password", token, initialization, SessionMetadata{IP: "8.8.8.8", UserAgent: "T1/1"})
 	if e != nil {
 		t.Fatal(e)
 	}

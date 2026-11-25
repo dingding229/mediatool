@@ -4,6 +4,7 @@ import (
 	"context"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/auth"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,6 +21,8 @@ type b5SSEWriter struct {
 	cancel context.CancelFunc
 }
 
+func (b5SSEWriter) SetWriteDeadline(time.Time) error { return nil }
+
 func (w b5SSEWriter) Flush() { w.ResponseRecorder.Flush(); w.cancel() }
 func TestB5SSEAuthenticatedFlush(t *testing.T) {
 	if os.Getenv("MEDIA_TOOL_B5_PERF") != "1" {
@@ -28,7 +31,7 @@ func TestB5SSEAuthenticatedFlush(t *testing.T) {
 	ctx, s := pluginHTTPFixture(t)
 	c := cfg()
 	token, _ := (auth.Auth{Key: c.SessionKey}).Issue(time.Now())
-	if _, err := (accounts.Repository{DB: s.DB}).Register(ctx, "b5_sse", "synthetic-password", token); err != nil {
+	if _, err := fixtures.Register(t, ctx, (accounts.Repository{DB: s.DB}), "b5_sse", "synthetic-password", token); err != nil {
 		t.Fatal(err)
 	}
 	a := &API{Config: c, Deps: Dependencies{DB: s.DB}, Auth: auth.Auth{Key: c.SessionKey}}

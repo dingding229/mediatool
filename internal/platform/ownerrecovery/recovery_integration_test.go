@@ -6,6 +6,7 @@ import (
 	"errors"
 	"media-tool/internal/modules/accounts"
 	"media-tool/internal/platform/database"
+	"media-tool/tests/fixtures"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -32,7 +33,7 @@ func TestPostgresEmptyMarkerSingleUseAndExpiry(t *testing.T) {
 	db.Exec(ctx, "TRUNCATE administrator_accounts,administrator_auth_limits CASCADE")
 	defer db.Exec(ctx, "TRUNCATE administrator_accounts,administrator_auth_limits CASCADE")
 	repo := accounts.Repository{DB: db}
-	a, err := repo.Register(ctx, "owned_admin", "Original-2026", "owned-session")
+	a, err := fixtures.Register(t, ctx, repo, "owned_admin", "Original-2026", "owned-session")
 	if err != nil {
 		t.Fatal(err)
 	}

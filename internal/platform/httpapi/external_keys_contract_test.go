@@ -6,6 +6,7 @@ import (
 	"media-tool/internal/modules/externalapi"
 	"media-tool/internal/modules/integrations"
 	"media-tool/internal/platform/auth"
+	"media-tool/tests/fixtures"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -21,7 +22,7 @@ func TestExternalKeyListWireContractNeverContainsCredentialMaterial(t *testing.T
 	signer, _ := externalapi.NewSigner(strings.Repeat("a", 64))
 	c.SecretKey = strings.Repeat("a", 64)
 	token := legacyAdminCookie(c.SessionKey, time.Now().Add(time.Hour))
-	if _, e := (accounts.Repository{DB: s.DB}).Register(ctx, "external_fixture", "synthetic-password", token); e != nil {
+	if _, e := fixtures.Register(t, ctx, (accounts.Repository{DB: s.DB}), "external_fixture", "synthetic-password", token); e != nil {
 		t.Fatal(e)
 	}
 	api := &API{Config: c, Auth: auth.Auth{Key: c.SessionKey}, Deps: Dependencies{DB: s.DB, Integrations: manager, ExternalSigner: signer}}
