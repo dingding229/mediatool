@@ -43,19 +43,6 @@ jobs:
         with: {go-version: '1.26.11', cache: true}
       - name: Check Go module graph is tidy
         run: go mod tidy -diff
-      - name: R-P3-4 isolated contract generation
-        if: github.ref == 'refs/heads/dev'
-        run: UPDATE_OPENAPI=1 go test -count=1 ./api -run '^TestOpenAPIRoutesDTOAndGolden$'
-      - name: R-P3-4 export generated contract
-        if: github.ref == 'refs/heads/dev'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: rp34-openapi
-          path: api/openapi.yaml
-          retention-days: 1
-      - name: R-P3-4 require synchronized contract
-        if: github.ref == 'refs/heads/dev'
-        run: git diff --exit-code -- api/openapi.yaml
       - name: Scan Go source for reachable vulnerabilities
         env:
           GOOS: linux

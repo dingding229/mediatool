@@ -440,3 +440,5 @@ X-Requested-With: media-tool
 ### 外部 STRM（`library.read`）
 
 `GET /api/external/v1/strm` 固定只列有自有 STRM 的资产，`outputs` 仅含这类 STRM，不披露 NFO、字幕、图片输出或刮削报告。`kind` 不能扩大范围。`GET /api/external/v1/strm/{id}/content?path=…` 在打开磁盘文件前验证资产归属与记录的类型；NFO 和其他非 STRM 输出一律返回 `409 output_conflict`。通过校验仅返回磁盘上的原始 STRM，不重写正文。管理端原有 STRM/NFO 查看接口与权限不变。
+
+公开 TMDB 缩略图 `/api/v1/metadata/image/{size}/{file}` 达到每进程并发上限或来源额度时返回 `429 tmdb_image_rate_limited` 和 `Retry-After`。重试应服从该头，不立即并发重放。
