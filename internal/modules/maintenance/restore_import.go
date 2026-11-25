@@ -60,6 +60,9 @@ func (e Engine) importWebDump(ctx context.Context, file, id, backup string) erro
 	defer func() { deferutil.Close(sql, "private restore SQL"); _ = os.Remove(sql.Name()) }()
 	// pg_restore generates COPY data only; no archive DDL, triggers disabled, or
 	// sequence rewind is accepted. psql's single transaction covers every table.
+	// The generated SQL intentionally clears search_path before COPY. Migration
+	// 98 pins public routines' own search_path; do not rewrite the dump or disable
+	// its live triggers. The suffix sets a local path only for our own statements.
 	err = e.pg(ctx, "pg_restore", e.DSN, []string{"--file=-", "--data-only", "--schema=public", "--use-list=" + list, "--no-owner", "--no-acl"}, f, sql)
 	if err != nil {
 		return err

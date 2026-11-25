@@ -7,6 +7,12 @@
   ~/.ssh/mediatool_test) in /root/docker/mediatool (Compose project mediatool-test,
   marker .mediatool-test-owned). GitHub Actions remains the pre-merge gate.
   Leave every other directory/container on that host untouched.
+- Owner-approved 2026-11-25 disposable PostgreSQL exception: real web restore
+  acceptance may run only under `test-lock` on a newly created, run-labelled
+  PostgreSQL container with no published host ports. Only on that instance may
+  it create `media_tool_restore_*` candidate databases. Delete the run's
+  container, dedicated network, and volume after acceptance. This exception does
+  not apply to an existing test database or any other instance.
 - Frontend: Vue 3 + TypeScript + Vite + Naive UI + Pinia + TanStack Vue Query, API
   types generated from OpenAPI (openapi-typescript). The built SPA is embedded in the
   Go binary and served by app in the same container. Plugin UI stays Vue ESM.

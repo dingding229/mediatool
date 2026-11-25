@@ -104,6 +104,8 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > "$dir/media-tool.sha"
           echo "MEDIA_TOOL_STATIC_TEST_BINARY=$dir/media-tool" >> "$GITHUB_ENV"
           echo "MEDIA_TOOL_DEV_BIN=$dir/media-tool-dev" >> "$GITHUB_ENV"
+      - name: Real web restore and compensation in disposable PostgreSQL
+        run: bash scripts/test-web-restore-real.sh
       - name: Serial full race and real static AMD64 worker gate
         # Includes the former focused plugins/v2,httpapi,acquisition,messaging
         # step under the identical non-root/static-worker environment, once.

@@ -39,7 +39,7 @@ RUN test -n "$SOURCE_VERSION" && test -n "$SOURCE_REVISION" && test -n "$SOURCE_
 
 FROM alpine:3.23.8@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 AS runtime
 RUN apk add --no-cache ca-certificates postgresql18-client ffmpeg docker-cli docker-cli-compose && addgroup -S -g 65532 app && adduser -S -u 65532 -G app app && mkdir -p /data/plugins && mkdir -p /data/strm /data/downloads /data/files /data/native-media/stills && chown -R app:app /data
-LABEL org.opencontainers.image.schema="97"
+LABEL org.opencontainers.image.schema="98"
 WORKDIR /app
 COPY --from=backend /out/media-tool /app/media-tool
 COPY --from=backend /out/media-toolctl /app/media-toolctl
