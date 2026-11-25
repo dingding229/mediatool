@@ -1,5 +1,26 @@
 # Media Tool maintenance rules
 
+## Owner 2026-11-25 rules (override conflicting older rules below)
+
+- No local tests and no local builds/packaging. All builds (Go, Vite, Docker image)
+  and all tests run on the test server 185.99.135.205 (SSH port 6900, root, key
+  ~/.ssh/mediatool_test) in /root/docker/mediatool (Compose project mediatool-test,
+  marker .mediatool-test-owned). GitHub Actions remains the pre-merge gate.
+  Leave every other directory/container on that host untouched.
+- Frontend: Vue 3 + TypeScript + Vite + Naive UI + Pinia + TanStack Vue Query, API
+  types generated from OpenAPI (openapi-typescript). The built SPA is embedded in the
+  Go binary and served by app in the same container. Plugin UI stays Vue ESM.
+- Online upgrade: the app checks GitHub Releases of dingding229/mediatool, downloads
+  mediatool-linux-amd64 + SHA256SUMS + minisign signature into
+  /data/releases/<version>/, verifies checksum and signature (public key compiled in,
+  private key only in Actions Secrets), takes a pre-update DB dump, atomically
+  repoints /data/releases/current (keeping previous), and exits so the container
+  restart policy relaunches it through the image entrypoint, which runs current
+  (falling back to the image's own binary). Failed health check rolls back to
+  previous; DB restore only after an actual schema change. Once this lands, the F8b
+  docker.sock updater exception below is retired and must be removed. Docker Hub
+  images remain for first install/baseline; release still happens only from main tags.
+
 - Preserve Go/Vue modular architecture and PostgreSQL/Redis persistence.
 - Official deployment uses only the root `docker-compose.yml` and exactly app,
   postgres, redis. All application functions execute inside app. CloudDrive2 is the remaining external
