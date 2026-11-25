@@ -29323,6 +29323,7 @@
           "data_unavailable",
           "definition_missing",
           "definition_unsupported",
+          "external_media_removed",
           "permission_review_required",
           "resource_limit",
           "sandbox_unavailable",
