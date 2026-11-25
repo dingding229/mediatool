@@ -69,6 +69,7 @@ func TestPostgresProviderPagesAreCollectedAndPartialOutcomeIsNotFailedOrComplete
 				t.Fatal(err)
 			}
 			manager := integrations.NewManager(repository, config.Config{})
+			manager.OutboundHTTP = server.Client()
 			defer manager.Close()
 			engine.Connections = manager
 			runID := newRun()

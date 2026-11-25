@@ -15,7 +15,15 @@ func TestPluginV2ChecksMatchGoEnums(t *testing.T) {
 	}
 	for _, tt := range []struct{ column, typ string }{{"desired_state", "Desired"}, {"runtime_state", "State"}, {"availability", "Availability"}, {"reason", "Reason"}, {"kind", "Operation"}} {
 		expression := regexp.MustCompile(tt.column + ` IN\(([^)]*)\)`)
-		match := expression.FindStringSubmatch(string(raw))
+		definition := raw
+		if tt.column == "reason" {
+			// Compare the current CHECK, not the superseded 00062 definition.
+			definition, e = migrations.FS.ReadFile("00097_plugin_sandbox_reason.sql")
+			if e != nil {
+				t.Fatal(e)
+			}
+		}
+		match := expression.FindStringSubmatch(string(definition))
 		if len(match) != 2 {
 			t.Fatal("missing CHECK", tt.column)
 		}

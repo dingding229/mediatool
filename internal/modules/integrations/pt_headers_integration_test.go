@@ -52,6 +52,7 @@ func TestPostgresExplicitPTHeadersStayEncryptedAndRevisionBound(t *testing.T) {
 	vault, _ := secrets.New(strings.Repeat("a", 64))
 	repo := integrations.Repository{DB: db, Vault: vault}
 	manager := integrations.NewManager(repo, config.Config{})
+	manager.OutboundHTTP = server.Client()
 	defer manager.Close()
 	definition := fmt.Sprintf(`{"templateVersion":1,"id":"owned_encrypted_headers","name":"Owned","schema":"NexusPHP","domain":%q,"requests":{"user_basic_info":{"path":"/profile","parser":"JsonPath","required_headers":["Authorization","X-Csrf-Token"],"fields":{"is_login":{"selector":"ok"}}}}}`, server.URL)
 	if _, err = db.Exec(ctx, `INSERT INTO site_definitions(id,name,schema_name,source_commit,definition,common_definition,source_repository)VALUES('owned_encrypted_headers','Owned','NexusPHP','fixture',$1,'{}','dingding229/mediatool-site')`, json.RawMessage(definition)); err != nil {

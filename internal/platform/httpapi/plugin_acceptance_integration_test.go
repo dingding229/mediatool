@@ -173,6 +173,7 @@ func TestAcceptanceRealWorkerSiteSignInAndChallenge(t *testing.T) {
 				}
 			}))
 			defer fake.Close()
+			m.OutboundHTTP = fake.Client()
 			if e := (sites.Repository{DB: s.DB}).LoadGoTemplates(ctx, []string{"hdsky"}); e != nil {
 				t.Fatal(e)
 			}

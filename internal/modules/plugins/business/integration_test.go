@@ -226,6 +226,7 @@ func TestControlledSiteHostNeverExportsAuthAndTemplateSelection(t *testing.T) {
 		_, _ = io.WriteString(w, "COOKIE_SECRET signed")
 	}))
 	defer fake.Close()
+	h.Connections.OutboundHTTP = fake.Client()
 	account, e := h.Connections.Repository.Save(ctx, "", integrations.Input{Kind: "ptsite", Name: "owned", Enabled: true, Settings: map[string]any{"definitionId": "hdsky", "endpoint": fake.URL, "userId": "1"}, Secrets: map[string]string{"cookie": "session=COOKIE_SECRET"}})
 	if e != nil {
 		t.Fatal(e)

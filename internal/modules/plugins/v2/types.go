@@ -47,6 +47,7 @@ const (
 	NoReason              Reason = ""
 	WorkerFailed          Reason = "worker_failed"
 	SandboxUnavailable    Reason = "sandbox_unavailable"
+	ExternalMediaRemoved  Reason = "external_media_removed"
 	ResourceLimit         Reason = "resource_limit"
 	PermissionReview      Reason = "permission_review_required"
 	DefinitionMissing     Reason = "definition_missing"
